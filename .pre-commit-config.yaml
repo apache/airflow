@@ -16,6 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit, commit-msg]
 minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
@@ -31,7 +32,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: d77825acdc8ca194308680fa4f8385ae5bb61cb4  # frozen: v2.4.1
+    rev: 59dcae910a6ad4bbe8711275b854e3cd5c30f08b  # frozen: v2.5.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -248,6 +249,21 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: ts-sdk-lint
+        name: Lint TypeScript SDK
+        entry: ./ts-sdk/scripts/ci/prek/ts_sdk_lint.py
+        language: node
+        files: |
+          (?x)
+          ^ts-sdk/.*\.(js|ts|json)$
+        exclude: |
+          (?x)
+          ^ts-sdk/node_modules/.*|
+          ^ts-sdk/.pnpm-store/.*|
+          ^ts-sdk/dist/.*
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
@@ -452,7 +468,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
+    rev: e3eebf65325ccc992422292cb7a4baee967cf815  # frozen: v1.26.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -461,7 +477,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
+    rev: f723f0d30c48cd62f4c4617fbe8e62115ace3b72  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -562,7 +578,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.16']
+        additional_dependencies: ['ruff==0.15.19']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -730,6 +746,7 @@ repos:
           ^java-sdk/gradlew$|
           ^java-sdk/gradlew\.bat$|
           ^java-sdk/gradle|
+          ^java-sdk/scala_spark_example/src/main/scala/org/apache/airflow/example/ScalaSparkExample\.scala$|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -1093,6 +1110,14 @@ repos:
         files: changelog\.(rst|txt)$
         entry: ./scripts/ci/prek/changelog_duplicates.py
         pass_filenames: true
+      - id: check-no-conventional-commit-message
+        name: Check commit message is not Conventional Commits style
+        description: "Reject feat:/fix:/chore: style commit subjects - Airflow uses plain prose"
+        language: python
+        entry: ./scripts/ci/prek/check_no_conventional_commit_message.py
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: true
       - id: check-changelog-format
         name: Check changelog format
         language: python
@@ -1117,8 +1142,7 @@ repos:
           (?x)
           ^dev/breeze/.*$|
           ^\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/breeze_cmd_line\.py$|
-          ^generated/provider_dependencies\.json$
+          ^scripts/ci/prek/breeze_cmd_line\.py$$
         require_serial: true
         pass_filenames: false
       - id: check-example-dags-urls

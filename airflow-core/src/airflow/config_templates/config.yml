@@ -76,6 +76,37 @@ core:
       type: string
       example: ~
       default: "LocalExecutor"
+    mp_start_method:
+      description: |
+        The ``multiprocessing`` start method used by long-lived components that spawn worker
+        processes (the scheduler's ``LocalExecutor`` and the triggerer). Must be
+        one of the values returned by `multiprocessing.get_all_start_methods()
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__
+        on your platform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the
+        default) the platform default is used.
+
+        Python 3.14 changed the Unix default from ``fork`` to ``forkserver``. ``forkserver`` and
+        ``spawn`` children re-import Airflow instead of sharing it copy-on-write, which can sharply
+        increase the resident memory of the scheduler and triggerer. Set this to ``fork`` to restore
+        the pre-3.14 behaviour (note: forking a multi-threaded process is not always safe), or keep
+        ``forkserver`` and set ``[core] mp_forkserver_preload`` to recover most of the sharing.
+
+        This can be overridden per component by setting ``mp_start_method`` in the ``[scheduler]``,
+        ``[triggerer]`` or ``[dag_processor]`` section.
+      version_added: 3.3.0
+      type: string
+      example: "fork"
+      default: ~
+    mp_forkserver_preload:
+      description: |
+        Comma-separated list of modules the ``forkserver`` process should import up front, so that
+        forked workers inherit them copy-on-write instead of re-importing them. Only used when the
+        effective ``mp_start_method`` is ``forkserver``. See `multiprocessing.set_forkserver_preload
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_forkserver_preload>`__.
+      version_added: 3.3.0
+      type: string
+      example: "airflow,airflow.executors.local_executor"
+      default: ~
     auth_manager:
       description: |
         The auth manager class that airflow should use. Full import path to the auth manager class.
@@ -2045,13 +2076,36 @@ sdk:
         multiple times under different names with different ``kwargs`` (for
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
+
+        An entry may also carry an optional ``extra`` object for additional
+        information associated with the coordinator that the coordinator itself
+        does not receive; other components read it as needed. For example,
+        KubernetesExecutor reads ``extra.pod_template_file`` to launch a queue's
+        worker pod from a specific pod template, and
+        ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to
+        override the worker base image for that queue (both are required).
       version_added: 3.3.0
       type: string
       example: |
         {
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-            "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java", "jvm_args": ["-Xmx1024m"]}
+            "kwargs": {
+              "jars_root": ["/opt/airflow/java-bundles"],
+              "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
+              "jvm_args": ["-Xmx1024m"]
+            },
+            "extra": {
+              "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
+              "worker_container_repository": "apache/airflow",
+              "worker_container_tag": "3.3.0"
+            }
+          },
+          "go-sdk": {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {
+              "executables_root": ["/opt/airflow/executable-bundles"]
+            }
           }
         }
       default: ~
@@ -2453,7 +2507,8 @@ smtp:
       default: "30"
     smtp_retry_limit:
       description: |
-        Defines the maximum number of times Airflow will attempt to connect to the SMTP server.
+        Defines the number of times Airflow will attempt to connect to the SMTP server after the first
+        attempt.
       version_added: 2.0.0
       type: integer
       example: ~
@@ -2919,6 +2974,30 @@ triggerer:
       type: integer
       example: ~
       default: "1024"
+    shared_stream_ack_timeout:
+      description: |
+        Per-event ack timeout in seconds for shared-stream triggers running in ack mode (triggers that
+        override ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not finished
+        processing an event (moved past it and had its derived trigger events confirmed persisted) within
+        this window is force-failed. Other subscribers in the same group are unaffected; once they
+        resolve, the producer advances normally.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "300.0"
+    shared_stream_cohort_grace_period:
+      description: |
+        Seconds to delay the start of polling after a shared-stream group is created, giving triggers
+        that share the same key a window to subscribe before any event is broadcast. The default of 0
+        starts polling immediately (no delay). Set to a small positive value (e.g. 2.0–5.0) to reduce
+        the chance of triggers missing events on triggerer restart, when multiple triggers sharing a key
+        re-subscribe concurrently and the first to arrive would otherwise start the poll before the
+        others have joined. This is a best-effort window: triggers that take longer than the grace period
+        to re-subscribe can still miss events committed after polling starts.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "0.0"
 kerberos:
   description: ~
   options:
@@ -3202,11 +3281,11 @@ state_store:
     backend:
       description: |
         Full dotted path to the class that implements state storage for tasks and assets.
-        The class must be a subclass of ``BaseStateBackend``.
+        The class must be a subclass of ``BaseStoreBackend``.
         The default implementation persists state in the Airflow metadata database.
       version_added: 3.3.0
       type: string
-      example: "mypackage.state.CustomStateBackend"
+      example: "mypackage.state.CustomStoreBackend"
       default: "airflow.state.metastore.MetastoreBackend"
     clear_on_success:
       description: |

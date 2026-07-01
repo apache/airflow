@@ -91,10 +91,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "全螢幕",
-      "tooltip": "按下 {{hotkey}} 進入全螢幕"
-    },
     "info": "INFO",
     "noTryNumber": "無嘗試次數",
     "search": {
@@ -107,9 +103,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "navigation": "導航: {{arrow}}",
-    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F",
-    "toggleGroup": "展開/收合群組: 空白鍵"
+    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "返回",

@@ -72,6 +72,7 @@
     "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
+    "partitionDate": "資產分區日期",
     "partitionKey": "資產分區鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
@@ -145,6 +146,9 @@
     "selectDateRange": "選擇日期範圍",
     "startTime": "起始時間"
   },
+  "fullscreen": {
+    "tooltip": "按下 {{hotkey}} 進入全螢幕"
+  },
   "generateToken": "產生權杖",
   "key": "鍵",
   "logicalDate": "邏輯日期",
@@ -176,10 +180,14 @@
   "note": {
     "add": "新增筆記",
     "dagRun": "Dag 執行筆記",
+    "edit": "編輯筆記",
     "label": "筆記",
     "placeholder": "新增筆記...",
-    "taskInstance": "任務實例筆記"
+    "preview": "預覽",
+    "taskInstance": "任務實例筆記",
+    "write": "撰寫"
   },
+  "overallStatus": "整體狀態",
   "partitionedDagRun_one": "分區的 Dag 執行",
   "partitionedDagRun_other": "分區的 Dag 執行",
   "partitionedDagRunDetail": {
@@ -218,6 +226,47 @@
   },
   "selectLanguage": "選擇語言",
   "selected": "已選取",
+  "shortcuts": {
+    "categories": {
+      "code": "程式碼",
+      "dagView": "Dag 檢視",
+      "filters": "篩選條件",
+      "global": "全域",
+      "logs": "日誌",
+      "navigation": "導覽",
+      "runActions": "執行與任務動作",
+      "search": "搜尋"
+    },
+    "descriptions": {
+      "clearRun": "清除 $t(dagRun_one)",
+      "clearTaskInstance": "清除 $t(taskInstance_one)",
+      "downloadLogs": "下載日誌",
+      "focusFilterSearch": "聚焦篩選搜尋",
+      "focusLogSearch": "搜尋日誌",
+      "focusSearch": "聚焦搜尋",
+      "markRunFailed": "標記 $t(dagRun_one) 為失敗",
+      "markRunSuccess": "標記 $t(dagRun_one) 為成功",
+      "markTaskFailed": "標記 $t(task_one) 為失敗",
+      "markTaskGroupFailed": "標記 $t(taskGroup_one) 為失敗",
+      "markTaskGroupSuccess": "標記 $t(taskGroup_one) 為成功",
+      "markTaskSuccess": "標記 $t(task_one) 為成功",
+      "navigateTasks": "導覽$t(task_other)",
+      "openGraphFilters": "開啟圖形篩選條件",
+      "scrollBottom": "捲動至最下方",
+      "scrollTop": "捲動至最上方",
+      "searchDags": "搜尋 $t(dag_other)",
+      "showHelp": "顯示$t(shortcuts.title)",
+      "toggleExpand": "展開或收合所有群組",
+      "toggleFullscreen": "切換全螢幕",
+      "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleSource": "切換來源",
+      "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
+      "toggleTimestamp": "切換時間戳記",
+      "toggleWrap": "切換$t(wrap.wrap)"
+    },
+    "empty": "此頁面沒有可用的鍵盤快捷鍵。",
+    "title": "鍵盤快捷鍵"
+  },
   "showDetailsPanel": "顯示詳細資訊",
   "signedInAs": "登入身分：",
   "source": {
@@ -267,10 +316,13 @@
     "updatedAt": "更新時間"
   },
   "task": {
+    "dependsOnPast": "依賴過去",
     "documentation": "任務文件",
     "lastInstance": "最後實例",
     "operator": "任務操作器",
-    "triggerRule": "觸發規則"
+    "retries": "重試次數",
+    "triggerRule": "觸發規則",
+    "waitForDownstream": "等待下游"
   },
   "task_one": "任務",
   "task_other": "任務",
@@ -281,10 +333,12 @@
   "taskGroup_other": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
+    "additionalAttributes": "任務實例額外屬性",
     "dagVersion": "Dag 版本",
     "executor": "執行器",
     "executorConfig": "執行器設定",
     "hostname": "主機名稱",
+    "id": "ID",
     "maxTries": "最大嘗試次數",
     "pid": "PID",
     "pool": "資源池",
@@ -294,11 +348,13 @@
     "queuedWhen": "開始排隊時間",
     "renderedMapIndex": "渲染後的映射索引",
     "scheduledWhen": "開始排程時間",
+    "trigger": "觸發器",
     "triggerer": {
       "assigned": "指派的觸發者",
       "class": "觸發器類別",
       "createdAt": "觸發器建立時間",
       "id": "觸發器 ID",
+      "job": "觸發者工作",
       "latestHeartbeat": "最新觸發者心跳時間",
       "title": "觸發者資訊"
     },

@@ -33,7 +33,14 @@ from sqlalchemy import func, or_, select, tuple_
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, DagNotPartitionedError, NodeNotFound, TaskNotFound
+from airflow.exceptions import (
+    AirflowException,
+    DagNotPartitionedError,
+    InvalidPartitionKeyError,
+    NodeNotFound,
+    TaskNotFound,
+)
+from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -48,6 +55,7 @@ from airflow.serialization.definitions.deadline import DeadlineAlertFields, Seri
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -108,6 +116,7 @@ class SerializedDAG:
     rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
+    bundle_name: str | None = None
     end_date: datetime.datetime | None = None
     fail_fast: bool = False
     has_on_failure_callback: bool = False
@@ -173,6 +182,7 @@ class SerializedDAG:
                 "task_group",
                 "timetable",
                 "timezone",
+                "bundle_name",
             }
         )
 
@@ -462,20 +472,21 @@ class SerializedDAG:
         earliest to latest.
 
         For partitioned timetables, the iteration axis is ``partition_date``
-        rather than ``logical_date``. ``earliest`` and ``latest`` are resolved
-        to their respective day-bounds (timetable-timezone local midnight
-        converted to UTC) and the iteration walks the half-open interval
-        ``[resolve_day_bound(earliest.date()), resolve_day_bound(latest.date() + 1 day))``,
-        making ``latest``'s calendar date inclusive regardless of its time
-        component. Each yielded :class:`~airflow.timetables.base.DagRunInfo`
-        has ``logical_date=None``, ``data_interval=None``, and
+        rather than ``logical_date``. The wall-clock reading of *earliest* and
+        *latest* (year, month, day, hour, minute, second) is re-interpreted in
+        the timetable's own timezone before alignment, so a UTC-midnight bound
+        supplied by the production backfill path is treated as the
+        timetable-local midnight — a cross-timezone daily backfill therefore
+        includes the first day rather than silently dropping it. The window
+        granularity follows the timetable's own partition cadence and is *not*
+        rounded up to whole calendar days, so a single-hour window on an hourly
+        timetable yields only the partitions inside it (08:00 and 09:00, not the
+        full day's 24).  Each yielded
+        :class:`~airflow.timetables.base.DagRunInfo` has
+        ``logical_date=None``, ``data_interval=None``, and
         ``run_after == partition_date``; see
         :meth:`~airflow.timetables.base.Timetable.iter_partition_dagrun_infos`
         for details.
-
-        Day-bound dispatch is centralised here rather than at every call site
-        (e.g. backfill) so partitioned vs. non-partitioned routing is handled
-        once. See https://github.com/apache/airflow/pull/67537#discussion_r3386682447
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
@@ -486,8 +497,8 @@ class SerializedDAG:
 
         if self.timetable.partitioned:
             yield from self.timetable.iter_partition_dagrun_infos(
-                earliest_date=earliest.date(),
-                latest_date=latest.date(),
+                earliest=earliest,
+                latest=latest,
             )
             return
 
@@ -526,22 +537,33 @@ class SerializedDAG:
 
     def validate_partition_key(self, partition_key: str | None) -> None:
         """
-        Raise ``DagNotPartitionedError`` if a partition key is supplied for a non-partitioned Dag.
+        Validate a partition key against Dag partitioning state and content constraints.
 
-        A ``None`` value is always accepted. A non-``None`` value is accepted only when the
+        A ``None`` value is always accepted. A non-``None`` value must be a ``str``,
+        non-empty, at most ``ID_LEN`` characters long, and may only be supplied when the
         Dag's timetable sets ``partitioned=True`` or ``partitioned_at_runtime=True``.
 
         :param partition_key: The partition key to validate, or ``None`` to skip validation.
         :raises DagNotPartitionedError: When ``partition_key`` is not ``None`` and the Dag's
             timetable is neither ``partitioned`` nor ``partitioned_at_runtime``.
+        :raises InvalidPartitionKeyError: When ``partition_key`` is not a ``str``, is an empty
+            string, or exceeds ``ID_LEN`` characters.
         """
-        if (
-            partition_key is not None
-            and not self.timetable.partitioned
-            and not self.timetable.partitioned_at_runtime
-        ):
+        if partition_key is None:
+            return
+        if not self.timetable.partitioned and not self.timetable.partitioned_at_runtime:
             raise DagNotPartitionedError(
                 f"Dag '{self.dag_id}' is not a partitioned Dag and does not accept a partition_key."
+            )
+        if not isinstance(partition_key, str):
+            raise InvalidPartitionKeyError(
+                f"Expected partition_key to be a `str` or `None` but got `{type(partition_key).__name__}`"
+            )
+        if not partition_key.strip():
+            raise InvalidPartitionKeyError("partition_key must not be empty or whitespace-only.")
+        if len(partition_key) > ID_LEN:
+            raise InvalidPartitionKeyError(
+                f"partition_key must be at most {ID_LEN} characters; got {len(partition_key)}."
             )
 
     @provide_session
@@ -731,7 +753,15 @@ class SerializedDAG:
                             bundle_name=orm_dagrun.dag_model.bundle_name,
                         )
                     )
-                    stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+                    team_name = (
+                        DagModel.get_team_name(self.dag_id, session=session)
+                        if airflow_conf.getboolean("core", "multi_team")
+                        else None
+                    )
+                    stats.incr(
+                        "deadline_alerts.deadline_created",
+                        tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
+                    )
 
     @provide_session
     def set_task_instance_state(

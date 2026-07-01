@@ -501,6 +501,41 @@ class TestOutletEventAccessorPartitionKeys:
         accessor.add_partitions(["us", "eu"])
         assert accessor.partition_keys == {"us", "eu"}
 
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "",
+            "   ",
+            "\t",
+        ],
+        ids=["empty", "spaces", "tab"],
+    )
+    def test_add_partitions_rejects_empty_key(self, accessor, key):
+        with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
+            accessor.add_partitions(key)
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "a" * 250,
+            "a" * 251,
+        ],
+        ids=["at_limit_accepted", "over_limit_rejected"],
+    )
+    def test_add_partitions_length_boundary(self, accessor, key):
+        if len(key) <= accessor._PARTITION_KEY_MAX_LENGTH:
+            accessor.add_partitions(key)
+            assert key in accessor.partition_keys
+        else:
+            with pytest.raises(ValueError, match="at most 250 characters"):
+                accessor.add_partitions(key)
+
+    def test_add_partitions_rejects_any_invalid_in_list(self, accessor):
+        """A list with a mix of valid and invalid keys fails before any are added."""
+        with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
+            accessor.add_partitions(["us", ""])
+        assert accessor.partition_keys == set()
+
 
 class TestTriggeringAssetEventsAccessor:
     @pytest.fixture(autouse=True)
@@ -624,6 +659,24 @@ class TestTriggeringAssetEventsAccessor:
         assert accessor[Asset.ref(uri=uri)] == expected
         assert mock_supervisor_comms.send.mock_calls == [mock.call(GetAssetByUri(uri=uri))]
         assert _AssetRefResolutionMixin._asset_ref_cache
+
+    def test_partition_key_exposed(self):
+        """A consumed asset event's partition key is reachable via triggering_asset_events."""
+        event = {
+            "asset": {"name": "1", "uri": "1", "extra": {}},
+            "extra": {},
+            "source_task_id": "t1",
+            "source_dag_id": "d1",
+            "source_run_id": "r1",
+            "source_map_index": -1,
+            "source_aliases": [],
+            "timestamp": "2025-01-01T00:00:12Z",
+            "partition_key": "2024-01-15",
+        }
+        accessor = TriggeringAssetEventsAccessor.build(
+            [AssetEventDagRunReferenceResult.model_validate(event)]
+        )
+        assert [e.partition_key for e in accessor[Asset("1")]] == ["2024-01-15"]
 
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
         events = accessor[Asset("2")]
@@ -1243,23 +1296,12 @@ class TestTaskStateStoreAccessor:
             DeleteTaskStateStore(ti_id=self.TI_ID, key="job_id")
         )
 
-    def test_clear_default_sends_all_map_indices_false(self, mock_supervisor_comms):
+    def test_clear_sends_comms_message(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
 
-        mock_supervisor_comms.send.assert_called_once_with(
-            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=False)
-        )
-
-    def test_clear_all_map_indices_sends_flag_true(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-
-        TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear(all_map_indices=True)
-
-        mock_supervisor_comms.send.assert_called_once_with(
-            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=True)
-        )
+        mock_supervisor_comms.send.assert_called_once_with(ClearTaskStateStore(ti_id=self.TI_ID))
 
     def test_set_datetime_raises_validation_error(self, mock_supervisor_comms):
         """datetime is not JSON-serializable; callers must use .isoformat() first."""
@@ -1753,9 +1795,7 @@ class TestTaskStateStoreAccessorWithCustomBackend:
 
         assert "job_id" not in backend._actual_key_value_store
         assert "checkpoint" not in backend._actual_key_value_store
-        mock_supervisor_comms.send.assert_any_call(
-            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=False)
-        )
+        mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=self.TI_ID))
 
 
 class TestAssetStateStoreAccessorWithCustomBackend:
