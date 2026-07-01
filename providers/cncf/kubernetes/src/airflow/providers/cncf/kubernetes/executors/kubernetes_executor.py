@@ -53,6 +53,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annota
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -115,6 +116,10 @@ class KubernetesExecutor(BaseExecutor):
         )
         self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
+
+        # Maintain compatibility with older Airflow releases that do not define team_name.
+        if not hasattr(self, "team_name"):
+            self.team_name = None
 
     def _list_pods(self, query_kwargs):
         query_kwargs["header_params"] = {
@@ -196,6 +201,7 @@ class KubernetesExecutor(BaseExecutor):
             result_queue=self.result_queue,
             kube_client=self.kube_client,
             scheduler_job_id=self.scheduler_job_id,
+            team_name=self.team_name,
         )
 
     def _coordinator_extra(self, queue: str | None) -> dict[str, Any] | None:
@@ -639,7 +645,10 @@ class KubernetesExecutor(BaseExecutor):
         return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
-        with Stats.timer("kubernetes_executor.adopt_task_instances.duration"):
+        with Stats.timer(
+            "kubernetes_executor.adopt_task_instances.duration",
+            tags=prune_dict({"team_name": self.team_name}),
+        ):
             # Always flush TIs without queued_by_job_id
             tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
             scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
