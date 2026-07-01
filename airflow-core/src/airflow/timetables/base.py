@@ -517,6 +517,30 @@ class Timetable(Protocol):
         )
 
 
+def _encode_partition_mapper_for_fingerprint(mapper: PartitionMapper) -> dict[str, Any]:
+    """
+    Encode *mapper* for the rollup fingerprint, excluding ``rerun_policy``.
+
+    ``rerun_policy`` only decides what happens after a window has fired, not
+    which upstream keys the window requires, so it must not feed the fingerprint:
+    including it would let a policy-only edit discard in-flight APDRs, and would
+    make every pending partition run look stale on upgrade (stored fingerprints
+    pre-date the key). It lives only on :class:`RollupMapper`, so it is dropped
+    only there, at its known top-level location — gating on ``is_rollup`` keeps a
+    custom mapper that happens to use the same field name untouched.
+    """
+    # Local import to avoid a circular dependency: encoders.py imports Timetable
+    # from this module at the top level, so a top-level import here would cycle.
+    from airflow.partition_mappers.base import is_rollup
+    from airflow.serialization.encoders import encode_partition_mapper
+    from airflow.serialization.enums import Encoding
+
+    encoded = encode_partition_mapper(mapper)
+    if is_rollup(mapper):
+        encoded.get(Encoding.VAR, {}).pop("rerun_policy", None)
+    return encoded
+
+
 def compute_rollup_fingerprint(timetable: Timetable) -> dict:
     """
     Return the rollup-definition fingerprint for *timetable*.
@@ -532,6 +556,11 @@ def compute_rollup_fingerprint(timetable: Timetable) -> dict:
     trigger cleanup of a stale partition Dag run, leaving unrelated Dag edits
     untouched.
 
+    The mapper's ``rerun_policy`` is deliberately excluded (see
+    :func:`_encode_partition_mapper_for_fingerprint`): it governs only post-fire
+    behavior, not which upstream keys a window requires, so it must not
+    invalidate in-flight APDRs.
+
     Both the creation side (``assets/manager.py``) and the cleanup side
     (``jobs/scheduler_job_runner.py``) call this helper to guarantee the two
     fingerprints are computed by identical logic.
@@ -539,26 +568,22 @@ def compute_rollup_fingerprint(timetable: Timetable) -> dict:
     if not timetable.partitioned:
         return {}
 
-    # Local import to avoid a circular dependency: encoders.py already imports
-    # Timetable from this module at the top level, so a top-level import of
-    # encode_partition_mapper here would create a cycle.
     from airflow.serialization.definitions.assets import SerializedAssetNameRef, SerializedAssetUriRef
-    from airflow.serialization.encoders import encode_partition_mapper
 
     entries: dict[str, dict[str, Any]] = {}
     for unique_key, _ in timetable.asset_condition.iter_assets():
         mapper = timetable.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
         key = f"{unique_key.name}|{unique_key.uri}"
-        entries[key] = encode_partition_mapper(mapper)
+        entries[key] = _encode_partition_mapper_for_fingerprint(mapper)
 
     for s_asset_ref in timetable.asset_condition.iter_asset_refs():
         if isinstance(s_asset_ref, SerializedAssetNameRef):
             mapper = timetable.get_partition_mapper(name=s_asset_ref.name)
             key = f"{s_asset_ref.name}|"
-            entries[key] = encode_partition_mapper(mapper)
+            entries[key] = _encode_partition_mapper_for_fingerprint(mapper)
         elif isinstance(s_asset_ref, SerializedAssetUriRef):
             mapper = timetable.get_partition_mapper(uri=s_asset_ref.uri)
             key = f"|{s_asset_ref.uri}"
-            entries[key] = encode_partition_mapper(mapper)
+            entries[key] = _encode_partition_mapper_for_fingerprint(mapper)
 
     return dict(sorted(entries.items()))

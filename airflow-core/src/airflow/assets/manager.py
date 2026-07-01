@@ -43,6 +43,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.log import Log
+from airflow.partition_mappers.rerun_policy import RerunPolicy
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -672,6 +673,8 @@ class AssetManager(LoggingMixin):
                 )
                 target_partition_date = None
 
+            # Every mapper reports a rerun_policy. Non-rollup mappers report the HOLD as default.
+            rerun_policy = mapper.rerun_policy
             for target_key in target_keys:
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
@@ -679,8 +682,15 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
+                    rerun_policy=rerun_policy,
                     session=session,
                 )
+                # _get_or_create_apdr returns None only under RerunPolicy.IGNORE,
+                # when this event re-arrives for a window that already fired.
+                # The user chose to drop such late events, so skip writing the
+                # PartitionedAssetKeyLog below.
+                if apdr is None:
+                    continue
                 log_record = PartitionedAssetKeyLog(
                     asset_id=asset_id,
                     asset_event_id=event.id,
@@ -700,8 +710,9 @@ class AssetManager(LoggingMixin):
         target_dag: DagModel,
         rollup_fingerprint: dict,
         asset_id: int,
+        rerun_policy: RerunPolicy,
         session: Session,
-    ) -> AssetPartitionDagRun:
+    ) -> AssetPartitionDagRun | None:
         """
         Get or create an APDR.
 
@@ -728,6 +739,17 @@ class AssetManager(LoggingMixin):
           one, the producing assets disagree; picking one would be order-dependent, so the
           carried date is suppressed to ``None`` (and re-adoptable by a later event).
         - Otherwise (the dates agree, or this event carries none) the existing value is kept.
+
+        ``rerun_policy`` is a mapper's policy. Default is ``RerunPolicy.HOLD`` for non-rollup
+        mappers. It only takes effect when the latest APDR for this (key, dag) has already fired.
+
+        - A new APDR is stamped the neutral ``RerunPolicy.HOLD`` for a window's first materialization.
+        - A still-pending latest APDR is always reused so events accumulating toward a window's
+          first firing are untouched, regardless of policy.
+        - On a re-arrival, :attr:`RerunPolicy.IGNORE` returns ``None`` so the caller drops the
+          event (no APDR, no key log); otherwise a fresh APDR is created and stamped with the
+          policy, which the scheduler resolves to decide how to fire it
+          (:attr:`RerunPolicy.fires_immediately`).
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -771,12 +793,27 @@ class AssetManager(LoggingMixin):
                 )
                 return latest_apdr
 
+            # First materialization is not a re-run: stamp the neutral HOLD default.
+            stamped_policy = RerunPolicy.HOLD
+            if latest_apdr is not None:
+                # The latest APDR already fired, so this event re-arrives for an
+                # already-materialized window. Apply the rollup's rerun policy.
+                if rerun_policy.drops_event:
+                    cls.logger().debug(
+                        "Dropping re-arrived event for fired window key %s dag_id %s (IGNORE)",
+                        target_key,
+                        target_dag.dag_id,
+                    )
+                    return None
+                stamped_policy = rerun_policy
+
             apdr = AssetPartitionDagRun(
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
                 partition_key=target_key,
                 partition_date=target_partition_date,
                 rollup_fingerprint=rollup_fingerprint,
+                rerun_policy=stamped_policy.value,
             )
             session.add(apdr)
             session.flush()

@@ -46,6 +46,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
 from airflow.models.team import Team
 from airflow.partition_mappers.identity import IdentityMapper
+from airflow.partition_mappers.rerun_policy import RerunPolicy
 from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 from airflow.partition_mappers.window import WeekWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -275,6 +276,7 @@ class TestAssetManager:
                     target_dag=testing_dag,
                     rollup_fingerprint=rollup_fingerprint,
                     asset_id=asm.id,
+                    rerun_policy=RerunPolicy.HOLD,
                     session=_session,
                 ).id
             finally:
@@ -313,6 +315,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            rerun_policy=RerunPolicy.HOLD,
             session=session,
         )
         assert first.partition_date == timezone.parse("2026-05-20T00:00:00")
@@ -324,6 +327,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            rerun_policy=RerunPolicy.HOLD,
             session=session,
         )
         assert second.id == first.id  # same pending APDR
@@ -344,6 +348,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            rerun_policy=RerunPolicy.HOLD,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
@@ -372,6 +377,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            rerun_policy=RerunPolicy.HOLD,
             session=session,
         )
         # First event carries no date (e.g. producer had no partition_date).
@@ -398,6 +404,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            rerun_policy=RerunPolicy.HOLD,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=date_1, **kwargs)
@@ -525,6 +532,98 @@ class TestAssetManager:
         assert apdr.rollup_fingerprint == expected_fp, (
             "APDR rollup_fingerprint must match compute_rollup_fingerprint(timetable)"
         )
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("rerun_policy", "expect_created", "expect_stamped"),
+        [
+            pytest.param(RerunPolicy.REFRESH, True, "refresh", id="refresh-creates-refresh-apdr"),
+            pytest.param(RerunPolicy.HOLD, True, "hold", id="hold-creates-plain-apdr"),
+            pytest.param(RerunPolicy.IGNORE, False, None, id="ignore-drops-event"),
+        ],
+    )
+    def test_get_or_create_apdr_rerun_policy_after_window_fired(
+        self, session, dag_maker, rerun_policy, expect_created, expect_stamped
+    ):
+        """When the latest APDR already fired, the rerun policy decides what a re-arriving event does."""
+        suffix = rerun_policy.value
+        dag_id = f"rerun-consumer-{suffix}"
+        asm = AssetModel(uri=f"test://rerun/{suffix}", name=f"rerun_asset_{suffix}", group="asset")
+        session.add(asm)
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun(session=session)
+        session.commit()
+        consumer = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+
+        # Seed a fired APDR for ("all", consumer): a window that already materialized.
+        session.add(
+            AssetPartitionDagRun(
+                target_dag_id=dag_id,
+                partition_key="all",
+                created_dag_run_id=dr.id,
+                rollup_fingerprint={},
+            )
+        )
+        session.commit()
+
+        result = AssetManager._get_or_create_apdr(
+            target_key="all",
+            target_partition_date=None,
+            target_dag=consumer,
+            rollup_fingerprint={},
+            asset_id=asm.id,
+            rerun_policy=rerun_policy,
+            session=session,
+        )
+        total = session.scalar(
+            select(func.count())
+            .select_from(AssetPartitionDagRun)
+            .where(AssetPartitionDagRun.target_dag_id == dag_id)
+        )
+        if not expect_created:
+            assert result is None
+            assert total == 1  # only the fired APDR; the late event was dropped
+        else:
+            assert result is not None
+            assert result.created_dag_run_id is None
+            assert result.rerun_policy == expect_stamped
+            assert total == 2
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_reuses_pending_regardless_of_policy(self, session, dag_maker):
+        """A not-yet-fired APDR is always reused, so events accumulating toward the first firing are never dropped."""
+        asm = AssetModel(uri="test://reuse/", name="reuse_asset", group="asset")
+        session.add(asm)
+        with dag_maker(dag_id="reuse-consumer", session=session):
+            EmptyOperator(task_id="t")
+        session.commit()
+        consumer = session.scalar(select(DagModel).where(DagModel.dag_id == "reuse-consumer"))
+
+        first = AssetManager._get_or_create_apdr(
+            target_key="all",
+            target_partition_date=None,
+            target_dag=consumer,
+            rollup_fingerprint={},
+            asset_id=asm.id,
+            rerun_policy=RerunPolicy.REFRESH,
+            session=session,
+        )
+        # Even IGNORE reuses the still-pending APDR rather than dropping the event.
+        second = AssetManager._get_or_create_apdr(
+            target_key="all",
+            target_partition_date=None,
+            target_dag=consumer,
+            rollup_fingerprint={},
+            asset_id=asm.id,
+            rerun_policy=RerunPolicy.IGNORE,
+            session=session,
+        )
+        assert second is not None
+        assert second.id == first.id
+        assert second.rerun_policy == RerunPolicy.HOLD.value
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_register_asset_change_queues_stale_dag(self, session, mock_task_instance):
