@@ -1183,6 +1183,17 @@ metrics:
       type: string
       example: ~
       default: "True"
+    api_path_prefix_to_surface:
+      description: |
+        JSON mapping of HTTP path prefixes to API surface names used for the ``api_surface`` tag
+        on API metrics. Requests that do not match a configured prefix do not emit API metrics.
+
+        Add prefixes to identify additional routes, such as the Execution API or routes registered
+        by plugins. When prefixes overlap, the most specific prefix is used.
+      version_added: 3.3.0
+      type: string
+      example: '{"/api/v2": "public", "/ui": "ui", "/execution": "execution", "/my-plugin": "plugin"}'
+      default: '{"/api/v2": "public", "/ui": "ui"}'
     statsd_on:
       description: |
         Enables sending metrics to StatsD.

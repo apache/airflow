@@ -1015,6 +1015,36 @@ class TestConf:
         test_conf.validate()
         assert test_conf.is_validated is True
 
+    @pytest.mark.parametrize(
+        "path_prefix_to_surface",
+        [
+            pytest.param("not-json", id="invalid-json"),
+            pytest.param('{"plugin": "plugin"}', id="prefix-without-leading-slash"),
+            pytest.param('{"/plugin/": "plugin"}', id="prefix-with-trailing-slash"),
+            pytest.param('{"/plugin": ""}', id="empty-surface"),
+            pytest.param('{"/plugin": 1}', id="non-string-surface"),
+        ],
+    )
+    def test_validate_api_path_prefix_to_surface(self, path_prefix_to_surface):
+        test_conf = AirflowConfigParser(default_config="")
+        test_conf.read_dict({"metrics": {"api_path_prefix_to_surface": path_prefix_to_surface}})
+
+        with pytest.raises(AirflowConfigException, match="api_path_prefix_to_surface"):
+            test_conf.validate()
+
+    def test_validate_api_path_prefix_to_surface_reports_actual_type(self):
+        test_conf = AirflowConfigParser(default_config="")
+        test_conf.read_dict({"metrics": {"api_path_prefix_to_surface": "[]"}})
+
+        with pytest.raises(AirflowConfigException, match=r"must be a JSON object \(got list\)"):
+            test_conf.validate()
+
+    def test_validate_api_path_prefix_to_surface_valid_mapping(self):
+        test_conf = AirflowConfigParser(default_config="")
+        test_conf.read_dict({"metrics": {"api_path_prefix_to_surface": '{"/": "root", "/plugin": "plugin"}'}})
+
+        test_conf.validate()
+
     def test_validators_can_be_overridden_in_subclass(self):
         """Test that subclasses can override _validators to customize validation."""
 
