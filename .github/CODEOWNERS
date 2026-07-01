@@ -10,8 +10,8 @@
 /airflow-core/src/airflow/dag_processing @jedcunningham @ephraimbuddy
 
 # Helm Chart
-/chart/ @jedcunningham @hussein-awala @jscheffl @bugraoz93
-/helm-tests/ @jedcunningham @hussein-awala @jscheffl @bugraoz93
+/chart/ @jedcunningham @hussein-awala @jscheffl @bugraoz93 @Miretpl
+/helm-tests/ @jedcunningham @hussein-awala @jscheffl @bugraoz93 @Miretpl
 
 # Docs
 /docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
