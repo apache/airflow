@@ -31,7 +31,7 @@ from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, get_args
 
 import httpx
 import rich
@@ -561,6 +561,33 @@ class CommandFactory:
             help=arg_help,
         )
 
+    @staticmethod
+    def _is_required_scalar_field(field_type: Any, annotation: Any) -> bool:
+        return (
+            field_type.is_required()
+            and type(None) not in get_args(field_type.annotation)
+            and annotation in {str, int, float, bytes}
+        )
+
+    def _create_datamodel_field_arg(
+        self, field: str, field_type: Any, annotation: Any, parameter_key: str
+    ) -> Arg:
+        arg_type = self._python_type_from_string(annotation)
+        arg_help = f"{field} for {parameter_key} operation"
+        if self._is_required_scalar_field(field_type, annotation):
+            return self._create_positional_arg(
+                parameter_key=field,
+                arg_type=arg_type,
+                arg_help=arg_help,
+            )
+        return self._create_arg(
+            arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+            arg_type=arg_type,
+            arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+            arg_help=arg_help,
+            arg_default=False if annotation is bool else None,
+        )
+
     def _create_arg_for_non_primitive_type(
         self,
         parameter_type: str,
@@ -576,14 +603,9 @@ class CommandFactory:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
+                annotation = field_type.annotation
                 commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
-                    )
+                    self._create_datamodel_field_arg(field, field_type, annotation, parameter_key)
                 )
             else:
                 try:
@@ -592,13 +614,7 @@ class CommandFactory:
                     annotation = field_type.annotation
 
                 commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
-                    )
+                    self._create_datamodel_field_arg(field, field_type, annotation, parameter_key)
                 )
         return commands
 

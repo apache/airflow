@@ -60,13 +60,10 @@ def no_op_method():
 def test_args_create():
     return [
         (
-            "--dag-id",
+            "dag_id",
             {
                 "help": "dag_id for backfill operation",
-                "action": None,
-                "default": None,
                 "type": str,
-                "dest": None,
             },
         ),
         (
@@ -268,10 +265,10 @@ class TestCommandFactory:
                     for arg, test_arg in zip(sub_command.args, test_args_create):
                         assert arg.flags[0] == test_arg[0]
                         assert arg.kwargs["help"] == test_arg[1]["help"]
-                        assert arg.kwargs["action"] == test_arg[1]["action"]
-                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs.get("action") == test_arg[1].get("action")
+                        assert arg.kwargs.get("default") == test_arg[1].get("default")
                         assert arg.kwargs["type"] == test_arg[1]["type"]
-                        assert arg.kwargs["dest"] == test_arg[1]["dest"]
+                        assert arg.kwargs.get("dest") == test_arg[1].get("dest")
                         print(arg.flags)
                 elif sub_command.name == "list":
                     for arg, test_arg in zip(sub_command.args, test_args_list):
@@ -411,6 +408,55 @@ class TestCommandFactory:
         limit_arg = next(arg for arg in list_args if arg.flags[0] in ("limit", "--limit"))
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
+
+    def test_command_factory_required_body_scalar_fields_are_positional(self, tmp_path):
+        """Required scalar fields in generated request bodies become positional."""
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class ConnectionsOperations(BaseOperations):
+                    def create(self, connection: ConnectionBody) -> ConnectionResponse | ServerResponseError:
+                        self.response = self.client.post(
+                            "connections",
+                            json=connection.model_dump(mode="json"),
+                        )
+                        return ConnectionResponse.model_validate_json(self.response.content)
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=str(temp_file))
+        create_args = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "connections":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "create":
+                    create_args = list(sub_command.args)
+                    break
+
+        connection_id_arg = next(
+            arg for arg in create_args if arg.flags[0] in ("connection_id", "--connection-id")
+        )
+        conn_type_arg = next(arg for arg in create_args if arg.flags[0] in ("conn_type", "--conn-type"))
+        description_arg = next(
+            arg for arg in create_args if arg.flags[0] in ("description", "--description")
+        )
+
+        assert connection_id_arg.flags == ("connection_id",)
+        assert connection_id_arg.kwargs["type"] is str
+        assert "default" not in connection_id_arg.kwargs
+        assert conn_type_arg.flags == ("conn_type",)
+        assert conn_type_arg.kwargs["type"] is str
+        assert description_arg.flags == ("--description",)
+        assert description_arg.kwargs["default"] is None
+
+        parser = argparse.ArgumentParser()
+        for arg in create_args:
+            arg.add_to_parser(parser)
+        parsed = parser.parse_args(["test_conn", "postgres", "--description", "main db"])
+        assert parsed.connection_id == "test_conn"
+        assert parsed.conn_type == "postgres"
+        assert parsed.description == "main db"
 
 
 class TestCliConfigMethods:
