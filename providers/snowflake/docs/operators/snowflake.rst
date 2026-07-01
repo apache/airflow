@@ -154,3 +154,39 @@ An example usage of the SnowflakeSqlApiHook is as follows:
 
   Parameters that can be passed onto the operator will be given priority over the parameters already given
   in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).
+
+
+SnowflakeNotebookOperator
+=========================
+
+Use the :class:`SnowflakeNotebookOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeNotebookOperator>`
+to execute a `Snowflake Notebook <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`__
+via the Snowflake SQL API.
+
+This operator builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+:class:`SnowflakeSqlApiOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator>`.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook]
+    :end-before: [END howto_operator_snowflake_notebook]
+    :dedent: 4
+
+You can pass parameters to the notebook:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_with_params]
+    :end-before: [END howto_operator_snowflake_notebook_with_params]
+    :dedent: 4
+
+You can also run the operator in deferrable mode:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_deferrable]
+    :end-before: [END howto_operator_snowflake_notebook_deferrable]
+    :dedent: 4
