@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "Delegierte Tasks, die nicht für die Pool-Belegung zählen: {{count}}",
+  "deferredSlotsNotCountedTooltip": "Delegierte Tasks, die in der Leiste angezeigt werden, werden bei der Berechnung der Pool-Belegung berücksichtigt. Delegierte Tasks, die unterhalb der Leiste angezeigt werden, stammen aus Pools, die delegierte Tasks nicht für ihre Belegung berücksichtigen.",
   "favorite": {
     "favoriteDags_one": "Erster favorisierter Dag",
     "favoriteDags_other": "Top {{count}} favorisierte Dags",

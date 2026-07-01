@@ -76,6 +76,37 @@ core:
       type: string
       example: ~
       default: "LocalExecutor"
+    mp_start_method:
+      description: |
+        The ``multiprocessing`` start method used by long-lived components that spawn worker
+        processes (the scheduler's ``LocalExecutor`` and the triggerer). Must be
+        one of the values returned by `multiprocessing.get_all_start_methods()
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__
+        on your platform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the
+        default) the platform default is used.
+
+        Python 3.14 changed the Unix default from ``fork`` to ``forkserver``. ``forkserver`` and
+        ``spawn`` children re-import Airflow instead of sharing it copy-on-write, which can sharply
+        increase the resident memory of the scheduler and triggerer. Set this to ``fork`` to restore
+        the pre-3.14 behaviour (note: forking a multi-threaded process is not always safe), or keep
+        ``forkserver`` and set ``[core] mp_forkserver_preload`` to recover most of the sharing.
+
+        This can be overridden per component by setting ``mp_start_method`` in the ``[scheduler]``,
+        ``[triggerer]`` or ``[dag_processor]`` section.
+      version_added: 3.3.0
+      type: string
+      example: "fork"
+      default: ~
+    mp_forkserver_preload:
+      description: |
+        Comma-separated list of modules the ``forkserver`` process should import up front, so that
+        forked workers inherit them copy-on-write instead of re-importing them. Only used when the
+        effective ``mp_start_method`` is ``forkserver``. See `multiprocessing.set_forkserver_preload
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_forkserver_preload>`__.
+      version_added: 3.3.0
+      type: string
+      example: "airflow,airflow.executors.local_executor"
+      default: ~
     auth_manager:
       description: |
         The auth manager class that airflow should use. Full import path to the auth manager class.
@@ -520,6 +551,17 @@ core:
       type: boolean
       example: ~
       default: "False"
+    team_name_cache_ttl:
+      description: |
+        Number of seconds a Dag's owning team (resolved from its bundle) is cached in memory before it
+        is looked up again. The team is read on every Dag authorization check, including the grid
+        endpoints which re-poll continuously, so caching it avoids repeated Team-table joins. A team
+        reassignment takes up to this many seconds to take effect, and different API server workers may
+        briefly disagree during that window. Set to ``0`` to disable caching.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "30"
     rerun_with_latest_version:
       description: |
         Default value for whether cleared, rerun, or backfilled tasks should use
@@ -1767,6 +1809,22 @@ api:
       type: string
       example: ~
       default: ""
+    ssl_ca_file:
+      description: |
+        Path to the SSL CA file for the api server. Defaults to None.
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
+    ssl_cert_reqs:
+      description: |
+        Enable ssl certificate verification on the api server.
+        See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.verify_mode
+        Valid options are 'none', 'optional' or 'required'
+      version_added: ~
+      type: string
+      example: "required"
+      default: "none"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1805,21 +1863,14 @@ api:
     access_control_allow_origins:
       description: |
         Indicates whether the response can be shared with requesting code from the given origins.
-        Separate URLs with space.
+        Separate URLs with space. Wildcard (``*``) is not allowed: Airflow's API requires
+        credentialed CORS, which is incompatible with a wildcard origin per the CORS spec, and
+        browsers reject any response that combines the two. List exact origins instead
+        (for example ``https://airflow.mycompany.com``).
       type: string
       version_added: 2.2.0
       example: ~
       default: ""
-    access_control_allow_credentials:
-      description: |
-        Whether the FastAPI server includes the ``Access-Control-Allow-Credentials`` header on
-        CORS responses. Defaults to True to preserve existing behavior; set to False if you have
-        configured ``access_control_allow_origins`` and do not want browsers to send credentials
-        (cookies, Authorization header) with cross-origin requests.
-      type: boolean
-      version_added: 3.2.2
-      example: ~
-      default: "True"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
@@ -1885,6 +1936,13 @@ api:
       type: string
       example: "/etc/airflow/certs/client.key"
       default: ~
+    client_use_public_certs:
+      description: |
+        Enable loading of public CA certificates from certifi into the client SSL context.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:
@@ -1912,9 +1970,9 @@ workers:
       sensitive: true
       example: ~
       default: ""
-    state_backend:
+    state_store_backend:
       description: |
-        Full class name of a custom worker-side state backend. When set, task state values are
+        Full class name of a custom worker-side store backend. When set, task store values are
         routed through this backend so large payloads or credentialed storage stay on worker
         infrastructure. The Execution API still records a reference string in the database.
 
@@ -2004,6 +2062,66 @@ workers:
       type: integer
       example: ~
       default: "60"
+sdk:
+  description: Settings for non-Python SDK runtime coordination
+  options:
+    coordinators:
+      description: |
+        JSON object mapping of coordinator keys to coordinator definitions.
+
+        Each value is an object with ``classpath`` and optional ``kwargs``.
+        ``classpath`` is resolved via ``import_string`` and constructed with
+        ``kwargs`` on first use.  Entries are
+        independent instances, so the same ``classpath`` can be configured
+        multiple times under different names with different ``kwargs`` (for
+        example, two ``JavaCoordinator`` instances pinned to different JDK
+        versions).
+
+        An entry may also carry an optional ``extra`` object for additional
+        information associated with the coordinator that the coordinator itself
+        does not receive; other components read it as needed. For example,
+        KubernetesExecutor reads ``extra.pod_template_file`` to launch a queue's
+        worker pod from a specific pod template, and
+        ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to
+        override the worker base image for that queue (both are required).
+      version_added: 3.3.0
+      type: string
+      example: |
+        {
+          "jdk-17": {
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {
+              "jars_root": ["/opt/airflow/java-bundles"],
+              "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
+              "jvm_args": ["-Xmx1024m"]
+            },
+            "extra": {
+              "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
+              "worker_container_repository": "apache/airflow",
+              "worker_container_tag": "3.3.0"
+            }
+          },
+          "go-sdk": {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {
+              "executables_root": ["/opt/airflow/executable-bundles"]
+            }
+          }
+        }
+      default: ~
+    queue_to_coordinator:
+      description: |
+        JSON mapping of queue names to a coordinator key from
+        ``[sdk] coordinators``.
+
+        This mapping is checked to route a task to a configured coordinator
+        instance based on its queue.  An entry in this mapping is needed if
+        tasks of a queue should be handled by a custom coordinator instead of
+        the default Python task-running mechanism.
+      version_added: 3.3.0
+      type: string
+      example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
+      default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
@@ -2155,6 +2273,25 @@ execution_api:
       type: integer
       example: ~
       default: "600"
+    otel_trace_propagation:
+      version_added: 3.3.0
+      description: |
+        Controls when W3C trace context (``traceparent``/``tracestate``) is extracted from
+        incoming Execution API requests and attached to the OpenTelemetry context.
+
+        ``only-authenticated`` (default): trace context is extracted as a FastAPI dependency
+        on authenticated routes, after JWT verification succeeds. Unauthenticated requests
+        (including probes and attack traffic) cannot inject trace context.
+
+        ``unsafe-always``: trace context is extracted on all routes (including unauthenticated ones
+        such as health checks), before JWT verification. Use this when you want trace context
+        propagated even on auth failures. If untrusted traffic can reach your API server this can
+        result in data pollution or load/cost in your OTel trace store.
+
+        ``never``: trace context is never extracted. Use this to disable the feature entirely.
+      default: "only-authenticated"
+      example: ~
+      type: string
     jwt_audience:
       version_added: 3.0.0
       description: |
@@ -2370,7 +2507,8 @@ smtp:
       default: "30"
     smtp_retry_limit:
       description: |
-        Defines the maximum number of times Airflow will attempt to connect to the SMTP server.
+        Defines the number of times Airflow will attempt to connect to the SMTP server after the first
+        attempt.
       version_added: 2.0.0
       type: integer
       example: ~
@@ -2605,6 +2743,20 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
+    partition_mapper_max_downstream_keys:
+      description: |
+        Maximum number of downstream partition keys produced by a single
+        PartitionMapper invocation, applied to any PartitionMapper that returns
+        multiple keys (e.g. FanOutMapper). When a mapper instance sets a per-instance
+        ``max_downstream_keys`` parameter, that value completely overrides this global
+        cap for that instance — including when the per-mapper value exceeds this
+        global. **Deployment managers cannot enforce this setting as a hard
+        cluster-wide ceiling**; treat this value as a default that user code may
+        override.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "1000"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.
@@ -2699,6 +2851,44 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+connection_test:
+  description: |
+    Configuration for the deferred connection-test workflow that dispatches
+    test requests to workers via the executor (instead of running them
+    in-process on the API server).
+  options:
+    timeout:
+      description: |
+        Maximum number of seconds a worker-dispatched connection test is
+        allowed to run before it is considered timed out. The scheduler
+        reaper uses this value plus a grace period to mark stale tests as
+        failed.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "60"
+    max_concurrency:
+      description: |
+        Maximum number of connection tests that can be active
+        (QUEUED + RUNNING) at the same time. Excess tests will remain in
+        PENDING state until slots become available. This cap is enforced
+        per-scheduler, not globally: with N HA schedulers the worst-case
+        per-tick dispatch is ``N * max_concurrency``. Connection tests are
+        user-initiated and rare, so the overshoot self-corrects via the
+        reaper.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "4"
+    reaper_interval:
+      description: |
+        How often (in seconds) the scheduler should check for stale
+        connection tests (QUEUED or RUNNING past their timeout + grace
+        period) and mark them as failed.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "30.0"
 triggerer:
   description: ~
   options:
@@ -2773,6 +2963,41 @@ triggerer:
       type: boolean
       example: ~
       default: "False"
+    shared_stream_subscriber_queue_size:
+      description: |
+        Per-subscriber buffer size for shared-stream triggers (triggers that opt into a shared poll loop
+        via ``BaseEventTrigger.shared_stream_key``). Each subscribing trigger keeps an in-memory queue of
+        raw events produced by the shared poll; if a slow subscriber fills its queue, only that subscriber
+        fails, sibling subscribers are unaffected. Increase if a slow subscriber must tolerate bursts from
+        a fast upstream.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "1024"
+    shared_stream_ack_timeout:
+      description: |
+        Per-event ack timeout in seconds for shared-stream triggers running in ack mode (triggers that
+        override ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not finished
+        processing an event (moved past it and had its derived trigger events confirmed persisted) within
+        this window is force-failed. Other subscribers in the same group are unaffected; once they
+        resolve, the producer advances normally.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "300.0"
+    shared_stream_cohort_grace_period:
+      description: |
+        Seconds to delay the start of polling after a shared-stream group is created, giving triggers
+        that share the same key a window to subscribe before any event is broadcast. The default of 0
+        starts polling immediately (no delay). Set to a small positive value (e.g. 2.0–5.0) to reduce
+        the chance of triggers missing events on triggerer restart, when multiple triggers sharing a key
+        re-subscribe concurrently and the first to arrive would otherwise start the poll before the
+        others have joined. This is a best-effort window: triggers that take longer than the grace period
+        to re-subscribe can still miss events committed after polling starts.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "0.0"
 kerberos:
   description: ~
   options:
@@ -3056,12 +3281,12 @@ state_store:
     backend:
       description: |
         Full dotted path to the class that implements state storage for tasks and assets.
-        The class must be a subclass of ``BaseStateBackend``.
+        The class must be a subclass of ``BaseStoreBackend``.
         The default implementation persists state in the Airflow metadata database.
       version_added: 3.3.0
       type: string
-      example: "mypackage.state.CustomStateBackend"
-      default: "airflow.state.metastore.MetastoreStateBackend"
+      example: "mypackage.state.CustomStoreBackend"
+      default: "airflow.state.metastore.MetastoreBackend"
     clear_on_success:
       description: |
         If set to True, all task state keys for a task instance are automatically cleared
@@ -3080,7 +3305,7 @@ state_store:
       description: |
         Number of days to retain task state after their last update.
         Rows older than this are removed when cleanup is triggered.
-        This config does not affect asset_state rows.
+        This config does not affect asset_state_store rows.
         Set to 0 to disable time-based cleanup entirely.
       version_added: 3.3.0
       type: integer
@@ -3089,11 +3314,27 @@ state_store:
     state_cleanup_batch_size:
       description: |
         Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
-        Tune this on deployments with large task_state tables to improve performance per transaction.
+        Tune this on deployments with large task_state_store tables to improve performance per transaction.
       version_added: 3.3.0
       type: integer
       example: "10000"
       default: "0"
+    max_value_storage_bytes:
+      description: |
+        Maximum size in bytes that a single task or asset store value may have when written via
+        the public REST API. Values that exceed this limit are rejected with a 422 error.
+
+        Workers writing via the execution API are not blocked, they log a warning and the write
+        proceeds, so tasks are never interrupted mid-execution. Set to 0 to disable the limit entirely.
+
+        The default of 65535 bytes (64 KB) is a policy default suited for coordination state such as
+        job IDs, cursors, and small status maps — the underlying database column (MEDIUMTEXT on MySQL,
+        unbounded Text on Postgres) does not enforce this limit. For larger payloads, configure a custom
+        [workers] state_store_backend to offload values to external storage.
+      version_added: 3.3.0
+      type: integer
+      example: "1048576"
+      default: "65535"
 
 profiling:
   description: |
@@ -3133,3 +3374,18 @@ profiling:
       type: boolean
       example: ~
       default: "False"
+
+callbacks:
+  description: |
+    Configuration for callbacks (deadline alerts, etc.).
+  options:
+    callback_execution_timeout:
+      description: |
+        Maximum execution time in seconds for deadline callbacks.
+        Set to a positive integer to enable. When a callback exceeds this duration,
+        it is terminated with SIGTERM followed by SIGKILL if it does not exit within 5 seconds.
+        0 means no timeout (default).
+      version_added: 3.3.0
+      type: integer
+      example: "300"
+      default: "0"

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-fab``
 
-Release: ``3.6.4``
+Release: ``3.7.1``
 
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``fab`` provider. All classes for this provider p
 are in ``airflow.providers.fab`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.7.1/>`_.
 
 Installation
 ------------
@@ -72,27 +72,8 @@ PIP package                                 Version required
 ``wtforms``                                 ``>=3.0``
 ``cachetools``                              ``>=6.0``
 ``marshmallow``                             ``>=3``
-``flask_limiter``                           ``>3,!=3.13``
+``flask_limiter``                           ``>3``
 ==========================================  =====================================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-fab[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
 
 Optional dependencies
 ----------------------
@@ -105,4 +86,4 @@ Extra         Dependencies
 ============  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.7.1/changelog.html>`_.

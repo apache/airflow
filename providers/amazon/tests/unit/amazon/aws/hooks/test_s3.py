@@ -35,7 +35,7 @@ from moto import mock_aws
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
-from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
+from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
     NO_ACL,
     S3Hook,
@@ -1531,6 +1531,21 @@ class TestAwsS3Hook:
         assert mock_file.name == output_file
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
+    def test_download_file_closes_handle_on_error(self, mock_temp_file, tmp_path):
+        mock_file = mock_temp_file.return_value
+        mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
+        s3_hook = S3Hook(aws_conn_id="s3_test")
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.download_fileobj = Mock(side_effect=OSError("download failed"))
+        s3_hook.get_key = Mock(return_value=s3_obj)
+
+        with pytest.raises(OSError, match="download failed"):
+            s3_hook.download_file(key="test_key", bucket_name="test_bucket")
+
+        mock_file.close.assert_called_once_with()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file_exposes_lineage(self, mock_temp_file, tmp_path, hook_lineage_collector):
         mock_file = mock_temp_file.return_value
         mock_file.name = str(tmp_path / "airflow_tmp_test_s3_hook")
@@ -1975,6 +1990,17 @@ class TestAwsS3Hook:
         assert "S3 object last modified" in logs_string
         assert "local file last modified" in logs_string
         assert "Downloaded dag_04.py to" in logs_string
+
+    def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
+        s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")
+
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        hook = S3Hook()
+
+        with pytest.raises(S3HookPathTraversalError, match="resolves outside local directory"):
+            hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+
+        assert not (tmp_path / "outside.py").exists()
 
 
 @pytest.mark.parametrize(

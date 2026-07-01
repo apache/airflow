@@ -20,15 +20,13 @@ import json
 import logging
 from unittest import mock
 
-import aiohttp
 import pytest
-from aiohttp.helpers import TimerNoop
 from requests.exceptions import HTTPError
-from yarl import URL
 
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v1beta1"
@@ -638,21 +636,12 @@ class TestDataFusionHookAsynch:
     async def test_async_get_pipeline_status_completed_should_execute_successfully(
         self, mocked_get, hook_async, pipeline_type, constructed_url
     ):
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(constructed_url),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "COMPLETED"},
+            method="GET",
+            url=constructed_url,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "some-token"}
-        mocked_get.return_value._body = b'{"status": "COMPLETED"}'
 
         pipeline_status = await hook_async.get_pipeline_status(
             pipeline_name=PIPELINE_NAME,
@@ -676,21 +665,12 @@ class TestDataFusionHookAsynch:
         self, mocked_get, hook_async, pipeline_type, constructed_url
     ):
         """Assets that the DataFusionAsyncHook returns pending response when job is still in running state"""
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(constructed_url),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "RUNNING"},
+            method="GET",
+            url=constructed_url,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "some-token"}
-        mocked_get.return_value._body = b'{"status": "RUNNING"}'
 
         pipeline_status = await hook_async.get_pipeline_status(
             pipeline_name=PIPELINE_NAME,

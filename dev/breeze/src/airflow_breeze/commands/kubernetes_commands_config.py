@@ -37,9 +37,20 @@ KUBERNETES_INSPECTION_COMMANDS: dict[str, str | list[str]] = {
 
 KUBERNETES_TESTING_COMMANDS: dict[str, str | list[str]] = {
     "name": "K8S testing commands",
-    "commands": ["tests", "run-complete-tests", "shell", "k9s", "logs"],
+    "commands": ["tests", "run-complete-tests", "setup-lang-sdk-test", "shell", "k9s", "logs"],
 }
 KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
+    "breeze k8s setup-lang-sdk-test": [
+        {
+            "name": "K8S lang-SDK test flags",
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--go-image",
+                "--java-image",
+            ],
+        }
+    ],
     "breeze k8s setup-env": [
         {
             "name": "K8S setup flags",
@@ -235,7 +246,13 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         {
             "name": "K8S tests flags",
-            "options": ["--python", "--kubernetes-version", "--executor", "--force-venv-setup"],
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--executor",
+                "--lang-sdk-test",
+                "--force-venv-setup",
+            ],
         },
         {
             "name": "Parallel options",

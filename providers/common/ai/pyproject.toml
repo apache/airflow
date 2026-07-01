@@ -21,18 +21,18 @@
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
 requires = [
-    "hatchling==1.29.0",
+    "hatchling==1.30.1",
     "packaging==26.2",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.7.17",
+    "trove-classifiers==2026.6.1.19",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "0.3.0"
+version = "0.5.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -67,9 +67,11 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
-    "apache-airflow-providers-common-compat>=1.14.1",
+    "apache-airflow-providers-common-compat>=1.15.0",
     "apache-airflow-providers-standard>=1.12.1",
-    "pydantic-ai-slim>=1.34.0",
+    # Capped to 1.x: pydantic-ai 2.x changed the agent instrumentation API and breaks the provider.
+    # Remove the cap after migrating; tracked at https://github.com/apache/airflow/issues/69122
+    "pydantic-ai-slim>=1.99.0,<2",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -80,6 +82,20 @@ dependencies = [
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
 "mcp" = ["pydantic-ai-slim[mcp]"]
+# Code mode: collapse tool calls into a single `run_code` tool that the model
+# drives by writing Python, executed in the Monty sandbox (pydantic-monty).
+# Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
+# opt-in extra so its churn never breaks the base provider install.
+"code-mode" = ["pydantic-ai-harness[codemode]>=0.3.0"]
+# Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset
+# (pulls in pydantic-ai-slim>=1.74 transitively; the provider base floor stays
+# 1.71); the git provider supplies GitHook + GitPython for cloning GitSkills with
+# credentials from a `git` connection. Native progressive disclosure is tracked
+# upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
+"skills" = [
+    "apache-airflow-providers-git>=0.4.0",
+    "pydantic-ai-skills>=0.11.0",
+]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
     'fastavro>=1.12.1; python_version >= "3.14"',
@@ -105,6 +121,9 @@ dependencies = [
 ]
 "pdf" = ["pypdf>=4.0.0"]
 "docx" = ["python-docx>=1.0.0"]
+"git" = [
+    "apache-airflow-providers-git"
+]
 
 [dependency-groups]
 dev = [
@@ -113,10 +132,12 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-git",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
+    "pydantic-ai-skills>=0.11.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
     "llama-index-core>=0.13.0",
@@ -150,8 +171,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.3.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.3.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.5.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.5.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

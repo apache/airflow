@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+5.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate downloaded paths stay within the destination directory in SFTPHook.retrieve_directory (#67985)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.8.1
+.....
+
+Misc
+~~~~
+
+* ``Use compat timezone helpers in sensor and trigger of SFTP provider (#65442)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 5.8.0
 .....
 
