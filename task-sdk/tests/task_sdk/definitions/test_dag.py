@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest import mock
 
+import pendulum
 import pytest
 
 from airflow.sdk import (
@@ -498,6 +499,39 @@ class TestDag:
         )
         with pytest.raises(FailFastDagInvalidTriggerRule):
             fail_fast_dag.add_task(task_with_non_default_trigger_rule)
+
+    def test_dag_test_runtime_start_date_decoupled_from_logical_date(self, time_machine):
+        """
+        Ensure DAG.test decouples its execution start_date from historical logical_dates
+        by isolating the runtime creation point from background metadata dependencies.
+        """
+        # 1. Setup anchor dates using Pendulum
+        past_logical_date = pendulum.datetime(2024, 1, 1, tz="UTC")
+        frozen_now = pendulum.datetime(2026, 6, 22, 12, 0, 0, tz="UTC")
+
+        time_machine.move_to(frozen_now, tick=False)
+
+        # 2. Instantiate minimal DAG context
+        with DAG(dag_id="test_runtime_duration_isolation", start_date=past_logical_date) as dag:
+            pass
+
+        # 3. Suppress all core metadata lookups by isolating the active execution scope
+        with (
+            mock.patch("airflow.models.dagrun.get_or_create_dagrun") as mock_create_run,
+            mock.patch("airflow.models.dag.DagModel"),
+            mock.patch("airflow.serialization.definitions.dag.SerializedDAG"),
+            mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager"),
+            mock.patch("airflow.settings.Session"),
+        ):
+            mock_run_instance = mock.MagicMock()
+            mock_run_instance.state = "success"
+            mock_create_run.return_value = mock_run_instance
+
+            dag.test(logical_date=past_logical_date)
+
+            captured_kwargs = mock_create_run.call_args.kwargs
+            assert captured_kwargs["logical_date"] == past_logical_date
+            assert captured_kwargs["start_date"] == frozen_now
 
 
 # Test some of the arg validation. This is not all the validations we perform, just some of them.
