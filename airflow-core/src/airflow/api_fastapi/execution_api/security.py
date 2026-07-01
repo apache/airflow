@@ -25,8 +25,10 @@ Token types (``TokenType``):
     refreshed by ``JWTReissueMiddleware``.
 
 ``"workload"``
-    Restricted scope, only accepted on routes that opt in via
-    ``Security(require_auth, scopes=["token:workload"])``.
+    Restricted scope. Accepted on routes that declare ``token:workload`` in
+    ``Security(require_auth, scopes=[...])``, including routes that allow both
+    ``token:execution`` and ``token:workload`` (for example ``PATCH .../run``,
+    which exchanges a workload token for a short-lived execution token).
 
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards
 compatibility (``claims.setdefault("scope", "execution")``).
