@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,29 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains SFTP operator."""
 
 from __future__ import annotations
 
 import errno
-import os
 import socket
 from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
 
 import paramiko
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
+from airflow.providers.sftp.constants import SFTPOperation
 from airflow.providers.sftp.hooks.sftp import SFTPHook
-
-
-class SFTPOperation:
-    """Operation that can be used with SFTP."""
-
-    PUT = "put"
-    GET = "get"
-    DELETE = "delete"
 
 
 class SFTPOperator(BaseOperator):
@@ -95,6 +84,7 @@ class SFTPOperator(BaseOperator):
         create_intermediate_dirs: bool = False,
         concurrency: int = 1,
         prefetch: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,8 +98,25 @@ class SFTPOperator(BaseOperator):
         self.remote_filepath = remote_filepath
         self.concurrency = concurrency
         self.prefetch = prefetch
+        self.deferrable = deferrable
 
     def execute(self, context: Any) -> str | list[str] | None:
+        if self.deferrable:
+            self.defer(
+                trigger=SFTPTrigger(
+                    ssh_conn_id=self.ssh_conn_id,
+                    local_filepath=self.local_filepath,
+                    remote_filepath=self.remote_filepath,
+                    operation=self.operation,
+                    confirm=self.confirm,
+                    create_intermediate_dirs=self.create_intermediate_dirs,
+                    remote_host=self.remote_host,
+                    concurrency=self.concurrency,
+                    prefetch=self.prefetch,
+                ),
+                method_name=self.execute_complete.__name__,
+            )
+
         if self.local_filepath is None:
             local_filepath_array = []
         elif isinstance(self.local_filepath, str):
@@ -163,62 +170,17 @@ class SFTPOperator(BaseOperator):
             if not self.sftp_hook:
                 raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
-            if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT):
-                for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
-                    if self.operation.lower() == SFTPOperation.GET:
-                        local_folder = os.path.dirname(_local_filepath)
-                        if self.create_intermediate_dirs:
-                            Path(local_folder).mkdir(parents=True, exist_ok=True)
-                        file_msg = f"from {_remote_filepath} to {_local_filepath}"
-                        self.log.info("Starting to transfer %s", file_msg)
-                        if self.sftp_hook.isdir(_remote_filepath):
-                            if self.concurrency > 1:
-                                self.sftp_hook.retrieve_directory_concurrently(
-                                    _remote_filepath,
-                                    _local_filepath,
-                                    workers=self.concurrency,
-                                    prefetch=self.prefetch,
-                                )
-                            elif self.concurrency == 1:
-                                self.sftp_hook.retrieve_directory(_remote_filepath, _local_filepath)
-                        else:
-                            self.sftp_hook.retrieve_file(_remote_filepath, _local_filepath)
-                    elif self.operation.lower() == SFTPOperation.PUT:
-                        remote_folder = os.path.dirname(_remote_filepath)
-                        if self.create_intermediate_dirs:
-                            self.sftp_hook.create_directory(remote_folder)
-                        file_msg = f"from {_local_filepath} to {_remote_filepath}"
-                        self.log.info("Starting to transfer file %s", file_msg)
-                        if os.path.isdir(_local_filepath):
-                            if self.concurrency > 1:
-                                self.sftp_hook.store_directory_concurrently(
-                                    _remote_filepath,
-                                    _local_filepath,
-                                    confirm=self.confirm,
-                                    workers=self.concurrency,
-                                )
-                            elif self.concurrency == 1:
-                                self.sftp_hook.store_directory(
-                                    _remote_filepath, _local_filepath, confirm=self.confirm
-                                )
-                        else:
-                            self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
-            elif self.operation.lower() == SFTPOperation.DELETE:
-                for _remote_filepath in remote_filepath_array:
-                    file_msg = f"{_remote_filepath}"
-                    self.log.info("Starting to delete %s", file_msg)
-                    try:
-                        if self.sftp_hook.isdir(_remote_filepath):
-                            self.sftp_hook.delete_directory(_remote_filepath, include_files=True)
-                        else:
-                            self.sftp_hook.delete_file(_remote_filepath)
-                    except OSError as exc:
-                        if self._is_missing_path_error(exc):
-                            self.log.warning(
-                                "Remote path %s does not exist. Skipping delete.", _remote_filepath
-                            )
-                            continue
-                        raise
+            file_msg = f"{self.operation.upper()} {self.local_filepath} <-> {self.remote_filepath}"
+            self.log.info("Starting to transfer %s", file_msg)
+            self.sftp_hook.transfer(
+                operation=self.operation,
+                local_filepath=self.local_filepath,
+                remote_filepath=self.remote_filepath,
+                confirm=self.confirm,
+                create_intermediate_dirs=self.create_intermediate_dirs,
+                concurrency=self.concurrency,
+                prefetch=self.prefetch,
+            )
 
         except Exception as e:
             raise AirflowException(
@@ -226,6 +188,21 @@ class SFTPOperator(BaseOperator):
             )
 
         return self.local_filepath
+
+    def execute_complete(self, context: Any, event: dict) -> str | list[str] | None:
+        """
+        Execute when the trigger fires in deferrable mode.
+
+        :param context: The task context.
+        :param event: The event yielded by SFTPTrigger.
+        :return: The local filepath(s).
+        """
+        if event.get("status") == "error":
+            raise AirflowException(
+                f"Error during deferrable SFTP {self.operation.upper()} operation: {event.get('message')}"
+            )
+        self.log.info("File transfer completed successfully via deferrable mode.")
+        return event.get("local_filepath")
 
     @staticmethod
     def _is_missing_path_error(exc: Exception) -> bool:
