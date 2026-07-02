@@ -34,7 +34,7 @@
       "loadingActions": "필수 작업 로드 중...",
       "pendingRequiredActions": "대기 중인 필수 작업 ({{count}})"
     },
-    "openReviewDrawer": "검토 드로어 열기",
+    "openReviewDrawer": "검토 패널 열기",
     "pageLimitHint": "여기에는 처음 일부 작업만 표시됩니다. 전체를 보려면 \"$t(review.viewAll)\"를 사용하세요.",
     "viewAll": "모든 필수 작업 보기"
   },
