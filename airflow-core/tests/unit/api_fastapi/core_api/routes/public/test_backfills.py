@@ -258,9 +258,12 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
         runs = data["backfill_dag_runs"]
         assert len(runs) == 2
         assert runs[0]["sort_ordinal"] == 1
+        assert runs[0]["dag_id"] == dag.dag_id
+        assert runs[0]["dag_run_id"] == "backfill__2024-01-01"
         assert runs[0]["dag_run_state"] == "success"
-        assert runs[0]["dag_run_run_id"] == "backfill__2024-01-01"
         assert runs[1]["sort_ordinal"] == 2
+        assert runs[1]["dag_id"] == dag.dag_id
+        assert runs[1]["dag_run_id"] == "backfill__2024-01-02"
         assert runs[1]["dag_run_state"] == "failed"
 
     def test_list_backfill_dag_runs_with_skipped_slots(self, test_client, session):
@@ -287,6 +290,7 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
         data = response.json()
         assert data["total_entries"] == 1
         run = data["backfill_dag_runs"][0]
+        assert run["dag_id"] == dag.dag_id
         assert run["dag_run_id"] is None
         assert run["dag_run_state"] is None
         assert run["exception_reason"] == "already exists"

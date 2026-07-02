@@ -251,13 +251,13 @@ export type BackfillDagRunCollectionResponse = {
 export type BackfillDagRunResponse = {
     id: number;
     backfill_id: number;
-    dag_run_id: number | null;
+    dag_id: string;
+    dag_run_id?: string | null;
     logical_date: string | null;
     partition_key: string | null;
     sort_ordinal: number;
     exception_reason: string | null;
     dag_run_state?: DagRunState | null;
-    dag_run_run_id?: string | null;
 };
 
 /**
