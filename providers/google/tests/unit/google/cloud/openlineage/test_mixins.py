@@ -717,6 +717,9 @@ class TestBigQueryOpenLineageMixin:
         assert [i.name for i in lineage.inputs] == ["airflow-openlineage.new_dataset.test_table"]
         assert [o.name for o in lineage.outputs] == ["airflow-openlineage.new_dataset.output_table"]
         mock_emit_query_lineage.assert_not_called()
+        # Without the None-TI guard, building the child job_name dereferences None and the failure
+        # surfaces as an errorMessage facet; its absence proves the guard short-circuited cleanly.
+        assert "errorMessage" not in lineage.run_facets
 
     @patch("airflow.providers.openlineage.api.sql.emit_query_lineage")
     def test_child_query_lineage_without_query_omits_sql_job_facet(self, mock_emit_query_lineage):
