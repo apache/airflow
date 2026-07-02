@@ -113,6 +113,7 @@ from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
+from airflow.timetables.assets import AssetAndTimeSchedule
 from airflow.timetables.base import Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
@@ -2740,6 +2741,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
+        asset_evaluator = AssetEvaluator(session)
 
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
@@ -2780,6 +2782,55 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_run.run_id,
                     )
                     continue
+            # For AssetAndTimeSchedule, defer starting until all required assets are queued.
+            # Only gate scheduled runs; manual and backfill runs should start immediately.
+            if isinstance(dag.timetable, AssetAndTimeSchedule) and dag_run.run_type == DagRunType.SCHEDULED:
+                # Reuse dagrun_timeout to fail runs that wait in QUEUED for assets for too long.
+                if (
+                    dag.dagrun_timeout
+                    and dag_run.queued_at
+                    and dag_run.queued_at < timezone.utcnow() - dag.dagrun_timeout
+                ):
+                    dag_run.set_state(DagRunState.FAILED)
+                    session.flush()
+                    self.log.info(
+                        "Run %s of %s has timed-out while waiting for assets",
+                        dag_run.run_id,
+                        dag_run.dag_id,
+                    )
+                    if dag_run.dag_model is not None:
+                        self._set_exceeds_max_active_runs(dag_model=dag_run.dag_model, session=session)
+                    dag_run.notify_dagrun_state_changed(msg="timed_out")
+                    continue
+
+                queued_adrqs = session.scalars(
+                    with_row_locks(
+                        select(AssetDagRunQueue)
+                        .where(AssetDagRunQueue.target_dag_id == dag_id)
+                        .options(joinedload(AssetDagRunQueue.asset)),
+                        of=AssetDagRunQueue,
+                        session=session,
+                        skip_locked=True,
+                    )
+                ).all()
+                statuses = {
+                    SerializedAssetUniqueKey.from_asset(record.asset): True for record in queued_adrqs
+                }
+
+                if not asset_evaluator.run(dag.timetable.asset_condition, statuses=statuses):
+                    self.log.debug("Deferring DagRun until assets ready; dag_id=%s run_id=%s", dag_id, run_id)
+                    # Do not increment active run counts; we didn't start it.
+                    continue
+
+                if queued_adrqs:
+                    # Consume only the rows selected for this DagRun to avoid races with new asset events.
+                    adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+                    session.execute(
+                        delete(AssetDagRunQueue).where(
+                            tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                        )
+                    )
+
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed(msg="started")
