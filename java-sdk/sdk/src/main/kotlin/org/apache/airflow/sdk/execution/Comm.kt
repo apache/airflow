@@ -43,15 +43,13 @@ import kotlin.coroutines.EmptyCoroutineContext
 /**
  * A [MessageBufferInput] that feeds a MessageUnpacker in chunks.
  *
- * Exactly [declaredLength] bytes is fed from [reader] in each chunk.
- * Heap use is bounded by [CHUNK_SIZE], so a frame larger than
- * [Int.MAX_VALUE] (which the protocol permits but a single ByteArray
- * cannot hold) still decodes.
+ * Up to [CHUNK_SIZE] bytes are read from [reader] per chunk, [declaredLength]
+ * bytes in total. This bounds only the transport read buffer so a frame larger
+ * than [Int.MAX_VALUE] can decode without one giant allocation.
  *
- * The MessageBufferInput contract is synchronous while the underlying
- * ktor read suspends, so each [next] bridges with [runBlocking]. This
- * is fine since we only use this class with `Dispatchers.IO`, which is
- * capable of blocking.
+ * The MessageBufferInput contract is synchronous while the underlying read
+ * suspends, so each [next] bridges with [runBlocking]. This is fine since we
+ * only use this class with `Dispatchers.IO`, which is capable of blocking.
  */
 private class ChannelFrameInput(
   private val reader: ByteReadChannel,
