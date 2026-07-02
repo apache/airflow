@@ -91,7 +91,7 @@ class DefaultResponseHandler(ResponseHandler):
 
     @staticmethod
     def get_value(response: Response) -> Any:
-        with suppress(JSONDecodeError):
+        with suppress(JSONDecodeError, UnicodeDecodeError):
             return response.json()
         content = response.content
         if not content:
@@ -294,6 +294,13 @@ class KiotaRequestAdapterHook(BaseHook):
             return proxies
         return None
 
+    @staticmethod
+    def get_allowed_hosts(authority: str | None, config: dict) -> list[str]:
+        allowed_hosts = config.get("allowed_hosts", authority)
+        if not allowed_hosts:
+            return []
+        return [host for host in allowed_hosts.split(",") if host]
+
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
@@ -311,7 +318,7 @@ class KiotaRequestAdapterHook(BaseHook):
             scopes = scopes.split(",")
         verify = config.get("verify", True)
         trust_env = config.get("trust_env", False)
-        allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
+        allowed_hosts = self.get_allowed_hosts(authority, config)
 
         self.log.info(
             "Creating Microsoft Graph SDK client %s for conn_id: %s",
