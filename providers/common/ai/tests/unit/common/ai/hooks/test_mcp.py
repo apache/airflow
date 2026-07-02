@@ -143,7 +143,7 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             result = hook.get_conn()
 
-        mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"])
+        mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"], env=None)
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value, init_timeout=10)
         assert result is mock_toolset_cls.return_value
 
@@ -161,7 +161,7 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
-        mock_transport_cls.assert_called_once_with(command="python", args=["-m", "server"])
+        mock_transport_cls.assert_called_once_with(command="python", args=["-m", "server"], env=None)
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value, init_timeout=30)
 
     @patch(_MCP_TOOLSET, autospec=True)
@@ -176,7 +176,7 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
-        mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"])
+        mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"], env=None)
 
     def test_http_without_host_raises(self):
         hook = MCPHook(mcp_conn_id="test_conn")
@@ -364,5 +364,204 @@ class TestMCPHookTokenProvider:
             hook.get_conn()
 
         provider.assert_not_called()
-        mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"])
+        mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"], env=None)
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value, init_timeout=10)
+
+
+class TestMCPHookEnvProvider:
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_stdio_uses_env_provider(self, mock_transport_cls, mock_toolset_cls):
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=lambda: {"SPLUNK_API_KEY": "minted"})
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "spacefarer-mcp", "args": []}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_transport_cls.assert_called_once_with(
+            command="spacefarer-mcp", args=[], env={"SPLUNK_API_KEY": "minted"}
+        )
+
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_static_extra_env_used_when_no_provider(self, mock_transport_cls, mock_toolset_cls):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps(
+                {
+                    "transport": "stdio",
+                    "command": "spacefarer-mcp",
+                    "args": [],
+                    "env": {"SPACEFARER_MCP_ALLOW_EXECUTION": "0"},
+                }
+            ),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_transport_cls.assert_called_once_with(
+            command="spacefarer-mcp", args=[], env={"SPACEFARER_MCP_ALLOW_EXECUTION": "0"}
+        )
+
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_env_provider_merges_over_static_extra_env(self, mock_transport_cls, mock_toolset_cls):
+        """env_provider keys win over Extra.env on conflicts; other static keys survive."""
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=lambda: {"SPLUNK_API_KEY": "fresh"})
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps(
+                {
+                    "transport": "stdio",
+                    "command": "spacefarer-mcp",
+                    "args": [],
+                    "env": {"SPLUNK_API_KEY": "stale", "SPACEFARER_MCP_ALLOW_EXECUTION": "0"},
+                }
+            ),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_transport_cls.assert_called_once_with(
+            command="spacefarer-mcp",
+            args=[],
+            env={"SPLUNK_API_KEY": "fresh", "SPACEFARER_MCP_ALLOW_EXECUTION": "0"},
+        )
+
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_env_provider_called_when_establishing_connection(self, mock_transport_cls, mock_toolset_cls):
+        provider = MagicMock(return_value={"SPLUNK_API_KEY": "minted"})
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=provider)
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "spacefarer-mcp", "args": []}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        provider.assert_called_once_with()
+
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_masks_provided_env_values(self, mock_transport_cls, mock_toolset_cls):
+        """Minted env values must be registered with secret masking, like the minted token."""
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=lambda: {"SPLUNK_API_KEY": "minted"})
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "spacefarer-mcp", "args": []}),
+        )
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            patch("airflow.providers.common.ai.hooks.mcp.mask_secret", autospec=True) as mock_mask,
+        ):
+            hook.get_conn()
+
+        mock_mask.assert_called_once_with("minted")
+
+    @pytest.mark.parametrize("bad_value", ["", None, 123], ids=["empty", "none", "non_string"])
+    def test_invalid_env_provider_value_raises(self, bad_value):
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=lambda: {"SPLUNK_API_KEY": bad_value})
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "spacefarer-mcp", "args": []}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="must have non-empty string values"):
+                hook.get_conn()
+
+    def test_invalid_env_provider_key_raises(self):
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=lambda: {1: "value"})
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "spacefarer-mcp", "args": []}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="must have non-empty string keys"):
+                hook.get_conn()
+
+    def test_invalid_env_provider_return_type_raises(self):
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=lambda: "not-a-dict")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "spacefarer-mcp", "args": []}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="must return a dict\\[str, str\\]"):
+                hook.get_conn()
+
+    def test_invalid_extra_env_type_raises(self):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps(
+                {"transport": "stdio", "command": "spacefarer-mcp", "args": [], "env": ["not", "a", "dict"]}
+            ),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="must be an object of"):
+                hook.get_conn()
+
+    @pytest.mark.parametrize("falsy_bad_env", [[], 0, False, ""], ids=["list", "zero", "false", "str"])
+    def test_falsy_invalid_extra_env_type_raises(self, falsy_bad_env):
+        """A falsy-but-wrong-type ``env`` (``[]``, ``0``, ...) must not silently become ``{}``."""
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps(
+                {
+                    "transport": "stdio",
+                    "command": "spacefarer-mcp",
+                    "args": [],
+                    "env": falsy_bad_env,
+                }
+            ),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="must be an object of"):
+                hook.get_conn()
+
+    def test_invalid_extra_env_value_raises(self):
+        """A non-string value in the static Extra.env must fail with a clear message, not a bare
+        TypeError deep inside subprocess.Popen when the transport actually spawns."""
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps(
+                {
+                    "transport": "stdio",
+                    "command": "spacefarer-mcp",
+                    "args": [],
+                    "env": {"SPACEFARER_MCP_ALLOW_EXECUTION": 0},
+                }
+            ),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="must have non-empty string values"):
+                hook.get_conn()
+
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
+    def test_http_does_not_invoke_env_provider(self, mock_transport_cls, mock_toolset_cls):
+        """HTTP/SSE have no subprocess environment, so the env provider must not be called."""
+        provider = MagicMock(return_value={"SPLUNK_API_KEY": "minted"})
+        hook = MCPHook(mcp_conn_id="test_conn", env_provider=provider)
+        conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        provider.assert_not_called()

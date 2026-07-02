@@ -1,0 +1,69 @@
+[
+    {
+        "$absent": "dag-level emit_dag_events=False suppresses DAG-run events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_events_false_dag"
+        }
+    },
+    {
+        "$absent": "dag-level emit_dag_events=False suppresses DAG-run events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_events_false_dag"
+        }
+    },
+    {
+        "$absent": "dag-level emit_dag_events=False suppresses DAG-run events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_events_false_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_dag_events_false_dag.run",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'add_input_asset' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/in1.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/in2.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host2",
+                "name": "/out1.txt"
+            },
+            {
+                "namespace": "file://host2",
+                "name": "/out2.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_dag_events_false_dag.run",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'add_input_asset' in result }}"
+                }
+            }
+        }
+    }
+]
