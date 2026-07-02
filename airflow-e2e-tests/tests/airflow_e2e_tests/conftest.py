@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, rmtree
@@ -278,29 +279,27 @@ _SPARK_JAVA_MODULE_OPTIONS = [
 ]
 
 
-def _setup_java_sdk_integration(dot_env_file, tmp_dir):
-    """Set up the java_sdk E2E test mode.
+def _run_java_sdk_gradle_container(workdir, *gradle_argv, capture_output=False):
+    """Run the Java SDK Gradle wrapper inside the pinned JDK container.
 
-    Builds the Java example bundle via the Gradle wrapper, then builds a
-    Java-capable Airflow worker image, copies the JARs into the temp directory,
-    and writes the coordinator configuration.
+    * --user keeps build outputs owned by the current user (not root).
+    * --network=host shares one loopback across concurrent builds so Gradle's
+      cross-process lock handover (a UDP ping to the lock owner) works.
+    * --no-daemon avoids a background JVM that would outlive the container.
+    * GRADLE_USER_HOME persists the Gradle distribution and dependency cache
+      in java-sdk/.gradle/ so subsequent runs skip straight to compilation.
+    * HOME is set explicitly because --user runs as the host UID which has no
+      entry in the container's /etc/passwd; Docker would otherwise inherit the
+      image's HOME (/root) which the non-root process cannot write to.
+    * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
+      there without nesting, and its contents are visible on the host.
     """
-    # * --user keeps build outputs owned by the current user (not root).
-    # * --no-daemon avoids a background JVM that would outlive the container.
-    # * GRADLE_USER_HOME persists the Gradle distribution and dependency cache
-    #   in java-sdk/.gradle/ so subsequent runs skip straight to compilation.
-    # * HOME is set explicitly because --user runs as the host UID which has no
-    #   entry in the container's /etc/passwd; Docker would otherwise inherit the
-    #   image's HOME (/root) which the non-root process cannot write to.
-    # * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
-    #   there without nesting, and its contents are visible on the host.
-    console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
-    JAVA_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    return subprocess.run(
         [
             "docker",
             "run",
             "--rm",
+            "--network=host",
             "--user",
             f"{os.getuid()}:{os.getgid()}",
             "-e",
@@ -312,72 +311,64 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
             "-w",
-            "/repo/java-sdk",
+            workdir,
             "eclipse-temurin:17-jdk",
-            "./gradlew",
-            "publishToMavenLocal",
-            "-PskipSigning=true",
+            "/repo/java-sdk/gradlew",
             "--no-daemon",
+            *gradle_argv,
         ],
         check=True,
+        capture_output=capture_output,
+        text=True,
     )
-    # TODO: Make the following build steps parallel
+
+
+def _build_example_bundle(workdir):
+    """Build one example bundle, capturing output so concurrent builds don't interleave."""
+    try:
+        completed = _run_java_sdk_gradle_container(workdir, "bundle", capture_output=True)
+    except subprocess.CalledProcessError as e:
+        console.print(f"[red]Bundle build failed in {workdir}:")
+        print(e.stdout, e.stderr, sep="\n")
+        raise
+    console.print(f"[yellow]Bundle build finished in {workdir}:")
+    print(completed.stdout)
+
+
+def _setup_java_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the java_sdk E2E test mode.
+
+    Builds the Java SDK and Scala Spark example bundles via the Gradle wrapper,
+    then builds a Java-capable Airflow worker image, copies the JARs into the
+    temp directory, and writes the coordinator configuration.
+    """
+    console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
+    JAVA_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    _run_java_sdk_gradle_container("/repo/java-sdk", "publishToMavenLocal", "-PskipSigning=true")
+
+    # The example and scala_spark_example are independent Gradle builds that both
+    # consume the SDK artifact published above, so build them concurrently. Sharing
+    # a writable Gradle user home between concurrent builds is safe only because
+    # --network=host lets each build ping the other's lock-owner port (see the
+    # helper's docstring); publishToMavenLocal has already unpacked the shared
+    # wrapper distribution, so neither build races to fetch it.
+    #
     # The Gradle `bundle` task is a Copy that never prunes its destination, so
     # JARs from an earlier build linger. A stale dependency JAR with its own
     # Main-Class would make JavaCoordinator's Main-Class discovery ambiguous, so
     # start each bundle from an empty directory.
     rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
-    console.print("[yellow]Building Java SDK example bundle (eclipse-temurin:17-jdk)...")
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
-            "-e",
-            "HOME=/workspace-home",
-            "-v",
-            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            "/repo/java-sdk/example",
-            "eclipse-temurin:17-jdk",
-            "../gradlew",
-            "bundle",
-            "--no-daemon",
-        ],
-        check=True,
-    )
     rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
-    console.print("[yellow]Building Scala Spark example bundle (eclipse-temurin:17-jdk)...")
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
-            "-e",
-            "HOME=/workspace-home",
-            "-v",
-            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            "/repo/java-sdk/scala_spark_example",
-            "eclipse-temurin:17-jdk",
-            "../gradlew",
-            "bundle",
-            "--no-daemon",
-        ],
-        check=True,
+    console.print(
+        "[yellow]Building Java SDK and Scala Spark example bundles concurrently (eclipse-temurin:17-jdk)..."
     )
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        bundle_builds = [
+            pool.submit(_build_example_bundle, "/repo/java-sdk/example"),
+            pool.submit(_build_example_bundle, "/repo/java-sdk/scala_spark_example"),
+        ]
+        for build in bundle_builds:
+            build.result()
 
     # Copy compose override and Dockerfile into the temp directory.
     copyfile(JAVA_COMPOSE_PATH, tmp_dir / "java.yml")
