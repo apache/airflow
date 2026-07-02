@@ -17,9 +17,9 @@
  * under the License.
  */
 import { Box, Spinner, useToken } from "@chakra-ui/react";
-import { ReactFlow, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
+import { Background, MiniMap, ReactFlow, type Node as ReactFlowNode, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -43,11 +43,15 @@ import { GraphControls } from "./components/GraphControls";
 import { useFilteredNodesAndEdges } from "./hooks/useFilteredNodesAndEdges";
 import { useGraphSearchParams } from "./hooks/useGraphSearchParams";
 import { useGraphFilteredNodes } from "./useGraphFilteredNodes";
+import { applyManualNodeChanges, getManualEdgeNodeIds, type GraphNode } from "./utils/manualLayout";
 import { nodeColor } from "./utils/nodeColor";
 
 // Hoisted to module scope so ReactFlow receives a stable reference and skips
 // its internal shallow-equality check on every render.
-const defaultEdgeOptions = { zIndex: 1 };
+const defaultEdgeOptions = {
+  interactionWidth: 0,
+  zIndex: -1,
+};
 
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
@@ -72,6 +76,9 @@ export const Graph = () => {
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
   const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
+  const [isManualLayout, setIsManualLayout] = useState(false);
+  const [manualEdgeNodeIds, setManualEdgeNodeIds] = useState<Set<string>>(() => new Set());
+  const [manualNodes, setManualNodes] = useState<Array<GraphNode>>([]);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
@@ -131,19 +138,25 @@ export const Graph = () => {
   });
   const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
-  // Add task instances to the node data but without having to recalculate how the graph is laid out
-  const nodesWithTI = data?.nodes.map((node) => {
-    const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
+  // Add task instances to the node data but without having to recalculate how the graph is laid out.
+  // Keep the mapped array stable while inputs are unchanged so manual-layout state sync does not
+  // retrigger itself in a render loop.
+  const nodesWithTI = useMemo(
+    () =>
+      data?.nodes.map((node) => {
+        const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
 
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        isSelected: node.id === taskId || node.id === groupId || node.id === `dag:${dagId}`,
-        taskInstance,
-      },
-    };
-  });
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isSelected: node.id === taskId || node.id === groupId || node.id === `dag:${dagId}`,
+            taskInstance,
+          },
+        };
+      }),
+    [dagId, data?.nodes, gridTISummaries, groupId, taskId],
+  );
 
   const baseFilteredNodes = useGraphFilteredNodes(nodesWithTI, graphFilters);
 
@@ -155,6 +168,76 @@ export const Graph = () => {
     taskId,
   });
 
+  useEffect(() => {
+    if (!isManualLayout) {
+      return;
+    }
+
+    setManualNodes((currentNodes) => {
+      if (nodes === undefined) {
+        return [];
+      }
+
+      if (currentNodes.length === 0) {
+        return nodes;
+      }
+
+      const currentPositionsById = new Map(currentNodes.map((node) => [node.id, node.position]));
+
+      return nodes.map((node) => {
+        const position = currentPositionsById.get(node.id);
+
+        return position === undefined ? node : { ...node, position };
+      });
+    });
+  }, [isManualLayout, nodes]);
+
+  const onNodesChange = (changes: Array<NodeChange<ReactFlowNode<CustomNodeProps>>>) => {
+    if (!isManualLayout) {
+      return;
+    }
+
+    const changedManualEdgeNodeIds = getManualEdgeNodeIds({ changes, nodes: manualNodes });
+
+    if (changedManualEdgeNodeIds.size > 0) {
+      setManualEdgeNodeIds((currentNodeIds) => {
+        const nextNodeIds = new Set(currentNodeIds);
+
+        for (const nodeId of changedManualEdgeNodeIds) {
+          nextNodeIds.add(nodeId);
+        }
+
+        return nextNodeIds.size === currentNodeIds.size ? currentNodeIds : nextNodeIds;
+      });
+    }
+
+    setManualNodes((currentNodes) => applyManualNodeChanges({ changes, currentNodes }));
+  };
+
+  const toggleManualLayout = () => {
+    setIsManualLayout((currentValue) => {
+      const nextValue = !currentValue;
+
+      setManualNodes(nextValue ? (nodes ?? []) : []);
+      setManualEdgeNodeIds(new Set());
+
+      return nextValue;
+    });
+  };
+
+  const nodesToRender = isManualLayout ? manualNodes : (nodes ?? []);
+  const edgesToRender = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        data: {
+          ...edge.data,
+          isManualLayout:
+            isManualLayout && (manualEdgeNodeIds.has(edge.source) || manualEdgeNodeIds.has(edge.target)),
+        },
+      })),
+    [edges, isManualLayout, manualEdgeNodeIds],
+  );
   const selectedNodeId = taskId ?? groupId;
 
   return (
@@ -177,25 +260,30 @@ export const Graph = () => {
       <ReactFlow
         colorMode={colorMode}
         defaultEdgeOptions={defaultEdgeOptions}
-        edges={edges}
+        edges={edgesToRender}
         edgesFocusable={false}
         edgeTypes={edgeTypes}
         maxZoom={1.5}
         minZoom={0.01}
-        nodes={nodes}
+        nodes={nodesToRender}
         nodesConnectable={false}
-        nodesDraggable={false}
+        nodesDraggable={isManualLayout}
         nodesFocusable={false}
         nodeTypes={nodeTypes}
         onlyRenderVisibleElements
+        onNodesChange={onNodesChange}
         style={getReactFlowThemeStyle(colorMode)}
       >
         <Background />
         {/* Fit the viewport after each new ELK layout instead of using the
             fitView prop, which re-fires on every re-mount even when nodes are
             served from the React Query cache. */}
-        <FitViewOnLayout layoutData={data} />
-        <GraphControls selectedNodeId={selectedNodeId} />
+        <FitViewOnLayout layoutData={isManualLayout ? undefined : data} />
+        <GraphControls
+          isManualLayout={isManualLayout}
+          onToggleManualLayout={toggleManualLayout}
+          selectedNodeId={selectedNodeId}
+        />
         {/* Hide the MiniMap for large graphs — it processes all nodes even when
             onlyRenderVisibleElements is set, adding meaningful paint cost with
             little benefit at 500+ nodes where the map is a near-solid blob. */}

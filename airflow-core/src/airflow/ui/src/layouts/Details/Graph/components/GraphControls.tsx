@@ -16,27 +16,50 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ControlButton, Controls, useReactFlow } from "@xyflow/react";
+import { Button } from "@chakra-ui/react";
+import { ControlButton, Controls, Panel, useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { MdCenterFocusStrong } from "react-icons/md";
 
-export const GraphControls = ({ selectedNodeId }: { readonly selectedNodeId?: string }) => {
+type Props = {
+  readonly isManualLayout: boolean;
+  readonly onToggleManualLayout: () => void;
+  readonly selectedNodeId?: string;
+};
+
+export const GraphControls = ({ isManualLayout, onToggleManualLayout, selectedNodeId }: Props) => {
   const { t: translate } = useTranslation("components");
   const { fitView } = useReactFlow();
+  const manualLayoutLabel = translate("graph.manualLayout", { defaultValue: "Rearrange" });
 
   return (
-    <Controls showInteractive={false}>
-      {selectedNodeId === undefined ? undefined : (
-        <ControlButton
-          aria-label={translate("graph.zoomToTask")}
-          onClick={() => {
-            void fitView({ duration: 500, nodes: [{ id: selectedNodeId }], padding: 0.5 });
-          }}
-          title={translate("graph.zoomToTask")}
+    <>
+      <Controls showInteractive={false}>
+        {selectedNodeId === undefined ? undefined : (
+          <ControlButton
+            aria-label={translate("graph.zoomToTask")}
+            onClick={() => {
+              void fitView({ duration: 500, nodes: [{ id: selectedNodeId }], padding: 0.5 });
+            }}
+            title={translate("graph.zoomToTask")}
+          >
+            <MdCenterFocusStrong />
+          </ControlButton>
+        )}
+      </Controls>
+      <Panel position="top-right">
+        <Button
+          aria-label={manualLayoutLabel}
+          aria-pressed={isManualLayout}
+          colorPalette="green"
+          onClick={onToggleManualLayout}
+          size="md"
+          title={manualLayoutLabel}
+          variant={isManualLayout ? "outline" : "solid"}
         >
-          <MdCenterFocusStrong />
-        </ControlButton>
-      )}
-    </Controls>
+          {manualLayoutLabel}
+        </Button>
+      </Panel>
+    </>
   );
 };
