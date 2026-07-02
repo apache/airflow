@@ -839,7 +839,7 @@ class DbApiHook(BaseHook):
             return _last_result
         return results
 
-    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
+    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple] | None:
         """
         Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 

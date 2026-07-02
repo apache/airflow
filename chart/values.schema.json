@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Default values for airflow. Declare variables to be passed into your templates.",
     "type": "object",
     "x-docsSectionOrder": [
@@ -640,106 +640,6 @@
                             "description": "The Ingress Class for the PgBouncer Ingress.",
                             "type": "string",
                             "default": ""
-                        }
-                    }
-                }
-            }
-        },
-        "httpRoute": {
-            "description": "Kubernetes Gateway API (HTTPRoute) configuration.",
-            "type": "object",
-            "x-docsSection": "Ingress",
-            "additionalProperties": false,
-            "properties": {
-                "apiServer": {
-                    "description": "Configuration for the HTTPRoute of the API server.",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable API server HTTPRoute resource.",
-                            "type": "boolean",
-                            "default": false
-                        },
-                        "labels": {
-                            "description": "Extra labels for the API server HTTPRoute.",
-                            "type": "object",
-                            "default": {},
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        },
-                        "annotations": {
-                            "description": "Annotations for the API server HTTPRoute.",
-                            "type": "object",
-                            "default": {},
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        },
-                        "parentRefs": {
-                            "description": "List of parent Gateway references this HTTPRoute attaches to. Required when enabled.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "description": "Name of the referenced Gateway.",
-                                        "type": "string"
-                                    },
-                                    "namespace": {
-                                        "description": "Namespace of the referenced Gateway. Defaults to the local namespace.",
-                                        "type": "string"
-                                    },
-                                    "sectionName": {
-                                        "description": "Name of the Gateway listener section this route attaches to.",
-                                        "type": "string"
-                                    },
-                                    "port": {
-                                        "description": "Port of the Gateway listener this route attaches to.",
-                                        "type": "integer"
-                                    },
-                                    "kind": {
-                                        "description": "Kind of the referenced resource. Defaults to `Gateway`.",
-                                        "type": "string"
-                                    },
-                                    "group": {
-                                        "description": "API group of the referenced resource. Defaults to `gateway.networking.k8s.io`.",
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name"
-                                ]
-                            }
-                        },
-                        "hostnames": {
-                            "description": "Hostnames this HTTPRoute should match (templated). Empty matches all.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        "path": {
-                            "description": "Default routing rule path (used only when `httpRoute.apiServer.rules` is empty).",
-                            "type": "string",
-                            "default": "/"
-                        },
-                        "pathType": {
-                            "description": "The pathType for the default path: PathPrefix, Exact, or RegularExpression.",
-                            "type": "string",
-                            "default": "PathPrefix"
-                        },
-                        "rules": {
-                            "description": "Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`. Each entry follows the upstream Gateway API `HTTPRouteRule` schema.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": {}
-                            }
                         }
                     }
                 }
@@ -5733,6 +5633,102 @@
                     "description": "Enable Airflow API server deployment.",
                     "type": "boolean",
                     "default": true
+                },
+                "httpRoute": {
+                    "description": "Kubernetes Gateway API (HTTPRoute) configuration for the API server.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable API server HTTPRoute resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "labels": {
+                            "description": "Extra labels for the API server HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "annotations": {
+                            "description": "Annotations for the API server HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "parentRefs": {
+                            "description": "List of parent Gateway references this HTTPRoute attaches to. Required when enabled.",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "default": null,
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "description": "Name of the referenced Gateway.",
+                                        "type": "string"
+                                    },
+                                    "namespace": {
+                                        "description": "Namespace of the referenced Gateway. Defaults to the local namespace.",
+                                        "type": "string"
+                                    },
+                                    "sectionName": {
+                                        "description": "Name of the Gateway listener section this route attaches to.",
+                                        "type": "string"
+                                    },
+                                    "port": {
+                                        "description": "Port of the Gateway listener this route attaches to.",
+                                        "type": "integer"
+                                    },
+                                    "kind": {
+                                        "description": "Kind of the referenced resource. Defaults to `Gateway`.",
+                                        "type": "string"
+                                    },
+                                    "group": {
+                                        "description": "API group of the referenced resource. Defaults to `gateway.networking.k8s.io`.",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ]
+                            }
+                        },
+                        "hostnames": {
+                            "description": "Hostnames this HTTPRoute should match (templated). Empty matches all.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "path": {
+                            "description": "Default routing rule path (used only when `apiServer.httpRoute.rules` is empty).",
+                            "type": "string",
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the default path: PathPrefix, Exact, or RegularExpression.",
+                            "type": "string",
+                            "default": "PathPrefix"
+                        },
+                        "rules": {
+                            "description": "Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`. Each entry follows the upstream Gateway API `HTTPRouteRule` schema.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        }
+                    }
                 },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the API server configmap.",

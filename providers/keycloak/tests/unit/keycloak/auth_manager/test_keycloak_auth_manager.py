@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import json
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from unittest.mock import Mock, patch
 
@@ -57,6 +58,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
+    CONF_REQUESTS_POOL_SIZE_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
@@ -1147,3 +1149,33 @@ class TestKeycloakAuthManager:
         assert result2 == dag_ids
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("dag_count", "pool_size", "expected_max_workers"),
+        [
+            pytest.param(5, 10, 5, id="dag-count-smaller-than-pool"),
+            pytest.param(50, 10, 10, id="dag-count-larger-than-pool"),
+            pytest.param(10, 10, 10, id="dag-count-same-as-pool"),
+        ],
+    )
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    @patch(
+        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.ThreadPoolExecutor",
+        wraps=ThreadPoolExecutor,
+    )
+    def test_filter_authorized_dag_ids_caps_max_workers(
+        self,
+        mock_executor,
+        _mock_is_authorized,
+        auth_manager,
+        user,
+        dag_count,
+        pool_size,
+        expected_max_workers,
+    ):
+        dag_ids = {f"dag-{index}" for index in range(dag_count)}
+
+        with conf_vars({(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY): str(pool_size)}):
+            auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user)
+
+        mock_executor.assert_called_once_with(max_workers=expected_max_workers)

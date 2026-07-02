@@ -247,7 +247,7 @@ config:
         version_added: ~
         type: string
         sensitive: true
-        example: "db+postgresql://postgres:airflow@postgres/airflow"
+        example: "db+postgresql+psycopg2://postgres:airflow@postgres/airflow"
         default: ~
       result_backend_sqlalchemy_engine_options:
         description: |
