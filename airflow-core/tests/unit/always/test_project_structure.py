@@ -172,7 +172,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/utils/test_bigquery_get_data.py",
             "providers/google/tests/unit/google/common/hooks/test_operation_helpers.py",
             "providers/google/tests/unit/google/test_go_module_utils.py",
-            "providers/http/tests/unit/http/test_exceptions.py",
             "providers/keycloak/tests/unit/keycloak/auth_manager/datamodels/test_token.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
