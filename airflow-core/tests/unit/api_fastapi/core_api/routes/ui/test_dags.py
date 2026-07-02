@@ -418,3 +418,120 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         # Verify that DAG1 is not marked as favorite for the test user
         dag1_data = next(dag for dag in body["dags"] if dag["dag_id"] == DAG1_ID)
         assert dag1_data["is_favorite"] is False
+
+
+# Maps dag_id -> relative_fileloc. ``team_alpha`` exists to prove that a folder
+# name is never matched as a prefix of another (``team_a`` must not catch it),
+# and ``root_dag.py`` lives at the bundle root (no folder).
+FOLDER_DAGS = {
+    "folder_dag_a_etl_extract": "team_a/etl/extract.py",
+    "folder_dag_a_etl_load": "team_a/etl/load.py",
+    "folder_dag_a_report": "team_a/report.py",
+    "folder_dag_b_ml_train": "team_b/ml/train.py",
+    "folder_dag_alpha": "team_alpha/x.py",
+    "folder_dag_root": "root_dag.py",
+}
+
+
+class TestDagFolders(TestPublicDagEndpoint):
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_folder_dags(self, *, session: Session = NEW_SESSION) -> None:
+        for dag_id, relative_fileloc in FOLDER_DAGS.items():
+            session.add(
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name="dag_maker",
+                    relative_fileloc=relative_fileloc,
+                    fileloc=f"/tmp/{relative_fileloc}",
+                    is_stale=False,
+                    is_paused=False,
+                )
+            )
+        session.commit()
+
+    def test_get_dag_folders(self, test_client):
+        response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        body = response.json()
+        # Distinct directories of every readable Dag, sorted. Root-level Dags
+        # (``root_dag.py``) contribute no folder. The pre-existing setup Dags all
+        # live at the bundle root, so they do not add folders either.
+        assert body["folders"] == ["team_a", "team_a/etl", "team_alpha", "team_b/ml"]
+        assert body["total_entries"] == 4
+
+    def test_get_dag_folders_query_count_does_not_scale_with_dags(self, session, test_client):
+        """The folders endpoint must run a finite number of queries regardless of how many Dags exist."""
+        with count_queries() as result:
+            response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        baseline = sum(result.values())
+
+        # Add many more Dags (in both new and existing folders); the query count must not grow.
+        for i in range(50):
+            relative_fileloc = f"team_c/sub_{i}/dag_{i}.py"
+            session.add(
+                DagModel(
+                    dag_id=f"folder_scale_dag_{i}",
+                    bundle_name="dag_maker",
+                    relative_fileloc=relative_fileloc,
+                    fileloc=f"/tmp/{relative_fileloc}",
+                    is_stale=False,
+                    is_paused=False,
+                )
+            )
+        session.commit()
+        session.expire_all()
+
+        with count_queries() as result_after:
+            response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        assert sum(result_after.values()) == baseline
+
+    def test_get_dag_folders_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags/folders")
+        assert response.status_code == 401
+
+    def test_get_dag_folders_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags/folders")
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("prefix", "expected_dag_ids"),
+        [
+            pytest.param(
+                "team_a",
+                {"folder_dag_a_etl_extract", "folder_dag_a_etl_load", "folder_dag_a_report"},
+                id="folder-with-subfolders",
+            ),
+            pytest.param(
+                "team_a/etl",
+                {"folder_dag_a_etl_extract", "folder_dag_a_etl_load"},
+                id="nested-folder",
+            ),
+            pytest.param(
+                "team_a/etl/",
+                {"folder_dag_a_etl_extract", "folder_dag_a_etl_load"},
+                id="trailing-slash-normalized",
+            ),
+            pytest.param("team_b", {"folder_dag_b_ml_train"}, id="intermediate-folder"),
+            pytest.param("team_b/ml", {"folder_dag_b_ml_train"}, id="leaf-folder"),
+            pytest.param("team_alpha", {"folder_dag_alpha"}, id="sibling-prefix-folder"),
+            pytest.param("does/not/exist", set(), id="no-match"),
+        ],
+    )
+    def test_folder_filter(self, test_client, prefix, expected_dag_ids):
+        response = test_client.get("/dags", params={"relative_fileloc_prefix": prefix})
+        assert response.status_code == 200
+        returned = {dag["dag_id"] for dag in response.json()["dags"]}
+        # Intersect with our Dags so pre-existing setup Dags don't affect the assertion.
+        assert returned & set(FOLDER_DAGS) == expected_dag_ids
+        # ``team_a`` must never match ``team_alpha`` (and vice-versa).
+        if prefix == "team_a":
+            assert "folder_dag_alpha" not in returned
+
+    def test_no_folder_filter_returns_all_folder_dags(self, test_client):
+        response = test_client.get("/dags", params={"limit": 100})
+        assert response.status_code == 200
+        returned = {dag["dag_id"] for dag in response.json()["dags"]}
+        assert set(FOLDER_DAGS) <= returned

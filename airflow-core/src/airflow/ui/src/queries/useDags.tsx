@@ -38,6 +38,7 @@ export const useDags = ({
   owners,
   paused,
   pendingHitl,
+  relativeFilelocPrefix,
   tags,
   tagsMatchMode,
 }: {
@@ -54,6 +55,7 @@ export const useDags = ({
   owners?: Array<string>;
   paused?: boolean;
   pendingHitl?: boolean;
+  relativeFilelocPrefix?: string;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
 }) => {
@@ -74,6 +76,7 @@ export const useDags = ({
       orderBy,
       owners,
       paused,
+      relativeFilelocPrefix,
       tags,
       tagsMatchMode,
     },

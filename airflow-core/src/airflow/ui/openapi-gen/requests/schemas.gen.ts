@@ -9248,6 +9248,26 @@ export const $DAGWithLatestDagRunsResponse = {
     description: 'DAG with latest dag runs response serializer.'
 } as const;
 
+export const $DagFolderCollectionResponse = {
+    properties: {
+        folders: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Folders'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['folders', 'total_entries'],
+    title: 'DagFolderCollectionResponse',
+    description: 'Collection of distinct Dag folders (directories of ``relative_fileloc``).'
+} as const;
+
 export const $DagRunStatsResponse = {
     properties: {
         duration: {

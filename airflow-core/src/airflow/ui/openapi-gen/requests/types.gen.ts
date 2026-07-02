@@ -2336,6 +2336,14 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
+ * Collection of distinct Dag folders (directories of ``relative_fileloc``).
+ */
+export type DagFolderCollectionResponse = {
+    folders: Array<(string)>;
+    total_entries: number;
+};
+
+/**
  * DAG Run statistics serializer for responses.
  */
 export type DagRunStatsResponse = {
@@ -3471,11 +3479,17 @@ export type GetDagsUiData = {
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
+    /**
+     * Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
+     */
+    relativeFilelocPrefix?: string | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDagFoldersResponse = DagFolderCollectionResponse;
 
 export type GetLatestRunInfoData = {
     dagId: string;
@@ -6319,6 +6333,16 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/folders': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagFolderCollectionResponse;
             };
         };
     };

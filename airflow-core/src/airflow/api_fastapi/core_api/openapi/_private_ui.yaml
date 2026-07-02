@@ -489,6 +489,18 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: relative_fileloc_prefix
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter Dags by the folder (directory of ``relative_fileloc``)
+            they live in. Matches the given folder and all of its subfolders.
+          title: Relative Fileloc Prefix
+        description: Filter Dags by the folder (directory of ``relative_fileloc``)
+          they live in. Matches the given folder and all of its subfolders.
       - name: order_by
         in: query
         required: false
@@ -554,6 +566,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/folders:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Folders
+      description: 'Get the distinct folders the readable Dags live in.
+
+
+        A folder is the directory part of a Dag''s ``relative_fileloc`` (relative
+        to its
+
+        bundle root). Dags located directly at the bundle root have no folder and
+        are
+
+        not represented here. The result powers the folder navigation tree in the
+        UI,
+
+        which reconstructs the hierarchy by splitting each path on ``/``.'
+      operationId: get_dag_folders
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagFolderCollectionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags/{dag_id}/latest_run:
     get:
       tags:
@@ -2499,6 +2540,22 @@ components:
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
+    DagFolderCollectionResponse:
+      properties:
+        folders:
+          items:
+            type: string
+          type: array
+          title: Folders
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - folders
+      - total_entries
+      title: DagFolderCollectionResponse
+      description: Collection of distinct Dag folders (directories of ``relative_fileloc``).
     DagRunState:
       type: string
       enum:
