@@ -8369,7 +8369,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+    '/ui/pending_partitioned_dag_run/{dag_id}': {
         get: {
             req: GetPendingPartitionedDagRunData;
             res: {
