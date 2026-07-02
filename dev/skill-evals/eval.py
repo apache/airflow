@@ -20,17 +20,16 @@
 # ///
 """Airflow skill-eval harness.
 
+Test whether AGENTS.md guidance affects agent decisions by comparing
+arms with and without the guidance. Each arm is a git worktree of the
+real repo — the agent sees actual source files.
+
 Usage:
-    uv run dev/skill-evals/eval.py                            Test AGENTS.md changes
-    SKILL_NAME=airflow-contribution uv run dev/skill-evals/eval.py
-    uv run dev/skill-evals/eval.py --full                     Add baseline arm
-    uv run dev/skill-evals/eval.py --repeat 3 --no-cache
+    uv run dev/skill-evals/eval.py                  Test AGENTS.md changes
+    uv run dev/skill-evals/eval.py --full            Add baseline arm (no AGENTS.md)
+    uv run dev/skill-evals/eval.py --repeat 3        Reduce nondeterminism
 
-Arms are git worktrees of the real repo, so the agent sees actual
-source files. The only difference between arms is which AGENTS.md is present.
-
-Authentication: uses Claude Code session by default (claude /login).
-Set ANTHROPIC_API_KEY to use API key auth instead.
+Authentication: Claude Code session (claude /login) or ANTHROPIC_API_KEY.
 """
 
 from __future__ import annotations
@@ -53,14 +52,14 @@ OUTPUT_SCHEMA = """\
         type: json_schema
         schema:
           type: object
-          required: [runner, command, rationale]
+          required: [should_create, rationale]
           additionalProperties: false
           properties:
-            runner:
+            should_create:
+              type: boolean
+            type:
               type: string
-              enum: [uv, breeze, prek]
-            command:
-              type: string
+              enum: [bugfix, feature, improvement, doc, misc, significant]
             rationale:
               type: string"""
 

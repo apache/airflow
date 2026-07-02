@@ -33,10 +33,9 @@
 
 # Skill-Eval Harness
 
-Test whether changes to `AGENTS.md` break or improve agent routing
-decisions. The harness compares the `main` branch version against
-your working tree, running the same cases against both and reporting
-the diff.
+Test whether changes to `AGENTS.md` break or improve agent decisions.
+The harness compares the `main` branch version against your working
+tree, running the same cases against both and reporting the diff.
 
 Each arm is a **git worktree** of the real repo — the agent sees
 actual source files (`pyproject.toml`, directory structure, etc.).
@@ -88,17 +87,19 @@ Cases live in `cases/*.yaml`. Add entries to an existing file or
 create a new one — no config changes needed.
 
 ```yaml
-- description: "Helm test: should use breeze"
+- description: "Scheduler bugfix (#64322): no newsfragment"
   vars:
     request: |
-      Run the Helm chart tests.
+      I fixed the scheduler to skip asset-triggered Dags that don't
+      have a SerializedDagModel yet.
+      Should I create a newsfragment?
   assert:
     - type: javascript
-      value: 'output.runner === "breeze"'
+      value: 'output.should_create === false'
 ```
 
-The agent returns structured JSON (`{runner, command, rationale}`).
-Use `output.runner` directly in assertions.
+The agent returns structured JSON (`{should_create, type, rationale}`).
+Use `output.should_create` directly in assertions.
 
 ## How it works
 

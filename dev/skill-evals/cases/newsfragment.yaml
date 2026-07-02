@@ -1,0 +1,64 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+# Cases from real PRs where agents created newsfragments that
+# reviewers asked to remove. These are the ambiguous boundary
+# cases — the changes look like they could be user-facing.
+
+- description: "Scheduler bugfix (#64322): no newsfragment"
+  vars:
+    request: |
+      I fixed the scheduler to skip asset-triggered Dags that don't
+      have a SerializedDagModel yet. Without this fix, premature
+      asset-triggered DagRuns could be created during parsing.
+      The fix is in airflow-core/src/airflow/models/dag.py.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === false'
+
+- description: "i18n cache busting (#65720): no newsfragment"
+  vars:
+    request: |
+      I fixed stale translation files after Airflow upgrades by
+      appending the version number to the i18n file load path.
+      The fix is in airflow-core/src/airflow/ui/src/i18n/config.ts.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === false'
+
+- description: "API query optimization (#66696): no newsfragment"
+  vars:
+    request: |
+      I replaced COALESCE with index-friendly OR conditions in the
+      datetime range filters in airflow-core API to improve query
+      performance. No behavior change for API consumers.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === false'
+
+- description: "Provider bug fix (#67333): no newsfragment"
+  vars:
+    request: |
+      I fixed a monitoring-pod leak in KubernetesJobOperator.
+      The fix is in providers/cncf/kubernetes/.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === false'
