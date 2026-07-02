@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, or_, select
+from sqlalchemy import exc, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -41,6 +41,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
     TaskOutletAssetReference,
+    asset_alias_asset_event_association_table,
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
@@ -359,8 +360,15 @@ class AssetManager(LoggingMixin):
             ).unique()
 
             for asset_alias_model in asset_alias_models:
-                asset_alias_model.asset_events.append(asset_event)
-                session.add(asset_alias_model)
+                # Direct INSERT instead of ORM .append(), which would lazy-load the alias's
+                # full asset_events collection. Safe here because nothing reads
+                # asset_alias_model.asset_events again before commit.
+                session.execute(
+                    insert(asset_alias_asset_event_association_table).values(
+                        alias_id=asset_alias_model.id,
+                        event_id=asset_event.id,
+                    )
+                )
 
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
@@ -519,9 +527,9 @@ class AssetManager(LoggingMixin):
         # constraint violation.
         #
         # If we support it, use ON CONFLICT to do nothing, otherwise
-        # "fallback" to running this in a nested transaction. This is needed
-        # so that the adding of these rows happens in the same transaction
-        # where `ti.state` is changed.
+        # "fallback" to running this in a nested transaction. Some callers
+        # run this as part of a TI state transaction; the Execution API commits
+        # the TI state first, then runs asset registration in a separate transaction.
         if get_dialect_name(session) == "postgresql":
             return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
         return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)

@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -499,6 +500,9 @@ def ti_update_state(
                 extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
+        # Commit now so the task_instance row lock is released before the asset-registration
+        # queries below run.
+        session.commit()
     except DataError:
         # Let DataErrorHandler return a 422 (not the opaque 500 below).
         raise
@@ -525,13 +529,39 @@ def ti_update_state(
                     task_id=task_id,
                     map_index=map_index,
                 )
+                session.commit()
             except Exception:
+                session.rollback()
                 log.warning(
                     "Failed to clear task state on success",
                     dag_id=dag_id,
                     run_id=run_id,
                     task_id=task_id,
                 )
+
+    if (
+        updated_state == TaskInstanceState.SUCCESS
+        and isinstance(ti_patch_payload, TISuccessStatePayload)
+        and ti_patch_payload.task_outlets
+    ):
+        try:
+            ti_for_assets = session.get(TI, task_instance_id)
+            if ti_for_assets is not None:
+                TI.register_asset_changes_in_db(
+                    ti_for_assets,
+                    ti_patch_payload.task_outlets,
+                    ti_patch_payload.outlet_events,
+                    session=session,
+                )
+                session.commit()
+        except Exception:
+            session.rollback()
+            stats.incr("asset.registration_failures")
+            log.exception(
+                "Failed to register asset changes; task state is already committed",
+                task_instance_id=str(task_instance_id),
+                new_state=updated_state,
+            )
 
 
 def _emit_task_span(ti, state):
@@ -651,14 +681,6 @@ def _create_ti_state_update_query_and_update_state(
                 retry_delay_override=ti_patch_payload.retry_delay_seconds,
                 retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
             )
-        elif isinstance(ti_patch_payload, TISuccessStatePayload):
-            if ti is not None:
-                TI.register_asset_changes_in_db(
-                    ti,
-                    ti_patch_payload.task_outlets,
-                    ti_patch_payload.outlet_events,
-                    session=session,
-                )
         try:
             _emit_task_span(ti, state=updated_state)
         except Exception:
