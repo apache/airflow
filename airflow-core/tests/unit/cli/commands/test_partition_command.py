@@ -760,6 +760,40 @@ class TestPartitionsClear:
             )
         assert "--date must be in the form 'a~b'" in str(excinfo.value.code)
 
+    @pytest.mark.parametrize(
+        "cli_args",
+        [
+            ["--start-date", "2026-01-03", "--end-date", "2026-01-01"],
+            ["--date", "2026-01-03~2026-01-01"],
+        ],
+    )
+    def test_inverted_date_window_is_rejected(self, parser, cli_args):
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, *cli_args]))
+        assert excinfo.value.code == "--start-date must be on or before --end-date."
+
+    def test_equal_start_and_end_date_is_accepted(self, parser, capsys):
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    DAG_ID,
+                    "--start-date",
+                    "2026-01-02",
+                    "--end-date",
+                    "2026-01-02",
+                ]
+            )
+        )
+        captured = capsys.readouterr()
+        assert captured.out == (
+            "DagRun part_run_2: partition_key='2026-01-02T00:00:00' -> None, "
+            "partition_date=2026-01-02T00:00:00+00:00 -> None\n"
+            "Cleared partition fields on 1 DagRun(s).\n"
+        )
+
     def test_date_range_syntax_mutually_exclusive_with_start_end(self, parser):
         with pytest.raises(SystemExit) as excinfo:
             partition_command.clear(
