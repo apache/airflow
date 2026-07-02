@@ -280,6 +280,12 @@ def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, lin
         ),
         pytest.param(
             {},
+            {"backend": "postgres", "postgres_version": "19rc1"},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql"},
+            id="POSTGRES_DATA_VOLUME_PATH is its parent for a Postgres pre-release (19rc1)",
+        ),
+        pytest.param(
+            {},
             {"backend": "none", "postgres_version": ""},
             {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
             id="POSTGRES_DATA_VOLUME_PATH ignores the empty version of non-postgres backends",
