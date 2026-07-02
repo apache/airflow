@@ -28,6 +28,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag, _CacheEntry
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG
@@ -181,6 +182,59 @@ class TestDBDagBag:
         result = self.db_dag_bag.get_dag("v1", session=self.session)
 
         assert result is None
+
+    @patch("airflow.models.dagbag.DagVersion")
+    @patch.object(DBDagBag, "_get_dag")
+    def test_get_dags_for_runs_batches_version_resolution(self, mock_get_dag, mock_dag_version):
+        """One latest-version lookup for the whole batch; per-run resolution mirrors get_dag_for_run."""
+        latest_a = MagicMock(spec=DagVersion, id="latest-a")
+        mock_dag_version.get_latest_versions.return_value = {"dag_a": latest_a}
+        mock_get_dag.side_effect = lambda *, version_id, session: f"dag-{version_id}"
+
+        unpinned = MagicMock(
+            spec=DagRun, dag_id="dag_a", run_id="r1", bundle_version=None, created_dag_version_id="c-a"
+        )
+        pinned = MagicMock(
+            spec=DagRun, dag_id="dag_b", run_id="r1", bundle_version="v9", created_dag_version_id="c-b"
+        )
+        unpinned_no_latest = MagicMock(
+            spec=DagRun, dag_id="dag_c", run_id="r2", bundle_version=None, created_dag_version_id="c-c"
+        )
+        unresolvable = MagicMock(
+            spec=DagRun, dag_id="dag_d", run_id="r3", bundle_version="v9", created_dag_version_id=None
+        )
+
+        result = self.db_dag_bag.get_dags_for_runs(
+            dag_runs=[unpinned, pinned, unpinned_no_latest, unresolvable], session=self.session
+        )
+
+        mock_dag_version.get_latest_versions.assert_called_once_with(
+            dag_ids={"dag_a", "dag_c"}, session=self.session
+        )
+        assert result == {
+            ("dag_a", "r1"): "dag-latest-a",
+            ("dag_b", "r1"): "dag-c-b",
+            ("dag_c", "r2"): "dag-c-c",
+            ("dag_d", "r3"): None,
+        }
+
+    @patch("airflow.models.dagbag.DagVersion")
+    @patch.object(DBDagBag, "_get_dag")
+    def test_get_dags_for_runs_uses_precomputed_versions(self, mock_get_dag, mock_dag_version):
+        """A caller-provided latest_versions map must be used without re-querying."""
+        mock_get_dag.side_effect = lambda *, version_id, session: f"dag-{version_id}"
+        run = MagicMock(
+            spec=DagRun, dag_id="dag_a", run_id="r1", bundle_version=None, created_dag_version_id="c-a"
+        )
+
+        result = self.db_dag_bag.get_dags_for_runs(
+            dag_runs=[run],
+            session=self.session,
+            latest_versions={"dag_a": MagicMock(spec=DagVersion, id="latest-a")},
+        )
+
+        mock_dag_version.get_latest_versions.assert_not_called()
+        assert result == {("dag_a", "r1"): "dag-latest-a"}
 
     def test_get_dag_reflects_in_place_version_update_end_to_end(self):
         """End-to-end regression: an in-place version update must be re-read, not served stale.
