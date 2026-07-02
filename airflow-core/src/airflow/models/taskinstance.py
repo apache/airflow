@@ -1871,10 +1871,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state == TaskInstanceState.RUNNING:
-                # If the task instance is in the running state, it means it raised an exception and
-                # about to retry so we record the task instance history. For other states, the task
-                # instance was cleared and already recorded in the task instance history.
+            if ti.state != TaskInstanceState.RESTARTING:
+                # Record the current attempt and prepare the TI for its next try.
+                # Covers every path eligible for retry reaching handle_failure():
+                # - RUNNING: task raised an exception during execution (normal failure)
+                # - QUEUED/SCHEDULED/DEFERRED: executor killed the task externally before
+                #   it could start (e.g. pod OOMKilled in KubernetesExecutor)
+                # RESTARTING is excluded: the task was cleared via the UI/API while running;
+                # prepare_db_for_next_try() was already called during that clear operation.
                 ti.prepare_db_for_next_try(session)
 
             ti.state = State.UP_FOR_RETRY

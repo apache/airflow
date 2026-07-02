@@ -5158,6 +5158,8 @@ class TestSchedulerJob:
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = adoptable_state
         ti.queued_by_job_id = old_job.id
+        ti.hostname = "random-hostname"
+        ti.start_date = DEFAULT_DATE
         old_ti_id = ti.id
         old_try_number = ti.try_number
         session.merge(ti)
@@ -5169,19 +5171,69 @@ class TestSchedulerJob:
 
         ti.refresh_from_db(session=session)
         assert ti.id != old_ti_id
-        assert (
-            session.scalar(
-                select(TaskInstanceHistory).where(
-                    TaskInstanceHistory.dag_id == ti.dag_id,
-                    TaskInstanceHistory.task_id == ti.task_id,
-                    TaskInstanceHistory.run_id == ti.run_id,
-                    TaskInstanceHistory.map_index == ti.map_index,
-                    TaskInstanceHistory.try_number == old_try_number,
-                    TaskInstanceHistory.task_instance_id == old_ti_id,
-                )
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == old_try_number,
+                TaskInstanceHistory.task_instance_id == old_ti_id,
             )
-            is not None
         )
+        assert tih is not None
+        assert tih.hostname == "random-hostname"
+
+    @pytest.mark.parametrize("ti_state", [TaskInstanceState.QUEUED, TaskInstanceState.SCHEDULED])
+    def test_process_executor_events_queued_ti_retry_preserves_history(self, ti_state, dag_maker, session):
+        """
+        Regression test for #65366 / #67238.
+
+        When an executor reports FAILED for a TI that is QUEUED or SCHEDULED
+        (killed externally before it could start), the scheduler calls handle_failure()
+        which must call prepare_db_for_next_try() so that TaskInstanceHistory is recorded
+        with the correct hostname and start_date.
+        """
+        dag_id = "test_queued_ti_retry_history"
+        task_id = "dummy"
+        hostname = "worker-node-42"
+
+        with dag_maker(dag_id=dag_id, fileloc="/test_path/"):
+            task = EmptyOperator(task_id=task_id, retries=2)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.state = ti_state
+        ti.hostname = hostname
+        ti.start_date = DEFAULT_DATE
+        ti.try_number = 1
+        ti.max_tries = 2
+        session.merge(ti)
+        session.commit()
+
+        old_ti_id = ti.id
+
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[ti.key] = TaskInstanceState.FAILED, None
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
+
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_ti_id)
+        )
+        assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
+        assert tih.hostname == hostname
+        assert tih.start_date == DEFAULT_DATE
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"

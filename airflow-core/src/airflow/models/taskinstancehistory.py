@@ -211,7 +211,7 @@ class TaskInstanceHistory(Base):
         ti_history_state = ti.state
         if ti.state not in State.finished:
             ti_history_state = TaskInstanceState.FAILED
-            ti.end_date = timezone.utcnow()
+            ti.end_date = ti.end_date or timezone.utcnow()
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
