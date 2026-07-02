@@ -663,7 +663,7 @@ class DagRunOperations(BaseOperations):
             raise e
 
     def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
-        """Delete a dag run."""
+        """Delete a Dag run."""
         try:
             self.client.delete(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
             return dag_run_id
