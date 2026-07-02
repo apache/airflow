@@ -355,22 +355,16 @@ def _build_duplicate_dag_id_warnings(
             continue
 
         message = (
-            f"dag_id '{dag.dag_id}' is now served from '{dag.relative_fileloc}' "
-            f"(bundle: '{bundle_name}'), previously registered from '{existing.relative_fileloc}' "
-            f"(bundle: '{existing.bundle_name}'). "
-            f"If '{existing.relative_fileloc}' was renamed or moved, this notice will clear on "
-            "the next parse cycle once the old file is no longer observed. "
-            f"If both files coexist with the same dag_id, rename one of them to avoid "
-            "non-deterministic behavior."
+            f"Also registered from '{existing.relative_fileloc}' (bundle: '{existing.bundle_name}'), "
+            "which is now overwritten by this file. See the FAQ on duplicate dag_id warnings for details."
         )
         log.warning(
-            "Duplicate dag_id '%s' detected: incoming file '%s' (bundle '%s') conflicts with "
-            "existing file '%s' (bundle '%s')",
-            dag.dag_id,
-            dag.relative_fileloc,
-            bundle_name,
-            existing.relative_fileloc,
-            existing.bundle_name,
+            "Duplicate dag_id detected",
+            dag_id=dag.dag_id,
+            incoming_fileloc=dag.relative_fileloc,
+            incoming_bundle=bundle_name,
+            existing_fileloc=existing.relative_fileloc,
+            existing_bundle=existing.bundle_name,
         )
         stats.incr("dag_processing.duplicate_dag_id", tags={"dag_id": dag.dag_id})
         warnings.add(DagWarning(dag.dag_id, DagWarningType.DUPLICATE_DAG_ID, message))

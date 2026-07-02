@@ -809,11 +809,8 @@ class TestUpdateDagParsingResults:
         )
 
         assert warning is not None
-        assert "duplicated_dag" in warning.message
-        assert "current.py" in warning.message
         assert "existing.py" in warning.message
-        assert "renamed or moved" in warning.message
-        assert "non-deterministic behavior" in warning.message
+        assert "overwritten" in warning.message
         mock_stats_incr.assert_called_once_with(
             "dag_processing.duplicate_dag_id", tags={"dag_id": "duplicated_dag"}
         )
