@@ -67,6 +67,29 @@ class TestDagVersion:
         assert latest_version.version_number == 2
         assert session.scalar(select(func.count()).where(DagVersion.dag_id == dag.dag_id)) == 2
 
+    def test_get_latest_versions_resolves_each_dag_in_one_query(self, dag_maker, session):
+        with dag_maker("batch_dag_1") as dag1:
+            EmptyOperator(task_id="task1")
+        sync_dag_to_db(dag1)
+        # Add extra task to create a second version of the first dag
+        with dag_maker("batch_dag_1") as dag1_v2:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag1_v2)
+        with dag_maker("batch_dag_2") as dag2:
+            EmptyOperator(task_id="task1")
+        sync_dag_to_db(dag2)
+
+        latest = DagVersion.get_latest_versions(
+            dag_ids=["batch_dag_1", "batch_dag_2", "missing_dag"], session=session
+        )
+
+        assert latest.keys() == {"batch_dag_1", "batch_dag_2"}
+        assert latest["batch_dag_1"].version_number == 2
+        assert latest["batch_dag_2"].version_number == 1
+        assert latest["batch_dag_1"].id == DagVersion.get_latest_version("batch_dag_1", session=session).id
+        assert DagVersion.get_latest_versions(dag_ids=[], session=session) == {}
+
     @staticmethod
     def _seed_two_versions_with_inverted_created_at(session, *, dag_id):
         """Create versions 1 and 2 where version 2 has an *earlier* created_at than version 1.
