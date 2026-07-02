@@ -20,6 +20,11 @@ from __future__ import annotations
 import functools
 from typing import TYPE_CHECKING, Any
 
+bundle = VersionBundle(
+    HeadVersion(),
+    # First supervisor schema version; there is no previous version to migrate from.
+    Version("2026-06-16"),
+)
 if TYPE_CHECKING:
     from cadwyn import VersionBundle
 
