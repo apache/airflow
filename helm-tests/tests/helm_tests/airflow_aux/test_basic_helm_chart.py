@@ -400,6 +400,9 @@ class TestBaseChartTest:
             "logs": {"persistence": {"enabled": True}},
             "dags": {"persistence": {"enabled": True}},
             "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+            "priorityClasses": [
+                {"name": "class1", "value": 10000},
+            ],
         }
 
         if airflow_version != "default":
@@ -466,6 +469,7 @@ class TestBaseChartTest:
             (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
+            (f"{release_name}-class1", "PriorityClass", None),
         ]
 
         if self._is_airflow_3_or_above(airflow_version):
