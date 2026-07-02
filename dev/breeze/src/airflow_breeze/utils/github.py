@@ -85,9 +85,25 @@ def run_gh_command(
     return subprocess.run(command, env=command_env, check=check, **kwargs)
 
 
-def retrieve_github_token(token: str | None = None, *, env: Mapping[str, str] | None = None) -> str | None:
+def format_github_token_scope_guidance(*, description: str | None = None, scopes: str | None = None) -> str:
+    purpose = f" for {description}" if description else ""
+    if scopes:
+        return f"If creating a token manually{purpose}, it needs {scopes} scope."
+    return f"If creating a token manually{purpose}, make sure it has the permissions required by the command."
+
+
+def retrieve_github_token(
+    token: str | None = None,
+    *,
+    description: str | None = None,
+    scopes: str | None = None,
+    env: Mapping[str, str] | None = None,
+) -> str | None:
     """
     Resolve a GitHub token for local Breeze commands.
+
+    ``description`` and ``scopes`` document what the caller needs from the token. Retrieval itself
+    does not validate scopes.
 
     Non-empty token arguments are preserved when they do not match ``GH_TOKEN`` or
     ``GITHUB_TOKEN`` from the environment. Matching values are treated as ambient env input because

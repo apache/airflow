@@ -64,11 +64,13 @@ dags:
   get-version: "Retrieve a specific version of a Dag"
   list-version: "List all versions of a Dag"
   list-warning: "List all Dag warnings"
+  state: "Get the status of a Dag run"
   trigger: "Trigger a new Dag run"
 
 dagrun:
   get: "Retrieve a Dag run by Dag ID and run ID"
   list: "List Dag runs, optionally filtered by state and date range"
+  delete: "Delete a Dag run by Dag ID and run ID"
 
 jobs:
   list: "List scheduler, triggerer, and other Airflow jobs"
