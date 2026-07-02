@@ -26,12 +26,14 @@ from requests.exceptions import HTTPError
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.ai_agents import (
+    DEFAULT_REQUEST_TIMEOUT,
     HOSTED_AGENT_FEATURE_HEADER,
     TOKEN_SCOPE,
     AzureAIAgentsAsyncHook,
     AzureAIAgentsHook,
-    get_agent_version,
-    get_version_status,
+    _get_agent_version,
+    _get_version_status,
+    _serialize_resource,
 )
 
 MODULE = "airflow.providers.microsoft.azure.hooks.ai_agents"
@@ -158,7 +160,48 @@ class TestAzureAIAgentsHook:
                 "Foundry-Features": HOSTED_AGENT_FEATURE_HEADER,
             },
             json={"name": AGENT_NAME},
+            timeout=DEFAULT_REQUEST_TIMEOUT,
         )
+
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
+    def test_request_reuses_connection_and_credential(self, mock_default_credential, create_mock_connection):
+        create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
+        mock_default_credential.return_value.get_token.return_value.token = "token"
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+        hook.__dict__["session"] = mock.Mock()
+        hook.session.request.return_value = build_response(payload={"ok": True})
+
+        with mock.patch.object(hook, "get_connection", wraps=hook.get_connection) as mock_get_connection:
+            hook._request("GET", "agents")
+            hook._request("GET", "agents")
+
+        mock_get_connection.assert_called_once_with(CONN_ID)
+        mock_default_credential.assert_called_once()
+        assert mock_default_credential.return_value.get_token.call_count == 2
+
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
+    def test_request_uses_custom_timeout(self, mock_default_credential, create_mock_connection):
+        create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
+        mock_default_credential.return_value.get_token.return_value.token = "token"
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+        hook.__dict__["session"] = mock.Mock()
+        hook.session.request.return_value = build_response(payload={"ok": True})
+
+        hook._request("GET", "agents", timeout=10)
+
+        assert hook.session.request.call_args.kwargs["timeout"] == 10
+
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
+    def test_request_uses_hook_timeout(self, mock_default_credential, create_mock_connection):
+        create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
+        mock_default_credential.return_value.get_token.return_value.token = "token"
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID, timeout=(5, 120))
+        hook.__dict__["session"] = mock.Mock()
+        hook.session.request.return_value = build_response(payload={"ok": True})
+
+        hook._request("GET", "agents")
+
+        assert hook.session.request.call_args.kwargs["timeout"] == (5, 120)
 
     def test_get_endpoint_hook_endpoint_overrides_connection_endpoint(self, create_mock_connection):
         create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
@@ -406,11 +449,11 @@ class TestAzureAIAgentsHook:
 
     def test_get_version_status_raises_when_status_missing(self):
         with pytest.raises(ValueError, match="did not include a status"):
-            get_version_status({})
+            _get_version_status({})
 
     def test_get_agent_version_raises_when_version_missing(self):
         with pytest.raises(ValueError, match="did not include a version"):
-            get_agent_version({})
+            _get_agent_version({})
 
     def test_get_agent_version_from_agent_create_response(self):
         agent_response = {
@@ -424,7 +467,26 @@ class TestAzureAIAgentsHook:
                 }
             },
         }
-        assert get_agent_version(agent_response) == "1"
+        assert _get_agent_version(agent_response) == "1"
+
+    def test_serialize_resource_uses_explicit_model_serializer(self):
+        class ModelResource:
+            def model_dump(self):
+                return {"name": AGENT_NAME, "versions": [{"version": "1"}]}
+
+        resource = ModelResource()
+        assert _serialize_resource(resource) == {"name": AGENT_NAME, "versions": [{"version": "1"}]}
+
+    def test_serialize_resource_does_not_serialize_arbitrary_object_attributes(self):
+        class ArbitraryObject:
+            value = "class-value"
+
+            def __init__(self):
+                self.value = "instance-value"
+
+        resource = ArbitraryObject()
+
+        assert _serialize_resource(resource) is resource
 
 
 class TestAzureAIAgentsAsyncHook:

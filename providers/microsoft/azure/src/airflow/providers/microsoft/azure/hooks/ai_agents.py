@@ -45,40 +45,38 @@ if TYPE_CHECKING:
 
 HOSTED_AGENT_FEATURE_HEADER = "HostedAgents=V1Preview"
 TOKEN_SCOPE = "https://ai.azure.com/.default"
+DEFAULT_REQUEST_TIMEOUT = 60.0
 VERSION_INTERMEDIATE_STATUSES = {"creating", "deleting"}
 VERSION_SUCCESS_STATUSES = {"active"}
 VERSION_FAILURE_STATUSES = {"failed"}
+VERSION_DELETED_STATUS = "deleted"
 
 
-def serialize_resource(resource: Any) -> Any:
+def _serialize_resource(resource: Any) -> Any:
     """Serialize an SDK or HTTP response object into XCom-safe primitives."""
     if resource is None or isinstance(resource, str | int | float | bool):
         return resource
     if isinstance(resource, list | tuple):
-        return [serialize_resource(item) for item in resource]
+        return [_serialize_resource(item) for item in resource]
     if isinstance(resource, dict):
-        return {key: serialize_resource(value) for key, value in resource.items()}
+        return {key: _serialize_resource(value) for key, value in resource.items()}
     if hasattr(resource, "as_dict"):
-        return serialize_resource(resource.as_dict())
+        return _serialize_resource(resource.as_dict())
     if hasattr(resource, "model_dump"):
-        return serialize_resource(resource.model_dump())
-    if hasattr(resource, "__dict__"):
-        return {
-            key: serialize_resource(value) for key, value in vars(resource).items() if not key.startswith("_")
-        }
+        return _serialize_resource(resource.model_dump())
     return resource
 
 
-def get_resource_attr(resource: Any, attr: str) -> Any:
+def _get_resource_attr(resource: Any, attr: str) -> Any:
     """Get an attribute from an SDK resource or mapping."""
     if isinstance(resource, dict):
         return resource.get(attr)
     return getattr(resource, attr, None)
 
 
-def get_version_status(version: Any) -> str:
+def _get_version_status(version: Any) -> str:
     """Return a normalized Hosted agent version status string."""
-    status = get_resource_attr(version, "status")
+    status = _get_resource_attr(version, "status")
     if hasattr(status, "value"):
         status = status.value
     if status is None:
@@ -86,7 +84,7 @@ def get_version_status(version: Any) -> str:
     return str(status).lower()
 
 
-def get_agent_version(version: Any) -> str:
+def _get_agent_version(version: Any) -> str:
     """
     Return the version identifier from a Hosted agent version or agent payload.
 
@@ -94,12 +92,12 @@ def get_agent_version(version: Any) -> str:
     GET /agents/{name}/versions/{version}) and a top-level ``agent`` object (returned by
     POST /agents), extracting the version from ``versions.latest.version`` in the latter case.
     """
-    agent_version = get_resource_attr(version, "version") or get_resource_attr(version, "agent_version")
+    agent_version = _get_resource_attr(version, "version") or _get_resource_attr(version, "agent_version")
     if agent_version is None:
         # POST /agents returns an agent object; the initial version lives under versions.latest
-        versions = get_resource_attr(version, "versions")
-        latest = get_resource_attr(versions, "latest") if versions is not None else None
-        agent_version = get_resource_attr(latest, "version") if latest is not None else None
+        versions = _get_resource_attr(version, "versions")
+        latest = _get_resource_attr(versions, "latest") if versions is not None else None
+        agent_version = _get_resource_attr(latest, "version") if latest is not None else None
     if agent_version is None:
         raise ValueError("Azure AI Hosted agent response did not include a version.")
     return str(agent_version)
@@ -113,6 +111,7 @@ class AzureAIAgentsHook(BaseHook):
     :param endpoint: Optional Azure AI Foundry project endpoint. If not provided, the hook uses the
         connection host or the ``endpoint`` connection extra.
     :param api_version: Foundry Agent Service API version.
+    :param timeout: Optional timeout for HTTP requests, in seconds.
     """
 
     conn_name_attr = "azure_ai_agents_conn_id"
@@ -125,11 +124,13 @@ class AzureAIAgentsHook(BaseHook):
         azure_ai_agents_conn_id: str = default_conn_name,
         endpoint: str | None = None,
         api_version: str = "v1",
+        timeout: float | tuple[float, float] | None = DEFAULT_REQUEST_TIMEOUT,
     ) -> None:
         super().__init__()
         self.conn_id = azure_ai_agents_conn_id
         self.endpoint = endpoint
         self.api_version = api_version
+        self.timeout = timeout
 
     @classmethod
     @add_managed_identity_connection_widgets
@@ -171,6 +172,14 @@ class AzureAIAgentsHook(BaseHook):
     def session(self) -> Session:
         """Return a cached requests session."""
         return Session()
+
+    @cached_property
+    def _connection(self) -> Connection:
+        return self.get_connection(self.conn_id)
+
+    @cached_property
+    def _credential(self) -> TokenCredential:
+        return self._get_credential(self._connection)
 
     def _get_endpoint(self, conn: Connection, extras: dict[str, Any] | None = None) -> str:
         connection_extras = extras if extras is not None else conn.extra_dejson
@@ -224,11 +233,10 @@ class AzureAIAgentsHook(BaseHook):
         extra_headers: dict[str, str] | None = None,
         query_params: dict[str, str] | None = None,
         include_api_version: bool = True,
+        timeout: float | tuple[float, float] | None = None,
     ) -> Any:
-        conn = self.get_connection(self.conn_id)
-        credential = self._get_credential(conn)
-        token = credential.get_token(TOKEN_SCOPE).token
-        url = f"{self._get_endpoint(conn)}/{path.lstrip('/')}"
+        token = self._credential.get_token(TOKEN_SCOPE).token
+        url = f"{self._get_endpoint(self._connection)}/{path.lstrip('/')}"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -247,6 +255,7 @@ class AzureAIAgentsHook(BaseHook):
             params=params or None,
             headers=headers,
             json=json_payload,
+            timeout=timeout if timeout is not None else self.timeout,
         )
         return self._process_response(response)
 
@@ -317,7 +326,18 @@ class AzureAIAgentsHook(BaseHook):
         agent_endpoint: dict[str, Any] | None = None,
         agent_card: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create a Hosted agent and its first version."""
+        """
+        Create a Hosted agent and its first version.
+
+        :param agent_name: Hosted agent name.
+        :param definition: Hosted agent container definition.
+        :param metadata: Optional metadata attached to the Hosted agent.
+        :param description: Optional human-readable Hosted agent description.
+        :param blueprint_reference: Optional managed identity blueprint reference.
+        :param agent_endpoint: Optional Hosted agent endpoint configuration.
+        :param agent_card: Optional agent card for the Hosted agent.
+        :return: Created Hosted agent payload.
+        """
         payload = self._build_agent_payload(
             definition=definition,
             metadata=metadata,
@@ -341,7 +361,16 @@ class AzureAIAgentsHook(BaseHook):
         description: str | None = None,
         blueprint_reference: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Update a Hosted agent, creating a new version when the definition changes."""
+        """
+        Update a Hosted agent, creating a new version when the definition changes.
+
+        :param agent_name: Hosted agent name.
+        :param definition: Updated Hosted agent container definition.
+        :param metadata: Optional metadata attached to the Hosted agent.
+        :param description: Optional human-readable Hosted agent description.
+        :param blueprint_reference: Optional managed identity blueprint reference.
+        :return: Updated Hosted agent payload.
+        """
         return self._request(
             "POST",
             f"agents/{self._quote_resource_id(agent_name)}",
@@ -354,45 +383,78 @@ class AzureAIAgentsHook(BaseHook):
         )
 
     def get_agent_version(self, agent_name: str, agent_version: str) -> dict[str, Any]:
-        """Get a Hosted agent version."""
+        """
+        Get a Hosted agent version.
+
+        :param agent_name: Hosted agent name.
+        :param agent_version: Hosted agent version.
+        :return: Hosted agent version payload.
+        """
         return self._request(
             "GET",
             f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
         )
 
     def get_agent(self, agent_name: str) -> dict[str, Any]:
-        """Get a Hosted agent."""
+        """
+        Get a Hosted agent.
+
+        :param agent_name: Hosted agent name.
+        :return: Hosted agent payload.
+        """
         return self._request("GET", f"agents/{self._quote_resource_id(agent_name)}")
 
     def delete_agent(self, agent_name: str, *, force: bool = False) -> dict[str, Any] | None:
-        """Delete a Hosted agent and all versions."""
+        """
+        Delete a Hosted agent and all versions.
+
+        :param agent_name: Hosted agent name.
+        :param force: Whether to force deletion of child resources.
+        :return: Deletion response payload, or ``None`` when the service returns no content.
+        """
         query_params = {"force": "true"} if force else None
         return self._request(
             "DELETE", f"agents/{self._quote_resource_id(agent_name)}", query_params=query_params
         )
 
     def delete_agent_version(self, agent_name: str, agent_version: str) -> None:
-        """Delete one Hosted agent version."""
+        """
+        Delete one Hosted agent version.
+
+        :param agent_name: Hosted agent name.
+        :param agent_version: Hosted agent version.
+        """
         self._request(
             "DELETE",
             f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
         )
 
     def is_agent_version_deleted(self, agent_name: str, agent_version: str) -> bool:
-        """Return True if the Hosted agent version no longer exists or is deleted."""
+        """
+        Return True if the Hosted agent version no longer exists or is deleted.
+
+        :param agent_name: Hosted agent name.
+        :param agent_version: Hosted agent version.
+        :return: ``True`` when the Hosted agent version no longer exists or has deleted status.
+        """
         try:
             version = self.get_agent_version(agent_name=agent_name, agent_version=agent_version)
         except ResourceNotFoundError:
             return True
-        return get_version_status(version) == "deleted"
+        return _get_version_status(version) == VERSION_DELETED_STATUS
 
     def is_agent_deleted(self, agent_name: str) -> bool:
-        """Return True if the Hosted agent no longer exists."""
+        """
+        Return True if the Hosted agent no longer exists.
+
+        :param agent_name: Hosted agent name.
+        :return: ``True`` when the Hosted agent no longer exists or has deleted status.
+        """
         try:
             agent = self.get_agent(agent_name=agent_name)
         except ResourceNotFoundError:
             return True
-        return str(get_resource_attr(agent, "status") or "").lower() == "deleted"
+        return str(_get_resource_attr(agent, "status") or "").lower() == VERSION_DELETED_STATUS
 
     def invoke_agent_responses(
         self,
@@ -402,7 +464,15 @@ class AzureAIAgentsHook(BaseHook):
         agent_version: str | None = None,
         user_isolation_key: str | None = None,
     ) -> dict[str, Any]:
-        """Invoke a Hosted agent through the OpenAI Responses protocol."""
+        """
+        Invoke a Hosted agent through the OpenAI Responses protocol.
+
+        :param agent_name: Hosted agent name.
+        :param input_data: Request payload for the Responses protocol.
+        :param agent_version: Optional Hosted agent version to invoke.
+        :param user_isolation_key: Optional user isolation key for endpoint resources.
+        :return: Responses protocol payload.
+        """
         agent_reference = {"type": "agent_reference", "name": agent_name}
         if agent_version is not None:
             agent_reference["version"] = agent_version
@@ -423,7 +493,15 @@ class AzureAIAgentsHook(BaseHook):
         agent_session_id: str | None = None,
         user_isolation_key: str | None = None,
     ) -> Any:
-        """Invoke a Hosted agent through the Invocations protocol."""
+        """
+        Invoke a Hosted agent through the Invocations protocol.
+
+        :param agent_name: Hosted agent name.
+        :param input_data: Request payload for the Invocations protocol.
+        :param agent_session_id: Optional Hosted agent session id.
+        :param user_isolation_key: Optional user isolation key for endpoint resources.
+        :return: Invocations protocol payload.
+        """
         query_params = {"agent_session_id": agent_session_id} if agent_session_id else None
         headers = {"x-ms-user-isolation-key": user_isolation_key} if user_isolation_key else None
         return self._request(
@@ -439,7 +517,13 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
     """Async hook for Microsoft Foundry Hosted agents."""
 
     async def async_get_agent_version(self, agent_name: str, agent_version: str) -> dict[str, Any]:
-        """Get a Hosted agent version asynchronously."""
+        """
+        Get a Hosted agent version asynchronously.
+
+        :param agent_name: Hosted agent name.
+        :param agent_version: Hosted agent version.
+        :return: Hosted agent version payload.
+        """
         return await asyncio.to_thread(
             self.get_agent_version,
             agent_name=agent_name,
@@ -447,7 +531,13 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
         )
 
     async def async_is_agent_deleted(self, agent_name: str, agent_version: str | None = None) -> bool:
-        """Return True if the Hosted agent or version is deleted."""
+        """
+        Return True if the Hosted agent or version is deleted.
+
+        :param agent_name: Hosted agent name.
+        :param agent_version: Optional Hosted agent version.
+        :return: ``True`` when the Hosted agent or Hosted agent version is deleted.
+        """
         if agent_version is None:
             return await asyncio.to_thread(self.is_agent_deleted, agent_name=agent_name)
         return await asyncio.to_thread(

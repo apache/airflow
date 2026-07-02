@@ -28,10 +28,10 @@ from airflow.providers.microsoft.azure.hooks.ai_agents import (
     VERSION_INTERMEDIATE_STATUSES,
     VERSION_SUCCESS_STATUSES,
     AzureAIAgentsHook,
-    get_agent_version,
-    get_resource_attr,
-    get_version_status,
-    serialize_resource,
+    _get_agent_version,
+    _get_resource_attr,
+    _get_version_status,
+    _serialize_resource,
 )
 from airflow.providers.microsoft.azure.triggers.ai_agents import (
     AzureAIAgentDeleteTrigger,
@@ -168,9 +168,9 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
             agent_endpoint=self.agent_endpoint,
             agent_card=self.agent_card,
         )
-        agent_version = get_agent_version(version)
+        agent_version = _get_agent_version(version)
         if not self.wait_for_completion:
-            return serialize_resource(version)
+            return _serialize_resource(version)
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
@@ -191,11 +191,11 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         end_time = time.monotonic() + self.timeout
         while True:
             version = self.hook.get_agent_version(agent_name=self.agent_name, agent_version=agent_version)
-            status = get_version_status(version)
+            status = _get_version_status(version)
             if status in VERSION_SUCCESS_STATUSES:
-                return serialize_resource(version)
+                return _serialize_resource(version)
             if status in VERSION_FAILURE_STATUSES:
-                error = get_resource_attr(version, "error")
+                error = _get_resource_attr(version, "error")
                 raise RuntimeError(
                     f"Azure AI Hosted agent {self.agent_name} version {agent_version} failed: {error}."
                 )
@@ -293,9 +293,9 @@ class UpdateAzureAIAgentOperator(CreateAzureAIAgentOperator):
             description=self.description,
             blueprint_reference=self.blueprint_reference,
         )
-        agent_version = get_agent_version(version)
+        agent_version = _get_agent_version(version)
         if not self.wait_for_completion:
-            return serialize_resource(version)
+            return _serialize_resource(version)
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
@@ -371,7 +371,7 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         """Invoke an Azure AI Hosted agent and return the response payload."""
         self.log.info("Invoking Azure AI Hosted agent %s with %s protocol.", self.agent_name, self.protocol)
         if self.protocol == "responses":
-            return serialize_resource(
+            return _serialize_resource(
                 self.hook.invoke_agent_responses(
                     agent_name=self.agent_name,
                     input_data=self.input_data,
@@ -380,7 +380,7 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
                 )
             )
         if self.protocol == "invocations":
-            return serialize_resource(
+            return _serialize_resource(
                 self.hook.invoke_agent_invocations(
                     agent_name=self.agent_name,
                     input_data=self.input_data,
@@ -456,7 +456,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
             self.hook.delete_agent_version(agent_name=self.agent_name, agent_version=self.agent_version)
 
         if not self.wait_for_completion:
-            return serialize_resource(delete_response)
+            return _serialize_resource(delete_response)
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,

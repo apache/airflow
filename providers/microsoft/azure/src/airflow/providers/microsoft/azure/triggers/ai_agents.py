@@ -27,9 +27,9 @@ from airflow.providers.microsoft.azure.hooks.ai_agents import (
     VERSION_INTERMEDIATE_STATUSES,
     VERSION_SUCCESS_STATUSES,
     AzureAIAgentsAsyncHook,
-    get_resource_attr,
-    get_version_status,
-    serialize_resource,
+    _get_resource_attr,
+    _get_version_status,
+    _serialize_resource,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -84,8 +84,8 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
 
     def _build_trigger_event(self, version: Any) -> TriggerEvent | None:
         """Build a terminal TriggerEvent for a Hosted agent version."""
-        status = get_version_status(version)
-        serialized_version = serialize_resource(version)
+        status = _get_version_status(version)
+        serialized_version = _serialize_resource(version)
         if status in VERSION_SUCCESS_STATUSES:
             return TriggerEvent(
                 {
@@ -102,7 +102,7 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
                     "status": "error",
                     "message": (
                         f"Azure AI Hosted agent {self.agent_name} version {self.agent_version} failed: "
-                        f"{get_resource_attr(version, 'error')}."
+                        f"{_get_resource_attr(version, 'error')}."
                     ),
                     "version": serialized_version,
                 }
