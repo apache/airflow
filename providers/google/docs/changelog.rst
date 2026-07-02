@@ -27,6 +27,11 @@
 Changelog
 ---------
 
+Breaking change in ``BigQueryAsyncHook.get_records``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``BigQueryAsyncHook.get_records`` method has been converted from a synchronous method to an asynchronous one. If you were calling this method directly, you must now ``await`` its execution.
+
 22.2.1
 ......
 
