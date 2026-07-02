@@ -24,7 +24,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
@@ -1453,12 +1453,12 @@ def test_create_backfill_real_empty_window_no_orphan(dag_maker, session):
 
     # No orphan: zero incomplete Backfill rows for this dag
     orphan_count = session.scalar(
-        select(Backfill).where(
+        select(func.count()).where(
             Backfill.dag_id == dag.dag_id,
             Backfill.completed_at.is_(None),
         )
     )
-    assert orphan_count is None, "An orphan Backfill row was left behind after NoBackfillRunsToCreate"
+    assert orphan_count == 0, "An orphan Backfill row was left behind after NoBackfillRunsToCreate"
 
     # A valid (Monday) window must not be blocked by AlreadyRunningBackfill
     monday = pendulum.datetime(2026, 2, 23, tz="UTC")  # a Monday
