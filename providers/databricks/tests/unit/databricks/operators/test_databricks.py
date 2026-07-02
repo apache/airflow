@@ -3202,6 +3202,167 @@ class TestDatabricksNotebookOperator:
         # Only the attempt run is polled (once, before the loop); the parent run is never fetched.
         mock_databricks_hook.return_value.get_run.assert_called_once_with("attempt-1")
 
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._databricks_workflow_task_group",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
+    )
+    def test_monitor_workflow_task_reports_failure_once_retries_exhausted(
+        self, mock_get_current_task, mock_databricks_hook, mock_sleep, mock_workflow_tg
+    ):
+        mock_workflow_tg.return_value = MagicMock()
+        mock_get_current_task.return_value = {"run_id": "attempt-2", "attempt_number": 1}
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "final attempt failed",
+            },
+            "run_page_url": "url",
+        }
+
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            max_retries=1,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(AirflowException):
+            operator.monitor_databricks_job()
+        mock_sleep.assert_not_called()
+        mock_databricks_hook.return_value.get_run.assert_called_once_with("attempt-2")
+
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._databricks_workflow_task_group",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
+    )
+    def test_monitor_workflow_task_unlimited_retries_waits_for_parent(
+        self, mock_get_current_task, mock_databricks_hook, mock_sleep, mock_workflow_tg
+    ):
+        mock_workflow_tg.return_value = MagicMock()
+        mock_get_current_task.return_value = {"run_id": "attempt-1", "attempt_number": 5}
+        parent_states = iter(
+            [
+                {"life_cycle_state": "RUNNING"},
+                {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": "failed"},
+            ]
+        )
+
+        def fake_get_run(run_id):
+            if run_id == 12345:
+                return {"state": next(parent_states), "run_page_url": "parent"}
+            return {
+                "state": {
+                    "life_cycle_state": "TERMINATED",
+                    "result_state": "FAILED",
+                    "state_message": "failed",
+                },
+                "run_page_url": "url",
+            }
+
+        mock_databricks_hook.return_value.get_run.side_effect = fake_get_run
+
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            max_retries=-1,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(AirflowException):
+            operator.monitor_databricks_job()
+        mock_sleep.assert_called_once()
+        mock_databricks_hook.return_value.get_run.assert_any_call(12345)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reshaped_submit_run_without_native_retries_resolves_task_for_monitoring(
+        self, mock_databricks_hook, mock_sleep
+    ):
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            min_retry_interval_millis=2000,
+        )
+        run_json = operator._get_run_json()
+        assert "tasks" in run_json
+        assert run_json["tasks"][0]["task_key"] == operator.databricks_task_key
+        assert operator._resolved_max_retries() is None
+
+        operator.databricks_run_id = 12345
+        mock_databricks_hook.return_value.get_run_tasks.return_value = [
+            {"task_key": operator.databricks_task_key, "run_id": "attempt-1", "start_time": 1}
+        ]
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"},
+            "run_page_url": "url",
+        }
+
+        operator.monitor_databricks_job()
+        mock_databricks_hook.return_value.get_run_tasks.assert_called_once_with(12345)
+        mock_databricks_hook.return_value.get_run.assert_called_once_with("attempt-1")
+
+    @pytest.mark.parametrize(
+        "operator",
+        [
+            DatabricksNotebookOperator(
+                task_id="test_task",
+                notebook_path="test_path",
+                source="WORKSPACE",
+                databricks_conn_id="test_conn_id",
+                existing_cluster_id="existing_cluster_id",
+                max_retries="{{ params.max_retries }}",
+                min_retry_interval_millis="{{ params.min_retry_interval_millis }}",
+                retry_on_timeout="{{ params.retry_on_timeout }}",
+            ),
+            DatabricksTaskOperator(
+                task_id="test_task",
+                databricks_conn_id="test_conn_id",
+                task_config={},
+                max_retries="{{ params.max_retries }}",
+                min_retry_interval_millis="{{ params.min_retry_interval_millis }}",
+                retry_on_timeout="{{ params.retry_on_timeout }}",
+            ),
+        ],
+    )
+    def test_retry_params_render_from_templates(self, operator):
+        """Retry fields are templatable: Jinja values render and coerce to typed retry settings.
+
+        Guards the ``template_fields`` membership on both subclasses (which keep separate tuples):
+        an un-templated field would keep its literal ``{{ ... }}`` string and fail coercion.
+        """
+        operator.render_template_fields(
+            context={
+                "params": {
+                    "max_retries": 3,
+                    "min_retry_interval_millis": 2000,
+                    "retry_on_timeout": "true",
+                }
+            }
+        )
+        assert operator._retry_settings() == {
+            "max_retries": 3,
+            "min_retry_interval_millis": 2000,
+            "retry_on_timeout": True,
+        }
+
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_launch_notebook_job(self, mock_databricks_hook):
         operator = DatabricksNotebookOperator(
@@ -3591,6 +3752,53 @@ class TestDatabricksTaskOperator:
         )
         task = operator._get_run_json()["tasks"][0]
         assert task["task_key"] == operator.databricks_task_key
+
+    def test_convert_to_databricks_workflow_task_includes_task_config_retry_settings(self):
+        """Retry settings supplied via task_config surface in the workflow task JSON."""
+        dag = DAG(dag_id="example_dag", schedule=None, start_date=DEFAULT_DATE)
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            task_config={
+                "notebook_task": {"notebook_path": "/path"},
+                "max_retries": 5,
+                "min_retry_interval_millis": 1000,
+                "retry_on_timeout": True,
+            },
+            dag=dag,
+        )
+        operator.task_group = MagicMock()
+
+        task_json = operator._convert_to_databricks_workflow_task([], {})
+
+        assert task_json["max_retries"] == 5
+        assert task_json["min_retry_interval_millis"] == 1000
+        assert task_json["retry_on_timeout"] is True
+
+    def test_convert_to_databricks_workflow_task_operator_retry_overrides_task_config(self):
+        """An operator-level retry value overrides the task_config value in the workflow task JSON."""
+        dag = DAG(dag_id="example_dag", schedule=None, start_date=DEFAULT_DATE)
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            task_config={
+                "notebook_task": {"notebook_path": "/path"},
+                "max_retries": 5,
+                "min_retry_interval_millis": 1000,
+                "retry_on_timeout": False,
+            },
+            max_retries=2,
+            min_retry_interval_millis=2000,
+            retry_on_timeout=True,
+            dag=dag,
+        )
+        operator.task_group = MagicMock()
+
+        task_json = operator._convert_to_databricks_workflow_task([], {})
+
+        assert task_json["max_retries"] == 2
+        assert task_json["min_retry_interval_millis"] == 2000
+        assert task_json["retry_on_timeout"] is True
 
     def test_generate_databricks_task_key(self):
         task_config = {}

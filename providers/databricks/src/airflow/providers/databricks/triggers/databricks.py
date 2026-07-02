@@ -43,6 +43,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
     :param caller: The name of the operator that is calling the hook.
     :param workflow_run_id: Parent workflow run ID for task-level monitoring.
     :param databricks_task_key: Task key to monitor within ``workflow_run_id``.
+    :param max_retries: Resolved Databricks-native ``max_retries`` for task-level monitoring.
     """
 
     def __init__(
@@ -58,6 +59,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksExecutionTrigger",
         workflow_run_id: int | None = None,
         databricks_task_key: str | None = None,
+        max_retries: int | None = None,
     ) -> None:
         super().__init__()
         # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
@@ -74,6 +76,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.caller = caller
         self.workflow_run_id = workflow_run_id
         self.databricks_task_key = databricks_task_key
+        self.max_retries = max_retries
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -97,6 +100,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "caller": self.caller,
                 "workflow_run_id": self.workflow_run_id,
                 "databricks_task_key": self.databricks_task_key,
+                "max_retries": self.max_retries,
             },
         )
 
@@ -154,15 +158,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 return
 
     async def _run_workflow_task(self):
-        """
-        Monitor a single task within a workflow run, tolerating in-flight retries/repairs.
-
-        Tradeoff: a task whose attempt has failed (Databricks-native retries exhausted) is reported
-        as failed only once the parent run is itself terminal. Until then the trigger keeps polling,
-        because Databricks may still launch a retry/repair attempt under the same ``task_key`` and
-        there is no per-task "retries exhausted" signal before the run terminates. Sibling tasks in
-        the run continue independently in the meantime.
-        """
+        """Monitor one task in a workflow run, tolerating in-flight retries/repairs."""
         from asgiref.sync import sync_to_async
 
         while True:
@@ -186,10 +182,19 @@ class DatabricksExecutionTrigger(BaseTrigger):
                             }
                         )
                         return
-                    # The attempt failed: only report failure once the parent run is also terminal,
-                    # otherwise a retry/repair attempt may still be launched under the same task_key.
-                    parent_state = await self.hook.a_get_run_state(self.workflow_run_id)
-                    if parent_state.is_terminal:
+                    # A failed attempt is final once finite retries are exhausted; otherwise wait
+                    # for the parent run because another attempt may still appear.
+                    attempt_number = attempt.get("attempt_number")
+                    retries_exhausted = (
+                        self.max_retries is not None
+                        and self.max_retries != -1
+                        and attempt_number is not None
+                        and attempt_number >= self.max_retries
+                    )
+                    if (
+                        retries_exhausted
+                        or (await self.hook.a_get_run_state(self.workflow_run_id)).is_terminal
+                    ):
                         run_info = await self.hook.a_get_run(attempt_run_id)
                         failed_tasks = await extract_failed_task_errors_async(
                             self.hook, run_info, attempt_state
