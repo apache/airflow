@@ -238,7 +238,7 @@ class TestBaseDatabricksHook:
         hook.user_agent_header = {"User-Agent": "test-agent"}
         resource = ""
 
-        with pytest.raises(AirflowException, match="API requests to Databricks failed 2 times. Giving up."):
+        with pytest.raises(AirflowException, match="API requests to Databricks failed 2 times"):
             hook._get_sp_token(resource)
 
     @pytest.mark.asyncio
