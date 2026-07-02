@@ -247,8 +247,9 @@ class TestCommsDecoder:
             with pytest.raises(DeadlockImminentError) as exc_info:
                 decoder.send(GetVariable(key="should_fail"))
 
-            assert exc_info.value.args[0].startswith("comms.send() called from the event loop thread")
-            assert "deadlock is imminent" in exc_info.value.args[0]
+            msg = str(exc_info.value)
+            assert msg.startswith("comms.send() called from the event loop thread")
+            assert "deadlock is imminent" in msg
         finally:
             lock_release.set()
             holder.join(timeout=2)
