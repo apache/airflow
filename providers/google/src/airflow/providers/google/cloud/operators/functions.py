@@ -500,6 +500,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
 
         return result
 
+
 class CloudFunctionInvokeOperator(GoogleCloudBaseOperator):
     """
     Invokes a deployed Cloud Function via its HTTP Trigger URL.
@@ -561,9 +562,9 @@ class CloudFunctionInvokeOperator(GoogleCloudBaseOperator):
             "function_name": self.function_id,
         }
 
-    def _get_id_token(self, hook, audience: str) -> str:
+    def _get_id_token(self, hook: CloudFunctionsHook, audience: str) -> str:
         import google.auth.transport.requests
-        from google.oauth2 import service_account, id_token
+        from google.oauth2 import id_token, service_account
 
         credentials = hook.get_credentials()
         request = google.auth.transport.requests.Request()
@@ -573,23 +574,27 @@ class CloudFunctionInvokeOperator(GoogleCloudBaseOperator):
                 jwt_creds = credentials.with_target_audience(audience)
                 jwt_creds.refresh(request)
                 return jwt_creds.token
-            elif hasattr(credentials, "with_claims"):
+            if hasattr(credentials, "with_claims"):
                 jwt_creds = credentials.with_claims({"aud": audience})
                 jwt_creds.refresh(request)
                 return jwt_creds.token
 
         try:
             from google.auth import compute_engine
+
             if isinstance(credentials, compute_engine.Credentials):
                 from google.auth.compute_engine import _metadata
+
                 return _metadata.get_service_account_id_token(request, audience=audience)
         except ImportError:
             pass
-            
+
         try:
             from google.auth import impersonated
+
             if isinstance(credentials, impersonated.Credentials):
                 from google.auth.impersonated import IDTokenCredentials
+
                 id_token_creds = IDTokenCredentials(
                     credentials,
                     target_principal=credentials.target_principal,
@@ -604,9 +609,10 @@ class CloudFunctionInvokeOperator(GoogleCloudBaseOperator):
         # Fallback to fetch_id_token (ADC)
         return id_token.fetch_id_token(request, audience)
 
-    def execute(self, context: Context):
-        from airflow.providers.google.cloud.triggers.functions import CloudFunctionInvokeTrigger
+    def execute(self, context: Context) -> Any:
         import requests
+
+        from airflow.providers.google.cloud.triggers.functions import CloudFunctionInvokeTrigger
 
         hook = CloudFunctionsHook(
             api_version=self.api_version,
@@ -615,19 +621,21 @@ class CloudFunctionInvokeOperator(GoogleCloudBaseOperator):
         )
         project_id = self.project_id or hook.project_id
         self.log.info("Fetching function details for %s.", self.function_id)
-        function = hook.get_function(name=f"projects/{project_id}/locations/{self.location}/functions/{self.function_id}")
-        
+        function = hook.get_function(
+            name=f"projects/{project_id}/locations/{self.location}/functions/{self.function_id}"
+        )
+
         url = None
         if "httpsTrigger" in function and "url" in function["httpsTrigger"]:
             url = function["httpsTrigger"]["url"]
         elif "serviceConfig" in function and "uri" in function["serviceConfig"]:
             url = function["serviceConfig"]["uri"]
-            
+
         if not url:
             raise AirflowException(f"Function {self.function_id} does not have an HTTP trigger URL.")
 
         self.log.info("Function HTTP URL: %s", url)
-        
+
         # Get ID token for authentication
         token = self._get_id_token(hook, url)
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}

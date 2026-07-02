@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, AsyncIterator
 
 import aiohttp
 
@@ -59,11 +59,13 @@ class CloudFunctionInvokeTrigger(BaseTrigger):
             },
         )
 
-    async def run(self):
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an async HTTP request to the Cloud Function."""
         try:
             # We use aiohttp instead of the synchronous requests library
-            timeout_obj = aiohttp.ClientTimeout(total=self.timeout) if self.timeout else aiohttp.ClientTimeout()
+            timeout_obj = (
+                aiohttp.ClientTimeout(total=self.timeout) if self.timeout else aiohttp.ClientTimeout()
+            )
             async with aiohttp.ClientSession(timeout=timeout_obj) as session:
                 async with session.post(
                     self.function_uri,

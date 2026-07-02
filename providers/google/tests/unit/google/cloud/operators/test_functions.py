@@ -737,6 +737,7 @@ class TestGcfFunctionInvokeOperator:
             value=exec_id,
         )
 
+
 class TestCloudFunctionInvokeOperator:
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     @mock.patch("airflow.providers.google.cloud.operators.functions.requests.post")
@@ -744,12 +745,13 @@ class TestCloudFunctionInvokeOperator:
         mock_hook.return_value.get_function.return_value = {
             "httpsTrigger": {"url": "https://example.com/function"}
         }
-        
+
         mock_response = mock.MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         mock_post.return_value = mock_response
 
         from airflow.providers.google.cloud.operators.functions import CloudFunctionInvokeOperator
+
         op = CloudFunctionInvokeOperator(
             task_id="test",
             function_id="my_func",
@@ -758,11 +760,11 @@ class TestCloudFunctionInvokeOperator:
             input_data={"data": "test"},
             deferrable=False,
         )
-        
+
         op._get_id_token = mock.MagicMock(return_value="mocked-token")
-        
+
         result = op.execute(context=mock.MagicMock())
-        
+
         assert result == {"status": "ok"}
         mock_hook.return_value.get_function.assert_called_once_with(
             name="projects/test_project/locations/us-central1/functions/my_func"
@@ -770,14 +772,14 @@ class TestCloudFunctionInvokeOperator:
         mock_post.assert_called_once_with(
             "https://example.com/function",
             json={"data": "test"},
-            headers={"Authorization": "Bearer mocked-token", "Content-Type": "application/json"}
+            headers={"Authorization": "Bearer mocked-token", "Content-Type": "application/json"},
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_execute_deferrable(self, mock_hook):
         from airflow.exceptions import TaskDeferred
-        from airflow.providers.google.cloud.triggers.functions import CloudFunctionInvokeTrigger
         from airflow.providers.google.cloud.operators.functions import CloudFunctionInvokeOperator
+        from airflow.providers.google.cloud.triggers.functions import CloudFunctionInvokeTrigger
 
         mock_hook.return_value.get_function.return_value = {
             "httpsTrigger": {"url": "https://example.com/function"}
@@ -792,7 +794,7 @@ class TestCloudFunctionInvokeOperator:
             deferrable=True,
         )
         op._get_id_token = mock.MagicMock(return_value="mocked-token")
-        
+
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context=mock.MagicMock())
 
@@ -805,28 +807,29 @@ class TestCloudFunctionInvokeOperator:
 
     def test_execute_complete_success(self):
         from airflow.providers.google.cloud.operators.functions import CloudFunctionInvokeOperator
+
         op = CloudFunctionInvokeOperator(
             task_id="test",
             function_id="my_func",
             location="us-central1",
             project_id="test_project",
         )
-        
+
         event = {"status": "success", "response": {"result": "ok"}}
         result = op.execute_complete(context=mock.MagicMock(), event=event)
-        
+
         assert result == {"result": "ok"}
 
     def test_execute_complete_error(self):
         from airflow.providers.google.cloud.operators.functions import CloudFunctionInvokeOperator
+
         op = CloudFunctionInvokeOperator(
             task_id="test",
             function_id="my_func",
             location="us-central1",
             project_id="test_project",
         )
-        
+
         event = {"status": "error", "message": "Failed"}
         with pytest.raises(AirflowException, match="Failed"):
             op.execute_complete(context=mock.MagicMock(), event=event)
-
