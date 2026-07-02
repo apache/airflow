@@ -75,6 +75,9 @@ MIGRATED_CLI_COMMANDS = [
     (provider_command.providers_list, "airflowctl providers list"),
     (config_command.get_value, "airflowctl config get"),
     (config_command.show_config, "airflowctl config list"),
+    (task_command.task_failed_deps, "airflowctl tasks failed-deps"),
+    (task_command.task_state, "airflowctl tasks state"),
+    (task_command.task_list, "airflowctl tasks list"),
     (task_command.task_states_for_dag_run, "airflowctl tasks states-for-dag-run"),
     (task_command.task_clear, "airflowctl tasks clear"),
 ]
