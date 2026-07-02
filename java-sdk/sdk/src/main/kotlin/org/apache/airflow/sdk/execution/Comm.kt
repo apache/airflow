@@ -60,7 +60,8 @@ private class ChannelFrameInput(
     const val CHUNK_SIZE = (64 * 1024).toLong()
   }
 
-  private var remaining = declaredLength.toLong()
+  var remaining = declaredLength.toLong()
+    private set
 
   override fun next(): MessageBuffer? {
     if (remaining <= 0L) return null
@@ -84,6 +85,11 @@ data class IncomingFrame(
   val id: Int,
   val body: Any?,
 )
+
+internal class FrameProcessingException(
+  message: String,
+  cause: Throwable? = null,
+) : Exception(message, cause)
 
 @OptIn(ExperimentalAtomicApi::class)
 class CoordinatorComm(
@@ -114,19 +120,35 @@ class CoordinatorComm(
     }
 
     val declaredLength = Frame.parseLengthPrefix(prefix)
+    val input = ChannelFrameInput(reader, declaredLength, currentCoroutineContext())
+
     val frame =
       try {
-        Frame.decode(ChannelFrameInput(reader, declaredLength, currentCoroutineContext()))
+        Frame.decode(input)
       } catch (e: CancellationException) {
-        throw e // Let coroutine cancellation propagate so the task coroutine unwinds.
-      } catch (e: Exception) {
+        throw e // Don't let the catch(Exception) block swallow this, so the coroutine unwinds correctly.
+      } catch (e: IOException) {
         logger.error(
-          "Failed to read or decode frame",
+          "Failed to read frame",
           mapOf("length" to declaredLength, "exception" to e),
         )
-        shutDownRequested = true
-        return
+        throw FrameProcessingException("Failed to read frame of $declaredLength bytes", e)
+      } catch (e: Exception) {
+        logger.error(
+          "Failed to decode frame",
+          mapOf("length" to declaredLength, "exception" to e),
+        )
+        throw FrameProcessingException("Failed to decode frame of $declaredLength bytes", e)
       }
+
+    if (input.remaining != 0L) {
+      logger.error(
+        "Frame length prefix overran the payload",
+        mapOf("length" to declaredLength, "undrained" to input.remaining),
+      )
+      throw FrameProcessingException("Frame declared $declaredLength bytes but ${input.remaining} left unread")
+    }
+
     logger.debug("Handling", mapOf("id" to frame.id))
     handle(frame)
   }
