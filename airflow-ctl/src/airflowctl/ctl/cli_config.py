@@ -26,6 +26,8 @@ import datetime
 import inspect
 import os
 import sys
+import types as builtin_types
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -50,6 +52,17 @@ from airflowctl.exceptions import (
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+
+
+def _is_list_annotation(annotation: Any) -> bool:
+    """Check whether a Pydantic field annotation is a list type (including Optional[list[...]])."""
+    origin = typing.get_origin(annotation)
+    if origin is list:
+        return True
+    # Handle both typing.Union (Optional[list[...]]) and PEP-604 X | Y (types.UnionType)
+    if origin is typing.Union or isinstance(annotation, builtin_types.UnionType):
+        return any(_is_list_annotation(arg) for arg in typing.get_args(annotation) if arg is not type(None))
+    return False
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -399,7 +412,17 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -411,6 +434,8 @@ class CommandFactory:
         ]
         self.excluded_output_keys = [
             "total_entries",
+            "next_cursor",
+            "previous_cursor",
         ]
 
     def _inspect_operations(self) -> None:
@@ -587,7 +612,7 @@ class CommandFactory:
                         arg_type=self._python_type_from_string(field_type.annotation),
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
+                        arg_default=None,
                     )
                 )
             else:
@@ -602,7 +627,7 @@ class CommandFactory:
                         arg_type=self._python_type_from_string(annotation),
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
+                        arg_default=None,
                     )
                 )
         return commands
@@ -717,10 +742,19 @@ class CommandFactory:
                                 datamodel_param_name = parameter_key
                             if expanded_parameter in self.excluded_parameters:
                                 continue
-                            if expanded_parameter in args_dict.keys():
+                            if (
+                                expanded_parameter in args_dict.keys()
+                                and args_dict[expanded_parameter] is not None
+                            ):
+                                val = args_dict[expanded_parameter]
+                                if isinstance(val, str) and expanded_parameter in datamodel.model_fields:
+                                    if _is_list_annotation(
+                                        datamodel.model_fields[expanded_parameter].annotation
+                                    ):
+                                        val = [v.strip() for v in val.split(",") if v.strip()]
                                 method_params[parameter_key][
                                     self._sanitize_method_param_key(expanded_parameter)
-                                ] = args_dict[expanded_parameter]
+                                ] = val
 
             if datamodel:
                 if datamodel_param_name:

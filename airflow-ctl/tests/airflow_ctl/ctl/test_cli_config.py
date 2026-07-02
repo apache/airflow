@@ -94,7 +94,7 @@ def test_args_create():
             {
                 "help": "run_backwards for backfill operation",
                 "action": BooleanOptionalAction,
-                "default": False,
+                "default": None,
                 "type": bool,
                 "dest": None,
             },
@@ -320,6 +320,41 @@ class TestCommandFactory:
         assert is_alive_arg.kwargs["action"] == BooleanOptionalAction
         assert is_alive_arg.kwargs["default"] is None
         assert is_alive_arg.kwargs["type"] is bool
+
+    def test_command_factory_body_bool_field_defaults_to_none(self, tmp_path):
+        """Bool fields expanded from a Pydantic body must default to None, not False.
+
+        Otherwise the dispatcher's ``is not None`` filter passes an unset flag
+        through as ``False``, silently overriding API-side defaults that are
+        ``True`` (e.g. ``ClearTaskInstancesBody.only_failed``).
+        """
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class TasksOperations(BaseOperations):
+                    def clear(self, dag_id: str, body: ClearTaskInstancesBody):
+                        self.response = self.client.post(
+                            f"dags/{dag_id}/clearTaskInstances",
+                            json=body.model_dump(mode="json"),
+                        )
+                        return self.response
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=str(temp_file))
+        clear_args: list = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "tasks":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "clear":
+                    clear_args = list(sub_command.args)
+                    break
+
+        for flag in ("--dry-run", "--only-failed", "--reset-dag-runs", "--run-on-latest-version"):
+            arg = next(a for a in clear_args if a.flags == (flag,))
+            assert arg.kwargs["action"] == BooleanOptionalAction, flag
+            assert arg.kwargs["default"] is None, flag
 
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
