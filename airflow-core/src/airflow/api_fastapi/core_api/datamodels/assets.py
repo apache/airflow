@@ -27,6 +27,7 @@ from airflow._shared.secrets_masker import redact
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
+from airflow.models.base import ID_LEN
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -193,6 +194,17 @@ class CreateAssetEventsBody(StrictBaseModel):
     partition_key: str | None = None
     extra: dict = Field(default_factory=dict)
     access_control: AssetEventAccessControl | None = None
+
+    @field_validator("partition_key")
+    @classmethod
+    def validate_partition_key(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if not v.strip():
+            raise ValueError("partition_key must not be empty or whitespace-only.")
+        if len(v) > ID_LEN:
+            raise ValueError(f"partition_key must be at most {ID_LEN} characters; got {len(v)}.")
+        return v
 
     @field_validator("extra", mode="after")
     def set_from_rest_api(cls, v: dict) -> dict:
