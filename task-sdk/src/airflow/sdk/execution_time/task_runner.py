@@ -1951,7 +1951,7 @@ def _send_error_email_notification(
             to=to_emails,
             subject=subject,
             html_content=html_content,
-            from_email=conf.get("email", "from_email", fallback="airflow@airflow"),
+            from_email=None,
         )
         notifier(email_context)
     except Exception:

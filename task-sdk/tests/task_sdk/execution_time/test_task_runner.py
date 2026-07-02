@@ -3723,7 +3723,7 @@ class TestEmailNotifications:
                 else:
                     mock_smtp_notifier.assert_called_once()
                     kwargs = mock_smtp_notifier.call_args.kwargs
-                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["from_email"] is None
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
@@ -3781,7 +3781,7 @@ class TestEmailNotifications:
                 else:
                     mock_smtp_notifier.assert_called_once()
                     kwargs = mock_smtp_notifier.call_args.kwargs
-                    assert kwargs["from_email"] == self.FROM
+                    assert kwargs["from_email"] is None
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
@@ -3833,7 +3833,7 @@ class TestEmailNotifications:
                     kwargs["html_content"]
                     == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
                 )
-                assert kwargs["from_email"] == self.FROM
+                assert kwargs["from_email"] is None
 
     @pytest.mark.enable_redact
     def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
