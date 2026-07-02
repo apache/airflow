@@ -17,9 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Mapping, Sequence, Sized
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
@@ -285,20 +284,39 @@ class DictOfListsExpandInput(ExpandInput):
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
         from airflow.sdk.definitions.xcom_arg import XComArg
 
-        resolved = {k: v.resolve(context) if isinstance(v, XComArg) else v for k, v in self.value.items()}
-        keys = list(resolved)
+        def _to_iterable(v: Any) -> Iterable:
+            return v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)) else (v,)
 
-        iterables_for_product: list[tuple] = []
-        for v in (resolved[k] for k in keys):
-            if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)):
-                iterables_for_product.append(tuple(v))
-            else:
-                iterables_for_product.append((v,))
+        def _make_factory(v: Any) -> Callable[[], Iterable]:
+            # Capture v (already bound to self.value[k]) so each factory closes
+            # over its own value rather than a shared loop variable.
+            def factory() -> Iterable:
+                resolved = v.resolve(context) if isinstance(v, XComArg) else v
+                return _to_iterable(resolved)
 
-        return count(
-            self,
-            (dict(zip(keys, items)) for items in itertools.product(*iterables_for_product)),
-        )
+            return factory
+
+        def _lazy_product(*factories: Callable[[], Iterable]) -> Iterator[tuple]:
+            """
+            Streaming cross-product with fully deferred resolution.
+
+            Each factory is called to produce a fresh iterable only when that
+            position is first needed. The first factory is called exactly once;
+            each subsequent factory is called once per element yielded by all
+            preceding factories combined, so XComArg sources are resolved (and
+            pages re-fetched) on demand rather than materialized upfront.
+            """
+            if not factories:
+                yield ()
+                return
+            first_factory, *rest_factories = factories
+            for item in first_factory():
+                for tail in _lazy_product(*rest_factories):
+                    yield (item, *tail)
+
+        keys = list(self.value)
+        factories = [_make_factory(self.value[k]) for k in keys]
+        return count(self, (dict(zip(keys, combo)) for combo in _lazy_product(*factories)))
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
