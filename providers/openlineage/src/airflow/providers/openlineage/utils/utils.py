@@ -24,7 +24,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 from openlineage.client.facet_v2 import (
@@ -50,6 +50,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperator,
     BaseSensorOperator,
     MappedOperator,
+    conf as airflow_conf,
 )
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
@@ -72,6 +73,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 from airflow.providers.openlineage.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
     get_base_airflow_version_tuple,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -85,6 +87,9 @@ except ImportError:
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.models.dagbundle import DagBundleModel
 
 if TYPE_CHECKING:
     from typing import TypeAlias
@@ -980,8 +985,11 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
         "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
         "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+        "dag_team_name": lambda dagrun: DagRunInfo.team_name(dagrun) if AIRFLOW_V_3_3_PLUS else None,
         "deadlines": lambda dagrun: DagRunInfo.deadlines(dagrun),
     }
+
+    _team_name_cache: ClassVar[dict[str, str | None]] = {}
 
     @classmethod
     def duration(cls, dagrun: DagRun) -> float | None:
@@ -1052,6 +1060,21 @@ class DagRunInfo(InfoJsonEncodable):
         if key == "version_number":
             return current_version.version_number
         raise ValueError(f"Unsupported key: {key}`")
+
+    @classmethod
+    def team_name(cls, dagrun: DagRun) -> str | None:
+        """Extract the team name for the DagRun."""
+        if not AIRFLOW_V_3_3_PLUS or not airflow_conf.getboolean("core", "multi_team", fallback=False):
+            return None
+
+        bundle_name = cls.dag_version_info(dagrun, "bundle_name")
+        if not isinstance(bundle_name, str):
+            return None
+
+        if bundle_name not in cls._team_name_cache:
+            cls._team_name_cache[bundle_name] = DagBundleModel.get_team_name(bundle_name)
+
+        return cls._team_name_cache[bundle_name]
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
