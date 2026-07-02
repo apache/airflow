@@ -1510,6 +1510,46 @@ class TestPatchDagRun:
         _check_dag_run_note(session, run_id, note_data)
         _check_last_log(session, dag_id=dag_id, event="patch_dag_run", logical_date=None)
 
+    @pytest.mark.parametrize(
+        ("patch_body", "target_task", "expected_state"),
+        [
+            # task_1 starts FAILED; marking the run success overwrites it by default.
+            ({"state": "success"}, "task_1", State.SUCCESS),
+            ({"state": "success", "overwrite": True}, "task_1", State.SUCCESS),
+            ({"state": "success", "overwrite": False}, "task_1", State.FAILED),
+            # task_2 starts SUCCESS; marking the run failed overwrites it by default.
+            ({"state": "failed"}, "task_2", State.FAILED),
+            ({"state": "failed", "overwrite": True}, "task_2", State.FAILED),
+            ({"state": "failed", "overwrite": False}, "task_2", State.SUCCESS),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_state_overwrite(
+        self, test_client, session, patch_body, target_task, expected_state
+    ):
+        task_1 = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == DAG1_ID,
+                TaskInstance.run_id == DAG1_RUN1_ID,
+                TaskInstance.task_id == "task_1",
+            )
+        )
+        task_1.state = State.FAILED
+        session.commit()
+
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json=patch_body)
+        assert response.status_code == 200
+
+        session.expire_all()
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == DAG1_ID,
+                TaskInstance.run_id == DAG1_RUN1_ID,
+                TaskInstance.task_id == target_task,
+            )
+        )
+        assert ti.state == expected_state
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/dags/dag_1/dagRuns/run_1", json={})
         assert response.status_code == 401

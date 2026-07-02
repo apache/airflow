@@ -997,6 +997,10 @@ export type DAGRunCollectionResponse = {
 export type DAGRunPatchBody = {
     state?: DagRunMutableStates | null;
     note?: string | null;
+    /**
+     * If false, skip already-finished tasks and only mark unfinished ones.
+     */
+    overwrite?: boolean;
 };
 
 /**

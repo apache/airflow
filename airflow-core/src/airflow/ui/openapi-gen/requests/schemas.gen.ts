@@ -3588,6 +3588,12 @@ export const $DAGRunPatchBody = {
                 }
             ],
             title: 'Note'
+        },
+        overwrite: {
+            type: 'boolean',
+            title: 'Overwrite',
+            description: 'If false, skip already-finished tasks and only mark unfinished ones.',
+            default: true
         }
     },
     additionalProperties: false,

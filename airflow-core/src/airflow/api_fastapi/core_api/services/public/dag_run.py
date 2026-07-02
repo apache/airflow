@@ -190,10 +190,13 @@ def patch_dag_run_state(
     dag_run: DagRun,
     state: DagRunMutableStates,
     session: Session,
+    overwrite: bool = True,
 ) -> None:
     """Set a Dag Run's state (success/queued/failed), firing the matching listener hooks."""
     if state == DagRunMutableStates.SUCCESS:
-        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        set_dag_run_state_to_success(
+            dag=dag, run_id=dag_run.run_id, commit=True, overwrite=overwrite, session=session
+        )
         try:
             get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
         except Exception:
@@ -204,7 +207,9 @@ def patch_dag_run_state(
         # Not notifying on queued - only notifying on RUNNING, which happens in the scheduler.
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
     elif state == DagRunMutableStates.FAILED:
-        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        set_dag_run_state_to_failed(
+            dag=dag, run_id=dag_run.run_id, commit=True, overwrite=overwrite, session=session
+        )
         try:
             get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
         except Exception:

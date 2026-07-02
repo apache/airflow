@@ -13873,6 +13873,12 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+        overwrite:
+          type: boolean
+          title: Overwrite
+          description: If false, skip already-finished tasks and only mark unfinished
+            ones.
+          default: true
       additionalProperties: false
       type: object
       title: DAGRunPatchBody

@@ -1802,6 +1802,13 @@ class DAGRunPatchBody(BaseModel):
     )
     state: DagRunMutableStates | None = None
     note: Annotated[Note | None, Field(title="Note")] = None
+    overwrite: Annotated[
+        bool | None,
+        Field(
+            description="If false, skip already-finished tasks and only mark unfinished ones.",
+            title="Overwrite",
+        ),
+    ] = True
 
 
 class DAGRunResponse(BaseModel):

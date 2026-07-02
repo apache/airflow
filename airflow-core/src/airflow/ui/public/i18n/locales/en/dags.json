@@ -62,6 +62,17 @@
         "failed": "Press shift+f to mark as failed",
         "success": "Press shift+s to mark as success"
       },
+      "overwrite": {
+        "menuLabel": "More mark options",
+        "withOverwrite": {
+          "description": "Overwrites finished tasks too.",
+          "title": "Confirm with overwrite"
+        },
+        "withoutOverwrite": {
+          "description": "Keeps finished tasks untouched.",
+          "title": "Confirm without overwrite"
+        }
+      },
       "title": "Mark {{type}} as {{state}}"
     },
     "options": {
