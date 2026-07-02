@@ -2494,6 +2494,7 @@ export type GridRunsResponse = {
     run_type: DagRunType;
     dag_versions?: Array<DagVersionResponse>;
     has_missed_deadline: boolean;
+    has_note: boolean;
     readonly duration: number;
 };
 
