@@ -671,6 +671,11 @@ class JobsOperations(BaseOperations):
         job_type: str | None = None,
         hostname: str | None = None,
         is_alive: bool | None = None,
+        dag_id: str | None = None,
+        state: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        order_by: str | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         params: dict[str, Any] = {}
@@ -680,6 +685,20 @@ class JobsOperations(BaseOperations):
             params["hostname"] = hostname
         if is_alive is not None:
             params["is_alive"] = is_alive
+        if dag_id:
+            params["dag_id"] = dag_id
+        if state:
+            params["job_state"] = state
+        if order_by:
+            params["order_by"] = order_by
+        if limit is not None:
+            params["limit"] = limit
+        if offset is not None:
+            params["offset"] = offset
+
+        if limit is not None or offset is not None:
+            self.response = self.client.get("jobs", params=params)
+            return JobCollectionResponse.model_validate_json(self.response.content)
 
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
