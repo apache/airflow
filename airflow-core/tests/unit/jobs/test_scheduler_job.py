@@ -9472,6 +9472,18 @@ class TestSchedulerJob:
         # Assert that all deadlines which are both expired and unhandled get processed.
         assert mock_handle_miss.call_count == 2
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats_utils.initialize_sdk_stats_backend")
+    def test_execute_initializes_sdk_stats_backend(self, sdk_stats_init_mock, session):
+        """The task-sdk Stats singleton (what plugins/listeners use) must be initialized too."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+
+        self.job_runner._execute()
+
+        # BaseExecutor.__init__ also calls this (same shared stats_utils module), so
+        # constructing MockExecutor() above contributes a call in addition to _execute()'s own.
+        assert sdk_stats_init_mock.called
+
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines_no_deadlines_found(self, mock_handle_miss, session):
         """Test handling when there are no deadlines to process."""

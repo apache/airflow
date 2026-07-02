@@ -1674,6 +1674,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 factory=stats_utils.get_stats_factory(),
                 export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
             )
+            stats_utils.initialize_sdk_stats_backend()
 
             self._run_scheduler_loop()
 

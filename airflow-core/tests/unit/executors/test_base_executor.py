@@ -72,6 +72,14 @@ def test_invalid_slotspool():
         BaseExecutor(0)
 
 
+@mock.patch("airflow.executors.base_executor.stats_utils.initialize_sdk_stats_backend")
+def test_init_initializes_sdk_stats_backend(sdk_stats_init_mock):
+    """The task-sdk Stats singleton (what plugins/listeners use) must be initialized too."""
+    BaseExecutor()
+
+    sdk_stats_init_mock.assert_called_once()
+
+
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))

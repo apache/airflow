@@ -215,6 +215,7 @@ class BaseExecutor(LoggingMixin):
             factory=stats_utils.get_stats_factory(),
             export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
         )
+        stats_utils.initialize_sdk_stats_backend()
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args

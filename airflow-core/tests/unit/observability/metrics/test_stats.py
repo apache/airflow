@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import importlib
 import re
+from unittest import mock
 
 import pytest
 
 import airflow
 import airflow.observability.stats
+import airflow.sdk.observability.stats
+from airflow.configuration import conf
 from airflow.observability.metrics import stats_utils
 
 from tests_common.test_utils.config import conf_vars
@@ -100,3 +103,29 @@ class TestDogStats:
             assert isinstance(backend.dogstatsd, DogStatsd)
             assert not hasattr(backend, "statsd")
         importlib.reload(airflow.observability.stats)
+
+
+class TestInitializeSdkStatsBackend:
+    """
+    Plugins/listeners typically get ``Stats`` via ``airflow.sdk.observability.stats`` (or the
+    deprecated ``airflow.stats`` shim, which re-exports it), a singleton separate from the one
+    this module initializes for internal use. ``initialize_sdk_stats_backend`` keeps that
+    singleton configured too, so plugin code works outside the task runner as well.
+    """
+
+    def test_configures_sdk_stats_singleton_with_this_process_backend(self):
+        with conf_vars({("metrics", "statsd_on"): "True"}):
+            importlib.reload(airflow.sdk.observability.stats)
+            stats_utils.initialize_sdk_stats_backend()
+            backend = airflow.sdk._shared.observability.metrics.stats._get_backend()
+            assert hasattr(backend, "statsd")
+        importlib.reload(airflow.sdk.observability.stats)
+
+    def test_uses_same_factory_and_legacy_names_flag_as_this_process(self):
+        with mock.patch("airflow.sdk.observability.stats.initialize") as mock_sdk_initialize:
+            stats_utils.initialize_sdk_stats_backend()
+
+        mock_sdk_initialize.assert_called_once_with(
+            factory=stats_utils.get_stats_factory(),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+        )

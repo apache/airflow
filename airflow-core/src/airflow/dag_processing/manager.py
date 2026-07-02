@@ -396,6 +396,7 @@ class DagFileProcessorManager(LoggingMixin):
             factory=stats_utils.get_stats_factory(),
             export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
         )
+        stats_utils.initialize_sdk_stats_backend()
 
     def prepare_bundles(self) -> None:
         """Sync bundle configuration to the DB and load bundles for parsing."""
