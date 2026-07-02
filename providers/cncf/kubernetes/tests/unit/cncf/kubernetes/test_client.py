@@ -16,16 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import socket
 from unittest import mock
 
 import pytest
 from kubernetes.client import Configuration
-from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.providers.cncf.kubernetes.kube_client import (
     _disable_verify_ssl,
-    _enable_tcp_keepalive,
+    enable_tcp_keepalive,
     get_kube_client,
 )
 
@@ -65,19 +63,22 @@ class TestClient:
 
     @pytest.mark.platform("linux")
     def test_enable_tcp_keepalive(self):
-        socket_options = [
-            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
-            (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120),
-            (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30),
-            (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6),
-        ]
-        expected_http_connection_options = HTTPConnection.default_socket_options + socket_options
-        expected_https_connection_options = HTTPSConnection.default_socket_options + socket_options
+        import socket
 
-        _enable_tcp_keepalive()
+        configuration = Configuration()
+        if not hasattr(configuration, "socket_options"):
+            pytest.skip("Configuration.socket_options requires kubernetes client >= 36.0.0")
 
-        assert HTTPConnection.default_socket_options == expected_http_connection_options
-        assert HTTPSConnection.default_socket_options == expected_https_connection_options
+        assert configuration.socket_options is None
+
+        enable_tcp_keepalive(configuration)
+
+        assert configuration.socket_options is not None
+        assert configuration.socket_options[0] == (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        assert configuration.socket_options[1] == (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        assert configuration.socket_options[2] == (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120)
+        assert configuration.socket_options[3] == (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30)
+        assert configuration.socket_options[4] == (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
 
     def test_disable_verify_ssl(self):
         configuration = Configuration()

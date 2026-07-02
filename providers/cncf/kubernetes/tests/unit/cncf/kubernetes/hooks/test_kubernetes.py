@@ -404,7 +404,7 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch(f"{HOOK_MODULE}._enable_tcp_keepalive")
+    @patch(f"{HOOK_MODULE}.enable_tcp_keepalive")
     def test_disable_tcp_keepalive(
         self,
         mock_enable,
@@ -574,7 +574,9 @@ class TestKubernetesHook:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri):
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
-            mock_get_client.assert_called_with(cluster_context="test", disable_verify_ssl=None)
+            mock_get_client.assert_called_with(
+                cluster_context="test", disable_verify_ssl=None, should_enable_tcp_keepalive=True
+            )
             assert kubernetes_hook.get_namespace() == "test"
 
     def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):
