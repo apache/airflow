@@ -4234,3 +4234,51 @@ class TestMakeBufferedSocketReader:
         finally:
             r.close()
             w.close()
+
+
+class TestLengthPrefixedFrameReader:
+    def test_recovers_from_short_read_on_header(self):
+        received: list[_RequestFrame] = []
+
+        def collecting_gen():
+            while True:
+                frame = yield
+                received.append(frame)
+
+        payload = msgspec.msgpack.encode(_RequestFrame(id=42, body={"key": "foo"}))
+        wire = len(payload).to_bytes(4, byteorder="big") + payload
+
+        class ChunkedSocket:
+            def __init__(self, data: bytes, chunk_size: int):
+                self._data = data
+                self._chunk_size = chunk_size
+                self._pos = 0
+
+            def recv(self, n):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return b""
+                chunk = remaining[: min(n, self._chunk_size)]
+                self._pos += len(chunk)
+                return chunk
+
+            def recv_into(self, buf):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return 0
+                take = min(len(buf), self._chunk_size, len(remaining))
+                buf[:take] = remaining[:take]
+                self._pos += take
+                return take
+
+        sock = ChunkedSocket(wire, chunk_size=2)
+        on_close = MagicMock()
+        cb, _ = supervisor.length_prefixed_frame_reader(collecting_gen(), on_close=on_close)
+
+        for _ in range(len(wire) + 1):
+            if not cb(sock):
+                break
+            if received:
+                break
+
+        assert received == [_RequestFrame(id=42, body={"key": "foo"})]
