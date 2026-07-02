@@ -28,6 +28,8 @@ import { renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
+  /** Effective task end_date for tooltips; distinct from segment end for scheduled/queued bars. */
+  end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
@@ -75,6 +77,32 @@ export const gridSummariesToTaskIdMap = (
   }
 
   return byId;
+};
+
+export const toTooltipSummary = (
+  segment: GanttDataItem,
+  node: GridTask,
+  gridSummary: LightGridTaskInstanceSummary | undefined,
+) => {
+  if (gridSummary !== undefined && (node.isGroup ?? node.is_mapped)) {
+    return gridSummary;
+  }
+
+  return {
+    child_states: null,
+    max_end_date: segment.end_when ?? dayjs(segment.x[1]).toISOString(),
+    min_start_date: segment.start_when ?? dayjs(segment.x[0]).toISOString(),
+    state: segment.state ?? null,
+    task_display_name: segment.y,
+    task_id: segment.taskId,
+    try_number: segment.tryNumber,
+    ...(segment.tryNumber === undefined
+      ? {}
+      : {
+          queued_when: segment.queued_when,
+          scheduled_when: segment.scheduled_when,
+        }),
+  };
 };
 
 export const transformGanttData = ({
@@ -152,12 +180,15 @@ export const transformGanttData = ({
               endMs = dayjs(endDate).valueOf();
             }
 
+            const effectiveEndDate = hasTaskRunning ? dayjs(endMs).toISOString() : endDate;
+
             if (scheduledMs !== undefined) {
               const scheduledEndMs =
                 queuedMs ?? startMs ?? (hasTaskRunning || tryRow.state === "scheduled" ? Date.now() : endMs);
 
               if (scheduledEndMs > scheduledMs) {
                 items.push({
+                  end_when: effectiveEndDate,
                   isGroup: false,
                   isMapped: tryRow.is_mapped,
                   state: "scheduled",
@@ -175,6 +206,7 @@ export const transformGanttData = ({
 
               if (queueEndMs > queuedMs) {
                 items.push({
+                  end_when: effectiveEndDate,
                   isGroup: false,
                   isMapped: tryRow.is_mapped,
                   state: "queued",
@@ -192,6 +224,7 @@ export const transformGanttData = ({
               const execEndMs = Math.max(startMs, endMs);
 
               items.push({
+                end_when: effectiveEndDate,
                 isGroup: false,
                 isMapped: tryRow.is_mapped,
                 state: tryRow.state,

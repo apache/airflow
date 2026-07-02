@@ -18,7 +18,6 @@
  */
 import { Badge, Box, Flex, Text } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import dayjs from "dayjs";
 import type { RefObject } from "react";
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -42,6 +41,7 @@ import {
   buildMaxTryByTaskId,
   getGanttSegmentTo,
   gridSummariesToTaskIdMap,
+  toTooltipSummary,
 } from "./utils";
 
 /** Size of the state icon rendered inside each Gantt bar (px). The minimum bar width is derived
@@ -72,32 +72,6 @@ type Props = {
   readonly scrollContainerRef: RefObject<HTMLDivElement | null>;
   /** scrollPaddingStart for @tanstack/react-virtual (116 standalone, 180 with shared outer padding). */
   readonly virtualizerScrollPaddingStart: number;
-};
-
-const toTooltipSummary = (
-  segment: GanttDataItem,
-  node: GridTask,
-  gridSummary: LightGridTaskInstanceSummary | undefined,
-) => {
-  if (gridSummary !== undefined && (node.isGroup ?? node.is_mapped)) {
-    return gridSummary;
-  }
-
-  return {
-    child_states: null,
-    max_end_date: dayjs(segment.x[1]).toISOString(),
-    min_start_date: segment.start_when ?? dayjs(segment.x[0]).toISOString(),
-    state: segment.state ?? null,
-    task_display_name: segment.y,
-    task_id: segment.taskId,
-    try_number: segment.tryNumber,
-    ...(segment.tryNumber === undefined
-      ? {}
-      : {
-          queued_when: segment.queued_when,
-          scheduled_when: segment.scheduled_when,
-        }),
-  };
 };
 
 export const GanttTimeline = ({
