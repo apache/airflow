@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.microsoft.azure.hooks.ai_agents import (
@@ -28,6 +28,7 @@ from airflow.providers.microsoft.azure.hooks.ai_agents import (
     VERSION_INTERMEDIATE_STATUSES,
     VERSION_SUCCESS_STATUSES,
     AzureAIAgentsHook,
+    JsonValue,
     _get_agent_version,
     _get_resource_attr,
     _get_version_status,
@@ -156,7 +157,7 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.endpoint = endpoint
         self.api_version = api_version
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> JsonValue:
         """Create an Azure AI Hosted agent and optionally wait for the version to become active."""
         self.log.info("Creating Azure AI Hosted agent %s.", self.agent_name)
         version = self.hook.create_agent(
@@ -187,7 +188,7 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
             )
         return self._wait_for_version(agent_version=agent_version)
 
-    def _wait_for_version(self, *, agent_version: str) -> Any:
+    def _wait_for_version(self, *, agent_version: str) -> JsonValue:
         end_time = time.monotonic() + self.timeout
         while True:
             version = self.hook.get_agent_version(agent_name=self.agent_name, agent_version=agent_version)
@@ -220,11 +221,11 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
             f"Timeout waiting for Azure AI Hosted agent {self.agent_name} version {agent_version}."
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None) -> Any:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None) -> JsonValue:
         """Resume after the version trigger completes."""
         validated_event = validate_execute_complete_event(event, require_version=True)
         self.log.info(validated_event["message"])
-        return validated_event["version"]
+        return cast("JsonValue", validated_event["version"])
 
 
 class UpdateAzureAIAgentOperator(CreateAzureAIAgentOperator):
@@ -283,7 +284,7 @@ class UpdateAzureAIAgentOperator(CreateAzureAIAgentOperator):
             **kwargs,
         )
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> JsonValue:
         """Create a new Azure AI Hosted agent version and optionally wait for it to become active."""
         self.log.info("Creating a new Azure AI Hosted agent %s version.", self.agent_name)
         version = self.hook.update_agent(
@@ -367,7 +368,7 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.endpoint = endpoint
         self.api_version = api_version
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> JsonValue:
         """Invoke an Azure AI Hosted agent and return the response payload."""
         self.log.info("Invoking Azure AI Hosted agent %s with %s protocol.", self.agent_name, self.protocol)
         if self.protocol == "responses":
@@ -377,7 +378,7 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
                     input_data=self.input_data,
                     agent_version=self.agent_version,
                     user_isolation_key=self.user_isolation_key,
-                )
+                ),
             )
         if self.protocol == "invocations":
             return _serialize_resource(
@@ -386,7 +387,7 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
                     input_data=self.input_data,
                     agent_session_id=self.agent_session_id,
                     user_isolation_key=self.user_isolation_key,
-                )
+                ),
             )
         raise ValueError("protocol must be either 'responses' or 'invocations'.")
 
@@ -443,7 +444,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.endpoint = endpoint
         self.api_version = api_version
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> JsonValue:
         """Delete an Azure AI Hosted agent or version and optionally wait for deletion."""
         delete_response = None
         if self.agent_version is None:
@@ -472,6 +473,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
                 method_name="execute_complete",
             )
         self._wait_for_deletion()
+        return None
 
     def _wait_for_deletion(self) -> None:
         end_time = time.monotonic() + self.timeout

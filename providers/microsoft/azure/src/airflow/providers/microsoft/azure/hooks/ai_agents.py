@@ -25,6 +25,7 @@ from urllib.parse import quote
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential
+from pydantic import JsonValue
 from requests import Session
 from requests.exceptions import HTTPError
 
@@ -51,8 +52,10 @@ VERSION_SUCCESS_STATUSES = {"active"}
 VERSION_FAILURE_STATUSES = {"failed"}
 VERSION_DELETED_STATUS = "deleted"
 
+JsonDict = dict[str, JsonValue]
 
-def _serialize_resource(resource: Any) -> Any:
+
+def _serialize_resource(resource: Any) -> JsonValue:
     """Serialize an SDK or HTTP response object into XCom-safe primitives."""
     if resource is None or isinstance(resource, str | int | float | bool):
         return resource
@@ -64,21 +67,21 @@ def _serialize_resource(resource: Any) -> Any:
         return _serialize_resource(resource.as_dict())
     if hasattr(resource, "model_dump"):
         return _serialize_resource(resource.model_dump())
-    return resource
+    return cast("JsonValue", resource)
 
 
-def _get_resource_attr(resource: Any, attr: str) -> Any:
+def _get_resource_attr(resource: Any, attr: str) -> JsonValue:
     """Get an attribute from an SDK resource or mapping."""
     if isinstance(resource, dict):
-        return resource.get(attr)
-    return getattr(resource, attr, None)
+        return cast("JsonValue", resource.get(attr))
+    return cast("JsonValue", getattr(resource, attr, None))
 
 
 def _get_version_status(version: Any) -> str:
     """Return a normalized Hosted agent version status string."""
     status = _get_resource_attr(version, "status")
     if hasattr(status, "value"):
-        status = status.value
+        status = cast("Any", status).value
     if status is None:
         raise ValueError("Azure AI Hosted agent version did not include a status.")
     return str(status).lower()
@@ -216,12 +219,15 @@ class AzureAIAgentsHook(BaseHook):
             workload_identity_tenant_id=workload_identity_tenant_id,
         )
 
-    def _get_field(self, extras: dict[str, Any], field_name: str) -> Any:
-        return get_field(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            extras=extras,
-            field_name=field_name,
+    def _get_field(self, extras: dict[str, Any], field_name: str) -> str | None:
+        return cast(
+            "str | None",
+            get_field(
+                conn_id=self.conn_id,
+                conn_type=self.conn_type,
+                extras=extras,
+                field_name=field_name,
+            ),
         )
 
     def _request(
@@ -234,7 +240,7 @@ class AzureAIAgentsHook(BaseHook):
         query_params: dict[str, str] | None = None,
         include_api_version: bool = True,
         timeout: float | tuple[float, float] | None = None,
-    ) -> Any:
+    ) -> JsonValue:
         token = self._credential.get_token(TOKEN_SCOPE).token
         url = f"{self._get_endpoint(self._connection)}/{path.lstrip('/')}"
         headers = {
@@ -259,7 +265,7 @@ class AzureAIAgentsHook(BaseHook):
         )
         return self._process_response(response)
 
-    def _process_response(self, response: Response) -> Any:
+    def _process_response(self, response: Response) -> JsonValue:
         if response.status_code == 404:
             raise ResourceNotFoundError("Azure AI Hosted agent resource was not found.")
         try:
@@ -274,9 +280,9 @@ class AzureAIAgentsHook(BaseHook):
         headers = getattr(response, "headers", None) or {}
         content_type = str(headers.get("Content-Type", "")) if hasattr(headers, "get") else ""
         if "json" in content_type:
-            return response.json()
+            return cast("JsonValue", response.json())
         try:
-            return response.json()
+            return cast("JsonValue", response.json())
         except ValueError:
             return response.text
 
@@ -303,7 +309,7 @@ class AzureAIAgentsHook(BaseHook):
         blueprint_reference: dict[str, Any] | None = None,
         agent_endpoint: dict[str, Any] | None = None,
         agent_card: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         payload: dict[str, Any] = {"definition": definition}
         optional_values = {
             "metadata": metadata,
@@ -325,7 +331,7 @@ class AzureAIAgentsHook(BaseHook):
         blueprint_reference: dict[str, Any] | None = None,
         agent_endpoint: dict[str, Any] | None = None,
         agent_card: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """
         Create a Hosted agent and its first version.
 
@@ -346,10 +352,13 @@ class AzureAIAgentsHook(BaseHook):
             agent_endpoint=agent_endpoint,
             agent_card=agent_card,
         )
-        return self._request(
-            "POST",
-            "agents",
-            json_payload={"name": agent_name, **payload},
+        return cast(
+            "JsonDict",
+            self._request(
+                "POST",
+                "agents",
+                json_payload={"name": agent_name, **payload},
+            ),
         )
 
     def update_agent(
@@ -360,7 +369,7 @@ class AzureAIAgentsHook(BaseHook):
         metadata: dict[str, str] | None = None,
         description: str | None = None,
         blueprint_reference: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """
         Update a Hosted agent, creating a new version when the definition changes.
 
@@ -371,18 +380,21 @@ class AzureAIAgentsHook(BaseHook):
         :param blueprint_reference: Optional managed identity blueprint reference.
         :return: Updated Hosted agent payload.
         """
-        return self._request(
-            "POST",
-            f"agents/{self._quote_resource_id(agent_name)}",
-            json_payload=self._build_agent_payload(
-                definition=definition,
-                metadata=metadata,
-                description=description,
-                blueprint_reference=blueprint_reference,
+        return cast(
+            "JsonDict",
+            self._request(
+                "POST",
+                f"agents/{self._quote_resource_id(agent_name)}",
+                json_payload=self._build_agent_payload(
+                    definition=definition,
+                    metadata=metadata,
+                    description=description,
+                    blueprint_reference=blueprint_reference,
+                ),
             ),
         )
 
-    def get_agent_version(self, agent_name: str, agent_version: str) -> dict[str, Any]:
+    def get_agent_version(self, agent_name: str, agent_version: str) -> JsonDict:
         """
         Get a Hosted agent version.
 
@@ -390,21 +402,24 @@ class AzureAIAgentsHook(BaseHook):
         :param agent_version: Hosted agent version.
         :return: Hosted agent version payload.
         """
-        return self._request(
-            "GET",
-            f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
+        return cast(
+            "JsonDict",
+            self._request(
+                "GET",
+                f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
+            ),
         )
 
-    def get_agent(self, agent_name: str) -> dict[str, Any]:
+    def get_agent(self, agent_name: str) -> JsonDict:
         """
         Get a Hosted agent.
 
         :param agent_name: Hosted agent name.
         :return: Hosted agent payload.
         """
-        return self._request("GET", f"agents/{self._quote_resource_id(agent_name)}")
+        return cast("JsonDict", self._request("GET", f"agents/{self._quote_resource_id(agent_name)}"))
 
-    def delete_agent(self, agent_name: str, *, force: bool = False) -> dict[str, Any] | None:
+    def delete_agent(self, agent_name: str, *, force: bool = False) -> JsonDict | None:
         """
         Delete a Hosted agent and all versions.
 
@@ -413,8 +428,11 @@ class AzureAIAgentsHook(BaseHook):
         :return: Deletion response payload, or ``None`` when the service returns no content.
         """
         query_params = {"force": "true"} if force else None
-        return self._request(
-            "DELETE", f"agents/{self._quote_resource_id(agent_name)}", query_params=query_params
+        return cast(
+            "JsonDict | None",
+            self._request(
+                "DELETE", f"agents/{self._quote_resource_id(agent_name)}", query_params=query_params
+            ),
         )
 
     def delete_agent_version(self, agent_name: str, agent_version: str) -> None:
@@ -463,7 +481,7 @@ class AzureAIAgentsHook(BaseHook):
         *,
         agent_version: str | None = None,
         user_isolation_key: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """
         Invoke a Hosted agent through the OpenAI Responses protocol.
 
@@ -477,12 +495,15 @@ class AzureAIAgentsHook(BaseHook):
         if agent_version is not None:
             agent_reference["version"] = agent_version
         headers = {"x-ms-user-isolation-key": user_isolation_key} if user_isolation_key else None
-        return self._request(
-            "POST",
-            "openai/v1/responses",
-            json_payload={**input_data, "agent_reference": agent_reference},
-            extra_headers=headers,
-            include_api_version=False,
+        return cast(
+            "JsonDict",
+            self._request(
+                "POST",
+                "openai/v1/responses",
+                json_payload={**input_data, "agent_reference": agent_reference},
+                extra_headers=headers,
+                include_api_version=False,
+            ),
         )
 
     def invoke_agent_invocations(
@@ -492,7 +513,7 @@ class AzureAIAgentsHook(BaseHook):
         *,
         agent_session_id: str | None = None,
         user_isolation_key: str | None = None,
-    ) -> Any:
+    ) -> JsonValue:
         """
         Invoke a Hosted agent through the Invocations protocol.
 
@@ -516,7 +537,7 @@ class AzureAIAgentsHook(BaseHook):
 class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
     """Async hook for Microsoft Foundry Hosted agents."""
 
-    async def async_get_agent_version(self, agent_name: str, agent_version: str) -> dict[str, Any]:
+    async def async_get_agent_version(self, agent_name: str, agent_version: str) -> JsonDict:
         """
         Get a Hosted agent version asynchronously.
 
