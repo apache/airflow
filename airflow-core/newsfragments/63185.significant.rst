@@ -1,0 +1,32 @@
+Fix 2.x to 3.0+ upgrade failure when a custom Dag bundle is configured
+
+The ``0082_3_1_0_make_bundle_name_not_nullable`` migration assigned every legacy row
+``bundle_name='dags-folder'`` and left ``relative_fileloc`` NULL, so triggering a DagRun raised
+``Requested bundle 'dags-folder' is not configured.`` on any deployment that uses a bundle other
+than the default ``dags-folder``.
+
+A one-shot repair now runs at ``DagFileProcessorManager`` startup, after ``sync_bundles_to_db``:
+
+- Each legacy-candidate row (NULL ``relative_fileloc`` AND no ``DagVersion``) is routed to the
+  most-specific configured bundle whose absolute path contains the Dag's ``fileloc``; both
+  ``bundle_name`` and ``relative_fileloc`` are written atomically. Rows whose ``fileloc`` is not
+  under any configured bundle are left untouched (writing ``bundle_name`` without a verified
+  ``relative_fileloc`` would produce a row task workers cannot execute) and self-heal via the
+  existing staleness lifecycle once the operator adds a matching bundle: ``sync_bundles_to_db``
+  deactivates the orphan bundle, ``deactivate_stale_dags`` flips the row stale, and the next
+  successful parse resets everything through ``update_dag_parsing_results_in_db``. No manual
+  ``airflow dags reserialize`` is required, though it can be used to force the parse path to
+  rewrite ``bundle_name`` and ``relative_fileloc`` immediately.
+- A global ``DagVersion`` fast-skip short-circuits the repair on any deployment that has already
+  completed a 3.x parse cycle. ``DagVersion`` rows are written only by the parse path, which
+  overwrites both ``bundle_name`` and ``relative_fileloc`` on every parse, so once any row has a
+  ``DagVersion`` the parse loop is doing the same work the repair would do (and the staleness
+  lifecycle handles rows whose files no longer match any configured bundle). The probe is a PK
+  hit on ``dag_version`` vs. a sequential scan of ``dag``.
+- High-availability deployments running multiple Dag processors are safe: each chunked UPDATE
+  re-asserts the legacy-candidate predicate as a compare-and-swap guard, so whichever DFP commits
+  first becomes authoritative and any later UPDATE (from a second DFP or from a parser that
+  landed a fresh write between SELECT and UPDATE) matches zero rows and is a no-op. Each chunk
+  runs in its own internally-owned transaction to bound the row-lock window.
+- Multi-team deployments are safe: a bundle path belongs to at most one team, so routing by the
+  most-specific containing path cannot cross a team boundary.
