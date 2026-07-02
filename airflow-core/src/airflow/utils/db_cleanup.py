@@ -90,6 +90,7 @@ class _TableConfig:
     recency_column_name: str
     extra_columns: list[str] | None = None
     dag_id_column_name: str | None = None
+    dag_id_join_info: tuple[str, str, str, str] | None = None
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
@@ -105,8 +106,15 @@ class _TableConfig:
         self.recency_column = column(self.recency_column_name)
         if self.dag_id_column_name is None:
             self.dag_id_column = None
+            cols = [column(x) for x in self.extra_columns or []]
+            if self.dag_id_join_info:
+                join_table_name, assoc_col, join_pk, join_dag_id = self.dag_id_join_info
+                if assoc_col not in (self.extra_columns or []):
+                    cols.append(column(assoc_col))
             self.orm_model: Base = table(
-                self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
+                self.table_name,
+                *cols,
+                self.recency_column,
             )
         else:
             self.dag_id_column = column(self.dag_id_column_name)
@@ -136,6 +144,7 @@ class _TableConfig:
             "table": self.orm_model.name,
             "recency_column": str(self.recency_column),
             "dag_id_column": str(self.dag_id_column),
+            "dag_id_join_info": self.dag_id_join_info,
             "keep_last": self.keep_last,
             "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             "keep_last_group_by": str(self.keep_last_group_by),
@@ -160,7 +169,9 @@ config_list: list[_TableConfig] = [
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
-    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="source_dag_id"
+    ),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp", dag_id_column_name="dag_id"),
@@ -178,7 +189,11 @@ config_list: list[_TableConfig] = [
         recency_column_name="expires_at",
         dag_id_column_name="dag_id",
     ),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="task_reschedule",
+        recency_column_name="start_date",
+        dag_id_join_info=("task_instance", "ti_id", "id", "dag_id"),
+    ),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
@@ -203,7 +218,11 @@ config_list: list[_TableConfig] = [
         # and are cleaned. dag_run.created_dag_version_id is ON DELETE SET NULL, so it does not block.
         skip_if_referenced=[("task_instance", "dag_version_id")],
     ),
-    _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="deadline",
+        recency_column_name="deadline_time",
+        dag_id_join_info=("dag_run", "dagrun_id", "id", "dag_id"),
+    ),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
     _TableConfig(
         table_name="connection_test_request",
@@ -378,6 +397,7 @@ def _build_query(
     clean_before_timestamp: DateTime,
     session: Session,
     dag_id_column=None,
+    dag_id_join_info=None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
     extra_filters: list[Any] | None = None,
@@ -410,13 +430,23 @@ def _build_query(
                 .exists()
             )
 
-    if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
-        base_table_dag_id_col = base_table.c[dag_id_column.name]
+    if dag_ids or exclude_dag_ids:
+        if dag_id_column is not None:
+            base_table_dag_id_col = base_table.c[dag_id_column.name]
 
-        if dag_ids:
-            conditions.append(base_table_dag_id_col.in_(dag_ids))
-        if exclude_dag_ids:
-            conditions.append(base_table_dag_id_col.not_in(exclude_dag_ids))
+            if dag_ids:
+                conditions.append(base_table_dag_id_col.in_(dag_ids))
+            if exclude_dag_ids:
+                conditions.append(base_table_dag_id_col.not_in(exclude_dag_ids))
+        elif dag_id_join_info is not None:
+            join_table_name, assoc_col, join_pk, join_dag_id = dag_id_join_info
+            j_table = table(join_table_name, column(join_pk), column(join_dag_id))
+            query = query.join(j_table, base_table.c[assoc_col] == j_table.c[join_pk])
+            j_dag_id_col = j_table.c[join_dag_id]
+            if dag_ids:
+                conditions.append(j_dag_id_col.in_(dag_ids))
+            if exclude_dag_ids:
+                conditions.append(j_dag_id_col.not_in(exclude_dag_ids))
 
     if keep_last:
         max_date_col_name = "max_date_per_group"
@@ -448,6 +478,7 @@ def _cleanup_table(
     keep_last_group_by,
     clean_before_timestamp: DateTime,
     dag_id_column=None,
+    dag_id_join_info=None,
     dag_ids=None,
     exclude_dag_ids=None,
     dry_run: bool = True,
@@ -467,6 +498,7 @@ def _cleanup_table(
         orm_model=orm_model,
         recency_column=recency_column,
         dag_id_column=dag_id_column,
+        dag_id_join_info=dag_id_join_info,
         dag_ids=dag_ids,
         exclude_dag_ids=exclude_dag_ids,
         keep_last=keep_last,
