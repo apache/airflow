@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "접기",
     "seeMoreContext": "더 보기",
-    "showMoreAlerts_one": "알림 {{count}}개 더 보기",
-    "showMoreAlerts_other": "알림 {{count}}개 더 보기"
+    "showMoreAlerts_one": "알림 +{{count}}개 더 보기",
+    "showMoreAlerts_other": "알림 +{{count}}개 더 보기"
   },
   "deadlines": {
     "pending": {
