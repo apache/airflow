@@ -1375,6 +1375,7 @@ class TestDagFileProcessorManager:
                             "filepath": "dag_callback_dag.py",
                             "bundle_name": "testing",
                             "bundle_version": None,
+                            "version_data": None,
                             "msg": None,
                             "dag_id": "dag_id",
                             "run_id": "run_id",
@@ -1967,7 +1968,28 @@ class TestDagFileProcessorManager:
         bundle.initialize.assert_called_once()
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
-    def test_prepare_callback_bundle_skips_initialize_for_unversioned_request(self, mock_bundle_manager):
+    def test_prepare_callback_bundle_forwards_version_data(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.supports_versioning = True
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            version_data=version_data,
+            msg=None,
+        )
+
+        manager.prepare_callback_bundle(request)
+        mock_bundle_manager.return_value.get_bundle.assert_called_once_with(
+            name="testing", version="some_commit_hash", version_data=version_data
+        )
         manager = DagFileProcessorManager(max_runs=1)
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True

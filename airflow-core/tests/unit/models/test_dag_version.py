@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 from sqlalchemy import func, select
@@ -181,3 +182,31 @@ class TestDagVersion:
         retrieved = DagVersion.get_latest_version("test_no_version_data", session=session)
         assert retrieved.version_data is None
         assert retrieved.bundle_version == "abc123"
+
+
+class TestResolvePinnedVersionData:
+    """Unit tests for the resolve_pinned_version_data pin-guard helper."""
+
+    @pytest.mark.parametrize(
+        ("dag_version", "bundle_version", "expected"),
+        [
+            pytest.param(
+                mock.Mock(version_data={"schema_version": 1}),
+                "abc123",
+                {"schema_version": 1},
+                id="pinned-with-data",
+            ),
+            pytest.param(
+                mock.Mock(version_data={"schema_version": 1}),
+                None,
+                None,
+                id="unpinned-suppresses-present-data",
+            ),
+            pytest.param(None, "abc123", None, id="missing-dag-version"),
+            pytest.param(None, None, None, id="unpinned-and-missing"),
+        ],
+    )
+    def test_resolve_pinned_version_data(self, dag_version, bundle_version, expected):
+        from airflow.models.dag_version import resolve_pinned_version_data
+
+        assert resolve_pinned_version_data(dag_version, bundle_version) == expected
