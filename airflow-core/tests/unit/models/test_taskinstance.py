@@ -3319,10 +3319,8 @@ class TestMappedTaskInstanceReceiveValue:
         show_task = dag.get_task("show")
         with pytest.raises(NotMapped):
             show_task.get_parse_time_mapped_ti_count()
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
         with pytest.raises(NotMapped):
-            len(mapped_tis)
-        assert max_map_index is None
+            TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
 
         tis = session.scalars(
             select(TaskInstance)
