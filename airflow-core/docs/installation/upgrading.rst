@@ -41,6 +41,13 @@ a half-migrated state and restoring DB from backup and repeating the
 migration might be the only easy way out. This can for example be caused by a broken
 network connection between your CLI and the database while the migration happens, so taking
 a backup is an important precaution to avoid problems like this.
+The backup is also important if you need to roll back to an older Airflow version
+after the new version has already run against the metadata database. The
+``airflow db downgrade`` command only downgrades the database schema; it does not
+rewrite serialized row contents that were written by the newer Airflow version.
+For example, after Airflow 3.2.x writes SDK-serialized metadata rows, Airflow
+3.1.x might not be able to deserialize those rows. Restoring a metadata database
+backup taken before the upgrade is the safest rollback path.
 
 When you need to upgrade
 ========================

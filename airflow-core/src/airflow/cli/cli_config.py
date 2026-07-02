@@ -1737,6 +1737,7 @@ DB_COMMANDS = (
         help="Downgrade the schema of the metadata database.",
         description=(
             "Downgrade the schema of the metadata database. "
+            "This does not rewrite serialized metadata rows that were written by a newer Airflow version. "
             "You must provide either `--to-revision` or `--to-version`. "
             "To print but not execute commands, use option `--show-sql-only`. "
             "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
@@ -2097,6 +2098,7 @@ DB_MANAGERS_COMMANDS = (
         help="Downgrade the schema of the external metadata database.",
         description=(
             "Downgrade the schema of the metadata database. "
+            "This does not rewrite serialized metadata rows that were written by a newer Airflow version. "
             "You must provide either `--to-revision` or `--to-version`. "
             "To print but not execute commands, use option `--show-sql-only`. "
             "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
