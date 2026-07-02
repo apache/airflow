@@ -41,7 +41,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-PROMPTFOO_VERSION = "latest"
+PROMPTFOO_VERSION = "0.121.17"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -87,6 +87,29 @@ def check_prerequisites() -> None:
         sys.exit(1)
 
 
+def check_claude_md_symlink(base_branch: str) -> None:
+    """Verify CLAUDE.md is a symlink to AGENTS.md, in the working tree and on the base branch.
+
+    The Claude Agent SDK reads CLAUDE.md. Swapping AGENTS.md between arms only
+    affects the agent while CLAUDE.md resolves to it — if CLAUDE.md ever becomes
+    a regular file, every arm would read identical guidance and the eval would
+    silently measure nothing.
+    """
+    link = REPO_ROOT / "CLAUDE.md"
+    working_ok = link.is_symlink() and os.readlink(link) == "AGENTS.md"
+    tree_entry = run(["git", "-C", str(REPO_ROOT), "ls-tree", base_branch, "CLAUDE.md"]).stdout
+    target = run(["git", "-C", str(REPO_ROOT), "show", f"{base_branch}:CLAUDE.md"]).stdout
+    branch_ok = tree_entry.startswith("120000") and target == "AGENTS.md"
+    if not (working_ok and branch_ok):
+        print(
+            "Error: CLAUDE.md must be a symlink to AGENTS.md (in the working tree"
+            f" and on '{base_branch}'). The eval swaps AGENTS.md between arms and"
+            " relies on the agent reading it through that symlink.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def resolve_base_branch() -> str:
     result = run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", "main"])
     if result.returncode == 0:
@@ -109,12 +132,13 @@ def create_worktree(
     name: str,
     base_branch: str,
     agents_file: Path | None,
+    worktrees: list[Path],
     skill_name: str | None = None,
     skill_file: Path | None = None,
 ) -> Path:
     """Create a git worktree arm with the specified AGENTS.md and optional SKILL.md."""
     wt_dir = work_dir / name
-    run(
+    result = run(
         [
             "git",
             "-C",
@@ -127,9 +151,21 @@ def create_worktree(
             base_branch,
         ]
     )
+    if result.returncode != 0:
+        print(
+            f"Error: 'git worktree add' failed for arm '{name}':\n{result.stderr.strip()}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    # Register before mutating the checkout so cleanup covers this worktree
+    # even if a later step in this function fails.
+    worktrees.append(wt_dir)
 
     if agents_file is None:
+        # Baseline arm: remove all guidance. CLAUDE.md is a symlink to
+        # AGENTS.md — drop it too so the SDK finds no dangling link.
         (wt_dir / "AGENTS.md").unlink(missing_ok=True)
+        (wt_dir / "CLAUDE.md").unlink(missing_ok=True)
     else:
         shutil.copy2(agents_file, wt_dir / "AGENTS.md")
 
@@ -182,7 +218,16 @@ def main() -> int:
     full_mode = "--full" in sys.argv
     promptfoo_args = [a for a in sys.argv[1:] if a != "--full"]
 
+    if full_mode and skill_name:
+        print(
+            "Error: --full cannot be combined with SKILL_NAME — the baseline arm has"
+            " no skill, so the 'skill-used' assertion would always fail on it.",
+            file=sys.stderr,
+        )
+        return 1
+
     base_branch = resolve_base_branch()
+    check_claude_md_symlink(base_branch)
 
     # Temp dir for config and worktrees
     work_dir = Path(tempfile.mkdtemp())
@@ -214,23 +259,26 @@ def main() -> int:
             skill_changed = run(["diff", "-q", str(main_skill), str(skill_src)]).returncode != 0
         need_working = agents_changed or skill_changed
 
-        # Assemble arms
+        # Assemble arms. Prune first to self-heal stale worktree registrations
+        # left behind by a previously interrupted run.
         print("Assembling arms (git worktrees) ...")
+        run(["git", "-C", str(REPO_ROOT), "worktree", "prune"])
 
-        arm_main = create_worktree(work_dir, "main", base_branch, main_agents, skill_name, main_skill)
-        worktrees.append(arm_main)
+        arm_main = create_worktree(
+            work_dir, "main", base_branch, main_agents, worktrees, skill_name, main_skill
+        )
 
         arm_working = None
         if need_working:
-            arm_working = create_worktree(work_dir, "working", base_branch, AGENTS_SRC, skill_name, skill_src)
-            worktrees.append(arm_working)
+            arm_working = create_worktree(
+                work_dir, "working", base_branch, AGENTS_SRC, worktrees, skill_name, skill_src
+            )
         else:
             print("  AGENTS.md unchanged — skipping working arm")
 
         arm_baseline = None
         if full_mode:
-            arm_baseline = create_worktree(work_dir, "baseline", base_branch, None)
-            worktrees.append(arm_baseline)
+            arm_baseline = create_worktree(work_dir, "baseline", base_branch, None, worktrees)
 
         # Generate config
         config_lines: list[str] = []

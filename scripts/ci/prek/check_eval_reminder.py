@@ -37,9 +37,13 @@ def get_staged_files() -> list[str]:
     return result.stdout.strip().splitlines()
 
 
+def find_guidance_files(staged: list[str]) -> list[str]:
+    """Return staged paths whose basename is exactly AGENTS.md or SKILL.md."""
+    return [f for f in staged if f.rsplit("/", 1)[-1] in ("AGENTS.md", "SKILL.md")]
+
+
 def main() -> int:
-    staged = get_staged_files()
-    guidance_files = [f for f in staged if f.endswith("AGENTS.md") or f.endswith("SKILL.md")]
+    guidance_files = find_guidance_files(get_staged_files())
     if guidance_files:
         changed = ", ".join(guidance_files)
         print(

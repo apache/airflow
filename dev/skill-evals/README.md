@@ -41,6 +41,11 @@ Each arm is a **git worktree** of the real repo — the agent sees
 actual source files (`pyproject.toml`, directory structure, etc.).
 The only difference between arms is which `AGENTS.md` is present.
 
+The agent reads guidance through the `CLAUDE.md → AGENTS.md` symlink,
+so the harness verifies that symlink exists (in the working tree and
+on the base branch) before running and aborts if it is broken — a
+regular-file CLAUDE.md would make every arm read identical guidance.
+
 ## Prerequisites
 
 - **Node.js >=22.22.0** — check with `node --version`
@@ -68,7 +73,8 @@ uv run dev/skill-evals/eval.py --repeat 3
 # Add baseline arm (no AGENTS.md) to measure raw model capability:
 uv run dev/skill-evals/eval.py --full
 
-# Test a skill alongside AGENTS.md:
+# Test a skill alongside AGENTS.md (not combinable with --full — the
+# baseline arm has no skill, so the skill-used assertion would always fail):
 SKILL_NAME=airflow-contribution uv run dev/skill-evals/eval.py
 
 # Use a cheaper model for fast iteration:
@@ -77,8 +83,8 @@ MODEL=claude-haiku-4-5-20251001 uv run dev/skill-evals/eval.py
 # Disable cache (force fresh LLM calls):
 uv run dev/skill-evals/eval.py --no-cache
 
-# View results in browser:
-npx promptfoo@latest view
+# View results in browser (use the pinned version printed by eval.py):
+npx promptfoo@0.121.17 view
 ```
 
 ## Adding cases
