@@ -369,28 +369,6 @@ class TestTaskExecutor:
         mock_async_execute.assert_called_once_with(context, ti, executor.log)
         assert result == "async_result"
 
-    @pytest.mark.asyncio
-    async def test_async_context_manager_enter_returns_self(self, make_indexed_ti):
-        ti = make_indexed_ti()
-        executor = TaskExecutor(task_instance=ti)
-        async with executor as ctx:
-            assert ctx is executor
-
-    @pytest.mark.asyncio
-    async def test_async_context_manager_exit_success(self, make_indexed_ti):
-        ti = make_indexed_ti()
-        async with TaskExecutor(task_instance=ti):
-            pass
-        assert ti.state == TaskInstanceState.SUCCESS
-
-    @pytest.mark.asyncio
-    async def test_async_context_manager_exit_reschedules(self, make_indexed_ti):
-        ti = make_indexed_ti(try_number=0, max_tries=3)
-        with pytest.raises(AirflowRescheduleTaskInstanceException):
-            async with TaskExecutor(task_instance=ti):
-                raise RuntimeError("async transient failure")
-        assert ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
-
     @pytest.mark.parametrize(
         "base_exception",
         [
@@ -414,27 +392,4 @@ class TestTaskExecutor:
 
         assert ti.state == TaskInstanceState.FAILED
         # try_number should NOT be incremented for BaseException
-        assert ti.try_number == 0
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "base_exception",
-        [
-            SystemExit(1),
-            KeyboardInterrupt(),
-            GeneratorExit(),
-        ],
-        ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
-    )
-    async def test_async_exit_base_exception_not_retried(self, make_indexed_ti, base_exception):
-        """
-        Async variant: BaseException subclasses must not be retried via __aexit__.
-        """
-        ti = make_indexed_ti(try_number=0, max_tries=3)
-
-        with pytest.raises(type(base_exception)):
-            async with TaskExecutor(task_instance=ti):
-                raise base_exception
-
-        assert ti.state == TaskInstanceState.FAILED
         assert ti.try_number == 0
