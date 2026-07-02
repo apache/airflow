@@ -88,16 +88,16 @@ class SSHHook(BaseHook):
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
+    # Note: DSSKey (DSA) support was removed in paramiko 4.0+, so it is no longer offered here.
+    # Users relying on DSA keys must migrate to RSA, ECDSA, or Ed25519 keys.
     _pkey_loaders: Sequence[type[paramiko.PKey]] = (
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
-        paramiko.DSSKey,
     )
 
     _host_key_mappings = {
         "rsa": paramiko.RSAKey,
-        "dss": paramiko.DSSKey,
         "ecdsa": paramiko.ECDSAKey,
         "ed25519": paramiko.Ed25519Key,
     }
