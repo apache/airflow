@@ -121,6 +121,11 @@ class Connection:
     port: int | None = None
     extra: str | None = None
 
+    @port.validator
+    def _validate_port(self, attribute, value):
+        if value is not None and not (1 <= value <= 65535):
+            raise ValueError(f"Port must be between 1 and 65535, got {value}")
+
     EXTRA_KEY = "__extra__"
 
     @overload

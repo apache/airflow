@@ -2189,3 +2189,38 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
                 "method": "POST",
             },
         )
+
+
+class TestConnectionBodyPortValidation:
+    """Tests for port range validation on REST API ConnectionBody (issue #68382)."""
+
+    def test_connection_body_rejects_port_too_high(self):
+        """ConnectionBody should reject port > 65535."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="less than or equal to 65535"):
+            ConnectionBody(connection_id="test", conn_type="http", port=99999)
+
+    def test_connection_body_rejects_port_zero(self):
+        """ConnectionBody should reject port=0."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="greater than or equal to 1"):
+            ConnectionBody(connection_id="test", conn_type="http", port=0)
+
+    def test_connection_body_rejects_negative_port(self):
+        """ConnectionBody should reject negative port."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="greater than or equal to 1"):
+            ConnectionBody(connection_id="test", conn_type="http", port=-1)
+
+    def test_connection_body_accepts_valid_port(self):
+        """ConnectionBody should accept valid port."""
+        body = ConnectionBody(connection_id="test", conn_type="http", port=8080)
+        assert body.port == 8080
+
+    def test_connection_body_accepts_none_port(self):
+        """ConnectionBody should accept port=None."""
+        body = ConnectionBody(connection_id="test", conn_type="http", port=None)
+        assert body.port is None
