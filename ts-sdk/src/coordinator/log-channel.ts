@@ -86,6 +86,8 @@ export class LogChannel {
       logger?: string;
     },
   ): void {
+    // Drop late records after the log socket has closed.
+    if (this.sock.writableEnded) return;
     // Prepend the logger name to the event message so it surfaces in
     // the Airflow UI task log view, which renders the message text but
     // hides the `logger` JSON field. The field is still emitted for

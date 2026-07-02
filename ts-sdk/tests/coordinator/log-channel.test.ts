@@ -147,4 +147,35 @@ describe("LogChannel", () => {
       await fx.sockClosed;
     }
   });
+
+  it("drops records sent after close instead of writing to the ended socket", async () => {
+    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const child = root.child("comm");
+    root.info("before close");
+    await root.close();
+
+    root.info("after close");
+    child.debug("after close via child");
+
+    await fx.sockClosed;
+    const records = readRecords(fx.received);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ event: "[ts-sdk] before close" });
+  });
+
+  it("reports close-time socket errors", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const sock = (root as unknown as { sock: net.Socket }).sock;
+
+    try {
+      sock.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(write.mock.calls[0]?.[0]).toBe("[ts-sdk] log socket error: write EPIPE\n");
+    } finally {
+      write.mockRestore();
+      await root.close();
+      await fx.sockClosed;
+    }
+  });
 });

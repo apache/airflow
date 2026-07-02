@@ -240,10 +240,6 @@ export class CommChannel {
         error: err.message,
         pending_replies: this.pendingReplies.size,
       });
-    } else {
-      this.logs?.debug("Comm channel closed", {
-        pending_replies: this.pendingReplies.size,
-      });
     }
     // Before the greeting this rejects so `connect()` throws;
     // after it, a no-op — the Deferred settles at most once, so no

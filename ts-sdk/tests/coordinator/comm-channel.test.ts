@@ -149,4 +149,18 @@ describe("CommChannel", () => {
     await expect(request).rejects.toThrow("write failed");
     await vi.advanceTimersByTimeAsync(10);
   });
+
+  it("does not log clean close events", async () => {
+    const logs = { debug: vi.fn(), warning: vi.fn() };
+    const sock = new FakeSocket();
+    const ctor = CommChannel as unknown as new (sock: FakeSocket, logs: unknown) => CommChannel;
+    const channel = new ctor(sock, logs);
+
+    sock.emit("data", encodeResponse(0, { type: "StartupDetails" }));
+    await channel.close();
+    sock.emit("close");
+
+    expect(logs.debug).not.toHaveBeenCalledWith("Comm channel closed", expect.anything());
+    expect(logs.warning).not.toHaveBeenCalled();
+  });
 });
