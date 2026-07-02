@@ -150,14 +150,38 @@ def log_filename_template_renderer() -> Callable[..., str]:
     if "{{" in template:
         import jinja2
 
-        return jinja2.Template(template).render
+        compiled = jinja2.Template(template)
 
-    def f_str_format(ti: TaskInstance, try_number: int | None = None):
+        def render_jinja(ti: TaskInstance, try_number: int | None = None) -> str:
+            # ``logical_date`` is nullable since AIP-83 (asset-triggered / partitioned runs).
+            # Mirror ``FileTaskHandler._render_filename`` so the path the worker writes to and the
+            # path the UI reads from resolve identically. ``ti`` is passed unchanged, so a plain
+            # ``{{ ti.logical_date }}`` still renders to ``"None"`` rather than crashing.
+            date = ti.logical_date or ti.run_after
+            return compiled.render(
+                ti=ti,
+                ts=date.isoformat(),
+                try_number=try_number if try_number is not None else ti.try_number,
+            )
+
+        return render_jinja
+
+    def f_str_format(ti: TaskInstance, try_number: int | None = None) -> str:
+        # Mirror ``FileTaskHandler._render_filename`` so worker-written and UI-read log paths match.
+        # ``logical_date`` is nullable since AIP-83; fall back to ``run_after`` the same way the
+        # reader does instead of dereferencing ``None``.
+        date = ti.logical_date or ti.run_after
+        dag_run = ti.dag_run
+        data_interval_start = dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else ""
+        data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else ""
         return template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
-            logical_date=ti.logical_date.isoformat(),
-            try_number=try_number or ti.try_number,
+            run_id=ti.run_id,
+            data_interval_start=data_interval_start,
+            data_interval_end=data_interval_end,
+            logical_date=date.isoformat(),
+            try_number=try_number if try_number is not None else ti.try_number,
         )
 
     return f_str_format
