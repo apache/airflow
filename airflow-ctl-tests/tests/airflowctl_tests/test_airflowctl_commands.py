@@ -102,6 +102,8 @@ TEST_COMMANDS = [
     'xcom list example_bash_operator "manual__{date_param}" runme_0',
     'xcom edit example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"updated": "value"}}\'',
     'xcom delete example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
+    # Delete Dag run command - needs to run after xcom ops
+    'dagrun delete example_bash_operator "manual__{date_param}"',
     # Jobs commands
     "jobs list",
     # Pools commands

@@ -1309,6 +1309,15 @@ class TestDagRunOperations:
         assert "state" not in captured_params
         assert captured_params["limit"] == "5"
 
+    def test_delete(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.delete(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+        assert response == self.dag_run_id
+
 
 class TestJobsOperations:
     job_response = JobResponse(
