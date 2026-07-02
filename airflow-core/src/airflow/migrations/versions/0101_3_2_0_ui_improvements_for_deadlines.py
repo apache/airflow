@@ -45,6 +45,7 @@ from alembic import context, op
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.migrations.utils import disable_sqlite_fkeys
 from airflow.serialization.enums import Encoding
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -161,6 +162,12 @@ deadline_alert_table = sa.table(
     sa.column("serialized_dag_id"),
 )
 
+deadline_table = sa.table(
+    "deadline",
+    sa.column("created_at", UtcDateTime),
+    sa.column("last_updated_at", UtcDateTime),
+)
+
 
 def upgrade() -> None:
     """Make changes to enable adding DeadlineAlerts to the UI."""
@@ -171,64 +178,56 @@ def upgrade() -> None:
     #   user-provided DeadlineDefinition, and the actual instance of a Definition is (still) the Deadline.
     #   This feels more intuitive than DeadlineAlert defining the Deadline.
 
-    op.create_table(
-        "deadline_alert",
-        sa.Column("id", sa.Uuid(), default=uuid6.uuid7),
-        sa.Column("created_at", UtcDateTime, nullable=False),
-        sa.Column("serialized_dag_id", sa.Uuid(), nullable=False),
-        sa.Column("name", sa.String(250), nullable=True),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("reference", sa.JSON(), nullable=False),
-        sa.Column("interval", sa.Float(), nullable=False),
-        sa.Column("callback_def", sa.JSON(), nullable=False),
-        sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
-    )
-
-    conn = op.get_bind()
-    dialect_name = conn.dialect.name
-
-    if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
-
-    with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
-        batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
-        batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
-        batch_op.create_foreign_key(
-            batch_op.f("deadline_deadline_alert_id_fkey"),
+    with disable_sqlite_fkeys(op):
+        op.create_table(
             "deadline_alert",
-            ["deadline_alert_id"],
-            ["id"],
-            ondelete="SET NULL",
+            sa.Column("id", sa.Uuid(), default=uuid6.uuid7),
+            sa.Column("created_at", UtcDateTime, nullable=False),
+            sa.Column("serialized_dag_id", sa.Uuid(), nullable=False),
+            sa.Column("name", sa.String(250), nullable=True),
+            sa.Column("description", sa.Text(), nullable=True),
+            sa.Column("reference", sa.JSON(), nullable=False),
+            sa.Column("interval", sa.Float(), nullable=False),
+            sa.Column("callback_def", sa.JSON(), nullable=False),
+            sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
         )
 
-    # For migration/backcompat purposes if no timestamp is there from the migration, use now()
-    # then lock the columns down so all new entries require the timestamps to be provided.
-    now = timezone.utcnow()
-    conn.execute(
-        sa.text("""
-            UPDATE deadline
-            SET created_at = :now, last_updated_at = :now
-            WHERE created_at IS NULL OR last_updated_at IS NULL
-        """),
-        {"now": now},
-    )
+        with op.batch_alter_table("deadline", schema=None) as batch_op:
+            batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
+            batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
+            batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
+            batch_op.create_foreign_key(
+                batch_op.f("deadline_deadline_alert_id_fkey"),
+                "deadline_alert",
+                ["deadline_alert_id"],
+                ["id"],
+                ondelete="SET NULL",
+            )
 
-    with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.alter_column("created_at", existing_type=UtcDateTime, nullable=False)
-        batch_op.alter_column("last_updated_at", existing_type=UtcDateTime, nullable=False)
-
-    with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
-        batch_op.create_foreign_key(
-            batch_op.f("deadline_alert_serialized_dag_id_fkey"),
-            "serialized_dag",
-            ["serialized_dag_id"],
-            ["id"],
-            ondelete="CASCADE",
+        # For migration/backcompat purposes if no timestamp is there from the migration, use now()
+        # then lock the columns down so all new entries require the timestamps to be provided.
+        now = timezone.utcnow()
+        op.execute(
+            deadline_table.update()
+            .where(sa.or_(deadline_table.c.created_at.is_(None), deadline_table.c.last_updated_at.is_(None)))
+            .values(
+                created_at=op.inline_literal(now),
+                last_updated_at=op.inline_literal(now),
+            )
         )
 
-    if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+        with op.batch_alter_table("deadline", schema=None) as batch_op:
+            batch_op.alter_column("created_at", existing_type=UtcDateTime, nullable=False)
+            batch_op.alter_column("last_updated_at", existing_type=UtcDateTime, nullable=False)
+
+        with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+            batch_op.create_foreign_key(
+                batch_op.f("deadline_alert_serialized_dag_id_fkey"),
+                "serialized_dag",
+                ["serialized_dag_id"],
+                ["id"],
+                ondelete="CASCADE",
+            )
 
     migrate_existing_deadline_alert_data_from_serialized_dag()
 
@@ -237,23 +236,15 @@ def downgrade() -> None:
     """Remove changes that were added to enable adding DeadlineAlerts to the UI."""
     migrate_deadline_alert_data_back_to_serialized_dag()
 
-    conn = op.get_bind()
-    dialect_name = conn.dialect.name
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("deadline", schema=None) as batch_op:
+            batch_op.drop_constraint(batch_op.f("deadline_deadline_alert_id_fkey"), type_="foreignkey")
+            batch_op.drop_column("deadline_alert_id")
+            batch_op.drop_column("last_updated_at")
+            batch_op.drop_column("created_at")
 
-    if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
-
-    with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("deadline_deadline_alert_id_fkey"), type_="foreignkey")
-        batch_op.drop_column("deadline_alert_id")
-        batch_op.drop_column("last_updated_at")
-        batch_op.drop_column("created_at")
-
-    with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("deadline_alert_serialized_dag_id_fkey"), type_="foreignkey")
-
-    if dialect_name == "sqlite":
-        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+        with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+            batch_op.drop_constraint(batch_op.f("deadline_alert_serialized_dag_id_fkey"), type_="foreignkey")
 
     op.drop_table("deadline_alert")
 
