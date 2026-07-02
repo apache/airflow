@@ -154,6 +154,9 @@ class TriggerDagRunOperator(BaseOperator):
         Airflow 3.x this requires Airflow 3.2.0+ (it relies on the task-SDK DAG state endpoint added then);
         on Airflow 3.0/3.1 setting this raises ``NotImplementedError``.
     :param deferrable: If waiting for completion, whether to defer the task until done, default is ``False``.
+    :param durable: If ``True`` and waiting for completion synchronously (non-deferrable), persist the
+        triggered run id before polling so that a worker crash mid-wait reconnects to the in-flight run on
+        retry instead of triggering a duplicate. Requires Airflow 3.3+ (task_state_store). Default ``False``.
     :param openlineage_inject_parent_info: whether to include OpenLineage metadata about the parent task
         in the triggered DAG run's conf, enabling improved lineage tracking. The metadata is only injected
         if OpenLineage is enabled and running. This option does not modify any other part of the conf,
@@ -198,6 +201,7 @@ class TriggerDagRunOperator(BaseOperator):
         fail_when_dag_is_paused: bool = False,
         note: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        durable: bool = False,
         openlineage_inject_parent_info: bool = True,
         **kwargs,
     ) -> None:
@@ -221,6 +225,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.note = note
         self.deferrable = deferrable
+        self.durable = durable
         logical_date = _validate_datetime_param("logical_date", logical_date)
         run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
@@ -324,6 +329,9 @@ class TriggerDagRunOperator(BaseOperator):
 
         if parsed_run_after and "run_after" in parameters:
             kwargs_accepted["run_after"] = parsed_run_after
+
+        if self.durable and "durable" in parameters:
+            kwargs_accepted["durable"] = self.durable
 
         if isinstance(context, Mapping):
             from airflow.utils import helpers
