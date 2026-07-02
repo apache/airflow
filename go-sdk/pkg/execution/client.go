@@ -200,9 +200,12 @@ func (c *CoordinatorClient) GetXCom(
 		TaskID: taskId,
 		RunID:  runId,
 	}
-	if mapIndex != nil {
-		msg.MapIndex = *mapIndex
-	}
+	// Assign the pointer, not the dereferenced int: map_index is a nullable
+	// interface{} field and msgpack's omitempty treats an interface{} holding
+	// int(0) as empty, dropping an explicit map_index 0 so the supervisor would
+	// read mapped index 0 as unmapped. A *int in the interface encodes its pointee
+	// (0 included), and a nil pointer is still omitted.
+	msg.MapIndex = mapIndex
 
 	resp, err := c.comm.Communicate(ctx, msg)
 	if err != nil {
@@ -232,9 +235,11 @@ func (c *CoordinatorClient) PushXCom(
 		RunID:  ti.RunId,
 	}
 	// map_index mirrors Python's SetXCom.map_index (int | None): -1 is the
-	// unmapped sentinel, omitted from the payload rather than sent.
+	// unmapped sentinel, omitted from the payload rather than sent. Assign the
+	// pointer, not the dereferenced int, so an explicit index 0 survives omitempty
+	// (see GetXCom).
 	if ti.MapIndex != nil && *ti.MapIndex != -1 {
-		msg.MapIndex = *ti.MapIndex
+		msg.MapIndex = ti.MapIndex
 	}
 
 	_, err := c.comm.Communicate(ctx, msg)

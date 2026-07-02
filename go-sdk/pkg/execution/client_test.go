@@ -217,6 +217,7 @@ func TestCoordinatorClientGetConnectionAbsentCredentials(t *testing.T) {
 // silently treated as a separate map element by the supervisor.
 func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 	mapped := -1
+	zero := 0
 	dynamic := 3
 
 	tests := []struct {
@@ -227,6 +228,14 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 	}{
 		{name: "nil map_index is omitted", mapIndex: nil, wantHasMapIndex: false},
 		{name: "-1 map_index is omitted", mapIndex: &mapped, wantHasMapIndex: false},
+		{
+			// Regression: map_index 0 is a real mapped index, not "unset". A plain
+			// deref into the interface{} field would let omitempty drop it.
+			name:            "map_index 0 is sent",
+			mapIndex:        &zero,
+			wantHasMapIndex: true,
+			wantMapIndexVal: 0,
+		},
 		{
 			name:            "non-negative map_index is sent",
 			mapIndex:        &dynamic,
@@ -265,6 +274,68 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 			} else {
 				assert.NotContains(t, sentMap, "map_index",
 					"map_index must be omitted for unmapped task instances")
+			}
+		})
+	}
+}
+
+// TestCoordinatorClientGetXComMapIndex verifies the GetXCom frame omits
+// map_index when none is supplied and propagates a real index otherwise,
+// including index 0: a plain deref into the nullable interface{} field would let
+// omitempty drop the 0 and the supervisor would resolve the unmapped XCom.
+func TestCoordinatorClientGetXComMapIndex(t *testing.T) {
+	zero := 0
+	dynamic := 5
+
+	tests := []struct {
+		name            string
+		mapIndex        *int
+		wantHasMapIndex bool
+		wantMapIndexVal int
+	}{
+		{name: "nil map_index is omitted", mapIndex: nil, wantHasMapIndex: false},
+		{
+			name:            "map_index 0 is sent",
+			mapIndex:        &zero,
+			wantHasMapIndex: true,
+			wantMapIndexVal: 0,
+		},
+		{
+			name:            "non-negative map_index is sent",
+			mapIndex:        &dynamic,
+			wantHasMapIndex: true,
+			wantMapIndexVal: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{
+				"type":  "XComResult",
+				"key":   "k",
+				"value": "v",
+			}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm)
+
+			_, err := client.GetXCom(context.Background(), "d", "r", "t", tc.mapIndex, "k", nil)
+			require.NoError(t, err)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			sentMap := rawToMap(t, sent.Body)
+			assert.Equal(t, "GetXCom", sentMap["type"])
+			if tc.wantHasMapIndex {
+				require.Contains(t, sentMap, "map_index")
+				assert.EqualValues(t, tc.wantMapIndexVal, sentMap["map_index"])
+			} else {
+				assert.NotContains(t, sentMap, "map_index",
+					"map_index must be omitted when no index is supplied")
 			}
 		})
 	}

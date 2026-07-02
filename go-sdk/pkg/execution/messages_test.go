@@ -126,7 +126,8 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.Equal(t, "tutorial_dag", details.TI.DagID)
 	assert.Equal(t, "manual__2024-01-15", details.TI.RunID)
 	assert.Equal(t, 1, details.TI.TryNumber)
-	assert.Equal(t, -1, details.TI.MapIndex)
+	require.NotNil(t, details.TI.MapIndex)
+	assert.Equal(t, -1, *details.TI.MapIndex)
 	assert.Equal(t, "dags/tutorial.go", details.DagRelPath)
 	assert.Equal(t, "example_dags", details.BundleInfo.Name)
 	assert.Equal(t, "1.0.0", ifaceString(details.BundleInfo.Version))
@@ -160,9 +161,9 @@ func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
 	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.LogicalDate))
 	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.DataIntervalStart))
 	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd))
-	// An omitted map_index must decode to -1 (unmapped), not 0 (mapped index 0):
-	// the nested TaskInstance's generated DecodeMsgpack seeds the schema default.
-	assert.Equal(t, -1, details.TI.MapIndex)
+	// map_index is a pointer now, so an omitted key decodes to nil (the natural
+	// "unmapped") rather than being seeded to the -1 sentinel.
+	assert.Nil(t, details.TI.MapIndex)
 }
 
 func TestDecodeConnectionResult(t *testing.T) {

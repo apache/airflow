@@ -96,7 +96,7 @@ func TestTaskRunnerSuccess(t *testing.T) {
 			DagID:    "test_dag",
 			TaskID:   "simpleTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
@@ -119,7 +119,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 			DagID:    "test_dag",
 			TaskID:   "failingTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
@@ -142,7 +142,7 @@ func TestTaskRunnerRetry(t *testing.T) {
 			DagID:    "test_dag",
 			TaskID:   "failingTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
@@ -191,7 +191,7 @@ func TestTaskRunnerPanic(t *testing.T) {
 			DagID:    "test_dag",
 			TaskID:   "panicTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
@@ -214,7 +214,7 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 			DagID:    "test_dag",
 			TaskID:   "panicTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
@@ -242,7 +242,7 @@ func TestRunTaskHonorsContextCancellation(t *testing.T) {
 			DagID:    "test_dag",
 			TaskID:   "ctxcheck",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
@@ -280,7 +280,7 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 			TaskID:    "ctxgrab",
 			RunID:     "run1",
 			TryNumber: 2,
-			MapIndex:  -1,
+			MapIndex:  ptr(-1),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		// The supervisor nests scheduling timestamps under dag_run; the
@@ -339,7 +339,7 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 			DagID:    "test_dag",
 			TaskID:   "ctxgrab",
 			RunID:    "run1",
-			MapIndex: 5,
+			MapIndex: ptr(5),
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}

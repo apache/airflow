@@ -28,8 +28,10 @@
 // then re-run `just generate-models` (go generate).
 //
 // go generate runs go-jsonschema, then the local gen tool, which strips
-// go-jsonschema's dead anyOf-branch typedefs and emits discriminators.gen.go and
-// defaults.gen.go.
+// go-jsonschema's dead anyOf-branch typedefs, widens concrete integer fields that
+// carry a non-zero schema default to pointers (so an unset value is omitted on the
+// wire and the supervisor reapplies the default, while an explicit zero still
+// encodes), and emits discriminators.gen.go and defaults.gen.go.
 package genmodels
 
 //go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags msgpack --capitalization ID --capitalization URI --capitalization TI -p genmodels -o models.gen.go ../../../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json

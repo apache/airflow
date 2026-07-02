@@ -81,7 +81,6 @@ func RunTask(
 			EndDate: time.Now().UTC(),
 		}
 	}
-	mapIndex := details.TI.MapIndex
 	workload := api.ExecuteTaskWorkload{
 		TI: api.TaskInstance{
 			Id:        tiUUID,
@@ -89,7 +88,7 @@ func RunTask(
 			RunId:     details.TI.RunID,
 			TaskId:    details.TI.TaskID,
 			TryNumber: details.TI.TryNumber,
-			MapIndex:  &mapIndex,
+			MapIndex:  mapIndexPtr(details.TI.MapIndex),
 		},
 		BundleInfo: api.BundleInfo{
 			Name:    details.BundleInfo.Name,
@@ -128,14 +127,17 @@ func RunTask(
 	return executeTask(ctx, task, details.TIContext.ShouldRetry, logger)
 }
 
-// mapIndexPtr converts the supervisor's map_index (which uses -1 as the
-// sentinel for an unmapped task) into the optional form exposed on
-// sdk.TaskInstance: nil for an unmapped task, otherwise a pointer to the index.
-func mapIndexPtr(mapIndex int) *int {
-	if mapIndex < 0 {
+// mapIndexPtr normalizes the supervisor's map_index into the optional form
+// exposed on api.TaskInstance / sdk.TaskInstance: nil for an unmapped task,
+// otherwise a pointer to the index. The wire field is itself optional now, so an
+// unmapped task arrives as either nil (key absent) or a pointer to the -1
+// sentinel; both collapse to nil here.
+func mapIndexPtr(mapIndex *int) *int {
+	if mapIndex == nil || *mapIndex < 0 {
 		return nil
 	}
-	return &mapIndex
+	idx := *mapIndex
+	return &idx
 }
 
 // executeTask runs the task, handling success, failure, and panics, and returns

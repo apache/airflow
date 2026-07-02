@@ -16,19 +16,26 @@
 // under the License.
 
 // Command gen post-processes the genmodels package after go-jsonschema, doing
-// four things it cannot:
+// five things it cannot:
 //
 //  1. Strips the dead `<Type>_<N>` typedefs emitted for each branch of a nullable
 //     `anyOf` (e.g. AssetEventResponsePartitionKey_0); the structs use `any`, so
 //     these are never referenced.
-//  2. Generates a Type<Struct> constant for every body with a "type" const: the
+//  2. Widens every concrete integer field carrying a non-zero schema default to a
+//     pointer (e.g. GetPreviousTI.MapIndex int -> *int). A plain int with
+//     ,omitempty drops an explicit 0 on encode, so the supervisor reapplies its
+//     non-zero default (e.g. map_index 0 wrongly treated as the -1 unmapped
+//     sentinel); a pointer keeps ,omitempty meaning "absent" for nil while
+//     encoding an explicit 0, and on decode nil is the natural "use the default".
+//  3. Generates a Type<Struct> constant for every body with a "type" const: the
 //     single source of truth for the wire discriminator value.
-//  3. Generates EnsureType, which stamps a body's "type" field from its Go type,
+//  4. Generates EnsureType, which stamps a body's "type" field from its Go type,
 //     so the binding lives only in generated code and call sites can't mismatch.
-//  4. Generates a DecodeMsgpack per struct carrying a schema default the Go zero
+//  5. Generates a DecodeMsgpack per struct carrying a schema default the Go zero
 //     value would not satisfy (a non-zero builtin scalar, or any non-null default
 //     on a nullable interface{}/enum field), seeding it before decode since
-//     msgpack applies no defaults.
+//     msgpack applies no defaults. Pointer-widened fields (see 2) are skipped:
+//     their default is simply nil.
 //
 // Constants and cases key on the generated struct names (read from models.gen.go)
 // matched to the schema's wire values case-insensitively, since go-jsonschema may
@@ -92,10 +99,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("gen: %v", err)
 	}
+	pointerized := pointerizedFields(doc, structs, structByKey)
+	if err := pointerizeFields(*modelsPath, pointerized); err != nil {
+		log.Fatalf("gen: pointerizing %s: %v", *modelsPath, err)
+	}
+	if err := ensureLicenseHeader(*modelsPath); err != nil {
+		log.Fatalf("gen: adding license header to %s: %v", *modelsPath, err)
+	}
 	if err := writeDiscriminators(doc, *outPath, *pkg, structByKey); err != nil {
 		log.Fatalf("gen: writing %s: %v", *outPath, err)
 	}
-	if err := writeDefaults(doc, *defaultsPath, *pkg, structs, structByKey); err != nil {
+	if err := writeDefaults(doc, *defaultsPath, *pkg, structs, structByKey, pointerized); err != nil {
 		log.Fatalf("gen: writing %s: %v", *defaultsPath, err)
 	}
 }
@@ -205,6 +219,159 @@ func indexByUpperName(structs map[string][]fieldInfo) (map[string]string, error)
 	return idx, nil
 }
 
+// builtinIntTypes are the concrete integer types go-jsonschema emits for a
+// non-nullable `integer` property; a non-zero schema default on one of these is
+// what triggers the pointer widening.
+var builtinIntTypes = map[string]bool{
+	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+}
+
+// pointerizedFields returns structName -> goFieldName for every concrete integer
+// field whose schema property carries a non-zero default. These are widened to a
+// pointer in models.gen.go so an unset value is omitted on the wire (and the
+// supervisor reapplies the default) while an explicit zero still encodes. The
+// matching mirrors writeDefaults so the two stay in lockstep.
+func pointerizedFields(
+	doc *schemaDoc,
+	structs map[string][]fieldInfo,
+	structByKey map[string]string,
+) map[string]map[string]bool {
+	set := map[string]map[string]bool{}
+	for defName, def := range doc.Defs {
+		structName, ok := structByKey[strings.ToUpper(defName)]
+		if !ok {
+			continue
+		}
+		fieldByTag := map[string]fieldInfo{}
+		for _, f := range structs[structName] {
+			if f.Tag != "" && f.Tag != "-" {
+				fieldByTag[f.Tag] = f
+			}
+		}
+		for propName, prop := range def.Properties {
+			f, ok := fieldByTag[propName]
+			if !ok || !builtinIntTypes[f.GoType] {
+				continue
+			}
+			if _, seedable := defaultLiteral(f.GoType, prop.Default); !seedable {
+				continue
+			}
+			if set[structName] == nil {
+				set[structName] = map[string]bool{}
+			}
+			set[structName][f.GoName] = true
+		}
+	}
+	return set
+}
+
+// pointerizeFields rewrites each field named in set to a pointer in models.gen.go,
+// leaving the struct tag (including ,omitempty) untouched, and writes the file
+// back only when something changed. A field already a pointer is left alone, so a
+// stray re-run of the gen tool without regenerating models.gen.go is a no-op.
+func pointerizeFields(path string, set map[string]map[string]bool) error {
+	if len(set) == 0 {
+		return nil
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, src, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	changed := false
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			ts, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+			fields := set[ts.Name.Name]
+			if fields == nil {
+				continue
+			}
+			st, ok := ts.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+			for _, field := range st.Fields.List {
+				// go-jsonschema emits one name per field; a multi-name field
+				// shares a single type and cannot be widened selectively, so skip
+				// it rather than widen an unrelated sibling.
+				if len(field.Names) != 1 || !fields[field.Names[0].Name] {
+					continue
+				}
+				if ident, ok := field.Type.(*ast.Ident); ok {
+					field.Type = &ast.StarExpr{X: ident}
+					changed = true
+				}
+			}
+		}
+	}
+	if !changed {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, file); err != nil {
+		return err
+	}
+	return os.WriteFile(path, buf.Bytes(), 0o644)
+}
+
+// asfLicenseHeader is the Apache source header as Go line comments. go-jsonschema
+// emits none, so the gen tool adds it (the template-generated files carry it
+// inline) to keep models.gen.go self-contained and reproducible from go generate.
+const asfLicenseHeader = `// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.`
+
+// ensureLicenseHeader inserts the Apache header into models.gen.go right after
+// go-jsonschema's "Code generated" line when absent, matching the layout of the
+// other generated Go files. It is idempotent so re-running gen is a no-op.
+func ensureLicenseHeader(path string) error {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if bytes.Contains(src, []byte("Licensed to the Apache Software Foundation")) {
+		return nil
+	}
+	lines := strings.Split(string(src), "\n")
+	insertAt := 0
+	for i, l := range lines {
+		if strings.HasPrefix(l, "// Code generated") {
+			insertAt = i + 1
+			break
+		}
+	}
+	out := append([]string{}, lines[:insertAt]...)
+	out = append(out, strings.Split(asfLicenseHeader, "\n")...)
+	out = append(out, lines[insertAt:]...)
+	return os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644)
+}
+
 // identUseCounts counts identifier occurrences across the file in one pass. A
 // dead typedef's name occurs once (its declaration); used names occur more.
 func identUseCounts(file *ast.File) map[string]int {
@@ -305,6 +472,7 @@ func writeDefaults(
 	outPath, pkg string,
 	structs map[string][]fieldInfo,
 	structByKey map[string]string,
+	pointerized map[string]map[string]bool,
 ) error {
 	var decoders []decoder
 	for defName, def := range doc.Defs {
@@ -327,6 +495,9 @@ func writeDefaults(
 			f, ok := fieldByTag[propName]
 			if !ok {
 				continue
+			}
+			if pointerized[structName][f.GoName] {
+				continue // widened to a pointer; its default is nil (absent)
 			}
 			lit, ok := defaultLiteral(f.GoType, prop.Default)
 			if !ok {

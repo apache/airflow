@@ -957,7 +957,7 @@ type GetPreviousTI struct {
 	LogicalDate interface{} `msgpack:"logical_date,omitempty"`
 
 	// MapIndex corresponds to the JSON schema field "map_index".
-	MapIndex int `msgpack:"map_index,omitempty"`
+	MapIndex *int `msgpack:"map_index,omitempty"`
 
 	// State corresponds to the JSON schema field "state".
 	State interface{} `msgpack:"state,omitempty"`
@@ -1011,7 +1011,7 @@ type GetTaskRescheduleStartDate struct {
 	TIID string `msgpack:"ti_id"`
 
 	// TryNumber corresponds to the JSON schema field "try_number".
-	TryNumber int `msgpack:"try_number,omitempty"`
+	TryNumber *int `msgpack:"try_number,omitempty"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
@@ -1061,7 +1061,7 @@ type GetVariable struct {
 
 type GetVariableKeys struct {
 	// Limit corresponds to the JSON schema field "limit".
-	Limit int `msgpack:"limit,omitempty"`
+	Limit *int `msgpack:"limit,omitempty"`
 
 	// Offset corresponds to the JSON schema field "offset".
 	Offset int `msgpack:"offset,omitempty"`
@@ -1649,7 +1649,7 @@ type TaskInstance struct {
 	ID string `msgpack:"id"`
 
 	// MapIndex corresponds to the JSON schema field "map_index".
-	MapIndex int `msgpack:"map_index,omitempty"`
+	MapIndex *int `msgpack:"map_index,omitempty"`
 
 	// Queue corresponds to the JSON schema field "queue".
 	Queue string `msgpack:"queue,omitempty"`

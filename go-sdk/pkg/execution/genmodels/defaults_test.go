@@ -26,15 +26,20 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+// ptr returns the address of v, for building the *T defaults expected below.
+func ptr[T any](v T) *T { return &v }
+
 // The generated DecodeMsgpack methods seed each struct's non-zero schema
 // defaults before decoding; msgpack overwrites only keys present on the wire, so
 // an omitted field keeps its default instead of decoding to its Go zero value.
+// A field widened to a pointer (e.g. map_index) is the exception: it is not
+// seeded and an omitted key decodes to nil, the natural "absent".
 
 func TestTaskInstanceDecodeMsgpack_SeedsDefaults(t *testing.T) {
 	tests := []struct {
 		name         string
 		wire         map[string]any
-		wantMapIndex int
+		wantMapIndex *int
 		wantQueue    string
 	}{
 		{
@@ -47,7 +52,7 @@ func TestTaskInstanceDecodeMsgpack_SeedsDefaults(t *testing.T) {
 				"dag_version_id": "v",
 				"try_number":     1,
 			},
-			wantMapIndex: -1,
+			wantMapIndex: nil,
 			wantQueue:    "default",
 		},
 		{
@@ -62,7 +67,7 @@ func TestTaskInstanceDecodeMsgpack_SeedsDefaults(t *testing.T) {
 				"map_index":      3,
 				"queue":          "high",
 			},
-			wantMapIndex: 3,
+			wantMapIndex: ptr(3),
 			wantQueue:    "high",
 		},
 	}
@@ -80,7 +85,8 @@ func TestTaskInstanceDecodeMsgpack_SeedsDefaults(t *testing.T) {
 
 // A nested struct that owns a generated DecodeMsgpack still seeds its defaults:
 // msgpack invokes the field's custom decoder, so StartupDetails.TI keeps the
-// TaskInstance map_index = -1 sentinel even when the wire omits it.
+// TaskInstance queue = "default" even when the wire omits it. The pointer-widened
+// map_index is not seeded and stays nil.
 func TestStartupDetailsDecodeMsgpack_SeedsNestedTaskInstanceDefault(t *testing.T) {
 	wire := map[string]any{
 		"bundle_info":        map[string]any{},
@@ -101,7 +107,8 @@ func TestStartupDetailsDecodeMsgpack_SeedsNestedTaskInstanceDefault(t *testing.T
 	require.NoError(t, err)
 	var sd StartupDetails
 	require.NoError(t, msgpack.Unmarshal(raw, &sd))
-	assert.Equal(t, -1, sd.TI.MapIndex)
+	assert.Equal(t, "default", sd.TI.Queue)
+	assert.Nil(t, sd.TI.MapIndex)
 }
 
 // PreviousTIResponse.map_index is a nullable scalar generated as interface{}
@@ -252,6 +259,48 @@ func TestGetAssetEventByAssetDecodeMsgpack_SeedsAscending(t *testing.T) {
 			var msg GetAssetEventByAsset
 			require.NoError(t, msgpack.Unmarshal(raw, &msg))
 			assert.Equal(t, tc.want, msg.Ascending)
+		})
+	}
+}
+
+// A concrete int + ,omitempty drops an explicit 0 on encode, so the supervisor
+// would reapply its non-zero default (map_index -1, mistaking mapped index 0 for
+// unmapped). Widening map_index to *int keeps ,omitempty meaning "absent" for nil
+// while still encoding an explicit 0; this is the outbound counterpart to the
+// inbound default seeding.
+func TestGetPreviousTIEncode_MapIndexPointerPreservesExplicitZero(t *testing.T) {
+	tests := []struct {
+		name      string
+		mapIndex  *int
+		wantKey   bool
+		wantValue int
+	}{
+		{
+			name:     "nil omits map_index so the supervisor applies its default",
+			mapIndex: nil,
+			wantKey:  false,
+		},
+		{
+			name:      "explicit 0 is encoded as mapped index 0",
+			mapIndex:  ptr(0),
+			wantKey:   true,
+			wantValue: 0,
+		},
+		{name: "explicit index is encoded verbatim", mapIndex: ptr(5), wantKey: true, wantValue: 5},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, err := msgpack.Marshal(
+				GetPreviousTI{DagID: "d", TaskID: "t", MapIndex: tc.mapIndex},
+			)
+			require.NoError(t, err)
+			var wire map[string]any
+			require.NoError(t, msgpack.Unmarshal(raw, &wire))
+			v, ok := wire["map_index"]
+			assert.Equal(t, tc.wantKey, ok)
+			if tc.wantKey {
+				assert.EqualValues(t, tc.wantValue, v)
+			}
 		})
 	}
 }

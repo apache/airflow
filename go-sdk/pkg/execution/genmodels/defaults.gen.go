@@ -184,39 +184,6 @@ func (m *GetAssetEventByAssetAlias) DecodeMsgpack(dec *msgpack.Decoder) error {
 	return nil
 }
 
-// DecodeMsgpack applies GetPreviousTI's schema defaults that msgpack would otherwise skip.
-func (m *GetPreviousTI) DecodeMsgpack(dec *msgpack.Decoder) error {
-	type alias GetPreviousTI
-	v := alias{MapIndex: -1}
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*m = GetPreviousTI(v)
-	return nil
-}
-
-// DecodeMsgpack applies GetTaskRescheduleStartDate's schema defaults that msgpack would otherwise skip.
-func (m *GetTaskRescheduleStartDate) DecodeMsgpack(dec *msgpack.Decoder) error {
-	type alias GetTaskRescheduleStartDate
-	v := alias{TryNumber: 1}
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*m = GetTaskRescheduleStartDate(v)
-	return nil
-}
-
-// DecodeMsgpack applies GetVariableKeys's schema defaults that msgpack would otherwise skip.
-func (m *GetVariableKeys) DecodeMsgpack(dec *msgpack.Decoder) error {
-	type alias GetVariableKeys
-	v := alias{Limit: 1000}
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*m = GetVariableKeys(v)
-	return nil
-}
-
 // DecodeMsgpack applies HITLDetailRequestResult's schema defaults that msgpack would otherwise skip.
 func (m *HITLDetailRequestResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias HITLDetailRequestResult
@@ -340,7 +307,7 @@ func (m *SucceedTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 // DecodeMsgpack applies TaskInstance's schema defaults that msgpack would otherwise skip.
 func (m *TaskInstance) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias TaskInstance
-	v := alias{MapIndex: -1, Queue: "default"}
+	v := alias{Queue: "default"}
 	if err := dec.Decode(&v); err != nil {
 		return err
 	}
