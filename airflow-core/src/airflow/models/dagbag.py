@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+import zlib
 from collections.abc import MutableMapping
 from contextlib import nullcontext
 from threading import RLock
@@ -31,6 +32,7 @@ from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
 from airflow._shared.observability.metrics import stats
 from airflow.configuration import conf
+from airflow.exceptions import DeserializationError
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 
@@ -104,7 +106,18 @@ class DBDagBag:
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
         """Read and cache a SerializedDAG (with its ``dag_hash`` for staleness detection)."""
         serdag.load_op_links = self.load_op_links
-        dag = serdag.dag
+        try:
+            dag = serdag.dag
+        except (ValueError, KeyError, zlib.error) as e:
+            # SerializedDagModel.dag raises these for the "stored blob cannot be turned back into a
+            # DAG" cases that deserialize_dag does not already wrap: unknown __version, missing
+            # top-level "dag" key, bad JSON, non-dict data, TimetableNotRegistered (a ValueError
+            # subclass), and a corrupt compressed data_compressed column. Normalize them to
+            # DeserializationError so they reach the app-wide DagErrorHandler and surface as one
+            # consistent, safe response instead of an unhandled raw 500. DeserializationError itself
+            # is not caught here -- it already propagates to that handler -- and unrelated failures
+            # (DB errors, serving-path bugs) are left untouched so they are not masked.
+            raise DeserializationError(serdag.dag_id) from e
         if not dag:
             return None
         with self._lock:
