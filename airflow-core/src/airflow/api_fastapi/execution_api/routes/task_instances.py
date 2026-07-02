@@ -644,6 +644,13 @@ def _create_ti_state_update_query_and_update_state(
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
+                # Set the overrides on the TI *before* archiving so record_ti()
+                # snapshots them into task_instance_history (it copies attrs off
+                # the ti object). Otherwise the per-try audit trail is always NULL.
+                ti.retry_delay_override = ti_patch_payload.retry_delay_seconds
+                ti.retry_reason = (
+                    ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None
+                )
                 ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
