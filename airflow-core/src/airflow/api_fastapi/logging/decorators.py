@@ -28,6 +28,7 @@ from pendulum.parsing.exceptions import ParserError
 from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.api_fastapi.core_api.services.public.event_logs import get_user_display_name
 from airflow.models import Log
 
 logger = logging.getLogger(__name__)
@@ -98,7 +99,7 @@ def action_logging(event: str | None = None):
             user_display = ""
         else:
             user_name = user.get_name()
-            user_display = user.get_name()
+            user_display = get_user_display_name(user)
 
         has_json_body = "application/json" in request.headers.get("content-type", "") and await request.body()
         request_body = {}

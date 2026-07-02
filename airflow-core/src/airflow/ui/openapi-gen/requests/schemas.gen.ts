@@ -4755,6 +4755,17 @@ export const $EventLogResponse = {
             ],
             title: 'Owner'
         },
+        owner_display_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Owner Display Name'
+        },
         extra: {
             anyOf: [
                 {
@@ -4790,7 +4801,7 @@ export const $EventLogResponse = {
         }
     },
     type: 'object',
-    required: ['event_log_id', 'when', 'dag_id', 'task_id', 'run_id', 'map_index', 'try_number', 'event', 'logical_date', 'owner', 'extra'],
+    required: ['event_log_id', 'when', 'dag_id', 'task_id', 'run_id', 'map_index', 'try_number', 'event', 'logical_date', 'owner', 'owner_display_name', 'extra'],
     title: 'EventLogResponse',
     description: 'Event Log Response.'
 } as const;
