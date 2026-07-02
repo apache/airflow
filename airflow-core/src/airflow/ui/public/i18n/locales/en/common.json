@@ -204,6 +204,23 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "savedViews": {
+    "deleteTitle": "Delete view",
+    "deleteWarning": "Saved views are stored in this browser only.",
+    "duplicate": "The view \"{{name}}\" already saves this exact setup.",
+    "empty": "No saved views yet",
+    "info": {
+      "default": "Pin a view as the default and it is shown automatically when you land on this page with no filters applied.",
+      "save": "Save the current filters and sorting as a named view, then switch back to it anytime.",
+      "storage": "Views are stored in this browser."
+    },
+    "namePlaceholder": "View name",
+    "nothingToSave": "Nothing to save on the default view. Apply filters or sorting to save a view.",
+    "save": "Save",
+    "setDefault": "Set as default view",
+    "title": "Views",
+    "unsetDefault": "Unset default view"
+  },
   "scroll": {
     "direction": {
       "bottom": "bottom",

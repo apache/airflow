@@ -56,6 +56,8 @@ export type FilterBarProps = {
   readonly initialValues?: Record<string, FilterValue>;
   readonly maxVisibleFilters?: number;
   readonly onFiltersChange: (filters: Record<string, FilterValue>) => void;
+  // Hide the Views control where saved views aren't useful (e.g. a Dag run's per-run task instances).
+  readonly showSavedViews?: boolean;
 };
 
 export type FilterPluginProps = {
