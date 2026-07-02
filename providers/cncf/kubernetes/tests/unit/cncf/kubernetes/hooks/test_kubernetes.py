@@ -404,7 +404,7 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch(f"{HOOK_MODULE}._enable_tcp_keepalive")
+    @patch(f"{HOOK_MODULE}.enable_tcp_keepalive")
     def test_disable_tcp_keepalive(
         self,
         mock_enable,

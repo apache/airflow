@@ -35,7 +35,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
-from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
     API_TIMEOUT_OFFSET_SERVER_SIDE,
@@ -103,7 +103,9 @@ class _TimeoutK8sApiClient(client.ApiClient):
             if disable_verify_ssl:
                 configuration.verify_ssl = False
             if enable_tcp_keepalive:
-                _enable_tcp_keepalive(configuration)
+                from airflow.providers.cncf.kubernetes.kube_client import enable_tcp_keepalive as _do_keepalive
+
+                _do_keepalive(configuration)
         super().__init__(configuration=configuration)
 
     def call_api(self, *args, **kwargs):

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
 import urllib3.util
 
@@ -51,7 +52,7 @@ except ImportError as e:
     _import_err = e
 
 
-def _enable_tcp_keepalive(configuration: Configuration) -> None:
+def enable_tcp_keepalive(configuration: Configuration) -> None:
     """
     Enable TCP keepalive mechanism on the provided Kubernetes client configuration.
 
@@ -114,6 +115,23 @@ def _enable_tcp_keepalive(configuration: Configuration) -> None:
         HTTPConnection.default_socket_options = existing_options + socket_options
 
 
+def _enable_tcp_keepalive(configuration: Configuration | None = None) -> None:
+    """
+    Enable TCP keepalive mechanism.
+
+    .. deprecated::
+        Use :func:`enable_tcp_keepalive` instead.
+    """
+    warnings.warn(
+        "_enable_tcp_keepalive is deprecated, use enable_tcp_keepalive(configuration) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    if configuration is None:
+        configuration = _get_default_configuration()
+    enable_tcp_keepalive(configuration)
+
+
 def get_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
@@ -135,7 +153,7 @@ def get_kube_client(
     configuration = _get_default_configuration()
 
     if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
-        _enable_tcp_keepalive(configuration)
+        enable_tcp_keepalive(configuration)
     api_client_retry_configuration = conf.getjson(
         "kubernetes_executor", "api_client_retry_configuration", fallback={}
     )
