@@ -1888,6 +1888,44 @@ class TestTIUpdateState:
         assert ti.retry_delay_override == 42.5
         assert ti.retry_reason == "Rate limit: backing off"
 
+    def test_ti_update_state_retry_policy_overrides_persisted_in_history(
+        self, client, session, create_task_instance
+    ):
+        """Retry policy override + reason must be archived to task_instance_history.
+
+        record_ti() snapshots columns off the TI object, so the overrides must be set on
+        the TI before prepare_db_for_next_try() archives it. When they were written only
+        to the live-row UPDATE, the per-try audit trail in task_instance_history was
+        always NULL even though the live row was correct.
+        """
+        ti = create_task_instance(
+            task_id="test_retry_policy_override_history",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "retry_delay_seconds": 42.5,
+                "retry_reason": "Rate limit: backing off",
+            },
+        )
+
+        assert response.status_code == 204
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.retry_delay_override == 42.5
+        assert tih.retry_reason == "Rate limit: backing off"
+
     def test_ti_update_state_retry_without_policy_overrides(self, client, session, create_task_instance):
         """Without retry policy fields, the columns remain NULL."""
         ti = create_task_instance(
@@ -1912,6 +1950,16 @@ class TestTIUpdateState:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.retry_delay_override is None
         assert ti.retry_reason is None
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.retry_delay_override is None
+        assert tih.retry_reason is None
 
     def test_ti_run_clears_retry_policy_overrides(self, client, session, create_task_instance):
         """When a task enters RUNNING, retry policy overrides from the previous attempt are cleared."""

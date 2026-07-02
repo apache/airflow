@@ -795,7 +795,7 @@ class AssetManager(LoggingMixin):
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
             item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
-            # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
+            # https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#using-savepoint
             try:
                 with session.begin_nested():
                     session.merge(item)

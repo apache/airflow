@@ -85,7 +85,7 @@ const toTooltipSummary = (
 
   return {
     child_states: null,
-    max_end_date: dayjs(segment.x[1]).toISOString(),
+    max_end_date: segment.end_when ?? dayjs(segment.x[1]).toISOString(),
     min_start_date: segment.start_when ?? dayjs(segment.x[0]).toISOString(),
     state: segment.state ?? null,
     task_display_name: segment.y,

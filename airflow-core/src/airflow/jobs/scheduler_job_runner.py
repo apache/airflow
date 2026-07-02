@@ -2587,6 +2587,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
+            # A first asset-triggered run has no previous run to floor the event window. With
+            # catchup off, floor it at when the Dag started scheduling on its assets so the
+            # backlog is skipped; with catchup on, only date.min applies and the backlog replays.
+            event_window_floor: list[Any] = [cte.c.previous_dag_run_run_after]
+            if not dag.catchup:
+                event_window_floor.append(
+                    select(func.min(DagScheduleAssetReference.created_at))
+                    .where(DagScheduleAssetReference.dag_id == dag.dag_id)
+                    .scalar_subquery()
+                )
+            event_window_floor.append(date.min)
+
             asset_events = list(
                 session.scalars(
                     select(AssetEvent)
@@ -2604,7 +2616,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         ),
                         AssetEvent.timestamp <= triggered_date,
-                        AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
