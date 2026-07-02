@@ -496,6 +496,17 @@ self-contained, informative statement. Rewrite the subject (don't blindly copy
 it) so that it satisfies all of the following — these mirror the project's
 PR-title rules in the root `AGENTS.md`/`CLAUDE.md`:
 
+> [!IMPORTANT]
+> **Accuracy outranks polish — never invent behaviour.** Every rewrite must be
+> grounded in the diff and PR body you already read while classifying. Only add
+> a specific you can confirm from the source; a rough-but-accurate entry that
+> stays close to the original is *better* than a polished one that adds detail
+> the change doesn't support — the rough one is easy to spot and fix during a
+> busy release, the confident-but-wrong one is not. When a subject is vague and
+> the diff doesn't let you sharpen it with confidence, keep it close to the
+> original (cleaned up only for capitalization, mood, and prefixes) rather than
+> guessing. These rules copy-edit an entry; they never license adding facts.
+
 - **Start with a capital letter.** `fix the ftp tls` → `Fix the FTPS data channel ...`.
 - **Use the imperative mood** (`Add`, `Fix`, `Bump`, `Remove`, `Rename`, ...),
   never gerunds (`Renaming` → `Rename`) or past tense (`Added` → `Add`).
@@ -505,10 +516,12 @@ PR-title rules in the root `AGENTS.md`/`CLAUDE.md`:
   `docs: explain Y` → `Explain Y`; `fix(test_wasb.py): ...` → describe the
   actual fix (see below). Area tags the project already uses (`UI:`, `API:`,
   `Helm:`, `[AIP-NN]`) are fine to keep when they convey something.
-- **Be specific and informative — never vague.** A reader must learn *what*
-  changed. `Add missing template_fields to FooOperator` → name them:
-  `Add 'a', 'b' and 'c' to FooOperator template_fields`. `fix the ftp tls` →
-  say what was wrong and what now works.
+- **Be specific and informative — never vague, and never invented.** A reader
+  must learn *what* changed, but every specific must come from the diff you read,
+  not a guess. `Add missing template_fields to FooOperator` → name them straight
+  from the diff: `Add 'a', 'b' and 'c' to FooOperator template_fields`. `fix the
+  ftp tls` → say what was wrong and what now works *if the diff shows it*; if it
+  doesn't, keep the entry close to the original rather than inventing the detail.
 - **Spell out dependency bumps with the version**, and never mention tooling
   like dependabot (users don't care). `Bump aiohttp regarding dependabot
   warning` → `Bump aiohttp>=3.14.0` (read the constraint from the provider's
