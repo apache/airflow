@@ -1130,6 +1130,36 @@ class TestDag:
         session.expire_all()
         assert not session.get(DagModel, dag.dag_id).is_paused
 
+    @mock.patch("airflow.models.dagrun.stats.incr")
+    @pytest.mark.db_test
+    def test_auto_pause_emits_metric(self, mock_stats_incr, testing_dag_bundle):
+        """Verify stats.incr("dag.auto_paused") is emitted when the scheduler auto-pauses a DAG."""
+        dag_id = "dag_auto_pause_metric"
+        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=1)
+        op1 = BashOperator(task_id="task", bash_command="exit 1;")
+        dag.add_task(op1)
+        session = settings.Session()
+        session.add(DagModel(dag_id=dag.dag_id, bundle_name="testing", is_stale=False))
+        session.flush()
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        self._add_dag_run(
+            scheduler_dag,
+            op1,
+            session,
+            run_id="run_fail",
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            ti_state=TaskInstanceState.FAILED,
+            run_state=State.FAILED,
+        )
+
+        assert session.get(DagModel, dag.dag_id).is_paused
+        mock_stats_incr.assert_any_call(
+            "dag.auto_paused",
+            tags={"dag_id": dag_id, "run_type": DagRunType.MANUAL},
+        )
+
     def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker):
         dag_id = "old_existing_dag"
         with dag_maker(dag_id, schedule=None, is_paused_upon_creation=True) as dag:
