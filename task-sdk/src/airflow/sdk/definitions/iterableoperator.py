@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import copy
 import os
 from collections import deque
@@ -41,7 +40,6 @@ from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import (
     AirflowFailException,
     AirflowRescheduleTaskInstanceException,
-    AirflowTaskTimeout,
     TaskDeferred,
 )
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
@@ -283,16 +281,6 @@ class IterableOperator(BaseOperator):
                                     operator=operator,
                                 )
                             )
-                            continue
-
-                        if isinstance(raised, asyncio.TimeoutError):
-                            self.log.warning("A timeout occurred for task_id %s", task.task_id)
-                            if task.next_try_number > self.task_retries:
-                                exceptions.append(AirflowTaskTimeout(raised))
-                            else:
-                                task.end_date = timezone.utcnow()
-                                reschedule_date = max(reschedule_date, task.next_retry_datetime())
-                                failed_tasks.append(task)
                             continue
 
                         if isinstance(raised, AirflowRescheduleTaskInstanceException):
