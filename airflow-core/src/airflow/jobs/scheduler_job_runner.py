@@ -26,10 +26,9 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator
 from contextlib import ExitStack
 from datetime import date, datetime, timedelta
-from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -1916,12 +1915,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
-        # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
-            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
-        )
-        for dag_run, callback_to_run in callback_tuples:
-            dag = cached_get_dag(dag_run)
+        for dag_run, callback_to_run, dag in callback_tuples:
             if dag:
                 # Sending callbacks to the database, so it must be done outside of prohibit_commit.
                 self._send_dag_callbacks_to_processor(dag, callback_to_run)
@@ -2738,16 +2732,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
 
-        # cache saves time during scheduling of many dag_runs for same dag
-        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
-            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
-        )
+        # One version lookup for the whole batch instead of one per dag run.
+        dags_by_run = self.scheduler_dag_bag.get_dags_for_runs(dag_runs=dag_runs, session=session)
 
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
-            dag = dag_run.dag = cached_get_dag(dag_run)
+            dag = dag_run.dag = dags_by_run.get((dag_id, run_id))
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
@@ -2792,13 +2784,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard: CommitProhibitorGuard,
         dag_runs: Iterable[DagRun],
         session: Session,
-    ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
+    ) -> list[tuple[DagRun, DagCallbackRequest | None, SerializedDAG | None]]:
         """Make scheduling decisions for all `dag_runs`."""
+        dag_runs = list(dag_runs)
+        # Resolve versions and dags for all runs up front: one query for the whole
+        # batch instead of two per run (dag resolution + integrity check). Only runs
+        # without a pinned bundle version need the latest version resolved.
+        latest_versions = DagVersion.get_latest_versions(
+            dag_ids={run.dag_id for run in dag_runs if not run.bundle_version}, session=session
+        )
+        dags_by_run = self.scheduler_dag_bag.get_dags_for_runs(
+            dag_runs=dag_runs, session=session, latest_versions=latest_versions
+        )
         callback_tuples = []
         for run in dag_runs:
+            dag = dags_by_run.get((run.dag_id, run.run_id))
             try:
-                callback = self._schedule_dag_run(run, session=session)
-                callback_tuples.append((run, callback))
+                callback = self._schedule_dag_run(
+                    run,
+                    session=session,
+                    dag=dag,
+                    latest_dag_version=latest_versions.get(run.dag_id),
+                )
+                callback_tuples.append((run, callback, dag))
             except DBAPIError:
                 raise  # let @retry_db_transaction handle DB errors
             except Exception:
@@ -2810,16 +2818,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self,
         dag_run: DagRun,
         session: Session,
+        *,
+        dag: SerializedDAG | None = None,
+        latest_dag_version: DagVersion | None = None,
     ) -> DagCallbackRequest | None:
         """
         Make scheduling decisions about an individual dag run.
 
         :param dag_run: The DagRun to schedule
+        :param dag: The run's dag when the caller already resolved it for a batch of
+            runs; resolved here when not provided
+        :param latest_dag_version: The dag's latest version when the caller already
+            resolved it for a batch of runs; resolved on demand when not provided
         :return: Callback that needs to be executed
         """
         callback: DagCallbackRequest | None = None
 
-        dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
+        if dag is None:
+            dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
+        dag_run.dag = dag
         dag_model = DM.get_dagmodel(dag_run.dag_id, session=session)
         if not dag_model:
             self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
@@ -2904,7 +2921,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return callback
 
         if not dag_run.bundle_version and not self._verify_integrity_if_dag_changed(
-            dag_run=dag_run, session=session
+            dag_run=dag_run, session=session, latest_dag_version=latest_dag_version
         ):
             self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
             return callback
@@ -2940,13 +2957,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return callback_to_run
 
-    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
+    def _verify_integrity_if_dag_changed(
+        self, dag_run: DagRun, session: Session, *, latest_dag_version: DagVersion | None = None
+    ) -> bool:
         """
         Only run DagRun.verify integrity if Serialized DAG has changed since it is slow.
 
         Return True if we determine that DAG still exists.
         """
-        latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
+        if latest_dag_version is None:
+            latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
         if latest_dag_version is None:
             return False
         if TYPE_CHECKING:

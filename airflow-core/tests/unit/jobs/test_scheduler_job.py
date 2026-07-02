@@ -142,7 +142,7 @@ from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceS
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import CountQueries, assert_queries_count
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
@@ -6151,6 +6151,43 @@ class TestSchedulerJob:
                     )
 
             assert mock_schedule.call_count == 1
+
+    @pytest.mark.parametrize(
+        "loop", ["start_queued_dagruns", "schedule_all_dag_runs"], ids=["start-queued", "schedule-all"]
+    )
+    def test_scheduling_loops_resolve_dag_versions_once_per_batch(self, dag_maker, session, loop):
+        """Version resolution must not scale with the number of dag runs in the loop."""
+        run_state = DagRunState.QUEUED if loop == "start_queued_dagruns" else DagRunState.RUNNING
+        with dag_maker(dag_id=f"test_batched_versions_{loop}", max_active_runs=10, session=session):
+            EmptyOperator(task_id="t")
+        runs = [
+            dag_maker.create_dagrun(
+                run_id=f"run_{i}",
+                logical_date=DEFAULT_DATE + datetime.timedelta(hours=i),
+                state=run_state,
+                run_type=DagRunType.SCHEDULED,
+                start_date=timezone.utcnow(),
+            )
+            for i in range(3)
+        ]
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with CountQueries(stacklevel=3) as query_counts:
+            if loop == "start_queued_dagruns":
+                self.job_runner._start_queued_dagruns(session)
+            else:
+                from airflow.utils.sqlalchemy import prohibit_commit
+
+                with prohibit_commit(session) as guard:
+                    self.job_runner._schedule_all_dag_runs(guard, runs, session)
+
+        version_queries = sum(
+            count for location, count in query_counts.items() if "get_latest_version" in location
+        )
+        assert version_queries == 1
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
