@@ -1198,8 +1198,8 @@ class TestKubernetesExecutor:
     def test_cleanup_stuck_queued_tasks(self, mock_delete_pod, mock_kube_client, dag_maker, session):
         """Delete any pods associated with a task stuck in queued."""
         executor = KubernetesExecutor()
+        executor.job_id = "123"
         executor.start()
-        executor.scheduler_job_id = "123"
         with dag_maker(dag_id="test_cleanup_stuck_queued_tasks"):
             op = BashOperator(task_id="bash", bash_command=["echo 0", "echo 1"])
         dag_run = dag_maker.create_dagrun()
@@ -1494,6 +1494,16 @@ class TestKubernetesExecutor:
 
     def test_cli_commands_vended(self):
         assert KubernetesExecutor.get_cli_commands()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_start_without_job_id(self, mock_get_kube_client):
+        executor = KubernetesExecutor()
+        executor.job_id = None
+        executor.start()
+        assert executor.scheduler_job_id is None
+        assert executor.kube_client is None
+        assert executor.kube_scheduler is None
+        mock_get_kube_client.assert_not_called()
 
     def test_annotations_for_logging_task_metadata(self):
         annotations_test = {
