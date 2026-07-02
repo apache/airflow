@@ -158,6 +158,32 @@ class BeamDataflowMixin(metaclass=ABCMeta):
 
         return is_dataflow_job_id_exist
 
+    def __get_dataflow_job_id_poll_callback(
+        self,
+        dataflow_hook: DataflowHook,
+        job_name: str,
+        location: str,
+        project_id: str,
+    ) -> Callable[[], None]:
+        """Return a callback that polls Dataflow API for the job ID when stdout hasn't provided it yet."""
+
+        def poll() -> None:
+            if self.dataflow_job_id:
+                return
+            try:
+                resolved = dataflow_hook.fetch_job_id_by_name(
+                    prefix_name=job_name.lower(),
+                    location=location,
+                    project_id=project_id,
+                )
+                if resolved:
+                    self.log.info("Resolved Dataflow job ID via API lookup: %s", resolved)
+                    self.dataflow_job_id = resolved
+            except Exception:
+                self.log.debug("Periodic Dataflow job ID lookup failed; will retry.", exc_info=True)
+
+        return poll
+
 
 class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
     """
@@ -448,6 +474,14 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         if not self.dataflow_hook:
             self.dataflow_hook = self.__set_dataflow_hook()
 
+        location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
+        periodic_callback = self.__get_dataflow_job_id_poll_callback(
+            dataflow_hook=self.dataflow_hook,
+            job_name=self.dataflow_job_name,
+            location=location,
+            project_id=self.dataflow_config.project_id,
+        )
+
         self.beam_hook.start_python_pipeline(
             variables=self.snake_case_pipeline_options,
             py_file=self.py_file,
@@ -457,9 +491,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             py_system_site_packages=self.py_system_site_packages,
             process_line_callback=self.process_line_callback,
             is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
+            periodic_callback=periodic_callback,
         )
-
-        location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
         DataflowJobLink.persist(
             context=context,
             region=self.dataflow_config.location,
@@ -647,12 +680,19 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
         if not is_running:
             self.pipeline_options["jobName"] = self.dataflow_job_name
+            periodic_callback = self.__get_dataflow_job_id_poll_callback(
+                dataflow_hook=self.dataflow_hook,
+                job_name=self.dataflow_job_name,
+                location=self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION,
+                project_id=self.dataflow_config.project_id,
+            )
             self.beam_hook.start_java_pipeline(
                 variables=self.pipeline_options,
                 jar=self.jar,
                 job_class=self.job_class,
                 process_line_callback=self.process_line_callback,
                 is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
+                periodic_callback=periodic_callback,
             )
             if self.dataflow_job_name and self.dataflow_config.location:
                 DataflowJobLink.persist(

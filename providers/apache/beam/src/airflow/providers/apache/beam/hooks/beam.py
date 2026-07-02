@@ -29,6 +29,7 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
+import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -156,6 +157,7 @@ def run_beam_command(
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    periodic_callback: Callable[[], None] | None = None,
 ) -> None:
     """
     Run pipeline command in subprocess.
@@ -165,6 +167,9 @@ def run_beam_command(
         stdout and stderr to detect job id
     :param working_directory: Working directory
     :param log: logger.
+    :param periodic_callback: Optional callback invoked roughly every 5 seconds while the
+        subprocess is running.  Used by deferrable Dataflow operators to poll for a job ID
+        when the launcher does not emit a parseable job-ID line to stdout.
     """
     log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
 
@@ -179,6 +184,7 @@ def run_beam_command(
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
     reads = [proc.stderr, proc.stdout]
+    last_periodic_call = time.monotonic()
     while True:
         # Wait for at least one available fd.
         readable_fds, _, _ = select.select(reads, [], [], 5)
@@ -188,6 +194,13 @@ def run_beam_command(
 
         for readable_fd in readable_fds:
             process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+            if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
+                return
+
+        now = time.monotonic()
+        if periodic_callback and now - last_periodic_call >= 5:
+            periodic_callback()
+            last_periodic_call = now
             if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
                 return
 
@@ -228,6 +241,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        periodic_callback: Callable[[], None] | None = None,
     ) -> None:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -238,6 +252,7 @@ class BeamHook(BaseHook):
             working_directory=working_directory,
             log=self.log,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            periodic_callback=periodic_callback,
         )
 
     def start_python_pipeline(
@@ -250,6 +265,7 @@ class BeamHook(BaseHook):
         py_system_site_packages: bool = False,
         process_line_callback: Callable[[str], None] | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        periodic_callback: Callable[[], None] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
@@ -319,6 +335,7 @@ class BeamHook(BaseHook):
                 command_prefix=command_prefix,
                 process_line_callback=process_line_callback,
                 is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+                periodic_callback=periodic_callback,
             )
 
     def start_java_pipeline(
@@ -328,6 +345,7 @@ class BeamHook(BaseHook):
         job_class: str | None = None,
         process_line_callback: Callable[[str], None] | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        periodic_callback: Callable[[], None] | None = None,
     ) -> None:
         """
         Start Apache Beam Java pipeline.
@@ -347,6 +365,7 @@ class BeamHook(BaseHook):
             command_prefix=command_prefix,
             process_line_callback=process_line_callback,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            periodic_callback=periodic_callback,
         )
 
     def start_go_pipeline(
