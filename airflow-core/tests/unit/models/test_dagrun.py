@@ -4443,34 +4443,113 @@ class TestDagRunTracing:
         assert span_ctx.trace_flags.sampled is flag
 
 
-class TestDagRunStatsTagsTeamName:
-    def test_stats_tags_without_team_name(self, dag_maker):
-        """stats_tags should not include team_name when _team_name is not set."""
-        with dag_maker("test_dag"):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        tags = dr.stats_tags
-        assert "team_name" not in tags
-        assert tags == {"dag_id": "test_dag", "run_type": "manual"}
+def test_stats_tags_without_team_name(dag_maker):
+    """stats_tags omits team_name when _team_name is not set."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type}
 
-    def test_stats_tags_with_team_name(self, dag_maker):
-        """stats_tags should include team_name when _team_name is set."""
-        with dag_maker("test_dag"):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        dr._team_name = "my_team"
-        tags = dr.stats_tags
-        assert tags["team_name"] == "my_team"
-        assert tags == {"dag_id": "test_dag", "run_type": "manual", "team_name": "my_team"}
 
-    def test_stats_tags_with_none_team_name(self, dag_maker):
-        """stats_tags should not include team_name when _team_name is None."""
-        with dag_maker("test_dag"):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        dr._team_name = None
-        tags = dr.stats_tags
-        assert "team_name" not in tags
+def test_stats_tags_with_team_name(dag_maker):
+    """stats_tags includes team_name when _team_name is set."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    dr._team_name = "my_team"
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type, "team_name": "my_team"}
+
+
+def test_stats_tags_with_none_team_name(dag_maker):
+    """stats_tags omits team_name when _team_name is None."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    dr._team_name = None
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type}
+
+
+def test_stats_tags_dag_tags_disabled_by_default(dag_maker, session):
+    """With the flag off (the default), dag tags must not leak into metrics."""
+    with dag_maker("disabled_tag_dag", tags=["production", "env:prod"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "disabled_tag_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_without_dag_tags(dag_maker, session):
+    with dag_maker("no_tags_dag", session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "no_tags_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_standalone_dag_tag(dag_maker, session):
+    with dag_maker("standalone_tag_dag", tags=["production"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags  # eager-load so _dag_tags_for_stats sees the tags
+    tags = dr.stats_tags
+    assert tags == {"dag_id": "standalone_tag_dag", "run_type": "manual", "production": ""}
+    # run_type is the bare value, not a DagRunType enum (serializes as "manual", not "dagruntype.manual")
+    assert type(tags["run_type"]) is str
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_key_value_dag_tag(dag_maker, session):
+    with dag_maker("kv_tag_dag", tags=["env:staging"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "kv_tag_dag", "run_type": dr.run_type, "env": "staging"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_builtin_keys_win_on_collision(dag_maker, session):
+    with dag_maker("collision_dag", tags=["dag_id:sneaky"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    # built-in dag_id wins over the colliding "dag_id:sneaky" tag
+    assert dr.stats_tags == {"dag_id": "collision_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_lazy_loads_dag_tags_when_not_eager_loaded(dag_maker, session):
+    """When dag_model is not eager-loaded, stats_tags lazy-loads it in-session so tags still appear."""
+    from sqlalchemy import inspect as sa_inspect
+
+    with dag_maker("lazy_tag_dag", tags=["env:prod"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    session.expire(dr, ["dag_model"])  # not eager-loaded
+    assert "dag_model" in sa_inspect(dr).unloaded
+
+    # lazy fallback loads dag_model.tags in-session, so the tags are still emitted
+    assert dr.stats_tags == {"dag_id": "lazy_tag_dag", "run_type": dr.run_type, "env": "prod"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_get_running_dag_runs_to_examine_eager_loads_dag_tags(dag_maker, session):
+    """With the flag on, the scheduler query eager-loads dag_model.tags so stats_tags fires no lazy load."""
+    from sqlalchemy import inspect as sa_inspect
+
+    with dag_maker("eager_tag_dag", tags=["env:prod"], session=session):
+        pass
+    dag_maker.create_dagrun(state=DagRunState.RUNNING)
+    session.commit()
+
+    dr = next(
+        r for r in DagRun.get_running_dag_runs_to_examine(session=session) if r.dag_id == "eager_tag_dag"
+    )
+    # dag_model and its tags are already populated — no lazy load needed at metric-emission time.
+    assert "dag_model" not in sa_inspect(dr).unloaded
+    assert "tags" not in sa_inspect(dr.dag_model).unloaded
+    assert dr.stats_tags == {"dag_id": "eager_tag_dag", "run_type": dr.run_type, "env": "prod"}
 
 
 class TestClearPartitionRuns:
