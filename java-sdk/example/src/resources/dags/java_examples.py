@@ -45,6 +45,34 @@ def load(): ...
 def concurrent(): ...
 
 
+@task.stub(queue="java")
+def produce_number(): ...
+
+
+@task.stub(queue="java")
+def widen_to_long(): ...
+
+
+@task.stub(queue="java")
+def widen_to_double(): ...
+
+
+@task.stub(queue="java")
+def produce_nothing(): ...
+
+
+@task.stub(queue="java")
+def consume_nullable(): ...
+
+
+@task.stub(queue="java")
+def produce_fraction(): ...
+
+
+@task.stub(queue="java")
+def consume_float(): ...
+
+
 @task()
 def python_task_2(transformed):
     print("python_task_2")
@@ -68,5 +96,13 @@ def java_annotation_example():
     concurrent()
 
 
+@dag(dag_id="java_xcom_casting_example")
+def java_xcom_casting_example():
+    produce_number() >> widen_to_long() >> widen_to_double()
+    produce_nothing() >> consume_nullable()
+    produce_fraction() >> consume_float()
+
+
 java_interface_example()
 java_annotation_example()
+java_xcom_casting_example()
