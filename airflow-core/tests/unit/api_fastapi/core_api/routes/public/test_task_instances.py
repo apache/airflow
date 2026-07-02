@@ -814,6 +814,32 @@ class TestGetMappedTaskInstances:
         assert response.json()["total_entries"] == 110
         assert len(response.json()["task_instances"]) == 50
 
+    def test_should_respond_200_when_executor_config_is_null(
+        self, one_task_with_mapped_tis, test_client, session
+    ):
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == "mapped_tis",
+                TaskInstance.run_id == "run_mapped_tis",
+                TaskInstance.task_id == "task_2",
+                TaskInstance.map_index == 0,
+            )
+        )
+        assert ti is not None
+        ti.executor_config = None
+        session.commit()
+
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"order_by": "map_index", "limit": 1},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        assert body["task_instances"][0]["map_index"] == 0
+        assert body["task_instances"][0]["executor_config"] == "{}"
+
     def test_offset_limit(self, test_client, one_task_with_many_mapped_tis):
         response = test_client.get(
             "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
@@ -2864,6 +2890,22 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                     "version_number": 1,
                 },
             }
+
+    def test_should_respond_200_when_mapped_try_executor_config_is_null(self, test_client, session):
+        ti = self.create_task_instances(
+            session,
+            task_instances=[{"map_index": 0, "state": State.SUCCESS}],
+            update_extras=True,
+        )[0]
+        ti.executor_config = None
+        session.commit()
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/0/tries/0",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["executor_config"] == "{}"
 
     def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
         now = pendulum.now("UTC")
