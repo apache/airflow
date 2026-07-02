@@ -83,6 +83,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
 
          public final class TestExampleBuilder {
@@ -108,7 +109,7 @@ class BuilderTest {
            public static final class T3 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               var value = ((Number) client.getXCom("t2")).intValue();
+               var value = ((Number) MissingXComException.requireXCom(client.getXCom("t2"), "t2", "value")).intValue();
                new TestExample().t3(context, value);
              }
            }
@@ -133,7 +134,10 @@ class BuilderTest {
               @Builder.XCom(task = "b") long l,
               @Builder.XCom(task = "c") double d,
               @Builder.XCom(task = "f") float fl,
-              @Builder.XCom(task = "e") Integer boxed) {}
+              @Builder.XCom(task = "e") Integer boxedInteger,
+              @Builder.XCom(task = "g") Long boxedLong,
+              @Builder.XCom(task = "h") Double boxedDouble,
+              @Builder.XCom(task = "j") Float boxedFloat) {}
         }
       """,
       )
@@ -153,6 +157,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
 
          public final class TestExampleBuilder {
@@ -164,12 +169,72 @@ class BuilderTest {
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               var i = ((Number) client.getXCom("a")).intValue();
-               var l = ((Number) client.getXCom("b")).longValue();
-               var d = ((Number) client.getXCom("c")).doubleValue();
-               var fl = ((Number) client.getXCom("f")).floatValue();
-               var boxed = Optional.ofNullable((Number) client.getXCom("e")).map(Number::intValue).orElse(null);
-               new TestExample().t(i, l, d, fl, boxed);
+               var i = ((Number) MissingXComException.requireXCom(client.getXCom("a"), "a", "i")).intValue();
+               var l = ((Number) MissingXComException.requireXCom(client.getXCom("b"), "b", "l")).longValue();
+               var d = ((Number) MissingXComException.requireXCom(client.getXCom("c"), "c", "d")).doubleValue();
+               var fl = ((Number) MissingXComException.requireXCom(client.getXCom("f"), "f", "fl")).floatValue();
+               var boxedInteger = Optional.ofNullable((Number) client.getXCom("e")).map(Number::intValue).orElse(null);
+               var boxedLong = Optional.ofNullable((Number) client.getXCom("g")).map(Number::longValue).orElse(null);
+               var boxedDouble = Optional.ofNullable((Number) client.getXCom("h")).map(Number::doubleValue).orElse(null);
+               var boxedFloat = Optional.ofNullable((Number) client.getXCom("j")).map(Number::floatValue).orElse(null);
+               new TestExample().t(i, l, d, fl, boxedInteger, boxedLong, boxedDouble, boxedFloat);
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("guard non-numeric primitives, leave objects and boxed types nullable")
+  fun generateBuilderGuardsNonNumericPrimitiveXCom() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public void t(
+              @Builder.XCom(task = "a") boolean flag,
+              @Builder.XCom(task = "b") String text,
+              @Builder.XCom(task = "c") Boolean boxed) {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Boolean;
+         import java.lang.Exception;
+         import java.lang.Override;
+         import java.lang.String;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.MissingXComException;
+         import org.apache.airflow.sdk.Task;
+
+         public final class TestExampleBuilder {
+           public static Dag build() {
+             var dag = new Dag("TestExample");
+             dag.addTask("t", T.class);
+             return dag;
+           }
+           public static final class T implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               var flag = (Boolean) MissingXComException.requireXCom(client.getXCom("a"), "a", "flag");
+               var text = (String) client.getXCom("b");
+               var boxed = (Boolean) client.getXCom("c");
+               new TestExample().t(flag, text, boxed);
              }
            }
          }

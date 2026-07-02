@@ -153,3 +153,25 @@ class Client internal constructor(
     mapIndex = details.ti.mapIndex ?: -1,
   )
 }
+
+/**
+ * Thrown when a task parameter with a primitive type reads an XCom that was never pushed.
+ */
+class MissingXComException(
+  message: String,
+) : IllegalStateException(message) {
+  companion object {
+    @JvmStatic
+    fun requireXCom(
+      value: Any?,
+      taskId: String,
+      paramName: String,
+    ): Any =
+      value
+        ?: throw MissingXComException(
+          "Task parameter '$paramName' requires an XCom from task '$taskId', but none was pushed. " +
+            "This parameter has a primitive type that cannot be null; declare it with a boxed type " +
+            "(e.g. Integer instead of int) to receive null.",
+        )
+  }
+}

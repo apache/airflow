@@ -216,10 +216,23 @@ private val NUMBER_ACCESSORS: Map<TypeName, String> =
   }
 
 private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
-  val call = CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
   val type = TypeName.get(xcom.paramType)
   val accessor = NUMBER_ACCESSORS[type]
   val number = ClassName.get(Number::class.java)
+  // A primitive parameter cannot hold null, so guard the XCom and fail with a clear
+  // error instead of an opaque NullPointerException while unboxing when it is absent.
+  val call =
+    if (type.isPrimitive) {
+      CodeBlock.of(
+        $$"$T.requireXCom(client.getXCom($S), $S, $S)",
+        ClassName.get(MissingXComException::class.java),
+        xcom.taskId,
+        xcom.taskId,
+        xcom.paramName,
+      )
+    } else {
+      CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
+    }
   // Wire integers decode to Long and floats to Double, so a direct (Integer)/(Float)
   // cast throws ClassCastException; widen via Number instead.
   return when {
