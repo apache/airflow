@@ -262,6 +262,63 @@ In case you have problems during runtime with broken cached virtual environments
 Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
 operator is not maintaining or cleaning the cache path.
 
+.. _howto/operator:PythonVirtualenvOperator:log-level-forwarding:
+
+Log level forwarding
+^^^^^^^^^^^^^^^^^^^^
+
+Airflow reads subprocess stdout line by line and re-emits each line at the
+log level encoded in its prefix (``DEBUG: …``, ``INFO: …``, ``WARNING: …``,
+``ERROR: …``, ``CRITICAL: …``). Lines without a recognized prefix fall back to
+``INFO``. Multi-line messages such as tracebacks are split and each line is
+forwarded individually.
+
+This requires the callable's output lines to carry a level prefix. The
+simplest way is to configure a custom formatter. If ``apache-airflow-sdk`` is
+installed in the virtual environment, its default log formatter already
+produces the required prefix — no extra setup is needed.
+
+Without ``airflow.sdk``, add this snippet at the top of your callable:
+
+.. dropdown:: Logging setup snippet (without airflow.sdk)
+
+    .. code-block:: python
+
+        import logging
+        import sys
+        import traceback as _tb
+
+
+        # Prefix every output line (including each line of a traceback) with the level name
+        # so Airflow can route each line to the correct log level.
+        class _PrefixAllLinesFormatter(logging.Formatter):
+            def format(self, record):
+                msg = super().format(record)
+                prefix = record.levelname + ": "
+                return "\n".join(prefix + line for line in msg.splitlines())
+
+
+        _handler = logging.StreamHandler()
+        _handler.setFormatter(_PrefixAllLinesFormatter())
+        logging.root.addHandler(_handler)
+
+
+        # Route unhandled top-level exceptions through logging so their tracebacks
+        # also get the ERROR: prefix instead of printing to stderr without a level.
+        def _logging_excepthook(exc_type, exc_value, exc_tb):
+            logging.error("".join(_tb.format_exception(exc_type, exc_value, exc_tb)).rstrip())
+
+
+        sys.excepthook = _logging_excepthook
+
+    With this setup all log levels, including exception tracebacks, appear at the correct level:
+
+    .. code-block:: python
+
+        logging.warning("This will appear as WARNING in Airflow logs")
+        logging.error("This will appear as ERROR in Airflow logs")
+        logging.exception("This traceback will appear as ERROR in Airflow logs")
+
 
 .. _howto/operator:ExternalPythonOperator:
 
@@ -330,6 +387,11 @@ Templating
 ^^^^^^^^^^
 
 Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
+
+Log level forwarding
+^^^^^^^^^^^^^^^^^^^^
+
+Log-level forwarding works the same way as for :ref:`howto/operator:PythonVirtualenvOperator:log-level-forwarding`.
 
 
 .. _howto/operator:BranchPythonOperator:
