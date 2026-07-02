@@ -50,6 +50,7 @@ from airflow.triggers.base import (
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
@@ -232,6 +233,27 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
 
     # Check that the callback's handle_event was called
     mock_callback_handle_event.assert_called_once_with(event, session)
+
+
+@pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])
+@patch("airflow.models.trigger.AssetManager.register_asset_change")
+def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected_query_count):
+    """Ensure asset notifications do not trigger per-asset lazy-load queries."""
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    trigger_id = trigger.id
+
+    for i in range(asset_count):
+        asset = AssetModel(name=f"asset_{asset_count}_{i}")
+        asset.add_trigger(trigger, f"watcher_{i}")
+        session.add(asset)
+
+    session.commit()
+    session.expire_all()
+
+    with assert_queries_count(expected_query_count, session=session):
+        Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
 
 
 def test_submit_failure(session, create_task_instance):

@@ -336,16 +336,12 @@ def ti_run(
 @ti_id_router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc(
-        [
-            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
-            (
-                status.HTTP_409_CONFLICT,
-                "The TI is already in the requested state",
-            ),
-            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
-        ]
-    ),
+    responses={
+        status.HTTP_200_OK: {"description": "The TI was already in the requested state"},
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+        status.HTTP_409_CONFLICT: {"description": "The TI is not in a valid state for this transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
+    },
 )
 def ti_update_state(
     task_instance_id: UUID,
@@ -409,6 +405,18 @@ def ti_update_state(
                 "message": "Task Instance not found",
             },
         )
+
+    # TIStateUpdate can include terminal and intermediate states. This idempotency check handles
+    # duplicate updates when the requested state is already persisted (for example SUCCESS ->
+    # SUCCESS or DEFERRED -> DEFERRED), including duplicates that would not pass the RUNNING
+    # transition check below.
+    if ti_patch_payload.state.value == previous_state:
+        log.info(
+            "Duplicate state update request received; state already set",
+            requested_state=ti_patch_payload.state.value,
+            previous_state=previous_state,
+        )
+        return Response(status_code=status.HTTP_200_OK)
 
     if previous_state != TaskInstanceState.RUNNING:
         log.warning(
@@ -535,6 +543,16 @@ def _emit_task_span(ti, state):
     if not isinstance(ti.context_carrier, dict):
         return
     dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
+
+    # Skip if the run was head-sampled out, so every span in the run agrees with the
+    # carrier's decision. A parent-based sampler would already drop this child span,
+    # but the explicit check also covers non-parent-based samplers (which ignore the
+    # parent and would re-sample it in) and short-circuits before building the span.
+    # An invalid/empty carrier (legacy/NULL) recorded no decision, so it falls through
+    # and still emits — preserving prior behavior.
+    dr_span_context = trace.get_current_span(context=dr_ctx).get_span_context()
+    if dr_span_context.is_valid and not dr_span_context.trace_flags.sampled:
+        return
 
     ti_ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
     ti_span = trace.get_current_span(context=ti_ctx)

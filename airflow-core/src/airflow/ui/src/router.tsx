@@ -102,7 +102,7 @@ export const routerConfig = [
         index: true,
       },
       {
-        element: <HITLTaskInstances />,
+        element: <HITLTaskInstances enableHITLReviewDrawer />,
         path: "required_actions",
       },
       {
@@ -188,7 +188,9 @@ export const routerConfig = [
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
           { element: <Calendar />, path: "calendar" },
-          { element: <HITLTaskInstances />, path: "required_actions" },
+          // The Required Actions tab is now a button + modal; this keeps old /required_actions
+          // deep links alive by rendering the overview, where the route sync opens the modal.
+          { element: <Overview />, path: "required_actions" },
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
@@ -201,7 +203,9 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
-          { element: <HITLTaskInstances />, path: "required_actions" },
+          // The Required Actions tab is now a button + modal; this keeps old /required_actions
+          // deep links alive by rendering the task instances, where the route sync opens the modal.
+          { element: <TaskInstances />, path: "required_actions" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },

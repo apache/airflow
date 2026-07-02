@@ -27,6 +27,7 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import NotePreview from "src/components/NotePreview";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
@@ -53,6 +54,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
       <HeaderCard
         actions={
           <>
+            <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
             <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />
             <DeleteRunButton dagRun={dagRun} />

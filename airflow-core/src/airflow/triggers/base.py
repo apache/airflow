@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.execution_time.context import AssetStateStoreAccessors
     from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.triggers.shared_stream import SharedStreamProducer
 
@@ -101,8 +102,8 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         return None
 
     @property
-    def task_instance(self) -> TaskInstance:
-        return self._task_instance
+    def task_instance(self) -> TaskInstance | None:
+        return getattr(self, "_task_instance", None)
 
     @task_instance.setter
     def task_instance(self, value: TaskInstance | None) -> None:
@@ -295,6 +296,12 @@ class BaseEventTrigger(BaseTrigger):
     """
 
     supports_triggerer_queue: bool = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # Injected by the triggerer before run() is called
+        self.asset_state_store: AssetStateStoreAccessors | None = None
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:

@@ -484,10 +484,6 @@ def _create_backfill_dag_run_partitioned(
     triggering_user_name: str | None,
     session: Session,
 ) -> None:
-    # Partitioned backfills don't currently reprocess existing runs — if a run exists
-    # for this partition, it's recorded as skipped via exception_reason rather than
-    # cleared and re-queued. As a result, this function never calls ``_handle_clear_run``
-    # and therefore doesn't need to forward ``dag_run_conf`` for the reprocess path.
     stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info)
     dr = session.scalar(stmt)
     if dr:
@@ -507,6 +503,11 @@ def _create_backfill_dag_run_partitioned(
                 "Skipping dag run creation.", non_create_reason=non_create_reason, backfill_id=backfill_id
             )
             return
+
+    # reprocess_behavior allows a retry: create a new run alongside the existing
+    # one rather than clearing it. The prior run is kept as a historical record;
+    # _get_latest_dag_run_row_query picks the newest run by start_date, so the
+    # new backfill run becomes the active one going forward.
     dr = dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
             run_type=DagRunType.BACKFILL_JOB,
@@ -601,6 +602,7 @@ def _handle_clear_run(
             backfill_id=backfill_id,
             dag_run_id=dr.id,
             logical_date=info.logical_date,
+            partition_key=info.partition_key,
             sort_ordinal=sort_ordinal,
         )
     )
