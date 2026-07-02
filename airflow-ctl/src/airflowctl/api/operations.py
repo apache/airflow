@@ -712,10 +712,16 @@ class PoolsOperations(BaseOperations):
 
     def update(self, pool_body: PoolPatchBody) -> PoolResponse | ServerResponseError:
         """Update a pool."""
+        # Workaround: the server's PATCH handler validates the partial body
+        # against ``BasePool`` (see airflow-core/.../services/public/pools.py)
+        # which requires ``include_deferred``. Omitting it fails with
+        # "Field required", sending ``null`` fails with "bool_type". Always
+        # send ``include_deferred`` (defaulting to False when unset) so PATCH
+        # requests are accepted until the server switches to a partial validator.
+        body = pool_body.model_dump(mode="json", exclude_none=True)
+        body.setdefault("include_deferred", False)
         try:
-            self.response = self.client.patch(
-                f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json", exclude_none=True)
-            )
+            self.response = self.client.patch(f"pools/{pool_body.pool}", json=body)
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e

@@ -1419,18 +1419,38 @@ class TestPoolsOperations:
         response = client.pools.bulk(pools=self.pools_bulk_body)
         assert response == self.pool_bulk_response
 
-    def test_update_omits_unset_include_deferred(self):
-        """Unset bool fields must be omitted, not sent as null, so the server keeps existing values."""
+    def test_update_defaults_unset_include_deferred_to_false(self):
+        """Unset include_deferred must default to False to satisfy the server's PATCH validator."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/pools/{self.pool_name}"
-            request_body = json.loads(request.content.decode())
-            assert "include_deferred" not in request_body
-            assert request_body == {"pool": self.pool_name, "slots": 10}
+            assert json.loads(request.content.decode()) == {
+                "pool": self.pool_name,
+                "slots": 10,
+                "include_deferred": False,
+            }
             return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.update(pool_body=PoolPatchBody(pool=self.pool_name, slots=10))
+        assert response == self.pool_response
+
+    def test_update_preserves_explicit_include_deferred(self):
+        """Explicit include_deferred value from the user must be preserved, not overwritten."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            assert json.loads(request.content.decode()) == {
+                "pool": self.pool_name,
+                "slots": 10,
+                "include_deferred": True,
+            }
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(
+            pool_body=PoolPatchBody(pool=self.pool_name, slots=10, include_deferred=True)
+        )
         assert response == self.pool_response
 
     def test_delete(self):
