@@ -102,6 +102,8 @@ class RunState:
         "BLOCKED",
         "WAITING_FOR_RETRY",
         "QUEUED",
+        "BLOCKED",
+        "WAITING_FOR_RETRY",
     ]
 
     def __init__(
