@@ -315,7 +315,9 @@ def _patch_task_instance_note(
 ) -> None:
     for ti in tis:
         if update_mask or task_instance_body.note is not None:
-            if ti.task_instance_note is None:
+            if task_instance_body.note == "":
+                ti.task_instance_note = None
+            elif ti.task_instance_note is None:
                 ti.note = (task_instance_body.note, user.get_id())
             else:
                 ti.task_instance_note.content = task_instance_body.note

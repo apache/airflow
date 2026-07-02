@@ -2,5 +2,5 @@
 # Edited only by /magpie-setup; do not modify by hand.
 
 method: git-branch
-url:    https://github.com/apache/airflow-steward.git
+url:    https://github.com/apache/magpie.git
 ref:    main

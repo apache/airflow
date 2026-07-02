@@ -17,17 +17,22 @@
 
 from __future__ import annotations
 
+import logging
 import typing
 
 from sqlalchemy import select
 
+from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.core_api.datamodels.assets import AssetAliasResponse, AssetResponse
-from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import deprecated_for_airflowctl
-from airflow.models.asset import AssetAliasModel, AssetModel
+from airflow.exceptions import AirflowConfigException
+from airflow.models.asset import AssetAliasModel, AssetModel, TaskOutletAssetReference
 from airflow.utils import cli as cli_utils
+from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if typing.TYPE_CHECKING:
     from typing import Any
@@ -36,6 +41,8 @@ if typing.TYPE_CHECKING:
 
     from airflow.api_fastapi.core_api.base import BaseModel
 
+log = logging.getLogger(__name__)
+
 
 def _list_asset_aliases(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
     aliases = session.scalars(select(AssetAliasModel).order_by(AssetAliasModel.name))
@@ -43,16 +50,11 @@ def _list_asset_aliases(args, *, session: Session) -> tuple[Any, type[BaseModel]
 
 
 def _list_assets(args, *, session: Session) -> tuple[Any, type[BaseModel]]:
-    assets = session.scalars(select(AssetModel).order_by(AssetModel.name)).all()
-    for asset in assets:
-        for watcher in asset.watchers:
-            # ``AssetWatcherModel`` has no ``created_date`` column; like the public API
-            # serializer, derive it from the watcher's trigger so ``AssetResponse`` validation
-            # succeeds. Set on the instance so ``model_validate`` reads it via ``from_attributes``.
-            watcher.created_date = watcher.trigger.created_date
+    assets = session.scalars(select(AssetModel).order_by(AssetModel.name))
     return assets, AssetResponse
 
 
+@deprecated_for_airflowctl("airflowctl assets list / airflowctl assets list-aliases")
 @cli_utils.action_cli
 @provide_session
 def asset_list(args, *, session: Session = NEW_SESSION) -> None:
@@ -105,6 +107,7 @@ def _detail_asset(args, *, session: Session) -> BaseModel:
     return AssetResponse.model_validate(asset)
 
 
+@deprecated_for_airflowctl("airflowctl assets get / airflowctl assets get-by-alias")
 @cli_utils.action_cli
 @provide_session
 def asset_details(args, *, session: Session = NEW_SESSION) -> None:
@@ -123,39 +126,50 @@ def asset_details(args, *, session: Session = NEW_SESSION) -> None:
     AirflowConsole().print_as(data=data, output=args.output)
 
 
-@cli_utils.action_cli
 @deprecated_for_airflowctl("airflowctl assets materialize")
-@provide_api_client
-def asset_materialize(args, api_client: Client = NEW_API_CLIENT) -> None:
+@cli_utils.action_cli
+@provide_session
+def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
     """
     Materialize the specified asset.
 
     This is done by finding the DAG with the asset defined as outlet, and create
-    a run for that DAG. Resolving the DAG and creating the run is handled by the API
-    server; the asset is identified here by its name and/or URI.
+    a run for that DAG.
     """
     if not args.name and not args.uri:
         raise SystemExit("Either --name or --uri is required")
 
+    stmt = select(TaskOutletAssetReference.dag_id).join(TaskOutletAssetReference.asset)
     select_message_parts = []
     if args.name:
+        stmt = stmt.where(AssetModel.name == args.name)
         select_message_parts.append(f"name {args.name}")
     if args.uri:
+        stmt = stmt.where(AssetModel.uri == args.uri)
         select_message_parts.append(f"URI {args.uri}")
+    dag_id_it = iter(session.scalars(stmt.group_by(TaskOutletAssetReference.dag_id).limit(2)))
     select_message = " and ".join(select_message_parts)
 
-    matches = [
-        asset
-        for asset in api_client.assets.list().assets
-        if (not args.name or asset.name == args.name) and (not args.uri or asset.uri == args.uri)
-    ]
-    if not matches:
+    if (dag_id := next(dag_id_it, None)) is None:
         raise SystemExit(f"Asset with {select_message} does not exist.")
-    if len(matches) > 1:
-        raise SystemExit(f"More than one asset exists with {select_message}.")
+    if next(dag_id_it, None) is not None:
+        raise SystemExit(f"More than one DAG materializes asset with {select_message}.")
 
-    dag_run = api_client.assets.materialize(asset_id=str(matches[0].id))
-    AirflowConsole().print_as(
-        data=[dag_run.model_dump(mode="json")],
-        output=args.output,
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
+    dagrun = trigger_dag(
+        dag_id=dag_id,
+        triggered_by=DagRunTriggeredByType.CLI,
+        run_type=DagRunType.ASSET_MATERIALIZATION,
+        triggering_user_name=user,
+        session=session,
     )
+    if dagrun is not None:
+        data = [DAGRunResponse.model_validate(dagrun).model_dump(mode="json")]
+    else:
+        data = []
+
+    AirflowConsole().print_as(data=data, output=args.output)

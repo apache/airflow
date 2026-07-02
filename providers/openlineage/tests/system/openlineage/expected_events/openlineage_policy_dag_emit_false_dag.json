@@ -1,0 +1,65 @@
+[
+    {
+        "$absent": "dag-level emit=False suppresses DAG-run events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False suppresses DAG-run events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False suppresses DAG-run events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False propagated to all tasks",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag.task_a"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False propagated to all tasks",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag.task_a"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False propagated to all tasks",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag.task_a"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False propagated to all tasks",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag.task_b"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False propagated to all tasks",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag.task_b"
+        }
+    },
+    {
+        "$absent": "dag-level emit=False propagated to all tasks",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_dag_emit_false_dag.task_b"
+        }
+    }
+]

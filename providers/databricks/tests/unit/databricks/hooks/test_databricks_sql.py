@@ -31,7 +31,7 @@ from databricks.sql.types import Row
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.databricks.hooks.databricks_sql import (
     DatabricksSqlHook,
     _format_query_tag_value,
@@ -375,6 +375,23 @@ def test_query(
     for index, cur in enumerate(cursors):
         cur.execute.assert_has_calls([mock.call(cursor_calls[index])])
     cur.close.assert_called()
+
+
+def test_make_common_data_structure_none_result():
+    assert DatabricksSqlHook()._make_common_data_structure(None) is None
+
+
+def test_query_with_fetch_one_handler_on_empty_result(mock_get_conn, mock_get_requests):
+    conn = mock.MagicMock()
+    cur = mock.MagicMock(rowcount=0, description=get_cursor_descriptions(["id"]))
+    cur.fetchone.return_value = None
+    conn.cursor.return_value = cur
+    mock_get_conn.side_effect = [conn]
+
+    databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    result = databricks_hook.run(sql="select * from test.test", handler=fetch_one_handler)
+
+    assert result is None
 
 
 @pytest.mark.parametrize(
@@ -852,6 +869,30 @@ def test_get_conn_no_query_tags(mock_connect, mock_get_requests):
     mock_connect.assert_called_once()
     session_cfg = mock_connect.call_args.kwargs.get("session_configuration")
     assert session_cfg is None or "QUERY_TAGS" not in session_cfg
+
+
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_does_not_leak_proxies_into_connector(mock_connect, mock_get_requests):
+    """A ``proxies`` connection extra must not be forwarded to ``sql.connect()``.
+
+    ``proxies`` configures the REST/token HTTP paths only; the
+    databricks-sql-connector does not accept it and raises ``TypeError`` on
+    unexpected keyword arguments (>=4.0.0). It is listed in
+    ``extra_parameters`` so ``_get_extra_config`` strips it from connect kwargs.
+    """
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH)
+    hook.databricks_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        password=TOKEN,
+        extra={"proxies": {"https": "http://proxy.example.com:8443"}},
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    assert "proxies" not in mock_connect.call_args.kwargs
 
 
 class TestFormatQueryTags:
