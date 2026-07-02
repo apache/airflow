@@ -5504,7 +5504,7 @@ mysql = [
     { name = "apache-airflow-providers-mysql" },
 ]
 openlineage = [
-    { name = "apache-airflow-providers-openlineage" },
+    { name = "apache-airflow-providers-openlineage", specifier = ">=2.16.0" },
 ]
 oracle = [
     { name = "apache-airflow-providers-oracle" },
@@ -5579,7 +5579,7 @@ requires-dist = [
     { name = "apache-airflow-providers-microsoft-mssql", marker = "extra == 'microsoft-mssql'", editable = "providers/microsoft/mssql" },
     { name = "apache-airflow-providers-mongo", marker = "extra == 'mongo'", editable = "providers/mongo" },
     { name = "apache-airflow-providers-mysql", marker = "extra == 'mysql'", editable = "providers/mysql" },
-    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
+    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage", specifier = ">=2.16.0" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
     { name = "apache-airflow-providers-postgres", marker = "extra == 'postgres'", editable = "providers/postgres" },
     { name = "apache-airflow-providers-presto", marker = "extra == 'presto'", editable = "providers/presto" },
