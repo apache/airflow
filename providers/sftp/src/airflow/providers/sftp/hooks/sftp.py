@@ -782,9 +782,7 @@ class SFTPHook(SSHHook):
                     self.create_directory(os.path.dirname(remote))
                 if os.path.isdir(local):
                     if concurrency > 1:
-                        self.store_directory_concurrently(
-                            remote, local, confirm=confirm, workers=concurrency
-                        )
+                        self.store_directory_concurrently(remote, local, confirm=confirm, workers=concurrency)
                     else:
                         self.store_directory(remote, local, confirm=confirm)
                 else:
@@ -1190,7 +1188,6 @@ class SFTPHookAsync(BaseHook):
                         await sftp.unlink(remote)
 
                     tasks = [
-                        asyncio.create_task(_bounded(_delete(remote)))
-                        for remote in remote_filepath_array
+                        asyncio.create_task(_bounded(_delete(remote))) for remote in remote_filepath_array
                     ]
                     await asyncio.gather(*tasks)
