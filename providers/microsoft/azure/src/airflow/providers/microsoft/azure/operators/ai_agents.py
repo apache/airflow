@@ -343,6 +343,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         """Delete an Azure AI Hosted agent or version and optionally wait for deletion."""
+        delete_response: Any
         if self.agent_version is None:
             self.log.info("Deleting Azure AI Hosted agent %s.", self.agent_name)
             delete_response = self.hook.delete_agent(agent_name=self.agent_name, force=self.force)

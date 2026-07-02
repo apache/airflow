@@ -87,6 +87,7 @@ RUN_AGENT_PROTOCOL = _get_env("AZURE_AI_AGENTS_RUN_PROTOCOL").lower()
 if RUN_AGENT_PROTOCOL not in {"", "responses", "invocations"}:
     raise RuntimeError("AZURE_AI_AGENTS_RUN_PROTOCOL must be either 'responses' or 'invocations'.")
 HOSTED_AGENT_PROTOCOL = RUN_AGENT_PROTOCOL or "responses"
+run_agent: RunAzureAIAgentOperator | None
 
 HOSTED_AGENT_DEFINITION: dict[str, Any] = {
     "kind": "hosted",

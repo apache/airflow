@@ -40,6 +40,7 @@ from airflow.providers.microsoft.azure.utils import (
 
 if TYPE_CHECKING:
     from azure.ai.projects.models import (
+        AgentBlueprintReference,
         AgentDefinition,
         AgentDetails,
         AgentVersionDetails,
@@ -246,7 +247,7 @@ class AzureAIAgentsHook(BaseHook):
         *,
         metadata: dict[str, str] | None = None,
         description: str | None = None,
-        blueprint_reference: dict[str, Any] | None = None,
+        blueprint_reference: AgentBlueprintReference | None = None,
     ) -> AgentVersionDetails:
         """
         Create a Hosted agent version, creating the Hosted agent itself on first use.
@@ -263,7 +264,7 @@ class AzureAIAgentsHook(BaseHook):
             definition=cast("AgentDefinition", definition),
             metadata=metadata,
             description=description,
-            blueprint_reference=blueprint_reference,
+            blueprint_reference=cast("AgentBlueprintReference | None", blueprint_reference),
         )
 
     def get_agent_version(self, agent_name: str, agent_version: str) -> AgentVersionDetails:
