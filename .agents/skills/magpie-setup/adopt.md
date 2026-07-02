@@ -1120,6 +1120,24 @@ framework before they hit a "skill not found" error:
    [`apache/magpie`](https://github.com/apache/magpie).
    ```
 
+   **If the adopter installed the `pr-management-*` family**
+   (Step 5), append the following subsection to the
+   `AGENTS.md` block above, so the adopter's agent defaults to
+   the framework's review skill. Skip it entirely for adopters
+   who did not take that family.
+
+   ```markdown
+   ### Reviewing pull requests
+
+   With apache-magpie installed locally, use the
+   `magpie-pr-management-code-review` skill for PR code
+   review. It posts findings as **inline review comments**
+   anchored to `file:line`, presented **individually for
+   accept/skip** before anything is submitted — prefer it
+   over an ad-hoc review pass or a generic review command. A
+   body-only review is the explicit opt-out (`inline:off`).
+   ```
+
    Do not create `AGENTS.md` if it does not already exist —
    the contributor-facing section in `README.md` is the
    authoritative entry-point, and an empty `AGENTS.md` would
