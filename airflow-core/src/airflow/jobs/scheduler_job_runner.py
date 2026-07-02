@@ -563,10 +563,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         executable_tis: list[TI] = []
 
-        if get_dialect_name(session) == "postgresql":
-            # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
-            # timeout", try to take out a transactional advisory lock (unlocks automatically on
-            # COMMIT/ROLLBACK)
+        if get_dialect_name(session) in ("postgresql", "cockroachdb"):
+            # Transaction-level advisory lock optimization, available on PostgreSQL and
+            # CockroachDB 26.3+. Taking a transactional advisory lock (which unlocks
+            # automatically on COMMIT/ROLLBACK) avoids littering the DB with
+            # "ERROR: canceling statement due to lock timeout" errors.
             lock_acquired = session.execute(
                 text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
                     id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
