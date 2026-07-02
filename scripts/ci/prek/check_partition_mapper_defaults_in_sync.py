@@ -285,11 +285,19 @@ def extract_class_error_messages(file_path: Path, class_name: str) -> set[str]:
 
 def extract_class_field_names(file_path: Path, class_name: str) -> set[str]:
     """
-    Return the set of annotated attribute names declared in *class_name*'s body.
+    Return the set of instance-field names declared by *class_name*.
 
-    Collects names from annotated assignments (``name: type = ...`` or
-    ``name: type``) at the top level of the class body. ClassVar annotations
-    are excluded because they are class-level constants, not instance fields.
+    For attrs-style classes (the SDK convention), collects names from annotated
+    assignments (``name: type = ...`` or ``name: type``) at the top level of
+    the class body. ClassVar annotations are excluded because they are
+    class-level constants, not instance fields.
+
+    For plain classes with no class-body annotations (the core mapper
+    convention), falls back to the positional-or-keyword parameters of
+    ``__init__`` (excluding ``self``). Keyword-only parameters are excluded:
+    they carry base-class contract fields such as ``max_downstream_keys``,
+    which the attrs side declares on its base class rather than in the
+    compared class body.
     """
     tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
     fields: set[str] = set()
@@ -315,9 +323,19 @@ def extract_class_field_names(file_path: Path, class_name: str) -> set[str]:
             if is_classvar:
                 continue
             fields.add(stmt.target.id)
+        if not fields:
+            fields.update(_extract_init_field_names(node))
         break
 
     return fields
+
+
+def _extract_init_field_names(class_node: ast.ClassDef) -> set[str]:
+    """Return ``__init__``'s positional-or-keyword parameter names, excluding ``self``."""
+    for stmt in class_node.body:
+        if isinstance(stmt, ast.FunctionDef) and stmt.name == "__init__":
+            return {arg.arg for arg in stmt.args.posonlyargs + stmt.args.args if arg.arg != "self"}
+    return set()
 
 
 def main() -> int:

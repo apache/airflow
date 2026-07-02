@@ -169,6 +169,38 @@ class TestExtractClassFieldNames:
         result = extract_class_field_names(f, "Container")
         assert "_segments" in result
 
+    def test_plain_class_falls_back_to_init_params(self, tmp_path: Path):
+        """A plain class with no class-body annotations is read via __init__.
+
+        Positional-or-keyword params count as fields; ``self`` and keyword-only
+        params (base-class contract fields like ``max_downstream_keys``) do not.
+        """
+        f = tmp_path / "code.py"
+        f.write_text(
+            textwrap.dedent("""\
+                class MyMapper:
+                    def __init__(self, downstream_key: str, *, max_downstream_keys: int | None = None) -> None:
+                        self.downstream_key = downstream_key
+            """)
+        )
+        result = extract_class_field_names(f, "MyMapper")
+        assert result == {"downstream_key"}
+
+    def test_class_body_annotations_take_precedence_over_init(self, tmp_path: Path):
+        f = tmp_path / "code.py"
+        f.write_text(
+            textwrap.dedent("""\
+                class MyMapper:
+                    name: str
+
+                    def __init__(self, name: str, extra: int) -> None:
+                        self.name = name
+                        self.extra = extra
+            """)
+        )
+        result = extract_class_field_names(f, "MyMapper")
+        assert result == {"name"}
+
 
 class TestInSyncPasses:
     def test_in_sync_passes(self, tmp_path: Path):
