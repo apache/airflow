@@ -580,6 +580,24 @@ def test_roundtrip_exceptions():
 
 
 @pytest.mark.parametrize(
+    ("exc_type", "exc_cls_name", "args"),
+    [
+        (DAT.AIRFLOW_EXC_SER, "os.system", ["echo gadget"]),
+        (DAT.BASE_EXC_SER, "exec", ["raise SystemExit"]),
+        (DAT.BASE_EXC_SER, "eval", ["1"]),
+    ],
+)
+def test_deserialize_exception_rejects_non_exception_callable(exc_type, exc_cls_name, args):
+    """A tampered exception payload must not import and call an arbitrary callable."""
+    from airflow.exceptions import DeserializationError
+
+    inner = BaseSerialization.serialize({"exc_cls_name": exc_cls_name, "args": args, "kwargs": {}})
+    blob = {Encoding.TYPE: exc_type, Encoding.VAR: inner}
+    with pytest.raises(DeserializationError, match="does not resolve to an exception type"):
+        BaseSerialization.deserialize(blob)
+
+
+@pytest.mark.parametrize(
     "concurrency_parameter",
     [
         "max_active_tis_per_dag",
