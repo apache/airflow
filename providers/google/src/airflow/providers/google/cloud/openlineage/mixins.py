@@ -183,11 +183,11 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         child_index: int,
         child_job_id: str,
         child_job_properties: dict,
-        inputs: list[InputDataset],
-        outputs: list[OutputDataset],
+        inputs: list[InputDataset | Dataset],
+        outputs: list[OutputDataset | Dataset],
     ) -> None:
         if task_instance is None:
-            self.log.debug("No task instance available. Skipping BigQuery child job OpenLineage event.")
+            self.log.debug("No task instance available. Skipping BigQuery child job OpenLineage event.")  # type: ignore[attr-defined]
             return
 
         from airflow.providers.openlineage.api.sql import emit_query_lineage
@@ -207,7 +207,7 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             task_instance=task_instance,
             job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{child_index}",
             additional_run_facets={"bigQueryJob": self._get_bigquery_job_run_facet(child_job_properties)},
-            additional_job_facets=job_facets,
+            additional_job_facets=job_facets,  # type: ignore[arg-type]
         )
 
     @staticmethod
