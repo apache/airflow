@@ -41,6 +41,10 @@ def transform(): ...
 def load(): ...
 
 
+@task.stub(queue="java")
+def concurrent(): ...
+
+
 @task()
 def python_task_2(transformed):
     print("python_task_2")
@@ -61,6 +65,7 @@ def java_annotation_example():
     python_task_1() >> extract() >> transformed
     python_task_2(transformed)
     transformed >> load()
+    concurrent()
 
 
 java_interface_example()
