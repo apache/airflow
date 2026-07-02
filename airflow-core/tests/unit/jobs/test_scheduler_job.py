@@ -120,6 +120,7 @@ from airflow.sdk import (
     HourWindow,
     IdentityMapper,
     MinimumCount,
+    RerunPolicy,
     RollupMapper,
     SegmentWindow,
     StartOfDayMapper,
@@ -10982,6 +10983,152 @@ def test_partitioned_dag_run_rollup_holds_until_window_complete(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_refresh_refires_on_upstream_rerun(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    RerunPolicy.REFRESH re-fires immediately when an upstream partition is re-run.
+
+    After the window already fired, re-running a single upstream key creates a fresh
+    REFRESH-stamped APDR that fires on the next tick — it does NOT wait for the whole
+    window to re-materialize, because the rest of the window is still materialized.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="refresh-rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=FixedKeyMapper("all_regions"),
+                window=SegmentWindow(["us", "eu"]),
+                rerun_policy=RerunPolicy.REFRESH,
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # Both regions collapse onto the single "all_regions" partition; once both are
+    # present the window is complete and the rollup fires once.
+    for region in ("us", "eu"):
+        apdr = _produce_and_register_asset_event(
+            dag_id=f"refresh-producer-{region}",
+            asset=asset_1,
+            partition_key=region,
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="all_regions",
+        )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    first_run_id = apdr.created_dag_run_id
+    assert first_run_id is not None
+    assert partition_dags == {"refresh-rollup-consumer"}
+
+    # Clear & re-run only "us". REFRESH creates a new, refresh APDR ...
+    refresh_apdr = _produce_and_register_asset_event(
+        dag_id="refresh-producer-us-rerun",
+        asset=asset_1,
+        partition_key="us",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="all_regions",
+    )
+    assert refresh_apdr.id != apdr.id
+    assert refresh_apdr.rerun_policy == "refresh"
+
+    # ... that fires on the next tick even though "eu" did not re-arrive (1/2 of window).
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(refresh_apdr)
+    assert refresh_apdr.created_dag_run_id is not None
+    assert refresh_apdr.created_dag_run_id != first_run_id
+    assert partition_dags == {"refresh-rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_hold_waits_for_full_window_on_rerun(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """
+    RerunPolicy.HOLD makes a re-run wait for the entire window to re-materialize.
+
+    After the window fired, re-running a single upstream key creates a fresh
+    non-refresh APDR that holds until every key in the window arrives again.
+    """
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="hold-rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=FixedKeyMapper("all_regions"),
+                window=SegmentWindow(["us", "eu"]),
+                rerun_policy=RerunPolicy.HOLD,
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    for region in ("us", "eu"):
+        apdr = _produce_and_register_asset_event(
+            dag_id=f"hold-producer-{region}",
+            asset=asset_1,
+            partition_key=region,
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="all_regions",
+        )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+
+    # Re-run only "us": HOLD creates a non-refresh APDR that must wait.
+    hold_apdr = _produce_and_register_asset_event(
+        dag_id="hold-producer-us-rerun",
+        asset=asset_1,
+        partition_key="us",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="all_regions",
+    )
+    assert hold_apdr.id != apdr.id
+    assert hold_apdr.rerun_policy == "hold"
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(hold_apdr)
+    assert hold_apdr.created_dag_run_id is None  # held: only 1 / 2 of the window present
+    assert partition_dags == set()
+
+    # When "eu" also re-arrives the window is complete again and the run fires.
+    _produce_and_register_asset_event(
+        dag_id="hold-producer-eu-rerun",
+        asset=asset_1,
+        partition_key="eu",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="all_regions",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(hold_apdr)
+    assert hold_apdr.created_dag_run_id is not None
+    assert partition_dags == {"hold-rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_partitioned_dag_run_segment_rollup_holds_until_all_segments_arrive(
     dag_maker: DagMaker,
     session: Session,
@@ -11876,6 +12023,39 @@ def test_partitioned_dag_run_skips_when_asset_is_inactive(dag_maker: DagMaker, s
         session=session,
         dag_maker=dag_maker,
     )
+    _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_refresh_apdr_freezes_when_asset_inactive(dag_maker: DagMaker, session: Session):
+    """
+    A refresh APDR also freezes while its only contributing asset is inactive.
+
+    The refresh fast-path skips the wait policy, so it must keep the same
+    freeze-on-inactive guard the normal path has — otherwise it would fire a run
+    that consumes no events. Without the ``if not contributing_assets`` guard this
+    APDR would fire immediately.
+    """
+    asset = Asset(name="asset-refresh-inactive")
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="refresh-inactive-consumer",
+        asset=asset,
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    apdr.rerun_policy = RerunPolicy.REFRESH.value
+    session.commit()
     _set_asset_active(name=asset.name, uri=asset.uri, session=session, active=False)
 
     runner = SchedulerJobRunner(
