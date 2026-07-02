@@ -910,13 +910,12 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, created_at,
-            name, interval`'
+            name`'
           default:
           - created_at
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, created_at, name,
-          interval`'
+          with `-` for descending order. Supported attributes: `id, created_at, name`'
       responses:
         '200':
           description: Successful Response
@@ -2654,9 +2653,13 @@ components:
           type: string
           title: Reference Type
         interval:
-          type: number
+          anyOf:
+          - type: number
+          - type: 'null'
           title: Interval
-          description: Interval in seconds between deadline evaluations.
+          description: Interval in seconds between the reference time and the deadline.
+            Null for a dynamic interval (e.g. a VariableInterval) whose value is only
+            resolved at scheduler evaluation time.
         created_at:
           type: string
           format: date-time
@@ -2665,7 +2668,6 @@ components:
       required:
       - id
       - reference_type
-      - interval
       - created_at
       title: DeadlineAlertResponse
       description: DeadlineAlert serializer for responses.
