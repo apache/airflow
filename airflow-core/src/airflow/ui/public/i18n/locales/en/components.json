@@ -127,8 +127,8 @@
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {
-    "dagDocs": "DAG Documentation",
     "button": "Trigger",
+    "dagDocs": "DAG Documentation",
     "dataInterval": "Data Interval",
     "dataIntervalAuto": "Inferred from Logical Date and Timetable",
     "dataIntervalManual": "Specify Manually",

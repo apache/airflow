@@ -20,10 +20,10 @@ import { Accordion, Box, Heading, VStack, HStack, Spinner, Center, Text } from "
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useDagServiceGetDag } from "openapi/queries";
+import { useDagServiceGetDag, useDagServiceGetDagDetails } from "openapi/queries";
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
-import ReactMarkdown from "src/components/ReactMarkdown";
 import { useTrigger } from "src/queries/useTrigger";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
@@ -76,6 +76,17 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   const isBackfillable = dag?.is_backfillable ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
+  // useDagServiceGetDag returns the summary DAGResponse, which doesn't include doc_md.
+  // Fetch it separately from the details endpoint, only while the modal is open.
+  const { data: dagDetails } = useDagServiceGetDagDetails(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      enabled: open,
+    },
+  );
   const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
@@ -140,7 +151,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
               {runMode === RunMode.SINGLE ? (
                 <>
-                  {dag?.doc_md ? (
+                  {dagDetails?.doc_md === null || dagDetails?.doc_md === undefined ? undefined : (
                     <Accordion.Root collapsible defaultValue={["dag-docs"]} mb={4}>
                       <Accordion.Item value="dag-docs">
                         <Accordion.ItemTrigger>
@@ -156,12 +167,12 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                             pl={3}
                             py={2}
                           >
-                            <ReactMarkdown>{dag.doc_md}</ReactMarkdown>
+                            <ReactMarkdown>{dagDetails.doc_md}</ReactMarkdown>
                           </Box>
                         </Accordion.ItemContent>
                       </Accordion.Item>
                     </Accordion.Root>
-                  ) : undefined}
+                  )}
                   <TriggerDAGForm
                     dagDisplayName={dagDisplayName}
                     dagId={dagId}
