@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from openai import OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types import (
     Batch,
@@ -35,6 +36,7 @@ from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 from airflow.providers.openai.hooks.openai import OpenAIHook
@@ -82,7 +84,10 @@ def mock_openai_connection():
 
 @pytest.fixture
 def mock_openai_hook(mock_openai_connection):
-    with patch("airflow.providers.openai.hooks.openai.OpenAI"):
+    # spec=OpenAI guards top-level namespace access (an unknown attribute on the client fails);
+    # the method surface (``conn.responses.create``) is type-checked by mypy against the SDK stubs.
+    with patch("airflow.providers.openai.hooks.openai.OpenAI") as mock_client:
+        mock_client.return_value = MagicMock(spec=OpenAI)
         yield OpenAIHook(conn_id=mock_openai_connection.conn_id)
 
 
@@ -303,11 +308,66 @@ def test_create_chat_completion(mock_openai_hook, mock_completion):
     assert choice.message.content == "Hello there, how may I assist you today?"
 
 
+def test_create_response(mock_openai_hook):
+    expected = mock_openai_hook.conn.responses.create.return_value
+    result = mock_openai_hook.create_response(input="Hello", model=MODEL)
+    mock_openai_hook.conn.responses.create.assert_called_once_with(model=MODEL, input="Hello")
+    assert result is expected
+
+
+def test_get_response(mock_openai_hook):
+    expected = mock_openai_hook.conn.responses.retrieve.return_value
+    result = mock_openai_hook.get_response("resp_123")
+    mock_openai_hook.conn.responses.retrieve.assert_called_once_with("resp_123")
+    assert result is expected
+
+
+def test_delete_response(mock_openai_hook):
+    mock_openai_hook.delete_response("resp_123")
+    mock_openai_hook.conn.responses.delete.assert_called_once_with("resp_123")
+
+
+def test_cancel_response(mock_openai_hook):
+    expected = mock_openai_hook.conn.responses.cancel.return_value
+    result = mock_openai_hook.cancel_response("resp_123")
+    mock_openai_hook.conn.responses.cancel.assert_called_once_with("resp_123")
+    assert result is expected
+
+
+def test_create_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.create.return_value
+    result = mock_openai_hook.create_conversation(metadata={"topic": "demo"})
+    mock_openai_hook.conn.conversations.create.assert_called_once_with(metadata={"topic": "demo"})
+    assert result is expected
+
+
+def test_get_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.retrieve.return_value
+    result = mock_openai_hook.get_conversation("conv_123")
+    mock_openai_hook.conn.conversations.retrieve.assert_called_once_with("conv_123")
+    assert result is expected
+
+
+def test_update_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.update.return_value
+    result = mock_openai_hook.update_conversation("conv_123", metadata={"topic": "demo"})
+    mock_openai_hook.conn.conversations.update.assert_called_once_with("conv_123", metadata={"topic": "demo"})
+    assert result is expected
+
+
+def test_delete_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.delete.return_value
+    result = mock_openai_hook.delete_conversation("conv_123")
+    mock_openai_hook.conn.conversations.delete.assert_called_once_with("conv_123")
+    assert result is expected
+
+
 def test_create_assistant(mock_openai_hook, mock_assistant):
     mock_openai_hook.conn.beta.assistants.create.return_value = mock_assistant
-    assistant = mock_openai_hook.create_assistant(
-        name=ASSISTANT_NAME, model=MODEL, instructions=ASSISTANT_INSTRUCTIONS
-    )
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        assistant = mock_openai_hook.create_assistant(
+            name=ASSISTANT_NAME, model=MODEL, instructions=ASSISTANT_INSTRUCTIONS
+        )
     assert assistant.name == ASSISTANT_NAME
     assert assistant.model == MODEL
     assert assistant.instructions == ASSISTANT_INSTRUCTIONS
@@ -315,7 +375,8 @@ def test_create_assistant(mock_openai_hook, mock_assistant):
 
 def test_get_assistant(mock_openai_hook, mock_assistant):
     mock_openai_hook.conn.beta.assistants.retrieve.return_value = mock_assistant
-    assistant = mock_openai_hook.get_assistant(assistant_id=ASSISTANT_ID)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        assistant = mock_openai_hook.get_assistant(assistant_id=ASSISTANT_ID)
     assert assistant.name == ASSISTANT_NAME
     assert assistant.model == MODEL
     assert assistant.instructions == ASSISTANT_INSTRUCTIONS
@@ -323,7 +384,8 @@ def test_get_assistant(mock_openai_hook, mock_assistant):
 
 def test_get_assistants(mock_openai_hook, mock_assistant_list):
     mock_openai_hook.conn.beta.assistants.list.return_value = mock_assistant_list
-    assistants = mock_openai_hook.get_assistants()
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        assistants = mock_openai_hook.get_assistants()
     assert isinstance(assistants, list)
 
 
@@ -331,27 +393,31 @@ def test_modify_assistant(mock_openai_hook, mock_assistant):
     new_assistant_name = "New Test Assistant"
     mock_assistant.name = new_assistant_name
     mock_openai_hook.conn.beta.assistants.update.return_value = mock_assistant
-    assistant = mock_openai_hook.modify_assistant(assistant_id=ASSISTANT_ID, name=new_assistant_name)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        assistant = mock_openai_hook.modify_assistant(assistant_id=ASSISTANT_ID, name=new_assistant_name)
     assert assistant.name == new_assistant_name
 
 
 def test_delete_assistant(mock_openai_hook):
     delete_response = AssistantDeleted(id=ASSISTANT_ID, object="assistant.deleted", deleted=True)
     mock_openai_hook.conn.beta.assistants.delete.return_value = delete_response
-    assistant_deleted = mock_openai_hook.delete_assistant(assistant_id=ASSISTANT_ID)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        assistant_deleted = mock_openai_hook.delete_assistant(assistant_id=ASSISTANT_ID)
     assert assistant_deleted.deleted
 
 
 def test_create_thread(mock_openai_hook, mock_thread):
     mock_openai_hook.conn.beta.threads.create.return_value = mock_thread
-    thread = mock_openai_hook.create_thread()
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        thread = mock_openai_hook.create_thread()
     assert thread.id == THREAD_ID
 
 
 def test_modify_thread(mock_openai_hook, mock_thread):
     mock_thread.metadata = METADATA
     mock_openai_hook.conn.beta.threads.update.return_value = mock_thread
-    thread = mock_openai_hook.modify_thread(thread_id=THREAD_ID, metadata=METADATA)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        thread = mock_openai_hook.modify_thread(thread_id=THREAD_ID, metadata=METADATA)
     assert thread.metadata.get("modified") == "true"
     assert thread.metadata.get("user") == "abc123"
 
@@ -359,7 +425,8 @@ def test_modify_thread(mock_openai_hook, mock_thread):
 def test_delete_thread(mock_openai_hook):
     delete_response = ThreadDeleted(id=THREAD_ID, object="thread.deleted", deleted=True)
     mock_openai_hook.conn.beta.threads.delete.return_value = delete_response
-    thread_deleted = mock_openai_hook.delete_thread(thread_id=THREAD_ID)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        thread_deleted = mock_openai_hook.delete_thread(thread_id=THREAD_ID)
     assert thread_deleted.deleted
 
 
@@ -367,20 +434,25 @@ def test_create_message(mock_openai_hook, mock_message):
     role = "user"
     content = "Tell me something interesting."
     mock_openai_hook.conn.beta.threads.messages.create.return_value = mock_message
-    message = mock_openai_hook.create_message(thread_id=THREAD_ID, content=content, role=role)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        message = mock_openai_hook.create_message(thread_id=THREAD_ID, content=content, role=role)
     assert message.id == MESSAGE_ID
 
 
 def test_get_messages(mock_openai_hook, mock_message_list):
     mock_openai_hook.conn.beta.threads.messages.list.return_value = mock_message_list
-    messages = mock_openai_hook.get_messages(thread_id=THREAD_ID)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        messages = mock_openai_hook.get_messages(thread_id=THREAD_ID)
     assert isinstance(messages, list)
 
 
 def test_modify_messages(mock_openai_hook, mock_message):
     mock_message.metadata = METADATA
     mock_openai_hook.conn.beta.threads.messages.update.return_value = mock_message
-    message = mock_openai_hook.modify_message(thread_id=THREAD_ID, message_id=MESSAGE_ID, metadata=METADATA)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        message = mock_openai_hook.modify_message(
+            thread_id=THREAD_ID, message_id=MESSAGE_ID, metadata=METADATA
+        )
     assert message.metadata.get("modified") == "true"
     assert message.metadata.get("user") == "abc123"
 
@@ -389,7 +461,8 @@ def test_create_run(mock_openai_hook, mock_run):
     thread_id = THREAD_ID
     assistant_id = ASSISTANT_ID
     mock_openai_hook.conn.beta.threads.runs.create.return_value = mock_run
-    run = mock_openai_hook.create_run(thread_id=thread_id, assistant_id=assistant_id)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        run = mock_openai_hook.create_run(thread_id=thread_id, assistant_id=assistant_id)
     assert run.id == RUN_ID
 
 
@@ -397,26 +470,30 @@ def test_create_run_and_poll(mock_openai_hook, mock_run):
     thread_id = THREAD_ID
     assistant_id = ASSISTANT_ID
     mock_openai_hook.conn.beta.threads.runs.create_and_poll.return_value = mock_run
-    run = mock_openai_hook.create_run_and_poll(thread_id=thread_id, assistant_id=assistant_id)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        run = mock_openai_hook.create_run_and_poll(thread_id=thread_id, assistant_id=assistant_id)
     assert run.id == RUN_ID
 
 
 def test_get_runs(mock_openai_hook, mock_run_list):
     mock_openai_hook.conn.beta.threads.runs.list.return_value = mock_run_list
-    runs = mock_openai_hook.get_runs(thread_id=THREAD_ID)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        runs = mock_openai_hook.get_runs(thread_id=THREAD_ID)
     assert isinstance(runs, list)
 
 
 def test_get_run_with_run_id(mock_openai_hook, mock_run):
     mock_openai_hook.conn.beta.threads.runs.retrieve.return_value = mock_run
-    run = mock_openai_hook.get_run(thread_id=THREAD_ID, run_id=RUN_ID)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        run = mock_openai_hook.get_run(thread_id=THREAD_ID, run_id=RUN_ID)
     assert run.id == RUN_ID
 
 
 def test_modify_run(mock_openai_hook, mock_run):
     mock_run.metadata = METADATA
     mock_openai_hook.conn.beta.threads.runs.update.return_value = mock_run
-    message = mock_openai_hook.modify_run(thread_id=THREAD_ID, run_id=RUN_ID, metadata=METADATA)
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        message = mock_openai_hook.modify_run(thread_id=THREAD_ID, run_id=RUN_ID, metadata=METADATA)
     assert message.metadata.get("modified") == "true"
     assert message.metadata.get("user") == "abc123"
 

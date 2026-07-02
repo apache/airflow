@@ -22,6 +22,7 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal
 
+from deprecated import deprecated
 from openai import OpenAI
 from openai.auth import (
     azure_managed_identity_token_provider,
@@ -48,10 +49,22 @@ if TYPE_CHECKING:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
+    from openai.types.conversations import Conversation, ConversationDeletedResource
+    from openai.types.responses import Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+
+#: The OpenAI Assistants API (``beta.assistants``/``beta.threads``) is deprecated by OpenAI. The hook
+#: methods wrapping it warn and point at the Responses and Conversations APIs (``create_response`` /
+#: ``create_conversation``); the removal date is stated once, in the reason string below.
+_ASSISTANTS_DEPRECATION_REASON = (
+    "The OpenAI Assistants API is deprecated and will be removed by OpenAI on 2026-08-26. "
+    "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
+    "See https://platform.openai.com/docs/guides/migrate-to-responses."
+)
 
 
 class BatchStatus(str, Enum):
@@ -226,6 +239,69 @@ class OpenAIHook(BaseHook):
         response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
         return response.choices
 
+    def create_response(self, input: Any, model: str = "gpt-4o-mini", **kwargs: Any) -> Response:
+        """
+        Create a model response using the Responses API.
+
+        :param input: Text, image, or file input(s) to the model.
+        :param model: ID of the model to use.
+        """
+        return self.conn.responses.create(model=model, input=input, **kwargs)
+
+    def get_response(self, response_id: str, **kwargs: Any) -> Response:
+        """
+        Retrieve a previously created model response.
+
+        :param response_id: The ID of the response to retrieve.
+        """
+        return self.conn.responses.retrieve(response_id, **kwargs)
+
+    def delete_response(self, response_id: str) -> None:
+        """
+        Delete a model response.
+
+        :param response_id: The ID of the response to delete.
+        """
+        self.conn.responses.delete(response_id)
+
+    def cancel_response(self, response_id: str) -> Response:
+        """
+        Cancel an in-progress response created with ``background=True``.
+
+        :param response_id: The ID of the response to cancel.
+        """
+        return self.conn.responses.cancel(response_id)
+
+    def create_conversation(self, **kwargs: Any) -> Conversation:
+        """Create a conversation that can be reused across responses to persist state."""
+        return self.conn.conversations.create(**kwargs)
+
+    def get_conversation(self, conversation_id: str) -> Conversation:
+        """
+        Retrieve a conversation.
+
+        :param conversation_id: The ID of the conversation to retrieve.
+        """
+        return self.conn.conversations.retrieve(conversation_id)
+
+    def update_conversation(self, conversation_id: str, metadata: dict[str, str]) -> Conversation:
+        """
+        Update a conversation's metadata.
+
+        :param conversation_id: The ID of the conversation to update.
+        :param metadata: Set of key-value pairs to attach to the conversation.
+        """
+        return self.conn.conversations.update(conversation_id, metadata=metadata)
+
+    def delete_conversation(self, conversation_id: str) -> ConversationDeletedResource:
+        """
+        Delete a conversation.
+
+        :param conversation_id: The ID of the conversation to delete.
+        """
+        return self.conn.conversations.delete(conversation_id)
+
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def create_assistant(self, model: str = "gpt-4o-mini", **kwargs: Any) -> Assistant:
         """
         Create an OpenAI assistant using the given model.
@@ -235,6 +311,7 @@ class OpenAIHook(BaseHook):
         assistant = self.conn.beta.assistants.create(model=model, **kwargs)
         return assistant
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def get_assistant(self, assistant_id: str) -> Assistant:
         """
         Get an OpenAI assistant.
@@ -244,11 +321,13 @@ class OpenAIHook(BaseHook):
         assistant = self.conn.beta.assistants.retrieve(assistant_id=assistant_id)
         return assistant
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def get_assistants(self, **kwargs: Any) -> list[Assistant]:
         """Get a list of Assistant objects."""
         assistants = self.conn.beta.assistants.list(**kwargs)
         return assistants.data
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def modify_assistant(self, assistant_id: str, **kwargs: Any) -> Assistant:
         """
         Modify an existing Assistant object.
@@ -258,6 +337,7 @@ class OpenAIHook(BaseHook):
         assistant = self.conn.beta.assistants.update(assistant_id=assistant_id, **kwargs)
         return assistant
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def delete_assistant(self, assistant_id: str) -> AssistantDeleted:
         """
         Delete an OpenAI Assistant for a given ID.
@@ -267,11 +347,13 @@ class OpenAIHook(BaseHook):
         response = self.conn.beta.assistants.delete(assistant_id=assistant_id)
         return response
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def create_thread(self, **kwargs: Any) -> Thread:
         """Create an OpenAI thread."""
         thread = self.conn.beta.threads.create(**kwargs)
         return thread
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def modify_thread(self, thread_id: str, metadata: dict[str, Any]) -> Thread:
         """
         Modify an existing Thread object.
@@ -282,6 +364,7 @@ class OpenAIHook(BaseHook):
         thread = self.conn.beta.threads.update(thread_id=thread_id, metadata=metadata)
         return thread
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def delete_thread(self, thread_id: str) -> ThreadDeleted:
         """
         Delete an OpenAI thread for a given thread_id.
@@ -291,6 +374,7 @@ class OpenAIHook(BaseHook):
         response = self.conn.beta.threads.delete(thread_id=thread_id)
         return response
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def create_message(
         self, thread_id: str, role: Literal["user", "assistant"], content: str, **kwargs: Any
     ) -> Message:
@@ -306,6 +390,7 @@ class OpenAIHook(BaseHook):
         )
         return thread_message
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def get_messages(self, thread_id: str, **kwargs: Any) -> list[Message]:
         """
         Return a list of messages for a given Thread.
@@ -315,6 +400,7 @@ class OpenAIHook(BaseHook):
         messages = self.conn.beta.threads.messages.list(thread_id=thread_id, **kwargs)
         return messages.data
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def modify_message(self, thread_id: str, message_id, **kwargs: Any) -> Message:
         """
         Modify an existing message for a given Thread.
@@ -327,6 +413,7 @@ class OpenAIHook(BaseHook):
         )
         return thread_message
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def create_run(self, thread_id: str, assistant_id: str, **kwargs: Any) -> Run:
         """
         Create a run for a given thread and assistant.
@@ -337,6 +424,7 @@ class OpenAIHook(BaseHook):
         run = self.conn.beta.threads.runs.create(thread_id=thread_id, assistant_id=assistant_id, **kwargs)
         return run
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def create_run_and_poll(self, thread_id: str, assistant_id: str, **kwargs: Any) -> Run:
         """
         Create a run for a given thread and assistant and then polls until completion.
@@ -350,6 +438,7 @@ class OpenAIHook(BaseHook):
         )
         return run
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def get_run(self, thread_id: str, run_id: str) -> Run:
         """
         Retrieve a run for a given thread and run.
@@ -360,6 +449,7 @@ class OpenAIHook(BaseHook):
         run = self.conn.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
         return run
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def get_runs(self, thread_id: str, **kwargs: Any) -> list[Run]:
         """
         Return a list of runs belonging to a thread.
@@ -369,6 +459,7 @@ class OpenAIHook(BaseHook):
         runs = self.conn.beta.threads.runs.list(thread_id=thread_id, **kwargs)
         return runs.data
 
+    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
     def modify_run(self, thread_id: str, run_id: str, **kwargs: Any) -> Run:
         """
         Modify a run on a given thread.

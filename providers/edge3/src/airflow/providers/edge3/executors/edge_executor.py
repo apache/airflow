@@ -35,6 +35,7 @@ from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
 from airflow.providers.edge3.models.types import is_callback_execute
 from airflow.utils.db import DBLocks, create_global_lock
+from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -340,7 +341,7 @@ class EdgeExecutor(BaseExecutor):
     @provide_session
     def sync(self, *, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        with Stats.timer("edge_executor.sync.duration"):
+        with Stats.timer("edge_executor.sync.duration", tags=prune_dict({"team_name": self.team_name})):
             orphaned = self._update_orphaned_jobs(session)
             purged = self._purge_jobs(session)
             liveness = self._check_worker_liveness(session)
