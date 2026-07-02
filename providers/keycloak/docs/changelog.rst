@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+0.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix keycloak missing resource error check (#69028)``
+
+Misc
+~~~~
+
+* ``Parallelize per-dag auth checks in KeycloakAuthManager (#69107)``
+* ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+
 0.8.1
 .....
 

@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+1.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introducing object store backend for task and asset state store (#68283)``
+
+Misc
+~~~~
+
+* ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.7.3
 .....
 
