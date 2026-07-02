@@ -265,7 +265,6 @@ class IterableOperator(BaseOperator):
                         do_xcom_push = task.do_xcom_push
 
                         if raised is None:
-                            self.log.debug("result: %s", result)
                             continue
 
                         if isinstance(raised, TaskDeferred):
