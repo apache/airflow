@@ -28,7 +28,9 @@ Create Date: 2024-12-01 08:33:15.425141
 from __future__ import annotations
 
 import json
+import math
 import pickle
+from collections.abc import Mapping, Sequence
 from textwrap import dedent
 
 import sqlalchemy as sa
@@ -42,6 +44,37 @@ down_revision = "38770795785f"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
+
+
+def _json_safe(obj):
+    """
+    Make a pickled conf value safe for strict JSON/JSONB before json.dumps.
+
+    Pickled ``conf`` can hold values that round-trip through pickle but are illegal in
+    strict JSON/JSONB:
+
+    * non-finite floats (NaN / inf / -inf) -> quoted strings, mirroring the SQL
+      sanitization in migration 0049 (xcom);
+    * embedded U+0000 (NUL) characters in strings -> stripped, since PostgreSQL
+      JSON/JSONB cannot store them.
+
+    NUL is handled here, on the object before serialization, rather than on the dumped
+    text: a blind string replace on the JSON output would also corrupt a genuinely
+    escaped backslash sequence (an embedded literal backslash followed by ``u0000``).
+    """
+    if isinstance(obj, float):
+        if math.isnan(obj):
+            return "NaN"
+        if math.isinf(obj):
+            return "Infinity" if obj > 0 else "-Infinity"
+        return obj
+    if isinstance(obj, str):
+        return obj.replace(chr(0), "")
+    if isinstance(obj, Mapping):
+        return {_json_safe(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, Sequence) and not isinstance(obj, (bytes, bytearray)):
+        return [_json_safe(v) for v in obj]
+    return obj
 
 
 def upgrade():
@@ -95,7 +128,9 @@ def upgrade():
 
                 try:
                     original_data = pickle.loads(pickle_data)
-                    json_data = json.dumps(original_data)
+                    # _json_safe quotes non-finite floats and strips embedded NUL chars so the
+                    # row is preserved instead of dropped by the except below.
+                    json_data = json.dumps(_json_safe(original_data))
                     conn.execute(
                         text("""
                                                 UPDATE dag_run
