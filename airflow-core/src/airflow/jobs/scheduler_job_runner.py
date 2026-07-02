@@ -3560,6 +3560,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 bundle_version=_hb_bundle_version,
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
+                task_callback_type=(
+                    TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
+                ),
                 context_from_server=TIRunContext(
                     dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                     max_tries=ti.max_tries,
@@ -3587,6 +3590,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.executor.send_callback(request)
+            ti.handle_failure(error=str(task_instance_heartbeat_timeout_message_details), session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )

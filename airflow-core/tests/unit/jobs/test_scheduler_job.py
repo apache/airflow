@@ -8608,6 +8608,82 @@ class TestSchedulerJob:
         assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
         assert callback_request.context_from_server.max_tries == ti.max_tries
 
+    def test_heartbeat_timeout_converges_ti_state_before_next_scan(self, dag_maker, session):
+        """A heartbeat-timed-out TI should not be found again on the next scheduler scan."""
+        with dag_maker(dag_id="test_heartbeat_timeout_dedupe", session=session):
+            EmptyOperator(task_id="test_task", on_failure_callback=lambda context: None)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        ti = dag_run.get_task_instance(task_id="test_task")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.start_date = timezone.utcnow() - timedelta(seconds=900)
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+        assert ti.state != TaskInstanceState.RUNNING
+        assert self.job_runner._find_task_instances_without_heartbeats(session=session) == []
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        mock_executor.send_callback.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("retries", "callback_kind", "expected"),
+        [
+            (1, "retry", TaskInstanceState.UP_FOR_RETRY),
+            (0, "failure", TaskInstanceState.FAILED),
+        ],
+    )
+    def test_heartbeat_timeout_sets_callback_type_param(
+        self, dag_maker, session, retries, callback_kind, expected
+    ):
+        """Heartbeat timeout should mark callback type based on retry eligibility."""
+        with dag_maker(dag_id=f"heartbeat_timeout_{callback_kind}", session=session):
+            if callback_kind == "retry":
+                EmptyOperator(task_id="t1", retries=retries, on_retry_callback=lambda ctx: None)
+            else:
+                EmptyOperator(task_id="t1", retries=retries, on_failure_callback=lambda ctx: None)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = retries
+        ti.queued_by_job_id = scheduler_job.id
+        ti.start_date = timezone.utcnow() - timedelta(seconds=900)
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        self.job_runner.executor.callback_sink.send.assert_called_once()
+        request = self.job_runner.executor.callback_sink.send.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == expected
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+        assert ti.state == expected
+
     @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),
         [
