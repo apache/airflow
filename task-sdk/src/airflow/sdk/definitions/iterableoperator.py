@@ -255,7 +255,7 @@ class IterableOperator(BaseOperator):
         while True:
             with event_loop() as loop:
                 with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
-                    for task, result, raised in executor.map(
+                    for task, _result, raised in executor.map(
                         self._run_task,
                         repeat(executor),
                         repeat(context),
