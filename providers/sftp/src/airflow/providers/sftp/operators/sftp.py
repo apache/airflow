@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,17 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module contains SFTP operator."""
 
 from __future__ import annotations
 
-import errno
 import socket
 from collections.abc import Sequence
 from typing import Any
 
 import paramiko
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.constants import SFTPOperation
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 
@@ -33,19 +34,22 @@ class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
 
-    This operator uses sftp_hook to open sftp transport channel that serve as basis for file transfer.
+    This operator uses sftp_hook to open an SFTP transport channel that serves as
+    the basis for file transfer. All transfer logic is delegated to
+    ``SFTPHook.transfer()`` so that both the synchronous and deferrable code paths
+    share a single, authoritative implementation.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections.
-    :param sftp_hook: predefined SFTPHook to use
+    :param sftp_hook: predefined SFTPHook to use.
         Either `sftp_hook` or `ssh_conn_id` needs to be provided.
-    :param remote_host: remote host to connect (templated)
+    :param remote_host: remote host to connect (templated).
         Nullable. If provided, it will replace the `remote_host` which was
         defined in `sftp_hook` or predefined in the connection of `ssh_conn_id`.
     :param local_filepath: local file path or list of local file paths to get or put. (templated)
     :param remote_filepath: remote file path or list of remote file paths to get, put, or delete. (templated)
-    :param operation: specify operation 'get', 'put', or 'delete', defaults to put
-    :param confirm: specify if the SFTP operation should be confirmed, defaults to True
+    :param operation: specify operation ``'get'``, ``'put'``, or ``'delete'``. Defaults to ``'put'``.
+    :param confirm: specify if the SFTP operation should be confirmed. Defaults to True.
     :param create_intermediate_dirs: create missing intermediate directories when
         copying from remote to local and vice-versa. Default is False.
 
@@ -63,10 +67,15 @@ class SFTPOperator(BaseOperator):
                 create_intermediate_dirs=True,
                 dag=dag,
             )
-    :param concurrency: Number of threads when transferring directories. Each thread opens a new SFTP connection.
-        This parameter is used only when transferring directories, not individual files. (Default is 1)
-    :param prefetch: controls whether prefetch is performed (default: True)
 
+    :param concurrency: number of threads when transferring directories. Each thread opens
+        a new SFTP connection. Only applies to directory transfers. (Default: 1)
+    :param prefetch: controls whether prefetch is performed on GET transfers. (Default: True)
+    :param deferrable: run the operator in deferrable mode. When True, the worker slot is
+        freed during the transfer and reclaimed only when the transfer completes.
+        Best suited for single large file transfers. For bulk directory transfers involving
+        many files, consider using ``async PythonOperator`` with ``SFTPClientPool`` instead,
+        which provides true async multiplexing via a single event loop. (Default: False)
     """
 
     template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host")
@@ -84,7 +93,7 @@ class SFTPOperator(BaseOperator):
         create_intermediate_dirs: bool = False,
         concurrency: int = 1,
         prefetch: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -101,118 +110,96 @@ class SFTPOperator(BaseOperator):
         self.deferrable = deferrable
 
     def execute(self, context: Any) -> str | list[str] | None:
-        if self.deferrable:
-            self.defer(
-                trigger=SFTPTrigger(
-                    ssh_conn_id=self.ssh_conn_id,
-                    local_filepath=self.local_filepath,
-                    remote_filepath=self.remote_filepath,
-                    operation=self.operation,
-                    confirm=self.confirm,
-                    create_intermediate_dirs=self.create_intermediate_dirs,
-                    remote_host=self.remote_host,
-                    concurrency=self.concurrency,
-                    prefetch=self.prefetch,
-                ),
-                method_name=self.execute_complete.__name__,
-            )
-
+        local_filepath_array: list[str] = []
         if self.local_filepath is None:
             local_filepath_array = []
         elif isinstance(self.local_filepath, str):
             local_filepath_array = [self.local_filepath]
         else:
-            local_filepath_array = self.local_filepath
+            local_filepath_array = list(self.local_filepath)
 
-        if isinstance(self.remote_filepath, str):
-            remote_filepath_array = [self.remote_filepath]
-        else:
-            remote_filepath_array = self.remote_filepath
+        remote_filepath_array: list[str] = (
+            [self.remote_filepath] if isinstance(self.remote_filepath, str) else list(self.remote_filepath)
+        )
 
-        if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT) and len(
-            local_filepath_array
-        ) != len(remote_filepath_array):
+        # ------------------------------------------------------------------ #
+        # Input validation                                                     #
+        # ------------------------------------------------------------------ #
+        if self.operation in (SFTPOperation.GET, SFTPOperation.PUT) and len(local_filepath_array) != len(
+            remote_filepath_array
+        ):
             raise ValueError(
                 f"{len(local_filepath_array)} paths in local_filepath "
                 f"!= {len(remote_filepath_array)} paths in remote_filepath"
             )
 
-        if self.operation.lower() == SFTPOperation.DELETE and local_filepath_array:
+        if self.operation == SFTPOperation.DELETE and local_filepath_array:
             raise ValueError("local_filepath should not be provided for delete operation")
 
-        if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT, SFTPOperation.DELETE):
+        if self.operation not in (SFTPOperation.GET, SFTPOperation.PUT, SFTPOperation.DELETE):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
-                f"expected {SFTPOperation.GET} or {SFTPOperation.PUT} or {SFTPOperation.DELETE}."
+                f"expected {SFTPOperation.GET!r}, {SFTPOperation.PUT!r}, "
+                f"or {SFTPOperation.DELETE!r}."
             )
 
         if self.concurrency < 1:
-            raise ValueError(f"concurrency should be greater than 0, got {self.concurrency}")
+            raise ValueError(f"concurrency should be >= 1, got {self.concurrency}")
 
-        file_msg = None
-        try:
-            if self.remote_host is not None:
-                self.log.info(
-                    "remote_host is provided explicitly. "
-                    "It will replace the remote_host which was defined "
-                    "in sftp_hook or predefined in connection of ssh_conn_id."
+        # ------------------------------------------------------------------ #
+        # Synchronous path — delegate all transfer logic to the hook          #
+        # ------------------------------------------------------------------ #
+        if self.remote_host is not None:
+            self.log.info(
+                "remote_host is provided explicitly. "
+                "It will replace the remote_host which was defined "
+                "in sftp_hook or predefined in connection of ssh_conn_id."
+            )
+
+        if self.ssh_conn_id:
+            if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
+                self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
+            else:
+                self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
+                self.sftp_hook = SFTPHook(
+                    ssh_conn_id=self.ssh_conn_id,
+                    remote_host=self.remote_host or "",
                 )
 
-            if self.ssh_conn_id:
-                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
-                    self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
-                else:
-                    self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
-                    self.sftp_hook = SFTPHook(
-                        ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host or ""
-                    )
+        if not self.sftp_hook:
+            raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
-            if not self.sftp_hook:
-                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
-
-            file_msg = f"{self.operation.upper()} {self.local_filepath} <-> {self.remote_filepath}"
-            self.log.info("Starting to transfer %s", file_msg)
-            self.sftp_hook.transfer(
-                operation=self.operation,
-                local_filepath=self.local_filepath,
-                remote_filepath=self.remote_filepath,
-                confirm=self.confirm,
-                create_intermediate_dirs=self.create_intermediate_dirs,
-                concurrency=self.concurrency,
-                prefetch=self.prefetch,
-            )
-
+        try:
+            for idx, remote_fp in enumerate(remote_filepath_array):
+                local_fp = local_filepath_array[idx] if local_filepath_array else ""
+                self.sftp_hook.transfer(
+                    local_filepath=local_fp,
+                    remote_filepath=remote_fp,
+                    operation=self.operation,
+                    confirm=self.confirm,
+                    create_intermediate_dirs=self.create_intermediate_dirs,
+                    concurrency=self.concurrency,
+                    prefetch=self.prefetch,
+                )
         except Exception as e:
             raise AirflowException(
-                f"Error while processing {self.operation.upper()} operation {file_msg}, error: {e}"
-            )
+                f"Error while processing {self.operation.upper()} operation, error: {e}"
+            ) from e
 
         return self.local_filepath
 
-    def execute_complete(self, context: Any, event: dict) -> str | list[str] | None:
+    def execute_complete(self, context: Any, event: dict[str, Any]) -> str | list[str] | None:
         """
-        Execute when the trigger fires in deferrable mode.
+        Handle completion from ``SFTPOperatorTrigger``.
 
-        :param context: The task context.
-        :param event: The event yielded by SFTPTrigger.
-        :return: The local filepath(s).
+        :param context: Airflow task context
+        :param event: trigger result dict with ``status`` and ``message`` keys
+        :raises AirflowException: if the trigger reported an error
         """
         if event.get("status") == "error":
-            raise AirflowException(
-                f"Error during deferrable SFTP {self.operation.upper()} operation: {event.get('message')}"
-            )
-        self.log.info("File transfer completed successfully via deferrable mode.")
-        return event.get("local_filepath")
-
-    @staticmethod
-    def _is_missing_path_error(exc: Exception) -> bool:
-        if isinstance(exc, FileNotFoundError):
-            return True
-        if isinstance(exc, OSError) and exc.errno == errno.ENOENT:
-            return True
-        if exc.args and isinstance(exc.args[0], int) and exc.args[0] == errno.ENOENT:
-            return True
-        return False
+            raise AirflowException(event.get("message", "Unknown error during deferrable SFTP transfer"))
+        self.log.info("Deferrable SFTP transfer completed: %s", event.get("message"))
+        return self.local_filepath
 
     def get_openlineage_facets_on_start(self):
         """
@@ -256,10 +243,6 @@ class SFTPOperator(BaseOperator):
         if hasattr(hook, "port"):
             remote_port = hook.port
 
-        # Since v4.1.0, SFTPOperator accepts both a string (single file) and a list of
-        # strings (multiple files) as local_filepath and remote_filepath, and internally
-        # keeps them as list in both cases. But before 4.1.0, only single string is
-        # allowed. So we consider both cases here for backward compatibility.
         if isinstance(self.local_filepath, str):
             local_filepath = [self.local_filepath]
         else:
@@ -278,7 +261,7 @@ class SFTPOperator(BaseOperator):
             for path in remote_filepath
         ]
 
-        if self.operation.lower() == SFTPOperation.GET:
+        if self.operation == SFTPOperation.GET:
             inputs = remote_datasets
             outputs = local_datasets
         else:
