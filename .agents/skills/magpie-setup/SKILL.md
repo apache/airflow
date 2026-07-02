@@ -1,7 +1,7 @@
 ---
 name: magpie-setup
 description: |
-  Adopt and maintain the apache-steward framework in a project
+  Adopt and maintain the apache-magpie framework in a project
   repo via the snapshot-based adoption mechanism. The only
   framework skill committed in an adopter's repo; every other
   skill is a symlink the adopt sub-action wires up.
@@ -13,14 +13,14 @@ description: |
     `/magpie-setup override <skill>` - open or scaffold an agentic override in `.apache-magpie-overrides/`
     `/magpie-setup unadopt` - reverse the adoption (snapshot, locks, symlinks, hook, doc sections); preserves `.apache-magpie-overrides/` by default (main-checkout only)
 when_to_use: |
-  Invoke when the user says "adopt apache-steward", "adopt
-  apache/airflow-steward", "set up steward in this repo",
+  Invoke when the user says "adopt apache-magpie", "adopt
+  apache/magpie", "set up magpie in this repo",
   "follow .claude/skills/magpie-setup", or follows the
   framework's README adoption instructions. Also for periodic
-  maintenance: "upgrade steward", "verify steward setup",
-  "check steward drift", "the snapshot is stale".
+  maintenance: "upgrade magpie", "verify magpie setup",
+  "check magpie drift", "the snapshot is stale".
 argument-hint: "[adopt|upgrade|worktree-init|verify|override skill-name|unadopt]"
-capability: capability:setup
+capability: capability:platform
 license: Apache-2.0
 ---
 
@@ -33,14 +33,14 @@ license: Apache-2.0
      <committed-lock>           → `.apache-magpie.lock` (committed — project's pin)
      <local-lock>               → `.apache-magpie.local.lock` (gitignored — per-machine record)
      <upstream>                 → adopter's public source repo (the repo this skill is being run in)
-     <framework-source>         → the apache-steward source we download a snapshot from
+     <framework-source>         → the apache-magpie source we download a snapshot from
                                    — one of: signed zip from ASF dist, git tag, git branch.
                                    See [`docs/setup/install-recipes.md`](../../docs/setup/install-recipes.md). -->
 
 # setup
 
 This skill is **the only framework artefact an adopter
-project commits**. Every other apache-steward skill (security,
+project commits**. Every other apache-magpie skill (security,
 pr-management, issue) is a gitignored symlink into the gitignored
 snapshot at `<snapshot-dir>` that this skill manages.
 
@@ -387,7 +387,7 @@ first, then continue.
   machines. That is
   [`setup-shared-config-sync`](../setup-shared-config-sync/SKILL.md).
 - Not for committing framework changes. Framework PRs go
-  against `apache/airflow-steward` directly — the snapshot is
+  against `apache/magpie` directly — the snapshot is
   read-only.
 
 ## Failure modes
@@ -398,4 +398,4 @@ first, then continue.
 | Snapshot present but symlinks dangle | Adopter ran `git clone` but not `/magpie-setup` after — symlinks are gitignored but persist in their target's absence on disk | `/magpie-setup verify --auto-fix-symlinks` (or `/magpie-setup adopt`, idempotent) |
 | Worktree off the adopter repo can't find framework skills | Worktrees off the adopter don't auto-inherit the gitignored snapshot | The `adopt` sub-action installs a `post-checkout` git hook that re-runs the snapshot install on worktree creation; verify the hook is present (`/magpie-setup verify`) |
 | `git clone` of an upstream PR sees no framework skills | Expected — the snapshot is gitignored, so a fresh clone has no `<snapshot-dir>`. The clone needs `/magpie-setup` once before any framework skill is invocable | `/magpie-setup` |
-| Project decided to stop using apache-steward | The reverse of adoption — remove the snapshot, locks, symlinks, hook, doc sections, and the `setup` skill itself. `.apache-magpie-overrides/` is preserved by default | `/magpie-setup unadopt` (add `--purge-overrides` to also drop the overrides directory) |
+| Project decided to stop using apache-magpie | The reverse of adoption — remove the snapshot, locks, symlinks, hook, doc sections, and the `setup` skill itself. `.apache-magpie-overrides/` is preserved by default | `/magpie-setup unadopt` (add `--purge-overrides` to also drop the overrides directory) |

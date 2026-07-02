@@ -965,6 +965,12 @@ components:
           - type: string
           - type: 'null'
           title: Version
+        version_data:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Version Data
       type: object
       required:
       - name

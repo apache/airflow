@@ -170,6 +170,7 @@ var (
 
 	connClientType = reflect.TypeFor[sdk.ConnectionClient]()
 	varClientType  = reflect.TypeFor[sdk.VariableClient]()
+	xcomClientType = reflect.TypeFor[sdk.XComClient]()
 	clientType     = reflect.TypeFor[sdk.Client]()
 )
 
@@ -192,5 +193,6 @@ func isLogger(inType reflect.Type) bool {
 func isClient(inType reflect.Type) bool {
 	return inType != nil && (inType.AssignableTo(clientType) ||
 		inType.AssignableTo(connClientType) ||
-		inType.AssignableTo(varClientType))
+		inType.AssignableTo(varClientType) ||
+		inType.AssignableTo(xcomClientType))
 }
