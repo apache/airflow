@@ -41,13 +41,21 @@
     :caption: References
 
     Python API <_api/airflow/providers/ibm/db2/index>
+    Dialects <dialects>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/ibm/db2/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <example-dags>
+    Example Dags <https://github.com/apache/airflow/tree/providers-ibm-db2/|version|/providers/ibm/db2/tests/system/ibm/db2>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ibm-db2/>
     Installing from sources <installing-providers-from-sources>
 
