@@ -245,22 +245,26 @@ class Deadline(Base):
                 "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
             }
 
+        def callback_data_with_context():
+            data = self.callback.data.copy()
+            kwargs = dict(data.get("kwargs") or {})
+            kwargs["context"] = get_simple_context()
+            data["kwargs"] = kwargs
+            return data
+
         if isinstance(self.callback, TriggererCallback):
-            self.callback.data = self.callback.data | {
-                "kwargs": (self.callback.data.get("kwargs") or {}) | {"context": get_simple_context()},
-            }
+            self.callback.data = callback_data_with_context()
 
             self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
         elif isinstance(self.callback, ExecutorCallback):
-            self.callback.data = self.callback.data | {
-                "kwargs": (self.callback.data.get("kwargs") or {}) | {"context": get_simple_context()},
-                "deadline_id": str(self.id),
-                "dag_run_id": str(self.dagrun.id),
-                "dag_id": self.dagrun.dag_id,
-            }
+            data = callback_data_with_context()
+            data["deadline_id"] = str(self.id)
+            data["dag_run_id"] = str(self.dagrun.id)
+            data["dag_id"] = self.dagrun.dag_id
+            self.callback.data = data
 
             self.callback.state = CallbackState.PENDING
             session.add(self.callback)
