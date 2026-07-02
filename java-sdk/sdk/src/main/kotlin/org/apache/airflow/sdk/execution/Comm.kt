@@ -23,12 +23,17 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.apache.airflow.sdk.ApiError
-import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
-import org.apache.airflow.sdk.execution.comm.StartupDetails
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -44,10 +49,9 @@ data class OutgoingFrame(
 
 @OptIn(ExperimentalAtomicApi::class)
 class CoordinatorComm(
-  private val bundle: Bundle,
   private val reader: ByteReadChannel,
   private val writer: ByteWriteChannel,
-) {
+) : AutoCloseable {
   internal companion object {
     private val logger = Logger(CoordinatorComm::class)
 
@@ -57,37 +61,19 @@ class CoordinatorComm(
   }
 
   private val nextId = AtomicInt(0)
-  private var shutDownRequested = false
-  private val commMutex = Mutex()
+  private val writeMutex = Mutex()
+  private val stateMutex = Mutex()
+  private val pending = mutableMapOf<Int, CompletableDeferred<IncomingFrame>>()
+  private var dispatcherStarted = false
+  private var readError: ApiError? = null
 
-  suspend fun startProcessing() {
-    while (!shutDownRequested) {
-      processOnce(::handleIncoming)
-    }
-    logger.debug("Goodbye")
-  }
+  private val dispatcherScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-  private suspend fun processOnce(handle: suspend (IncomingFrame) -> Unit) {
-    val prefix = reader.readByteArray(4) // First 4 bytes as length.
-    if (prefix.size != 4) { // Something is terribly wrong. Let's bail.
-      logger.error("Need 4 prefix bytes", mapOf("actual" to prefix.size))
-      shutDownRequested = true
-      return
+  suspend fun readMessage(): IncomingFrame {
+    stateMutex.withLock {
+      check(!dispatcherStarted) { "readMessage cannot be used after the dispatcher has started" }
     }
-
-    val payloadLength = Frame.parseLengthPrefix(prefix)
-    val payload = reader.readByteArray(payloadLength)
-    if (payload.size != payloadLength) { // Something is terribly wrong. Let's bail.
-      logger.error(
-        "Payload length not right",
-        mapOf("expect" to payloadLength, "receive" to payload.size),
-      )
-      shutDownRequested = true
-      return
-    }
-    val frame = decode(payload)
-    logger.debug("Handling", mapOf("id" to frame.id))
-    handle(frame)
+    return readFrame()
   }
 
   private suspend fun sendMessage(
@@ -96,38 +82,34 @@ class CoordinatorComm(
   ) {
     val data = encode(OutgoingFrame(id, body))
     logger.debug("Sending", mapOf("id" to id, "body" to body))
-    writer.writeByteArray(Frame.lengthPrefix(data.size))
-    writer.writeByteArray(data)
-  }
-
-  suspend fun handleIncoming(frame: IncomingFrame) {
-    when (val request = frame.body) {
-      null -> {}
-      is ErrorResponse -> throw ApiError("[${request.error}] ${request.detail}")
-      is StartupDetails -> {
-        communicate<Unit>(runTask(bundle, request, this))
-        shutDownRequested = true
-      }
+    writeMutex.withLock {
+      writer.writeByteArray(Frame.lengthPrefix(data.size))
+      writer.writeByteArray(data)
     }
   }
 
   @Throws(ApiError::class)
   suspend fun communicateImpl(body: Any): Any {
     val requestId = nextId.fetchAndAdd(1)
-    return commMutex.withLock {
-      var frame: IncomingFrame? = null
+    val waiter = CompletableDeferred<IncomingFrame>()
 
-      suspend fun handle(f: IncomingFrame) {
-        frame = f
+    stateMutex.withLock {
+      readError?.let { throw it }
+      if (!dispatcherStarted) {
+        dispatcherStarted = true
+        dispatcherScope.launch { readLoop() }
       }
-      sendMessage(requestId, body)
-      processOnce(::handle)
-      val received = frame ?: throw ApiError("No response received")
-      if (received.id != requestId) {
-        throw ApiError("response id ${received.id} does not match request id $requestId")
-      }
-      received.body ?: Unit
+      pending[requestId] = waiter
     }
+
+    try {
+      sendMessage(requestId, body)
+    } catch (e: Throwable) {
+      stateMutex.withLock { pending.remove(requestId) }
+      throw e
+    }
+
+    return waiter.await().body ?: Unit
   }
 
   @Throws(ApiError::class)
@@ -137,5 +119,57 @@ class CoordinatorComm(
       is T -> return response
       else -> throw ApiError("Unexpected response type ${response::class.java}")
     }
+  }
+
+  override fun close() {
+    dispatcherScope.cancel()
+  }
+
+  private suspend fun readFrame(): IncomingFrame {
+    val prefix = reader.readByteArray(4) // First 4 bytes as length.
+    if (prefix.size != 4) {
+      throw ApiError("Coordinator socket closed while reading frame length")
+    }
+    val payloadLength = Frame.parseLengthPrefix(prefix)
+    val payload = reader.readByteArray(payloadLength)
+    if (payload.size != payloadLength) {
+      throw ApiError("Coordinator socket closed while reading frame payload")
+    }
+    val frame = decode(payload)
+    logger.debug("Received", mapOf("id" to frame.id))
+    return frame
+  }
+
+  private suspend fun readLoop() {
+    while (true) {
+      val frame =
+        try {
+          readFrame()
+        } catch (e: CancellationException) {
+          // close() cancels the dispatcher.
+          throw e
+        } catch (e: Throwable) {
+          failAllWaiters(e)
+          return
+        }
+      val waiter = stateMutex.withLock { pending.remove(frame.id) }
+      if (waiter == null) {
+        logger.debug("Discarding frame with no matching waiter", mapOf("id" to frame.id))
+        continue
+      }
+      waiter.complete(frame)
+    }
+  }
+
+  private suspend fun failAllWaiters(cause: Throwable) {
+    val error = cause as? ApiError ?: ApiError("Coordinator comm closed: ${cause.message}")
+    val waiters =
+      stateMutex.withLock {
+        readError = error
+        val snapshot = pending.values.toList()
+        pending.clear()
+        snapshot
+      }
+    waiters.forEach { it.completeExceptionally(error) }
   }
 }
