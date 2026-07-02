@@ -416,6 +416,66 @@
       "title": "AwaitInputTask",
       "type": "object"
     },
+    "BulkDeleteXCom": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Id"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "type": {
+          "const": "BulkDeleteXCom",
+          "default": "BulkDeleteXCom",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id"
+      ],
+      "title": "BulkDeleteXCom",
+      "type": "object"
+    },
     "BundleInfo": {
       "description": "Schema for telling task which bundle to run with.",
       "properties": {
@@ -4289,6 +4349,25 @@
         "len"
       ],
       "title": "XComCountResponse",
+      "type": "object"
+    },
+    "XComDeleteCountResult": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "type": {
+          "const": "XComDeleteCountResult",
+          "default": "XComDeleteCountResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "count"
+      ],
+      "title": "XComDeleteCountResult",
       "type": "object"
     },
     "XComResult": {
