@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import delete, exists, select, update
+from sqlalchemy import and_, delete, exists, or_, select, update
 
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
@@ -472,9 +472,11 @@ class DagBundlesManager(LoggingMixin):
                 )
                 return 0
 
-        # Chunked UPDATEs ordered by dag_id, one transaction per chunk; repaired
-        # rows drop out of the predicate because writing relative_fileloc
-        # makes the IS NULL clause false.
+        # Chunked UPDATEs ordered by (bundle_name, dag_id), one transaction per
+        # chunk; repaired rows drop out of the predicate because writing
+        # relative_fileloc makes the IS NULL clause false. Scanning in
+        # bundle_name order groups the movements log by source bundle without
+        # a Python-side re-sort.
         #
         # Legacy-candidate predicate (rows never parsed in 3.x): NULL
         # relative_fileloc (the 0082 migration leaves it NULL) AND NOT EXISTS
@@ -486,7 +488,7 @@ class DagBundlesManager(LoggingMixin):
         total_reassigned = 0
         total_backfilled = 0
         total_skipped = 0
-        last_dag_id: str | None = None
+        last_seen: tuple[str, str] | None = None
 
         while True:
             with create_session() as session:
@@ -496,15 +498,21 @@ class DagBundlesManager(LoggingMixin):
                         DagModel.relative_fileloc.is_(None),
                         ~exists().where(DagVersion.dag_id == DagModel.dag_id),
                     )
-                    .order_by(DagModel.dag_id)
+                    .order_by(DagModel.bundle_name, DagModel.dag_id)
                     .limit(_REASSIGN_BATCH_SIZE)
                 )
-                if last_dag_id is not None:
-                    query = query.where(DagModel.dag_id > last_dag_id)
+                if last_seen is not None:
+                    last_bundle, last_dag_id = last_seen
+                    query = query.where(
+                        or_(
+                            DagModel.bundle_name > last_bundle,
+                            and_(DagModel.bundle_name == last_bundle, DagModel.dag_id > last_dag_id),
+                        )
+                    )
 
                 if not (chunk := session.execute(query).all()):
                     break
-                last_dag_id = chunk[-1].dag_id
+                last_seen = (chunk[-1].bundle_name, chunk[-1].dag_id)
 
             # Route every legacy row by fileloc, not just those on
             # unconfigured bundles, so a migration-assigned dags-folder
@@ -552,7 +560,7 @@ class DagBundlesManager(LoggingMixin):
                     else:
                         self.log.debug("Skipping repair for Dag '%s': lost race to parser.", dag_id)
 
-        for (prev, target), n in sorted(movements.items(), key=lambda item: (str(item[0][0]), item[0][1])):
+        for (prev, target), n in movements.items():
             self.log.info(
                 "Reassigning %d Dag(s) from unconfigured bundle '%s' to '%s'",
                 n,
