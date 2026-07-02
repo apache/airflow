@@ -30,10 +30,7 @@ from airflow.providers.microsoft.azure.operators.ai_agents import (
     UpdateAzureAIAgentOperator,
     validate_execute_complete_event,
 )
-from airflow.providers.microsoft.azure.triggers.ai_agents import (
-    AzureAIAgentDeleteTrigger,
-    AzureAIAgentVersionTrigger,
-)
+from airflow.providers.microsoft.azure.triggers.ai_agents import AzureAIAgentVersionTrigger
 
 MODULE = "airflow.providers.microsoft.azure.operators.ai_agents"
 CONN_ID = "azure_ai_agents_test"
@@ -49,29 +46,13 @@ DEFINITION = {
 METADATA = {"team": "airflow"}
 DESCRIPTION = "Airflow hosted agent"
 BLUEPRINT_REFERENCE = {"type": "ManagedAgentIdentityBlueprint", "blueprint_id": "blueprint-1"}
-AGENT_ENDPOINT = {"protocols": ["responses", "invocations"]}
-AGENT_CARD = {"version": "1.0", "skills": [{"id": "s1", "name": "Summarize"}]}
 
 
 class TestCreateAzureAIAgentOperator:
-    def test_template_fields(self):
-        assert CreateAzureAIAgentOperator.template_fields == (
-            "agent_name",
-            "definition",
-            "metadata",
-            "description",
-            "blueprint_reference",
-            "agent_endpoint",
-            "agent_card",
-            "azure_ai_agents_conn_id",
-            "endpoint",
-            "api_version",
-        )
-
     @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
-    def test_execute_waits_until_version_is_active(self, mock_create_agent, mock_get_version):
-        mock_create_agent.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_waits_until_version_is_active(self, mock_create_version, mock_get_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
         mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "active"}
         operator = CreateAzureAIAgentOperator(
             task_id="create_agent",
@@ -80,8 +61,6 @@ class TestCreateAzureAIAgentOperator:
             metadata=METADATA,
             description=DESCRIPTION,
             blueprint_reference=BLUEPRINT_REFERENCE,
-            agent_endpoint=AGENT_ENDPOINT,
-            agent_card=AGENT_CARD,
             poll_interval=0,
             azure_ai_agents_conn_id=CONN_ID,
             endpoint=ENDPOINT,
@@ -90,23 +69,21 @@ class TestCreateAzureAIAgentOperator:
         result = operator.execute(context={})
 
         assert result == {"name": AGENT_NAME, "version": "1", "status": "active"}
-        mock_create_agent.assert_called_once_with(
+        mock_create_version.assert_called_once_with(
             mock.ANY,
             agent_name=AGENT_NAME,
             definition=DEFINITION,
             metadata=METADATA,
             description=DESCRIPTION,
             blueprint_reference=BLUEPRINT_REFERENCE,
-            agent_endpoint=AGENT_ENDPOINT,
-            agent_card=AGENT_CARD,
         )
         mock_get_version.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="1")
         assert operator.hook.conn_id == CONN_ID
         assert operator.hook.endpoint == ENDPOINT
 
-    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
-    def test_execute_without_waiting(self, mock_create_agent):
-        mock_create_agent.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_without_waiting(self, mock_create_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
         operator = CreateAzureAIAgentOperator(
             task_id="create_agent",
             agent_name=AGENT_NAME,
@@ -118,10 +95,36 @@ class TestCreateAzureAIAgentOperator:
 
         assert result == {"name": AGENT_NAME, "version": "1", "status": "creating"}
 
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_without_waiting_does_not_require_version(self, mock_create_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "status": "creating"}
+        operator = CreateAzureAIAgentOperator(
+            task_id="create_agent",
+            agent_name=AGENT_NAME,
+            definition=DEFINITION,
+            wait_for_completion=False,
+        )
+
+        result = operator.execute(context={})
+
+        assert result == {"name": AGENT_NAME, "status": "creating"}
+
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_raises_when_wait_response_has_no_version(self, mock_create_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "status": "creating"}
+        operator = CreateAzureAIAgentOperator(
+            task_id="create_agent",
+            agent_name=AGENT_NAME,
+            definition=DEFINITION,
+        )
+
+        with pytest.raises(ValueError, match="did not include a version"):
+            operator.execute(context={})
+
     @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
-    def test_execute_raises_when_version_fails(self, mock_create_agent, mock_get_version):
-        mock_create_agent.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_raises_when_version_fails(self, mock_create_version, mock_get_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
         mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "failed"}
         operator = CreateAzureAIAgentOperator(
             task_id="create_agent", agent_name=AGENT_NAME, definition=DEFINITION
@@ -130,14 +133,26 @@ class TestCreateAzureAIAgentOperator:
         with pytest.raises(RuntimeError, match="version 1 failed"):
             operator.execute(context={})
 
+    @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_raises_when_version_reaches_unknown_status(self, mock_create_version, mock_get_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
+        mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "paused"}
+        operator = CreateAzureAIAgentOperator(
+            task_id="create_agent", agent_name=AGENT_NAME, definition=DEFINITION
+        )
+
+        with pytest.raises(RuntimeError, match="unknown status paused"):
+            operator.execute(context={})
+
     @mock.patch(f"{MODULE}.time.sleep", autospec=True)
     @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0])
     @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
     def test_execute_raises_when_version_times_out(
-        self, mock_create_agent, mock_get_version, mock_monotonic, mock_sleep
+        self, mock_create_version, mock_get_version, mock_monotonic, mock_sleep
     ):
-        mock_create_agent.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
         mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
         operator = CreateAzureAIAgentOperator(
             task_id="create_agent",
@@ -152,9 +167,9 @@ class TestCreateAzureAIAgentOperator:
 
         mock_sleep.assert_not_called()
 
-    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
-    def test_execute_defers(self, mock_create_agent):
-        mock_create_agent.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_defers(self, mock_create_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
         operator = CreateAzureAIAgentOperator(
             task_id="create_agent",
             agent_name=AGENT_NAME,
@@ -198,66 +213,22 @@ class TestCreateAzureAIAgentOperator:
 
         assert result == {"name": AGENT_NAME, "version": "1", "status": "active"}
 
-    @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
-    def test_execute_waits_with_agent_create_response(self, mock_create_agent, mock_get_version):
-        """CreateAzureAIAgentOperator must handle the POST /agents agent response (versions.latest)."""
-        mock_create_agent.return_value = {
-            "object": "agent",
-            "id": AGENT_NAME,
-            "versions": {"latest": {"object": "agent.version", "version": "1", "status": "creating"}},
-        }
-        mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "active"}
+    def test_execute_complete_requires_version_payload(self):
         operator = CreateAzureAIAgentOperator(
             task_id="create_agent",
             agent_name=AGENT_NAME,
             definition=DEFINITION,
-            poll_interval=0,
         )
 
-        result = operator.execute(context={})
-
-        assert result == {"name": AGENT_NAME, "version": "1", "status": "active"}
-        mock_get_version.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="1")
-
-    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
-    def test_execute_without_waiting_with_agent_create_response(self, mock_create_agent):
-        """CreateAzureAIAgentOperator must handle the POST /agents agent response with wait_for_completion=False."""
-        agent_response = {
-            "object": "agent",
-            "id": AGENT_NAME,
-            "versions": {"latest": {"object": "agent.version", "version": "1", "status": "creating"}},
-        }
-        mock_create_agent.return_value = agent_response
-        operator = CreateAzureAIAgentOperator(
-            task_id="create_agent",
-            agent_name=AGENT_NAME,
-            definition=DEFINITION,
-            wait_for_completion=False,
-        )
-
-        result = operator.execute(context={})
-
-        assert result == agent_response
+        with pytest.raises(RuntimeError, match="did not include version payload"):
+            operator.execute_complete(context={}, event={"status": "success", "message": "active"})
 
 
 class TestUpdateAzureAIAgentOperator:
-    def test_template_fields(self):
-        assert UpdateAzureAIAgentOperator.template_fields == (
-            "agent_name",
-            "definition",
-            "metadata",
-            "description",
-            "blueprint_reference",
-            "azure_ai_agents_conn_id",
-            "endpoint",
-            "api_version",
-        )
-
     @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    @mock.patch.object(AzureAIAgentsHook, "update_agent", autospec=True)
-    def test_execute_creates_new_version(self, mock_update_agent, mock_get_version):
-        mock_update_agent.return_value = {"name": AGENT_NAME, "version": "2", "status": "creating"}
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_creates_new_version(self, mock_create_version, mock_get_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "2", "status": "creating"}
         mock_get_version.return_value = {"name": AGENT_NAME, "version": "2", "status": "active"}
         operator = UpdateAzureAIAgentOperator(
             task_id="update_agent",
@@ -269,7 +240,7 @@ class TestUpdateAzureAIAgentOperator:
         result = operator.execute(context={})
 
         assert result == {"name": AGENT_NAME, "version": "2", "status": "active"}
-        mock_update_agent.assert_called_once_with(
+        mock_create_version.assert_called_once_with(
             mock.ANY,
             agent_name=AGENT_NAME,
             definition=DEFINITION,
@@ -279,31 +250,9 @@ class TestUpdateAzureAIAgentOperator:
         )
         mock_get_version.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="2")
 
-    @mock.patch.object(AzureAIAgentsHook, "update_agent", autospec=True)
-    def test_execute_without_waiting(self, mock_update_agent):
-        mock_update_agent.return_value = {"name": AGENT_NAME, "version": "2", "status": "creating"}
-        operator = UpdateAzureAIAgentOperator(
-            task_id="update_agent",
-            agent_name=AGENT_NAME,
-            definition=DEFINITION,
-            wait_for_completion=False,
-        )
-
-        result = operator.execute(context={})
-
-        assert result == {"name": AGENT_NAME, "version": "2", "status": "creating"}
-        mock_update_agent.assert_called_once_with(
-            mock.ANY,
-            agent_name=AGENT_NAME,
-            definition=DEFINITION,
-            metadata=None,
-            description=None,
-            blueprint_reference=None,
-        )
-
-    @mock.patch.object(AzureAIAgentsHook, "update_agent", autospec=True)
-    def test_execute_defers(self, mock_update_agent):
-        mock_update_agent.return_value = {"name": AGENT_NAME, "version": "2", "status": "creating"}
+    @mock.patch.object(AzureAIAgentsHook, "create_agent_version", autospec=True)
+    def test_execute_defers(self, mock_create_version):
+        mock_create_version.return_value = {"name": AGENT_NAME, "version": "2", "status": "creating"}
         operator = UpdateAzureAIAgentOperator(
             task_id="update_agent",
             agent_name=AGENT_NAME,
@@ -311,9 +260,6 @@ class TestUpdateAzureAIAgentOperator:
             deferrable=True,
             timeout=10,
             poll_interval=2,
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v2",
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -321,29 +267,10 @@ class TestUpdateAzureAIAgentOperator:
 
         trigger = exc.value.trigger
         assert isinstance(trigger, AzureAIAgentVersionTrigger)
-        assert trigger.azure_ai_agents_conn_id == CONN_ID
-        assert trigger.endpoint == ENDPOINT
-        assert trigger.api_version == "v2"
-        assert trigger.agent_name == AGENT_NAME
         assert trigger.agent_version == "2"
-        assert trigger.timeout == 10
-        assert trigger.poll_interval == 2
 
 
 class TestRunAzureAIAgentOperator:
-    def test_template_fields(self):
-        assert RunAzureAIAgentOperator.template_fields == (
-            "agent_name",
-            "input_data",
-            "protocol",
-            "agent_version",
-            "agent_session_id",
-            "user_isolation_key",
-            "azure_ai_agents_conn_id",
-            "endpoint",
-            "api_version",
-        )
-
     @mock.patch.object(AzureAIAgentsHook, "invoke_agent_responses", autospec=True)
     def test_execute_responses_protocol(self, mock_invoke):
         mock_invoke.return_value = {"output_text": "hello"}
@@ -352,7 +279,6 @@ class TestRunAzureAIAgentOperator:
             agent_name=AGENT_NAME,
             protocol="responses",
             input_data={"input": "hello"},
-            agent_version="2",
             user_isolation_key="user-key",
         )
 
@@ -363,7 +289,6 @@ class TestRunAzureAIAgentOperator:
             mock.ANY,
             agent_name=AGENT_NAME,
             input_data={"input": "hello"},
-            agent_version="2",
             user_isolation_key="user-key",
         )
 
@@ -403,18 +328,10 @@ class TestRunAzureAIAgentOperator:
 
 
 class TestDeleteAzureAIAgentOperator:
-    def test_template_fields(self):
-        assert DeleteAzureAIAgentOperator.template_fields == (
-            "agent_name",
-            "agent_version",
-            "azure_ai_agents_conn_id",
-            "endpoint",
-            "api_version",
-        )
-
     @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
     def test_execute_deletes_agent(self, mock_delete_agent, mock_is_deleted):
+        mock_delete_agent.return_value = {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
         mock_is_deleted.return_value = True
         operator = DeleteAzureAIAgentOperator(
             task_id="delete_agent",
@@ -424,7 +341,7 @@ class TestDeleteAzureAIAgentOperator:
 
         result = operator.execute(context={})
 
-        assert result is None
+        assert result == {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
         mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=False)
         mock_is_deleted.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME)
 
@@ -446,6 +363,7 @@ class TestDeleteAzureAIAgentOperator:
     @mock.patch.object(AzureAIAgentsHook, "is_agent_version_deleted", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "delete_agent_version", autospec=True)
     def test_execute_deletes_agent_version(self, mock_delete_version, mock_is_deleted):
+        mock_delete_version.return_value = {"object": "agent.version.deleted", "deleted": True}
         mock_is_deleted.return_value = True
         operator = DeleteAzureAIAgentOperator(
             task_id="delete_agent",
@@ -456,61 +374,47 @@ class TestDeleteAzureAIAgentOperator:
 
         result = operator.execute(context={})
 
-        assert result is None
+        assert result == {"object": "agent.version.deleted", "deleted": True}
         mock_delete_version.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="2")
         mock_is_deleted.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="2")
 
+    @mock.patch(f"{MODULE}.time.sleep", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
-    def test_execute_without_waiting(self, mock_delete_agent):
+    def test_execute_polls_until_agent_is_deleted(self, mock_delete_agent, mock_is_deleted, mock_sleep):
         mock_delete_agent.return_value = {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
+        mock_is_deleted.side_effect = [False, False, True]
         operator = DeleteAzureAIAgentOperator(
             task_id="delete_agent",
             agent_name=AGENT_NAME,
-            wait_for_completion=False,
+            poll_interval=1,
         )
 
-        result = operator.execute(context={})
+        operator.execute(context={})
 
-        assert result == {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
-        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=False)
+        assert mock_is_deleted.call_count == 3
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_called_with(1)
 
+    @mock.patch(f"{MODULE}.time.sleep", autospec=True)
+    @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0])
+    @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
-    def test_execute_defers(self, mock_delete_agent):
+    def test_execute_raises_when_deletion_times_out(
+        self, mock_delete_agent, mock_is_deleted, mock_monotonic, mock_sleep
+    ):
+        mock_is_deleted.return_value = False
         operator = DeleteAzureAIAgentOperator(
             task_id="delete_agent",
             agent_name=AGENT_NAME,
-            deferrable=True,
-            timeout=10,
-            poll_interval=2,
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v2",
+            timeout=0,
+            poll_interval=0,
         )
 
-        with pytest.raises(TaskDeferred) as exc:
+        with pytest.raises(TimeoutError, match="Timeout waiting for Azure AI Hosted agent"):
             operator.execute(context={})
 
-        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=False)
-        trigger = exc.value.trigger
-        assert isinstance(trigger, AzureAIAgentDeleteTrigger)
-        assert trigger.azure_ai_agents_conn_id == CONN_ID
-        assert trigger.endpoint == ENDPOINT
-        assert trigger.api_version == "v2"
-        assert trigger.agent_name == AGENT_NAME
-        assert trigger.agent_version is None
-        assert trigger.timeout == 10
-        assert trigger.poll_interval == 2
-
-    def test_execute_complete_success(self):
-        operator = DeleteAzureAIAgentOperator(task_id="delete_agent", agent_name=AGENT_NAME)
-
-        assert (
-            operator.execute_complete(
-                context={},
-                event={"status": "success", "message": "deleted", "agent_name": AGENT_NAME},
-            )
-            is None
-        )
+        mock_sleep.assert_not_called()
 
 
 @pytest.mark.parametrize(

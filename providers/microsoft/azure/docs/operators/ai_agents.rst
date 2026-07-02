@@ -47,8 +47,8 @@ CreateAzureAIAgentOperator
 To create an Azure AI Hosted agent from a container image, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.CreateAzureAIAgentOperator`.
 The operator returns the created Hosted agent version as a serializable dictionary.
-Optional agent fields such as ``metadata``, ``description``, ``blueprint_reference``,
-``agent_endpoint``, and ``agent_card`` can be passed through to the Foundry API.
+Optional agent fields such as ``metadata``, ``description``, and ``blueprint_reference``
+can be passed through to the Foundry API.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -63,8 +63,7 @@ UpdateAzureAIAgentOperator
 
 Azure AI Hosted agent updates are published as new immutable versions. To create a new version, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.UpdateAzureAIAgentOperator`.
-The operator accepts the same ``metadata``, ``description``, and ``blueprint_reference`` fields
-documented by the update endpoint.
+The operator accepts the same parameters as ``CreateAzureAIAgentOperator``.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -77,19 +76,18 @@ documented by the update endpoint.
 RunAzureAIAgentOperator
 -----------------------
 
-To invoke an Azure AI Hosted agent through the ``invocations`` protocol, use the
+To invoke an Azure AI Hosted agent, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.RunAzureAIAgentOperator`.
-The operator sends the agent reference for the selected ``agent_name`` in the invocation payload.
-Pass ``agent_session_id`` to reuse an existing Hosted agent session and
-``user_isolation_key`` to scope endpoint resources to a specific end user.
+The ``responses`` protocol sends the payload to the agent's OpenAI-compatible endpoint, and the
+``invocations`` protocol posts it to the agent's invocations endpoint.
+Pass ``agent_session_id`` to reuse an existing Hosted agent session with the ``invocations``
+protocol and ``user_isolation_key`` to scope endpoint resources to a specific end user.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_azure_ai_agent_run]
     :end-before: [END howto_operator_azure_ai_agent_run]
-
-For the ``responses`` protocol, pass ``agent_version`` to target a specific Hosted agent version.
 
 .. _howto/operator:DeleteAzureAIAgentOperator:
 

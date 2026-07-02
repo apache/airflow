@@ -17,18 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
-from requests.exceptions import HTTPError
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.ai_agents import (
     DEFAULT_REQUEST_TIMEOUT,
-    HOSTED_AGENT_FEATURE_HEADER,
-    TOKEN_SCOPE,
     AzureAIAgentsAsyncHook,
     AzureAIAgentsHook,
     _get_agent_version,
@@ -40,7 +36,6 @@ MODULE = "airflow.providers.microsoft.azure.hooks.ai_agents"
 CONN_ID = "azure_ai_agents_test"
 ENDPOINT = "https://test.services.ai.azure.com/api/projects/test-project"
 AGENT_NAME = "agent-123"
-SPECIAL_AGENT_NAME = "agent/name with spaces"
 DEFINITION = {
     "kind": "hosted",
     "container_configuration": {"image": "registry.azurecr.io/agent:v1"},
@@ -51,19 +46,13 @@ DEFINITION = {
 METADATA = {"team": "airflow"}
 DESCRIPTION = "Airflow hosted agent"
 BLUEPRINT_REFERENCE = {"type": "ManagedAgentIdentityBlueprint", "blueprint_id": "blueprint-1"}
-AGENT_ENDPOINT = {"protocols": ["responses", "invocations"]}
-AGENT_CARD = {"version": "1.0", "skills": [{"id": "s1", "name": "Summarize"}]}
 
 
-def build_response(status_code=200, payload=None, headers=None):
-    response = mock.Mock()
-    response.status_code = status_code
-    response.content = b"" if payload is None else json.dumps(payload).encode()
-    response.text = "" if payload is None else json.dumps(payload)
-    response.headers = headers or {"Content-Type": "application/json"}
-    response.json.return_value = payload
-    response.raise_for_status = mock.Mock()
-    return response
+@pytest.fixture
+def hook_with_mocked_client():
+    hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    hook.__dict__["_client"] = mock.MagicMock()
+    return hook
 
 
 class TestAzureAIAgentsHook:
@@ -110,8 +99,9 @@ class TestAzureAIAgentsHook:
         )
 
     @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
-    def test_request_uses_default_credential_and_endpoint_extra(
-        self, mock_default_credential, create_mock_connection
+    @mock.patch(f"{MODULE}.AIProjectClient", autospec=True)
+    def test_client_uses_default_credential_and_endpoint_extra(
+        self, mock_client_cls, mock_default_credential, create_mock_connection
     ):
         create_mock_connection(
             Connection(
@@ -124,84 +114,52 @@ class TestAzureAIAgentsHook:
                 },
             )
         )
-        mock_default_credential.return_value.get_token.return_value.token = "token"
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-        hook.__dict__["session"] = mock.Mock()
-        hook.session.request.return_value = build_response(payload={"ok": True})
 
-        result = hook._request("GET", "agents/agent-123/versions/1")
+        result = hook.get_conn()
 
-        assert result == {"ok": True}
+        assert result == mock_client_cls.return_value
         mock_default_credential.assert_called_once_with(
             managed_identity_client_id="managed-identity-client-id",
             workload_identity_tenant_id="workload-identity-tenant-id",
         )
-
-    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
-    def test_request_sends_authorization_and_api_version(
-        self, mock_default_credential, create_mock_connection
-    ):
-        create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
-        mock_default_credential.return_value.get_token.return_value.token = "token"
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID, api_version="v2")
-        hook.__dict__["session"] = mock.Mock()
-        hook.session.request.return_value = build_response(payload={"ok": True})
-
-        hook._request("POST", "agents", json_payload={"name": AGENT_NAME})
-
-        mock_default_credential.return_value.get_token.assert_called_once_with(TOKEN_SCOPE)
-        hook.session.request.assert_called_once_with(
-            method="POST",
-            url=f"{ENDPOINT}/agents",
-            params={"api-version": "v2"},
-            headers={
-                "Authorization": "Bearer token",
-                "Content-Type": "application/json",
-                "Foundry-Features": HOSTED_AGENT_FEATURE_HEADER,
-            },
-            json={"name": AGENT_NAME},
-            timeout=DEFAULT_REQUEST_TIMEOUT,
+        mock_client_cls.assert_called_once_with(
+            endpoint=ENDPOINT,
+            credential=mock_default_credential.return_value,
+            api_version="v1",
+            allow_preview=True,
+            connection_timeout=DEFAULT_REQUEST_TIMEOUT,
+            read_timeout=DEFAULT_REQUEST_TIMEOUT,
         )
 
     @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
-    def test_request_reuses_connection_and_credential(self, mock_default_credential, create_mock_connection):
+    @mock.patch(f"{MODULE}.AIProjectClient", autospec=True)
+    def test_client_uses_custom_api_version_and_timeout(
+        self, mock_client_cls, mock_default_credential, create_mock_connection
+    ):
         create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
-        mock_default_credential.return_value.get_token.return_value.token = "token"
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID, api_version="v2", timeout=10)
+
+        hook.get_conn()
+
+        mock_client_cls.assert_called_once_with(
+            endpoint=ENDPOINT,
+            credential=mock_default_credential.return_value,
+            api_version="v2",
+            allow_preview=True,
+            connection_timeout=10,
+            read_timeout=10,
+        )
+
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
+    @mock.patch(f"{MODULE}.AIProjectClient", autospec=True)
+    def test_client_is_cached(self, mock_client_cls, mock_default_credential, create_mock_connection):
+        create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-        hook.__dict__["session"] = mock.Mock()
-        hook.session.request.return_value = build_response(payload={"ok": True})
 
-        with mock.patch.object(hook, "get_connection", wraps=hook.get_connection) as mock_get_connection:
-            hook._request("GET", "agents")
-            hook._request("GET", "agents")
-
-        mock_get_connection.assert_called_once_with(CONN_ID)
+        assert hook.get_conn() is hook.get_conn()
+        mock_client_cls.assert_called_once()
         mock_default_credential.assert_called_once()
-        assert mock_default_credential.return_value.get_token.call_count == 2
-
-    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
-    def test_request_uses_custom_timeout(self, mock_default_credential, create_mock_connection):
-        create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
-        mock_default_credential.return_value.get_token.return_value.token = "token"
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-        hook.__dict__["session"] = mock.Mock()
-        hook.session.request.return_value = build_response(payload={"ok": True})
-
-        hook._request("GET", "agents", timeout=10)
-
-        assert hook.session.request.call_args.kwargs["timeout"] == 10
-
-    @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
-    def test_request_uses_hook_timeout(self, mock_default_credential, create_mock_connection):
-        create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
-        mock_default_credential.return_value.get_token.return_value.token = "token"
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID, timeout=(5, 120))
-        hook.__dict__["session"] = mock.Mock()
-        hook.session.request.return_value = build_response(payload={"ok": True})
-
-        hook._request("GET", "agents")
-
-        assert hook.session.request.call_args.kwargs["timeout"] == (5, 120)
 
     def test_get_endpoint_hook_endpoint_overrides_connection_endpoint(self, create_mock_connection):
         create_mock_connection(Connection(conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT))
@@ -217,59 +175,10 @@ class TestAzureAIAgentsHook:
         with pytest.raises(ValueError, match="Azure AI Foundry project endpoint must be provided"):
             hook._get_endpoint(hook.get_connection(CONN_ID))
 
-    def test_process_response_raises_resource_not_found(self):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_create_agent_version(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
 
-        with pytest.raises(ResourceNotFoundError):
-            hook._process_response(build_response(status_code=404, payload={"error": "not found"}))
-
-    def test_process_response_includes_error_body(self):
-        response = build_response(
-            status_code=500,
-            payload={"error": {"code": "internal_error", "message": "Internal server error"}},
-        )
-        response.raise_for_status.side_effect = HTTPError("500 Server Error", response=response)
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        with pytest.raises(HTTPError, match="internal_error"):
-            hook._process_response(response)
-
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_create_agent(self, mock_request):
-        mock_request.return_value = {"name": AGENT_NAME, "version": "1"}
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        result = hook.create_agent(
-            agent_name=AGENT_NAME,
-            definition=DEFINITION,
-            metadata=METADATA,
-            description=DESCRIPTION,
-            blueprint_reference=BLUEPRINT_REFERENCE,
-            agent_endpoint=AGENT_ENDPOINT,
-            agent_card=AGENT_CARD,
-        )
-
-        assert result == {"name": AGENT_NAME, "version": "1"}
-        mock_request.assert_called_once_with(
-            hook,
-            "POST",
-            "agents",
-            json_payload={
-                "name": AGENT_NAME,
-                "definition": DEFINITION,
-                "metadata": METADATA,
-                "description": DESCRIPTION,
-                "blueprint_reference": BLUEPRINT_REFERENCE,
-                "agent_endpoint": AGENT_ENDPOINT,
-                "agent_card": AGENT_CARD,
-            },
-        )
-
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_update_agent(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        hook.update_agent(
+        result = hook.create_agent_version(
             agent_name=AGENT_NAME,
             definition=DEFINITION,
             metadata=METADATA,
@@ -277,205 +186,174 @@ class TestAzureAIAgentsHook:
             blueprint_reference=BLUEPRINT_REFERENCE,
         )
 
-        mock_request.assert_called_once_with(
-            hook,
-            "POST",
-            f"agents/{AGENT_NAME}",
-            json_payload={
-                "definition": DEFINITION,
-                "metadata": METADATA,
-                "description": DESCRIPTION,
-                "blueprint_reference": BLUEPRINT_REFERENCE,
-            },
+        hook.get_conn().agents.create_version.assert_called_once_with(
+            agent_name=AGENT_NAME,
+            definition=DEFINITION,
+            metadata=METADATA,
+            description=DESCRIPTION,
+            blueprint_reference=BLUEPRINT_REFERENCE,
         )
+        assert result == hook.get_conn().agents.create_version.return_value
 
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_get_agent_version(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_get_agent_version(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
 
-        hook.get_agent_version(agent_name=AGENT_NAME, agent_version="1")
+        result = hook.get_agent_version(agent_name=AGENT_NAME, agent_version="1")
 
-        mock_request.assert_called_once_with(hook, "GET", f"agents/{AGENT_NAME}/versions/1")
+        hook.get_conn().agents.get_version.assert_called_once_with(agent_name=AGENT_NAME, agent_version="1")
+        assert result == hook.get_conn().agents.get_version.return_value
 
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_get_agent_version_quotes_resource_ids(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_get_agent(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
 
-        hook.get_agent_version(agent_name=SPECIAL_AGENT_NAME, agent_version="version/1")
+        result = hook.get_agent(agent_name=AGENT_NAME)
 
-        mock_request.assert_called_once_with(
-            hook,
-            "GET",
-            "agents/agent%2Fname%20with%20spaces/versions/version%2F1",
+        hook.get_conn().agents.get.assert_called_once_with(agent_name=AGENT_NAME)
+        assert result == hook.get_conn().agents.get.return_value
+
+    @pytest.mark.parametrize("force", [False, True])
+    def test_delete_agent(self, hook_with_mocked_client, force):
+        hook = hook_with_mocked_client
+
+        result = hook.delete_agent(agent_name=AGENT_NAME, force=force)
+
+        hook.get_conn().agents.delete.assert_called_once_with(agent_name=AGENT_NAME, force=force)
+        assert result == hook.get_conn().agents.delete.return_value
+
+    def test_delete_agent_version(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+
+        result = hook.delete_agent_version(agent_name=AGENT_NAME, agent_version="2")
+
+        hook.get_conn().agents.delete_version.assert_called_once_with(
+            agent_name=AGENT_NAME, agent_version="2"
         )
+        assert result == hook.get_conn().agents.delete_version.return_value
 
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_delete_agent(self, mock_request):
-        mock_request.return_value = {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        result = hook.delete_agent(agent_name=AGENT_NAME)
-
-        assert result == {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
-        mock_request.assert_called_once_with(hook, "DELETE", f"agents/{AGENT_NAME}", query_params=None)
-
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_delete_agent_with_force(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        hook.delete_agent(agent_name=AGENT_NAME, force=True)
-
-        mock_request.assert_called_once_with(
-            hook,
-            "DELETE",
-            f"agents/{AGENT_NAME}",
-            query_params={"force": "true"},
-        )
-
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_delete_agent_quotes_resource_id(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        hook.delete_agent(agent_name=SPECIAL_AGENT_NAME)
-
-        mock_request.assert_called_once_with(
-            hook,
-            "DELETE",
-            "agents/agent%2Fname%20with%20spaces",
-            query_params=None,
-        )
-
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_delete_agent_version(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        hook.delete_agent_version(agent_name=AGENT_NAME, agent_version="2")
-
-        mock_request.assert_called_once_with(hook, "DELETE", f"agents/{AGENT_NAME}/versions/2")
-
-    @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    def test_is_agent_version_deleted_when_resource_does_not_exist(self, mock_get_version):
-        mock_get_version.side_effect = ResourceNotFoundError("not found")
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_is_agent_version_deleted_when_resource_does_not_exist(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        hook.get_conn().agents.get_version.side_effect = ResourceNotFoundError("not found")
 
         assert hook.is_agent_version_deleted(agent_name=AGENT_NAME, agent_version="1") is True
 
-    @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    def test_is_agent_version_deleted_when_status_is_deleted(self, mock_get_version):
-        mock_get_version.return_value = {"status": "deleted"}
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_is_agent_version_deleted_when_status_is_deleted(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        hook.get_conn().agents.get_version.return_value = {"status": "deleted"}
 
         assert hook.is_agent_version_deleted(agent_name=AGENT_NAME, agent_version="1") is True
 
-    @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    def test_is_agent_version_deleted_when_resource_exists(self, mock_get_version):
-        mock_get_version.return_value = {"status": "active"}
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_is_agent_version_deleted_when_resource_exists(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        hook.get_conn().agents.get_version.return_value = {"status": "active"}
 
         assert hook.is_agent_version_deleted(agent_name=AGENT_NAME, agent_version="1") is False
 
-    @mock.patch.object(AzureAIAgentsHook, "get_agent", autospec=True)
-    def test_is_agent_deleted_when_resource_does_not_exist(self, mock_get_agent):
-        mock_get_agent.side_effect = ResourceNotFoundError("not found")
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_is_agent_deleted_when_resource_does_not_exist(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        hook.get_conn().agents.get.side_effect = ResourceNotFoundError("not found")
 
         assert hook.is_agent_deleted(agent_name=AGENT_NAME) is True
 
-    @mock.patch.object(AzureAIAgentsHook, "get_agent", autospec=True)
-    def test_is_agent_deleted_when_status_is_deleted(self, mock_get_agent):
-        mock_get_agent.return_value = {"status": "deleted"}
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-
-        assert hook.is_agent_deleted(agent_name=AGENT_NAME) is True
-
-    @mock.patch.object(AzureAIAgentsHook, "get_agent", autospec=True)
-    def test_is_agent_deleted_when_resource_exists(self, mock_get_agent):
-        mock_get_agent.return_value = {"status": "active"}
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_is_agent_deleted_when_resource_exists(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        hook.get_conn().agents.get.return_value = {"name": AGENT_NAME}
 
         assert hook.is_agent_deleted(agent_name=AGENT_NAME) is False
 
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_invoke_agent_responses(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_invoke_agent_responses(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        openai_client = hook.get_conn().get_openai_client.return_value
+        openai_client.responses.create.return_value.model_dump.return_value = {"output_text": "hello"}
 
-        hook.invoke_agent_responses(
+        result = hook.invoke_agent_responses(
             agent_name=AGENT_NAME,
             input_data={"input": "hello"},
-            agent_version="2",
             user_isolation_key="user-key",
         )
 
-        mock_request.assert_called_once_with(
-            hook,
-            "POST",
-            "openai/v1/responses",
-            json_payload={
-                "input": "hello",
-                "agent_reference": {"type": "agent_reference", "name": AGENT_NAME, "version": "2"},
-            },
+        assert result == {"output_text": "hello"}
+        hook.get_conn().get_openai_client.assert_called_once_with(agent_name=AGENT_NAME)
+        openai_client.responses.create.assert_called_once_with(
+            input="hello",
             extra_headers={"x-ms-user-isolation-key": "user-key"},
-            include_api_version=False,
         )
 
-    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_invoke_agent_invocations(self, mock_request):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+    def test_invoke_agent_responses_without_isolation_key(self, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        openai_client = hook.get_conn().get_openai_client.return_value
 
-        hook.invoke_agent_invocations(
+        hook.invoke_agent_responses(agent_name=AGENT_NAME, input_data={"input": "hello"})
+
+        openai_client.responses.create.assert_called_once_with(input="hello")
+
+    @mock.patch(f"{MODULE}.HttpRequest", autospec=True)
+    def test_invoke_agent_invocations(self, mock_request_cls, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        response = hook.get_conn().send_request.return_value
+        response.content = b'{"result": "done"}'
+        response.json.return_value = {"result": "done"}
+
+        result = hook.invoke_agent_invocations(
             agent_name=AGENT_NAME,
             input_data={"message": "hello"},
             agent_session_id="session-1",
             user_isolation_key="user-key",
         )
 
-        mock_request.assert_called_once_with(
-            hook,
+        assert result == {"result": "done"}
+        mock_request_cls.assert_called_once_with(
             "POST",
-            f"agents/{AGENT_NAME}/endpoint/protocols/invocations",
-            json_payload={"message": "hello"},
-            extra_headers={"x-ms-user-isolation-key": "user-key"},
-            query_params={"agent_session_id": "session-1"},
+            f"/agents/{AGENT_NAME}/endpoint/protocols/invocations",
+            params={"api-version": "v1", "agent_session_id": "session-1"},
+            headers={"x-ms-user-isolation-key": "user-key"},
+            json={"message": "hello"},
+        )
+        hook.get_conn().send_request.assert_called_once_with(mock_request_cls.return_value)
+        response.raise_for_status.assert_called_once_with()
+
+    @mock.patch(f"{MODULE}.HttpRequest", autospec=True)
+    def test_invoke_agent_invocations_quotes_resource_id(self, mock_request_cls, hook_with_mocked_client):
+        hook = hook_with_mocked_client
+        hook.get_conn().send_request.return_value.content = b""
+
+        result = hook.invoke_agent_invocations(
+            agent_name="agent/name with spaces", input_data={"message": "hello"}
         )
 
-    def test_process_response_returns_text_for_non_json_response(self):
-        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-        response = build_response(payload=None, headers={"Content-Type": "text/plain"})
-        response.content = b"done"
-        response.text = "done"
-        response.json.side_effect = ValueError("not json")
-
-        assert hook._process_response(response) == "done"
+        assert result is None
+        assert (
+            mock_request_cls.call_args.args[1]
+            == "/agents/agent%2Fname%20with%20spaces/endpoint/protocols/invocations"
+        )
+        assert mock_request_cls.call_args.kwargs["headers"] is None
 
     def test_get_version_status_raises_when_status_missing(self):
         with pytest.raises(ValueError, match="did not include a status"):
             _get_version_status({})
 
+    def test_get_version_status_normalizes_enum_values(self):
+        class FakeEnum:
+            value = "Active"
+
+        assert _get_version_status({"status": FakeEnum()}) == "active"
+
     def test_get_agent_version_raises_when_version_missing(self):
         with pytest.raises(ValueError, match="did not include a version"):
             _get_agent_version({})
 
-    def test_get_agent_version_from_agent_create_response(self):
-        agent_response = {
-            "object": "agent",
-            "id": AGENT_NAME,
-            "versions": {
-                "latest": {
-                    "object": "agent.version",
-                    "version": "1",
-                    "status": "creating",
-                }
-            },
-        }
-        assert _get_agent_version(agent_response) == "1"
-
-    def test_serialize_resource_uses_explicit_model_serializer(self):
-        class ModelResource:
-            def model_dump(self):
+    def test_serialize_resource_uses_as_dict_serializer(self):
+        class SdkModel:
+            def as_dict(self):
                 return {"name": AGENT_NAME, "versions": [{"version": "1"}]}
 
-        resource = ModelResource()
-        assert _serialize_resource(resource) == {"name": AGENT_NAME, "versions": [{"version": "1"}]}
+        assert _serialize_resource(SdkModel()) == {"name": AGENT_NAME, "versions": [{"version": "1"}]}
+
+    def test_serialize_resource_uses_model_dump_serializer(self):
+        class PydanticModel:
+            def model_dump(self):
+                return {"output_text": "hello"}
+
+        assert _serialize_resource(PydanticModel()) == {"output_text": "hello"}
 
     def test_serialize_resource_does_not_serialize_arbitrary_object_attributes(self):
         class ArbitraryObject:
@@ -492,32 +370,73 @@ class TestAzureAIAgentsHook:
 class TestAzureAIAgentsAsyncHook:
     pytestmark = pytest.mark.asyncio
 
-    @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
-    async def test_async_get_agent_version(self, mock_get_version):
-        mock_get_version.return_value = {"version": "1"}
+    @mock.patch(f"{MODULE}.get_async_default_azure_credential", autospec=True)
+    @mock.patch(f"{MODULE}.AsyncAIProjectClient", autospec=True)
+    @mock.patch(f"{MODULE}.get_async_connection")
+    async def test_get_async_conn(self, mock_get_connection, mock_client_cls, mock_default_credential):
+        mock_get_connection.return_value = Connection(
+            conn_id=CONN_ID, conn_type="azure_ai_agents", host=ENDPOINT
+        )
         hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        result = await hook.get_async_conn()
+
+        assert result == mock_client_cls.return_value
+        mock_client_cls.assert_called_once_with(
+            endpoint=ENDPOINT,
+            credential=mock_default_credential.return_value,
+            api_version="v1",
+            allow_preview=True,
+            connection_timeout=DEFAULT_REQUEST_TIMEOUT,
+            read_timeout=DEFAULT_REQUEST_TIMEOUT,
+        )
+
+        assert await hook.get_async_conn() is result
+        mock_client_cls.assert_called_once()
+
+    @mock.patch(f"{MODULE}.AsyncClientSecretCredential", autospec=True)
+    @mock.patch(f"{MODULE}.AsyncAIProjectClient", autospec=True)
+    @mock.patch(f"{MODULE}.get_async_connection")
+    async def test_get_async_conn_uses_client_secret_credential(
+        self, mock_get_connection, mock_client_cls, mock_credential_cls
+    ):
+        mock_get_connection.return_value = Connection(
+            conn_id=CONN_ID,
+            conn_type="azure_ai_agents",
+            host=ENDPOINT,
+            login="client-id",
+            password="client-secret",
+            extra={"tenantId": "tenant-id"},
+        )
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        await hook.get_async_conn()
+
+        mock_credential_cls.assert_called_once_with(
+            client_id="client-id",
+            client_secret="client-secret",
+            tenant_id="tenant-id",
+            authority="login.microsoftonline.com",
+        )
+
+    async def test_async_get_agent_version(self):
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+        client = mock.MagicMock()
+        client.agents.get_version = mock.AsyncMock(return_value={"version": "1"})
+        hook.get_async_conn = mock.AsyncMock(return_value=client)
 
         result = await hook.async_get_agent_version(agent_name=AGENT_NAME, agent_version="1")
 
         assert result == {"version": "1"}
-        mock_get_version.assert_called_once_with(hook, agent_name=AGENT_NAME, agent_version="1")
+        client.agents.get_version.assert_awaited_once_with(agent_name=AGENT_NAME, agent_version="1")
 
-    @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)
-    async def test_async_is_agent_deleted(self, mock_is_deleted):
-        mock_is_deleted.return_value = True
+    async def test_close(self):
         hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+        client = mock.MagicMock()
+        client.close = mock.AsyncMock()
+        hook._async_client = client
 
-        result = await hook.async_is_agent_deleted(agent_name=AGENT_NAME)
+        await hook.close()
 
-        assert result is True
-        mock_is_deleted.assert_called_once_with(hook, agent_name=AGENT_NAME)
-
-    @mock.patch.object(AzureAIAgentsHook, "is_agent_version_deleted", autospec=True)
-    async def test_async_is_agent_version_deleted(self, mock_is_version_deleted):
-        mock_is_version_deleted.return_value = True
-        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
-
-        result = await hook.async_is_agent_deleted(agent_name=AGENT_NAME, agent_version="2")
-
-        assert result is True
-        mock_is_version_deleted.assert_called_once_with(hook, agent_name=AGENT_NAME, agent_version="2")
+        client.close.assert_awaited_once_with()
+        assert hook._async_client is None

@@ -15,6 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+System test for Azure AI Foundry Hosted agent operators.
+
+Requires a real Azure AI Foundry project and a Hosted agent container image pushed to
+Azure Container Registry:
+
+* ``AIRFLOW_CONN_AZURE_AI_AGENTS_DEFAULT``: Azure AI Agents connection URI.
+* ``AZURE_AI_AGENTS_ENDPOINT``: Azure AI Foundry project endpoint.
+* ``AZURE_AI_AGENTS_CONTAINER_IMAGE``: Hosted agent container image URI.
+* ``AZURE_AI_AGENTS_MODEL_DEPLOYMENT_NAME``: Model deployment available in the project.
+* ``AZURE_AI_AGENTS_RUN_PROTOCOL``: Optional runtime protocol to invoke (``responses`` or ``invocations``).
+* ``AZURE_AI_AGENTS_USE_MODEL``: Optional, defaults to ``false`` for a deterministic smoke test.
+* ``AGENT_USE_MOCKS``: Optional, defaults to ``true`` so the sample agent does not need GitHub or Slack
+  tokens.
+"""
+
 from __future__ import annotations
 
 import json
@@ -52,7 +68,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_azure_ai_agents"
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID") or "default"
 
 
 def _get_env(name: str, default: str = "") -> str:
@@ -67,6 +83,10 @@ CONTAINER_IMAGE = _get_env(
     "AZURE_AI_AGENTS_CONTAINER_IMAGE", "myregistry.azurecr.io/airflow-hosted-agent:latest"
 )
 AGENT_NAME = _get_env("AZURE_AI_AGENT_NAME", f"airflow-ai-agent-{ENV_ID}")
+RUN_AGENT_PROTOCOL = _get_env("AZURE_AI_AGENTS_RUN_PROTOCOL").lower()
+if RUN_AGENT_PROTOCOL not in {"", "responses", "invocations"}:
+    raise RuntimeError("AZURE_AI_AGENTS_RUN_PROTOCOL must be either 'responses' or 'invocations'.")
+HOSTED_AGENT_PROTOCOL = RUN_AGENT_PROTOCOL or "responses"
 
 HOSTED_AGENT_DEFINITION: dict[str, Any] = {
     "kind": "hosted",
@@ -76,12 +96,12 @@ HOSTED_AGENT_DEFINITION: dict[str, Any] = {
     "cpu": "1",
     "memory": "2Gi",
     "protocol_versions": [
-        {"protocol": "invocations", "version": "1.0.0"},
+        {"protocol": HOSTED_AGENT_PROTOCOL, "version": "1.0.0"},
     ],
     "environment_variables": {
         "AZURE_AI_MODEL_DEPLOYMENT_NAME": MODEL_DEPLOYMENT_NAME,
         "AIRFLOW_AGENT_FOUNDRY_PROJECT_ENDPOINT": ENDPOINT,
-        "AIRFLOW_AGENT_USE_MODEL": _get_env("AZURE_AI_AGENTS_USE_MODEL", "true"),
+        "AIRFLOW_AGENT_USE_MODEL": _get_env("AZURE_AI_AGENTS_USE_MODEL", "false"),
         "AIRFLOW_AGENT_USE_MOCKS": _get_env("AGENT_USE_MOCKS", "true"),
         "GITHUB_REPO": _get_env("GITHUB_REPO"),
         "GITHUB_REF": _get_env("GITHUB_REF", "main"),
@@ -113,14 +133,14 @@ SMOKE_FAILURE_CONTEXT = json.dumps(
     }
 )
 
-RUN_AGENT_INPUT = {
-    "message": (
-        "Analyze this Airflow failure context and return JSON with summary, "
-        "root_cause, and suggested_fix. Do not claim PR or Slack actions unless "
-        "the hosted agent tools actually performed them.\n\n"
-        f"{SMOKE_FAILURE_CONTEXT}"
-    ),
-}
+RUN_AGENT_PROMPT = (
+    "Analyze this Airflow failure context and return JSON with summary, "
+    "root_cause, and suggested_fix. Do not claim PR or Slack actions unless "
+    "the hosted agent tools actually performed them.\n\n"
+    f"{SMOKE_FAILURE_CONTEXT}"
+)
+
+RUN_AGENT_INPUT = {"input" if RUN_AGENT_PROTOCOL == "responses" else "message": RUN_AGENT_PROMPT}
 
 
 @task
@@ -154,7 +174,7 @@ with DAG(
         definition=HOSTED_AGENT_DEFINITION,
         poll_interval=10,
         timeout=900,
-        deferrable=True,
+        deferrable=False,
         azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
         endpoint=ENDPOINT,
     )
@@ -167,22 +187,25 @@ with DAG(
         definition=UPDATED_AGENT_DEFINITION,
         poll_interval=10,
         timeout=900,
-        deferrable=True,
+        deferrable=False,
         azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
         endpoint=ENDPOINT,
     )
     # [END howto_operator_azure_ai_agent_update]
 
-    # [START howto_operator_azure_ai_agent_run]
-    run_agent = RunAzureAIAgentOperator(
-        task_id="run_agent",
-        agent_name=AGENT_NAME,
-        protocol="invocations",
-        input_data=RUN_AGENT_INPUT,
-        azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
-        endpoint=ENDPOINT,
-    )
-    # [END howto_operator_azure_ai_agent_run]
+    if RUN_AGENT_PROTOCOL:
+        # [START howto_operator_azure_ai_agent_run]
+        run_agent = RunAzureAIAgentOperator(
+            task_id="run_agent",
+            agent_name=AGENT_NAME,
+            protocol=RUN_AGENT_PROTOCOL,
+            input_data=RUN_AGENT_INPUT,
+            azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
+            endpoint=ENDPOINT,
+        )
+        # [END howto_operator_azure_ai_agent_run]
+    else:
+        run_agent = None
 
     # [START howto_operator_azure_ai_agent_delete]
     delete_agent = DeleteAzureAIAgentOperator(
@@ -197,7 +220,10 @@ with DAG(
     )
     # [END howto_operator_azure_ai_agent_delete]
 
-    chain(set_up_connection, create_agent, update_agent, run_agent, delete_agent)
+    if run_agent is None:
+        chain(set_up_connection, create_agent, update_agent, delete_agent)
+    else:
+        chain(set_up_connection, create_agent, update_agent, run_agent, delete_agent)
 
     from tests_common.test_utils.watcher import watcher
 

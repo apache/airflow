@@ -22,10 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.microsoft.azure.hooks.ai_agents import AzureAIAgentsAsyncHook
-from airflow.providers.microsoft.azure.triggers.ai_agents import (
-    AzureAIAgentDeleteTrigger,
-    AzureAIAgentVersionTrigger,
-)
+from airflow.providers.microsoft.azure.triggers.ai_agents import AzureAIAgentVersionTrigger
 
 MODULE = "airflow.providers.microsoft.azure.triggers.ai_agents"
 CONN_ID = "azure_ai_agents_test"
@@ -33,21 +30,30 @@ ENDPOINT = "https://test.services.ai.azure.com/api/projects/test-project"
 AGENT_NAME = "agent-123"
 
 
+def build_trigger(**overrides):
+    kwargs = {
+        "azure_ai_agents_conn_id": CONN_ID,
+        "endpoint": ENDPOINT,
+        "api_version": "v1",
+        "agent_name": AGENT_NAME,
+        "agent_version": "1",
+        "timeout": 10,
+        "poll_interval": 2,
+        **overrides,
+    }
+    return AzureAIAgentVersionTrigger(**kwargs)
+
+
 async def get_trigger_event(trigger):
-    return await anext(trigger.run())
+    generator = trigger.run()
+    event = await anext(generator)
+    await generator.aclose()
+    return event
 
 
 class TestAzureAIAgentVersionTrigger:
     def test_serialize(self):
-        trigger = AzureAIAgentVersionTrigger(
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v2",
-            agent_name=AGENT_NAME,
-            agent_version="1",
-            timeout=10,
-            poll_interval=2,
-        )
+        trigger = build_trigger(api_version="v2")
 
         classpath, kwargs = trigger.serialize()
 
@@ -63,18 +69,11 @@ class TestAzureAIAgentVersionTrigger:
         }
 
     @pytest.mark.asyncio
+    @mock.patch.object(AzureAIAgentsAsyncHook, "close", autospec=True)
     @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
-    async def test_run_success(self, mock_get_version):
+    async def test_run_success(self, mock_get_version, mock_close):
         mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "active"}
-        trigger = AzureAIAgentVersionTrigger(
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v1",
-            agent_name=AGENT_NAME,
-            agent_version="1",
-            timeout=10,
-            poll_interval=2,
-        )
+        trigger = build_trigger()
 
         event = await get_trigger_event(trigger)
 
@@ -83,6 +82,23 @@ class TestAzureAIAgentVersionTrigger:
             "message": f"Azure AI Hosted agent {AGENT_NAME} version 1 is active.",
             "version": {"name": AGENT_NAME, "version": "1", "status": "active"},
         }
+        mock_close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.asyncio.sleep", autospec=True)
+    @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
+    async def test_run_polls_until_success(self, mock_get_version, mock_sleep):
+        creating = {"name": AGENT_NAME, "version": "1", "status": "creating"}
+        active = {"name": AGENT_NAME, "version": "1", "status": "active"}
+        mock_get_version.side_effect = [creating, creating, active]
+        trigger = build_trigger(poll_interval=1)
+
+        event = await get_trigger_event(trigger)
+
+        assert event.payload["status"] == "success"
+        assert mock_get_version.call_count == 3
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_awaited_with(1)
 
     @pytest.mark.asyncio
     @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
@@ -93,20 +109,24 @@ class TestAzureAIAgentVersionTrigger:
             "status": "failed",
             "error": {"message": "boom"},
         }
-        trigger = AzureAIAgentVersionTrigger(
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v1",
-            agent_name=AGENT_NAME,
-            agent_version="1",
-            timeout=10,
-            poll_interval=2,
-        )
+        trigger = build_trigger()
 
         event = await get_trigger_event(trigger)
 
         assert event.payload["status"] == "error"
         assert "boom" in event.payload["message"]
+        assert event.payload["version"]["status"] == "failed"
+
+    @pytest.mark.asyncio
+    @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
+    async def test_run_unknown_status(self, mock_get_version):
+        mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "paused"}
+        trigger = build_trigger()
+
+        event = await get_trigger_event(trigger)
+
+        assert event.payload["status"] == "error"
+        assert "unknown status paused" in event.payload["message"]
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.asyncio.sleep", autospec=True)
@@ -114,88 +134,29 @@ class TestAzureAIAgentVersionTrigger:
     @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
     async def test_run_timeout(self, mock_get_version, mock_monotonic, mock_sleep):
         mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "creating"}
-        trigger = AzureAIAgentVersionTrigger(
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v1",
-            agent_name=AGENT_NAME,
-            agent_version="1",
-            timeout=0,
-            poll_interval=2,
-        )
-
-        event = await get_trigger_event(trigger)
-
-        assert event.payload["status"] == "timeout"
-        mock_sleep.assert_not_called()
-
-
-class TestAzureAIAgentDeleteTrigger:
-    def test_serialize(self):
-        trigger = AzureAIAgentDeleteTrigger(
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v2",
-            agent_name=AGENT_NAME,
-            agent_version=None,
-            timeout=10,
-            poll_interval=2,
-        )
-
-        classpath, kwargs = trigger.serialize()
-
-        assert classpath == "airflow.providers.microsoft.azure.triggers.ai_agents.AzureAIAgentDeleteTrigger"
-        assert kwargs == {
-            "azure_ai_agents_conn_id": CONN_ID,
-            "endpoint": ENDPOINT,
-            "api_version": "v2",
-            "agent_name": AGENT_NAME,
-            "agent_version": None,
-            "timeout": 10,
-            "poll_interval": 2,
-        }
-
-    @pytest.mark.asyncio
-    @mock.patch.object(AzureAIAgentsAsyncHook, "async_is_agent_deleted", autospec=True)
-    async def test_run_success(self, mock_is_deleted):
-        mock_is_deleted.return_value = True
-        trigger = AzureAIAgentDeleteTrigger(
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v1",
-            agent_name=AGENT_NAME,
-            agent_version="1",
-            timeout=10,
-            poll_interval=2,
-        )
+        trigger = build_trigger(timeout=0)
 
         event = await get_trigger_event(trigger)
 
         assert event.payload == {
-            "status": "success",
-            "message": f"Azure AI Hosted agent {AGENT_NAME} was deleted.",
-            "agent_name": AGENT_NAME,
-            "agent_version": "1",
+            "status": "timeout",
+            "message": f"Timeout waiting for Azure AI Hosted agent {AGENT_NAME} version 1.",
+            "version": {"name": AGENT_NAME, "version": "1"},
         }
-        mock_is_deleted.assert_awaited_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="1")
+        mock_sleep.assert_not_called()
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.asyncio.sleep", autospec=True)
-    @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0])
-    @mock.patch.object(AzureAIAgentsAsyncHook, "async_is_agent_deleted", autospec=True)
-    async def test_run_timeout(self, mock_is_deleted, mock_monotonic, mock_sleep):
-        mock_is_deleted.return_value = False
-        trigger = AzureAIAgentDeleteTrigger(
-            azure_ai_agents_conn_id=CONN_ID,
-            endpoint=ENDPOINT,
-            api_version="v1",
-            agent_name=AGENT_NAME,
-            agent_version=None,
-            timeout=0,
-            poll_interval=2,
-        )
+    @mock.patch.object(AzureAIAgentsAsyncHook, "close", autospec=True)
+    @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
+    async def test_run_exception(self, mock_get_version, mock_close):
+        mock_get_version.side_effect = RuntimeError("boom")
+        trigger = build_trigger()
 
         event = await get_trigger_event(trigger)
 
-        assert event.payload["status"] == "timeout"
-        mock_sleep.assert_not_called()
+        assert event.payload == {
+            "status": "error",
+            "message": f"Failed while polling Azure AI Hosted agent {AGENT_NAME} version 1: boom",
+            "version": {"name": AGENT_NAME, "version": "1"},
+        }
+        mock_close.assert_awaited_once()
