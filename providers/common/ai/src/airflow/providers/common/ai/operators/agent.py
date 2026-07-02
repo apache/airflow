@@ -36,7 +36,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperatorLink,
     conf,
 )
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
     # See LLMOperator: new enough cores register declared ``output_type`` classes
@@ -52,8 +52,8 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import AbstractToolset
     from pydantic_ai.usage import UsageLimits
 
+    from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-    from airflow.providers.common.ai.durable.storage import DurableStorage
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -154,7 +154,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         model, settings, tools, or message history changed since the failed
         attempt, the affected steps re-run live (with a warning) instead of
         replaying stale results.  Default ``False``.
-        Requires ``[common.ai] durable_cache_path`` to be set.
+        On Airflow >= 3.3 the cache is kept in the AIP-103 task state store, so
+        no extra configuration is needed. On older cores it is persisted to
+        ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
     :param code_mode: When ``True``, wraps the agent's tools in a single
         ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
         ``CodeMode``). Instead of one model round-trip per tool call, the model
@@ -324,12 +326,38 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         )
 
     def _build_durable_toolsets(
-        self, toolsets: list[AbstractToolset], storage: DurableStorage, counter: DurableStepCounter
+        self, toolsets: list[AbstractToolset], storage: DurableStorageProtocol, counter: DurableStepCounter
     ) -> list[AbstractToolset]:
         """Wrap each toolset with CachingToolset for durable execution."""
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 
         return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
+
+    def _build_durable_storage(self, context: Context) -> DurableStorageProtocol:
+        """
+        Return the durable storage backend for the current task instance.
+
+        On Airflow >= 3.3 durable steps are cached in the AIP-103 task state
+        store, which handles persistence and large-value offload natively, so no
+        ``[common.ai] durable_cache_path`` is required. On older cores, fall back
+        to the ObjectStorage backend configured via ``durable_cache_path``.
+        """
+        if AIRFLOW_V_3_3_PLUS:
+            # Imported lazily: NEVER_EXPIRE and the task state store accessor do
+            # not exist on cores before 3.3.
+            from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
+
+            return TaskStateStoreDurableStorage(context["task_state_store"])
+
+        from airflow.providers.common.ai.durable.storage import DurableStorage
+
+        ti = context["task_instance"]
+        return DurableStorage(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
+        )
 
     def execute(self, context: Context) -> Any:
         if self.enable_hitl_review and not isinstance(self.prompt, str):
@@ -345,15 +373,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         if self.durable:
             from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-            from airflow.providers.common.ai.durable.storage import DurableStorage
 
-            ti = context["task_instance"]
-            self._durable_storage = DurableStorage(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=ti.map_index if ti.map_index is not None else -1,
-            )
+            self._durable_storage = self._build_durable_storage(context)
             self._durable_counter = DurableStepCounter()
 
         agent = self._build_agent()
