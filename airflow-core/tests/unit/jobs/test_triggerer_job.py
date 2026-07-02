@@ -1548,6 +1548,59 @@ class TestTriggerRunner:
         await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.stats.timing")
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    async def test_create_triggers_emits_creation_duration_metric(
+        self,
+        mock_get_trigger_by_classpath,
+        mock_decrypt_kwargs,
+        mock_timing,
+        team_name,
+        expected_tags,
+    ):
+        mock_decrypt_kwargs.return_value = {"moment": timezone.utcnow() + datetime.timedelta(hours=1)}
+
+        workload = workloads.RunTrigger.model_construct(
+            id=1,
+            classpath="abc",
+            encrypted_kwargs="fake",
+        )
+
+        runner = TriggerRunner()
+        runner.team_name = team_name
+        runner.to_create.append(workload)
+
+        await runner.create_triggers()
+
+        mock_timing.assert_called_once()
+
+        metric_name, metric_value = mock_timing.call_args.args
+
+        assert metric_name == "triggerer.batch_trigger_creation_duration"
+
+        # Specific metric_value is not being asserted here time.monotonic is difficult
+        # to mock deterministically.
+        assert metric_value >= 0
+        assert mock_timing.call_args.kwargs == {"tags": expected_tags}
+
+        task = runner.triggers[workload.id]["task"]
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+        await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     async def test_sync_state_to_supervisor(self, supervisor_builder):
         trigger_runner = TriggerRunner()
