@@ -469,7 +469,10 @@ class TestOtelIntegration:
                     "_execute_task": "run",
                     "finalize": "worker.task1",
                     "run": "worker.task1",
-                    "sub_span1": "_execute_task",
+                    # At detail level > 1 the execute callable is wrapped in its own
+                    # task.execute span, so operator-emitted spans nest under it.
+                    "task.execute": "_execute_task",
+                    "sub_span1": "task.execute",
                     "dag_run.otel_test_dag": None,
                     "task_run.task1": "dag_run.otel_test_dag",
                     "worker.task1": "task_run.task1",
