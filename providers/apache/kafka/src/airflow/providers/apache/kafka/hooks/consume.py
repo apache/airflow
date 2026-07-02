@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from confluent_kafka import Consumer, KafkaError
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
-from airflow.providers.common.compat.module_loading import import_string
 
 
 class KafkaAuthenticationError(Exception):
@@ -43,18 +43,25 @@ class KafkaConsumerHook(KafkaBaseHook):
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: A list of topics to subscribe to.
+    :param config_dict: Optional confluent-kafka client configuration. Each key overrides
+        the same key from the connection's config; see :class:`KafkaBaseHook`.
     """
 
-    def __init__(self, topics: Sequence[str], kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
-        super().__init__(kafka_config_id=kafka_config_id)
+    def __init__(
+        self,
+        topics: Sequence[str],
+        kafka_config_id=KafkaBaseHook.default_conn_name,
+        config_dict: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(kafka_config_id=kafka_config_id, config_dict=config_dict)
         self.topics = topics
 
     def _get_client(self, config) -> Consumer:
         config_shallow = config.copy()
-        if config.get("error_cb") is None:
+        # KafkaBaseHook resolves user-provided callbacks. Set a default if
+        # none was provided for ``error_cb``.
+        if config_shallow.get("error_cb") is None:
             config_shallow["error_cb"] = error_callback
-        else:
-            config_shallow["error_cb"] = import_string(config["error_cb"])
         return Consumer(config_shallow)
 
     def get_consumer(self) -> Consumer:
