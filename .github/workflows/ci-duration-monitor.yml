@@ -50,6 +50,14 @@ jobs:
           WORKFLOW_NAME: "ci-amd.yml"
           BRANCH: "main"
           MAX_RUNS: "25"
+          # Compare the median of the last few nightly runs (not a single run) against the
+          # baseline so one unlucky run — slow PyPI, runner queue pressure, cold cache — does
+          # not trip the alert. With LATEST_RUNS=1 both sides were asymmetric (raw point vs
+          # median) and the alert fired most nights on whichever jobs happened to be slow.
+          LATEST_RUNS: "3"
+          # Network-bound jobs (constraint resolution, provider installs) legitimately swing
+          # tens of minutes run-to-run; require a larger sustained jump before flagging them.
+          JOB_MIN_ABS_INCREASE_MINUTES: "6"
           OUTPUT_FILE: "slack-message.json"
 
       - name: "Post duration alert to Slack"
