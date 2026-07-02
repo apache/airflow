@@ -314,6 +314,8 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+convertToIri
+cooldown
 copyable
 CoreV
 coroutine
@@ -449,6 +451,7 @@ deidentify
 DeidentifyTemplate
 del
 delim
+deliverability
 deltalake
 denylist
 dep
@@ -474,6 +477,7 @@ devel
 DevOps
 devtools
 df
+dictConfig
 dicts
 Dingding
 dingding
@@ -744,6 +748,7 @@ Grpc
 gRPC
 grpc
 gsuite
+gte
 Gunicorn
 gunicorn
 gz
@@ -1012,7 +1017,9 @@ logstash
 longblob
 lookups
 lshift
+lte
 lxml
+m-NCUs
 machineTypes
 macOS
 mae
@@ -1101,6 +1108,7 @@ nat
 natively
 nav
 navbar
+NCUs
 nd
 ndjson
 nearText
@@ -1130,9 +1138,11 @@ NotFound
 notificationChannels
 notin
 npm
+nquads
 ns
 ntlm
 ntpd
+ntriples
 Nullable
 nullable
 num
@@ -1160,6 +1170,7 @@ Oozie
 OpenAI
 openai
 openapi
+opencypher
 openfaas
 OpenID
 openjdk
@@ -1359,6 +1370,7 @@ RaG
 RBAC
 rbac
 rc
+rdfxml
 RDS
 rds
 readme
@@ -1371,6 +1383,7 @@ rebase
 Rebasing
 Recency
 recurse
+redeclare
 redelivery
 Redhat
 redis

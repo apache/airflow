@@ -75,6 +75,15 @@ class TaskTest {
     Assertions.assertInstanceOf(RetryTask::class.java, result)
   }
 
+  @Test
+  @DisplayName("Should return failed when task throws an Error")
+  fun shouldReturnFailedWhenTaskThrowsError() {
+    val result = runTask(bundleWith("erroring", ErrorThrowingTask::class.java), startupDetails(taskId = "erroring"), noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
@@ -154,5 +163,12 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw IllegalStateException("boom")
+  }
+
+  class ErrorThrowingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw NoClassDefFoundError("simulated")
   }
 }

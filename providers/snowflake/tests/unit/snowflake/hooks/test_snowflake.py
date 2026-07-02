@@ -1314,9 +1314,9 @@ class TestPytestSnowflakeHook:
 
         if expected is ValueError:
             with pytest.raises(ValueError, match=match):
-                hook._validate_grant_type(grant_type)
+                hook._oauth.validate_grant_type(grant_type)
         else:
-            assert hook._validate_grant_type(grant_type) == expected
+            assert hook._oauth.validate_grant_type(grant_type) == expected
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
@@ -1599,7 +1599,7 @@ class TestPytestSnowflakeHook:
 
         t0 = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
 
-        # _get_valid_oauth_token calls utcnow twice per refresh:
+        # get_valid_oauth_token from _SnowflakeOAuthManager calls utcnow twice per refresh:
         #   1) validity check
         #   2) issued_at
         mock_timezone_utcnow.side_effect = [

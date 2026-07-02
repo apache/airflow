@@ -33,15 +33,14 @@ from typing import TYPE_CHECKING, cast
 from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
+from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
-from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.base import unpack_bundle_version
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
@@ -57,6 +56,7 @@ from airflow.utils.cli import (
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno, chunks
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -80,42 +80,50 @@ log = logging.getLogger(__name__)
 _RUN_CHUNK_SIZE = 500
 
 
-@cli_utils.action_cli
 @deprecated_for_airflowctl("airflowctl dags trigger")
-@providers_configuration_loaded
-@provide_api_client
-def dag_trigger(args, api_client: Client = NEW_API_CLIENT) -> None:
-    """Create a dag run for the specified dag."""
-    run_conf = json.loads(args.conf) if args.conf is not None else None
-    if run_conf is not None and not isinstance(run_conf, dict):
-        raise ValueError("DagRun conf must be a JSON object or null")
-    # The core_api request models are the source of truth; they are wire-compatible with
-    # the airflowctl client's generated models (the API server uses populate_by_name).
-    trigger_body = TriggerDAGRunPostBody(
-        dag_run_id=args.run_id,
-        conf=run_conf,
-        logical_date=args.logical_date,
-    )
-    dag_run = api_client.dags.trigger(dag_id=args.dag_id, trigger_dag_run=trigger_body)  # type: ignore[arg-type]
-    AirflowConsole().print_as(
-        data=[dag_run.model_dump(mode="json")],
-        output=args.output,
-    )
-
-
 @cli_utils.action_cli
-@deprecated_for_airflowctl("airflowctl dags delete")
 @providers_configuration_loaded
-@provide_api_client
-def dag_delete(args, api_client: Client = NEW_API_CLIENT) -> None:
+def dag_trigger(args) -> None:
+    """Create a dag run for the specified dag."""
+    api_client = get_current_api_client()
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
+    try:
+        message = api_client.trigger_dag(
+            dag_id=args.dag_id,
+            run_id=args.run_id,
+            conf=args.conf,
+            logical_date=args.logical_date,
+            triggering_user_name=user,
+            replace_microseconds=args.replace_microseconds,
+        )
+        AirflowConsole().print_as(
+            data=[message] if message is not None else [],
+            output=args.output,
+        )
+    except OSError as err:
+        raise AirflowException(err)
+
+
+@deprecated_for_airflowctl("airflowctl dags delete")
+@cli_utils.action_cli
+@providers_configuration_loaded
+def dag_delete(args) -> None:
     """Delete all DB records related to the specified dag."""
+    api_client = get_current_api_client()
     if (
         args.yes
         or input("This will drop all existing records related to the specified DAG. Proceed? (y/n)").upper()
         == "Y"
     ):
-        api_client.dags.delete(dag_id=args.dag_id)
-        print(f"Removed DAG {args.dag_id}")
+        try:
+            message = api_client.delete_dag(dag_id=args.dag_id)
+            print(message)
+        except OSError as err:
+            raise AirflowException(err)
     else:
         print("Cancelled")
 
@@ -127,12 +135,11 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     """
     Clear Dag runs selected by run_id, partition_key, or a partition_date window.
 
-    When a partition_date window is given, both bounds are **day-granular** and
-    anchored in the timetable's timezone for tz-aware partitioned timetables.
-    --partition-date-start is the inclusive start local calendar day;
-    --partition-date-end is the inclusive end local calendar day (any
-    time-of-day or timezone-offset component in either value is ignored; only
-    the calendar date is used).
+    When a partition_date window is given, both bounds are interpreted in the
+    timetable's local timezone.
+    --partition-date-start is the inclusive start; --partition-date-end is the
+    inclusive end.  A date-only value (no time component) is treated as local
+    midnight of that date.
     """
     has_range = args.partition_date_start is not None or args.partition_date_end is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
@@ -164,14 +171,12 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
         query = query.where(DagRun.partition_key == args.partition_key)
     else:
         query = query.where(DagRun.partition_date.is_not(None))
-        if args.partition_date_start is not None:
-            lower = dag.timetable.resolve_day_bound(args.partition_date_start.date())
-            query = query.where(DagRun.partition_date >= lower)
-        if args.partition_date_end is not None:
-            upper = dag.timetable.resolve_day_bound(
-                args.partition_date_end.date() + datetime.timedelta(days=1)
-            )
-            query = query.where(DagRun.partition_date < upper)
+        query = DagRun.apply_partition_date_window(
+            query,
+            timetable=dag.timetable,
+            start=args.partition_date_start,
+            end=args.partition_date_end,
+        )
     query = query.order_by(DagRun.partition_date, DagRun.run_id)
 
     runs = list(session.execute(query).all())
@@ -609,6 +614,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl dags get-details")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import functools
 import json
 import os
@@ -73,6 +74,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
+from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
@@ -167,6 +169,7 @@ from airflow.sdk.execution_time.task_runner import (
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
+    _run_execute_callable,
     _serialize_outlet_events,
     _xcom_push,
     detail_span,
@@ -2001,6 +2004,7 @@ class TestRuntimeTaskInstance:
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
             "partition_key": dr.partition_key,
+            "partition_date": dr.partition_date,
         }
 
     def test_partition_key_in_context(self, create_runtime_ti, mock_supervisor_comms):
@@ -2026,6 +2030,37 @@ class TestRuntimeTaskInstance:
         dr.partition_key = "some-partition"
         context = runtime_ti.get_template_context()
         assert context["partition_key"] == "some-partition"
+
+    def test_partition_date_in_context(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that partition_date from dag_run is exposed in the template context."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dr = runtime_ti._ti_context_from_server.dag_run
+
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        context = runtime_ti.get_template_context()
+
+        # Default: partition_date is None
+        assert context["partition_date"] is None
+
+        # Set partition_date on dag_run and verify it surfaces in context
+        partition_date = timezone.datetime(2026, 5, 20, 1, 0, 0)
+        dr.partition_date = partition_date
+        context = runtime_ti.get_template_context()
+        assert context["partition_date"] == partition_date
+
+        # Naive datetime is coerced to tz-aware so Jinja `| ds` / `| ts` filters
+        # operate on a real awareness boundary.
+        dr.partition_date = datetime(2026, 5, 20, 1, 0, 0)
+        context = runtime_ti.get_template_context()
+        assert context["partition_date"].tzinfo is not None
 
     def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
         """Ensure lazy-loaded attributes are not resolved until accessed."""
@@ -2293,6 +2328,39 @@ class TestRuntimeTaskInstance:
                             map_index=expected_map_index,
                         ),
                     )
+
+    @pytest.mark.asyncio
+    async def test_axcom_pull(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        spy_agency,
+    ):
+        """
+        Test that a task makes an expected call to the Supervisor to pull an XCom value asynchronously.
+        """
+        spy_agency.spy_on(deserialize)
+
+        task = BaseOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        xcom_value = "hello"
+        ser_value = BaseXCom.serialize_value(xcom_value)
+        mock_supervisor_comms.asend.return_value = XComResult(key="key", value=ser_value)
+
+        value = await runtime_ti.axcom_pull(key="key", task_ids="push_task", map_indexes=-1)
+
+        assert value == xcom_value
+        spy_agency.assert_spy_called_with(deserialize, ser_value)
+        mock_supervisor_comms.asend.assert_called_once_with(
+            GetXCom(
+                key="key",
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="push_task",
+                map_index=-1,
+            ),
+        )
 
     @pytest.mark.parametrize(
         ("task_ids", "map_indexes", "expected_value"),
@@ -5532,6 +5600,143 @@ class TestDetailSpan:
                         raise ValueError("boom")
 
 
+class TestRunExecuteCallable:
+    """Tests for ``_run_execute_callable``.
+
+    It runs the task's execute callable inside an isolated contextvars copy (with
+    the ExecutorSafeguard tracker set), applies the execution timeout when one is
+    configured, and wraps the call in a ``task.execute`` detail span.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _sampled_carrier_provider(self):
+        """Make new_dagrun_trace_carrier produce a SAMPLED carrier (see TestDetailSpan)."""
+        provider = TracerProvider()
+        with mock.patch(
+            "airflow._shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ):
+            yield
+
+    @staticmethod
+    def _make_task(execution_timeout=None):
+        task = mock.MagicMock(spec=BaseOperator)
+        task.execution_timeout = execution_timeout
+        return task
+
+    def test_runs_in_isolated_context_with_safeguard_tracker_set(self):
+        """The callable runs in an internal context copy that has the safeguard tracker set and does not leak."""
+        var = contextvars.ContextVar("marker")
+        var.set("outer")
+        task = self._make_task()
+        seen = {}
+
+        def execute(context):
+            var.set("inner")
+            seen["tracker"] = ExecutorSafeguard.tracker.get(None)
+            return context["value"] * 2
+
+        result = _run_execute_callable(context={"value": 21}, execute=execute, task=task)
+
+        assert result == 42
+        # The safeguard tracker is set to the task inside the copy used to run execute.
+        assert seen["tracker"] is task
+        # The mutation happened inside the copy, so it does not leak to the caller's context.
+        assert var.get() == "outer"
+        # The .set was confined to the copy, so the tracker never leaked to the caller's context.
+        assert ExecutorSafeguard.tracker.get(None) is not task
+        task.on_kill.assert_not_called()
+
+    def test_applies_execution_timeout(self):
+        """When a timeout is set and the callable overruns, AirflowTaskTimeout is raised and on_kill is called."""
+        task = self._make_task(execution_timeout=timedelta(milliseconds=10))
+
+        def execute(context):
+            time.sleep(2)
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, execute=execute, task=task)
+
+        task.on_kill.assert_called_once()
+
+    def test_fast_fails_when_timeout_already_elapsed(self):
+        """A non-positive timeout fast-fails before running the callable and still calls on_kill."""
+        task = self._make_task(execution_timeout=timedelta(seconds=-1))
+        execute = mock.MagicMock()
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, execute=execute, task=task)
+
+        execute.assert_not_called()
+        task.on_kill.assert_called_once()
+
+    def test_emits_task_execute_span_at_detail_level_2(self):
+        """At detail level 2, running the callable produces a recorded ``task.execute`` span."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        task = self._make_task()
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
+
+        assert result == "ok"
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "task.execute" in names
+
+    def test_operator_child_spans_nest_under_task_execute(self):
+        """Spans the operator emits during execute nest under ``task.execute``, not its caller.
+
+        The contextvars snapshot is taken inside ``_run_execute_callable`` after the
+        ``task.execute`` span is current, so a span started during execute parents to
+        ``task.execute`` rather than to the surrounding span.
+        """
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        task = self._make_task()
+
+        def execute(context):
+            with t.start_as_current_span("operator_child"):
+                return "ok"
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, execute=execute, task=task)
+
+        assert result == "ok"
+        spans = {s.name: s for s in exporter.get_finished_spans()}
+        assert spans["operator_child"].parent.span_id == spans["task.execute"].context.span_id
+
+    def test_no_task_execute_span_at_detail_level_1(self):
+        """At detail level 1, no ``task.execute`` span is recorded but the callable still runs."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=1)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        task = self._make_task()
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
+
+        assert result == "ok"
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "task.execute" not in names
+
+
 def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
     with DAG(dag_id="test_dag_add_result") as dag:
         task = PythonOperator(task_id="t", python_callable=lambda: 123)
@@ -5666,24 +5871,15 @@ class TestTaskInstanceStateOperations:
 
         mock_supervisor_comms.send.assert_any_call(DeleteTaskStateStore(ti_id=runtime_ti.id, key="job_id"))
 
-    @pytest.mark.parametrize(
-        ("call_kwargs", "expected_flag"),
-        [
-            pytest.param({}, False, id="default"),
-            pytest.param({"all_map_indices": True}, True, id="fleet-wipe"),
-        ],
-    )
-    def test_task_can_clear_state(self, call_kwargs, expected_flag, create_runtime_ti, mock_supervisor_comms):
+    def test_task_can_clear_state(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_state_store"].clear(**call_kwargs)
+                context["task_state_store"].clear()
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-        mock_supervisor_comms.send.assert_any_call(
-            ClearTaskStateStore(ti_id=runtime_ti.id, all_map_indices=expected_flag)
-        )
+        mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=runtime_ti.id))
 
     @staticmethod
     def _watcher_side_effect(msg=None, *args, **kwargs):
@@ -5951,6 +6147,28 @@ class TestTaskInstanceStateOperations:
         )
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_skips_backend_clear_when_no_custom_backend(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """clear_on_success does not call backend.clear() when no custom backend is configured."""
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        # no need to patch because default of _get_worker_state_store_backend() is None
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        sent_types = [
+            type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert ClearTaskStateStore not in sent_types
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
     def test_clear_on_success_clears_backend_without_comms_roundtrip(
         self, create_runtime_ti, mock_supervisor_comms
     ):
@@ -5964,8 +6182,15 @@ class TestTaskInstanceStateOperations:
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
 
-        with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
+        with (
+            mock.patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
+            mock.patch(
+                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 

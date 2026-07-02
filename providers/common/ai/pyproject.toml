@@ -69,7 +69,9 @@ dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.15.0",
     "apache-airflow-providers-standard>=1.12.1",
-    "pydantic-ai-slim>=1.99.0",
+    # Capped to 1.x: pydantic-ai 2.x changed the agent instrumentation API and breaks the provider.
+    # Remove the cap after migrating; tracked at https://github.com/apache/airflow/issues/69122
+    "pydantic-ai-slim>=1.99.0,<2",
 ]
 
 # The optional dependencies should be modified in place in the generated file
