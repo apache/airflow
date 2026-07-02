@@ -357,11 +357,9 @@ class AssetManager(LoggingMixin):
             ).unique()
 
             for asset_alias_model in asset_alias_models:
-                # Use a direct INSERT rather than ORM .append() to avoid lazy-loading the
-                # entire asset_events collection. On long-running deployments that collection
-                # can contain thousands of rows; loading it on the task-success hot path can
-                # leave DB connections idle-in-transaction for minutes, blocking other workers.
-                # This intentionally leaves asset_alias_model.asset_events unsynced in-session.
+                # Direct INSERT instead of ORM .append(), which would lazy-load the alias's
+                # full asset_events collection. Safe here because nothing reads
+                # asset_alias_model.asset_events again before commit.
                 session.execute(
                     insert(asset_alias_asset_event_association_table).values(
                         alias_id=asset_alias_model.id,

@@ -492,13 +492,8 @@ def ti_update_state(
                 extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
-        # Commit the TI state update now to release the task_instance row lock before
-        # running asset-event queries. The direct-INSERT fix in AssetManager removes
-        # the O(n) lazy-load on the alias-event table, but register_asset_changes_in_db
-        # also queries scheduled dags and inserts AssetDagRunQueue rows - all of which
-        # would otherwise hold the row lock and cause idle-in-transaction pile-up that
-        # exhausts API server memory and triggers OOMKill under high concurrency.
-        # The task outcome is durable from this point on.
+        # Commit now so the task_instance row lock is released before the asset-registration
+        # queries below run.
         session.commit()
     except DataError:
         # Let DataErrorHandler return a 422 (not the opaque 500 below).
@@ -536,10 +531,6 @@ def ti_update_state(
                     task_id=task_id,
                 )
 
-    # Asset registration runs outside the TI row lock. Failures are logged and counted;
-    # raising HTTP 500 here would be misleading because the task already succeeded and
-    # would make the worker retry a state update that has already completed. Durable
-    # retry/reconciliation for dropped asset events is out of scope for this hot-path fix.
     if (
         updated_state == TaskInstanceState.SUCCESS
         and isinstance(ti_patch_payload, TISuccessStatePayload)
@@ -672,8 +663,6 @@ def _create_ti_state_update_query_and_update_state(
                 retry_delay_override=ti_patch_payload.retry_delay_seconds,
                 retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
             )
-        elif isinstance(ti_patch_payload, TISuccessStatePayload):
-            pass  # Asset registration happens after the TI state is committed; see ti_update_state.
         try:
             _emit_task_span(ti, state=updated_state)
         except Exception:
