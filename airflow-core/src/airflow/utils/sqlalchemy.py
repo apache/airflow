@@ -702,6 +702,19 @@ def is_lock_not_available_error(error: OperationalError):
     return False
 
 
+def is_serialization_error(error: OperationalError) -> bool:
+    """
+    Check if the error is a transaction serialization failure or deadlock.
+
+    PostgreSQL-compatible databases report these as SQLSTATE 40001
+    (serialization_failure) and 40P01 (deadlock_detected). Both are transient:
+    the transaction is safe to retry.
+    """
+    # psycopg2 exposes the SQLSTATE as pgcode, psycopg 3 as sqlstate
+    db_err_code = getattr(error.orig, "pgcode", None) or getattr(error.orig, "sqlstate", None)
+    return db_err_code in ("40001", "40P01")
+
+
 def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
     """Create an SQLAlchemy-version-aware dialect keyword argument."""
     return {"dialect_names": (dialect,)}

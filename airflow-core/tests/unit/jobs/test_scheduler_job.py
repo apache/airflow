@@ -38,6 +38,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -10315,6 +10316,67 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
             .where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
         )
         assert running_count == 2
+
+
+class FakeDbError(Exception):
+    """Minimal stand-in for a database driver error carrying a pgcode attribute."""
+
+    def __init__(self, code):
+        super().__init__(code)
+        self.pgcode = code
+
+
+@pytest.mark.parametrize(
+    ("pgcode", "metric"),
+    [
+        ("40001", "scheduler.critical_section_conflict"),
+        ("40P01", "scheduler.critical_section_conflict"),
+        ("55P03", "scheduler.critical_section_busy"),
+    ],
+)
+def test_do_scheduling_survives_critical_section_conflicts(session, pgcode, metric):
+    """A serialization failure or busy lock in the critical section must not crash the scheduler."""
+    scheduler_job = Job()
+    job_runner = SchedulerJobRunner(job=scheduler_job)
+    job_runner.processor_agent = mock.MagicMock()
+
+    error = OperationalError("stmt", None, FakeDbError(pgcode))
+    with (
+        mock.patch.object(SchedulerJobRunner, "_critical_section_enqueue_task_instances", side_effect=error),
+        mock.patch("airflow._shared.observability.metrics.stats.incr") as mock_stats_incr,
+    ):
+        assert job_runner._do_scheduling(session) == 0
+
+    mock_stats_incr.assert_any_call(metric)
+
+
+def test_do_scheduling_serialization_conflict_discards_buffered_workloads(session):
+    """A commit-time serialization failure must remove buffered workloads from executor queues."""
+    mock_executor = mock.MagicMock(name="TestExecutor")
+    mock_executor.slots_available = 10
+    mock_executor.queued_tasks = {"old_key": "old_workload"}
+
+    scheduler_job = Job()
+    job_runner = SchedulerJobRunner(job=scheduler_job, executors=[mock_executor])
+    job_runner.processor_agent = mock.MagicMock()
+
+    def simulate_buffering_then_failure(session):
+        mock_executor.queued_tasks["new_key"] = "new_workload"
+        raise OperationalError("stmt", None, FakeDbError("40001"))
+
+    with (
+        mock.patch.object(
+            SchedulerJobRunner,
+            "_critical_section_enqueue_task_instances",
+            side_effect=simulate_buffering_then_failure,
+        ),
+        mock.patch("airflow._shared.observability.metrics.stats.incr") as mock_stats_incr,
+    ):
+        assert job_runner._do_scheduling(session) == 0
+
+    assert "old_key" in mock_executor.queued_tasks
+    assert "new_key" not in mock_executor.queued_tasks
+    mock_stats_incr.assert_any_call("scheduler.critical_section_conflict")
 
 
 class TestSchedulerJobQueriesCount:
