@@ -2075,6 +2075,27 @@ export const prefetchUseCalendarServiceGetCalendar = (queryClient: QueryClient, 
   partitionDateLte?: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }) });
 /**
+* Get Calendar Deadlines
+* Get aggregated deadline counts for a Dag, bucketed by deadline_time and missed status.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.granularity
+* @param data.deadlineTimeGte
+* @param data.deadlineTimeGt
+* @param data.deadlineTimeLte
+* @param data.deadlineTimeLt
+* @returns CalendarDeadlineCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseCalendarServiceGetCalendarDeadlines = (queryClient: QueryClient, { dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }: {
+  dagId: string;
+  deadlineTimeGt?: string;
+  deadlineTimeGte?: string;
+  deadlineTimeLt?: string;
+  deadlineTimeLte?: string;
+  granularity?: "hourly" | "daily";
+}) => queryClient.prefetchQuery({ queryKey: Common.UseCalendarServiceGetCalendarDeadlinesKeyFn({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }), queryFn: () => CalendarService.getCalendarDeadlines({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }) });
+/**
 * List Teams
 * @param data The data for the request.
 * @param data.limit
