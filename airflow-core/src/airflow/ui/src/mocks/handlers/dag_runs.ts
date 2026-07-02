@@ -18,6 +18,11 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
+const dagRunConfMatchesFilter = (
+  conf: Record<string, unknown> | null,
+  needle: string,
+): boolean => JSON.stringify(conf ?? {}).includes(needle);
+
 const dagRunBeforeFilter = {
   conf: null,
   dag_display_name: "test_dag",
@@ -38,7 +43,7 @@ const dagRunBeforeFilter = {
 };
 
 const dagRunInRange = {
-  conf: null,
+  conf: { env: "prod" },
   dag_display_name: "test_dag",
   dag_id: "test_dag",
   dag_run_id: "run_in_range",
@@ -56,13 +61,33 @@ const dagRunInRange = {
   triggering_user_name: "admin",
 };
 
+const dagRunEmptyConf = {
+  conf: {},
+  dag_display_name: "test_dag",
+  dag_id: "test_dag",
+  dag_run_id: "run_empty_conf",
+  dag_versions: [],
+  data_interval_end: null,
+  data_interval_start: null,
+  duration: 1.0,
+  end_date: "2025-01-16T00:00:01Z",
+  logical_date: "2025-01-16T00:00:00Z",
+  partition_key: null,
+  run_after: "2025-01-16T00:00:00Z",
+  run_type: "manual",
+  start_date: "2025-01-16T00:00:00Z",
+  state: "success",
+  triggering_user_name: "admin",
+};
+
+const allRuns = [dagRunBeforeFilter, dagRunInRange, dagRunEmptyConf];
+
 export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/:dagId/dagRuns", ({ request }) => {
     const url = new URL(request.url);
     const logicalDateGte = url.searchParams.get("logical_date_gte");
     const logicalDateLte = url.searchParams.get("logical_date_lte");
-
-    const allRuns = [dagRunBeforeFilter, dagRunInRange];
+    const confContains = url.searchParams.get("conf_contains");
 
     const filtered = allRuns.filter((run) => {
       const logicalDate = new Date(run.logical_date);
@@ -71,6 +96,9 @@ export const handlers: Array<HttpHandler> = [
         return false;
       }
       if (logicalDateLte !== null && logicalDate > new Date(logicalDateLte)) {
+        return false;
+      }
+      if (confContains !== null && confContains !== "" && !dagRunConfMatchesFilter(run.conf, confContains)) {
         return false;
       }
 
