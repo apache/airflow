@@ -724,7 +724,7 @@ class SerializedDagModel(Base):
                 )
             )
 
-        if dag_version and not has_task_instances:
+        if dag_version and not has_task_instances and serialized_dag_hash is not None:
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
