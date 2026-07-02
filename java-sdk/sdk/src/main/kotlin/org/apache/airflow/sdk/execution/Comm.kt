@@ -99,6 +99,27 @@ class CoordinatorComm(
 ) {
   internal companion object {
     private val logger = Logger(CoordinatorComm::class)
+
+    // A frame can at most use 1/8 of available memory. This is a magic number.
+    private const val MAX_HEAP_FRACTION_PER_FRAME = 8L
+
+    /**
+     * Upper bound on the wire size of a single inbound frame.
+     *
+     * This is used to reject oversized frames before [Frame.decode] allocates.
+     * An otherwise unrecoverable OOM can therefore be turned into a catchable
+     * [FrameProcessingException].
+     *
+     * Deriving from [Runtime.maxMemory] means this value respects `-Xmx`. The
+     * value is always clamped to [Frame.MAX_FRAME_LENGTH] from the protocol.
+     */
+    private val MAX_INBOUND_FRAME_SIZE: Long =
+      Runtime
+        .getRuntime()
+        .maxMemory()
+        .let {
+          if (it == Long.MAX_VALUE) Frame.MAX_FRAME_LENGTH else it / MAX_HEAP_FRACTION_PER_FRAME
+        }.coerceAtMost(Frame.MAX_FRAME_LENGTH)
   }
 
   private val nextId = AtomicInt(0)
@@ -120,6 +141,15 @@ class CoordinatorComm(
     }
 
     val declaredLength = Frame.parseLengthPrefix(prefix)
+    if (declaredLength.toLong() > MAX_INBOUND_FRAME_SIZE) {
+      logger.error(
+        "Inbound frame exceeds size limit",
+        mapOf("length" to declaredLength, "limit" to MAX_INBOUND_FRAME_SIZE),
+      )
+      throw FrameProcessingException(
+        "Inbound frame of $declaredLength bytes exceeds limit of $MAX_INBOUND_FRAME_SIZE bytes",
+      )
+    }
     val input = ChannelFrameInput(reader, declaredLength, currentCoroutineContext())
 
     val frame =

@@ -31,7 +31,7 @@ import org.msgpack.core.buffer.MessageBuffer
 import org.msgpack.core.buffer.MessageBufferInput
 
 object Frame {
-  private const val MAX_FRAME_LENGTH = 0xFFFF_FFFFL
+  internal const val MAX_FRAME_LENGTH = 0xFFFF_FFFFL
 
   private val mapper =
     ObjectMapper().apply {
