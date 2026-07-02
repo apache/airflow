@@ -54,6 +54,7 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoun
 
 if TYPE_CHECKING:
     from azure.core.credentials_async import AsyncTokenCredential
+    from azure.core.pipeline.transport._aiohttp import AioHttpTransport
     from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.response_handler import NativeResponseType
@@ -408,8 +409,10 @@ class KiotaRequestAdapterHook(BaseHook):
         credential = cast(
             "ClientSecretCredential | CertificateCredential", access_token_provider._credentials
         )
-        transport = credential._client._pipeline._transport
+        transport = cast("AioHttpTransport", credential._client._pipeline._transport)
 
+        if not transport._has_been_opened and transport.session is None:
+            return True
         if transport.session is not None:
             return transport.session.closed
         return False
@@ -624,7 +627,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 request_info=request_info,
                 error_map=self.error_mapping(),
             )
-        except Exception as e:
+        except (RuntimeError, ValueError) as e:
             self.log.warning(
                 "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
                 self.conn_id,

@@ -77,7 +77,7 @@ class TestKiotaRequestAdapterHook:
 
     @classmethod
     def mock_authentication_provider(self, closed: bool) -> AuthenticationProvider:
-        transport = Mock(spec=AioHttpTransport)
+        transport = Mock(spec=AioHttpTransport, _has_been_opened=not closed)
         transport.session = Mock(spec=ClientSession, closed=closed)
         pipeline = Mock(spec=AsyncPipelineClient)
         pipeline._transport = transport
