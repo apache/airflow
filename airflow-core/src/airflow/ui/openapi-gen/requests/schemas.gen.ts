@@ -809,11 +809,14 @@ export const $BackfillDagRunResponse = {
             minimum: 0,
             title: 'Backfill Id'
         },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
         dag_run_id: {
             anyOf: [
                 {
-                    type: 'integer',
-                    minimum: 0
+                    type: 'string'
                 },
                 {
                     type: 'null'
@@ -868,21 +871,10 @@ export const $BackfillDagRunResponse = {
                     type: 'null'
                 }
             ]
-        },
-        dag_run_run_id: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Dag Run Run Id'
         }
     },
     type: 'object',
-    required: ['id', 'backfill_id', 'dag_run_id', 'logical_date', 'partition_key', 'sort_ordinal', 'exception_reason'],
+    required: ['id', 'backfill_id', 'dag_id', 'logical_date', 'partition_key', 'sort_ordinal', 'exception_reason'],
     title: 'BackfillDagRunResponse',
     description: 'Serializer for a single BackfillDagRun entry with joined DagRun state.'
 } as const;

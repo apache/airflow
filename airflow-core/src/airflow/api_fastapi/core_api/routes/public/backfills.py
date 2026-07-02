@@ -138,7 +138,8 @@ def list_backfill_dag_runs(
     select_stmt, total_entries = paginated_select(
         statement=select(BackfillDagRun)
         .where(BackfillDagRun.backfill_id == backfill_id)
-        .options(joinedload(BackfillDagRun.dag_run)),
+        # Load backfill for dag_id; dag_run may be null for skipped slots.
+        .options(joinedload(BackfillDagRun.backfill), joinedload(BackfillDagRun.dag_run)),
         order_by=order_by,
         offset=offset,
         limit=limit,

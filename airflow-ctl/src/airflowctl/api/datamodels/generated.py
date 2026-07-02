@@ -130,10 +130,6 @@ class AsyncConnectionTestResponse(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
 
 
-class DagRunId(RootModel[int]):
-    root: Annotated[int, Field(ge=0, title="Dag Run Id")]
-
-
 class BaseInfoResponse(BaseModel):
     """
     Base info serializer for responses.
@@ -1419,13 +1415,13 @@ class BackfillDagRunResponse(BaseModel):
 
     id: Annotated[int, Field(ge=0, title="Id")]
     backfill_id: Annotated[int, Field(ge=0, title="Backfill Id")]
-    dag_run_id: Annotated[DagRunId | None, Field(title="Dag Run Id")] = None
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     sort_ordinal: Annotated[int, Field(title="Sort Ordinal")]
     exception_reason: Annotated[str | None, Field(title="Exception Reason")] = None
     dag_run_state: DagRunState | None = None
-    dag_run_run_id: Annotated[str | None, Field(title="Dag Run Run Id")] = None
 
 
 class BackfillPostBody(BaseModel):

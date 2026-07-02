@@ -75,13 +75,13 @@ class BackfillDagRunResponse(BaseModel):
 
     id: NonNegativeInt
     backfill_id: NonNegativeInt
-    dag_run_id: NonNegativeInt | None
+    dag_id: str = Field(validation_alias=AliasPath("backfill", "dag_id"))
+    dag_run_id: str | None = Field(default=None, validation_alias=AliasPath("dag_run", "run_id"))
     logical_date: datetime | None
     partition_key: str | None
     sort_ordinal: int
     exception_reason: str | None
     dag_run_state: DagRunState | None = Field(default=None, validation_alias=AliasPath("dag_run", "state"))
-    dag_run_run_id: str | None = Field(default=None, validation_alias=AliasPath("dag_run", "run_id"))
 
 
 class BackfillDagRunCollectionResponse(BaseModel):
