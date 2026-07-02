@@ -313,6 +313,7 @@ if TYPE_CHECKING:
         map_index_template: str | None = ...,
         max_active_tis_per_dag: int | None = ...,
         max_active_tis_per_dagrun: int | None = ...,
+        task_concurrency: int | None = ...,
         on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
         on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
