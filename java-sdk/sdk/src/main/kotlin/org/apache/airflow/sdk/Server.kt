@@ -33,6 +33,9 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
+import org.apache.airflow.sdk.execution.comm.ErrorResponse
+import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.runTask
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
 
@@ -147,10 +150,11 @@ class Server(
           aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
             logger.debug("Connected comm", mapOf("addr" to comm))
             CoordinatorComm(
-              bundle,
               socket.openReadChannel(),
               socket.openWriteChannel(autoFlush = true),
-            ).startProcessing()
+            ).use { coordinator ->
+              processStartup(bundle, coordinator)
+            }
           }
         } finally {
           deferral.complete(Unit)
@@ -164,4 +168,19 @@ class Server(
         }
       }
     }
+
+  internal suspend fun processStartup(
+    bundle: Bundle,
+    coordinator: CoordinatorComm,
+  ) {
+    val frame = coordinator.readMessage()
+    when (val body = frame.body) {
+      is StartupDetails -> {
+        val result = runTask(bundle, body, coordinator)
+        coordinator.communicate<Unit>(result)
+      }
+      is ErrorResponse -> throw ApiError("[${body.error}] ${body.detail}")
+      else -> logger.debug("Ignoring unexpected initial frame", mapOf("id" to frame.id))
+    }
+  }
 }
