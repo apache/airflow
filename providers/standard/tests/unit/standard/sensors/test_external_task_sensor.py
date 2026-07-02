@@ -1445,6 +1445,46 @@ class TestExternalTaskSensorV3:
         assert exc.value.trigger.external_task_ids == ["test_task"]
         assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
 
+    def test_poke_interval_set_on_init(self):
+        """Test that poke_interval is set on init and poll_interval is NOT."""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            poke_interval=30,
+        )
+
+        assert sensor.poke_interval == 30
+        assert not hasattr(sensor, "poll_interval")  # No longer supported
+
+    def test_poll_interval_raises_on_init(self):
+        """Test that the removed poll_interval parameter raises a TypeError on instantiation."""
+        with pytest.raises(TypeError, match="Invalid arguments were passed to ExternalTaskSensor"):
+            ExternalTaskSensor(
+                task_id=TASK_ID,
+                external_task_id=EXTERNAL_TASK_ID,
+                external_dag_id=EXTERNAL_DAG_ID,
+                poll_interval=30,  # No longer supported
+            )
+
+    @pytest.mark.execution_timeout(10)
+    def test_deferrable_poke_interval_passed_to_trigger(self, dag_maker):
+        """Test that poke_interval is correctly forwarded to WorkflowTrigger when deferrable=True."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                poke_interval=30,
+            )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=self.context)
+
+        assert isinstance(exc.value.trigger, WorkflowTrigger)
+        assert exc.value.trigger.poke_interval == 30
+
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_only_dag_id(self, dag_maker):
         """Test that the sensor works correctly when only external_dag_id is provided."""
@@ -1549,6 +1589,22 @@ class TestExternalTaskAsyncSensor:
             sensor.execute(context=context)
 
         assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
+
+    def test_deferrable_poke_interval_passed_to_trigger(self):
+        """Test that poke_interval flows through to WorkflowTrigger on both AF2 and AF3 paths."""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+            poke_interval=30,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute(context={"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE})
+
+        assert isinstance(exc.value.trigger, WorkflowTrigger)
+        assert exc.value.trigger.poke_interval == 30
 
     def test_defer_and_fire_failed_state_trigger(self):
         """Tests that an ExternalTaskNotFoundError is raised in case of error event"""
@@ -1663,6 +1719,31 @@ class TestExternalTaskAsyncSensor:
         sensor.execute_complete(context=context, event={"status": "success"})
 
         assert sensor.external_dates_filter == DEFAULT_DATE.isoformat()
+
+    def test_poke_interval_set_on_init(self):
+        """Test that poke_interval is set on init and poll_interval is NOT."""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            poke_interval=30,
+        )
+
+        assert sensor.poke_interval == 30
+        assert not hasattr(sensor, "poll_interval")  # No longer supported
+
+    def test_poll_interval_raises_on_init(self):
+        """Test that the removed poll_interval parameter raises an exception on instantiation."""
+        # Determine the exception type based on Airflow version (AF3 removed most usage of AirflowException)
+        exception_type = TypeError if AIRFLOW_V_3_0_PLUS else AirflowException
+
+        with pytest.raises(exception_type, match="Invalid arguments were passed to ExternalTaskSensor"):
+            ExternalTaskSensor(
+                task_id=TASK_ID,
+                external_task_id=EXTERNAL_TASK_ID,
+                external_dag_id=EXTERNAL_DAG_ID,
+                poll_interval=30,  # No longer supported
+            )
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Needs Flask app context fixture for AF 2")
