@@ -191,6 +191,7 @@ class TestDatabricksExecutionTrigger:
                 "caller": "DatabricksExecutionTrigger",
                 "workflow_run_id": None,
                 "databricks_task_key": None,
+                "max_retries": None,
             },
         )
 
@@ -395,9 +396,6 @@ class TestDatabricksExecutionTrigger:
     async def test_run_workflow_task_failed_attempt_waits_for_parent(
         self, mock_get_run_state, mock_get_run_tasks, mock_get_run, mock_get_run_output, mock_sleep
     ):
-        # An attempt that has failed (its Databricks-native retries exhausted) is not reported as a
-        # failure while the parent workflow run is still active: the trigger keeps polling until the
-        # parent run is itself terminal, so sibling tasks in the same run keep running meanwhile.
         mock_get_run_tasks.return_value = [
             {"run_id": TASK_RUN_ID1, "task_key": TASK_RUN_ID1_KEY, "start_time": 1}
         ]
@@ -437,6 +435,54 @@ class TestDatabricksExecutionTrigger:
             )
         ]
         mock_sleep.assert_called_once_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.get_run_tasks")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_run_workflow_task_reports_failure_once_retries_exhausted(
+        self, mock_get_run_state, mock_get_run_tasks, mock_sleep, mock_get_run, mock_get_run_output
+    ):
+        mock_get_run_tasks.return_value = [
+            {"run_id": TASK_RUN_ID1, "task_key": TASK_RUN_ID1_KEY, "start_time": 1, "attempt_number": 1}
+        ]
+        mock_get_run_state.return_value = RunState(
+            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"
+        )
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+
+        trigger = DatabricksExecutionTrigger(
+            run_id=TASK_RUN_ID1,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
+            workflow_run_id=RUN_ID,
+            databricks_task_key=TASK_RUN_ID1_KEY,
+            max_retries=1,
+        )
+
+        events = [event async for event in trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "run_id": TASK_RUN_ID1,
+                    "run_page_url": RUN_PAGE_URL,
+                    "run_state": RunState(
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"
+                    ).to_json(),
+                    "repair_run": False,
+                    "errors": [
+                        {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
+                        {"task_key": TASK_RUN_ID3_KEY, "run_id": TASK_RUN_ID3, "error": ERROR_MESSAGE},
+                    ],
+                }
+            )
+        ]
+        mock_sleep.assert_not_called()
+        mock_get_run_state.assert_called_once_with(TASK_RUN_ID1)
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.cancel_run")

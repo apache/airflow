@@ -75,8 +75,8 @@ workflow task group.
 
 Inside a
 :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`,
-a task that exhausts its Databricks-native retries is reported as failed only once the parent
-workflow run reaches a terminal state. Until then the Airflow task keeps waiting (or deferring),
-because Databricks may still launch a retry attempt under the same ``task_key`` and there is no
-per-task "retries exhausted" signal before the run terminates. Sibling tasks in the run continue
-independently.
+a task that exhausts a finite ``max_retries`` is reported as failed as soon as its final failed
+attempt is observed, so downstream failure handling is not delayed by long-running sibling tasks.
+Only unlimited retries (``max_retries=-1``) keep the Airflow task waiting (or deferring) until the
+parent workflow run reaches a terminal state, because Databricks may still launch a retry attempt
+under the same ``task_key`` until then. Sibling tasks in the run continue independently.
