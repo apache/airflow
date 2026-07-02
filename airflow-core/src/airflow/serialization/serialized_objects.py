@@ -974,6 +974,15 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if cls._is_excluded(v, k, op):
                     continue
 
+                if k == "retry_policy":
+                    # A RetryPolicy has no serializer, so serializing it falls back to
+                    # str(obj) -- which embeds the object's memory address and makes the
+                    # serialized DAG non-deterministic (a new DagVersion every parse). Mirror
+                    # the non-mapped path and keep only a has_retry_policy flag; the worker
+                    # re-parses the DAG source for the live policy.
+                    if bool(v):
+                        serialized_op["partial_kwargs"]["has_retry_policy"] = True
+                    continue
                 if k in _OPERATOR_CALLBACK_FIELDS:
                     if bool(v):
                         serialized_op["partial_kwargs"][f"has_{k}"] = True

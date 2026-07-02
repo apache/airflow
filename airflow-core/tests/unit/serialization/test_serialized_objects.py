@@ -1309,6 +1309,59 @@ class TestRetryPolicySerialization:
         task = deserialized.task_dict["op_no_policy"]
         assert task.has_retry_policy is False
 
+    def test_mapped_task_retry_policy_serializes_as_flag(self):
+        """A mapped task's retry_policy must serialize as has_retry_policy, not the object."""
+        import json
+
+        from airflow.sdk import DAG, task
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        policy = ExceptionRetryPolicy(
+            rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="bad data")],
+        )
+
+        with DAG(dag_id="test_mapped_retry_policy_ser", start_date=DEFAULT_DATE) as dag:
+
+            @task(retries=3, retry_policy=policy)
+            def mapped(x):
+                return x
+
+            mapped.expand(x=[1, 2, 3])
+
+        serialized = DagSerialization.serialize_dag(dag)
+        # The RetryPolicy object must never be embedded -- str(obj) leaks a memory address.
+        assert "ExceptionRetryPolicy object at 0x" not in json.dumps(serialized)
+
+        deserialized = DagSerialization.deserialize_dag(serialized)
+        assert deserialized.task_dict["mapped"].has_retry_policy is True
+
+    def test_mapped_task_retry_policy_serialization_is_deterministic(self):
+        """Serializing the same mapped-task-with-policy DAG twice yields identical output.
+
+        Regression test: the RetryPolicy object was serialized via str(obj), embedding a
+        per-process memory address, so every re-parse produced a different serialized DAG
+        (and a spurious new DagVersion).
+        """
+        from airflow.sdk import DAG, task
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        def build():
+            policy = ExceptionRetryPolicy(
+                rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL)],
+            )
+            with DAG(dag_id="test_mapped_retry_policy_determinism", start_date=DEFAULT_DATE) as dag:
+
+                @task(retries=3, retry_policy=policy)
+                def mapped(x):
+                    return x
+
+                mapped.expand(x=[1, 2, 3])
+            return dag
+
+        assert DagSerialization.serialize_dag(build()) == DagSerialization.serialize_dag(build())
+
 
 class TestKubernetesImportAvoidance:
     """Test that serialization doesn't import kubernetes unnecessarily."""
