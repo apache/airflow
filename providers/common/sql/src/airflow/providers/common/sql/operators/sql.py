@@ -37,6 +37,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -456,6 +457,57 @@ class BaseSQLOperator(BaseOperator):
         return operator_lineage
 
 
+class _ReplayCursor:
+    """
+    Read-only stand-in for a DBAPI cursor used by deferrable :class:`SQLExecuteQueryOperator` handlers.
+
+    In deferrable mode the query runs in the triggerer; the rows it fetched (and the cursor
+    descriptions) are returned in the ``TriggerEvent`` and replayed here so the handler runs on the
+    worker, where it is defined, rather than in the triggerer's async event loop. Only the read side of
+    a cursor is available: live-connection features (server-side/streaming cursors, LOB locators,
+    ``.connection``, ``.scroll``, ``.nextset``, ``.copy_expert``, follow-up queries) are unsupported and
+    raise :class:`AttributeError` pointing at ``deferrable=False``.
+    """
+
+    def __init__(
+        self,
+        rows: list[Any] | None,
+        description: Sequence[Sequence] | None = None,
+        rowcount: int | None = None,
+    ) -> None:
+        self._rows = list(rows) if rows is not None else []
+        self.description = description
+        self.rowcount = rowcount if rowcount is not None else len(self._rows)
+        self.arraysize = 1
+
+    def fetchall(self) -> list[Any]:
+        rows, self._rows = self._rows, []
+        return rows
+
+    def fetchone(self) -> Any | None:
+        return self._rows.pop(0) if self._rows else None
+
+    def fetchmany(self, size: int | None = None) -> list[Any]:
+        size = self.arraysize if size is None else size
+        chunk, self._rows = self._rows[:size], self._rows[size:]
+        return chunk
+
+    def __iter__(self):
+        while self._rows:
+            yield self._rows.pop(0)
+
+    def close(self) -> None:
+        self._rows = []
+
+    def __getattr__(self, name: str) -> NoReturn:
+        raise AttributeError(
+            f"'{name}' is not available on a deferrable SQL handler's cursor. In deferrable mode the "
+            f"result set is replayed on the worker, so live-cursor features (a live connection, "
+            f"server-side/streaming cursors, LOB locators, .scroll, .nextset, .copy_expert, follow-up "
+            f"queries) are unsupported. Set deferrable=False to use a handler that needs a live cursor."
+        )
+
+
 class SQLExecuteQueryOperator(BaseSQLOperator):
     """
     Executes SQL code in a specific database.
@@ -470,6 +522,13 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param autocommit: (optional) if True, each command is automatically committed (default: False).
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
+        In deferrable mode the query runs in the triggerer and the handler is applied on the worker over a
+        replayed, read-only cursor (``fetchall``/``fetchone``/``fetchmany``/``description``/``rowcount``).
+        Handlers that need a live cursor -- server-side/streaming cursors, LOB locators,
+        ``cursor.connection``, ``.scroll``, ``.nextset``, ``.copy_expert`` or follow-up queries on the same
+        connection -- are not supported with ``deferrable=True``; use ``deferrable=False`` for those. The
+        whole result set is materialized into the ``TriggerEvent``, so very large results are best fetched
+        with ``deferrable=False`` as well.
     :param output_processor: (optional) the function that will be applied to the result
         (default: default_output_processor).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
@@ -482,6 +541,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param requires_result_fetch: (optional) if True, ensures that query results are fetched before
         completing execution. If `do_xcom_push` is True, results are fetched automatically,
         making this parameter redundant.  (default: False).
+    :param deferrable: (optional) Run operator in the deferrable mode.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -499,7 +559,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         sql: str | list[str],
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
-        handler: Callable[[Any], list[tuple] | None] = fetch_all_handler,
+        handler: Callable[[Any], list[tuple] | None] | None = fetch_all_handler,
         output_processor: (
             Callable[
                 [list[Any], list[Sequence[Sequence] | None]],
@@ -513,6 +573,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
         requires_result_fetch: bool = False,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -525,6 +586,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
         self.requires_result_fetch = requires_result_fetch
+        self.deferrable = deferrable
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -554,29 +616,69 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
-        hook = self.get_db_hook()
-        if self.split_statements is not None:
-            extra_kwargs = {"split_statements": self.split_statements}
+        if self.deferrable:
+            self.defer(
+                trigger=SQLExecuteQueryTrigger(
+                    sql=self.sql,
+                    conn_id=self.conn_id,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    fetch_results=self._should_run_output_processing() or self.requires_result_fetch,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                ),
+                method_name="execute_complete",
+            )
         else:
-            extra_kwargs = {}
-        output = hook.run(
-            sql=self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters,
-            handler=self.handler
-            if self._should_run_output_processing() or self.requires_result_fetch
-            else None,
-            return_last=self.return_last,
-            **extra_kwargs,
-        )
-        if not self._should_run_output_processing():
+            hook = self.get_db_hook()
+            if self.split_statements is not None:
+                extra_kwargs = {"split_statements": self.split_statements}
+            else:
+                extra_kwargs = {}
+            output = hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=self.handler
+                if self._should_run_output_processing() or self.requires_result_fetch
+                else None,
+                return_last=self.return_last,
+                **extra_kwargs,
+            )
+            if not self._should_run_output_processing():
+                return None
+            if return_single_query_results(self.sql, self.return_last, self.split_statements):
+                # For simplicity, we pass always list as input to _process_output, regardless if
+                # single query results are going to be returned, and we return the first element
+                # of the list in this case from the (always) list returned by _process_output
+                return self._process_output([output], hook.descriptions)[-1]
+            result = self._process_output(output, hook.descriptions)
+            self.log.info("result: %s", result)
+            return result
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
+        if event is None:
+            raise AirflowException("Unknown error in SQLExecuteQueryTrigger")
+        if event.get("status") == "error":
+            raise AirflowException(event.get("message", "Unknown error in SQLExecuteQueryTrigger"))
+        self.log.info("SQL query executed successfully.")
+        results = event.get("results")
+        if not self._should_run_output_processing() or results is None:
             return None
+        descriptions: list[Sequence[Sequence] | None] = event.get("descriptions") or []
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
-            # For simplicity, we pass always list as input to _process_output, regardless if
-            # single query results are going to be returned, and we return the first element
-            # of the list in this case from the (always) list returned by _process_output
-            return self._process_output([output], hook.descriptions)[-1]
-        result = self._process_output(output, hook.descriptions)
+            # The trigger returns the rows of a single statement; apply the handler on the worker, where
+            # it is defined, over a replayed cursor rather than in the triggerer's event loop.
+            rows = [results] if isinstance(results, str) else results
+            description = descriptions[0] if descriptions else None
+            output = self.handler(_ReplayCursor(rows, description)) if self.handler else rows
+            result = self._process_output([output], [description])[-1]
+        else:
+            outputs = []
+            for index, rows in enumerate(results):
+                description = descriptions[index] if index < len(descriptions) else None
+                outputs.append(self.handler(_ReplayCursor(rows, description)) if self.handler else rows)
+            result = self._process_output(outputs, descriptions or [None] * len(outputs))
         self.log.info("result: %s", result)
         return result
 
