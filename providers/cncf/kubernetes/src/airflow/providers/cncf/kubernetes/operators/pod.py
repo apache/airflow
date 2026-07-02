@@ -1337,7 +1337,12 @@ class KubernetesPodOperator(BaseOperator):
         if not pod:
             return False
 
-        remote_pod = self.pod_manager.read_pod(pod)
+        try:
+            remote_pod = self.pod_manager.read_pod(pod)
+        except ApiException as e:
+            if e.status == 404:
+                return False
+            raise e
 
         return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
 
