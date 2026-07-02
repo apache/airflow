@@ -155,6 +155,8 @@ def _compile_output_format_regex(
 class _BaseTemporalMapper(PartitionMapper):
     """Base class for Temporal Partition Mappers."""
 
+    expected_decoded_type: ClassVar[type] = datetime
+
     default_output_format: str
 
     def __init__(
