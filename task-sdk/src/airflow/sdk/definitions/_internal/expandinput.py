@@ -151,9 +151,13 @@ class BatchedExpandInput(DecoratedExpandInput):
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "batched"
 
-    def __init__(self, expand_input: ExpandInput, size: int):
+    def __init__(self, expand_input: ExpandInput, size: int | XComArg):
         super().__init__(expand_input=expand_input)
         self.size = size
+
+    def _resolve_size(self, context: Mapping[str, Any]):
+        if isinstance(self.size, XComArg):
+            self.size = int(self.size.resolve(context))
 
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
         self._resolve_size(context)
