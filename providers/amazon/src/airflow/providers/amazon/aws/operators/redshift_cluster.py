@@ -837,6 +837,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param deferrable: Run operator in the deferrable mode.
     :param max_attempts: (Deferrable mode only) The maximum number of attempts to be made
+    :param resume_if_paused: If ``True``, resume a paused cluster and wait for it
+        to become ``available`` before deleting it. Defaults to ``False``.
     """
 
     template_fields: Sequence[str] = aws_template_fields(
@@ -856,6 +858,7 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         poll_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         max_attempts: int = 30,
+        resume_if_paused: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -871,8 +874,52 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         self._attempt_interval = 15
         self.deferrable = deferrable
         self.max_attempts = max_attempts
+        self.resume_if_paused = resume_if_paused
+
+    def _resume_if_paused(self) -> None:
+        """
+        Resume the cluster if it is paused.
+
+        A paused Redshift cluster cannot be deleted. If the cluster is currently paused, resume it
+        and wait until it reaches the ``available`` state before continuing.
+        """
+        # Gated behind the opt-in ``resume_if_paused`` flag: resume and delete are two separate,
+        # non-transactional AWS calls, so a failure between them would leave the cluster running.
+        try:
+            cluster_state = self.hook.cluster_status(cluster_identifier=self.cluster_identifier)
+        except self.hook.conn.exceptions.ClusterNotFoundFault:
+            self.log.info(
+                "Cluster %s not found while checking whether resume is required.",
+                self.cluster_identifier,
+            )
+            return
+
+        if cluster_state != "paused":
+            self.log.info(
+                "Cluster %s is in state %s; skipping resume.",
+                self.cluster_identifier,
+                cluster_state,
+            )
+            return
+
+        self.log.info(
+            "Cluster %s is paused; resuming it before deletion (a paused cluster cannot be deleted).",
+            self.cluster_identifier,
+        )
+        self.hook.conn.resume_cluster(ClusterIdentifier=self.cluster_identifier)
+        self.hook.conn.get_waiter("cluster_available").wait(
+            ClusterIdentifier=self.cluster_identifier,
+            WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": self.max_attempts},
+        )
 
     def execute(self, context: Context):
+        # A paused cluster cannot be deleted; optionally resume it first (otherwise the retry loop
+        # below would exhaust against InvalidClusterStateFault and the cluster would be leaked).
+        # Opt-in (resume_if_paused) because resume+delete is not transactional -- see
+        # _resume_if_paused.
+        if self.resume_if_paused:
+            self._resume_if_paused()
+
         while self._attempts:
             try:
                 self.hook.delete_cluster(
