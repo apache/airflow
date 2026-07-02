@@ -23,6 +23,7 @@ import warnings
 
 import urllib3.util
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
@@ -124,7 +125,7 @@ def _enable_tcp_keepalive(configuration: Configuration | None = None) -> None:
     """
     warnings.warn(
         "_enable_tcp_keepalive is deprecated, use enable_tcp_keepalive(configuration) instead.",
-        DeprecationWarning,
+        AirflowProviderDeprecationWarning,
         stacklevel=2,
     )
     if configuration is None:
