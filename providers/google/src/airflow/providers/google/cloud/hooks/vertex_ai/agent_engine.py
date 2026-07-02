@@ -64,7 +64,12 @@ def serialize_value(value: Any) -> Any:
 
 
 class AgentEngineHook(GoogleBaseHook):
-    """Hook for Google Cloud Vertex AI Agent Engine APIs."""
+    """
+    Hook for Google Cloud Vertex AI Agent Engine APIs.
+
+    Wraps the ``agent_engines`` module of the Vertex AI SDK client:
+    https://cloud.google.com/python/docs/reference/agentplatform/latest/vertexai._genai.agent_engines.AgentEngines
+    """
 
     def __init__(
         self,

@@ -29,6 +29,9 @@ request predictions with Vertex AI.
 Managing Agent Engines
 ^^^^^^^^^^^^^^^^^^^^^^
 
+The operators below manage `Vertex AI Agent Engine
+<https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview>`__ resources.
+
 To create a Vertex AI Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.CreateAgentEngineOperator`.
 
