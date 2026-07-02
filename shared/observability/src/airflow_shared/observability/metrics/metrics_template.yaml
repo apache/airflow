@@ -387,12 +387,6 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.duplicate_dag_id"
-    description: "Number of Dags overwritten because their dag_id is also registered from another file"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "dag_processing.total_parse_time"
     description: "Seconds taken to scan and import ``dag_processing.file_path_queue_size`` Dag files"
     type: "gauge"

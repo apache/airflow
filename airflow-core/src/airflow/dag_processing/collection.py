@@ -35,7 +35,6 @@ from sqlalchemy import delete, false, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
-from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -366,7 +365,6 @@ def _build_duplicate_dag_id_warnings(
             existing_fileloc=existing.relative_fileloc,
             existing_bundle=existing.bundle_name,
         )
-        stats.incr("dag_processing.duplicate_dag_id", tags={"dag_id": dag.dag_id})
         warnings.add(DagWarning(dag.dag_id, DagWarningType.DUPLICATE_DAG_ID, message))
 
     return warnings

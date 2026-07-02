@@ -773,9 +773,8 @@ class TestUpdateDagParsingResults:
         new_serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
         assert new_serialized_dags_count == 1
 
-    @patch("airflow.dag_processing.collection.stats.incr")
     @pytest.mark.usefixtures("clean_db")
-    def test_duplicate_dag_id_creates_dag_warning(self, mock_stats_incr, testing_dag_bundle, session):
+    def test_duplicate_dag_id_creates_dag_warning(self, testing_dag_bundle, session):
         session.add(
             DagModel(
                 dag_id="duplicated_dag",
@@ -811,9 +810,6 @@ class TestUpdateDagParsingResults:
         assert warning is not None
         assert "existing.py" in warning.message
         assert "overwritten" in warning.message
-        mock_stats_incr.assert_called_once_with(
-            "dag_processing.duplicate_dag_id", tags={"dag_id": "duplicated_dag"}
-        )
 
     @pytest.mark.usefixtures("clean_db")
     def test_duplicate_dag_id_warning_is_removed_when_dag_file_matches(self, testing_dag_bundle, session):
