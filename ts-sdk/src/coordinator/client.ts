@@ -31,8 +31,14 @@ import type {
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
 
-function toWireMapIndex(m: number | null | undefined): number | null {
-  return m == null || m < 0 ? null : m;
+function resolveWireMapIndex(
+  requestedMapIndex: number | null | undefined,
+  contextMapIndex: number,
+): number | null {
+  // `mapIndex` is nullable, so only use the context value when the user did
+  // not provide one. If the user passes null, send null to the supervisor.
+  const mapIndex = requestedMapIndex === undefined ? contextMapIndex : requestedMapIndex;
+  return mapIndex == null || mapIndex < 0 ? null : mapIndex;
 }
 
 function fromWireConnection(body: WireConnectionResult): ConnectionResult {
@@ -105,7 +111,7 @@ export function createCoordinatorClient(
         dag_id: opts.dagId ?? ctx.dagId,
         task_id: opts.taskId ?? ctx.taskId,
         run_id: opts.runId ?? ctx.runId,
-        map_index: toWireMapIndex(opts.mapIndex ?? ctx.mapIndex),
+        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
         include_prior_dates: opts.includePriorDates ?? false,
       };
       return rpc("GetXCom", "XComResult", msg, (body) => (body!.value as T) ?? null);
@@ -119,7 +125,7 @@ export function createCoordinatorClient(
         dag_id: opts.dagId ?? ctx.dagId,
         task_id: opts.taskId ?? ctx.taskId,
         run_id: opts.runId ?? ctx.runId,
-        map_index: toWireMapIndex(opts.mapIndex ?? ctx.mapIndex),
+        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
       await rpc("SetXCom", null, msg, () => undefined);
     },
@@ -180,5 +186,8 @@ function isNotFound(err: FrameError): boolean {
   // The supervisor wraps API server 404s as API_SERVER_ERROR with
   // detail.status_code=404 (supervisor.py: WatchedSubprocess.handle_requests).
   // Dag / Dag run lookups hit this path.
+  // TODO: If the TS client adds APIs beyond variables, XCom, and connections,
+  // make not-found handling operation-specific instead of treating every
+  // API_SERVER_ERROR 404 as null.
   return err.code === "API_SERVER_ERROR" && err.statusCode === 404;
 }

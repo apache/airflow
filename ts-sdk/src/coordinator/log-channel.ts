@@ -56,6 +56,11 @@ export class LogChannel {
     this.sock = sock;
     this.name = name;
     this.isRoot = isRoot;
+    if (isRoot) {
+      sock.on("error", (err) => {
+        process.stderr.write(`[${this.name}] log socket error: ${err.message}\n`);
+      });
+    }
   }
 
   static async connect(addr: string, name: string = DEFAULT_LOGGER_NAME): Promise<LogChannel> {

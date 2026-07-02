@@ -18,7 +18,7 @@
  */
 
 import * as net from "node:net";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LogChannel } from "../../src/coordinator/log-channel.js";
 
 interface Fixture {
@@ -129,5 +129,22 @@ describe("LogChannel", () => {
       event: "[ts-sdk] still alive",
       logger: "ts-sdk",
     });
+  });
+
+  it("handles post-connect socket errors on the root channel", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    root.child("child");
+    const sock = (root as unknown as { sock: net.Socket }).sock;
+
+    try {
+      sock.emit("error", new Error("boom"));
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(write.mock.calls[0]?.[0]).toBe("[ts-sdk] log socket error: boom\n");
+    } finally {
+      write.mockRestore();
+      await root.close();
+      await fx.sockClosed;
+    }
   });
 });

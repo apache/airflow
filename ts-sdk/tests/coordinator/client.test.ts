@@ -142,6 +142,7 @@ describe("client is bound to TaskContext", () => {
     const c = createCoordinatorClient(recordingComm, mappedCtx);
 
     await c.setXCom({ key: "k", value: 1, mapIndex: -1 });
+    await c.setXCom({ key: "k", value: 2, mapIndex: null });
     await c.getXCom({
       key: "k",
       dagId: "other_dag",
@@ -150,10 +151,11 @@ describe("client is bound to TaskContext", () => {
       mapIndex: -1,
       includePriorDates: true,
     });
-    await c.setXCom({ key: "k", value: 2, mapIndex: 5 });
+    await c.setXCom({ key: "k", value: 3, mapIndex: 5 });
 
     expect(sent[0]).toMatchObject({ type: "SetXCom", map_index: null });
-    expect(sent[1]).toMatchObject({
+    expect(sent[1]).toMatchObject({ type: "SetXCom", map_index: null });
+    expect(sent[2]).toMatchObject({
       type: "GetXCom",
       dag_id: "other_dag",
       task_id: "upstream",
@@ -161,7 +163,7 @@ describe("client is bound to TaskContext", () => {
       map_index: null,
       include_prior_dates: true,
     });
-    expect(sent[2]).toMatchObject({ type: "SetXCom", map_index: 5 });
+    expect(sent[3]).toMatchObject({ type: "SetXCom", map_index: 5 });
   });
 });
 
