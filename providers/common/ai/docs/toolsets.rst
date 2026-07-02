@@ -315,10 +315,17 @@ Parameters
   ``"weather_get_forecast"``).
 - ``token_provider``: Optional zero-argument callable returning a bearer token.
   When set, it overrides the connection's static ``password`` for the
-  ``Authorization`` header and is called each time the server connection is
-  established -- use it for short-lived or minted tokens (e.g. a Snowflake
-  managed MCP server authenticated with a key-pair JWT). See
+  ``Authorization`` header. Called once, the first time this toolset
+  establishes a connection -- use it for short-lived or minted tokens (e.g. a
+  Snowflake managed MCP server authenticated with a key-pair JWT). See
   :ref:`howto/connection:mcp`.
+- ``env_provider``: Optional zero-argument callable returning a
+  ``dict[str, str]`` merged over the connection's ``Extra.env`` (winning on key
+  conflicts) for the ``stdio`` subprocess environment -- use it when the
+  credential a local stdio MCP server needs lives in a different connection, or
+  is minted fresh per call (e.g. a Splunk/Vault token), rather than storing it
+  statically here. Called once, the first time this toolset establishes a
+  connection. See :ref:`howto/connection:mcp`.
 
 Using Multiple MCP Servers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

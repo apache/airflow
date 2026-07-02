@@ -52,11 +52,12 @@ key by the active runtime, matching Python `@task` behavior.
 
 ## Intended Coordinator Usage
 
-This PR only adds the TypeScript-side public interface. The coordinator runtime
-will be added separately. Declaring Airflow Dags in TypeScript is not supported
-yet; the Dag is still declared in Python. The intended authoring shape matches
-the other non-Python SDKs: a Python Dag declares the scheduling shape with stub
-tasks, and the TypeScript module registers handlers with matching task IDs.
+Airflow runs TypeScript task bundles through the Python-side
+`airflow.sdk.coordinators.node.NodeCoordinator`. Declaring Airflow Dags in
+TypeScript is not supported yet; the Dag is still declared in Python. The
+intended authoring shape matches the other non-Python SDKs: a Python Dag
+declares the scheduling shape with stub tasks, and the TypeScript module
+registers handlers with matching task IDs.
 
 Python Dag:
 
@@ -77,6 +78,22 @@ def sales_pipeline():
 
 sales_pipeline()
 ```
+
+Airflow coordinator config:
+
+```ini
+[sdk]
+coordinators = {
+  "ts": {
+    "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+    "kwargs": {"bundles_root": ["/opt/airflow/ts-bundles"]}
+  }
+}
+queue_to_coordinator = {"typescript": "ts"}
+```
+
+Each configured bundle directory must contain `bundle.mjs` and
+`airflow-metadata.yaml`.
 
 TypeScript handlers:
 
