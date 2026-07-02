@@ -2260,6 +2260,9 @@ def length_prefixed_frame_reader(
     gen: Generator[None, _RequestFrame, None], on_close: Callable[[socket], None]
 ):
     length_needed: int | None = None
+    # Accumulates the 4-byte length header across selector callbacks; stream
+    # sockets may return fewer than the requested 4 bytes in a single recv.
+    header_buffer = bytearray()
     # This will hold our accumulated/partial binary frame if it doesn't come in a single read
     buffer: memoryview | None = None
     # position in the buffer to store next read
@@ -2270,16 +2273,19 @@ def length_prefixed_frame_reader(
     next(gen)
 
     def cb(sock: socket):
-        nonlocal buffer, length_needed, pos
+        nonlocal buffer, length_needed, pos, header_buffer
 
         if length_needed is None:
-            # Read the 32bit length of the frame
-            bytes = sock.recv(4)
-            if bytes == b"":
+            chunk = sock.recv(4 - len(header_buffer))
+            if not chunk:
                 return False
+            header_buffer.extend(chunk)
+            if len(header_buffer) < 4:
+                return True
 
-            length_needed = int.from_bytes(bytes, byteorder="big")
+            length_needed = int.from_bytes(header_buffer, byteorder="big")
             buffer = memoryview(bytearray(length_needed))
+            header_buffer = bytearray()
         if length_needed and buffer:
             n = sock.recv_into(buffer[pos:])
             if n == 0:
