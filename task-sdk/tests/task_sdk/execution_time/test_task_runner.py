@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import functools
 import json
 import os
@@ -73,6 +74,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
+from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
@@ -167,6 +169,7 @@ from airflow.sdk.execution_time.task_runner import (
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
+    _run_execute_callable,
     _serialize_outlet_events,
     _xcom_push,
     detail_span,
@@ -5705,6 +5708,143 @@ class TestDetailSpan:
                 with pytest.raises(ValueError, match="boom"):
                     with detail_span("child"):
                         raise ValueError("boom")
+
+
+class TestRunExecuteCallable:
+    """Tests for ``_run_execute_callable``.
+
+    It runs the task's execute callable inside an isolated contextvars copy (with
+    the ExecutorSafeguard tracker set), applies the execution timeout when one is
+    configured, and wraps the call in a ``task.execute`` detail span.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _sampled_carrier_provider(self):
+        """Make new_dagrun_trace_carrier produce a SAMPLED carrier (see TestDetailSpan)."""
+        provider = TracerProvider()
+        with mock.patch(
+            "airflow._shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ):
+            yield
+
+    @staticmethod
+    def _make_task(execution_timeout=None):
+        task = mock.MagicMock(spec=BaseOperator)
+        task.execution_timeout = execution_timeout
+        return task
+
+    def test_runs_in_isolated_context_with_safeguard_tracker_set(self):
+        """The callable runs in an internal context copy that has the safeguard tracker set and does not leak."""
+        var = contextvars.ContextVar("marker")
+        var.set("outer")
+        task = self._make_task()
+        seen = {}
+
+        def execute(context):
+            var.set("inner")
+            seen["tracker"] = ExecutorSafeguard.tracker.get(None)
+            return context["value"] * 2
+
+        result = _run_execute_callable(context={"value": 21}, execute=execute, task=task)
+
+        assert result == 42
+        # The safeguard tracker is set to the task inside the copy used to run execute.
+        assert seen["tracker"] is task
+        # The mutation happened inside the copy, so it does not leak to the caller's context.
+        assert var.get() == "outer"
+        # The .set was confined to the copy, so the tracker never leaked to the caller's context.
+        assert ExecutorSafeguard.tracker.get(None) is not task
+        task.on_kill.assert_not_called()
+
+    def test_applies_execution_timeout(self):
+        """When a timeout is set and the callable overruns, AirflowTaskTimeout is raised and on_kill is called."""
+        task = self._make_task(execution_timeout=timedelta(milliseconds=10))
+
+        def execute(context):
+            time.sleep(2)
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, execute=execute, task=task)
+
+        task.on_kill.assert_called_once()
+
+    def test_fast_fails_when_timeout_already_elapsed(self):
+        """A non-positive timeout fast-fails before running the callable and still calls on_kill."""
+        task = self._make_task(execution_timeout=timedelta(seconds=-1))
+        execute = mock.MagicMock()
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, execute=execute, task=task)
+
+        execute.assert_not_called()
+        task.on_kill.assert_called_once()
+
+    def test_emits_task_execute_span_at_detail_level_2(self):
+        """At detail level 2, running the callable produces a recorded ``task.execute`` span."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        task = self._make_task()
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
+
+        assert result == "ok"
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "task.execute" in names
+
+    def test_operator_child_spans_nest_under_task_execute(self):
+        """Spans the operator emits during execute nest under ``task.execute``, not its caller.
+
+        The contextvars snapshot is taken inside ``_run_execute_callable`` after the
+        ``task.execute`` span is current, so a span started during execute parents to
+        ``task.execute`` rather than to the surrounding span.
+        """
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        task = self._make_task()
+
+        def execute(context):
+            with t.start_as_current_span("operator_child"):
+                return "ok"
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, execute=execute, task=task)
+
+        assert result == "ok"
+        spans = {s.name: s for s in exporter.get_finished_spans()}
+        assert spans["operator_child"].parent.span_id == spans["task.execute"].context.span_id
+
+    def test_no_task_execute_span_at_detail_level_1(self):
+        """At detail level 1, no ``task.execute`` span is recorded but the callable still runs."""
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        t = provider.get_tracer("test")
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=1)
+        parent_ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        task = self._make_task()
+
+        with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+            with t.start_as_current_span("parent", context=parent_ctx):
+                result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
+
+        assert result == "ok"
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "task.execute" not in names
 
 
 def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
