@@ -233,6 +233,25 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
    See also :ref:`Helm Chart production guide <production-guide:pgbouncer>`
 
+   Some Airflow database routes use an async engine (the Execution API, for example). The default
+   async Postgres driver, asyncpg, relies on named server-side prepared statements, which break when
+   PGBouncer runs in **transaction** pooling mode (a pooled backend may receive a statement prepared
+   on a different physical connection). To make asyncpg PGBouncer-safe, point the
+   ``sql_alchemy_connect_args_async`` option in the ``[database]`` section (see
+   :doc:`../configurations-ref`) at a dict that disables both prepared-statement caches:
+
+   .. code-block:: python
+
+      # airflow_local_settings.py
+      connect_args_async = {
+          "statement_cache_size": 0,  # asyncpg: use anonymous prepared statements
+          "prepared_statement_cache_size": 0,  # SQLAlchemy: don't cache the now-ephemeral handles
+      }
+
+   and set ``sql_alchemy_connect_args_async = airflow_local_settings.connect_args_async``. Disabling
+   the cache re-prepares each statement, so leave the default (caching enabled) for direct
+   connections or session-mode pooling, where it is both safe and faster.
+
 
 .. note::
 

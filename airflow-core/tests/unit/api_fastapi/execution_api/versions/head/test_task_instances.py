@@ -33,6 +33,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
@@ -2433,6 +2434,19 @@ class TestTIHealthEndpoint:
     def teardown_method(self):
         clear_db_runs()
 
+    # ti_heartbeat runs on the async engine. The async engine binds its pool to
+    # the event loop that created it (once per process), but the test harness
+    # builds a fresh FastAPI app and event loop per test, so a pooled connection
+    # from a prior test's closed loop gets reused and fails ("attached to a
+    # different loop"). Re-configuring the async session before each test rebuilds
+    # the engine on the current loop. Same workaround as TestWaitDagRun in
+    # tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py.
+    @pytest.fixture(autouse=True)
+    def reconfigure_async_db_engine(self):
+        from airflow.settings import _configure_async_session
+
+        _configure_async_session()
+
     @pytest.mark.parametrize(
         ("hostname", "pid", "expected_status_code", "expected_detail"),
         [
@@ -2691,10 +2705,10 @@ class TestTIHealthEndpoint:
         new_time = time_now.add(minutes=10)
         time_machine.move_to(new_time, tick=False)
 
-        original_execute = Session.execute
+        original_execute = AsyncSession.execute
         fast_path_intercepted = False
 
-        def execute_with_fast_path_miss(session_obj, statement, *args, **kwargs):
+        async def execute_with_fast_path_miss(session_obj, statement, *args, **kwargs):
             nonlocal fast_path_intercepted
             if (
                 not fast_path_intercepted
@@ -2703,9 +2717,9 @@ class TestTIHealthEndpoint:
             ):
                 fast_path_intercepted = True
                 return mock.MagicMock(rowcount=0)
-            return original_execute(session_obj, statement, *args, **kwargs)
+            return await original_execute(session_obj, statement, *args, **kwargs)
 
-        monkeypatch.setattr(Session, "execute", execute_with_fast_path_miss)
+        monkeypatch.setattr(AsyncSession, "execute", execute_with_fast_path_miss)
 
         response = client.put(
             f"/execution/task-instances/{ti.id}/heartbeat",
@@ -2737,10 +2751,10 @@ class TestTIHealthEndpoint:
         new_time = time_now.add(minutes=10)
         time_machine.move_to(new_time, tick=False)
 
-        original_execute = Session.execute
+        original_execute = AsyncSession.execute
         fast_path_intercepted = False
 
-        def execute_with_unknown_fast_path_rowcount(session_obj, statement, *args, **kwargs):
+        async def execute_with_unknown_fast_path_rowcount(session_obj, statement, *args, **kwargs):
             nonlocal fast_path_intercepted
             if (
                 not fast_path_intercepted
@@ -2749,9 +2763,9 @@ class TestTIHealthEndpoint:
             ):
                 fast_path_intercepted = True
                 return mock.MagicMock(rowcount=-1)
-            return original_execute(session_obj, statement, *args, **kwargs)
+            return await original_execute(session_obj, statement, *args, **kwargs)
 
-        monkeypatch.setattr(Session, "execute", execute_with_unknown_fast_path_rowcount)
+        monkeypatch.setattr(AsyncSession, "execute", execute_with_unknown_fast_path_rowcount)
 
         response = client.put(
             f"/execution/task-instances/{ti.id}/heartbeat",
@@ -2762,6 +2776,47 @@ class TestTIHealthEndpoint:
         assert fast_path_intercepted
         session.refresh(ti)
         assert ti.last_heartbeat_at == new_time
+
+    def test_ti_heartbeat_commit_failure_surfaces_error(
+        self, client, session, create_task_instance, monkeypatch
+    ):
+        """A commit failure must reach the worker as an error, never a silent 204.
+
+        ``AsyncSessionDep`` is function-scoped, so the yield-dependency commit runs
+        *before* the response is sent -- mirroring the sync ``SessionDep``. Were it
+        request-scoped (the FastAPI default for ``yield`` dependencies), the 204 would
+        be sent before the commit, so a commit failure (e.g. an asyncpg /
+        transaction-mode PgBouncer drop) would roll back *after* the worker already
+        saw success. Regression guard for the parity goal of this route conversion.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_commit_failure",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            pid=1789,
+            session=session,
+        )
+        session.commit()
+
+        async def failing_commit(self):
+            raise SQLAlchemyError("simulated commit failure (connection dropped)")
+
+        monkeypatch.setattr(AsyncSession, "commit", failing_commit)
+        # The default TestClient re-raises server exceptions, and it does so for *both*
+        # dependency scopes; the worker-visible status (500 vs a silent 204) is what
+        # tells them apart, so observe the response the worker would actually receive.
+        monkeypatch.setattr(client._transport, "raise_server_exceptions", False)
+
+        response = client.put(
+            f"/execution/task-instances/{ti.id}/heartbeat",
+            json={"hostname": "random-hostname", "pid": 1789},
+        )
+
+        # Function scope -> commit fails before the response -> 500. Request scope -> 204.
+        assert response.status_code == 500
+        # The transaction rolled back, so the heartbeat was not persisted.
+        session.refresh(ti)
+        assert ti.last_heartbeat_at is None
 
 
 class TestTIPutRTIF:
