@@ -110,6 +110,9 @@ class AzureAIAgentsHook(BaseHook):
     """
     Hook for Microsoft Foundry Hosted agents.
 
+    Wraps the Agents endpoints of the Microsoft Foundry REST API:
+    https://ai.azure.com/api-reference/agents
+
     :param azure_ai_agents_conn_id: The Azure AI Agents connection id.
     :param endpoint: Optional Azure AI Foundry project endpoint. If not provided, the hook uses the
         connection host or the ``endpoint`` connection extra.
