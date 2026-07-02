@@ -71,6 +71,9 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 		if err := msgpack.Unmarshal(raw, &msg); err != nil {
 			return nil, fmt.Errorf("decoding StartupDetails: %w", err)
 		}
+		if err := validateStartupTI(msg.TI); err != nil {
+			return nil, fmt.Errorf("decoding StartupDetails: %w", err)
+		}
 		return &msg, nil
 	case genmodels.TypeDagFileParseRequest:
 		var msg genmodels.DagFileParseRequest
@@ -87,6 +90,25 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 	default:
 		return nil, fmt.Errorf("unknown message type %q", typ)
 	}
+}
+
+// validateStartupTI fails fast when StartupDetails omits a required TaskInstance
+// field: msgpack decodes a missing key to the Go zero value, which would
+// otherwise silently run the task with e.g. try_number 0.
+func validateStartupTI(ti genmodels.TaskInstance) error {
+	switch {
+	case ti.ID == "":
+		return fmt.Errorf("ti.id: missing or empty")
+	case ti.DagID == "":
+		return fmt.Errorf("ti.dag_id: missing or empty")
+	case ti.TaskID == "":
+		return fmt.Errorf("ti.task_id: missing or empty")
+	case ti.RunID == "":
+		return fmt.Errorf("ti.run_id: missing or empty")
+	case ti.TryNumber < 1:
+		return fmt.Errorf("ti.try_number: missing or invalid (%d)", ti.TryNumber)
+	}
+	return nil
 }
 
 // decodeBody decodes a raw msgpack response body into dst, a pointer to the

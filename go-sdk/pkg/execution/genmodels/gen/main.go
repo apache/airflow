@@ -226,11 +226,22 @@ var builtinIntTypes = map[string]bool{
 	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
 }
 
+// indexFieldsByTag maps fields by wire tag; pointerizedFields and writeDefaults
+// share it so pointer widening and default seeding stay in lockstep.
+func indexFieldsByTag(fields []fieldInfo) map[string]fieldInfo {
+	fieldByTag := map[string]fieldInfo{}
+	for _, f := range fields {
+		if f.Tag != "" && f.Tag != "-" {
+			fieldByTag[f.Tag] = f
+		}
+	}
+	return fieldByTag
+}
+
 // pointerizedFields returns structName -> goFieldName for every concrete integer
 // field whose schema property carries a non-zero default. These are widened to a
 // pointer in models.gen.go so an unset value is omitted on the wire (and the
-// supervisor reapplies the default) while an explicit zero still encodes. The
-// matching mirrors writeDefaults so the two stay in lockstep.
+// supervisor reapplies the default) while an explicit zero still encodes.
 func pointerizedFields(
 	doc *schemaDoc,
 	structs map[string][]fieldInfo,
@@ -242,12 +253,7 @@ func pointerizedFields(
 		if !ok {
 			continue
 		}
-		fieldByTag := map[string]fieldInfo{}
-		for _, f := range structs[structName] {
-			if f.Tag != "" && f.Tag != "-" {
-				fieldByTag[f.Tag] = f
-			}
-		}
+		fieldByTag := indexFieldsByTag(structs[structName])
 		for propName, prop := range def.Properties {
 			f, ok := fieldByTag[propName]
 			if !ok || !builtinIntTypes[f.GoType] {
@@ -480,12 +486,7 @@ func writeDefaults(
 		if !ok {
 			continue
 		}
-		fieldByTag := map[string]fieldInfo{}
-		for _, f := range structs[structName] {
-			if f.Tag != "" && f.Tag != "-" {
-				fieldByTag[f.Tag] = f
-			}
-		}
+		fieldByTag := indexFieldsByTag(structs[structName])
 		var preSeeds []string
 		var postFills []postFill
 		for propName, prop := range def.Properties {

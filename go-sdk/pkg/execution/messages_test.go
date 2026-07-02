@@ -166,6 +166,38 @@ func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
 	assert.Nil(t, details.TI.MapIndex)
 }
 
+func TestDecodeStartupDetails_MissingRequiredTIFieldFails(t *testing.T) {
+	completeTI := func() map[string]any {
+		return map[string]any{
+			"id":         "550e8400-e29b-41d4-a716-446655440000",
+			"task_id":    "t",
+			"dag_id":     "d",
+			"run_id":     "r",
+			"try_number": 1,
+		}
+	}
+
+	tests := []struct {
+		missingKey string
+		wantErr    string
+	}{
+		{missingKey: "id", wantErr: "ti.id"},
+		{missingKey: "task_id", wantErr: "ti.task_id"},
+		{missingKey: "dag_id", wantErr: "ti.dag_id"},
+		{missingKey: "run_id", wantErr: "ti.run_id"},
+		{missingKey: "try_number", wantErr: "ti.try_number"},
+	}
+	for _, tc := range tests {
+		t.Run("missing "+tc.missingKey, func(t *testing.T) {
+			ti := completeTI()
+			delete(ti, tc.missingKey)
+			raw := marshalBody(t, map[string]any{"type": "StartupDetails", "ti": ti})
+			_, err := decodeIncomingBody(raw)
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
 func TestDecodeConnectionResult(t *testing.T) {
 	raw := marshalBody(t, map[string]any{
 		"type":      "ConnectionResult",

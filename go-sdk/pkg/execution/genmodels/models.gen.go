@@ -34,6 +34,9 @@ type AssetEventDagRunReference struct {
 	// Extra corresponds to the JSON schema field "extra".
 	Extra Extra `msgpack:"extra"`
 
+	// PartitionKey corresponds to the JSON schema field "partition_key".
+	PartitionKey interface{} `msgpack:"partition_key,omitempty"`
+
 	// SourceAliases corresponds to the JSON schema field "source_aliases".
 	SourceAliases []AssetAliasReferenceAssetEventDagRun `msgpack:"source_aliases"`
 
@@ -211,6 +214,9 @@ type BundleInfo struct {
 
 	// Version corresponds to the JSON schema field "version".
 	Version interface{} `msgpack:"version,omitempty"`
+
+	// VersionData corresponds to the JSON schema field "version_data".
+	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
 type ClearAssetStateStoreByName struct {
@@ -230,9 +236,6 @@ type ClearAssetStateStoreByURI struct {
 }
 
 type ClearTaskStateStore struct {
-	// AllMapIndices corresponds to the JSON schema field "all_map_indices".
-	AllMapIndices bool `msgpack:"all_map_indices,omitempty"`
-
 	// TIID corresponds to the JSON schema field "ti_id".
 	TIID string `msgpack:"ti_id"`
 
@@ -472,6 +475,9 @@ type DagRun struct {
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note,omitempty"`
 
+	// PartitionDate corresponds to the JSON schema field "partition_date".
+	PartitionDate interface{} `msgpack:"partition_date,omitempty"`
+
 	// PartitionKey corresponds to the JSON schema field "partition_key".
 	PartitionKey interface{} `msgpack:"partition_key"`
 
@@ -564,6 +570,9 @@ type DagRunResult struct {
 
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note,omitempty"`
+
+	// PartitionDate corresponds to the JSON schema field "partition_date".
+	PartitionDate interface{} `msgpack:"partition_date,omitempty"`
 
 	// PartitionKey corresponds to the JSON schema field "partition_key".
 	PartitionKey interface{} `msgpack:"partition_key,omitempty"`
@@ -1766,6 +1775,10 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type TriggerKwargs map[string]JsonValue
+
+type Warnings []interface{}
+
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
 	// Key corresponds to the JSON schema field "key".
@@ -1775,9 +1788,7 @@ type VariableResponse struct {
 	Value interface{} `msgpack:"value"`
 }
 
-type TriggerKwargs map[string]JsonValue
-
-type Warnings []interface{}
+type VersionData map[string]interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
