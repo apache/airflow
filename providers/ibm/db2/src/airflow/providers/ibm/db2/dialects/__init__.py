@@ -14,8 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-__all__ = ["Db2Dialect"]
-
-from airflow.providers.ibm.db2.dialects.db2 import Db2Dialect
