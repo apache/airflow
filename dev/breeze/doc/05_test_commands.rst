@@ -373,6 +373,22 @@ You can override the ``DOCKER_IMAGE`` environment variable to point to the image
 
 The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
 
+Running provider E2E tests
+..........................
+
+You can use Breeze to run provider end-to-end tests, which deploy a real Airflow via docker-compose
+and run the provider's system-test DAGs against it. Those tests run using the Production image by
+default; pass ``--airflow-version`` to run against an older released Airflow version with the current
+providers installed from main.
+
+.. image:: ./images/output_testing_providers-e2e-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-e2e-tests.svg
+  :width: 100%
+  :alt: Breeze testing providers-e2e-tests
+
+The provider E2E tests are in the ``providers-e2e-tests/`` folder in the main repo; see
+``providers-e2e-tests/openlineage/README.md`` for details.
+
 Running Airflow UI E2E tests
 .............................
 

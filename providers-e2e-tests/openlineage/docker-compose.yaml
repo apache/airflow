@@ -1,0 +1,176 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+x-airflow-common:
+  &airflow-common
+  image: ${AIRFLOW_IMAGE_NAME}
+  env_file:
+    - ${ENV_FILE_PATH:-.env}
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    # yamllint disable rule:line-length
+    AIRFLOW__CORE__AUTH_MANAGER: 'airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager'
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: 'true'
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__DAGS_FOLDER: '/opt/airflow/dags'
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__API__BASE_URL: 'http://airflow-apiserver:8080/'
+    # Do not reuse this secret in any deployment — it exists only for this ephemeral CI/test stack.
+    AIRFLOW__API_AUTH__JWT_SECRET: 'test-secret-key-for-testing'
+    # The OpenLineage system-test DAGs (and the custom VariableTransport / OpenLineageTestOperator
+    # they import) live under <dags>/system/openlineage; the dags folder is added to PYTHONPATH so
+    # both DAG parsing and the dotted-path transport class resolve in every component.
+    PYTHONPATH: '/opt/airflow/dags'
+    # Route OpenLineage events to the test VariableTransport (stores events in Airflow Variables,
+    # read back and validated by the in-DAG OpenLineageTestOperator). The transport type is the
+    # fully-qualified class path; the OpenLineage client imports it directly.
+    AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "system.openlineage.transport.variable.VariableTransport"}'
+    AIRFLOW__OPENLINEAGE__DISABLED: 'false'
+    # Deployment-wide policy required by the two conf-driven policy DAGs. Each rule is scoped by
+    # dag_id, so both rules coexist and do not affect any other DAG.
+    AIRFLOW__OPENLINEAGE__EMISSION_POLICY: '[{"scope": {"dag_id": "openlineage_policy_conf_locked_dag"}, "locked": true, "controls": {"include_source_code": false}}, {"scope": {"dag_id": "openlineage_policy_conf_source_code_dag"}, "controls": {"include_source_code": false}}]'
+    AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT: '60'
+    AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: '60'
+    # openlineage_defer_simple_dag's TimeDeltaSensor defaults to a 180s delta so it reliably defers at least
+    # once even before a worker picks up the task; tighten it here since we do not need to wait for worker.
+    SYSTEM_TESTS_OL_TIMEDELTA: '60'
+    # Every DAG's dagrun_timeout (system.openlineage.constants.DEFAULT_DAGRUN_TIMEOUT)
+    # defaults to 10 minutes; tighten it here since we do not need to wait for worker.
+    SYSTEM_TESTS_OL_DAGRUN_TIMEOUT_MINUTES: '5'
+    AIRFLOW__CORE__TASK_SUCCESS_OVERTIME: '70'
+    # Serve the dags folder through a versioned bundle so example_openlineage_versioned_dag gets a
+    # non-null dag_bundle_version. MockVersionedLocalDagBundle still serves from /opt/airflow/dags
+    # (keeping PYTHONPATH valid); it is copied into the dags folder by prepare_dags.py.
+    AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST: '[{"name": "dags-folder", "classpath": "e2e_versioned_bundle.MockVersionedLocalDagBundle", "kwargs": {}}]'
+    # The breeze PROD image installs every provider from source, including informatica, whose
+    # listener fires on every task and errors without its connection — suppressing OL events.
+    # A curated deployment (e.g. Astro) does not ship it; disable its listener to match.
+    AIRFLOW__INFORMATICA__LISTENER_DISABLED: 'true'
+    HOST_OS: ${HOST_OS:-linux}
+  user: "${AIRFLOW_UID:-50000}:0"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    # example_openlineage_docs_file_dag sets doc_md="dag_doc.md", which Airflow resolves with a
+    # CWD-relative open(); components run with CWD=/opt/airflow. prepare_dags.py generates a clean,
+    # license-free dag_doc.md (matching the expected event) in the dags folder; expose it here.
+    - ./dags/dag_doc.md:/opt/airflow/dag_doc.md
+  depends_on:
+    &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo "Creating missing opt dirs if missing:"
+        mkdir -v -p /opt/airflow/{logs,dags,plugins,config}
+        echo "Airflow version:"
+        /entrypoint airflow version
+        echo "Running airflow config list to create default config file if missing."
+        /entrypoint airflow config list >/dev/null
+        if [ "${HOST_OS}" == "linux" ]; then
+            echo "Change ownership of files in /opt/airflow to ${AIRFLOW_UID}:0"
+            chown -R "${AIRFLOW_UID}:0" /opt/airflow/
+        else
+            echo "Skipping changing ownership as platform is not linux (${HOST_OS})"
+        fi
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+      _PIP_ADDITIONAL_REQUIREMENTS: ''
+    user: "0:0"
+    depends_on:
+      <<: *airflow-common-depends-on
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "TriggererJob"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully

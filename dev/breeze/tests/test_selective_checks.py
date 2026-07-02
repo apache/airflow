@@ -1198,7 +1198,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
-                "prod-image-build": "false",
+                # common providers feed OpenLineage e2e tests, which need the PROD image.
+                "prod-image-build": "true",
+                "run-providers-e2e-tests-openlineage": "true",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
@@ -1468,6 +1470,38 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "true",
             },
             id="Run go e2e tests when ExecutableCoordinator changes",
+        ),
+        pytest.param(
+            ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests for openlineage provider change",
+        ),
+        pytest.param(
+            ("providers/common/compat/src/airflow/providers/common/compat/sdk.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests for common provider change",
+        ),
+        pytest.param(
+            ("providers-e2e-tests/openlineage/tests/openlineage_e2e_tests/test_openlineage_e2e.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests when the e2e harness changes",
+        ),
+        pytest.param(
+            ("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "false",
+                "prod-image-build": "false",
+            },
+            id="Do not run OpenLineage e2e tests for unrelated provider change",
         ),
         (
             pytest.param(
