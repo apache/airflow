@@ -82,8 +82,10 @@ TEST_COMMANDS = [
     "dags list-import-errors",
     "dags list-version example_bash_operator",
     "dags list-warning",
-    # Order of trigger and pause/unpause is important for test stability because state checked
+    # Order of trigger, state, and pause/unpause is important for test stability
     "dags trigger example_bash_operator --logical-date={date_param} --run-after={date_param}",
+    'dags state example_bash_operator "manual__{date_param}"',
+    'dags state example_bash_operator "{date_param}"',
     # Test trigger without logical-date (should default to now)
     "dags trigger example_bash_operator",
     "dags next-execution example_bash_operator",

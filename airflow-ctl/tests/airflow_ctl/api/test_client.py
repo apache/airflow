@@ -28,7 +28,14 @@ import pytest
 import time_machine
 from httpx import URL
 
-from airflowctl.api.client import Client, ClientKind, Credentials, _bounded_get_new_password, get_client
+from airflowctl.api.client import (
+    Client,
+    ClientKind,
+    Credentials,
+    _bounded_get_new_password,
+    get_client,
+    get_json_error,
+)
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
@@ -99,6 +106,27 @@ class TestClient:
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
         assert err.value.args == ("Client error message: {'detail': 'Not found'}",)
+
+    @pytest.mark.parametrize(
+        ("suppress_error_log", "expected_warning_count"),
+        [
+            pytest.param(False, 1, id="logs-error"),
+            pytest.param(True, 0, id="suppresses-error-log"),
+        ],
+    )
+    @patch("airflowctl.api.client.log.warning")
+    def test_error_log_suppression(self, mock_warning, suppress_error_log, expected_warning_count):
+        request = httpx.Request(
+            "GET",
+            "http://error",
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        response = httpx.Response(404, request=request, json={"detail": "Not found"})
+
+        with pytest.raises(ServerResponseError):
+            get_json_error(response)
+
+        assert mock_warning.call_count == expected_warning_count
 
     @pytest.mark.parametrize(
         ("base_url", "client_kind", "expected_base_url"),

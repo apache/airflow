@@ -64,6 +64,7 @@ dags:
   get-version: "Retrieve a specific version of a Dag"
   list-version: "List all versions of a Dag"
   list-warning: "List all Dag warnings"
+  state: "Get the status of a Dag run"
   trigger: "Trigger a new Dag run"
 
 dagrun:
