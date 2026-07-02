@@ -43,6 +43,25 @@ as well as the `task_success_overtime <https://airflow.apache.org/docs/apache-ai
 configuration in Airflow config.
 
 
+How task events are emitted on workers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For task-level events on the worker, the listener can emit each event in one of two ways. Both run extraction and
+sending off the task's critical path, so the task finishes without waiting for lineage.
+
+By default the listener forks a child process for each event. The child does the extraction and sends the event, then
+exits. This keeps emission fully isolated from the task runner.
+
+Alternatively, set :ref:`execute_in_thread <config:openlineage__execute_in_thread>` to ``True`` to emit each event in
+a time-bounded thread. The thread runs inside the task runner, so nothing is forked. The task runner waits at most
+:ref:`execution_timeout <config:openlineage__execution_timeout>` for the thread and then proceeds. This avoids the
+extra memory a child process uses.
+
+Thread mode also removes a failure seen on Airflow 3.1, where a forked child could leave its inherited supervisor
+connection in a broken state and hold the task in the ``running`` state. Airflow 3.2 includes fixes that make this
+less likely, and other versions may behave differently.
+
+
 Missing lineage from EmptyOperators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
