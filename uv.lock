@@ -3138,7 +3138,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiobotocore", marker = "extra == 'aiobotocore'", specifier = ">=3.0.0" },
+    { name = "aiobotocore", marker = "extra == 'aiobotocore'", specifier = ">=3.6.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-apache-hive", marker = "extra == 'apache-hive'", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },
@@ -3159,8 +3159,8 @@ requires-dist = [
     { name = "apache-airflow-providers-standard", marker = "extra == 'standard'", editable = "providers/standard" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
-    { name = "boto3", specifier = ">=1.41.0" },
-    { name = "botocore", specifier = ">=1.41.0" },
+    { name = "boto3", specifier = ">=1.43.0" },
+    { name = "botocore", specifier = ">=1.43.0" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "jmespath", specifier = ">=0.7.0" },
     { name = "jsonpath-ng", specifier = ">=1.5.3" },
