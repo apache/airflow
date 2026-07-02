@@ -191,7 +191,8 @@ class ConnectionBody(StrictBaseModel):
     host: str | None = Field(default=None)
     login: str | None = Field(default=None)
     schema_: str | None = Field(None, alias="schema")
-    port: int | None = Field(default=None)
+    port: int | None = Field(default=None, ge=0, le=65535)
+
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
     team_name: str | None = Field(max_length=50, default=None)

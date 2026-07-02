@@ -2189,3 +2189,30 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
                 "method": "POST",
             },
         )
+
+
+class TestConnectionBodyPortValidation:
+    """Test port validation in ConnectionBody model."""
+
+    @pytest.mark.parametrize(
+        "port",
+        [0, 1, 80, 443, 3306, 5432, 8080, 65535],
+    )
+    def test_valid_ports(self, port):
+        """Test that valid port numbers (0-65535) are accepted."""
+        body = ConnectionBody(connection_id="test", conn_type="test", port=port)
+        assert body.port == port
+
+    def test_none_port_allowed(self):
+        """Test that None port is allowed (optional field)."""
+        body = ConnectionBody(connection_id="test", conn_type="test", port=None)
+        assert body.port is None
+
+    @pytest.mark.parametrize(
+        "port",
+        [-1, 65536, 99999, 99999999],
+    )
+    def test_invalid_ports(self, port):
+        """Test that invalid port numbers are rejected."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            ConnectionBody(connection_id="test", conn_type="test", port=port)

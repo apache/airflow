@@ -203,6 +203,13 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         self.team_name = team_name
 
     @staticmethod
+    def _validate_port(port: int | None, conn_id: str | None = None) -> None:
+        """Validate that port is within the valid TCP/UDP range (0-65535)."""
+        if port is not None and not (0 <= port <= 65535):
+            conn_msg = f" for connection {conn_id!r}" if conn_id else ""
+            raise ValueError(f"Port must be between 0 and 65535{conn_msg}, got {port}")
+
+    @staticmethod
     def _validate_extra(extra, conn_id) -> None:
         """Verify that ``extra`` is a JSON-encoded Python dict."""
         if extra is None:

@@ -107,6 +107,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
     login: Mapped[str | None] = mapped_column(Text, nullable=True)
     schema: Mapped[str | None] = mapped_column("schema", String(500), nullable=True)
     port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     commit_on_success: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
