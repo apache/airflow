@@ -21,12 +21,15 @@
 //  1. Strips the dead `<Type>_<N>` typedefs emitted for each branch of a nullable
 //     `anyOf` (e.g. AssetEventResponsePartitionKey_0); the structs use `any`, so
 //     these are never referenced.
-//  2. Widens every concrete integer field carrying a non-zero schema default to a
-//     pointer (e.g. GetPreviousTI.MapIndex int -> *int). A plain int with
-//     ,omitempty drops an explicit 0 on encode, so the supervisor reapplies its
-//     non-zero default (e.g. map_index 0 wrongly treated as the -1 unmapped
-//     sentinel); a pointer keeps ,omitempty meaning "absent" for nil while
-//     encoding an explicit 0, and on decode nil is the natural "use the default".
+//  2. Widens every concrete int/float/bool field whose schema default the Go zero
+//     value does not satisfy to a pointer (e.g. GetPreviousTI.MapIndex int -> *int,
+//     GetAssetEventByAsset.Ascending bool -> *bool). With a plain scalar,
+//     ,omitempty drops an explicit zero value (0, false) on encode and the
+//     supervisor reapplies its default, reversing the caller's intent; a pointer
+//     keeps ,omitempty meaning "absent" for nil while encoding an explicit zero,
+//     and on decode nil is the natural "use the default". Strings are exempt: an
+//     explicit "" is off-contract for these fields, so decode-side seeding (5)
+//     serves them better than a pointer.
 //  3. Generates a Type<Struct> constant for every body with a "type" const: the
 //     single source of truth for the wire discriminator value.
 //  4. Generates EnsureType, which stamps a body's "type" field from its Go type,
@@ -219,11 +222,14 @@ func indexByUpperName(structs map[string][]fieldInfo) (map[string]string, error)
 	return idx, nil
 }
 
-// builtinIntTypes are the concrete integer types go-jsonschema emits for a
-// non-nullable `integer` property; a non-zero schema default on one of these is
-// what triggers the pointer widening.
-var builtinIntTypes = map[string]bool{
+// widenableScalarTypes are the concrete scalar types whose Go zero value (0,
+// 0.0, false) is a legitimate explicit wire value; a schema default the zero
+// does not satisfy triggers pointer widening. Strings are excluded: an explicit
+// "" is off-contract, so those fields keep decode-side default seeding instead.
+var widenableScalarTypes = map[string]bool{
 	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+	"float32": true, "float64": true,
+	"bool": true,
 }
 
 // indexFieldsByTag maps fields by wire tag; pointerizedFields and writeDefaults
@@ -238,10 +244,10 @@ func indexFieldsByTag(fields []fieldInfo) map[string]fieldInfo {
 	return fieldByTag
 }
 
-// pointerizedFields returns structName -> goFieldName for every concrete integer
-// field whose schema property carries a non-zero default. These are widened to a
-// pointer in models.gen.go so an unset value is omitted on the wire (and the
-// supervisor reapplies the default) while an explicit zero still encodes.
+// pointerizedFields returns structName -> goFieldName for every widenable scalar
+// field whose schema default its Go zero value does not satisfy. These are
+// widened to a pointer in models.gen.go so an unset value is omitted on the wire
+// (and the supervisor reapplies the default) while an explicit zero still encodes.
 func pointerizedFields(
 	doc *schemaDoc,
 	structs map[string][]fieldInfo,
@@ -256,7 +262,7 @@ func pointerizedFields(
 		fieldByTag := indexFieldsByTag(structs[structName])
 		for propName, prop := range def.Properties {
 			f, ok := fieldByTag[propName]
-			if !ok || !builtinIntTypes[f.GoType] {
+			if !ok || !widenableScalarTypes[f.GoType] {
 				continue
 			}
 			if _, seedable := defaultLiteral(f.GoType, prop.Default); !seedable {

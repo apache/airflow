@@ -162,28 +162,6 @@ func (m *ErrorResponse) DecodeMsgpack(dec *msgpack.Decoder) error {
 	return nil
 }
 
-// DecodeMsgpack applies GetAssetEventByAsset's schema defaults that msgpack would otherwise skip.
-func (m *GetAssetEventByAsset) DecodeMsgpack(dec *msgpack.Decoder) error {
-	type alias GetAssetEventByAsset
-	v := alias{Ascending: true}
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*m = GetAssetEventByAsset(v)
-	return nil
-}
-
-// DecodeMsgpack applies GetAssetEventByAssetAlias's schema defaults that msgpack would otherwise skip.
-func (m *GetAssetEventByAssetAlias) DecodeMsgpack(dec *msgpack.Decoder) error {
-	type alias GetAssetEventByAssetAlias
-	v := alias{Ascending: true}
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*m = GetAssetEventByAssetAlias(v)
-	return nil
-}
-
 // DecodeMsgpack applies HITLDetailRequestResult's schema defaults that msgpack would otherwise skip.
 func (m *HITLDetailRequestResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias HITLDetailRequestResult

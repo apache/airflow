@@ -803,7 +803,7 @@ type GetAssetEventByAsset struct {
 	After interface{} `msgpack:"after,omitempty"`
 
 	// Ascending corresponds to the JSON schema field "ascending".
-	Ascending bool `msgpack:"ascending,omitempty"`
+	Ascending *bool `msgpack:"ascending,omitempty"`
 
 	// Before corresponds to the JSON schema field "before".
 	Before interface{} `msgpack:"before,omitempty"`
@@ -829,7 +829,7 @@ type GetAssetEventByAssetAlias struct {
 	AliasName string `msgpack:"alias_name"`
 
 	// Ascending corresponds to the JSON schema field "ascending".
-	Ascending bool `msgpack:"ascending,omitempty"`
+	Ascending *bool `msgpack:"ascending,omitempty"`
 
 	// Before corresponds to the JSON schema field "before".
 	Before interface{} `msgpack:"before,omitempty"`

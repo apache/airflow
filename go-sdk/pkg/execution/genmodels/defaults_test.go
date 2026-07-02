@@ -235,21 +235,21 @@ func TestEmailRequestDecodeMsgpack_SeedsEnumDefault(t *testing.T) {
 	}
 }
 
-func TestGetAssetEventByAssetDecodeMsgpack_SeedsAscending(t *testing.T) {
+func TestGetAssetEventByAssetDecode_AscendingPointer(t *testing.T) {
 	tests := []struct {
 		name string
 		wire map[string]any
-		want bool
+		want *bool
 	}{
 		{
-			name: "omitted ascending defaults to true",
+			name: "omitted ascending decodes to nil",
 			wire: map[string]any{"name": "a", "uri": "u"},
-			want: true,
+			want: nil,
 		},
 		{
-			name: "explicit false overrides the seeded default",
+			name: "explicit false is preserved",
 			wire: map[string]any{"name": "a", "uri": "u", "ascending": false},
-			want: false,
+			want: ptr(false),
 		},
 	}
 	for _, tc := range tests {
@@ -259,6 +259,50 @@ func TestGetAssetEventByAssetDecodeMsgpack_SeedsAscending(t *testing.T) {
 			var msg GetAssetEventByAsset
 			require.NoError(t, msgpack.Unmarshal(raw, &msg))
 			assert.Equal(t, tc.want, msg.Ascending)
+		})
+	}
+}
+
+// Ascending has schema default true, so a plain bool + ,omitempty would drop an
+// explicit false on encode and the supervisor would sort ascending anyway.
+func TestGetAssetEventByAssetEncode_AscendingPointerPreservesExplicitFalse(t *testing.T) {
+	tests := []struct {
+		name      string
+		ascending *bool
+		wantKey   bool
+		wantValue bool
+	}{
+		{
+			name:      "nil omits ascending so the supervisor applies its default",
+			ascending: nil,
+			wantKey:   false,
+		},
+		{
+			name:      "explicit false is encoded",
+			ascending: ptr(false),
+			wantKey:   true,
+			wantValue: false,
+		},
+		{
+			name:      "explicit true is encoded",
+			ascending: ptr(true),
+			wantKey:   true,
+			wantValue: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, err := msgpack.Marshal(
+				GetAssetEventByAsset{Name: "a", URI: "u", Ascending: tc.ascending},
+			)
+			require.NoError(t, err)
+			var wire map[string]any
+			require.NoError(t, msgpack.Unmarshal(raw, &wire))
+			v, ok := wire["ascending"]
+			assert.Equal(t, tc.wantKey, ok)
+			if tc.wantKey {
+				assert.Equal(t, tc.wantValue, v)
+			}
 		})
 	}
 }
