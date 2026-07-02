@@ -706,27 +706,16 @@ wheels = [
 
 [[package]]
 name = "airbyte-api"
-version = "0.53.0"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "certifi" },
-    { name = "charset-normalizer" },
-    { name = "dataclasses-json" },
-    { name = "idna" },
-    { name = "jsonpath-python" },
-    { name = "marshmallow" },
-    { name = "mypy-extensions" },
-    { name = "packaging" },
-    { name = "python-dateutil" },
-    { name = "requests" },
-    { name = "six" },
-    { name = "typing-extensions" },
-    { name = "typing-inspect" },
-    { name = "urllib3" },
+    { name = "httpcore" },
+    { name = "httpx" },
+    { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/23/8debf9c4ca8652c9ceb60b8074e654191ba2053001616151993b39d6cdcb/airbyte-api-0.53.0.tar.gz", hash = "sha256:f054ed170f9a691c3304e93a5212670fd2a38e5debb667c72d5ef8eb89cf7e9d", size = 330090, upload-time = "2025-10-02T19:55:43.378Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/94/9dee92bac34428e28e403f0863e1fd2db14450dc72ad9a58294c94af71e4/airbyte_api-1.0.1.tar.gz", hash = "sha256:4c40e49b94a62b21836aea126d373365e1002b424022c8e7e262fd0a3d7a4fc6", size = 500468, upload-time = "2026-06-23T07:02:39.109Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7a/f5/ca44b6f3919f049a4441755958c042fcea09a44e876352a6005f5e5a9e46/airbyte_api-0.53.0-py3-none-any.whl", hash = "sha256:0bd86d5122789a7c97115a4b52ce492b013d0ea8eeab597b6495b0b310332f28", size = 773825, upload-time = "2025-10-02T19:55:42.043Z" },
+    { url = "https://files.pythonhosted.org/packages/24/fa/472753b8a2d38264a1643c27f10bd0b4d0a38f4912918ee943b1e69c7ea7/airbyte_api-1.0.1-py3-none-any.whl", hash = "sha256:edaad71bb9ed123f15cf9f91f78704b88d449584c734b14c4ec8c13ad435516f", size = 1060335, upload-time = "2026-06-23T07:02:37.503Z" },
 ]
 
 [[package]]
@@ -2896,7 +2885,7 @@ dependencies = [
     { name = "airbyte-api" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "requests" },
+    { name = "httpx" },
 ]
 
 [package.dev-dependencies]
@@ -2912,10 +2901,10 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "airbyte-api", specifier = ">=0.52.0,<1.0.0" },
+    { name = "airbyte-api", specifier = ">=1.0.0,<2.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "requests", specifier = ">=2.32.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -14899,15 +14888,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/32/58/250751940d75c8019659e15482d548a4aa3b6ce122c515102a4bfdac50e3/jsonpath_ng-1.8.0.tar.gz", hash = "sha256:54252968134b5e549ea5b872f1df1168bd7defe1a52fed5a358c194e1943ddc3", size = 74513, upload-time = "2026-02-24T14:42:06.182Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/03/99/33c7d78a3fb70d545fd5411ac67a651c81602cc09c9cf0df383733f068c5/jsonpath_ng-1.8.0-py3-none-any.whl", hash = "sha256:b8dde192f8af58d646fc031fac9c99fe4d00326afc4148f1f043c601a8cfe138", size = 67844, upload-time = "2026-02-28T00:53:19.637Z" },
-]
-
-[[package]]
-name = "jsonpath-python"
-version = "1.1.6"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/98/18/4ca8742534a5993ff383f7602e325ce2d5d7cc93d72ac5e1cdedbea8a458/jsonpath_python-1.1.6.tar.gz", hash = "sha256:dded9932b4ec41fb8726e09c83afa4e6be618f938c2db287cc2a81723c639671", size = 88178, upload-time = "2026-05-07T01:26:34.482Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/8a/1270a6803bd821cbfcdda387eaa13cb41a7b1f7b9bd145979b3bfb9d6cb7/jsonpath_python-1.1.6-py3-none-any.whl", hash = "sha256:a1c50afd8d3fbbaf47a4873bc890dcb3c15da96f5c020327977d844d8731a2d4", size = 14453, upload-time = "2026-05-07T01:26:33.306Z" },
 ]
 
 [[package]]
