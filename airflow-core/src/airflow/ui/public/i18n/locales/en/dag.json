@@ -103,9 +103,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "navigation": "Navigation: Shift+{{arrow}}",
-    "openGraphFilters": "Task Filters: Ctrl+Shift+F",
-    "toggleGroup": "Toggle group: Space"
+    "openGraphFilters": "Task Filters: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "Go Back",

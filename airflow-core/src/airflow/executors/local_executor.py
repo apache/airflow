@@ -121,7 +121,7 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
-    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
+    is_mp_using_fork: bool
 
     supports_multi_team: bool = True
     serve_logs: bool = True
@@ -135,6 +135,10 @@ class LocalExecutor(BaseExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Resolve the start method at instantiation, not at import: the component CLI entry may have
+        # set it via [<component>]/[core] mp_start_method before the executor is created.
+        self.is_mp_using_fork = multiprocessing.get_start_method() == "fork"
 
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of

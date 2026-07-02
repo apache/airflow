@@ -41,6 +41,7 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.github import (
     download_constraints_file,
+    format_github_token_scope_guidance,
     get_active_airflow_versions,
     get_tag_date,
     retrieve_github_token,
@@ -252,15 +253,16 @@ def get_all_constraint_files_and_airflow_releases(
         shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
     if not CONSTRAINTS_CACHE_PATH.exists():
         if not github_token:
-            github_token = retrieve_github_token()
+            github_token = retrieve_github_token(
+                description="airflow-refresh-constraints", scopes="public_repo"
+            )
             if github_token:
                 console_print("\n[info]Resolved GitHub token for constraints refresh[/]\n")
             else:
                 console_print(
                     "[error]You need to provide GITHUB_TOKEN to generate providers metadata.[/]\n\n"
-                    "You can generate it with this URL: "
-                    "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
-                    "the URL:\n\n"
+                    f"{format_github_token_scope_guidance(description='airflow-refresh-constraints', scopes='public_repo')} "
+                    "You can create one by clicking the URL:\n\n"
                     "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-refresh-constraints\n\n"
                     "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
                     "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"

@@ -65,6 +65,7 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    DagScheduleAssetReference,
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
@@ -132,8 +133,8 @@ from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
 from airflow.timetables.simple import (
-    PartitionAtRuntime,
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
@@ -5501,39 +5502,20 @@ class TestSchedulerJob:
 
         with dag_maker(dag_id="assets-1", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset1])
-        dr = dag_maker.create_dagrun(
+        dr1 = dag_maker.create_dagrun(
             run_id="run1",
             logical_date=(DEFAULT_DATE + timedelta(days=100)),
             data_interval=(DEFAULT_DATE + timedelta(days=10), DEFAULT_DATE + timedelta(days=11)),
         )
-
-        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
-
-        event1 = AssetEvent(
-            asset_id=asset1_id,
-            source_task_id="task",
-            source_dag_id=dr.dag_id,
-            source_run_id=dr.run_id,
-            source_map_index=-1,
-        )
-        session.add(event1)
-
-        # Create a second event, creation time is more recent, but data interval is older
-        dr = dag_maker.create_dagrun(
+        dr2 = dag_maker.create_dagrun(
             run_id="run2",
             logical_date=(DEFAULT_DATE + timedelta(days=101)),
             data_interval=(DEFAULT_DATE + timedelta(days=5), DEFAULT_DATE + timedelta(days=6)),
         )
 
-        event2 = AssetEvent(
-            asset_id=asset1_id,
-            source_task_id="task",
-            source_dag_id=dr.dag_id,
-            source_run_id=dr.run_id,
-            source_map_index=-1,
-        )
-        session.add(event2)
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
 
+        # Consumer Dags are created before the events, so the events fall within their window.
         with dag_maker(dag_id="assets-consumer-multiple", schedule=[asset1, asset2]):
             pass
         dag2 = dag_maker.dag
@@ -5541,11 +5523,38 @@ class TestSchedulerJob:
             pass
         dag3 = dag_maker.dag
 
+        base = session.scalar(
+            select(DagScheduleAssetReference.created_at).where(
+                DagScheduleAssetReference.dag_id == dag3.dag_id
+            )
+        )
+        event1 = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id="task",
+            source_dag_id=dr1.dag_id,
+            source_run_id=dr1.run_id,
+            source_map_index=-1,
+            timestamp=base + timedelta(seconds=1),
+        )
+        event2 = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id="task",
+            source_dag_id=dr2.dag_id,
+            source_run_id=dr2.run_id,
+            source_map_index=-1,
+            timestamp=base + timedelta(seconds=2),
+        )
+        session.add_all([event1, event2])
+
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
-                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
+                AssetDagRunQueue(
+                    asset_id=asset1_id, target_dag_id=dag2.dag_id, created_at=base + timedelta(hours=1)
+                ),
+                AssetDagRunQueue(
+                    asset_id=asset1_id, target_dag_id=dag3.dag_id, created_at=base + timedelta(hours=1)
+                ),
             ]
         )
         session.flush()
@@ -5590,6 +5599,72 @@ class TestSchedulerJob:
         )
 
         assert created_run.creating_job_id == scheduler_job.id
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("catchup", "expects_old_event"),
+        [
+            pytest.param(False, False, id="catchup-off-ignores-backlog"),
+            pytest.param(True, True, id="catchup-on-consumes-backlog"),
+        ],
+    )
+    def test_new_asset_triggered_dag_backlog_gated_by_catchup(
+        self, catchup, expects_old_event, session, dag_maker
+    ):
+        """Reproduces #39456: catchup gates whether a new asset-triggered Dag replays the
+        pre-creation backlog. With catchup off (the default) it only consumes events after it
+        started scheduling on the asset; with catchup on it replays the full history."""
+        asset = Asset(uri="test://asset-historical", name="hist_asset", group="test_group")
+
+        # Producer Dag + run that the asset events are sourced from.
+        with dag_maker(dag_id="historical-producer", start_date=timezone.utcnow(), session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
+        producer_run = dag_maker.create_dagrun(run_id="producer-run")
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        # Consumer Dag created now; its schedule reference's created_at is the cut-off.
+        with dag_maker(dag_id="historical-consumer", schedule=[asset], catchup=catchup):
+            pass
+        consumer_dag = dag_maker.dag
+        reference_created_at = session.scalar(
+            select(DagScheduleAssetReference.created_at).where(
+                DagScheduleAssetReference.dag_id == consumer_dag.dag_id
+            )
+        )
+
+        def _make_event(timestamp):
+            return AssetEvent(
+                asset_id=asset_id,
+                source_task_id="task",
+                source_dag_id=producer_run.dag_id,
+                source_run_id=producer_run.run_id,
+                source_map_index=-1,
+                timestamp=timestamp,
+            )
+
+        old_event = _make_event(reference_created_at - timedelta(days=1))
+        new_event = _make_event(reference_created_at + timedelta(seconds=1))
+        session.add_all([old_event, new_event])
+        # Trigger time after both events so neither is excluded by the upper bound.
+        session.add(
+            AssetDagRunQueue(
+                asset_id=asset_id,
+                target_dag_id=consumer_dag.dag_id,
+                created_at=reference_created_at + timedelta(hours=1),
+            )
+        )
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        with create_session() as session:
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)).one()
+        assert created_run.state == State.QUEUED
+        expected = {new_event.id} | ({old_event.id} if expects_old_event else set())
+        assert {e.id for e in created_run.consumed_asset_events} == expected
 
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
@@ -10250,14 +10325,19 @@ def _produce_and_register_asset_event(
     session: Session,
     dag_maker: DagMaker,
     expected_partition_key: str | None = None,
+    partition_date: datetime.datetime | None = None,
 ) -> AssetPartitionDagRun:
     if expected_partition_key is None:
         expected_partition_key = partition_key
 
-    with dag_maker(dag_id=dag_id, schedule=PartitionAtRuntime(), session=session) as dag:
+    with dag_maker(dag_id=dag_id, schedule=PartitionedAtRuntime(), session=session) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
 
-    dr = dag_maker.create_dagrun(partition_key=partition_key, session=session)
+    dr = dag_maker.create_dagrun(
+        partition_key=partition_key,
+        partition_date=partition_date,
+        session=session,
+    )
     [ti] = dr.get_task_instances(session=session)
     session.commit()
 
@@ -10477,6 +10557,289 @@ def test_partitioned_dag_run_with_customized_mapper(
     assert asset_event.source_task_id == "hi"
     assert asset_event.source_dag_id == "asset-event-producer"
     assert asset_event.source_run_id == "test"
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_run_partition_date_identity_passthrough(dag_maker: DagMaker, session: Session):
+    """IdentityMapper can't reconstruct a date from its key, so the scheduler resolver falls
+    back to the producer's source date carried on the APDR and stamps it on the consumer DagRun.
+
+    Temporal and composite mappers are resolved by the scheduler via to_partition_date (covered
+    by the partition_mapper and resolver tests); this exercises the IdentityMapper carry, which
+    is the one case the scheduler cannot resolve from the key alone.
+    """
+    asset_1 = Asset(name="asset-1")
+    source_partition_date = pendulum.datetime(2026, 5, 20, 1, 0, 0, tz="UTC")
+
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer",
+        asset=asset_1,
+        partition_key="2026-05-20T01:00:00",
+        partition_date=source_partition_date,
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2026-05-20T01:00:00",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"asset-event-consumer"}
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    assert dag_run.partition_key == "2026-05-20T01:00:00"
+    assert dag_run.partition_date == source_partition_date
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@mock.patch.object(SchedulerJobRunner, "_resolve_partition_date", autospec=True, return_value=None)
+def test_consumer_dag_run_partition_date_not_masked_when_resolver_suppresses(
+    mock_resolve, dag_maker: DagMaker, session: Session
+):
+    """A carried IdentityMapper date must not mask a resolver suppression.
+
+    When temporal mappers feeding the same APDR conflict (or one raises), the resolver
+    deliberately returns None and logs it; the carried date is only ever applied inside the
+    resolver, never at the call site. Here the APDR carries a date (IdentityMapper) but the
+    resolver returns None, and the consumer DagRun's partition_date must stay None — a
+    regression re-adding a call-site fallback to ``apdr.partition_date`` would fail this.
+    """
+    asset_1 = Asset(name="asset-1")
+    source_partition_date = pendulum.datetime(2026, 5, 20, 1, 0, 0, tz="UTC")
+
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer",
+        asset=asset_1,
+        partition_key="2026-05-20T01:00:00",
+        partition_date=source_partition_date,
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2026-05-20T01:00:00",
+    )
+    session.refresh(apdr)
+    # The IdentityMapper carry is stored on the APDR...
+    assert apdr.partition_date == source_partition_date
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    assert dag_run.partition_key == "2026-05-20T01:00:00"
+    # ...but the resolver suppressed a date, so the call site must NOT substitute the carry.
+    assert dag_run.partition_date is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_run_partition_date_none_for_non_temporal_mapper(
+    dag_maker: DagMaker,
+    session: Session,
+    custom_partition_mapper_patch: Callable[[], ExitStack],
+):
+    """For mappers that aren't temporal/identity, the consumer DagRun's partition_date stays None."""
+    asset_1 = Asset(name="asset-1")
+
+    with custom_partition_mapper_patch():
+        with dag_maker(
+            dag_id="asset-event-consumer",
+            schedule=PartitionedAssetTimetable(
+                assets=asset_1,
+                default_partition_mapper=Key1Mapper(),  # type: ignore[arg-type]
+            ),
+            session=session,
+        ):
+            EmptyOperator(task_id="hi")
+        session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    with custom_partition_mapper_patch():
+        apdr = _produce_and_register_asset_event(
+            dag_id="asset-event-producer",
+            asset=asset_1,
+            partition_key="this-is-not-key-1-before-mapped",
+            partition_date=pendulum.datetime(2026, 5, 20, 1, 0, 0, tz="UTC"),
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="key-1",
+        )
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    assert dag_run.partition_key == "key-1"
+    assert dag_run.partition_date is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_run_partition_date_is_none_when_source_has_no_date(
+    dag_maker: DagMaker, session: Session
+):
+    """When the producer DagRun has no partition_date, IdentityMapper passes None through."""
+    asset_1 = Asset(name="asset-1")
+
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="asset-event-producer",
+        asset=asset_1,
+        partition_key="2026-05-20T01:00:00",
+        partition_date=None,
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2026-05-20T01:00:00",
+    )
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    assert dag_run.partition_key == "2026-05-20T01:00:00"
+    assert dag_run.partition_date is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_run_partition_date_is_none_when_task_key_diverges(
+    dag_maker: DagMaker, session: Session
+):
+    """A task-emitted partition_key differing from the DagRun's drops the source date.
+
+    The producer DagRun carries a partition_date, but the task emits an outlet event with a
+    different partition_key. The run-level date refers to the run-level key, so it must not be
+    carried onto the divergent partition: the APDR (and the consumer DagRun created from it) keep
+    partition_date None even though the producer run had one.
+    """
+    asset_1 = Asset(name="asset-1")
+
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=IdentityMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    with dag_maker(
+        dag_id="asset-event-producer",
+        schedule=PartitionedAtRuntime(),
+        session=session,
+    ) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset_1])
+
+    dr = dag_maker.create_dagrun(
+        partition_key="scheduler-key",
+        partition_date=pendulum.datetime(2026, 5, 20, 1, 0, 0, tz="UTC"),
+        session=session,
+    )
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    serialized_outlets = dag.get_task("hi").outlets
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[o.asprofile() for o in serialized_outlets],
+        outlet_events=[
+            {
+                "dest_asset_key": {"name": "asset-1", "uri": "asset-1"},
+                "extra": {},
+                "partition_key": "task-key",
+            },
+        ],
+        session=session,
+    )
+    session.commit()
+
+    event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+            AssetEvent.source_run_id == dr.run_id,
+        )
+    )
+    assert event is not None
+    assert event.partition_key == "task-key"
+
+    apdr = session.scalar(
+        select(AssetPartitionDagRun)
+        .join(
+            PartitionedAssetKeyLog,
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
+        )
+        .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    )
+    assert apdr is not None
+    # Divergent key → the threaded source date is dropped to None at APDR creation.
+    assert apdr.partition_key == "task-key"
+    assert apdr.partition_date is None
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
+    assert dag_run is not None
+    assert dag_run.partition_key == "task-key"
+    assert dag_run.partition_date is None
 
 
 @pytest.mark.need_serialized_dag
@@ -12265,25 +12628,39 @@ def _make_runner() -> SchedulerJobRunner:
     )
 
 
+_CARRIED_DATE = datetime.datetime(2026, 5, 20, 1, 0, 0, tzinfo=datetime.timezone.utc)
+
+
 @pytest.mark.parametrize(
-    ("mappers", "partition_key", "expected"),
+    ("mappers", "partition_key", "carried_partition_date", "expected"),
     [
-        # Non-temporal mapper → no anchor.
-        pytest.param([CoreIdentityMapper()], "some-key", None, id="non-temporal-none"),
+        # Non-temporal mapper, nothing carried → None.
+        pytest.param([CoreIdentityMapper()], "some-key", None, None, id="non-temporal-none"),
+        # Non-temporal mapper with a carried producer date (IdentityMapper) → the carry.
+        pytest.param(
+            [CoreIdentityMapper()],
+            "some-key",
+            _CARRIED_DATE,
+            _CARRIED_DATE,
+            id="non-temporal-returns-carried-date",
+        ),
         # StartOfDayMapper(NY): "2024-03-15" → NY midnight = 04:00 UTC (EDT, DST since 2024-03-10),
         # localised with the mapper's own timezone rather than the global default.
         pytest.param(
             [CoreStartOfDayMapper(timezone="America/New_York")],
             "2024-03-15",
+            None,
             datetime.datetime(2024, 3, 15, 4, 0, 0, tzinfo=datetime.timezone.utc),
             id="non-utc-uses-mapper-timezone",
         ),
-        # Key cannot be decoded by the mapper's format → caught → None (no raise).
-        pytest.param([CoreStartOfDayMapper()], "not-a-date", None, id="decode-failure-none"),
+        # Key cannot be decoded by the mapper's format → caught → None, and the carried
+        # date is NOT substituted (the error is logged; masking it would hide that).
+        pytest.param([CoreStartOfDayMapper()], "not-a-date", _CARRIED_DATE, None, id="decode-failure-none"),
         # FanOutMapper unwraps to its downstream_mapper (daily), which owns the per-day key.
         pytest.param(
             [CoreFanOutMapper(upstream_mapper=CoreStartOfWeekMapper(), window=CoreWeekWindow())],
             "2024-01-16",
+            None,
             datetime.datetime(2024, 1, 16, 0, 0, 0, tzinfo=datetime.timezone.utc),
             id="fanout-uses-downstream-mapper",
         ),
@@ -12291,13 +12668,16 @@ def _make_runner() -> SchedulerJobRunner:
         pytest.param(
             [CoreStartOfDayMapper(), CoreStartOfDayMapper()],
             "2024-03-15",
+            None,
             datetime.datetime(2024, 3, 15, 0, 0, 0, tzinfo=datetime.timezone.utc),
             id="agreeing-mappers-anchor",
         ),
-        # Same key, UTC midnight (00:00Z) vs NY midnight (04:00Z) — distinct instants → None.
+        # Same key, UTC midnight (00:00Z) vs NY midnight (04:00Z) — distinct instants → None,
+        # and the carried date is NOT substituted (it would mask the logged conflict).
         pytest.param(
             [CoreStartOfDayMapper(timezone="UTC"), CoreStartOfDayMapper(timezone="America/New_York")],
             "2024-03-15",
+            _CARRIED_DATE,
             None,
             id="conflicting-mappers-none",
         ),
@@ -12306,15 +12686,19 @@ def _make_runner() -> SchedulerJobRunner:
         pytest.param(
             [CoreStartOfDayMapper(), CoreStartOfHourMapper()],
             "2024-03-15",
+            _CARRIED_DATE,
             None,
             id="one-failing-mapper-aborts",
         ),
     ],
 )
-def test_resolve_partition_date(mappers, partition_key, expected):
+def test_resolve_partition_date(mappers, partition_key, carried_partition_date, expected):
     """_resolve_partition_date over mapper compositions: temporal / fan-out / agree / conflict / failure.
 
-    The mappers are consumed one per upstream asset, so ``asset_infos`` is sized to ``mappers``.
+    The carried date (the producer's source date stamped on the APDR, set only for IdentityMapper)
+    is returned only when no temporal mapper contributes an anchor. On a conflict or a mapper
+    error the result is None — the carry must not mask the logged suppression. The mappers are
+    consumed one per upstream asset, so ``asset_infos`` is sized to ``mappers``.
     """
     runner = _make_runner()
     timetable = mock.MagicMock()
@@ -12326,5 +12710,6 @@ def test_resolve_partition_date(mappers, partition_key, expected):
         asset_infos=asset_infos,
         partition_key=partition_key,
         dag_id="test-dag",
+        carried_partition_date=carried_partition_date,
     )
     assert result == expected

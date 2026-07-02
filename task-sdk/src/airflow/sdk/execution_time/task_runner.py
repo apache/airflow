@@ -130,6 +130,7 @@ from airflow.sdk.execution_time.context import (
     TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
+    _get_worker_state_store_backend,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -334,6 +335,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
                 "partition_key": dag_run.partition_key,
+                "partition_date": coerce_datetime(dag_run.partition_date),
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
@@ -999,6 +1001,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
+        version_data=bundle_info.version_data,
     )
     bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
@@ -1733,7 +1736,7 @@ def _handle_current_task_success(
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
 
-    if conf.getboolean("state_store", "clear_on_success"):
+    if conf.getboolean("state_store", "clear_on_success") and _get_worker_state_store_backend() is not None:
         log.info(
             "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
         )
@@ -2062,6 +2065,43 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
+@detail_span("task.execute")
+def _run_execute_callable(
+    context: Context,
+    execute: Callable[..., Any] | functools.partial[Any],
+    task: BaseOperator,
+) -> Any:
+    """
+    Run the task's execute callable, applying the execution timeout if one is set.
+
+    The contextvars snapshot is taken here, after the ``task.execute`` span is
+    current, so spans the operator emits during ``execute`` nest under it rather
+    than under the caller. ``ExecutorSafeguard``'s tracker is set into that copy
+    so the operator's ``execute`` passes the safeguard check, while the copy keeps
+    the change from leaking into the surrounding context.
+    """
+    ctx = contextvars.copy_context()
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+    if task.execution_timeout:
+        from airflow.sdk.execution_time.timeout import timeout
+
+        # TODO: handle timeout in case of deferral
+        timeout_seconds = task.execution_timeout.total_seconds()
+        try:
+            # It's possible we're already timed out, so fast-fail if true
+            if timeout_seconds <= 0:
+                raise AirflowTaskTimeout()
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = ctx.run(execute, context=context)
+        except AirflowTaskTimeout:
+            task.on_kill()
+            raise
+    else:
+        result = ctx.run(execute, context=context)
+    return result
+
+
 @detail_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
@@ -2085,10 +2125,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    ctx = contextvars.copy_context()
-    # Populate the context var so ExecutorSafeguard doesn't complain
-    ctx.run(ExecutorSafeguard.tracker.set, task)
-
     # Export context in os.environ to make it available for operators to use.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
     os.environ.update(airflow_context_vars)
@@ -2104,23 +2140,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
-
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+    result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
@@ -2301,13 +2321,6 @@ def main():
                 log.info("::group::Pre Execute")
                 startup_details = get_startup_details()
 
-                # On macOS fork+exec path, the structured log channel wasn't
-                # inherited (exec replaces the address space). Request it from
-                # the supervisor using the existing ResendLoggingFD mechanism.
-                # Must happen after get_startup_details() so we don't read the
-                # startup message as a ResendLoggingFD response.
-                if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
-                    reinit_supervisor_comms()
                 span_ctx_mgr = _make_task_span(msg=startup_details)
                 span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)

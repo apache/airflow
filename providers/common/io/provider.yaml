@@ -115,3 +115,31 @@ config:
         type: string
         example: "gz"
         default: ""
+      state_store_objectstorage_path:
+        description: |
+          Base path on object storage for the task/asset state store backend, in URL format.
+          When set, StateStoreObjectStorageBackend will persist task and asset state under this
+          prefix, organised as <dag_id>/<run_id>/<task_id>/<map_index>/<key> for tasks and
+          assets/<asset_identifier>/<key> for assets.
+        version_added: 1.8.0
+        type: string
+        example: "s3://conn_id@bucket/task-state/"
+        default: ""
+      state_store_objectstorage_threshold:
+        description: |
+          Threshold in bytes for offloading serialized state store values to object storage. 0 means
+          always offload to object storage. Any positive number means values will be offloaded
+          only when their serialized size is at least that many bytes. Must be non-negative.
+        version_added: 1.8.0
+        type: integer
+        example: "1000000"
+        default: "0"
+      state_store_objectstorage_compression:
+        description: |
+          Compression algorithm to use when writing task/asset state store values to object storage.
+          Supported algorithms are a.o.: gzip, bz2, lzma, and xz. If not specified,
+          no compression will be used. The same algorithm must be available on all workers.
+        version_added: 1.8.0
+        type: string
+        example: "gzip"
+        default: ""

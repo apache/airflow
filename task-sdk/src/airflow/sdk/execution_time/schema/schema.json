@@ -434,6 +434,19 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         }
       },
       "required": [
@@ -486,11 +499,6 @@
           "format": "uuid",
           "title": "Ti Id",
           "type": "string"
-        },
-        "all_map_indices": {
-          "default": false,
-          "title": "All Map Indices",
-          "type": "boolean"
         },
         "type": {
           "const": "ClearTaskStateStore",
@@ -1276,6 +1284,19 @@
           ],
           "default": null,
           "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
         },
         "note": {
           "anyOf": [
@@ -4494,6 +4515,18 @@
           "format": "date-time",
           "title": "Timestamp",
           "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
         }
       },
       "required": [
@@ -4639,6 +4672,19 @@
             }
           ],
           "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
         },
         "note": {
           "anyOf": [

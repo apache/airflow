@@ -127,8 +127,16 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             db_teams = Team.get_all_team_names()
 
             if not db_teams.issuperset(am_teams):
-                raise ValueError(
-                    f"Teams defined in the auth manager ({am_teams}) are not present in the database ({db_teams})."
+                warnings.warn(
+                    f"Teams defined in the auth manager are not present in the database ({am_teams.difference(db_teams)}).",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            if not am_teams.issuperset(db_teams):
+                warnings.warn(
+                    f"Teams defined in the database are not present in the auth manager ({db_teams.difference(am_teams)}).",
+                    UserWarning,
+                    stacklevel=2,
                 )
 
     @abstractmethod
@@ -178,22 +186,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """Return the JWT token from a user object."""
         return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
             self.serialize_user(user)
-        )
-
-    def get_cli_user(self) -> T:
-        """
-        Return the user the local CLI acts as when calling the API server.
-
-        The Airflow CLI mints a short-lived JWT for this user (via :meth:`generate_jwt`)
-        so it can talk to the API server without persisting any credentials. A generic
-        auth manager cannot know which user is authorized for local CLI access, so the
-        default raises. Auth managers that support local CLI usage should override this
-        to return an administrative user. Otherwise, operators must provide a token via
-        the ``AIRFLOW_CLI_TOKEN`` environment variable.
-        """
-        raise NotImplementedError(
-            f"{type(self).__name__} does not support minting a local CLI token. "
-            "Set the AIRFLOW_CLI_TOKEN environment variable with a valid API token instead."
         )
 
     @abstractmethod
