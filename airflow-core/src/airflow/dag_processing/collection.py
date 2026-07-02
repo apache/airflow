@@ -376,8 +376,6 @@ def _update_dag_warnings(
     warning_types: tuple[DagWarningType, ...],
     session: Session,
 ):
-    from airflow.models.dagwarning import DagWarning
-
     stored_warnings = set(
         session.scalars(
             select(DagWarning).where(
