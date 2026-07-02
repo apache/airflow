@@ -1918,7 +1918,6 @@ Xmx
 xpath
 XSS
 xyz
-xz
 yaml
 Yandex
 yandex

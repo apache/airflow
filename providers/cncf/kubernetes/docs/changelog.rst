@@ -48,13 +48,13 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
 * ``Make pod patching logic explicitly reflect when a pod is retained (#68507)``
 * ``Fix mypy errors for task_instance access in provider triggers (#68685)``
 * ``Remove leftovers from #45184 clear_not_launched_queued_tasks removal (#68698)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
    * ``Trim redundant comments from KubernetesExecutor lazy-Manager tests (#69216)``
    * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
    * ``[main] Upgrade important CI environment (#68322)``
