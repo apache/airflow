@@ -41,6 +41,7 @@ ACTUAL_AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 def wide_console(monkeypatch):
     # Rich wraps at the detected width, which splits the messages asserted below when
     # tmp_path is long and CI's fixed console width is not in effect.
+    monkeypatch.setenv("TERM", "xterm")
     monkeypatch.setenv("COLUMNS", "250")
     get_console.cache_clear()
     yield
