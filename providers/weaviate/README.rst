@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-weaviate``
 
-Release: ``3.3.4``
+Release: ``3.3.5``
 
 
 `Weaviate <https://weaviate.io/developers/weaviate>`__
@@ -36,7 +36,7 @@ This is a provider package for ``weaviate`` provider. All classes for this provi
 are in ``airflow.providers.weaviate`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.3.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.3.5/>`_.
 
 Installation
 ------------
@@ -62,24 +62,5 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ==========================================  =================================================================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-weaviate[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.3.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-weaviate/3.3.5/changelog.html>`_.

@@ -138,7 +138,8 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
         coordinators = {
             "my-coordinator": {
                 "classpath": "path.to.CoordinatorClass",
-                "kwargs": {}
+                "kwargs": {},
+                "extra": {}
             }
         }
 
@@ -146,6 +147,14 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
     to the coordinator's constructor.  See the language-specific guide for the accepted kwargs
     of each coordinator (e.g. :ref:`java-sdk/coordinator-config` for
     :class:`~airflow.sdk.coordinators.java.JavaCoordinator`).
+
+    ``extra`` is an optional object for any additional information you want to associate with a
+    coordinator without coupling it to the coordinator instance. The coordinator itself never
+    receives it; other components read it as needed. For example, KubernetesExecutor reads
+    ``extra.pod_template_file`` to launch a queue's worker pod from a specific pod template, and
+    ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to override that queue's
+    worker base image (both keys are required), e.g. an image that bundles the JVM for a Java
+    coordinator.
 
 ``queue_to_coordinator``
     A JSON object mapping Celery queue names to coordinator names:

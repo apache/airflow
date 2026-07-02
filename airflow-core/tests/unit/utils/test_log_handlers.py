@@ -857,6 +857,106 @@ class TestLogUrl:
             "DYNAMIC_PATH.trigger.123.log",
         )
 
+    def test_log_retrieval_trigger_uses_trigger_log_server_port(self, create_task_instance):
+        with conf_vars({("logging", "trigger_log_server_port"): "9001"}):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+            hostname = get_hostname()
+            assert actual == (
+                f"http://{hostname}:9001/log/DYNAMIC_PATH.trigger.123.log",
+                "DYNAMIC_PATH.trigger.123.log",
+            )
+
+    def test_log_retrieval_trigger_falls_back_to_deprecated_config(self, create_task_instance):
+        with conf_vars(
+            {
+                ("logging", "trigger_log_server_port"): None,
+                ("logging", "triggerer_log_server_port"): "9002",
+            }
+        ):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+            hostname = get_hostname()
+            assert actual == (
+                f"http://{hostname}:9002/log/DYNAMIC_PATH.trigger.123.log",
+                "DYNAMIC_PATH.trigger.123.log",
+            )
+
+    def test_log_retrieval_trigger_prefers_new_config_over_deprecated(self, create_task_instance):
+        with conf_vars(
+            {
+                ("logging", "trigger_log_server_port"): "9001",
+                ("logging", "triggerer_log_server_port"): "9002",
+            }
+        ):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+            hostname = get_hostname()
+            assert actual == (
+                f"http://{hostname}:9001/log/DYNAMIC_PATH.trigger.123.log",
+                "DYNAMIC_PATH.trigger.123.log",
+            )
+
+    def test_log_retrieval_trigger_warns_on_deprecated_config(self, create_task_instance):
+        with conf_vars(
+            {
+                ("logging", "trigger_log_server_port"): None,
+                ("logging", "triggerer_log_server_port"): "9002",
+            }
+        ):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            with mock.patch("airflow.utils.log.file_task_handler.logger.warning") as mock_logger_warning:
+                FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+                mock_logger_warning.assert_called_once_with(
+                    "The [logging] %s option is deprecated. Please use [logging] %s instead.",
+                    "triggerer_log_server_port",
+                    "trigger_log_server_port",
+                )
+
 
 log_sample = """[2022-11-16T00:05:54.278-0800] {taskinstance.py:1257} INFO -
 --------------------------------------------------------------------------------

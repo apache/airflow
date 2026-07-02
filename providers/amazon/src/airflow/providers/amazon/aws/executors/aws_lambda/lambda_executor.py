@@ -44,6 +44,7 @@ from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -94,7 +95,10 @@ class AwsLambdaExecutor(BaseExecutor):
             from airflow.providers.common.compat.sdk import conf
 
             self.conf = conf
-
+        # TODO: Remove this fallback once the min Airflow version for providers is >= 3.1
+        # (BaseExecutor.team_name is always defined from Airflow 3.1 onward).
+        if not hasattr(self, "team_name"):
+            self.team_name = None
         self.lambda_function_name = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME)
         self.sqs_queue_url = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL)
         self.dlq_url = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.DLQ_URL)
@@ -558,7 +562,9 @@ class AwsLambdaExecutor(BaseExecutor):
 
         :param tis: The task instances to adopt.
         """
-        with Stats.timer("lambda_executor.adopt_task_instances.duration"):
+        with Stats.timer(
+            "lambda_executor.adopt_task_instances.duration", tags=prune_dict({"team_name": self.team_name})
+        ):
             adopted_tis: list[TaskInstance] = []
 
             if serialized_workload_keys := [

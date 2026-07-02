@@ -116,6 +116,7 @@ class SerializedDAG:
     rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
+    bundle_name: str | None = None
     end_date: datetime.datetime | None = None
     fail_fast: bool = False
     has_on_failure_callback: bool = False
@@ -181,6 +182,7 @@ class SerializedDAG:
                 "task_group",
                 "timetable",
                 "timezone",
+                "bundle_name",
             }
         )
 
@@ -470,20 +472,21 @@ class SerializedDAG:
         earliest to latest.
 
         For partitioned timetables, the iteration axis is ``partition_date``
-        rather than ``logical_date``. ``earliest`` and ``latest`` are resolved
-        to their respective day-bounds (timetable-timezone local midnight
-        converted to UTC) and the iteration walks the half-open interval
-        ``[resolve_day_bound(earliest.date()), resolve_day_bound(latest.date() + 1 day))``,
-        making ``latest``'s calendar date inclusive regardless of its time
-        component. Each yielded :class:`~airflow.timetables.base.DagRunInfo`
-        has ``logical_date=None``, ``data_interval=None``, and
+        rather than ``logical_date``. The wall-clock reading of *earliest* and
+        *latest* (year, month, day, hour, minute, second) is re-interpreted in
+        the timetable's own timezone before alignment, so a UTC-midnight bound
+        supplied by the production backfill path is treated as the
+        timetable-local midnight — a cross-timezone daily backfill therefore
+        includes the first day rather than silently dropping it. The window
+        granularity follows the timetable's own partition cadence and is *not*
+        rounded up to whole calendar days, so a single-hour window on an hourly
+        timetable yields only the partitions inside it (08:00 and 09:00, not the
+        full day's 24).  Each yielded
+        :class:`~airflow.timetables.base.DagRunInfo` has
+        ``logical_date=None``, ``data_interval=None``, and
         ``run_after == partition_date``; see
         :meth:`~airflow.timetables.base.Timetable.iter_partition_dagrun_infos`
         for details.
-
-        Day-bound dispatch is centralised here rather than at every call site
-        (e.g. backfill) so partitioned vs. non-partitioned routing is handled
-        once. See https://github.com/apache/airflow/pull/67537#discussion_r3386682447
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
@@ -494,8 +497,8 @@ class SerializedDAG:
 
         if self.timetable.partitioned:
             yield from self.timetable.iter_partition_dagrun_infos(
-                earliest_date=earliest.date(),
-                latest_date=latest.date(),
+                earliest=earliest,
+                latest=latest,
             )
             return
 
