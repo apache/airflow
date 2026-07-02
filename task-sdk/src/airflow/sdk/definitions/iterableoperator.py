@@ -290,6 +290,7 @@ class IterableOperator(BaseOperator):
                             if task.next_try_number > self.task_retries:
                                 exceptions.append(AirflowTaskTimeout(raised))
                             else:
+                                task.end_date = timezone.utcnow()
                                 reschedule_date = max(reschedule_date, task.next_retry_datetime())
                                 failed_tasks.append(task)
                             continue

@@ -28,6 +28,7 @@ from airflow.sdk._shared.configuration.exceptions import AirflowConfigException 
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from datetime import datetime
 
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.execution_time.comms import ErrorResponse
@@ -181,10 +182,11 @@ class AirflowRescheduleTaskInstanceException(AirflowRescheduleException):
     Raise when the task should be re-scheduled for a specific TaskInstance at a later time.
 
     :param task: The task instance that should be rescheduled
+    :param reschedule_date: The datetime when the task should be retried
     """
 
-    def __init__(self, task: IndexedTaskInstance):
-        super().__init__(reschedule_date=task.next_retry_datetime())
+    def __init__(self, task: IndexedTaskInstance, reschedule_date: datetime):
+        super().__init__(reschedule_date=reschedule_date)
         self.task = task
 
 

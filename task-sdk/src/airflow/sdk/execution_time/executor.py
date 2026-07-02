@@ -307,7 +307,10 @@ class TaskExecutor(LoggingMixin):
                 self.task_instance.try_number += 1
                 self.task_instance.end_date = timezone.utcnow()
                 self.task_instance.state = TaskInstanceState.UP_FOR_RESCHEDULE
-                raise AirflowRescheduleTaskInstanceException(task=self.task_instance)
+                raise AirflowRescheduleTaskInstanceException(
+                    task=self.task_instance,
+                    reschedule_date=self.task_instance.next_retry_datetime(),
+                )
             raise exc_value
 
         self.task_instance.state = TaskInstanceState.SUCCESS
