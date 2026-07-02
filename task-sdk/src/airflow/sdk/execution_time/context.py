@@ -1363,8 +1363,8 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
         if not restored or restored[-1] != context:
             log.warning(
                 "Current context is not equal to the state at context stack.",
-                expected=context,
-                got=restored[-1] if restored else None,
+                expected_id=id(context),
+                got_id=id(restored[-1]) if restored else None,
             )
         _CURRENT_CONTEXT.reset(token)
 
