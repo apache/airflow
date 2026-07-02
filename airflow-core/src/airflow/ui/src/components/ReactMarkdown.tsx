@@ -136,7 +136,11 @@ type MarkdownCodeElementProps = {
   readonly className?: string;
 };
 
-const InlineCodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
+const InlineCodeComponent = ({ children }: PropsWithChildren) => (
+  <Code borderRadius="sm" display="inline" fontSize="0.875em" px={1.5} py={0.5} verticalAlign="baseline">
+    {children}
+  </Code>
+);
 
 // Factory function for the pre component that needs style
 const createPreComponent =
