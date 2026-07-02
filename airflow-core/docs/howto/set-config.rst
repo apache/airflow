@@ -95,6 +95,9 @@ the key like this:
 
 This will retrieve config option from Secret Backends e.g Hashicorp Vault. See
 :ref:`Secrets Backends<secrets_backend_configuration>` for more details.
+For the :ref:`Local Filesystem Secrets Backend <local_filesystem_secrets>`, configuration values
+are read from ``configs_file_path``. They are separate from values loaded through
+``variables_file_path`` or ``connections_file_path``.
 
 The following config options support this ``_cmd`` and ``_secret`` version:
 
