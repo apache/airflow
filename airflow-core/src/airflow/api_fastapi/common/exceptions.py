@@ -24,7 +24,7 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
-from sqlalchemy.exc import DatabaseError, DataError, IntegrityError
+from sqlalchemy.exc import DatabaseError, DataError, IntegrityError, SQLAlchemyError
 
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
@@ -170,8 +170,46 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
         )
 
 
+class SQLAlchemyErrorHandler(BaseErrorHandler[SQLAlchemyError]):
+    """Generic handler for SQLAlchemyError -> 500 responses."""
+
+    def __init__(self):
+        super().__init__(SQLAlchemyError)
+
+    def exception_handler(self, request: Request, exc: SQLAlchemyError):
+        exception_id = get_random_string()
+        stacktrace = "".join(traceback.format_tb(exc.__traceback__))
+        # SQLAlchemyError may not have statement/orig attributes; guard access
+        statement = getattr(exc, "statement", "hidden")
+        orig_error = getattr(exc, "orig", "hidden")
+        log_message = f"Error with id {exception_id}, statement: {statement}\n{stacktrace}"
+        log.error(log_message)
+        if conf.get("api", "expose_stacktrace") == "True":
+            message = log_message
+            statement = str(statement)
+            orig_error = str(orig_error)
+        else:
+            message = (
+                "Serious error when handling your request. Check logs for more details - "
+                f"you will find it in api server when you look for ID {exception_id}"
+            )
+            statement = "hidden"
+            orig_error = "hidden"
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "reason": "Database error",
+                "statement": statement,
+                "orig_error": orig_error,
+                "message": message,
+            },
+        )
+
+
 ERROR_HANDLERS: list[BaseErrorHandler] = [
     _UniqueConstraintErrorHandler(),
     DataErrorHandler(),
+    SQLAlchemyErrorHandler(),
     DagErrorHandler(),
 ]
