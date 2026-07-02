@@ -144,23 +144,27 @@ class Server(
 
       launch {
         try {
-          aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
-            logger.debug("Connected comm", mapOf("addr" to comm))
-            CoordinatorComm(
-              bundle,
-              socket.openReadChannel(),
-              socket.openWriteChannel(autoFlush = true),
-            ).startProcessing()
+          SelectorManager(Dispatchers.IO).use { selector ->
+            aSocket(selector).tcp().connect(comm).use { socket ->
+              logger.debug("Connected comm", mapOf("addr" to comm))
+              CoordinatorComm(
+                bundle,
+                socket.openReadChannel(),
+                socket.openWriteChannel(autoFlush = true),
+              ).startProcessing()
+            }
           }
         } finally {
           deferral.complete(Unit)
         }
       }
       launch {
-        aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(logs).use { socket ->
-          logger.debug("Connected logs", mapOf("addr" to logs))
-          LogSender.configure(socket.openWriteChannel(autoFlush = true))
-          deferral.await()
+        SelectorManager(Dispatchers.IO).use { selector ->
+          aSocket(selector).tcp().connect(logs).use { socket ->
+            logger.debug("Connected logs", mapOf("addr" to logs))
+            LogSender.configure(socket.openWriteChannel(autoFlush = true))
+            deferral.await()
+          }
         }
       }
     }
