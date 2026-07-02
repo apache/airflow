@@ -1,0 +1,1 @@
+Fixed custom StatsD/Datadog/OpenTelemetry metrics not being emitted from plugins when using listener hooks (e.g. ``on_dag_run_success``) that run in the scheduler or API server process.
