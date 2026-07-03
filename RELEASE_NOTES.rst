@@ -76,6 +76,11 @@ with ``@task.stub(queue=...)``; the worker routes it to a configured coordinator
 such as Go) that runs the task in a language runtime and proxies Variables, Connections, and XComs back
 through the Execution API.
 
+.. warning::
+
+  The Coordinator layer and the Java/Go SDKs are experimental in 3.3.0 and may change in future
+  versions based on user feedback.
+
 For detailed usage instructions, see :doc:`/authoring-and-scheduling/language-sdks/index`.
 
 Dag bundle version on clear, rerun, and backfill (#63884)
@@ -427,6 +432,11 @@ Bug Fixes
 - Allow ``InProcessExecutionAPI`` to start without ``api_auth.jwt_secret`` configured (#68982)
 - Make ``airflow dags test`` wait for Human-in-the-loop input instead of looping indefinitely on parked HITL tasks (#69104)
 - Fix the Java coordinator rejecting macOS dual-stack loopback connections (#68973)
+- Fix an asset-event ingestion crash for Dags using ``FixedKeyMapper`` (#69326)
+- UI: Fix the details panel header overlapping the tabs (#69318)
+- Fix new Dag versions being created when a task's ``retry_policy`` was serialized (#69315)
+- Fix retry-policy overrides not being persisted to task-instance history (#69241)
+- Fix deadline callback data not being persisted (#69259)
 
 Miscellaneous
 ^^^^^^^^^^^^^
