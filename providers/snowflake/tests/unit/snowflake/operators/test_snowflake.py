@@ -389,6 +389,36 @@ class TestSnowflakeSqlApiOperator:
             "Trigger is not a SnowflakeSqlApiTrigger"
         )
 
+    def test_snowflake_sql_api_pushes_query_ids_to_xcom(
+        self,
+        mock_execute_query,
+        mock_get_sql_api_query_status,
+    ):
+        """
+        Tests that query IDs returned by the Snowflake SQL API are pushed to XCom
+        when ``do_xcom_push=True``.
+        """
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=True,
+            deferrable=False,
+        )
+
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+
+        context = create_context(operator)
+
+        operator.execute(context)
+
+        context["ti"].xcom_push.assert_called_once_with(
+            key="query_ids",
+            value=["uuid1"],
+        )
+
     def test_snowflake_sql_api_execute_complete_failure(self):
         """Test SnowflakeSqlApiOperator raise RuntimeError of error event"""
 

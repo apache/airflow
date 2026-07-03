@@ -14,31 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import os
-import signal
-import time
-
-from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions.dag import dag
-
-
-class SignalForwardOperator(BaseOperator):
-    """Send SIGTERM to the supervisor parent process to exercise signal forwarding."""
-
-    def execute(self, context):
-        print("EXECUTE_STARTED", flush=True)
-        os.kill(os.getppid(), signal.SIGTERM)
-        time.sleep(2)
-
-    def on_kill(self) -> None:
-        print("ON_KILL_CALLED_VIA_SIGNAL_FORWARDING", flush=True)
-
-
-@dag()
-def signal_forward_test():
-    SignalForwardOperator(task_id="signal_task")
-
-
-signal_forward_test()

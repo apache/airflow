@@ -29,7 +29,7 @@ from elasticsearch import Elasticsearch
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.elasticsearch._compat import apply_compat_with
-from airflow.providers.elasticsearch.utils.sql import read_sql_to_polars
+from airflow.providers.elasticsearch.utils.sql import read_sql_to_polars, read_sql_to_polars_by_chunks
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -280,6 +280,36 @@ class ElasticsearchSQLHook(DbApiHook):
             client=client,
             query=sql,
             params=parameters,
+            **kwargs,
+        )
+
+    def _get_polars_df_by_chunks(
+        self,
+        sql,
+        parameters=None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ):
+        """
+        Execute an Elasticsearch SQL query and return the results as chunked Polars DataFrames.
+
+        This method uses Elasticsearch SQL cursor-based pagination instead of DB-API,
+        as Elasticsearch is not fully compatible with polars.read_database.
+
+        :param sql: SQL query string
+        :param parameters: Optional query parameters
+        :param chunksize: Number of rows per yielded DataFrame
+        :param kwargs: Additional arguments passed to the underlying reader
+        :return: Generator of polars.DataFrame objects
+        """
+        client = self.get_conn().es
+
+        yield from read_sql_to_polars_by_chunks(
+            client=client,
+            query=sql,
+            params=parameters,
+            chunksize=chunksize,
             **kwargs,
         )
 

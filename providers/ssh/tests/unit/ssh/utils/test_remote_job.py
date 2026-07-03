@@ -18,6 +18,11 @@
 from __future__ import annotations
 
 import base64
+import os
+import shutil
+import subprocess
+import time
+from pathlib import Path
 
 import pytest
 
@@ -126,6 +131,18 @@ class TestBuildPosixWrapperCommand:
         wrapper = build_posix_wrapper_command("echo 'hello world'", paths)
         assert wrapper is not None
 
+    def test_runs_in_own_process_group(self):
+        """The job launches under setsid (when available); $! is the leader PID/PGID."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="posix")
+        wrapper = build_posix_wrapper_command("/path/to/script.sh", paths)
+
+        # New session/process group when setsid exists, plain detached run otherwise
+        assert "command -v setsid" in wrapper
+        assert "setsid bash -c" in wrapper
+        assert "nohup bash -c" in wrapper
+        # Leader PID recorded synchronously by the launcher ($! == PGID under setsid)
+        assert 'echo -n $! > "$pid_file"' in wrapper
+
 
 class TestBuildWindowsWrapperCommand:
     def test_basic_command(self):
@@ -210,20 +227,77 @@ class TestCompletionCheckCommands:
 
 
 class TestKillCommands:
-    def test_posix_kill(self):
-        """Test POSIX kill command."""
+    def test_posix_kill_signals_process_group_then_falls_back(self):
+        """POSIX kill targets the process group first, then a single PID as fallback."""
         cmd = build_posix_kill_command("/tmp/pid")
-        assert "kill" in cmd
-        assert "cat" in cmd
+        assert "cat '/tmp/pid'" in cmd
+        # Negative PID => signal the whole process group (kills the job's children too)
+        assert 'kill -TERM -"$p"' in cmd
+        # Fallback for jobs that are not group leaders (host without setsid)
+        assert 'kill -TERM "$p"' in cmd
+        # Guard against a corrupt/partial pid: -0/-1 would broadcast to every process
+        assert '[ "$p" -gt 1 ]' in cmd
+        assert cmd.endswith("fi")
 
-    def test_windows_kill(self):
-        """Test Windows kill command."""
+    def test_windows_kill_terminates_process_tree(self):
+        """Windows kill terminates the process and its child tree via taskkill /T."""
         cmd = build_windows_kill_command("C:\\temp\\pid")
         assert "powershell.exe" in cmd
         assert "-EncodedCommand" in cmd
         encoded_script = cmd.split("-EncodedCommand ")[1]
         decoded_script = base64.b64decode(encoded_script).decode("utf-16-le")
-        assert "Stop-Process" in decoded_script
+        assert "taskkill" in decoded_script
+        assert "/T" in decoded_script  # tree kill (process + children)
+        # $PID is a read-only automatic variable in PowerShell; must not be assigned
+        assert "$procId" in decoded_script
+        assert "$pid =" not in decoded_script
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or shutil.which("setsid") is None or shutil.which("bash") is None,
+    reason="needs a POSIX host with bash and setsid to exercise process-group teardown",
+)
+class TestPosixKillBehaviour:
+    """End-to-end check that on_kill tears down the whole job tree, not just the wrapper.
+
+    Regression test for the orphaned-process bug: killing only the recorded PID left the
+    user command (and its children) running, so the exit_code file was never written and
+    the trigger timed out. The job now runs in its own process group and the kill signals
+    the group.
+    """
+
+    @staticmethod
+    def _group_alive(pgid: int) -> bool:
+        # pgrep -g matches by process-group id; rc 0 => at least one member alive.
+        return subprocess.run(["pgrep", "-g", str(pgid)], capture_output=True, check=False).returncode == 0
+
+    def test_kill_terminates_whole_job_tree(self, tmp_path):
+        paths = RemoteJobPaths(job_id="killtree", remote_os="posix", base_dir=str(tmp_path / "jobs"))
+        # `sleep 300` runs as a child of the wrapper subshell -> the tree the old kill orphaned.
+        # Run under bash, which is the remote login shell this operator requires (the wrapper
+        # uses `set -o pipefail`); the kill is run the same way below.
+        wrapper = build_posix_wrapper_command("sleep 300", paths)
+        subprocess.run(["bash", "-c", wrapper], check=True, capture_output=True, text=True)
+
+        # The launcher records $! synchronously, so the pid file is present on return.
+        pid_path = Path(paths.pid_file)
+        assert pid_path.exists(), "job never wrote its pid file"
+        pid_text = pid_path.read_text().strip()
+        assert pid_text, "pid file is empty"
+        pgid = int(pid_text)
+
+        try:
+            assert self._group_alive(pgid), "job tree should be running before kill"
+
+            subprocess.run(["bash", "-c", build_posix_kill_command(paths.pid_file)], check=True)
+
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and self._group_alive(pgid):
+                time.sleep(0.05)
+            assert not self._group_alive(pgid), "kill left part of the job tree running"
+        finally:
+            # Belt-and-suspenders: never leave a stray `sleep 300` behind if an assert fails.
+            subprocess.run(["bash", "-c", f"kill -9 -{pgid} 2>/dev/null || true"], check=False)
 
 
 class TestCleanupCommands:

@@ -57,30 +57,61 @@ Both paths run the same flow.
    route as a recover-snapshot install per the committed
    lock, not as an upgrade. Continue at Step 3.
 
-## Step 0a — Pre-Magpie leftovers safety check
+## Step 0a — Migrate `apache-steward`-era naming
 
 The framework was once named **apache-steward** before it was
-renamed to **Apache Magpie**. The framework **no longer ships an
-automated pre-Magpie migration** — a repo still on the old layout
-must be migrated by hand.
+renamed to **Apache Magpie**. Every upgrade run **performs this
+migration automatically** so no adopter is left half-renamed.
+**This step is the only place the `steward` name should still
+appear anywhere in the framework — and only as the *source* side
+of a rename.**
 
-If you detect **any** legacy artefact here —
+First detect whether any legacy artefact is present —
 `.apache-steward.lock`, `.apache-steward/`,
-`.apache-steward-overrides/`, a committed
-`setup-steward/` skill directory, or a framework symlink
-**without** the `magpie-` prefix — do **not** continue the normal
-upgrade against the half-migrated state. Stop and surface the
-manual remediation:
+`.apache-steward-overrides/`, a committed `setup-steward/` skill
+directory, a framework symlink **without** the `magpie-` prefix,
+a `~/.config/apache-steward/` user-config dir, a
+`[tool.steward.checks]` block in a member `pyproject.toml`, a
+`STEWARD_*` / `APACHE_STEWARD_*` reference, or an
+`apache-steward` / `airflow-steward` path in `.claude/settings*.json`.
+If **none** is present, the repo is already on the Magpie layout —
+skip to Step 1.
 
-1. Remove the legacy in-repo artefacts (`.apache-steward*`, any
-   un-prefixed framework symlinks, a committed `setup-steward`
-   skill).
-2. Re-adopt from scratch with `/magpie-setup` so the current
-   `.apache-magpie*` layout and `magpie-`-prefixed symlinks are
-   written fresh.
-3. Move `~/.config/apache-steward/` (per-user) to
-   `~/.config/apache-magpie/` and update any sandbox-allowlist
-   entry that referenced the old path.
+Otherwise, perform every migration below that applies, then resume
+the normal upgrade against the clean Magpie layout.
+
+**Performed automatically by this skill:**
+
+1. **User config dir.** If `~/.config/apache-steward/` exists and
+   `~/.config/apache-magpie/` does not, move it:
+   `mv ~/.config/apache-steward ~/.config/apache-magpie`. If **both**
+   exist, do **not** clobber — stop and ask the maintainer to merge
+   them by hand.
+2. **Sandbox-allowlist path references.** In `.claude/settings.json`
+   and `.claude/settings.local.json`, rewrite any `apache-steward`
+   path to `apache-magpie` and any `airflow-steward` checkout path to
+   the current repo path.
+3. **Per-member opt-out key.** Rewrite any `[tool.steward.checks]`
+   block in a workspace member's `pyproject.toml` to
+   `[tool.magpie.checks]`.
+4. **Snapshot layout.** Remove the legacy gitignored artefacts
+   (`.apache-steward*`, any un-prefixed framework symlinks, a
+   committed `setup-steward` skill) and re-adopt with `/magpie-setup`
+   so the `.apache-magpie*` layout and `magpie-`-prefixed symlinks
+   are written fresh. (The snapshot is a build artefact, so
+   re-adoption — not hand-editing — is the safe path here.)
+
+**Cannot be reached from inside the repo — prompt the maintainer:**
+
+5. **Environment variables.** Any `STEWARD_*` override
+   (`STEWARD_GUARD_OFF`, `STEWARD_ALLOW_*`, `STEWARD_GUARD_DIRS`,
+   `STEWARD_READY_LABEL`) and `APACHE_STEWARD_USER_CONFIG` are now
+   `MAGPIE_*` / `APACHE_MAGPIE_USER_CONFIG`. Tell the maintainer to
+   update their shell profile, CI secrets, and any wrapper scripts.
+6. **Issue / PR body markers.** Comment markers written as
+   `<!-- apache-steward: … -->` are now `<!-- apache-magpie: … -->`.
+   The tooling reads only the new marker, so any open tracker item
+   still carrying the old marker must have it rewritten by hand.
 
 Then resume this upgrade against the clean Magpie layout.
 
@@ -179,7 +210,7 @@ bootstrap logic. It implements
    the diff and stop. Do **not** silently overwrite local
    work. The user either (a) confirms the modifications can
    be discarded, (b) decides to upstream them as a PR
-   against `apache/airflow-steward` first, or (c) defers
+   against `apache/magpie` first, or (c) defers
    the bootstrap-skill update to a later upgrade run.
 3. **If there are no local modifications** (or the user
    confirmed in 2), copy the snapshot's `setup`
@@ -215,7 +246,7 @@ bootstrap logic. It implements
 The adopter shouldn't modify the bootstrap copy locally —
 the framework's hard rule is *"local mods go in
 `.apache-magpie-overrides/`, framework changes go via PR
-to `apache/airflow-steward`"*. But if they did, step (2)
+to `apache/magpie`"*. But if they did, step (2)
 catches it before the overwrite would erase their work.
 
 ## Step 5 — Reconcile overrides
@@ -383,7 +414,13 @@ The framework ships hooks and config files an adopter
 rather than pulls in via symlink. Examples:
 
 - `<repo-root>/.git/hooks/post-checkout` (the worktree-aware
-  hook installed during adoption).
+  hook installed during adoption). Its expected content is the
+  [`adopt.md` Step 10](adopt.md#step-10--worktree-aware-post-checkout-hook-fresh-only)
+  template — which now both chains the sandbox-allowlist helper
+  **and** seeds a new worktree's agent-guard from the main
+  checkout. An adopter on an older hook (sandbox-only, or the
+  long-removed `--auto-fix-symlinks` line) is re-installed to the
+  current template by this drift sync.
 - `<repo-root>/.claude/hooks/agent-guard.py` and the
   `<repo-root>/.claude/hooks/guards.d/` directory (the
   deterministic `PreToolUse` guard dispatcher and its guards — see
@@ -488,7 +525,7 @@ makes the skipped worktrees easy to come back to.
 sandbox-allowlist helper once with `--all-worktrees` to
 ensure each worktree's project root is in that worktree's
 own `.claude/settings.local.json` (defensive against
-[issue #197](https://github.com/apache/airflow-steward/issues/197);
+[issue #197](https://github.com/apache/magpie/issues/197);
 see
 [`setup-isolated-setup-install/SKILL.md` → Step P](../setup-isolated-setup-install/SKILL.md#step-p--project-root-coverage-in-the-sandbox-allowlists)):
 
@@ -533,7 +570,7 @@ times been seeded from one specific adopter's data
 (originally the project the framework grew out of) and
 not always generalised back. This step surfaces the
 residue so it can be filed as an issue against
-`apache/airflow-steward` and fixed upstream.
+`apache/magpie` and fixed upstream.
 
 For each file under `<snapshot-dir>/projects/_template/`,
 scan for adopter-specific signals:
@@ -565,7 +602,7 @@ read-only per
 [`SKILL.md` Golden rule 1](SKILL.md#golden-rules)). The
 recap is purely advisory; the operator decides whether to
 open a tracking issue / PR against
-`apache/airflow-steward`.
+`apache/magpie`.
 
 The check is intentionally heuristic — false positives are
 acceptable because the cost is one line in the summary, not
@@ -693,7 +730,7 @@ Framework templates (projects/_template/):
   ✓ all templates look generic   OR
   ⚠ <_template/foo.md>           (e.g. H1 title hardcoded to a specific project name)
   ⚠ <_template/bar.md>           (e.g. `committers_team` set to a concrete org/team without placeholder)
-  → file an issue against apache/airflow-steward to upstream a fix
+  → file an issue against apache/magpie to upstream a fix
 
 Recommended follow-ups:
   - Run /magpie-setup-isolated-setup-update if the secure-setup blast
