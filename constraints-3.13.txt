@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-30T09:12:14.881881
+# This constraints file was automatically generated on 2026-07-03T14:07:42.736863
 # via `uv pip install --resolution highest` for the "v3-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -30,7 +30,7 @@
 #
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
-APScheduler==3.11.2
+APScheduler==3.11.3
 Authlib==1.7.2
 Deprecated==1.3.1
 Events==0.5
@@ -202,7 +202,7 @@ asn1crypto==1.5.1
 asttokens==3.0.1
 async-timeout==4.0.3
 asyncpg==0.31.0
-asyncssh==2.23.1
+asyncssh==2.24.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==26.1.0
@@ -298,7 +298,7 @@ facebook_business==25.0.2
 fastapi-cli==0.0.27
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.13.7
+fastcore==1.13.8
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.4
@@ -374,7 +374,7 @@ google-resumable-media==2.10.0
 googleapis-common-protos==1.75.0
 graphviz==0.21
 greenback==1.3.0
-greenlet==3.5.2
+greenlet==3.5.3
 gremlinpython==3.8.1
 griffelib==2.1.0
 grpc-google-iam-v1==0.14.4
@@ -394,7 +394,7 @@ hmsclient==0.1.1
 hpack==4.2.0
 httpcore2==2.5.0
 httpcore==1.0.9
-httplib2==0.31.2
+httplib2==0.32.0
 httpr==0.4.8
 httptools==0.8.0
 httpx2==2.5.0
@@ -414,7 +414,7 @@ inflection==0.5.1
 influxdb-client==1.50.0
 influxdb3-python==0.20.0
 ipykernel==7.3.0
-ipython==9.14.1
+ipython==9.15.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 isoduration==20.11.0
@@ -424,10 +424,10 @@ jaraco.context==6.1.2
 jaraco.functools==4.5.0
 jedi==0.20.0
 jeepney==0.9.0
-jiter==0.15.0
+jiter==0.16.0
 jmespath==1.1.0
 joblib==1.5.3
-joserfc==1.7.1
+joserfc==1.7.2
 jpype1==1.7.1
 jsonpath-ng==1.8.0
 jsonschema-specifications==2025.9.1
@@ -559,9 +559,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.0.0
+pydantic-ai-slim==2.1.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.0.0
+pydantic-graph==2.1.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -601,7 +601,7 @@ reactivex==4.1.0
 redis==6.4.0
 redshift_connector==2.1.15
 referencing==0.37.0
-regex==2026.5.9
+regex==2026.6.28
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
@@ -620,7 +620,7 @@ s3transfer==0.17.1
 sagemaker_studio==1.0.26
 scikit-learn==1.9.0
 scipy==1.18.0
-scramp==1.4.9
+scramp==1.4.10
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
@@ -631,7 +631,7 @@ shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.42.0
-smart_open==7.7.1
+smart_open==8.0.0
 smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
@@ -643,7 +643,7 @@ spython==0.3.14
 sqlalchemy-bigquery==1.17.0
 sqlalchemy-spanner==1.19.0
 sqlalchemy_drill==1.1.10
-sqlglot==30.11.0
+sqlglot==30.12.0
 sqlparse==0.5.5
 stack-data==0.6.3
 starlette==1.3.1
@@ -677,13 +677,13 @@ types-requests==2.33.0.20260518
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2026.2
-tzlocal==5.4.3
+tzlocal==5.4.4
 uc-micro-py==2.0.0
 universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.11.24
+uv==0.11.25
 uvicorn==0.49.0
 uvloop==0.22.1
 validators==0.35.0
