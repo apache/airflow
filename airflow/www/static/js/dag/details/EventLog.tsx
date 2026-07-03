@@ -43,7 +43,7 @@ import {
 } from "chakra-react-select";
 
 import { useEventLogs } from "src/api";
-import { getMetaValue, useOffsetTop } from "src/utils";
+import { getMetaValue, useContentHeight } from "src/utils";
 import type { DagRun } from "src/types";
 import LinkButton from "src/components/LinkButton";
 import type { EventLog as EventLogType } from "src/types/api-generated";
@@ -75,7 +75,7 @@ const columnHelper = createColumnHelper<EventLogType>();
 
 const EventLog = ({ taskId, run, showMapped }: Props) => {
   const logRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(logRef);
+  const contentHeight = useContentHeight(logRef);
   const { tableURLState, setTableURLState } = useTableURLState({
     sorting: [{ id: "when", desc: true }],
   });
@@ -216,7 +216,7 @@ const EventLog = ({ taskId, run, showMapped }: Props) => {
   return (
     <Box
       height="100%"
-      maxHeight={`calc(100% - ${offsetTop}px)`}
+      maxHeight={`${contentHeight}px`}
       ref={logRef}
       overflowY="auto"
     >
