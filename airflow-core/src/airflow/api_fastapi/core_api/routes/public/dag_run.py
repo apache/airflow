@@ -690,12 +690,6 @@ def trigger_dag_run(
             f"Dag with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
-        )
-
     referer = request.headers.get("referer")
     if referer:
         triggered_by = DagRunTriggeredByType.UI
@@ -715,6 +709,16 @@ def trigger_dag_run(
                     f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{body.bundle_version}'"
                 )
             context_dag = preloaded_dag_version.serialized_dag.dag
+
+        if (
+            context_dag.allowed_run_types is not None
+            and DagRunType.MANUAL not in context_dag.allowed_run_types
+        ):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Dag with dag_id: '{dag_id}' does not allow manual runs",
+            )
+
         params = body.validate_context(context_dag)
 
         if body.bundle_version is not None:

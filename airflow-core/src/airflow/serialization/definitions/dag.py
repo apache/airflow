@@ -664,12 +664,10 @@ class SerializedDAG:
                     f"is reserved for {inferred_run_type.value} runs"
                 )
 
-        self.validate_partition_key(partition_key)
-
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
 
-        # When triggering against a specific bundle version, validate conf against that
-        # version's param schema (not the live dag's), so callers get the right errors.
+        # When triggering against a specific bundle version, resolve that version first so
+        # partition_key and conf are validated against it (not the live/latest dag).
         if bundle_version is not None:
             if self.disable_bundle_versioning:
                 raise ValueError(f"DAG with dag_id: '{self.dag_id}' does not support bundle versioning")
@@ -684,6 +682,8 @@ class SerializedDAG:
             params_dag = dag_version.serialized_dag.dag
         else:
             params_dag = self
+
+        params_dag.validate_partition_key(partition_key)
 
         copied_params = params_dag.params.deep_merge(conf)
         copied_params.validate()

@@ -446,12 +446,6 @@ def materialize_asset(
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    if dag.allowed_run_types is not None and DagRunType.ASSET_MATERIALIZATION not in dag.allowed_run_types:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
-        )
-
     resolved_body = body or MaterializeAssetBody()
 
     try:
@@ -466,6 +460,16 @@ def materialize_asset(
                     f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{resolved_body.bundle_version}'"
                 )
             context_dag = preloaded_dag_version.serialized_dag.dag
+
+        if (
+            context_dag.allowed_run_types is not None
+            and DagRunType.ASSET_MATERIALIZATION not in context_dag.allowed_run_types
+        ):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
+            )
+
         params = resolved_body.validate_context(context_dag)
         return dag.create_dagrun(
             run_id=params["run_id"],

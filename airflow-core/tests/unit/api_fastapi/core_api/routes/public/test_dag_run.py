@@ -3261,12 +3261,22 @@ class TestTriggerDagRun:
             == "Dag with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
 
-    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, testing_dag_bundle):
+    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, dag_maker):
         now = timezone.utcnow().isoformat()
-        self._dags_for_trigger_tests(session)
-        response = test_client.post("/dags/allowed_scheduled/dagRuns", json={"logical_date": now})
+        dag_id = "allowed_scheduled"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+        session.commit()
+
+        response = test_client.post(f"/dags/{dag_id}/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
-        assert response.json()["detail"] == "Dag with dag_id: 'allowed_scheduled' does not allow manual runs"
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag_id}' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -3626,6 +3636,51 @@ class TestTriggerDagRun:
         # For a "0 0 * * *" cron, logical_date is the interval END, so interval is [prev_day, logical_date].
         assert data["data_interval_start"] == "2023-12-31T00:00:00Z"
         assert data["data_interval_end"] == "2024-01-01T00:00:00Z"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
+        """allowed_run_types is enforced from the requested bundle version, not the latest."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_allowed_run_types_dag"
+        bundle_name = "allowed_run_types_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.MANUAL, DagRunType.SCHEDULED],
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        # Latest (v2) disallows manual runs; v1 allows them. Triggering v1 must succeed.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-01T00:00:00Z", "bundle_version": "v1"},
+        )
+        assert response.status_code == 200
+
+        # Without bundle_version the latest (v2) governs and rejects the manual run.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-02T00:00:00Z"},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag_id}' does not allow manual runs"
 
     def test_should_respond_400_when_partition_key_given_for_non_partitioned_dag(self, test_client):
         """Passing partition_key to a non-partitioned Dag via REST trigger must return 400, not 500.

@@ -1581,6 +1581,38 @@ class TestDag:
                 partition_key=123,
             )
 
+    def test_create_dagrun_partition_key_validated_against_requested_version(self, dag_maker, session):
+        """create_dagrun validates partition_key against the requested bundle version, not the latest."""
+        dag_id = "test_create_dagrun_partition_key_bundle_version"
+
+        with dag_maker(
+            dag_id,
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+            bundle_version="v1",
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+
+        with dag_maker(dag_id, schedule=None, bundle_version="v2", session=session):
+            EmptyOperator(task_id="task")
+        session.commit()
+
+        scheduler_dag_v2 = dag_maker.serialized_dag
+
+        # Latest (v2) is not partitioned, but the requested v1 is: the key must be
+        # accepted against v1 rather than rejected against the latest dag.
+        dr = scheduler_dag_v2.create_dagrun(
+            run_id="manual__partition_key_from_v1",
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            triggered_by=DagRunTriggeredByType.TEST,
+            partition_key="my-key",
+            bundle_version="v1",
+            session=session,
+        )
+        assert dr.partition_key == "my-key"
+
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
         ("partition_key", "schedule", "should_raise"),
