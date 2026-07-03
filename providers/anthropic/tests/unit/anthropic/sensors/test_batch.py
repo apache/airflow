@@ -23,8 +23,8 @@ import pytest
 from airflow.exceptions import TaskDeferred
 from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
-from airflow.providers.anthropic.sensors.anthropic import AnthropicBatchSensor
-from airflow.providers.anthropic.triggers.anthropic import AnthropicBatchTrigger
+from airflow.providers.anthropic.sensors.batch import AnthropicBatchSensor
+from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.providers.common.compat.sdk import AirflowSkipException
 
 pytest.importorskip("anthropic")

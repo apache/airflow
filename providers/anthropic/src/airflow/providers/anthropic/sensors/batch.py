@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook, BatchStatus, evaluate_batch_counts
-from airflow.providers.anthropic.triggers.anthropic import AnthropicBatchTrigger
+from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.providers.common.compat.sdk import BaseSensorOperator, conf
 
 if TYPE_CHECKING:

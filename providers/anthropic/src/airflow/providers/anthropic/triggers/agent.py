@@ -21,11 +21,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
+from airflow.providers.anthropic.hooks.anthropic import MAX_CONSECUTIVE_POLL_FAILURES, AnthropicHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-#: Consecutive failed polls tolerated before the trigger gives up (transient errors).
-MAX_CONSECUTIVE_POLL_FAILURES = 5
 
 
 class AnthropicAgentSessionTrigger(BaseTrigger):
@@ -74,6 +71,21 @@ class AnthropicAgentSessionTrigger(BaseTrigger):
                 "kickoff_event_id": self.kickoff_event_id,
             },
         )
+
+    async def on_kill(self) -> None:
+        """
+        Archive the session when a user kills the deferred task.
+
+        Runs in the triggerer event loop on Airflow 3.3+ (a no-op override on older
+        versions, which never call it). Closes the gap the operator's ``on_kill`` leaves
+        for deferred tasks, which have released their worker slot.
+        """
+        hook = AnthropicHook(conn_id=self.conn_id)
+        try:
+            await asyncio.to_thread(hook.archive_session, self.session_id)
+            self.log.info("on_kill: archived Anthropic session %s", self.session_id)
+        except Exception as e:
+            self.log.warning("on_kill: failed to archive session %s: %s", self.session_id, e)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll the session and yield exactly one terminal event."""

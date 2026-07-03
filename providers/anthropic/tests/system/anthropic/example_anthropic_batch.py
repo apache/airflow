@@ -59,7 +59,7 @@ def anthropic_batch_messages():
     requests = build_requests(POKEMON)
 
     # [START howto_operator_anthropic_batch]
-    from airflow.providers.anthropic.operators.anthropic import AnthropicBatchOperator
+    from airflow.providers.anthropic.operators.batch import AnthropicBatchOperator
 
     run_batch = AnthropicBatchOperator(
         task_id="run_batch",

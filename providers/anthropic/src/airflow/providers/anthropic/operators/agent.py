@@ -105,8 +105,8 @@ class AnthropicAgentSessionOperator(BaseOperator):
         super().__init__(**kwargs)
         if (message is None) == (outcome is None):
             raise ValueError("Provide exactly one of 'message' or 'outcome'.")
-        if outcome is not None and "rubric" not in outcome:
-            raise ValueError("'outcome' must include a 'rubric' (with 'description').")
+        if outcome is not None and not {"description", "rubric"} <= outcome.keys():
+            raise ValueError("'outcome' must include both 'description' and 'rubric'.")
         self.agent_id = agent_id
         self.environment_id = environment_id
         self.message = message
@@ -138,13 +138,18 @@ class AnthropicAgentSessionOperator(BaseOperator):
         context["ti"].xcom_push(key="session_id", value=session.id)
         self.log.info("Started Anthropic session %s for agent %s", session.id, self.agent_id)
 
-        if self.outcome is not None:
-            response = self.hook.send_event(session.id, {"type": "user.define_outcome", **self.outcome})
-        else:
-            response = self.hook.send_event(
-                session.id,
-                {"type": "user.message", "content": [{"type": "text", "text": self.message}]},
-            )
+        try:
+            if self.outcome is not None:
+                response = self.hook.send_event(session.id, {"type": "user.define_outcome", **self.outcome})
+            else:
+                response = self.hook.send_event(
+                    session.id,
+                    {"type": "user.message", "content": [{"type": "text", "text": self.message}]},
+                )
+        except Exception:
+            # send_event failed after create_session allocated the container; tear it down.
+            self._archive_session(session.id)
+            raise
         # Correlate completion against the kickoff event so a message run is not fooled by a
         # just-created idle session (the start race).
         sent = response.data
@@ -178,9 +183,9 @@ class AnthropicAgentSessionOperator(BaseOperator):
                 poll_interval=self.poll_interval,
                 timeout=self.timeout,
             )
-        except AnthropicAgentSessionTimeout:
-            # Mirror the deferrable execute_complete: tear the session down on a sync
-            # timeout too, so its server-side container does not linger.
+        except Exception:
+            # Any failure after the session starts (timeout, SDK 5xx, auth expiry) leaves
+            # the server-side container running; archive it best-effort before failing.
             self._archive_session(session.id)
             raise
         return session.id
@@ -195,6 +200,9 @@ class AnthropicAgentSessionOperator(BaseOperator):
             self._archive_session(self.session_id)
             raise AnthropicAgentSessionTimeout(event["message"])
         if status == "error":
+            # The trigger yields "error" when polling gives up while the session may still
+            # be running; archive it best-effort so its container does not linger.
+            self._archive_session(self.session_id)
             raise AnthropicAgentSessionError(event["message"])
         self.log.info("Session %s completed.", self.session_id)
         return self.session_id
@@ -212,8 +220,9 @@ class AnthropicAgentSessionOperator(BaseOperator):
         """
         Archive the session if the (non-deferred) task is killed.
 
-        Only fires while the worker process is alive — i.e. the synchronous path
-        (``deferrable=False``). A deferred task has released its slot, so killing it does
-        not run ``on_kill``; archive such a session manually via the hook.
+        Only fires while the worker process is alive, i.e. the synchronous path
+        (``deferrable=False``). On Airflow 3.3+ a killed deferred task is archived by the
+        trigger's ``on_kill``. On older Airflow the session of a killed deferred task is not
+        archived automatically; archive it manually via the hook.
         """
         self._archive_session(self.session_id)

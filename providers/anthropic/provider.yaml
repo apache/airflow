@@ -50,18 +50,18 @@ hooks:
 operators:
   - integration-name: Anthropic
     python-modules:
-      - airflow.providers.anthropic.operators.anthropic
+      - airflow.providers.anthropic.operators.batch
       - airflow.providers.anthropic.operators.agent
 
 sensors:
   - integration-name: Anthropic
     python-modules:
-      - airflow.providers.anthropic.sensors.anthropic
+      - airflow.providers.anthropic.sensors.batch
 
 triggers:
   - integration-name: Anthropic
     python-modules:
-      - airflow.providers.anthropic.triggers.anthropic
+      - airflow.providers.anthropic.triggers.batch
       - airflow.providers.anthropic.triggers.agent
 
 connection-types:

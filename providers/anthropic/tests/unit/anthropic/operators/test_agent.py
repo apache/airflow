@@ -42,10 +42,19 @@ def test_requires_exactly_one_of_message_or_outcome():
         )
 
 
-def test_outcome_requires_rubric():
-    with pytest.raises(ValueError, match="rubric"):
+def test_outcome_requires_description_and_rubric():
+    # missing rubric
+    with pytest.raises(ValueError, match="description.*rubric"):
         AnthropicAgentSessionOperator(
             task_id="a", agent_id="ag", environment_id="env", outcome={"description": "x"}
+        )
+    # missing description
+    with pytest.raises(ValueError, match="description.*rubric"):
+        AnthropicAgentSessionOperator(
+            task_id="a",
+            agent_id="ag",
+            environment_id="env",
+            outcome={"rubric": {"type": "text", "content": "c"}},
         )
 
 
@@ -119,6 +128,38 @@ class TestExecute:
         hook.archive_session.assert_called_once_with("sess_1")
 
     @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_sync_non_timeout_error_archives_and_raises(self, mock_hook_prop):
+        # A non-timeout failure while waiting (SDK 5xx, auth expiry) also leaves the session
+        # container running, so the broadened except archives it best-effort before re-raising.
+        hook = mock.MagicMock(spec=AnthropicHook)
+        hook.create_session.return_value.id = "sess_1"
+        hook.wait_for_session.side_effect = RuntimeError("api 5xx")
+        mock_hook_prop.return_value = hook
+
+        op = AnthropicAgentSessionOperator(
+            task_id="a", agent_id="ag", environment_id="env", message="hi", deferrable=False
+        )
+        with pytest.raises(RuntimeError, match="api 5xx"):
+            op.execute(_context())
+        hook.archive_session.assert_called_once_with("sess_1")
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_send_event_failure_archives_session(self, mock_hook_prop):
+        # send_event fails after create_session allocated the container; it must be archived.
+        hook = mock.MagicMock(spec=AnthropicHook)
+        hook.create_session.return_value.id = "sess_1"
+        hook.send_event.side_effect = RuntimeError("send boom")
+        mock_hook_prop.return_value = hook
+
+        op = AnthropicAgentSessionOperator(
+            task_id="a", agent_id="ag", environment_id="env", message="hi", deferrable=False
+        )
+        with pytest.raises(RuntimeError, match="send boom"):
+            op.execute(_context())
+        hook.archive_session.assert_called_once_with("sess_1")
+        hook.wait_for_session.assert_not_called()
+
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
     def test_deferrable_defers_with_trigger(self, mock_hook_prop):
         hook = mock.MagicMock(spec=AnthropicHook)
         hook.create_session.return_value.id = "sess_1"
@@ -140,10 +181,16 @@ class TestExecuteComplete:
         op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env", message="hi")
         assert op.execute_complete({}, {"status": "success", "session_id": "sess_1"}) == "sess_1"
 
-    def test_error_raises(self):
+    @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
+    def test_error_archives_and_raises(self, mock_hook_prop):
+        # The trigger's "error" event means polling gave up while the session may still be
+        # running, so the operator archives it best-effort before failing.
+        hook = mock.MagicMock(spec=AnthropicHook)
+        mock_hook_prop.return_value = hook
         op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env", message="hi")
         with pytest.raises(AnthropicAgentSessionError, match="boom"):
             op.execute_complete({}, {"status": "error", "session_id": "s", "message": "boom"})
+        hook.archive_session.assert_called_once_with("s")
 
     @mock.patch.object(AnthropicAgentSessionOperator, "hook", new_callable=mock.PropertyMock)
     def test_timeout_archives_and_raises(self, mock_hook_prop):

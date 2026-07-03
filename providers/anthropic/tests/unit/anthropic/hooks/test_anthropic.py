@@ -28,6 +28,7 @@ from airflow.providers.anthropic.exceptions import (
 )
 from airflow.providers.anthropic.hooks.anthropic import (
     DEFAULT_MODEL,
+    MAX_CONSECUTIVE_POLL_FAILURES,
     AnthropicHook,
     BatchStatus,
     SessionStatus,
@@ -301,12 +302,20 @@ class TestAnthropicHookGetConn:
         AnthropicHook().get_conn()
         mock_vertex.assert_called_once_with(project_id="p1", region="us-central1")
 
-    @mock.patch(f"{HOOK_PATH}.AnthropicAWS")
+    @mock.patch(f"{HOOK_PATH}.AnthropicAWS", autospec=True)
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_aws_platform(self, mock_get_connection, mock_aws):
+        mock_get_connection.return_value = _conn(extra={"platform": "aws", "aws_region": "us-east-1"})
+        AnthropicHook().get_conn()
+        mock_aws.assert_called_once_with(aws_region="us-east-1")
+
+    @mock.patch(f"{HOOK_PATH}.AnthropicAWS", autospec=True)
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_aws_platform_without_region(self, mock_get_connection, mock_aws):
+        # No aws_region configured -> pass None so the SDK falls back to its own resolution.
         mock_get_connection.return_value = _conn(extra={"platform": "aws"})
         AnthropicHook().get_conn()
-        mock_aws.assert_called_once_with()
+        mock_aws.assert_called_once_with(aws_region=None)
 
     @mock.patch(f"{HOOK_PATH}.AnthropicFoundry")
     @mock.patch.object(AnthropicHook, "get_connection")
@@ -441,6 +450,25 @@ class TestWaitForBatch:
         mock_monotonic.side_effect = [0, 100]  # start=0, elapsed=100 > timeout
         with pytest.raises(AnthropicBatchTimeout, match="did not reach a terminal status"):
             AnthropicHook().wait_for_batch("batch_1", wait_seconds=0.01, timeout=10)
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep")
+    @mock.patch.object(AnthropicHook, "get_batch")
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_tolerates_transient_poll_error(self, mock_get_connection, mock_get_batch, mock_sleep):
+        mock_get_connection.return_value = _conn()
+        mock_get_batch.side_effect = [RuntimeError("blip"), self._batch("ended")]
+        AnthropicHook().wait_for_batch("batch_1", wait_seconds=0.01)
+        assert mock_get_batch.call_count == 2
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep")
+    @mock.patch.object(AnthropicHook, "get_batch")
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_gives_up_after_consecutive_poll_failures(self, mock_get_connection, mock_get_batch, mock_sleep):
+        mock_get_connection.return_value = _conn()
+        mock_get_batch.side_effect = RuntimeError("persistent")
+        with pytest.raises(RuntimeError, match="persistent"):
+            AnthropicHook().wait_for_batch("batch_1", wait_seconds=0.01)
+        assert mock_get_batch.call_count == MAX_CONSECUTIVE_POLL_FAILURES
 
 
 class TestTestConnection:

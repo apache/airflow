@@ -36,10 +36,10 @@ Airflow's deferrable execution model.
 AnthropicBatchOperator
 ----------------------
 
-:class:`~airflow.providers.anthropic.operators.anthropic.AnthropicBatchOperator` submits a
+:class:`~airflow.providers.anthropic.operators.batch.AnthropicBatchOperator` submits a
 Message Batch and waits for it to reach the terminal ``ended`` status. In deferrable mode it
 releases the worker slot while an
-:class:`~airflow.providers.anthropic.triggers.anthropic.AnthropicBatchTrigger` polls for
+:class:`~airflow.providers.anthropic.triggers.batch.AnthropicBatchTrigger` polls for
 completion.
 
 The operator returns the **batch ID only**. Pull the per-request results with
@@ -80,7 +80,7 @@ Example
 AnthropicBatchSensor
 --------------------
 
-:class:`~airflow.providers.anthropic.sensors.anthropic.AnthropicBatchSensor` waits for an
+:class:`~airflow.providers.anthropic.sensors.batch.AnthropicBatchSensor` waits for an
 already-submitted batch (by ``batch_id``) to reach a terminal status. Pair it with
 ``AnthropicBatchOperator(wait_for_completion=False)`` for a fire-and-forget submit followed
 by a re-entrant await — because the sensor only polls an existing batch, retrying it never
@@ -92,8 +92,8 @@ mode via the shared trigger.
 
 .. code-block:: python
 
-    from airflow.providers.anthropic.operators.anthropic import AnthropicBatchOperator
-    from airflow.providers.anthropic.sensors.anthropic import AnthropicBatchSensor
+    from airflow.providers.anthropic.operators.batch import AnthropicBatchOperator
+    from airflow.providers.anthropic.sensors.batch import AnthropicBatchSensor
 
     submit = AnthropicBatchOperator(
         task_id="submit",

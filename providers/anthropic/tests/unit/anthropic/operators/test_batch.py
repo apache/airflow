@@ -23,8 +23,8 @@ import pytest
 from airflow.exceptions import TaskDeferred
 from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
-from airflow.providers.anthropic.operators.anthropic import AnthropicBatchOperator
-from airflow.providers.anthropic.triggers.anthropic import AnthropicBatchTrigger
+from airflow.providers.anthropic.operators.batch import AnthropicBatchOperator
+from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.providers.common.compat.sdk import AirflowSkipException
 
 pytest.importorskip("anthropic")
@@ -123,6 +123,20 @@ class TestAnthropicBatchOperatorExecute:
         hook.cancel_batch.assert_called_once_with("batch_1")
 
     @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
+    def test_sync_non_timeout_error_cancels_and_raises(self, mock_hook_prop):
+        # A non-timeout failure while waiting (SDK 5xx, auth expiry) also leaves the batch
+        # running, so the broadened except cancels it best-effort before re-raising.
+        hook = mock.MagicMock(spec=AnthropicHook)
+        hook.create_batch.return_value.id = "batch_1"
+        hook.wait_for_batch.side_effect = RuntimeError("api 5xx")
+        mock_hook_prop.return_value = hook
+
+        op = AnthropicBatchOperator(task_id="t", requests=REQUESTS, deferrable=False)
+        with pytest.raises(RuntimeError, match="api 5xx"):
+            op.execute(_context())
+        hook.cancel_batch.assert_called_once_with("batch_1")
+
+    @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
     def test_empty_requests_raises_before_any_api_call(self, mock_hook_prop):
         hook = mock.MagicMock(spec=AnthropicHook)
         mock_hook_prop.return_value = hook
@@ -139,13 +153,17 @@ class TestExecuteComplete:
         event = {"status": "success", "batch_id": "batch_1", "request_counts": {"succeeded": 3}}
         assert op.execute_complete(_context(), event) == "batch_1"
 
-    def test_error_raises_job_error(self):
+    @mock.patch("airflow.providers.anthropic.operators.batch.AnthropicHook", autospec=True)
+    def test_error_cancels_and_raises_job_error(self, mock_hook_cls):
+        # The trigger's "error" event means polling gave up while the batch may still be
+        # running, so the operator cancels it best-effort before failing.
         op = AnthropicBatchOperator(task_id="t", requests=REQUESTS)
         event = {"status": "error", "batch_id": "batch_1", "message": "boom"}
         with pytest.raises(AnthropicBatchJobError, match="boom"):
             op.execute_complete(_context(), event)
+        mock_hook_cls.return_value.cancel_batch.assert_called_once_with("batch_1")
 
-    @mock.patch("airflow.providers.anthropic.operators.anthropic.AnthropicHook")
+    @mock.patch("airflow.providers.anthropic.operators.batch.AnthropicHook", autospec=True)
     def test_timeout_cancels_and_raises(self, mock_hook_cls):
         op = AnthropicBatchOperator(task_id="t", requests=REQUESTS)
         event = {"status": "timeout", "batch_id": "batch_1", "message": "too slow"}

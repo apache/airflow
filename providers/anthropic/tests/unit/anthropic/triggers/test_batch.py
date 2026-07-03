@@ -21,12 +21,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.anthropic.triggers.anthropic import AnthropicBatchTrigger
+from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.triggers.base import TriggerEvent
 
 pytest.importorskip("anthropic")
 
-TRIGGER_PATH = "airflow.providers.anthropic.triggers.anthropic"
+TRIGGER_PATH = "airflow.providers.anthropic.triggers.batch"
 HOOK_PATH = "airflow.providers.anthropic.hooks.anthropic.AnthropicHook.get_batch"
 
 
@@ -53,10 +53,17 @@ class TestAnthropicBatchTrigger:
             end_time=end_time if end_time is not None else time.time() + 3600,
         )
 
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.AnthropicHook", autospec=True)
+    async def test_on_kill_cancels_batch(self, mock_hook_cls):
+        # A user killing the deferred task cancels the still-running batch (Airflow 3.3+).
+        await self._trigger().on_kill()
+        mock_hook_cls.return_value.cancel_batch.assert_called_once_with(self.BATCH_ID)
+
     def test_serialization(self):
         end_time = time.time() + 3600
         class_path, kwargs = self._trigger(end_time).serialize()
-        assert class_path == "airflow.providers.anthropic.triggers.anthropic.AnthropicBatchTrigger"
+        assert class_path == "airflow.providers.anthropic.triggers.batch.AnthropicBatchTrigger"
         assert kwargs == {
             "conn_id": self.CONN_ID,
             "batch_id": self.BATCH_ID,

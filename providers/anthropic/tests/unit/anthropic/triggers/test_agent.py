@@ -56,6 +56,14 @@ def test_serialization():
 
 
 @pytest.mark.asyncio
+@mock.patch(f"{TRIGGER_PATH}.AnthropicHook", autospec=True)
+async def test_on_kill_archives_session(mock_hook_cls):
+    # A user killing the deferred task archives the still-running session (Airflow 3.3+).
+    await _trigger().on_kill()
+    mock_hook_cls.return_value.archive_session.assert_called_once_with("sess_1")
+
+
+@pytest.mark.asyncio
 @mock.patch(POLL)
 async def test_done_success_yields_success(mock_poll):
     mock_poll.return_value = (True, None)

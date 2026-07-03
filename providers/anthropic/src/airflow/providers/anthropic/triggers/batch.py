@@ -21,11 +21,12 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow.providers.anthropic.hooks.anthropic import AnthropicHook, BatchStatus
+from airflow.providers.anthropic.hooks.anthropic import (
+    MAX_CONSECUTIVE_POLL_FAILURES,
+    AnthropicHook,
+    BatchStatus,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-#: Consecutive failed polls tolerated before the trigger gives up (transient errors).
-MAX_CONSECUTIVE_POLL_FAILURES = 5
 
 
 class AnthropicBatchTrigger(BaseTrigger):
@@ -51,7 +52,7 @@ class AnthropicBatchTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize AnthropicBatchTrigger arguments and class path."""
         return (
-            "airflow.providers.anthropic.triggers.anthropic.AnthropicBatchTrigger",
+            "airflow.providers.anthropic.triggers.batch.AnthropicBatchTrigger",
             {
                 "conn_id": self.conn_id,
                 "batch_id": self.batch_id,
@@ -59,6 +60,21 @@ class AnthropicBatchTrigger(BaseTrigger):
                 "end_time": self.end_time,
             },
         )
+
+    async def on_kill(self) -> None:
+        """
+        Cancel the batch when a user kills the deferred task.
+
+        Runs in the triggerer event loop on Airflow 3.3+ (a no-op override on older
+        versions, which never call it). Closes the gap the operator's ``on_kill`` leaves
+        for deferred tasks, which have released their worker slot.
+        """
+        hook = AnthropicHook(conn_id=self.conn_id)
+        try:
+            await asyncio.to_thread(hook.cancel_batch, self.batch_id)
+            self.log.info("on_kill: cancelled Anthropic batch %s", self.batch_id)
+        except Exception as e:
+            self.log.warning("on_kill: failed to cancel batch %s: %s", self.batch_id, e)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll the batch status and yield exactly one terminal event."""

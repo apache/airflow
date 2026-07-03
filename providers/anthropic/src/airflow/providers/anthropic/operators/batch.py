@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook, evaluate_batch_counts
-from airflow.providers.anthropic.triggers.anthropic import AnthropicBatchTrigger
+from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
 if TYPE_CHECKING:
@@ -132,10 +132,10 @@ class AnthropicBatchOperator(BaseOperator):
             batch = self.hook.wait_for_batch(
                 self.batch_id, wait_seconds=self.poll_interval, timeout=self.timeout
             )
-        except AnthropicBatchTimeout:
-            # Mirror the deferrable execute_complete: tear down the still-running batch
-            # before the task fails, so a sync timeout does not leave it billing.
-            self.log.warning("Batch %s timed out; requesting cancellation.", self.batch_id)
+        except Exception:
+            # Any failure after submission (timeout, SDK 5xx, auth expiry) leaves the batch
+            # running and billing; cancel it best-effort before the task fails.
+            self.log.warning("Batch %s failed while waiting; requesting cancellation.", self.batch_id)
             self._cancel_batch_quietly()
             raise
         counts = batch.request_counts
@@ -156,6 +156,11 @@ class AnthropicBatchOperator(BaseOperator):
             self._cancel_batch_quietly()
             raise AnthropicBatchTimeout(event["message"])
         if status == "error":
+            # The trigger yields "error" when polling gives up (transient failures
+            # exhausted or the deadline passed mid-poll) while the batch may still be
+            # running; cancel it best-effort so it does not keep billing.
+            self.log.warning("Batch %s errored while polling; requesting cancellation.", self.batch_id)
+            self._cancel_batch_quietly()
             raise AnthropicBatchJobError(event["message"])
 
         counts = event.get("request_counts") or {}
@@ -182,9 +187,10 @@ class AnthropicBatchOperator(BaseOperator):
         """
         Cancel the batch if the (non-deferred) task is killed.
 
-        This only fires while the worker process is alive — i.e. the synchronous path
-        (``deferrable=False``). A deferred task has released its worker slot, so killing
-        it does not run ``on_kill``; cancel such a batch manually via the hook.
+        This only fires while the worker process is alive, i.e. the synchronous path
+        (``deferrable=False``). On Airflow 3.3+ a killed deferred task is cancelled by the
+        trigger's ``on_kill``. On older Airflow the batch of a killed deferred task is not
+        cancelled automatically; cancel it manually via the hook.
         """
         if self.batch_id:
             self.log.info("on_kill: cancelling Anthropic batch %s", self.batch_id)

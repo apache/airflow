@@ -70,6 +70,11 @@ FIRST_PARTY_PLATFORMS = frozenset({"anthropic", "aws"})
 
 AnthropicClient = Anthropic | AnthropicBedrock | AnthropicVertex | AnthropicAWS | AnthropicFoundry
 
+#: Consecutive failed polls tolerated in the synchronous wait helpers before giving up
+#: (transient errors). Mirrors the deferrable triggers' tolerance so a single blip does
+#: not fail (and cancel/archive) a still-healthy batch or session.
+MAX_CONSECUTIVE_POLL_FAILURES = 5
+
 
 class BatchStatus(str, Enum):
     """Top-level ``processing_status`` of an Anthropic Message Batch."""
@@ -80,7 +85,14 @@ class BatchStatus(str, Enum):
 
     @classmethod
     def is_in_progress(cls, status: str) -> bool:
-        """Return ``True`` while the batch has not reached the terminal ``ended`` status."""
+        """
+        Return ``True`` while the batch has not reached the terminal ``ended`` status.
+
+        This is broader than the ``in_progress`` value: a ``canceling`` batch is also
+        non-terminal (cancellation is in flight but the batch has not ended yet), so it
+        returns ``True`` too. Read the name as "not yet terminal", not "equals the
+        ``in_progress`` status".
+        """
         return status != cls.ENDED
 
 
@@ -150,7 +162,7 @@ def evaluate_batch_counts(
     Apply the success/skip/fail policy for a terminal batch's request counts.
 
     Lives in the hook module so both :class:`AnthropicBatchOperator` and
-    :class:`~airflow.providers.anthropic.sensors.anthropic.AnthropicBatchSensor` share it
+    :class:`~airflow.providers.anthropic.sensors.batch.AnthropicBatchSensor` share it
     without an operator/sensor cross-import. Raises ``AirflowSkipException`` for a
     fully-cancelled batch, ``AnthropicBatchJobError`` when ``fail_on_partial_error`` and any
     request failed, otherwise returns (logging a warning for partial failures).
@@ -180,7 +192,7 @@ class AnthropicHook(BaseHook):
     - ``platform``: one of ``anthropic`` (default), ``bedrock``, ``vertex``, ``aws``, ``foundry``.
     - ``model``: default model id used when an operator/hook call omits ``model`` (lets you
       change the model without editing Dags); falls back to :data:`DEFAULT_MODEL`.
-    - ``aws_region``: region for the ``bedrock`` platform.
+    - ``aws_region``: region for the ``bedrock`` and ``aws`` platforms.
     - ``project_id`` / ``region``: project and region for the ``vertex`` platform.
     - ``resource``: Azure resource name for the ``foundry`` platform.
     - ``anthropic_client_kwargs``: extra keyword arguments forwarded to the client
@@ -241,7 +253,7 @@ class AnthropicHook(BaseHook):
                 project_id=extras.get("project_id"), region=extras.get("region"), **client_kwargs
             )
         if platform == "aws":
-            return AnthropicAWS(**client_kwargs)
+            return AnthropicAWS(aws_region=extras.get("aws_region"), **client_kwargs)
         if platform == "foundry":
             api_key = client_kwargs.pop("api_key", None) or conn.password
             return AnthropicFoundry(api_key=api_key, resource=extras.get("resource"), **client_kwargs)
@@ -412,8 +424,24 @@ class AnthropicHook(BaseHook):
         :return: The terminal :class:`~anthropic.types.messages.MessageBatch`.
         """
         start = time.monotonic()
+        consecutive_failures = 0
         while True:
-            batch = self.get_batch(batch_id)
+            try:
+                batch = self.get_batch(batch_id)
+            except Exception as e:
+                # Tolerate transient poll errors (as the deferrable trigger does) so a
+                # single blip does not fail — and cancel — a still-running batch whose
+                # results remain recoverable for 29 days.
+                consecutive_failures += 1
+                if (
+                    consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES
+                    or time.monotonic() - start > timeout
+                ):
+                    raise
+                self.log.warning("Polling batch %s failed (%s); retrying.", batch_id, e)
+                time.sleep(wait_seconds)
+                continue
+            consecutive_failures = 0
             self.log.debug("Batch %s status=%s", batch_id, batch.processing_status)
             if not BatchStatus.is_in_progress(batch.processing_status):
                 return batch
@@ -554,10 +582,25 @@ class AnthropicHook(BaseHook):
         :param timeout: Maximum seconds to wait before raising :class:`AnthropicAgentSessionTimeout`.
         """
         start = time.monotonic()
+        consecutive_failures = 0
         while True:
-            done, error_message = self.poll_session_completion(
-                session_id, expect_outcome=expect_outcome, kickoff_event_id=kickoff_event_id
-            )
+            try:
+                done, error_message = self.poll_session_completion(
+                    session_id, expect_outcome=expect_outcome, kickoff_event_id=kickoff_event_id
+                )
+            except Exception as e:
+                # Tolerate transient poll errors (as the deferrable trigger does) so a
+                # single blip does not fail — and archive — a still-running session.
+                consecutive_failures += 1
+                if (
+                    consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES
+                    or time.monotonic() - start > timeout
+                ):
+                    raise
+                self.log.warning("Polling session %s failed (%s); retrying.", session_id, e)
+                time.sleep(poll_interval)
+                continue
+            consecutive_failures = 0
             if done:
                 if error_message:
                     raise AnthropicAgentSessionError(error_message)
