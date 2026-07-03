@@ -31,10 +31,7 @@ const useContentHeight = (contentRef: React.RefObject<HTMLElement>) => {
       const element = contentRef.current;
       if (!element) return;
       const footerReserve =
-        parseInt(
-          getComputedStyle(document.body).paddingBottom.replace("px", ""),
-          10,
-        ) || 0;
+        parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
       const available = Math.max(
         window.innerHeight -
           element.getBoundingClientRect().top -

@@ -47,12 +47,11 @@ if (typeof globalThis.window !== "undefined" && !globalThis.window.matchMedia) {
 
 // Mock ResizeObserver (not implemented in jsdom) — used by useContentHeight
 if (typeof globalThis.ResizeObserver === "undefined") {
-  globalThis.ResizeObserver = function ResizeObserver() {
-    return {
-      observe() {},
-      unobserve() {},
-      disconnect() {},
-    };
+  globalThis.ResizeObserver = function ResizeObserver(callback) {
+    this.callback = callback;
+    this.observe = () => {};
+    this.unobserve = () => {};
+    this.disconnect = () => {};
   };
 }
 

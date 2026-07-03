@@ -190,6 +190,7 @@ const Main = () => {
       height={`${mainHeight}px`}
       overflow="hidden"
       position="relative"
+      minHeight="750px"
     >
       <Accordion allowToggle index={accordionIndexes} borderTopWidth={0}>
         <AccordionItem
