@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 from datetime import timedelta
+from socket import socketpair
 from unittest import mock
 
 import pytest
@@ -27,6 +28,17 @@ from uuid6 import uuid7
 from airflow.sdk import BaseAsyncOperator, BaseOperator, timezone
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.execution_time.task_runner import IndexedTaskInstance
+
+
+@pytest.fixture
+def socket_pair():
+    """Yield a connected ``(read_sock, write_sock)`` pair and guarantee both are closed on teardown."""
+    r, w = socketpair()
+    try:
+        yield r, w
+    finally:
+        r.close()
+        w.close()
 
 
 @pytest.fixture
