@@ -312,6 +312,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+convertToIri
 cooldown
 copyable
 CoreV
@@ -448,6 +449,7 @@ deidentify
 DeidentifyTemplate
 del
 delim
+deliverability
 deltalake
 denylist
 dep
@@ -744,6 +746,7 @@ Grpc
 gRPC
 grpc
 gsuite
+gte
 Gunicorn
 gunicorn
 gz
@@ -1012,7 +1015,9 @@ logstash
 longblob
 lookups
 lshift
+lte
 lxml
+m-NCUs
 machineTypes
 macOS
 mae
@@ -1101,6 +1106,7 @@ nat
 natively
 nav
 navbar
+NCUs
 nd
 ndjson
 nearText
@@ -1130,9 +1136,11 @@ NotFound
 notificationChannels
 notin
 npm
+nquads
 ns
 ntlm
 ntpd
+ntriples
 Nullable
 nullable
 num
@@ -1160,6 +1168,7 @@ Oozie
 OpenAI
 openai
 openapi
+opencypher
 openfaas
 OpenID
 openjdk
@@ -1359,6 +1368,7 @@ RaG
 RBAC
 rbac
 rc
+rdfxml
 RDS
 rds
 readme

@@ -660,6 +660,24 @@ class TestTriggeringAssetEventsAccessor:
         assert mock_supervisor_comms.send.mock_calls == [mock.call(GetAssetByUri(uri=uri))]
         assert _AssetRefResolutionMixin._asset_ref_cache
 
+    def test_partition_key_exposed(self):
+        """A consumed asset event's partition key is reachable via triggering_asset_events."""
+        event = {
+            "asset": {"name": "1", "uri": "1", "extra": {}},
+            "extra": {},
+            "source_task_id": "t1",
+            "source_dag_id": "d1",
+            "source_run_id": "r1",
+            "source_map_index": -1,
+            "source_aliases": [],
+            "timestamp": "2025-01-01T00:00:12Z",
+            "partition_key": "2024-01-15",
+        }
+        accessor = TriggeringAssetEventsAccessor.build(
+            [AssetEventDagRunReferenceResult.model_validate(event)]
+        )
+        assert [e.partition_key for e in accessor[Asset("1")]] == ["2024-01-15"]
+
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
         events = accessor[Asset("2")]
         assert len(events) == 1

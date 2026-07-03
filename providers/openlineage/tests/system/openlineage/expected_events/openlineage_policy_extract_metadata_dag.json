@@ -1,0 +1,50 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_extract_metadata_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_extract_metadata_dag.t_with_extract"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "s3://ol-test-in",
+                "name": "in.csv"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://ol-test-out",
+                "name": "out.csv"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_extract_metadata_dag.t_with_extract"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_extract_metadata_dag.t_no_extract"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_extract_metadata_dag.t_no_extract"
+        }
+    }
+]

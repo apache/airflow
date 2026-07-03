@@ -270,8 +270,8 @@ class AssetsOperations(BaseOperations):
         """List all assets from the API server."""
         return super().execute_list(path="assets", data_model=AssetCollectionResponse)
 
-    def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
-        """List all assets by alias from the API server."""
+    def list_aliases(self) -> AssetAliasCollectionResponse | ServerResponseError:
+        """List all assets aliases from the API server."""
         return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
 
     def create_event(
@@ -602,10 +602,15 @@ class DagsOperations(BaseOperations):
 class DagRunOperations(BaseOperations):
     """Dag run operations."""
 
-    def get(self, dag_id: str, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
+    def get(
+        self, dag_id: str, dag_run_id: str, *, suppress_error_log: bool = False
+    ) -> DAGRunResponse | ServerResponseError:
         """Get a dag run."""
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}",
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -617,6 +622,9 @@ class DagRunOperations(BaseOperations):
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
+        logical_date_gte: datetime.datetime | None = None,
+        logical_date_lte: datetime.datetime | None = None,
+        order_by: str | None = None,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
         List dag runs (at most `limit` results).
@@ -627,6 +635,9 @@ class DagRunOperations(BaseOperations):
             end_date: Filter dag runs by end date (optional)
             limit: Limit the number of results returned
             dag_id: The DAG ID to filter by. If None, retrieves dag runs for all DAGs (using "~").
+            logical_date_gte: Filter dag runs with a logical date greater than or equal to this value.
+            logical_date_lte: Filter dag runs with a logical date less than or equal to this value.
+            order_by: Order the results by the specified field.
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
@@ -639,10 +650,24 @@ class DagRunOperations(BaseOperations):
             params["start_date"] = start_date.isoformat()
         if end_date is not None:
             params["end_date"] = end_date.isoformat()
+        if logical_date_gte is not None:
+            params["logical_date_gte"] = logical_date_gte.isoformat()
+        if logical_date_lte is not None:
+            params["logical_date_lte"] = logical_date_lte.isoformat()
+        if order_by is not None:
+            params["order_by"] = order_by
 
         try:
             self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
+        """Delete a Dag run."""
+        try:
+            self.client.delete(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            return dag_run_id
         except ServerResponseError as e:
             raise e
 

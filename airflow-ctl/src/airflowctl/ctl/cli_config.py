@@ -267,6 +267,11 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID of the Dag to pause or unpause",
 )
+ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
+    flags=("logical_date_or_run_id",),
+    type=str,
+    help="The logical date with a timezone offset or run ID of the Dag run",
+)
 
 # Task Commands Args
 ARG_TASK_DAG_ID = Arg(
@@ -1005,6 +1010,15 @@ DAG_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="state",
+        help="Get the status of a Dag run",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
         ),
     ),
     ActionCommand(
