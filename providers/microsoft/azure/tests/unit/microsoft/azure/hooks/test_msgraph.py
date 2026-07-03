@@ -25,9 +25,16 @@ from typing import cast
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import Response
+from aiohttp import ClientSession
+from azure.core import AsyncPipelineClient
+from azure.core.credentials_async import AsyncTokenCredential
+from azure.core.pipeline.transport._aiohttp import AioHttpTransport
+from azure.identity._internal import AadClient
+from httpx import AsyncClient, Response
 from httpx._utils import URLPattern
+from kiota_abstractions.authentication import AuthenticationProvider, BaseBearerTokenAuthenticationProvider
 from kiota_abstractions.request_information import RequestInformation
+from kiota_authentication_azure.azure_identity_access_token_provider import AzureIdentityAccessTokenProvider
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
@@ -67,6 +74,20 @@ class TestKiotaRequestAdapterHook:
 
             assert isinstance(actual, HttpxRequestAdapter)
             assert actual.base_url == "https://graph.microsoft.com/v1.0/"
+
+    @classmethod
+    def mock_authentication_provider(self, closed: bool) -> AuthenticationProvider:
+        transport = Mock(spec=AioHttpTransport, _has_been_opened=not closed)
+        transport.session = Mock(spec=ClientSession, closed=closed)
+        pipeline = Mock(spec=AsyncPipelineClient)
+        pipeline._transport = transport
+        client = Mock(spec=AadClient)
+        client._pipeline = pipeline
+        credentials = Mock(spec=AsyncTokenCredential)
+        credentials._client = client
+        access_token_provider = Mock(spec=AzureIdentityAccessTokenProvider)
+        access_token_provider._credentials = credentials
+        return BaseBearerTokenAuthenticationProvider(access_token_provider=access_token_provider)
 
     @pytest.mark.asyncio
     async def test_get_async_conn(self):
@@ -541,7 +562,26 @@ class TestKiotaRequestAdapterHook:
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
             stale_adapter = Mock(spec=HttpxRequestAdapter)
-            stale_adapter._http_client = Mock(is_closed=True)
+            stale_adapter._http_client = Mock(spec=AsyncClient, is_closed=True)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
+
+            fresh_adapter = Mock(spec=HttpxRequestAdapter)
+            fresh_adapter._http_client = Mock(is_closed=False)
+
+            with patch.object(hook, "_build_request_adapter", return_value=("v1.0", fresh_adapter)):
+                result = await hook.get_async_conn()
+
+            assert result is fresh_adapter
+            assert hook.cached_request_adapters[hook.conn_id] == ("v1.0", fresh_adapter)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_rebuilds_adapter_when_credentials_session_is_closed(self):
+        """get_async_conn evicts and rebuilds the adapter when the cached HTTP client is already closed."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            stale_adapter = Mock(spec=HttpxRequestAdapter)
+            stale_adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            stale_adapter._authentication_provider = self.mock_authentication_provider(closed=True)
             hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
 
             fresh_adapter = Mock(spec=HttpxRequestAdapter)
@@ -560,7 +600,8 @@ class TestKiotaRequestAdapterHook:
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
             adapter = Mock(spec=HttpxRequestAdapter)
-            adapter._http_client = Mock(is_closed=False)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = self.mock_authentication_provider(closed=False)
             adapter.send_no_response_content_async = AsyncMock(side_effect=RuntimeError("some error"))
             hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
 
