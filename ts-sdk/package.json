@@ -7,6 +7,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "airflow-ts-pack": "./dist/cli/main.js"
+  },
   "homepage": "https://airflow.apache.org",
   "repository": {
     "type": "git",
@@ -57,7 +60,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@msgpack/msgpack": "^3.1.2"
+    "@msgpack/msgpack": "^3.1.2",
+    "esbuild": "^0.28.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import base64
 import pathlib
 
 import pytest
@@ -45,27 +46,36 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "ts") -> TaskInstance:
     )
 
 
+def _metadata_yaml(schema_version: str) -> str:
+    return "\n".join(
+        [
+            'airflow_bundle_metadata_version: "1.0"',
+            "sdk:",
+            "  language: typescript",
+            '  version: "0.1.0"',
+            f'  supervisor_schema_version: "{schema_version}"',
+            "source: src/airflow.ts",
+            "dags:",
+            "  test_dag:",
+            "    tasks:",
+            "      - test_task",
+            "",
+        ]
+    )
+
+
 def write_bundle(root: pathlib.Path, schema_version: str = SCHEMA_VERSION) -> pathlib.Path:
     bundle = root / "bundle.mjs"
     bundle.write_text("export {};\n", encoding="utf-8")
-    (root / "airflow-metadata.yaml").write_text(
-        "\n".join(
-            [
-                'airflow_bundle_metadata_version: "1.0"',
-                "sdk:",
-                "  language: typescript",
-                '  version: "0.1.0"',
-                f'  supervisor_schema_version: "{schema_version}"',
-                "source: src/airflow.ts",
-                "dags:",
-                "  test_dag:",
-                "    tasks:",
-                "      - test_task",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    (root / "airflow-metadata.yaml").write_text(_metadata_yaml(schema_version), encoding="utf-8")
+    return bundle
+
+
+def write_embedded_bundle(root: pathlib.Path, payload: str | None = None) -> pathlib.Path:
+    if payload is None:
+        payload = base64.b64encode(_metadata_yaml(SCHEMA_VERSION).encode("utf-8")).decode("ascii")
+    bundle = root / "bundle.mjs"
+    bundle.write_text(f"export {{}};\n//# airflowMetadata={payload}\n", encoding="utf-8")
     return bundle
 
 
@@ -104,6 +114,42 @@ class TestNodeCoordinatorBundleSelection:
 
         assert found.path == bundle
         assert found.schema_version == SCHEMA_VERSION
+
+    def test_find_bundle_reads_embedded_metadata_without_sidecar(self, tmp_path):
+        bundle = write_embedded_bundle(tmp_path)
+
+        found = _find_bundle([tmp_path])
+
+        assert found.path == bundle
+        assert found.schema_version == SCHEMA_VERSION
+
+    def test_find_bundle_prefers_embedded_metadata_over_sidecar(self, tmp_path):
+        bundle = write_embedded_bundle(tmp_path)
+        (tmp_path / "airflow-metadata.yaml").write_text("[not-a-mapping]\n", encoding="utf-8")
+
+        found = _find_bundle([tmp_path])
+
+        assert found.path == bundle
+        assert found.schema_version == SCHEMA_VERSION
+
+    @pytest.mark.parametrize(
+        ("payload", "message"),
+        [
+            ("not-base64!", "cannot parse embedded airflow metadata"),
+            (base64.b64encode(b"[not-a-mapping]").decode("ascii"), "must contain a mapping"),
+        ],
+    )
+    def test_find_bundle_rejects_invalid_embedded_metadata(self, tmp_path, payload, message):
+        write_embedded_bundle(tmp_path, payload=payload)
+
+        with pytest.raises(FileNotFoundError, match=message):
+            _find_bundle([tmp_path])
+
+    def test_find_bundle_rejects_empty_marker_at_end_of_file(self, tmp_path):
+        (tmp_path / "bundle.mjs").write_text("export {};\n//# airflowMetadata=", encoding="utf-8")
+
+        with pytest.raises(FileNotFoundError, match="must contain a mapping"):
+            _find_bundle([tmp_path])
 
     def test_find_bundle_checks_multiple_roots(self, tmp_path):
         first = tmp_path / "first"

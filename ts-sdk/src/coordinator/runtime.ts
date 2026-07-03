@@ -46,7 +46,7 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { getRegisteredTask, listRegisteredTasks } from "../sdk/registry.js";
+import { getRegisteredTask, listRegisteredTasks, type TaskRegistration } from "../sdk/registry.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -103,10 +103,34 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return { commAddr, logsAddr };
 }
 
+export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
+
+/** Bundle manifest fields only the built bundle itself knows: the schema
+ *  version it was compiled against and the Dag/task pairs it registered.
+ *  `airflow-ts-pack` runs `node bundle.mjs --airflow-metadata` to read this. */
+export interface BundleManifest {
+  supervisor_schema_version: string;
+  dags: Record<string, { tasks: string[] }>;
+}
+
+export function buildBundleManifest(
+  registrations: readonly TaskRegistration[] = listRegisteredTasks(),
+): BundleManifest {
+  const dags: BundleManifest["dags"] = {};
+  for (const { dagId, taskId } of registrations) {
+    (dags[dagId] ??= { tasks: [] }).tasks.push(taskId);
+  }
+  return { supervisor_schema_version: SUPERVISOR_API_VERSION, dags };
+}
+
 /** Start the coordinator runtime. Resolves when the subprocess has
  *  delivered its terminal frame and closed both sockets. */
 export async function startCoordinator(opts: StartCoordinatorOptions = {}): Promise<void> {
   const argv = opts.argv ?? process.argv;
+  if (argv.includes(AIRFLOW_METADATA_FLAG)) {
+    process.stdout.write(`${JSON.stringify(buildBundleManifest())}\n`);
+    return;
+  }
   const parsed =
     opts.commAddr && opts.logsAddr
       ? { commAddr: opts.commAddr, logsAddr: opts.logsAddr }

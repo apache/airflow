@@ -90,8 +90,10 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-Each configured bundle directory must contain `bundle.mjs` and
-`airflow-metadata.yaml`.
+Each configured bundle directory must contain a `bundle.mjs` built with
+`airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
+Airflow metadata in the bundle itself. A `bundle.mjs` without embedded
+metadata is also accepted alongside an `airflow-metadata.yaml` sidecar.
 
 TypeScript entrypoint:
 
@@ -147,8 +149,29 @@ Airflow launches the bundled entrypoint with `--comm=host:port` and
 the task startup message, finds the registered handler for the Dag/task pair,
 and reports the terminal task state back to Airflow.
 
-See [`example/`](example/) for a coordinator-runtime example that builds a
-`bundle.mjs` with `esbuild` and uses a Python stub Dag.
+See [`example/`](example/) for a coordinator-runtime example that packs a
+bundle with `airflow-ts-pack` and uses a Python stub Dag.
+
+## Packing bundles
+
+`airflow-ts-pack` produces everything `NodeCoordinator` needs in one command:
+
+```bash
+airflow-ts-pack src/main.ts --outdir dist
+```
+
+It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
+bundle with `--airflow-metadata` so the bundle reports its own registered
+Dag/task pairs and supervisor schema version, and embeds that manifest in the
+bundle as a trailing `//# airflowMetadata=<base64>` comment. The result is a
+single deployable file whose metadata cannot drift from its code; no
+hand-written sidecar is needed.
+
+Options:
+
+- `--outdir <dir>` — output directory (default `dist`)
+- `--source <name>` — display name of the primary source file shown in the
+  Airflow UI (default: entry basename)
 
 ## TaskClient
 
