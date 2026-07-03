@@ -42,11 +42,10 @@ passed to any pydantic-ai ``Agent``, including via
 .. note::
 
     ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation — not
-    just the Airflow-native toolsets above. PydanticAI's own MCP server
-    classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``, ``MCPServerStdio``)
-    and third-party toolsets work too. The Airflow-native toolsets add
-    connection management, secret backend integration, and the connection UI,
-    but you are not locked in.
+    just the Airflow-native toolsets above. PydanticAI's own ``MCPToolset``
+    (built over a FastMCP transport) and third-party toolsets work too. The
+    Airflow-native toolsets add connection management, secret backend
+    integration, and the connection UI, but you are not locked in.
 
 
 Using Toolsets Directly with PydanticAI
@@ -316,10 +315,17 @@ Parameters
   ``"weather_get_forecast"``).
 - ``token_provider``: Optional zero-argument callable returning a bearer token.
   When set, it overrides the connection's static ``password`` for the
-  ``Authorization`` header and is called each time the server connection is
-  established -- use it for short-lived or minted tokens (e.g. a Snowflake
-  managed MCP server authenticated with a key-pair JWT). See
+  ``Authorization`` header. Called once, the first time this toolset
+  establishes a connection -- use it for short-lived or minted tokens (e.g. a
+  Snowflake managed MCP server authenticated with a key-pair JWT). See
   :ref:`howto/connection:mcp`.
+- ``env_provider``: Optional zero-argument callable returning a
+  ``dict[str, str]`` merged over the connection's ``Extra.env`` (winning on key
+  conflicts) for the ``stdio`` subprocess environment -- use it when the
+  credential a local stdio MCP server needs lives in a different connection, or
+  is minted fresh per call (e.g. a Splunk/Vault token), rather than storing it
+  statically here. Called once, the first time this toolset establishes a
+  connection. See :ref:`howto/connection:mcp`.
 
 Using Multiple MCP Servers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -336,29 +342,30 @@ Using Multiple MCP Servers
         ],
     )
 
-Direct PydanticAI MCP Servers
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Direct PydanticAI MCP Toolsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For prototyping or when you want full PydanticAI control, you can pass MCP
-server instances directly — no Airflow connection needed:
+For prototyping or when you want full PydanticAI control, you can pass
+``MCPToolset`` instances directly — no Airflow connection needed:
 
 .. code-block:: python
 
-    from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerStdio
+    from fastmcp.client.transports import StdioTransport
+    from pydantic_ai.mcp import MCPToolset
 
     AgentOperator(
         task_id="direct_mcp",
         prompt="What tools are available?",
         llm_conn_id="pydanticai_default",
         toolsets=[
-            MCPServerStreamableHTTP("http://localhost:3001/mcp"),
-            MCPServerStdio("uvx", args=["mcp-run-python"]),
+            MCPToolset("http://localhost:3001/mcp"),
+            MCPToolset(StdioTransport(command="uvx", args=["mcp-run-python"])),
         ],
     )
 
-This works because PydanticAI's MCP server classes implement
-``AbstractToolset``. The tradeoff: URLs and credentials are hardcoded in DAG
-code instead of being managed through Airflow connections and secret backends.
+This works because PydanticAI's ``MCPToolset`` implements ``AbstractToolset``.
+The tradeoff: URLs and credentials are hardcoded in DAG code instead of being
+managed through Airflow connections and secret backends.
 
 
 .. _agent-skills:

@@ -401,8 +401,8 @@ the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``pa
 .. code-block:: yaml
    :caption: values.yaml
 
-   httpRoute:
-     apiServer:
+   apiServer:
+     httpRoute:
        enabled: true
        parentRefs:
          - name: main-gateway
@@ -411,8 +411,16 @@ the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``pa
        hostnames:
          - airflow.example.com
 
-For fine-grained routing, supply ``httpRoute.apiServer.rules`` directly — the entry mirrors the
+For fine-grained routing, supply ``apiServer.httpRoute.rules`` directly — the entry mirrors the
 upstream ``HTTPRouteRule`` schema and overrides the default rule generated from ``path`` + ``pathType``.
+
+.. note::
+
+   ``HTTPRoute`` is an alternative to the API server ``Ingress``, so enable only one of
+   ``ingress.apiServer`` or ``apiServer.httpRoute`` — enabling both at the same time fails template
+   rendering. When ``apiServer.httpRoute.enabled`` is ``true``, the chart also verifies (via Helm
+   ``Capabilities``) that the Gateway API CRDs are installed and fails with a clear message if they
+   are not.
 
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^

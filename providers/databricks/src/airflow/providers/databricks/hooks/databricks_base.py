@@ -88,6 +88,10 @@ TOKEN_EXCHANGE_DATA = {
 }
 
 
+class DatabricksProxyConfigurationError(AirflowException):
+    """Raised when Databricks connection proxy configuration is invalid."""
+
+
 class BaseDatabricksHook(BaseHook):
     """
     Base for interaction with Databricks.
@@ -116,6 +120,7 @@ class BaseDatabricksHook(BaseHook):
         "azure_ad_endpoint",
         "azure_resource_id",
         "azure_tenant_id",
+        "proxies",
         "service_principal_oauth",
         "federated_k8s",
         "k8s_token_path",
@@ -234,6 +239,47 @@ class BaseDatabricksHook(BaseHook):
             raise ValueError(f"`{attr_name}` must be present in Connection")
         return attr
 
+    @cached_property
+    def proxies(self) -> dict[str, str] | None:
+        """Return validated proxy configuration from connection extras."""
+        extra_dejson = self.databricks_conn.extra_dejson
+        if not isinstance(extra_dejson, dict):
+            return None
+
+        proxies = extra_dejson.get("proxies")
+        if proxies is None:
+            return None
+        if not isinstance(proxies, dict):
+            raise DatabricksProxyConfigurationError("Connection extra 'proxies' must be a JSON object.")
+
+        invalid_keys = set(proxies) - {"http", "https"}
+        if invalid_keys:
+            invalid_keys_str = ", ".join(sorted(invalid_keys))
+            raise DatabricksProxyConfigurationError(
+                f"Connection extra 'proxies' only supports 'http' and 'https' keys. Got: {invalid_keys_str}."
+            )
+
+        for proxy_scheme, proxy_url in proxies.items():
+            if not isinstance(proxy_url, str) or not proxy_url:
+                raise DatabricksProxyConfigurationError(
+                    "Connection extra 'proxies' values must be non-empty strings. "
+                    f"Invalid value for '{proxy_scheme}'."
+                )
+
+        return proxies or None
+
+    def _get_requests_kwargs(self) -> dict[str, Any]:
+        return {"proxies": self.proxies} if self.proxies else {}
+
+    def _get_aiohttp_kwargs(self, url: str) -> dict[str, str]:
+        if not self.proxies:
+            return {}
+        proxy = self.proxies.get(urlsplit(url).scheme)
+        return {"proxy": proxy} if proxy else {}
+
+    def _get_azure_credential_kwargs(self) -> dict[str, dict[str, str]]:
+        return {"proxies": self.proxies} if self.proxies else {}
+
     def _get_retry_object(self) -> Retrying:
         """
         Instantiate a retry object.
@@ -269,6 +315,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_requests_kwargs(),
                     )
 
                     resp.raise_for_status()
@@ -307,6 +354,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_aiohttp_kwargs(resource),
                     ) as resp:
                         resp.raise_for_status()
                         jsn = await resp.json()
@@ -345,6 +393,11 @@ class BaseDatabricksHook(BaseHook):
                         client_id = self.databricks_conn.extra_dejson.get(
                             "azure_managed_identity_client_id", None
                         )
+                        # Managed identity authenticates against the link-local IMDS endpoint
+                        # (169.254.169.254), which must be reached directly and is unsupported behind a
+                        # proxy, so the `proxies` extra is intentionally not forwarded here (unlike the
+                        # ClientSecretCredential / DefaultAzureCredential paths, which call the public
+                        # Entra ID endpoint and do receive the proxy kwargs).
                         token = ManagedIdentityCredential(client_id=client_id).get_token(
                             f"{resource}/.default"
                         )
@@ -353,6 +406,7 @@ class BaseDatabricksHook(BaseHook):
                             client_id=self._get_connection_attr("login"),
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            **self._get_azure_credential_kwargs(),
                         )
                         token = credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -397,6 +451,11 @@ class BaseDatabricksHook(BaseHook):
                         client_id = self.databricks_conn.extra_dejson.get(
                             "azure_managed_identity_client_id", None
                         )
+                        # Managed identity authenticates against the link-local IMDS endpoint
+                        # (169.254.169.254), which must be reached directly and is unsupported behind a
+                        # proxy, so the `proxies` extra is intentionally not forwarded here (unlike the
+                        # ClientSecretCredential / DefaultAzureCredential paths, which call the public
+                        # Entra ID endpoint and do receive the proxy kwargs).
                         async with AsyncManagedIdentityCredential(client_id=client_id) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     else:
@@ -404,6 +463,7 @@ class BaseDatabricksHook(BaseHook):
                             client_id=self._get_connection_attr("login"),
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            **self._get_azure_credential_kwargs(),
                         ) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -446,7 +506,9 @@ class BaseDatabricksHook(BaseHook):
                     #
                     # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
                     # https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview
-                    token = DefaultAzureCredential().get_token(f"{resource}/.default")
+                    token = DefaultAzureCredential(**self._get_azure_credential_kwargs()).get_token(
+                        f"{resource}/.default"
+                    )
 
                     jsn = {
                         "access_token": token.token,
@@ -491,7 +553,9 @@ class BaseDatabricksHook(BaseHook):
                     #
                     # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
                     # https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview
-                    token = await AsyncDefaultAzureCredential().get_token(f"{resource}/.default")
+                    token = await AsyncDefaultAzureCredential(
+                        **self._get_azure_credential_kwargs()
+                    ).get_token(f"{resource}/.default")
 
                     jsn = {
                         "access_token": token.token,
@@ -866,6 +930,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_requests_kwargs(),
                     )
                     resp.raise_for_status()
                     jsn = resp.json()
@@ -913,6 +978,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_aiohttp_kwargs(token_exchange_url),
                     ) as resp:
                         resp.raise_for_status()
                         jsn = await resp.json()
@@ -1141,6 +1207,7 @@ class BaseDatabricksHook(BaseHook):
                         auth=auth,
                         headers=headers,
                         timeout=self.timeout_seconds,
+                        **self._get_requests_kwargs(),
                     )
                     self.log.debug("Response Status Code: %s", response.status_code)
                     self.log.debug("Response text: %s", response.text)
@@ -1204,6 +1271,7 @@ class BaseDatabricksHook(BaseHook):
                         auth=auth,
                         headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
+                        **self._get_aiohttp_kwargs(url),
                     ) as response:
                         self.log.debug("Response Status Code: %s", response.status)
                         self.log.debug("Response text: %s", response.text)

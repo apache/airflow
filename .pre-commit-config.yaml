@@ -249,6 +249,33 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: ts-sdk-lint
+        name: Lint TypeScript SDK
+        entry: ./ts-sdk/scripts/ci/prek/ts_sdk_lint.py
+        language: node
+        files: |
+          (?x)
+          ^ts-sdk/.*\.(js|ts|json)$
+        exclude: |
+          (?x)
+          ^ts-sdk/node_modules/.*|
+          ^ts-sdk/.pnpm-store/.*|
+          ^ts-sdk/dist/.*
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
+      - id: check-ts-sdk-supervisor-schema
+        name: Check TypeScript SDK supervisor schema is up to date
+        entry: ./ts-sdk/scripts/ci/prek/check_supervisor_schema.py
+        language: node
+        files: >
+          (?x)
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^ts-sdk/src/generated/supervisor\.ts$|
+          ^ts-sdk/scripts/generate-supervisor\.mjs$
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
@@ -453,7 +480,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
+    rev: e3eebf65325ccc992422292cb7a4baee967cf815  # frozen: v1.26.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -462,7 +489,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 467197f13e30c16befe54b8f83c17bf91952a741  # frozen: nightly
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -563,7 +590,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.17']
+        additional_dependencies: ['ruff==0.15.20']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -644,6 +671,17 @@ repos:
         entry: ./scripts/ci/prek/supported_versions.py
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
+        pass_filenames: false
+      - id: generate-api-permissions-doc
+        name: Generate REST API permission reference documentation
+        entry: ./scripts/ci/prek/extract_permissions.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^airflow-core/docs/security/api_permissions_ref\.rst$
         pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
@@ -731,6 +769,7 @@ repos:
           ^java-sdk/gradlew$|
           ^java-sdk/gradlew\.bat$|
           ^java-sdk/gradle|
+          ^java-sdk/scala_spark_example/src/main/scala/org/apache/airflow/example/ScalaSparkExample\.scala$|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|

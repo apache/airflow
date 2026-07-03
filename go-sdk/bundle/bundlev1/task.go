@@ -149,6 +149,12 @@ func (f *taskFunction) validateFn(fnType reflect.Type) error {
 			fnType.Out(fnType.NumOut()-1).Kind(),
 		)
 	}
+
+	for i := range fnType.NumIn() {
+		if err := validateParam(fnType.In(i)); err != nil {
+			return fmt.Errorf("task function %s parameter %d: %w", f.fullName, i, err)
+		}
+	}
 	return nil
 }
 
@@ -168,9 +174,7 @@ var (
 	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
 	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
 
-	connClientType = reflect.TypeFor[sdk.ConnectionClient]()
-	varClientType  = reflect.TypeFor[sdk.VariableClient]()
-	clientType     = reflect.TypeFor[sdk.Client]()
+	clientType = reflect.TypeFor[sdk.Client]()
 )
 
 func isError(inType reflect.Type) bool {
@@ -189,8 +193,50 @@ func isLogger(inType reflect.Type) bool {
 	return inType != nil && inType.AssignableTo(slogLoggerType)
 }
 
+// isClient reports whether inType's method set is a subset of sdk.Client's,
+// keeping new client capabilities injectable without a hand-kept list.
 func isClient(inType reflect.Type) bool {
-	return inType != nil && (inType.AssignableTo(clientType) ||
-		inType.AssignableTo(connClientType) ||
-		inType.AssignableTo(varClientType))
+	return inType != nil && inType.Kind() == reflect.Interface &&
+		inType.NumMethod() > 0 && clientType.Implements(inType)
+}
+
+// validateParam rejects interface parameters Execute cannot inject; they
+// would be bound to nil and panic on first use.
+func validateParam(in reflect.Type) error {
+	if in.Kind() != reflect.Interface || isTIRunContext(in) || isClient(in) {
+		return nil
+	}
+	if isContext(in) {
+		// The plain task context injected here cannot satisfy extra methods.
+		if contextType.Implements(in) {
+			return nil
+		}
+		return fmt.Errorf(
+			"interface %s adds methods on top of context.Context; declare sdk.TIRunContext or a separate parameter instead",
+			in,
+		)
+	}
+	return fmt.Errorf(
+		"interface %s is not injectable (want context.Context, sdk.TIRunContext, or a subset of sdk.Client): %s",
+		in,
+		explainClientMismatch(in),
+	)
+}
+
+// explainClientMismatch returns why in is not a subset of sdk.Client.
+func explainClientMismatch(in reflect.Type) string {
+	if in.NumMethod() == 0 {
+		return "empty interfaces cannot be injected"
+	}
+	for i := range in.NumMethod() {
+		m := in.Method(i)
+		cm, ok := clientType.MethodByName(m.Name)
+		if !ok {
+			return fmt.Sprintf("sdk.Client has no method %s", m.Name)
+		}
+		if cm.Type != m.Type {
+			return fmt.Sprintf("method %s is %s on sdk.Client, not %s", m.Name, cm.Type, m.Type)
+		}
+	}
+	return "its method set is not a subset of sdk.Client"
 }
