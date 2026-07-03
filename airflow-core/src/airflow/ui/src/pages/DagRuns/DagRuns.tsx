@@ -19,10 +19,11 @@
 import { Flex, HStack, Text, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRuns } from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
@@ -230,11 +231,32 @@ export const DagRuns = () => {
   const [searchParams] = useSearchParams();
   const { onClose, onOpen, open } = useDisclosure();
 
+  const { data: dag } = useDagServiceGetDagDetails({ dagId: dagId ?? "" }, undefined, {
+    enabled: Boolean(dagId),
+  });
+
+  // The Dag details fetch resolves after this component's first render, but the underlying
+  // column-visibility default is only read once, on mount — so latch the first known answer
+  // (reset when dagId actually changes) instead of a plain derived value that could revert to
+  // "unknown" on an unrelated re-render and flip the column back to hidden.
+  const dagIdRef = useRef(dagId);
+  const isPartitionedRef = useRef<boolean | undefined>(undefined);
+
+  if (Boolean(dagId) && dagIdRef.current !== dagId) {
+    dagIdRef.current = dagId;
+    isPartitionedRef.current = undefined;
+  }
+  if (dag !== undefined && isPartitionedRef.current === undefined) {
+    isPartitionedRef.current = dag.timetable_partitioned;
+  }
+
+  const isPartitioned = isPartitionedRef.current ?? false;
+
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
       dag_version: false,
       end_date: false,
-      partition_key: false,
+      partition_key: isPartitioned,
     },
   });
   const { cursor, pagination, sorting } = tableURLState;
@@ -367,6 +389,10 @@ export const DagRuns = () => {
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
+        // Remounts once the Dag's partitioned status is known, so the partition_key column's
+        // default visibility (set once, on mount, by the underlying column-visibility storage)
+        // reflects it instead of the pre-load "not partitioned" assumption.
+        key={`${dagId ?? "all"}-${isPartitionedRef.current === undefined ? "pending" : String(isPartitionedRef.current)}`}
         modelName="common:dagRun"
         nextCursor={nextCursor}
         onStateChange={setTableURLState}

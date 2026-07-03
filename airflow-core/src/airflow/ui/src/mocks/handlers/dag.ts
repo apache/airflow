@@ -54,10 +54,28 @@ export const MOCK_DAG = {
   tags: [{ dag_id: "tutorial_taskflow_api", name: "example" }],
   template_search_path: null,
   timetable_description: "Never, external triggers only",
+  timetable_partitioned: false,
   timetable_summary: null,
   timezone: "UTC",
 };
 
+// Matches the dagId used by the dag_runs mock handler (see src/mocks/handlers/dag_runs.ts),
+// which returns the same static runs regardless of dagId.
+export const MOCK_NON_PARTITIONED_DAG = {
+  ...MOCK_DAG,
+  dag_display_name: "test_dag",
+  dag_id: "test_dag",
+};
+
+export const MOCK_PARTITIONED_DAG = {
+  ...MOCK_DAG,
+  dag_display_name: "test_partitioned_dag",
+  dag_id: "test_partitioned_dag",
+  timetable_partitioned: true,
+};
+
 export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/tutorial_taskflow_api/details", () => HttpResponse.json(MOCK_DAG)),
+  http.get("/api/v2/dags/test_dag/details", () => HttpResponse.json(MOCK_NON_PARTITIONED_DAG)),
+  http.get("/api/v2/dags/test_partitioned_dag/details", () => HttpResponse.json(MOCK_PARTITIONED_DAG)),
 ];

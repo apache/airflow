@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Field, Heading, HStack, Text, VStack } from "@chakra-ui/react";
+import { Button, Field, Heading, HStack, Input, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -158,7 +158,10 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       data_interval_start: dataIntervalStart?.toISOString() ?? null,
       logical_date: logicalDate?.toISOString() ?? null,
       note: dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note,
-      partition_key: dagRunRequestBody.partitionKey ?? null,
+      partition_key:
+        dagRunRequestBody.partitionKey === undefined || dagRunRequestBody.partitionKey === ""
+          ? null
+          : dagRunRequestBody.partitionKey,
     };
 
     materializeAsset({
@@ -172,7 +175,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       requestBody: {
         asset_id: asset.id,
         extra: JSON.parse(extra) as Record<string, unknown>,
-        partition_key: partitionKey ?? null,
+        partition_key: partitionKey === undefined || partitionKey === "" ? null : partitionKey,
       },
     });
 
@@ -226,7 +229,11 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
             <>
               <Field.Root mt={6}>
                 <Field.Label fontSize="md">{translate("common:dagRun.partitionKey")}</Field.Label>
-                <JsonEditor onChange={setPartitionKey} value={partitionKey} />
+                <Input
+                  onChange={(event) => setPartitionKey(event.target.value)}
+                  size="sm"
+                  value={partitionKey ?? ""}
+                />
               </Field.Root>
               <ErrorAlert error={manualError} />
             </>

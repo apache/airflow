@@ -95,7 +95,7 @@ export const AssetEvent = ({
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
-      {event.partition_key === undefined ? undefined : (
+      {event.partition_key === undefined || event.partition_key === null ? undefined : (
         <HStack>
           <Text>
             {rootTranslate("dagRun.partitionKey")}: {event.partition_key}

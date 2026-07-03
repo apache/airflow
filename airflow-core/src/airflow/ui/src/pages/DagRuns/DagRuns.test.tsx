@@ -30,6 +30,10 @@ vi.mock("src/components/RenderedJsonField", () => ({
   ),
 }));
 
+afterEach(() => {
+  localStorage.clear();
+});
+
 // The dag_runs mock handler (see src/mocks/handlers/dag_runs.ts) returns:
 //   - run_before_filter (logical_date: 2024-12-31) — excluded when filtering Jan 2025
 //   - run_in_range      (logical_date: 2025-01-15) — included when filtering Jan 2025
@@ -64,10 +68,6 @@ describe("DagRuns conf expand/collapse", () => {
     );
   });
 
-  afterEach(() => {
-    globalThis.localStorage.clear();
-  });
-
   it("toggles conf JSON collapse state via the expand/collapse all buttons", async () => {
     render(<AppWrapper initialEntries={["/dag_runs"]} />);
 
@@ -84,5 +84,31 @@ describe("DagRuns conf expand/collapse", () => {
     await waitFor(() =>
       expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "true"),
     );
+  });
+});
+
+// See src/mocks/handlers/dag.ts for the partitioned/non-partitioned dag details mocks.
+describe("DagRuns partition_key column visibility", () => {
+  it("hides the partition_key column by default in the global (non-Dag-scoped) runs list", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
+    expect(screen.queryByText("dagRun.partitionKey")).not.toBeInTheDocument();
+  });
+
+  it("hides the partition_key column by default for a non-partitioned Dag's runs tab", async () => {
+    render(<AppWrapper initialEntries={["/dags/test_dag/runs"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
+    expect(screen.queryByText("dagRun.partitionKey")).not.toBeInTheDocument();
+  });
+
+  it("shows the partition_key column by default for a partitioned Dag's runs tab", async () => {
+    render(<AppWrapper initialEntries={["/dags/test_partitioned_dag/runs"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
+    // The column's default visibility depends on the Dag details fetch settling, which can
+    // resolve slightly after the runs themselves, so wait for it separately.
+    await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
   });
 });

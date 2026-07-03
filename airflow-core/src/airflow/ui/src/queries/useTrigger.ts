@@ -108,7 +108,10 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         data_interval_start: formattedDataIntervalStart,
         logical_date: formattedLogicalDate,
         note: checkNote,
-        partition_key: dagRunRequestBody.partitionKey ?? null,
+        partition_key:
+          dagRunRequestBody.partitionKey === undefined || dagRunRequestBody.partitionKey === ""
+            ? null
+            : dagRunRequestBody.partitionKey,
       },
     });
   };
