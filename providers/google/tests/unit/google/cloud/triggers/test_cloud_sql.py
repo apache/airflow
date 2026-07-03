@@ -20,11 +20,19 @@ import asyncio
 import logging
 from unittest import mock
 
+import httplib2
 import pytest
+from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
-from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
+from airflow.providers.google.cloud.triggers.cloud_sql import (
+    CloudSQLExportTrigger,
+    CloudSQLNoOperationInProgressTrigger,
+)
 from airflow.triggers.base import TriggerEvent
+
+INSTANCE = "test-instance"
+NO_OP_CLASSPATH = "airflow.providers.google.cloud.triggers.cloud_sql.CloudSQLNoOperationInProgressTrigger"
 
 CLASSPATH = "airflow.providers.google.cloud.triggers.cloud_sql.CloudSQLExportTrigger"
 TASK_ID = "test_task"
@@ -197,3 +205,76 @@ class TestCloudSQLExportTrigger:
         # Verify the default universe branch not being called
         mock_async_get_op.assert_not_called()
         task.cancel()
+
+
+@pytest.fixture
+def no_op_trigger():
+    return CloudSQLNoOperationInProgressTrigger(
+        instance=INSTANCE,
+        project_id=PROJECT_ID,
+        impersonation_chain=None,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        poke_interval=TEST_POLL_INTERVAL,
+        api_version=API_VERSION,
+    )
+
+
+class TestCloudSQLNoOperationInProgressTrigger:
+    def test_serialization(self, no_op_trigger, sync_hook_mock):
+        classpath, kwargs = no_op_trigger.serialize()
+        assert classpath == NO_OP_CLASSPATH
+        assert kwargs == {
+            "instance": INSTANCE,
+            "project_id": PROJECT_ID,
+            "impersonation_chain": None,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "poke_interval": TEST_POLL_INTERVAL,
+            "api_version": API_VERSION,
+        }
+
+    @pytest.mark.asyncio
+    async def test_run_success_when_no_operation_in_progress(self, no_op_trigger, sync_hook_mock):
+        sync_hook_mock.list_operations.return_value = [
+            {"name": "op1", "status": "DONE", "targetId": INSTANCE},
+        ]
+        actual = await no_op_trigger.run().asend(None)
+        assert actual == TriggerEvent({"instance": INSTANCE, "status": "success"})
+
+    @pytest.mark.asyncio
+    async def test_run_success_when_only_terminal_operations(self, no_op_trigger, sync_hook_mock):
+        # Operations in terminal states (DONE) do not block; the trigger keys off the non-terminal set.
+        sync_hook_mock.list_operations.return_value = [
+            {"name": "op-done", "status": "DONE", "targetId": INSTANCE},
+            {"name": "op-unknown", "status": "UNKNOWN", "targetId": INSTANCE},
+        ]
+        actual = await no_op_trigger.run().asend(None)
+        assert actual == TriggerEvent({"instance": INSTANCE, "status": "success"})
+
+    @pytest.mark.asyncio
+    async def test_run_sleeps_while_operation_in_progress(self, no_op_trigger, sync_hook_mock, caplog):
+        sync_hook_mock.list_operations.return_value = [
+            {"name": "op1", "status": "RUNNING", "targetId": INSTANCE},
+        ]
+        caplog.set_level(logging.INFO)
+        task = asyncio.create_task(no_op_trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        assert task.done() is False
+        assert f"in progress on instance {INSTANCE}" in caplog.text
+
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", [403, 404])
+    async def test_run_fails_fast_on_403_404(self, status, no_op_trigger, sync_hook_mock):
+        sync_hook_mock.list_operations.side_effect = HttpError(
+            resp=httplib2.Response({"status": status}), content=b"denied or missing"
+        )
+        actual = await no_op_trigger.run().asend(None)
+        assert actual.payload["status"] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_run_fails_on_generic_exception(self, no_op_trigger, sync_hook_mock):
+        sync_hook_mock.list_operations.side_effect = Exception("boom")
+        actual = await no_op_trigger.run().asend(None)
+        assert actual == TriggerEvent({"status": "failed", "message": "boom"})

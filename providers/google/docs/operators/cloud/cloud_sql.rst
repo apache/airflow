@@ -359,6 +359,45 @@ as shown in the example:
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
     :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
 
+.. _howto/operator:CloudSQLNoOperationInProgressSensor:
+
+CloudSQLNoOperationInProgressSensor
+-----------------------------------
+
+Cloud SQL serializes administrative operations per instance: only one import, export, backup or
+similar operation can run against an instance at a time. Submitting another while one is in flight
+fails immediately with HTTP 409 ``operationInProgress``. This commonly affects DAGs that fan out
+multiple :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLImportInstanceOperator`
+/ :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExportInstanceOperator` tasks
+against the same instance in parallel.
+
+Use
+:class:`~airflow.providers.google.cloud.sensors.cloud_sql.CloudSQLNoOperationInProgressSensor`
+to wait until the instance has no administrative operation in progress before submitting the next
+one. The sensor polls ``sqladmin.operations.list`` for the instance and succeeds once no operation
+is in a non-terminal (``PENDING`` / ``RUNNING``) state. It supports deferrable mode and fails fast
+on HTTP 403/404 (the instance is missing or access is denied).
+
+.. code-block:: python
+
+    from airflow.providers.google.cloud.sensors.cloud_sql import (
+        CloudSQLNoOperationInProgressSensor,
+    )
+
+    wait_for_slot = CloudSQLNoOperationInProgressSensor(
+        task_id="wait_for_slot",
+        instance="my-cloudsql-pg",
+        poke_interval=60,
+        timeout=2 * 60 * 60,
+        deferrable=True,
+    )
+
+    wait_for_slot >> import_data
+
+The sensor is best-effort: it reduces the chance of a 409 but cannot guarantee exclusivity, since a
+new operation (for example one triggered from the console or by an automated backup) could start
+between the sensor passing and the operator submitting.
+
 .. _howto/operator:CloudSQLCreateInstanceOperator:
 
 CloudSQLCreateInstanceOperator
