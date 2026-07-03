@@ -42,6 +42,7 @@
     "title": "{{name}}에 대한 에셋 이벤트 생성"
   },
   "events": "이벤트",
+  "extra": "추가 정보",
   "group": "그룹",
   "lastAssetEvent": "마지막 에셋 이벤트",
   "name": "이름",
@@ -49,6 +50,5 @@
   "scheduledDags": "스케줄 된 Dags",
   "scheduling": "스케줄링",
   "searchPlaceholder": "에셋 검색",
-  "taskDependencies": "태스크 종속성",
-  "extra": "추가 정보"
+  "taskDependencies": "태스크 종속성"
 }
