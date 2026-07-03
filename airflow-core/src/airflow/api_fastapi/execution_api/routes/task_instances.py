@@ -222,8 +222,12 @@ def ti_run(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "https://datatracker.ietf.org/doc/html/rfc9457#section-3.1",
+                "title": "Invalid Task Instance State",
+                "status": status.HTTP_409_CONFLICT,
+                "detail": "TI was not in a state where it could be marked as running",
+                "instance": f"/execution/task-instances/{task_instance_id}/run",
                 "reason": "invalid_state",
-                "message": "TI was not in a state where it could be marked as running",
                 "previous_state": previous_state,
             },
         )
