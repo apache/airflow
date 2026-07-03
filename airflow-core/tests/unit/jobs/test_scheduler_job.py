@@ -6446,7 +6446,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
 
         assert session.scalar(select(func.count()).select_from(DagRun)) == 0
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         self.job_runner._create_dag_runs(dag_models, session)
         dr = session.scalars(select(DagRun)).one()
@@ -6456,7 +6456,7 @@ class TestSchedulerJob:
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         session.flush()
         # dags_needing_dagruns query should not return any value
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         assert len(query.all()) == 0
         self.job_runner._create_dag_runs(dag_models, session)
         assert session.scalar(select(func.count()).select_from(DagRun)) == 1
@@ -6473,7 +6473,7 @@ class TestSchedulerJob:
         # check that next_dagrun is set properly by Schedulerjob._update_dag_next_dagruns
         self.job_runner._schedule_dag_run(dr, session)
         session.flush()
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         assert len(query.all()) == 1
         # assert next_dagrun has been updated correctly
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
@@ -6514,7 +6514,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         query.all()
         for _ in range(3):
             self.job_runner._do_scheduling(session)
@@ -10137,11 +10137,14 @@ def test_dags_needing_dagruns_routes_custom_timetable_by_behavior(
     )
     mock_get_latest_serialized_dags.return_value = [serialized_dag]
 
-    query, triggered_date_by_dag, asset_gated_ready_dag_ids = DagModel.dags_needing_dagruns(session)
+    query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
 
+    # Both behaviors keep the Dag selected for run creation; only asset-triggered
+    # timetables land in the asset-triggered bucket (gated Dags take the normal
+    # scheduled path). The gated Dag is selected via its satisfied asset condition:
+    # with timetable_asset_gated=True, being time-due alone would not select it.
     assert [model.dag_id for model in query.all()] == [dag_model.dag_id]
     assert (dag_model.dag_id in triggered_date_by_dag) is asset_triggered
-    assert (dag_model.dag_id in asset_gated_ready_dag_ids) is asset_gated
 
 
 @time_machine.travel("2026-03-29 18:30:00+00:00")
@@ -10254,12 +10257,10 @@ def test_create_dagruns_asset_and_time_late_arrival_consumes_only_one_slot(sessi
 @pytest.mark.need_serialized_dag
 def test_create_dagruns_asset_and_time_respects_max_active_runs(session: Session, dag_maker):
     """
-    Regression test: asset-gated path must update exceeds_max_non_backfill after
-    creating a DagRun so that a follow-up asset event does not bypass max_active_runs.
-
-    Bug pre-fix: _create_dag_runs_asset_gated called calculate_dagrun_date_fields but
-    not _set_exceeds_max_active_runs. The SQL filter in dags_needing_dagruns relies on
-    DagModel.exceeds_max_non_backfill, so the next loop would create a second run
+    Regression test: creating an asset-gated run must update exceeds_max_non_backfill
+    so that a follow-up asset event does not bypass max_active_runs. The SQL filter in
+    dags_needing_dagruns relies on DagModel.exceeds_max_non_backfill; if run creation
+    skipped _set_exceeds_max_active_runs, the next loop would create a second run
     even though max_active_runs=1.
     """
     asset = Asset(uri="test://asset-and-time-max-active", name="asset-and-time-max-active")
@@ -10320,10 +10321,13 @@ def test_create_dagruns_asset_and_time_populates_consumed_asset_events(session: 
     Regression test: asset-gated runs must carry the consumed AssetEvent rows on
     DagRun.consumed_asset_events so that triggering_asset_events templates,
     inlet_events callbacks, and the UI asset provenance section work the same way
-    as asset-triggered runs do (via _create_dag_runs_asset_triggered).
+    as asset-triggered runs do. Like asset-triggered runs with catchup off, events
+    that predate the Dag scheduling on its assets are backlog and must be skipped.
     """
     asset = Asset(uri="test://asset-and-time-consumed", name="asset-and-time-consumed")
     logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    registered_at = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    backlog_event_at = pendulum.datetime(2026, 3, 29, 16, 30, tz="UTC")
     event_at = pendulum.datetime(2026, 3, 29, 17, 0, 30, tz="UTC")
     with dag_maker(
         dag_id="asset-and-time-consumed",
@@ -10338,8 +10342,19 @@ def test_create_dagruns_asset_and_time_populates_consumed_asset_events(session: 
     dag_model.next_dagrun = logical_date
     dag_model.next_dagrun_data_interval = (logical_date, logical_date)
     dag_model.next_dagrun_create_after = logical_date
+    session.scalars(
+        select(DagScheduleAssetReference).where(DagScheduleAssetReference.dag_id == dag_model.dag_id)
+    ).one().created_at = registered_at
 
     asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    backlog_asset_event = AssetEvent(
+        asset_id=asset_id,
+        source_task_id="produce",
+        source_dag_id="producer",
+        source_run_id="producer_backlog_run",
+        source_map_index=-1,
+        timestamp=backlog_event_at,
+    )
     asset_event = AssetEvent(
         asset_id=asset_id,
         source_task_id="produce",
@@ -10348,7 +10363,7 @@ def test_create_dagruns_asset_and_time_populates_consumed_asset_events(session: 
         source_map_index=-1,
         timestamp=event_at,
     )
-    session.add(asset_event)
+    session.add_all([backlog_asset_event, asset_event])
     session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=event_at))
     session.flush()
 
@@ -10359,7 +10374,8 @@ def test_create_dagruns_asset_and_time_populates_consumed_asset_events(session: 
 
     dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one()
     # The asset event that satisfied the gate must be linked to the run for
-    # provenance (triggering_asset_events template, callback context, UI).
+    # provenance (triggering_asset_events template, callback context, UI); the
+    # event from before the Dag scheduled on the asset must not.
     assert list(dag_run.consumed_asset_events) == [asset_event]
 
 
@@ -10456,9 +10472,10 @@ def test_dags_needing_dagruns_asset_and_time_missing_assets_do_not_starve_time_d
     session.flush()
 
     with mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1):
-        query, _, asset_gated_ready_dag_ids = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
 
-    assert asset_gated_ready_dag_ids == set()
+    # The gated Dag has no queued assets, so it must not occupy the (mocked to 1)
+    # query limit slot even though its slot sorts first; the time Dag gets it.
     assert [dag_model.dag_id for dag_model in query.all()] == [time_dag_model.dag_id]
 
 

@@ -684,7 +684,7 @@ class DagModel(Base):
         return any_deactivated
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime], set[str]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -758,22 +758,14 @@ class DagModel(Base):
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
             timetable = ser_dag.dag.timetable
-
-            if timetable.asset_triggered:
-                ready = dag_ready(dag_id, cond=timetable.asset_condition, statuses=statuses)
-                if not ready:
-                    log.debug("Asset condition not met for dag '%s'", dag_id)
-                    del adrq_by_dag[dag_id]
-                    del dag_statuses[dag_id]
-            elif timetable.asset_gated:
-                ready = dag_ready(dag_id, cond=timetable.asset_condition, statuses=statuses)
-                if ready:
-                    asset_gated_ready_dag_ids.add(dag_id)
-                else:
-                    log.debug("Asset-gated condition not met for dag '%s'", dag_id)
-                del adrq_by_dag[dag_id]
-                del dag_statuses[dag_id]
-            else:
+            ready = dag_ready(dag_id, cond=timetable.asset_condition, statuses=statuses)
+            if not ready:
+                log.debug("Asset condition not met for dag '%s'", dag_id)
+            if timetable.asset_gated and ready:
+                asset_gated_ready_dag_ids.add(dag_id)
+            if not (timetable.asset_triggered and ready):
+                # Only satisfied asset-triggered Dags stay in the asset-triggered bucket
+                # (adrq_by_dag feeds triggered_date_by_dag below).
                 del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
@@ -829,7 +821,6 @@ class DagModel(Base):
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
             triggered_date_by_dag,
-            asset_gated_ready_dag_ids,
         )
 
     def calculate_dagrun_date_fields(
