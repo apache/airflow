@@ -213,7 +213,7 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
 
         operator = self._expand(expand_input, strict=strict, register_with_dag=False)
 
-        if self.size > 0:
+        if self.size > 1:
             return MappedIterableOperator(
                 mapped_operator=operator,
                 expand_input=expand_input,
@@ -394,7 +394,7 @@ class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
 
         operator = self._expand(expand_input, strict=strict, register_with_dag=False)
 
-        if self.size > 0:
+        if self.size > 1:
             return MappedIterableOperator(
                 mapped_operator=operator,
                 expand_input=DecoratedExpandInput(expand_input),

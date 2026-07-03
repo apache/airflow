@@ -128,7 +128,7 @@ def test_map_unknown_arg_raises():
 @pytest.mark.parametrize(
     "size",
     [
-        pytest.param(0),
+        pytest.param(1),
         pytest.param(3),
     ],
 )
@@ -139,7 +139,7 @@ def test_map_batch_size(size: int):
             .batch(size=size)
             ._iterate(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
         )
-        if size > 0:
+        if size > 1:
             assert isinstance(mapped, MappedIterableOperator)
             assert mapped.batch_size == size
         else:

@@ -83,7 +83,7 @@ class TestBatchedOperator:
             (5, 10),  # Batched: size=5 for 10 items
             (3, 3),  # Batched: size=3 for 3 items
             (4, 20),  # Batched: size=4 for 20 items
-            (0, 5),  # Non-batched: size=0 (iterate all at once)
+            (1, 5),  # Non-batched: size=1 (iterate all at once)
         ],
     )
     def test_batch_size_preserved_through_lifecycle(self, batch_size, expand_size):
@@ -99,7 +99,7 @@ class TestBatchedOperator:
             iterable_op = op._iterate(expand_input, strict=False)
 
             # Check if batched or non-batched
-            if batch_size > 0:
+            if batch_size > 1:
                 assert isinstance(iterable_op, MappedIterableOperator)
                 mapped_op = iterable_op.delegate
                 assert iterable_op.batch_size == batch_size
