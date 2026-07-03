@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import UUID, uuid4
@@ -1500,6 +1501,61 @@ class TestTIUpdateState:
             detail = response.json()["detail"]
             assert isinstance(detail, dict)
             assert detail.get("reason") == "Database error"
+
+    def test_ti_run_database_error(self, client, session, create_task_instance):
+        """
+        Test that a database error is handled correctly when starting the Task Instance.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_run_database_error",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        payload = {
+            "state": "running",
+            "hostname": "hostname",
+            "unixname": "unixname",
+            "pid": 123,
+            "start_date": "2024-10-31T12:00:00Z",
+        }
+
+        with mock.patch(
+            "airflow.api_fastapi.common.db.common.Session.execute",
+            side_effect=[
+                mock.Mock(
+                    one=mock.Mock(
+                        return_value=SimpleNamespace(
+                            state="queued",
+                            dag_id="dag",
+                            run_id="run",
+                            task_id="task",
+                            map_index=-1,
+                            try_number=1,
+                            max_tries=0,
+                            start_date=None,
+                            next_method=None,
+                            hostname=None,
+                            unixname=None,
+                            pid=None,
+                            next_kwargs=None,
+                            logical_date=timezone.utcnow(),
+                            owners="test_owner",
+                        )
+                    )
+                ),
+                SQLAlchemyError("Database error"),
+            ],
+        ):
+            response = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+
+        assert response.status_code == 500
+        detail = response.json()["detail"]
+        assert isinstance(detail, dict)
+        assert detail.get("reason") == "Database error"
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_ti_update_state_to_deferred(

@@ -517,6 +517,26 @@ class TestDataErrorHandler:
         assert detail["reason"] == "Database error"
         assert detail["message"] == MESSAGE
 
+    @conf_vars({("api", "expose_stacktrace"): "True"})
+    @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
+    def test_sqlalchemy_error_includes_traceback_with_stacktrace(self, mock_get_random_string) -> None:
+        """End-to-end: SQLAlchemyError exposes traceback details when stacktrace logging is enabled."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        app = FastAPI()
+        for h in ERROR_HANDLERS:
+            app.add_exception_handler(h.exception_cls, h.exception_handler)
+
+        @app.post("/test")
+        def trigger_error():
+            raise SQLAlchemyError("boom")
+
+        response = TestClient(app, raise_server_exceptions=False).post("/test")
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        detail = response.json()["detail"]
+        assert detail["reason"] == "Database error"
+        assert "trigger_error" in detail["message"]
+
 
 class TestDagErrorHandler:
     @pytest.mark.parametrize(

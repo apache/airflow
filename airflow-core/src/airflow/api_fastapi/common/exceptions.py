@@ -178,6 +178,7 @@ class SQLAlchemyErrorHandler(BaseErrorHandler[SQLAlchemyError]):
 
     def exception_handler(self, request: Request, exc: SQLAlchemyError):
         exception_id = get_random_string()
+        stacktrace = "".join(traceback.format_tb(exc.__traceback__))
         # SQLAlchemyError may not have statement/orig attributes; guard access
         log.exception("Error with id %s, statement: %s", exception_id, statement, exc_info=exc)
         if conf.get("api", "expose_stacktrace") == "True":
