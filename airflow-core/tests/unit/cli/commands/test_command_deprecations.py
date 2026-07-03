@@ -36,6 +36,7 @@ from airflow.cli.commands import (
     dag_command,
     pool_command,
     provider_command,
+    variable_command,
 )
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
@@ -49,6 +50,11 @@ MIGRATED_CLI_COMMANDS = [
     (pool_command.pool_delete, "airflowctl pools delete"),
     (pool_command.pool_import, "airflowctl pools import"),
     (pool_command.pool_export, "airflowctl pools export"),
+    (variable_command.variables_list, "airflowctl variables list"),
+    (variable_command.variables_get, "airflowctl variables get"),
+    (variable_command.variables_set, "airflowctl variables create"),
+    (variable_command.variables_delete, "airflowctl variables delete"),
+    (variable_command.variables_import, "airflowctl variables import"),
     (asset_command.asset_materialize, "airflowctl assets materialize"),
     (provider_command.provider_get, "airflowctl providers get"),
     (provider_command.providers_list, "airflowctl providers list"),
