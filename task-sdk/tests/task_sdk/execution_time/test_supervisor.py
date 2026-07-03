@@ -801,6 +801,40 @@ class TestWatchedSubprocess:
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
+    def test_supervise_task_stands_down_when_already_running_on_another_worker(
+        self, test_dags_dir, captured_logs, mocker
+    ):
+        """When the task is already running elsewhere, we should exit quietly with 0, not report a failure."""
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="hello",
+            dag_id="super_basic_run",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+
+        mock_client = mocker.Mock(spec=sdk_client.Client)
+        mock_client.task_instances.start.side_effect = TaskAlreadyRunningError(
+            f"Task instance {ti.id} is already running"
+        )
+
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            exit_code = supervise_task(
+                ti=ti,
+                dag_rel_path="super_basic_run.py",
+                token="",
+                client=mock_client,
+                bundle_info=bundle_info,
+            )
+
+        assert exit_code == 0, captured_logs
+        mock_client.task_instances.start.assert_called_once()
+        mock_client.task_instances.finish.assert_not_called()
+        mock_client.task_instances.succeed.assert_not_called()
+
     def test_supervise_handles_deferred_task(
         self, test_dags_dir, captured_logs, time_machine, mocker, make_ti_context
     ):

@@ -1461,7 +1461,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
 
-            if ti_queued and not ti_requeued:
+            # A running task that's still sending heartbeats is alive -- a worker is running it right now.
+            # This event is probably from a duplicate that already lost and died, so don't fail the live
+            # run. If the task really did die, heartbeat detection will fail it once the heartbeat stops.
+            heartbeat_timeout = conf.getint("scheduler", "task_instance_heartbeat_timeout")
+            ti_alive = (
+                ti.state == TaskInstanceState.RUNNING
+                and ti.last_heartbeat_at is not None
+                and ti.last_heartbeat_at >= timezone.utcnow() - timedelta(seconds=heartbeat_timeout)
+            )
+
+            if ti_queued and not ti_requeued and not ti_alive:
                 team_name = (
                     DagModel.get_team_name(ti.dag_id, session=session)
                     if conf.getboolean("core", "multi_team")
