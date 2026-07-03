@@ -6386,6 +6386,7 @@ source = { editable = "providers/microsoft/winrm" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "pyspnego" },
     { name = "pywinrm" },
 ]
 
@@ -6404,6 +6405,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "pyspnego", specifier = ">=0.4.0" },
     { name = "pywinrm", specifier = ">=0.5.0" },
 ]
 
