@@ -299,10 +299,7 @@ def ti_run(
         first_task_reschedule_start_date = None
         if task_reschedule_count > 0:
             first_task_reschedule_start_date = session.scalar(
-                select(TaskReschedule.start_date)
-                .where(TaskReschedule.ti_id == task_instance_id)
-                .order_by(TaskReschedule.id.asc())
-                .limit(1)
+                select(func.min(TaskReschedule.start_date)).where(TaskReschedule.ti_id == task_instance_id)
             )
 
         dr.team_name = get_team_name_for_ti(task_instance_id, session)
