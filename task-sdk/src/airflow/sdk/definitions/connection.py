@@ -118,7 +118,7 @@ class Connection:
     schema: str | None = None
     login: str | None = None
     password: str | None = None
-    port: int | None = None
+    port: int | None = attrs.field(default=None)
     extra: str | None = None
 
     @port.validator
