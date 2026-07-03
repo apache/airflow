@@ -17,23 +17,13 @@
  * under the License.
  */
 
-import js from "@eslint/js";
-import tseslint from "typescript-eslint";
+// Coordinator-mode public API. Re-exported through the package root.
+//
+// TaskClient and related types are exported from the package root. This
+// barrel only exports coordinator-specific entry points.
 
-export default tseslint.config(
-  {
-    ignores: ["dist/**", "node_modules/**", "coverage/**", "src/generated/**"],
-  },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  {
-    files: ["src/**/*.ts", "tests/**/*.ts"],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
-    },
-  },
-);
+export { startCoordinator, type StartCoordinatorOptions } from "./runtime.js";
+/** Cadwyn schema version this SDK was generated against. Not sent on
+ *  the wire — exposed so callers can read it for bundle metadata,
+ *  health checks, or to confirm which schema their build is pinned to. */
+export { SUPERVISOR_API_VERSION } from "./protocol.js";

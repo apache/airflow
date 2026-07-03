@@ -17,23 +17,19 @@
  * under the License.
  */
 
-import js from "@eslint/js";
-import tseslint from "typescript-eslint";
+import { describe, expectTypeOf, it } from "vitest";
+import type { StartCoordinatorOptions } from "../../src/coordinator/index.js";
+import { startCoordinator } from "../../src/coordinator/index.js";
 
-export default tseslint.config(
-  {
-    ignores: ["dist/**", "node_modules/**", "coverage/**", "src/generated/**"],
-  },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  {
-    files: ["src/**/*.ts", "tests/**/*.ts"],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_" },
-      ],
-    },
-  },
-);
+describe("coordinator public API", () => {
+  it("exports the coordinator runtime entrypoint from the coordinator subpath", () => {
+    expectTypeOf<typeof startCoordinator>().toEqualTypeOf<
+      (opts?: StartCoordinatorOptions) => Promise<void>
+    >();
+    expectTypeOf<StartCoordinatorOptions>().toEqualTypeOf<{
+      commAddr?: string;
+      logsAddr?: string;
+      argv?: readonly string[];
+    }>();
+  });
+});
