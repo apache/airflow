@@ -941,15 +941,16 @@ class BaseDatabricksHook(BaseHook):
         Import and invoke the ``federated_token_provider`` callable, returning its OIDC JWT.
 
         The dotted path is resolved and executed in-process; its return value is the RFC 8693
-        ``subject_token`` and is never written to disk. Raises when the path does not resolve to a
-        callable returning a non-empty string, so a misconfigured provider fails with a clear error
-        rather than posting an empty ``subject_token`` to the exchange.
+        ``subject_token`` and is never written to disk. Surrounding whitespace is stripped (matching
+        the Kubernetes path), and a value that is not a non-empty string raises, so a misconfigured
+        provider fails with a clear error rather than posting a blank or newline-padded
+        ``subject_token`` to the exchange.
         """
         token_provider: Callable[[], str] = import_string(provider)
         token = token_provider()
-        if not isinstance(token, str) or not token:
+        if not isinstance(token, str) or not token.strip():
             raise ValueError(f"federated_token_provider {provider!r} must return a non-empty string token.")
-        return token
+        return token.strip()
 
     def _build_federation_exchange_data(self, subject_token: str, client_id: str | None) -> dict[str, str]:
         """

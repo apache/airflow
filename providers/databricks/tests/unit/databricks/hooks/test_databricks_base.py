@@ -65,6 +65,24 @@ def _empty_token_provider() -> str:
 _EMPTY_TOKEN_PROVIDER_PATH = f"{_empty_token_provider.__module__}.{_empty_token_provider.__qualname__}"
 
 
+def _whitespace_token_provider() -> str:
+    """A misconfigured provider that returns a whitespace-only token (tests the strip guard)."""
+    return "  \t\n"
+
+
+_WHITESPACE_TOKEN_PROVIDER_PATH = (
+    f"{_whitespace_token_provider.__module__}.{_whitespace_token_provider.__qualname__}"
+)
+
+
+def _padded_token_provider() -> str:
+    """A provider that returns a valid token with surrounding whitespace (e.g. a trailing newline)."""
+    return f"  {_SUPPLIED_JWT}\n"
+
+
+_PADDED_TOKEN_PROVIDER_PATH = f"{_padded_token_provider.__module__}.{_padded_token_provider.__qualname__}"
+
+
 class TestBaseDatabricksHook:
     def test_init_exception(self):
         """
@@ -1249,15 +1267,22 @@ class TestBaseDatabricksHook:
         else:
             assert "client_id" not in data  # account-wide federation policy
 
-    def test_get_token_supplied_provider_invalid_return(self):
-        """A provider returning an empty/non-string token fails clearly, before any exchange happens."""
+    @pytest.mark.parametrize(
+        "provider_path",
+        [
+            pytest.param(_EMPTY_TOKEN_PROVIDER_PATH, id="empty"),
+            pytest.param(_WHITESPACE_TOKEN_PROVIDER_PATH, id="whitespace-only"),
+        ],
+    )
+    def test_get_token_supplied_provider_invalid_return(self, provider_path):
+        """A provider returning an empty or whitespace-only token fails clearly, before any exchange."""
         conn = Connection(
             conn_id=DEFAULT_CONN_ID,
             conn_type="databricks",
             host="my-workspace.cloud.databricks.com",
             login=None,
             password=None,
-            extra=json.dumps({"federated_token_provider": _EMPTY_TOKEN_PROVIDER_PATH}),
+            extra=json.dumps({"federated_token_provider": provider_path}),
         )
         hook = BaseDatabricksHook()
         hook.databricks_conn = conn
@@ -1266,6 +1291,34 @@ class TestBaseDatabricksHook:
             with pytest.raises(ValueError, match="must return a non-empty string token"):
                 hook._get_token()
             mock_post.assert_not_called()
+
+    @mock.patch("requests.post")
+    def test_get_token_supplied_provider_strips_token(self, mock_post):
+        """A token returned with surrounding whitespace is stripped before it is exchanged."""
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps({"federated_token_provider": _PADDED_TOKEN_PROVIDER_PATH}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        assert hook._get_token() == "databricks_token"
+        # The newline-padded token is stripped -- the raw value is never posted to the exchange.
+        assert mock_post.call_args.kwargs["data"]["subject_token"] == _SUPPLIED_JWT
 
     @mock.patch("requests.post")
     def test_supplied_provider_takes_precedence_over_federated_k8s(self, mock_post):
