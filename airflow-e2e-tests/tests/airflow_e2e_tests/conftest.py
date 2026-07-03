@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -55,6 +56,7 @@ from airflow_e2e_tests.constants import (
     LANG_SDK_NATIVE_TOOLCHAIN,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
+    NODE_IMAGE,
     OPENLINEAGE_COMPOSE_PATH,
     OPENSEARCH_PATH,
     PROVIDERS_MOUNT_CONTAINER_PATH,
@@ -62,6 +64,10 @@ from airflow_e2e_tests.constants import (
     SCALA_SPARK_EXAMPLE_DAGS_PATH,
     SCALA_SPARK_EXAMPLE_LIBS_PATH,
     TEST_REPORT_FILE,
+    TS_COMPOSE_PATH,
+    TS_SDK_BUILD_HOME_PATH,
+    TS_SDK_EXAMPLE_PATH,
+    TS_SDK_ROOT_PATH,
     XCOM_BUCKET,
 )
 
@@ -640,6 +646,114 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir):
     copyfile(OPENLINEAGE_COMPOSE_PATH, tmp_dir / "openlineage.yml")
 
 
+def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the ts_sdk E2E test mode.
+
+    Builds the ts-sdk example bundle with pnpm inside an ephemeral Node
+    container (the host needs no Node toolchain), drops it with its
+    airflow-metadata.yaml sidecar into the directory ``NodeCoordinator``
+    scans, copies the Python stub Dag, and writes the coordinator
+    configuration.
+
+    The worker has no Node runtime of its own; the node-provider service in
+    ``ts.yml`` copies the node binary out of the same image used here for the
+    build, so the bundle executes on the runtime it was built for.
+    """
+    # --user keeps build outputs owned by the current user (not root); HOME
+    # points at a writable, gitignored dir so the pnpm store and corepack
+    # cache persist between runs. corepack resolves the pnpm version pinned
+    # by ts-sdk/package.json's packageManager field.
+    TS_SDK_BUILD_HOME_PATH.mkdir(parents=True, exist_ok=True)
+    # Shims go into a writable dir on PATH (the container user cannot write to
+    # /usr/local/bin) so nested `pnpm run ...` invocations resolve pnpm too.
+    build_script = (
+        'export PATH="$HOME/bin:$PATH"'
+        ' && mkdir -p "$HOME/bin"'
+        ' && corepack enable --install-directory "$HOME/bin"'
+        " && cd /repo/ts-sdk"
+        " && pnpm install --frozen-lockfile"
+        " && pnpm run build"
+        " && cd example"
+        " && pnpm install"
+        " && pnpm run build"
+    )
+    console.print(f"[yellow]Building TypeScript SDK example bundle ({NODE_IMAGE})...")
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "HOME=/repo/files/pnpm-home",
+            "-e",
+            "COREPACK_ENABLE_DOWNLOAD_PROMPT=0",
+            "-e",
+            # Non-interactive pnpm: never prompt (e.g. before replacing a
+            # node_modules left behind by a host-side install).
+            "CI=true",
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            NODE_IMAGE,
+            "bash",
+            "-c",
+            build_script,
+        ],
+        check=True,
+    )
+
+    # Copy the compose override into the temp directory.
+    copyfile(TS_COMPOSE_PATH, tmp_dir / "ts.yml")
+
+    # Place the bundle and its metadata sidecar where the compose bind-mount
+    # (./ts-bundles) exposes them to the worker at /opt/airflow/ts-bundles.
+    ts_bundles_dir = tmp_dir / "ts-bundles"
+    ts_bundles_dir.mkdir()
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
+    supervisor_ts = (TS_SDK_ROOT_PATH / "src" / "generated" / "supervisor.ts").read_text()
+    version_match = re.search(r'SUPERVISOR_API_VERSION = "(\d{4}-\d{2}-\d{2})"', supervisor_ts)
+    if not version_match:
+        raise RuntimeError("Cannot find SUPERVISOR_API_VERSION in ts-sdk/src/generated/supervisor.ts")
+    (ts_bundles_dir / "airflow-metadata.yaml").write_text(
+        f'sdk:\n  supervisor_schema_version: "{version_match.group(1)}"\n'
+    )
+
+    # Copy the TS SDK example stub Dag so Airflow can discover and serialize it.
+    copyfile(
+        TS_SDK_EXAMPLE_PATH / "dags" / "typescript_example.py", tmp_dir / "dags" / "typescript_example.py"
+    )
+
+    # Coordinator registry: maps the logical name "ts" to NodeCoordinator, which
+    # scans bundles_root for bundle.mjs and launches it with the node binary
+    # provided by the node-provider service.
+    # Queue mapping: routes tasks on the "typescript" queue to "ts".
+    coordinator_config = json.dumps(
+        {
+            "ts": {
+                "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+                "kwargs": {
+                    "bundles_root": ["/opt/airflow/ts-bundles"],
+                    "node_executable": "/opt/nodejs/node",
+                },
+            }
+        }
+    )
+    queue_to_coordinator = json.dumps({"typescript": "ts"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        f"NODE_IMAGE={NODE_IMAGE}\n"
+        # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # Connection and variable read by the TS example bundle tasks.
+        "AIRFLOW_CONN_TYPESCRIPT_EXAMPLE_HTTP=http://user:pass@example.com/\n"
+        "AIRFLOW_VAR_TYPESCRIPT_EXAMPLE_GREETING=greetings from e2e\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("breeze-airflow-e2e-tests")
 
@@ -694,6 +808,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "openlineage":
         compose_file_names.append("openlineage.yml")
         _setup_openlineage_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "ts_sdk":
+        compose_file_names.append("ts.yml")
+        _setup_ts_sdk_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.

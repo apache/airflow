@@ -135,6 +135,7 @@ class FileGroupForCi(Enum):
     GO_SDK_E2E_FILES = auto()
     OPENLINEAGE_E2E_FILES = auto()
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
+    TS_SDK_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -270,6 +271,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
+        ],
+        FileGroupForCi.TS_SDK_E2E_FILES: [
+            r"^ts-sdk/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/ts_sdk_tests/.*",
+            r"^airflow-e2e-tests/docker/ts\.yml$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -1079,6 +1087,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
 
     @cached_property
+    def run_ts_sdk_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_E2E_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1222,6 +1234,7 @@ class SelectiveChecks:
             or self.run_go_sdk_e2e_tests
             or self.run_openlineage_e2e_tests
             or self.run_openlineage_e2e_compat_tests
+            or self.run_ts_sdk_e2e_tests
             or self.run_ui_e2e_tests
         )
 
