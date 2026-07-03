@@ -157,6 +157,41 @@ def _create_zip_bundle_with_valid_and_broken_dags(zip_path: Path) -> None:
         )
 
 
+def _create_zip_bundle_with_keywordless_dag(zip_path: Path) -> None:
+    """Build a zip with one keyword-bearing member and one keyword-less ("wrapped") member.
+
+    ``with_keywords.py`` contains the ``airflow``/``dag`` strings the safe-mode heuristic looks
+    for. ``no_keywords.py`` mimics a custom wrapper whose source contains neither ``airflow`` nor
+    ``dag``/``asset`` -- exactly the case ``dag_discovery_safe_mode=False`` exists to support
+    (issue #66104).
+    """
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr(
+            "with_keywords.py",
+            textwrap.dedent(
+                """
+                from airflow.sdk import DAG
+
+                with DAG(dag_id="zip_with_keywords"):
+                    pass
+                """
+            ),
+        )
+        zf.writestr(
+            "no_keywords.py",
+            textwrap.dedent(
+                """
+                from mycompany.pipelines import flow
+
+
+                @flow(name="nightly")
+                def nightly():
+                    run_step("extract")
+                """
+            ),
+        )
+
+
 class TestDagFileProcessorManager:
     @pytest.fixture(autouse=True)
     def _disable_examples(self):
@@ -308,6 +343,33 @@ class TestDagFileProcessorManager:
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
         mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
+    @pytest.mark.parametrize(
+        "safe_mode",
+        [
+            pytest.param(False, id="safe-mode-off-includes-keywordless"),
+            pytest.param(True, id="safe-mode-on-filters-keywordless"),
+        ],
+    )
+    def test_get_observed_filelocs_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
+        """ZIP-member discovery used for deactivation must honor the configured safe_mode.
+
+        Regression for #66104: with ``dag_discovery_safe_mode=False`` a keyword-less (wrapped)
+        zip member is parsed and activated, so it must also be reported as observed -- otherwise
+        it is deactivated right after being parsed. This path previously hardcoded safe_mode=True.
+        """
+        zip_path = tmp_path / "test_zip.zip"
+        _create_zip_bundle_with_keywordless_dag(zip_path)
+
+        manager = DagFileProcessorManager(max_runs=1, dag_discovery_safe_mode=safe_mode)
+        observed_filelocs = manager._get_observed_filelocs(
+            {DagFileInfo(bundle_name="testing", rel_path=Path("test_zip.zip"), bundle_path=tmp_path)}
+        )
+
+        expected = {"test_zip.zip/with_keywords.py"}
+        if not safe_mode:
+            expected.add("test_zip.zip/no_keywords.py")
+        assert observed_filelocs == expected
 
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
