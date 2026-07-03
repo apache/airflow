@@ -609,14 +609,17 @@ def get_dag_runs(
             "int", limit.value
         )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
         cursor_limit = LimitFilter().set_value(page_limit + 1)
-        dag_run_select = apply_filters_to_select(statement=query, filters=[*filters, order_by, cursor_limit])
+        dag_run_select = apply_filters_to_select(statement=query, filters=[*filters, cursor_limit])
+        dag_run_select = order_by.to_orm(dag_run_select)
 
         is_backward = False
         if cursor:
             token, is_backward = parse_cursor(cursor)
             if is_backward:
                 dag_run_select = order_by.to_orm(dag_run_select, reversed=True)
-            dag_run_select = apply_cursor_filter(dag_run_select, token, order_by, is_backward=is_backward)
+            dag_run_select = apply_cursor_filter(
+                dag_run_select, token, order_by, session.get_bind().dialect.name, is_backward=is_backward
+            )
 
         fetched = list(session.scalars(dag_run_select).unique())
         has_more = len(fetched) > page_limit

@@ -668,6 +668,40 @@ class TestGetDagRuns:
         )
         assert response.status_code == 400
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
+        """Cursor pagination sorted by a nullable column must not silently drop rows.
+
+        With a NULL in the sort column, the keyset predicate and the ORDER BY can disagree
+        on NULL placement and drop every row on one side of the NULL/non-NULL boundary.
+        """
+        # Null out one run's start_date so the NULL/non-NULL boundary is crossed mid-walk.
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        run.start_date = None
+        session.commit()
+
+        full = test_client.get("/dags/~/dagRuns", params={"limit": 100})
+        assert full.status_code == 200, full.json()
+        full_ids = {(r["dag_id"], r["dag_run_id"]) for r in full.json()["dag_runs"]}
+        assert len(full_ids) == 4
+
+        collected: list[tuple[str, str]] = []
+        cursor_token: str | None = ""
+        for _ in range(20):
+            resp = test_client.get(
+                "/dags/~/dagRuns",
+                params={"limit": 1, "order_by": "start_date", "cursor": cursor_token},
+            )
+            assert resp.status_code == 200, resp.json()
+            body = resp.json()
+            collected.extend((r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"])
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        assert len(collected) == len(set(collected)), "cursor pages overlapped"
+        assert set(collected) == full_ids, "cursor pagination dropped rows across the NULL boundary"
+
     @pytest.mark.parametrize(
         ("dag_id", "query_params", "expected_dag_id_list"),
         [
