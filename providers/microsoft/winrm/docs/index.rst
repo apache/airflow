@@ -102,6 +102,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``pywinrm``                                 ``>=0.5.0``
+``pyspnego``                                ``>=0.4.0``
 ==========================================  ==================
 
 Downloading official packages

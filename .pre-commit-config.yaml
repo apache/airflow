@@ -21,7 +21,7 @@ minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
-  golang: 1.24.0
+  golang: 1.25.0
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -261,6 +261,18 @@ repos:
           ^ts-sdk/node_modules/.*|
           ^ts-sdk/.pnpm-store/.*|
           ^ts-sdk/dist/.*
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
+      - id: check-ts-sdk-supervisor-schema
+        name: Check TypeScript SDK supervisor schema is up to date
+        entry: ./ts-sdk/scripts/ci/prek/check_supervisor_schema.py
+        language: node
+        files: >
+          (?x)
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^ts-sdk/src/generated/supervisor\.ts$|
+          ^ts-sdk/scripts/generate-supervisor\.mjs$
         additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: false
         require_serial: true
@@ -659,6 +671,17 @@ repos:
         entry: ./scripts/ci/prek/supported_versions.py
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
+        pass_filenames: false
+      - id: generate-api-permissions-doc
+        name: Generate REST API permission reference documentation
+        entry: ./scripts/ci/prek/extract_permissions.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^airflow-core/docs/security/api_permissions_ref\.rst$
         pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
