@@ -592,6 +592,20 @@ svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 cd "$AIRFLOW_REPO_ROOT"
 ```
 
+* Before sending the vote email, gate on the same completeness check the PMC verifiers run, so a
+  missing artifact (e.g. the `-source.tar.gz` tarball) fails here instead of in the vote thread.
+  Put the package list from the upcoming vote email into `dev/packages.txt`, then run:
+
+```shell script
+cd "$AIRFLOW_REPO_ROOT"
+breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" \
+  --packages-file ./dev/packages.txt \
+  --path-to-airflow-svn "$(cd ../asf-dist/dev/airflow && pwd -P)"
+```
+
+  It exits non-zero and lists every missing file (including `.asc`/`.sha512` variants) if anything is
+  absent. Only proceed to the vote once it prints `All expected files are present!`.
+
 Verify that the files are available in the ${RELEASE_DATE} folder under
 [providers](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
