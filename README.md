@@ -69,7 +69,7 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
 - [Community standards](#community-standards)
-- [Agent-assisted contribution (apache-steward)](#agent-assisted-contribution-apache-steward)
+- [Agent-assisted contribution (apache-magpie)](#agent-assisted-contribution-apache-magpie)
 - [Voting Policy](#voting-policy)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -449,9 +449,9 @@ blocks and reporting accounts to GitHub — and how affected
 contributors can appeal a decision by emailing the PMC at
 `private@airflow.apache.org`.
 
-## Agent-assisted contribution (apache-steward)
+## Agent-assisted contribution (apache-magpie)
 
-This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
 framework via a snapshot mechanism. The framework provides
 maintainer-facing PR-management skills (`pr-management-triage`,
 `pr-management-code-review`, `pr-management-stats`, `pr-management-mentor`)
@@ -479,7 +479,7 @@ each worktree checkout.
 Adopter-specific modifications to framework workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) (committed) —
 never edit the snapshot directly. Framework changes go via PR to
-[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+[`apache/magpie`](https://github.com/apache/magpie).
 
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 

@@ -264,6 +264,18 @@ repos:
         additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: false
         require_serial: true
+      - id: check-ts-sdk-supervisor-schema
+        name: Check TypeScript SDK supervisor schema is up to date
+        entry: ./ts-sdk/scripts/ci/prek/check_supervisor_schema.py
+        language: node
+        files: >
+          (?x)
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^ts-sdk/src/generated/supervisor\.ts$|
+          ^ts-sdk/scripts/generate-supervisor\.mjs$
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
@@ -477,7 +489,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: f723f0d30c48cd62f4c4617fbe8e62115ace3b72  # frozen: nightly
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -578,7 +590,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.19']
+        additional_dependencies: ['ruff==0.15.20']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
