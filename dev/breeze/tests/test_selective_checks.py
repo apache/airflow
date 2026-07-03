@@ -3419,6 +3419,8 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
     [
         pytest.param("airflow-core/src/airflow/security/kerberos.py", "kerberos", id="kerberos-source"),
         pytest.param("airflow-core/src/airflow/observability/stats.py", "otel", id="otel-source"),
+        pytest.param("airflow-core/tests/integration/otel/test_otel.py", "otel", id="otel-integration-tests"),
+        pytest.param("task-sdk/src/airflow/sdk/execution_time/task_runner.py", "otel", id="otel-task-runner"),
         pytest.param("airflow-core/src/airflow/executors/executor_loader.py", "redis", id="celery-source"),
     ],
 )
