@@ -614,6 +614,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl dags get-details")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
