@@ -175,6 +175,10 @@ class IterableOperator(BaseOperator):
     def returns_dag_result(self) -> bool:
         return self._operator.returns_dag_result
 
+    @returns_dag_result.setter
+    def returns_dag_result(self, value: bool) -> None:
+        self._operator.returns_dag_result = value
+
     @property
     def task_type(self) -> str:
         return self._operator.__class__.__name__
