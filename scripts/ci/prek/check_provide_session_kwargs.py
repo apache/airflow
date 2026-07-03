@@ -68,7 +68,7 @@ import typing
 from collections.abc import Iterable
 from pathlib import Path
 
-from common_prek_utils import AIRFLOW_ROOT_PATH, AllowListManager
+from common_prek_utils import AIRFLOW_ROOT_PATH, AllowlistManager
 from rich.console import Console
 from rich.panel import Panel
 
@@ -135,7 +135,7 @@ def _count_violations(path: Path) -> int:
     return sum(1 for _ in _iter_positional_session_in_provide_session(path))
 
 
-class ProvideSessionAllowlistManager(AllowListManager):
+class ProvideSessionAllowlistManager(AllowlistManager):
     def __init__(self, allowlist_file: Path) -> None:
         super().__init__(allowlist_file, repo_root=REPO_ROOT)
 
@@ -144,6 +144,24 @@ class ProvideSessionAllowlistManager(AllowListManager):
 
     def count_occurrences(self, path: Path) -> int:
         return _count_violations(path)
+
+    def violation_panel_text(self) -> str:
+        return (
+            "New [bold]@provide_session[/bold] function with positional ``session`` detected.\n"
+            "Move ``session`` after a bare ``*`` in the signature so callers must pass it by keyword:\n\n"
+            "  [cyan]@provide_session\n"
+            "  def foo(arg, *, session: Session = NEW_SESSION) -> None: ...[/cyan]\n\n"
+            "If this usage is intentional and pre-existing, run:\n\n"
+            "  [cyan]uv run ./scripts/ci/prek/check_provide_session_kwargs.py --generate[/cyan]\n\n"
+            "to regenerate the allowlist, then commit the updated\n"
+            "[cyan]scripts/ci/prek/known_provide_session_positional.txt[/cyan]."
+        )
+
+    def format_violation_details(self, path: Path) -> list[str]:
+        return [
+            f"      [dim]L{argument.lineno}[/dim] def {func.name}(...)"
+            for func, argument in _iter_positional_session_in_provide_session(path)
+        ]
 
 
 def _iter_python_files() -> list[Path]:
@@ -173,57 +191,7 @@ def _check_provide_session_kwargs(
             )
         )
         return 1
-
-    violations: list[tuple[Path, int, int]] = []
-    tightened: list[tuple[str, int, int]] = []
-
-    for path in files:
-        if not path.exists() or path.suffix != ".py":
-            continue
-        actual = _count_violations(path)
-        rel = str(path.relative_to(REPO_ROOT))
-        allowed = allowlist.get(rel, 0)
-        if actual > allowed:
-            violations.append((path, actual, allowed))
-        elif actual < allowed:
-            if actual == 0:
-                del allowlist[rel]
-            else:
-                allowlist[rel] = actual
-            tightened.append((rel, allowed, actual))
-
-    if tightened:
-        manager.save(allowlist)
-        console.print(
-            f"[green]Tightened {len(tightened)} entr{'y' if len(tightened) == 1 else 'ies'} "
-            f"in [cyan]{manager.allowlist_file.relative_to(REPO_ROOT)}[/cyan][/green] "
-            "(stage the updated file):"
-        )
-        for rel, old, new in tightened:
-            console.print(f"  [cyan]{rel}[/cyan]  {old} -> {new}")
-
-    if violations:
-        console.print(
-            Panel.fit(
-                "New [bold]@provide_session[/bold] function with positional ``session`` detected.\n"
-                "Move ``session`` after a bare ``*`` in the signature so callers must pass it by keyword:\n\n"
-                "  [cyan]@provide_session\n"
-                "  def foo(arg, *, session: Session = NEW_SESSION) -> None: ...[/cyan]\n\n"
-                "If this usage is intentional and pre-existing, run:\n\n"
-                "  [cyan]uv run ./scripts/ci/prek/check_provide_session_kwargs.py --generate[/cyan]\n\n"
-                "to regenerate the allowlist, then commit the updated\n"
-                "[cyan]scripts/ci/prek/known_provide_session_positional.txt[/cyan].",
-                title="[red]Check failed[/red]",
-                border_style="red",
-            )
-        )
-        for path, actual, allowed in violations:
-            console.print(f"  [cyan]{path.relative_to(REPO_ROOT)}[/cyan]  count={actual} (allowed={allowed})")
-            for func, argument in _iter_positional_session_in_provide_session(path):
-                console.print(f"      [dim]L{argument.lineno}[/dim] def {func.name}(...)")
-        return 1
-
-    return 1 if tightened else 0
+    return manager.check(files, allowlist)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -298,7 +266,7 @@ def _parse_tracked_allowlist(manager: ProvideSessionAllowlistManager) -> dict[st
         return {}
     if completed.returncode != 0:
         return {}
-    return ProvideSessionAllowlistManager.parse(completed.stdout)
+    return manager.parse(completed.stdout)
 
 
 def _expand_for_allowlist_edits(

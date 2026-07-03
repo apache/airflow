@@ -57,9 +57,8 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
-from common_prek_utils import AIRFLOW_ROOT_PATH, AllowListManager
+from common_prek_utils import AIRFLOW_ROOT_PATH, AllowlistManager
 from rich.console import Console
-from rich.panel import Panel
 
 console = Console(color_system="standard", width=200)
 
@@ -70,7 +69,7 @@ REPO_ROOT = AIRFLOW_ROOT_PATH
 _RAISE_RE = re.compile(r"raise\s+AirflowException\b")
 
 
-class AirflowExceptionAllowlistManager(AllowListManager):
+class AirflowExceptionAllowlistManager(AllowlistManager):
     def __init__(self, allowlist_file: Path) -> None:
         super().__init__(allowlist_file, repo_root=REPO_ROOT)
 
@@ -79,6 +78,16 @@ class AirflowExceptionAllowlistManager(AllowListManager):
 
     def count_occurrences(self, path: Path) -> int:
         return len(_raise_lines(path))
+
+    def violation_panel_text(self) -> str:
+        return (
+            "New [bold]raise AirflowException[/bold] usage detected.\n"
+            "Define a dedicated exception class or use an existing specific exception.\n"
+            "If this usage is intentional and pre-existing, run:\n\n"
+            "  [cyan]uv run ./scripts/ci/prek/check_new_airflow_exception_usage.py --generate[/cyan]\n\n"
+            "to regenerate the allowlist, then commit the updated\n"
+            "[cyan]generated/known_airflow_exceptions.txt[/cyan]."
+        )
 
 
 def _raise_lines(path: Path) -> list[str]:
@@ -108,55 +117,7 @@ def _iter_python_files() -> list[Path]:
 def _check_airflow_exception_usage(
     files: list[Path], allowlist: dict[str, int], manager: AirflowExceptionAllowlistManager
 ) -> int:
-    violations: list[tuple[Path, int, int]] = []
-    tightened: list[tuple[str, int, int]] = []  # (rel, old_count, new_count)
-
-    for path in files:
-        if not path.exists() or path.suffix != ".py":
-            continue
-        actual = len(_raise_lines(path))
-        rel = str(path.relative_to(REPO_ROOT))
-        allowed = allowlist.get(rel, 0)
-        if actual > allowed:
-            violations.append((path, actual, allowed))
-        elif actual < allowed:
-            # Usage was reduced — tighten the allowlist entry so it can't creep back up.
-            if actual == 0:
-                del allowlist[rel]
-            else:
-                allowlist[rel] = actual
-            tightened.append((rel, allowed, actual))
-
-    if tightened:
-        manager.save(allowlist)
-        console.print(
-            f"[green]✓ Tightened {len(tightened)} entr{'y' if len(tightened) == 1 else 'ies'} "
-            f"in [cyan]{manager.allowlist_file.relative_to(REPO_ROOT)}[/cyan][/green] "
-            "(stage the updated file):"
-        )
-        for rel, old, new in tightened:
-            console.print(f"  [cyan]{rel}[/cyan]  {old} → {new}")
-
-    if violations:
-        console.print(
-            Panel.fit(
-                "New [bold]raise AirflowException[/bold] usage detected.\n"
-                "Define a dedicated exception class or use an existing specific exception.\n"
-                "If this usage is intentional and pre-existing, run:\n\n"
-                "  [cyan]uv run ./scripts/ci/prek/check_new_airflow_exception_usage.py --generate[/cyan]\n\n"
-                "to regenerate the allowlist, then commit the updated\n"
-                "[cyan]generated/known_airflow_exceptions.txt[/cyan].",
-                title="[red]❌ Check failed[/red]",
-                border_style="red",
-            )
-        )
-        for path, actual, allowed in violations:
-            console.print(f"  [cyan]{path.relative_to(REPO_ROOT)}[/cyan]  count={actual} (allowed={allowed})")
-        return 1
-
-    # Return 1 when the allowlist was tightened so pre-commit reports the file as modified
-    # and prompts the user to stage the updated allowlist.
-    return 1 if tightened else 0
+    return manager.check(files, allowlist)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -59,10 +59,12 @@ GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
 
 try:
     from rich.console import Console
+    from rich.panel import Panel
 
     console = Console(width=400, color_system="standard")
 except ImportError:
     console = None  # type: ignore[assignment]
+    Panel = None  # type: ignore[assignment,misc]
 
 
 @contextmanager
@@ -890,20 +892,20 @@ def _is_safe_relative(rel: str, repo_root: Path) -> bool:
     return True
 
 
-class AllowListManager(abc.ABC):
+class AllowlistManager(abc.ABC):
     """Common base for prek hooks that track per-file occurrence counts in allowlist files.
 
-    Subclasses implement :meth:`iter_files` and :meth:`count_occurrences` to
-    define what gets scanned and how violations are counted.  Everything else —
-    loading, saving, generating, cleaning up — is handled here.
+    Subclasses implement :meth:`iter_files`, :meth:`count_occurrences`, and
+    :meth:`violation_panel_text` to define what gets scanned, how violations
+    are counted, and what help text to show.  Everything else — loading, saving,
+    generating, cleaning up, and the check loop — is handled here.
     """
 
     def __init__(self, allowlist_file: Path, *, repo_root: Path = AIRFLOW_ROOT_PATH) -> None:
         self.allowlist_file = allowlist_file
         self.repo_root = repo_root
 
-    @staticmethod
-    def parse(text: str, *, repo_root: Path = AIRFLOW_ROOT_PATH) -> dict[str, int]:
+    def parse(self, text: str) -> dict[str, int]:
         """Parse allowlist *text* into a ``{rel_path: count}`` mapping.
 
         Entries that escape the repo root (absolute paths or ``..`` segments)
@@ -923,7 +925,7 @@ class AllowListManager(abc.ABC):
             except ValueError:
                 continue
 
-            if not _is_safe_relative(rel_str, repo_root):
+            if not _is_safe_relative(rel_str, self.repo_root):
                 if console:
                     console.print(
                         f"[yellow]Ignoring unsafe allowlist entry (escapes repo root):[/yellow] {rel_str}"
@@ -938,7 +940,7 @@ class AllowListManager(abc.ABC):
         """Return mapping of ``relative_path -> allowed_count``."""
         if not self.allowlist_file.exists():
             return {}
-        return self.parse(self.allowlist_file.read_text(), repo_root=self.repo_root)
+        return self.parse(self.allowlist_file.read_text())
 
     def save(self, counts: dict[str, int]) -> None:
         lines = [f"{rel}::{count}" for rel, count in sorted(counts.items())]
@@ -951,6 +953,65 @@ class AllowListManager(abc.ABC):
     @abc.abstractmethod
     def count_occurrences(self, path: Path) -> int:
         """Count the number of violations/occurrences in a single file."""
+
+    @abc.abstractmethod
+    def violation_panel_text(self) -> str:
+        """Return the rich markup body for the violation help panel."""
+
+    def format_violation_details(self, path: Path) -> list[str]:
+        """Return extra detail lines for each violating file."""
+        return []
+
+    def check(self, files: list[Path], allowlist: dict[str, int]) -> int:
+        """Run the check loop: compare counts, tighten entries, report violations."""
+        violations: list[tuple[Path, int, int]] = []
+        tightened: list[tuple[str, int, int]] = []
+
+        for path in files:
+            if not path.exists() or path.suffix != ".py":
+                continue
+            actual = self.count_occurrences(path)
+            rel = str(path.relative_to(self.repo_root))
+            allowed = allowlist.get(rel, 0)
+            if actual > allowed:
+                violations.append((path, actual, allowed))
+            elif actual < allowed:
+                if actual == 0:
+                    del allowlist[rel]
+                else:
+                    allowlist[rel] = actual
+                tightened.append((rel, allowed, actual))
+
+        if tightened:
+            self.save(allowlist)
+            if console:
+                console.print(
+                    f"[green]Tightened {len(tightened)} entr{'y' if len(tightened) == 1 else 'ies'} "
+                    f"in [cyan]{self.allowlist_file.relative_to(self.repo_root)}[/cyan][/green] "
+                    "(stage the updated file):"
+                )
+                for rel, old, new in tightened:
+                    console.print(f"  [cyan]{rel}[/cyan]  {old} → {new}")
+
+        if violations:
+            if console:
+                console.print(
+                    Panel.fit(
+                        self.violation_panel_text(),
+                        title="[red]Check failed[/red]",
+                        border_style="red",
+                    )
+                )
+                for path, actual, allowed in violations:
+                    console.print(
+                        f"  [cyan]{path.relative_to(self.repo_root)}[/cyan]  "
+                        f"count={actual} (allowed={allowed})"
+                    )
+                    for detail in self.format_violation_details(path):
+                        console.print(detail)
+            return 1
+
+        return 1 if tightened else 0
 
     def generate(self) -> int:
         if console:

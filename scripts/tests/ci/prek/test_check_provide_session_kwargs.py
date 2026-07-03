@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from ci.prek import check_provide_session_kwargs as hook
 from ci.prek.check_provide_session_kwargs import (
-    ProvideSessionAllowlistManager as AllowlistManager,
+    ProvideSessionAllowlistManager,
     _check_provide_session_kwargs,
     _count_violations,
     _expand_for_allowlist_edits,
@@ -228,13 +228,13 @@ class TestIterPositionalSessionInProvideSession:
         assert _count_violations(path) == 1
 
 
-class TestAllowlistManager:
+class TestProvideSessionAllowlistManager:
     def test_load_missing_file_returns_empty(self, tmp_path):
-        manager = AllowlistManager(tmp_path / "missing.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "missing.txt")
         assert manager.load() == {}
 
     def test_save_and_load_round_trip(self, tmp_path):
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         manager.save({"b/file.py": 2, "a/file.py": 1})
         # Sorted by key in the file
         text = (tmp_path / "allowlist.txt").read_text()
@@ -244,7 +244,7 @@ class TestAllowlistManager:
     def test_load_skips_blank_and_malformed_lines(self, tmp_path):
         path = tmp_path / "allowlist.txt"
         path.write_text("\nvalid/file.py::3\nnocount\n::5\nbad::notanumber\n")
-        assert AllowlistManager(path).load() == {"valid/file.py": 3}
+        assert ProvideSessionAllowlistManager(path).load() == {"valid/file.py": 3}
 
     @pytest.mark.usefixtures("create_fake_repo")
     def test_load_skips_unsafe_entries(self, tmp_path):
@@ -252,7 +252,7 @@ class TestAllowlistManager:
         path = tmp_path / "allowlist.txt"
         path.write_text("airflow-core/src/airflow/safe.py::1\n../escape.py::1\n/etc/passwd::1\n")
         # `create_fake_repo` patches REPO_ROOT to tmp_path so the safety check is meaningful.
-        assert AllowlistManager(path).load() == {"airflow-core/src/airflow/safe.py": 1}
+        assert ProvideSessionAllowlistManager(path).load() == {"airflow-core/src/airflow/safe.py": 1}
 
 
 class TestCheckProvideSessionKwargs:
@@ -265,7 +265,7 @@ class TestCheckProvideSessionKwargs:
                 pass
             """,
         )
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         assert _check_provide_session_kwargs([path], {}, manager) == 0
 
     def test_new_violation_fails(self, create_fake_repo, tmp_path):
@@ -277,7 +277,7 @@ class TestCheckProvideSessionKwargs:
                 pass
             """,
         )
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         assert _check_provide_session_kwargs([path], {}, manager) == 1
 
     def test_violation_within_allowlist_passes(self, create_fake_repo, tmp_path):
@@ -289,7 +289,7 @@ class TestCheckProvideSessionKwargs:
                 pass
             """,
         )
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         allowlist = {"airflow-core/src/airflow/grandfathered.py": 1}
         assert _check_provide_session_kwargs([path], allowlist, manager) == 0
 
@@ -306,7 +306,7 @@ class TestCheckProvideSessionKwargs:
                 pass
             """,
         )
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         allowlist = {"airflow-core/src/airflow/grew.py": 1}
         assert _check_provide_session_kwargs([path], allowlist, manager) == 1
 
@@ -323,7 +323,7 @@ class TestCheckProvideSessionKwargs:
                 pass
             """,
         )
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         allowlist = {"airflow-core/src/airflow/improved.py": 2}
         # Exit non-zero so pre-commit reports the modified allowlist
         assert _check_provide_session_kwargs([path], allowlist, manager) == 1
@@ -338,7 +338,7 @@ class TestCheckProvideSessionKwargs:
                 pass
             """,
         )
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         allowlist = {"airflow-core/src/airflow/fixed.py": 1}
         assert _check_provide_session_kwargs([path], allowlist, manager) == 1
         assert manager.load() == {}
@@ -347,14 +347,14 @@ class TestCheckProvideSessionKwargs:
         path = create_fake_repo(
             "airflow-core/src/airflow/not_python.txt", "@provide_session\ndef foo(session=N): pass\n"
         )
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         assert _check_provide_session_kwargs([path], {}, manager) == 0
 
     @pytest.mark.usefixtures("create_fake_repo")
     def test_missing_allowlist_file_fails_loudly(self, tmp_path):
         """Passing the allowlist path when the file is missing must fail, not silently pass."""
         allowlist_path = tmp_path / "allowlist.txt"
-        manager = AllowlistManager(allowlist_path)
+        manager = ProvideSessionAllowlistManager(allowlist_path)
         assert not allowlist_path.exists()
         assert _check_provide_session_kwargs([allowlist_path.resolve()], {}, manager) == 1
 
@@ -362,12 +362,12 @@ class TestCheckProvideSessionKwargs:
 class TestExpandForAllowlistEdits:
     def test_unchanged_when_allowlist_not_in_paths(self, create_fake_repo, tmp_path):
         py = create_fake_repo("airflow-core/src/airflow/x.py", "pass")
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         assert _expand_for_allowlist_edits([py], manager, {"airflow-core/src/airflow/x.py": 1}) == [py]
 
     def test_appends_allowlisted_files_when_allowlist_edited(self, create_fake_repo, tmp_path):
         allowlist_path = tmp_path / "allowlist.txt"
-        manager = AllowlistManager(allowlist_path)
+        manager = ProvideSessionAllowlistManager(allowlist_path)
         listed = create_fake_repo("airflow-core/src/airflow/listed.py", "pass")
         # Pass a resolved path — matches production behavior (``main()`` resolves argv).
         result = _expand_for_allowlist_edits(
@@ -383,7 +383,7 @@ class TestExpandForAllowlistEdits:
     def test_detection_robust_to_symlinked_allowlist(self, create_fake_repo, tmp_path):
         """A symlink pointing at the allowlist file must still trigger expansion."""
         allowlist_path = tmp_path / "allowlist.txt"
-        manager = AllowlistManager(allowlist_path)
+        manager = ProvideSessionAllowlistManager(allowlist_path)
         listed = create_fake_repo("airflow-core/src/airflow/listed.py", "pass")
         manager.save({"airflow-core/src/airflow/listed.py": 1})
 
@@ -410,7 +410,7 @@ class TestExpandForAllowlistEdits:
             """,
         )
         allowlist_path = tmp_path / "allowlist.txt"
-        manager = AllowlistManager(allowlist_path)
+        manager = ProvideSessionAllowlistManager(allowlist_path)
         manager.save({rel: 1})
         create_git_repo("seed allowlist at HEAD")
 
@@ -429,7 +429,7 @@ class TestExpandForAllowlistEdits:
     @pytest.mark.usefixtures("create_fake_repo")
     def test_parse_tracked_allowlist_empty_when_no_git_history(self, tmp_path):
         """Without a git repo the git-tracked allowlist lookup returns empty and does not crash."""
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         assert _parse_tracked_allowlist(manager) == {}
 
     def test_re_validates_listed_files_so_loosening_cannot_bypass(self, create_fake_repo, tmp_path, capsys):
@@ -448,7 +448,7 @@ class TestExpandForAllowlistEdits:
             """,
         )
         allowlist_path = tmp_path / "allowlist.txt"
-        manager = AllowlistManager(allowlist_path)
+        manager = ProvideSessionAllowlistManager(allowlist_path)
         # Allowlist loosened to 5 although file only has 2 positional sessions.
         allowlist = {rel: 5}
         manager.save(allowlist)
@@ -467,7 +467,7 @@ class TestCleanup:
     def test_cleanup_removes_stale_entries(self, create_fake_repo, tmp_path):
         create_fake_repo("airflow-core/src/airflow/keeper.py", "pass")
         allowlist_path = tmp_path / "allowlist.txt"
-        manager = AllowlistManager(allowlist_path)
+        manager = ProvideSessionAllowlistManager(allowlist_path)
         manager.save(
             {
                 "airflow-core/src/airflow/keeper.py": 1,
@@ -478,5 +478,5 @@ class TestCleanup:
         assert manager.load() == {"airflow-core/src/airflow/keeper.py": 1}
 
     def test_cleanup_empty_allowlist(self, tmp_path):
-        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        manager = ProvideSessionAllowlistManager(tmp_path / "allowlist.txt")
         assert manager.cleanup() == 0
