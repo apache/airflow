@@ -181,6 +181,20 @@ class TestPartitionMapperMaxDownstreamKeysValidator:
         ):
             IdentityMapper(max_downstream_keys=bad_value)
 
+    def test_subclass_skipping_base_init_still_resolves_to_none(self):
+        """A subclass whose __init__ never calls the base __init__ (e.g. an
+        attrs-generated one in a plugin) must still resolve max_downstream_keys
+        via the class-level default instead of raising AttributeError."""
+
+        class NoSuperMapper(PartitionMapper):
+            def __init__(self):
+                pass
+
+            def to_downstream(self, key: str) -> str:
+                return key
+
+        assert NoSuperMapper().max_downstream_keys is None
+
 
 class TestRollupMapperMaxDownstreamKeys:
     def test_max_downstream_keys_encode_decode_roundtrip(self):
