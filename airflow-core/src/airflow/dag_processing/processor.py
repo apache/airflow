@@ -736,4 +736,8 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         try:
             self.logger_filehandle.close()
         except OSError:
-            self.log.warning("Failed to close log file handle for %s", self.dag_file_rel_path)
+            self.log.warning(
+                "Failed to close log file handle for %s",
+                self.dag_file_rel_path,
+                exc_info=True,
+            )
