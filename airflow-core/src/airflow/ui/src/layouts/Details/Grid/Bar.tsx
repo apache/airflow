@@ -25,15 +25,12 @@ import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
 import { BundleVersionIndicator, DagVersionIndicator } from "./VersionIndicator";
-import { BAR_HEIGHT } from "./constants";
+import { BAR_HEIGHT, NOTE_GRADIENT } from "./constants";
 import {
   getBundleVersion,
   getMaxVersionNumber,
   type GridRunWithVersionFlags,
 } from "./useGridRunsWithVersionFlags";
-
-const NOTE_GRADIENT =
-  "linear-gradient(45deg, var(--chakra-colors-color-palette-solid) 92%, var(--chakra-colors-color-palette-emphasized) 92%)";
 
 type Props = {
   readonly max: number;

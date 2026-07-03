@@ -41,3 +41,8 @@ export const BUNDLE_VERSION_INDICATOR_LEFT = -2; // Position from left for bundl
 export const BUNDLE_VERSION_ICON_SIZE = 15; // Size of the git commit icon
 export const DAG_VERSION_INDICATOR_HEIGHT = 104; // Height of the vertical line indicator
 export const VERSION_INDICATOR_Z_INDEX = 1; // Z-index for version indicators
+
+// Anchor the note triangle a fixed distance from the corner (in px, measured along the 45deg
+// gradient line) instead of a percentage, so its size stays constant regardless of the bar height.
+export const NOTE_GRADIENT =
+  "linear-gradient(45deg, var(--chakra-colors-color-palette-solid) calc(100% - 8px), var(--chakra-colors-color-palette-emphasized) calc(100% - 8px))";
