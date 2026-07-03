@@ -1185,10 +1185,7 @@ class DagFileProcessorManager(LoggingMixin):
                     ),
                 )
                 processor.kill(signal.SIGKILL)
-                try:
-                    processor.logger_filehandle.close()
-                except OSError:
-                    self.log.warning("Failed to close log file handle for %s", file_name)
+                processor.close()
                 self._file_stats.pop(file, None)
 
     @provide_session
@@ -1319,10 +1316,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file in finished:
             processor = self._processors.pop(file)
-            try:
-                processor.logger_filehandle.close()
-            except OSError:
-                self.log.warning("Failed to close log file handle for %s", file)
+            processor.close()
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -1628,10 +1622,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
-            try:
-                processor.logger_filehandle.close()
-            except OSError:
-                self.log.warning("Failed to close log file handle for %s", proc)
+            processor.close()
 
     def _add_files_to_queue(
         self,
