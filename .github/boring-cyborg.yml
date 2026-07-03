@@ -557,9 +557,6 @@ labelPRBasedOnFilePath:
   area:java-sdk:
     - java-sdk/**/*
 
-  area:ts-sdk:
-    - ts-sdk/**/*
-
   "AIP-108: Coordinator":
     - task-sdk/src/airflow/sdk/coordinators/**/*
     - task-sdk/src/airflow/sdk/execution_time/coordinator.py
