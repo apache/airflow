@@ -1391,6 +1391,27 @@ class TestRetryPolicySerialization:
         # Deterministic across independent parses (no embedded memory address).
         assert DagSerialization.serialize_dag(build()) == DagSerialization.serialize_dag(build())
 
+    def test_mapped_task_no_retry_policy_flag_false(self):
+        """A mapped task without a retry_policy must not spuriously set has_retry_policy.
+
+        Mapped resolves the flag via _get_partial_kwargs_or_operator_default (falling back to
+        SerializedBaseOperator.has_retry_policy=False), a different path than the non-mapped
+        dataclass default — so it needs its own negative test.
+        """
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
+
+        with DAG(dag_id="test_mapped_no_retry_policy", start_date=DEFAULT_DATE) as dag:
+
+            @task(retries=3)
+            def mapped(x):
+                return x
+
+            mapped.expand(x=[1, 2, 3])
+
+        serialized = DagSerialization.serialize_dag(dag)
+        deserialized = DagSerialization.deserialize_dag(serialized)
+        assert deserialized.task_dict["mapped"].has_retry_policy is False
+
 
 class TestKubernetesImportAvoidance:
     """Test that serialization doesn't import kubernetes unnecessarily."""
