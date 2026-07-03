@@ -251,18 +251,17 @@ class TestCloudSQLNoOperationInProgressTrigger:
         assert actual == TriggerEvent({"instance": INSTANCE, "status": "success"})
 
     @pytest.mark.asyncio
-    async def test_run_sleeps_while_operation_in_progress(self, no_op_trigger, sync_hook_mock, caplog):
-        sync_hook_mock.list_operations.return_value = [
-            {"name": "op1", "status": "RUNNING", "targetId": INSTANCE},
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_sql.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    async def test_run_sleeps_while_operation_in_progress(self, mock_sleep, no_op_trigger, sync_hook_mock):
+        sync_hook_mock.list_operations.side_effect = [
+            [{"name": "op1", "status": "RUNNING", "targetId": INSTANCE}],
+            [{"name": "op2", "status": "DONE", "targetId": INSTANCE}],
         ]
-        caplog.set_level(logging.INFO)
-        task = asyncio.create_task(no_op_trigger.run().__anext__())
-        await asyncio.sleep(0.5)
-
-        assert task.done() is False
-        assert f"in progress on instance {INSTANCE}" in caplog.text
-
-        asyncio.get_event_loop().stop()
+        actual = await no_op_trigger.run().asend(None)
+        assert actual == TriggerEvent({"instance": INSTANCE, "status": "success"})
+        mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("status", [403, 404])

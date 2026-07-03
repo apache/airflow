@@ -36,6 +36,10 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+class CloudSQLOperationError(AirflowException):
+    """Raised when the Cloud SQL operations check fails (for example, the instance is missing or access is denied)."""
+
+
 class CloudSQLNoOperationInProgressSensor(BaseSensorOperator):
     """
     Wait until a Cloud SQL instance has no administrative operation in progress.
@@ -105,7 +109,9 @@ class CloudSQLNoOperationInProgressSensor(BaseSensorOperator):
         except HttpError as e:
             if e.resp.status in (403, 404):
                 # Instance missing or access denied - surface the misconfiguration instead of poking.
-                raise AirflowException(f"Cloud SQL operations.list failed for instance {self.instance}: {e}")
+                raise CloudSQLOperationError(
+                    f"Cloud SQL operations.list failed for instance {self.instance}: {e}"
+                )
             raise
         in_progress = [op for op in operations if op.get("status") in CLOUD_SQL_NON_TERMINAL_STATUSES]
         if in_progress:
@@ -137,5 +143,5 @@ class CloudSQLNoOperationInProgressSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict | None = None) -> None:
         """Act as a callback for when the trigger fires."""
         if event and event.get("status") in ("failed", "error"):
-            raise AirflowException(event["message"])
+            raise CloudSQLOperationError(event["message"])
         self.log.info("No administrative operation in progress on instance %s.", self.instance)

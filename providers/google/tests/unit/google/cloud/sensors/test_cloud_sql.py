@@ -37,7 +37,7 @@ def _http_error(status: int) -> HttpError:
 
 
 class TestCloudSQLNoOperationInProgressSensor:
-    @mock.patch(SENSOR_PATH.format("CloudSQLHook"))
+    @mock.patch(SENSOR_PATH.format("CloudSQLHook"), autospec=True)
     def test_poke_returns_true_when_no_in_progress_operations(self, mock_hook):
         mock_hook.return_value.list_operations.return_value = [
             {"name": "op1", "status": "DONE", "targetId": INSTANCE},
@@ -50,7 +50,7 @@ class TestCloudSQLNoOperationInProgressSensor:
             project_id=PROJECT_ID, instance=INSTANCE
         )
 
-    @mock.patch(SENSOR_PATH.format("CloudSQLHook"))
+    @mock.patch(SENSOR_PATH.format("CloudSQLHook"), autospec=True)
     def test_poke_returns_false_when_operation_in_progress(self, mock_hook):
         mock_hook.return_value.list_operations.return_value = [
             {"name": "op1", "status": "RUNNING", "targetId": INSTANCE},
@@ -62,7 +62,7 @@ class TestCloudSQLNoOperationInProgressSensor:
         assert sensor.poke(context={}) is False
 
     @pytest.mark.parametrize("status", [403, 404])
-    @mock.patch(SENSOR_PATH.format("CloudSQLHook"))
+    @mock.patch(SENSOR_PATH.format("CloudSQLHook"), autospec=True)
     def test_poke_fails_fast_on_403_404(self, mock_hook, status):
         mock_hook.return_value.list_operations.side_effect = _http_error(status)
         sensor = CloudSQLNoOperationInProgressSensor(
@@ -71,7 +71,7 @@ class TestCloudSQLNoOperationInProgressSensor:
         with pytest.raises(AirflowException, match="operations.list failed"):
             sensor.poke(context={})
 
-    @mock.patch(SENSOR_PATH.format("CloudSQLHook"))
+    @mock.patch(SENSOR_PATH.format("CloudSQLHook"), autospec=True)
     def test_poke_reraises_other_http_errors(self, mock_hook):
         mock_hook.return_value.list_operations.side_effect = _http_error(500)
         sensor = CloudSQLNoOperationInProgressSensor(
@@ -80,7 +80,7 @@ class TestCloudSQLNoOperationInProgressSensor:
         with pytest.raises(HttpError):
             sensor.poke(context={})
 
-    @mock.patch(SENSOR_PATH.format("CloudSQLHook"))
+    @mock.patch(SENSOR_PATH.format("CloudSQLHook"), autospec=True)
     def test_execute_defers_when_deferrable_and_not_idle(self, mock_hook):
         mock_hook.return_value.list_operations.return_value = [
             {"name": "op1", "status": "RUNNING", "targetId": INSTANCE},
@@ -93,7 +93,7 @@ class TestCloudSQLNoOperationInProgressSensor:
         assert isinstance(exc.value.trigger, CloudSQLNoOperationInProgressTrigger)
         assert exc.value.method_name == "execute_complete"
 
-    @mock.patch(SENSOR_PATH.format("CloudSQLHook"))
+    @mock.patch(SENSOR_PATH.format("CloudSQLHook"), autospec=True)
     def test_execute_does_not_defer_when_idle(self, mock_hook):
         mock_hook.return_value.list_operations.return_value = [
             {"name": "op1", "status": "DONE", "targetId": INSTANCE},
@@ -101,11 +101,10 @@ class TestCloudSQLNoOperationInProgressSensor:
         sensor = CloudSQLNoOperationInProgressSensor(
             task_id=TASK_ID, instance=INSTANCE, project_id=PROJECT_ID, deferrable=True
         )
-        # Already idle -> the sensor returns without deferring.
         assert sensor.execute(context={}) is None
 
-    @mock.patch(SENSOR_PATH.format("BaseSensorOperator.execute"))
-    @mock.patch(SENSOR_PATH.format("CloudSQLHook"))
+    @mock.patch(SENSOR_PATH.format("BaseSensorOperator.execute"), autospec=True)
+    @mock.patch(SENSOR_PATH.format("CloudSQLHook"), autospec=True)
     def test_execute_non_deferrable_delegates_to_super(self, mock_hook, mock_super_execute):
         sensor = CloudSQLNoOperationInProgressSensor(
             task_id=TASK_ID, instance=INSTANCE, project_id=PROJECT_ID, deferrable=False
@@ -117,7 +116,6 @@ class TestCloudSQLNoOperationInProgressSensor:
         sensor = CloudSQLNoOperationInProgressSensor(
             task_id=TASK_ID, instance=INSTANCE, project_id=PROJECT_ID
         )
-        # No exception is raised when the trigger reports success.
         assert sensor.execute_complete(context={}, event={"instance": INSTANCE, "status": "success"}) is None
 
     @pytest.mark.parametrize("status", ["failed", "error"])
