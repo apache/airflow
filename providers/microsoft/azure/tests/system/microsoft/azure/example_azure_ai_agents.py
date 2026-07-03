@@ -27,8 +27,8 @@ Azure Container Registry:
 * ``AZURE_AI_AGENTS_MODEL_DEPLOYMENT_NAME``: Model deployment available in the project.
 * ``AZURE_AI_AGENTS_RUN_PROTOCOL``: Optional runtime protocol to invoke (``responses`` or ``invocations``).
 * ``AZURE_AI_AGENTS_USE_MODEL``: Optional, defaults to ``false`` for a deterministic smoke test.
-* ``AGENT_USE_MOCKS``: Optional, defaults to ``true`` so the sample agent does not need GitHub or Slack
-  tokens.
+* ``AZURE_AI_AGENTS_USE_MOCKS``: Optional, defaults to ``true`` so the sample agent does not need
+  external service credentials.
 """
 
 from __future__ import annotations
@@ -103,12 +103,7 @@ HOSTED_AGENT_DEFINITION: dict[str, Any] = {
         "AZURE_AI_MODEL_DEPLOYMENT_NAME": MODEL_DEPLOYMENT_NAME,
         "AIRFLOW_AGENT_FOUNDRY_PROJECT_ENDPOINT": ENDPOINT,
         "AIRFLOW_AGENT_USE_MODEL": _get_env("AZURE_AI_AGENTS_USE_MODEL", "false"),
-        "AIRFLOW_AGENT_USE_MOCKS": _get_env("AGENT_USE_MOCKS", "true"),
-        "GITHUB_REPO": _get_env("GITHUB_REPO"),
-        "GITHUB_REF": _get_env("GITHUB_REF", "main"),
-        "GITHUB_DAG_PATH": _get_env("GITHUB_DAG_PATH", "airflow/dags"),
-        "GITHUB_TOKEN": _get_env("GITHUB_TOKEN"),
-        "SLACK_WEBHOOK_URL": _get_env("SLACK_WEBHOOK_URL"),
+        "AIRFLOW_AGENT_USE_MOCKS": _get_env("AZURE_AI_AGENTS_USE_MOCKS", "true"),
     },
 }
 
