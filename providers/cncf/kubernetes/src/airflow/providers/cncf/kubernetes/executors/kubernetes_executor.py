@@ -30,9 +30,11 @@ import logging
 import multiprocessing
 import time
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from itertools import chain
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
@@ -68,6 +70,7 @@ if TYPE_CHECKING:
     from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
+    from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
@@ -97,6 +100,7 @@ class KubernetesExecutor(BaseExecutor):
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
     supports_multi_team: bool = True
+    supports_streaming_logs: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
@@ -736,8 +740,23 @@ class KubernetesExecutor(BaseExecutor):
         return namespace or self.conf.get("kubernetes_executor", "namespace")
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        messages = []
-        log = []
+        messages: list[str] = []
+        log: list[str] = []
+        try:
+            messages, log_streams = self.get_streaming_task_log(ti, try_number)
+            log = ["\n".join(stream) for stream in log_streams]
+        except Exception as e:
+            messages.append(f"Reading from k8s pod logs failed: {e}")
+        return messages, log or [""]
+
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        messages: list[str] = []
+        log_streams: list[RawLogStream] = []
+
+        def create_log_stream(logs: Iterable[bytes]) -> RawLogStream:
+            for line in logs:
+                yield remove_escape_codes(line.decode())
+
         try:
             from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
@@ -770,13 +789,16 @@ class KubernetesExecutor(BaseExecutor):
                 tail_lines=self.RUNNING_POD_LOG_LINES,
                 _preload_content=False,
             )
-            for line in res:
-                log.append(remove_escape_codes(line.decode()))
-            if log:
+
+            log_iter = iter(res)
+            first_line = next(log_iter, None)
+            if first_line is not None:
+                log_streams.append(create_log_stream(chain([first_line], log_iter)))
                 messages.append("Found logs through kube API")
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {e}")
-        return messages, ["\n".join(log)]
+
+        return messages, log_streams
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         with Stats.timer(

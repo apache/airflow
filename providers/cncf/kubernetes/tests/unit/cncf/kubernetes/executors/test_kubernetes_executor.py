@@ -2628,9 +2628,8 @@ class TestKubernetesExecutor:
 
         assert executor.kube_config.multi_namespace_mode_namespace_list == expected_value_in_kube_config
 
-    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
+    def test_get_streaming_task_log(self, mock_get_kube_client):
         """fetch task log from pod"""
         mock_kube_client = mock_get_kube_client.return_value
 
@@ -2638,22 +2637,68 @@ class TestKubernetesExecutor:
         mock_pod = mock.Mock()
         mock_pod.metadata.name = "x"
         mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
-        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
+        ti = mock.MagicMock(
+            dag_id="test_k8s_log_dag",
+            task_id="test_task",
+            map_index=-1,
+            run_id="test_run",
+            queued_by_job_id=None,
+            hostname="",
+            executor_config={},
+        )
 
         executor = KubernetesExecutor()
-        messages, logs = executor.get_task_log(ti=ti, try_number=1)
+        messages, log_streams = executor.get_streaming_task_log(ti=ti, try_number=1)
 
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
         assert messages == [
             "Attempting to fetch logs from pod  through kube API",
             "Found logs through kube API",
         ]
-        assert logs[0] == "a_\nb_\nc_"
+        assert list(log_streams[0]) == ["a_", "b_", "c_"]
+
+        mock_kube_client.reset_mock()
+        mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
+
+        messages, log_streams = executor.get_streaming_task_log(ti=ti, try_number=1)
+        assert log_streams == []
+        assert messages == [
+            "Attempting to fetch logs from pod  through kube API",
+            "Reading from k8s pod logs failed: error_fetching_pod_log",
+        ]
+
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_get_task_log(self, mock_get_kube_client):
+        """Fetch legacy task log response from pod."""
+        mock_kube_client = mock_get_kube_client.return_value
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_", b"b_", b"c_"]
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "x"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        ti = mock.MagicMock(
+            dag_id="test_k8s_log_dag",
+            task_id="test_task",
+            map_index=-1,
+            run_id="test_run",
+            queued_by_job_id=None,
+            hostname="",
+            executor_config={},
+        )
+
+        executor = KubernetesExecutor()
+        messages, logs = executor.get_task_log(ti=ti, try_number=1)
+
+        assert messages == [
+            "Attempting to fetch logs from pod  through kube API",
+            "Found logs through kube API",
+        ]
+        assert logs == ["a_\nb_\nc_"]
 
         mock_kube_client.reset_mock()
         mock_kube_client.read_namespaced_pod_log.side_effect = Exception("error_fetching_pod_log")
 
         messages, logs = executor.get_task_log(ti=ti, try_number=1)
+
         assert logs == [""]
         assert messages == [
             "Attempting to fetch logs from pod  through kube API",
@@ -2726,6 +2771,9 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Test only for Airflow < 3.2")
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
+
+    def test_supports_streaming_logs(self):
+        assert KubernetesExecutor.supports_streaming_logs is True
 
     def test_cli_commands_vended(self):
         assert KubernetesExecutor.get_cli_commands()

@@ -30,6 +30,7 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from airflow._shared.logging.remote import StreamingLogResponse
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
@@ -55,6 +56,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_streaming_logs: bool = True
     # TODO: Remove this flag once providers depend on Airflow 3.0
     supports_pickling: bool = True
     supports_sentry: bool = False
@@ -204,6 +206,12 @@ class CeleryKubernetesExecutor(BaseExecutor):
         """Fetch task log from Kubernetes executor."""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
+        return [], []
+
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        """Fetch streaming task log from Kubernetes executor."""
+        if ti.queue == self.kubernetes_executor.kubernetes_queue:
+            return self.kubernetes_executor.get_streaming_task_log(ti=ti, try_number=try_number)
         return [], []
 
     def has_task(self, task_instance: TaskInstance) -> bool:

@@ -48,6 +48,9 @@ class TestLocalKubernetesExecutor:
     def test_serve_logs_default_value(self):
         assert LocalKubernetesExecutor.serve_logs
 
+    def test_supports_streaming_logs(self):
+        assert LocalKubernetesExecutor.supports_streaming_logs
+
     def test_cli_commands_vended(self):
         assert LocalKubernetesExecutor.get_cli_commands()
 
@@ -109,6 +112,27 @@ class TestLocalKubernetesExecutor:
         simple_task_instance.queue = "test-queue"
         messages, logs = local_k8s_exec.get_task_log(ti=simple_task_instance, try_number=3)
         k8s_executor_mock.get_task_log.assert_not_called()
+        assert logs == []
+        assert messages == []
+
+    def test_streaming_log_is_fetched_from_k8s_executor_only_for_k8s_queue(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+        simple_task_instance = mock.MagicMock()
+        simple_task_instance.queue = conf.get("local_kubernetes_executor", "kubernetes_queue")
+
+        local_k8s_exec.get_streaming_task_log(ti=simple_task_instance, try_number=3)
+
+        k8s_executor_mock.get_streaming_task_log.assert_called_once_with(
+            ti=simple_task_instance, try_number=3
+        )
+
+        k8s_executor_mock.reset_mock()
+        simple_task_instance.queue = "test-queue"
+        messages, logs = local_k8s_exec.get_streaming_task_log(ti=simple_task_instance, try_number=3)
+
+        k8s_executor_mock.get_streaming_task_log.assert_not_called()
         assert logs == []
         assert messages == []
 

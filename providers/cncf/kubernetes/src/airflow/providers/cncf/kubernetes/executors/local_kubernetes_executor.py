@@ -28,6 +28,7 @@ from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
+    from airflow._shared.logging.remote import StreamingLogResponse
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
@@ -53,6 +54,7 @@ class LocalKubernetesExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_streaming_logs: bool = True
     # TODO: Remove this attribute once providers rely on Airflow >=3.0.0
     supports_pickling: bool = False
     supports_sentry: bool = False
@@ -199,6 +201,12 @@ class LocalKubernetesExecutor(BaseExecutor):
         """Fetch task log from kubernetes executor."""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
+        return [], []
+
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        """Fetch streaming task log from kubernetes executor."""
+        if ti.queue == self.kubernetes_executor.kubernetes_queue:
+            return self.kubernetes_executor.get_streaming_task_log(ti=ti, try_number=try_number)
         return [], []
 
     def has_task(self, task_instance: TaskInstance) -> bool:
