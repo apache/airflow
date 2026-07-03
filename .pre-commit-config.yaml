@@ -672,6 +672,17 @@ repos:
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
         pass_filenames: false
+      - id: generate-api-permissions-doc
+        name: Generate REST API permission reference documentation
+        entry: ./scripts/ci/prek/extract_permissions.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^airflow-core/docs/security/api_permissions_ref\.rst$
+        pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
         language: python
