@@ -97,11 +97,6 @@ class AgentEngineHook(GoogleBaseHook):
         return f"projects/{project_id}/locations/{location}/reasoningEngines/{agent_engine_id}"
 
     @staticmethod
-    def extract_operation_id(operation_name: str) -> str:
-        """Extract the operation ID from a fully qualified operation name."""
-        return extract_operation_id(operation_name)
-
-    @staticmethod
     def build_operation_name(project_id: str, location: str, operation_id: str) -> str:
         """Build a fully qualified Agent Engine operation name."""
         return f"projects/{project_id}/locations/{location}/operations/{operation_id}"

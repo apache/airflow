@@ -247,7 +247,7 @@ class RunQueryJobOperator(GoogleCloudBaseOperator):
         operation_id = extract_operation_id(operation_name)
 
         if self.deferrable:
-            self.defer(
+            return self.defer(
                 trigger=AgentEngineQueryJobTrigger(
                     project_id=self.project_id,
                     location=self.location,
