@@ -62,38 +62,19 @@ def _get_container_env_vars() -> dict[str, str]:
     return _get_json_env(
         "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_ENV_VARS",
         {},
-    ) or {
-        "GCP_PROJECT": PROJECT_ID,
-        "GCP_REGION": LOCATION,
-        "GEMINI_MODEL_ID": _get_env("GEMINI_MODEL_ID", "gemini-2.5-pro"),
-        "GITHUB_REPO": _get_env("GITHUB_REPO"),
-        "GITHUB_REF": _get_env("GITHUB_REF", "main"),
-        "GITHUB_DAG_PATH": _get_env("GITHUB_DAG_PATH", "airflow/dags"),
-        "GITHUB_TOKEN": _get_env("GITHUB_TOKEN"),
-        "SLACK_WEBHOOK_URL": _get_env("SLACK_WEBHOOK_URL"),
-        "AGENT_USE_MODEL": _get_env("AGENT_USE_MODEL", "true"),
-        "AGENT_USE_MOCKS": _get_env("AGENT_USE_MOCKS", "false"),
-    }
+    )
 
 
 LOCATION = _get_env("GCP_REGION", "us-central1")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or _get_env("GCP_PROJECT_ID", "default")
 CONTAINER_URI = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_URI") or _get_env(
     "GCP_AGENT_ENGINE_CONTAINER_URI",
-    "us-central1-docker.pkg.dev/example-project/example-repository/example-agent:latest",
+    "us-central1-docker.pkg.dev/example-project/example-repository/airflow-hello-agent:latest",
 )
 CONTAINER_ENV_VARS = _get_container_env_vars()
 QUERY_STR = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_QUERY") or json.dumps(
     {
-        "dag_id": "gcp_agentengine_demo_failing_etl",
-        "run_id": "manual__agentengine_smoke",
-        "dag_file": "gcp_gemini_agent_platform/demo_failing_etl.py",
-        "failed_task": {
-            "task_id": "transform",
-            "state": "failed",
-            "try_number": 1,
-        },
-        "log_excerpt": "KeyError: 'rowz'",
+        "input": "hello from Airflow",
     }
 )
 QUERY_OUTPUT_GCS_URI = os.environ.get(
