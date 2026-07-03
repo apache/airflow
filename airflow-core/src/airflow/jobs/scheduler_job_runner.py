@@ -2004,9 +2004,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 with create_session() as session:
                     num_finished_events = 0
                     for executor in self.executors:
-                        num_finished_events += self._process_executor_events(
-                            executor=executor, session=session
-                        )
+                        with stats.timer(
+                            "scheduler.executor_events_duration",
+                            tags=prune_dict(
+                                {
+                                    "executor": type(executor).__name__,
+                                    "team_name": executor.team_name,
+                                }
+                            ),
+                        ):
+                            num_finished_events += self._process_executor_events(
+                                executor=executor, session=session
+                            )
 
                 for executor in self.executors:
                     try:
