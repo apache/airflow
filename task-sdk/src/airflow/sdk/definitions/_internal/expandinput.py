@@ -129,16 +129,13 @@ class DecoratedExpandInput(ExpandInput):
         return self.delegate.iter_references()
 
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
-        return map(
-            lambda value: {"op_kwargs": value},
-            self.delegate.iter_values(context),
+        return count(
+            self,
+            map(lambda value: {"op_kwargs": value}, self.delegate.iter_values(context)),
         )
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context)
-
-    def __len__(self) -> int:
-        return len(self.delegate)
 
 
 class BatchedExpandInput(DecoratedExpandInput):

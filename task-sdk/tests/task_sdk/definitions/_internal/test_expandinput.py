@@ -92,5 +92,12 @@ class TestBatchedExpandInput:
         inner = DictOfListsExpandInput({"a": items})
         batched = BatchedExpandInput(inner, size=size)
         context = {"ti": type("TI", (), {"map_index": map_index})()}
+
+        with pytest.raises(RuntimeError, match="Length of BatchedExpandInput is not yet known"):
+            len(batched)
+
         result = [combo["a"] for combo in batched.iter_values(context)]
         assert result == expected
+        assert len(batched) == len(expected)
+        # delegate length must remain the full item count, not the batch slice
+        assert len(inner) == len(items)
