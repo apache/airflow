@@ -111,4 +111,5 @@ For further information, look at:
 
 * `Deploy an Azure AI Hosted agent <https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent>`__
 * `Microsoft Foundry Agent Service documentation <https://learn.microsoft.com/en-us/azure/foundry/agents/overview>`__
-* `Microsoft Foundry REST API reference <https://ai.azure.com/api-reference>`__
+* `Microsoft Foundry Agents REST API reference <https://ai.azure.com/api-reference/agents/>`__
+* `Azure AI Projects Python SDK reference <https://learn.microsoft.com/en-us/python/api/azure-ai-projects/azure.ai.projects.aiprojectclient?view=azure-python-preview>`__
