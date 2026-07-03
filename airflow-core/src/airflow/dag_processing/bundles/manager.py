@@ -464,7 +464,6 @@ class DagBundlesManager(LoggingMixin):
             if session.scalar(select(DagVersion.id).limit(1)) is not None:
                 return 0
 
-        with create_session() as session:
             if not (active_bundle_paths := self._resolve_active_bundle_paths(session=session)):
                 self.log.info(
                     "No active Dag bundles with resolvable paths; skipping reassignment of Dags "
