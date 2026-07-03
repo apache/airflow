@@ -27,8 +27,8 @@ import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Graph } from "./Graph";
-import * as testUtils from "./Graph.testUtils";
 import { GraphControls } from "./components/GraphControls";
+import { clearAllManualLayoutStates, scheduleClearManualLayoutStatesForDag } from "./utils/manualLayoutStore";
 
 // testsSetup.ts globally mocks Graph to null so full-page tests don't need to
 // stub ELK layout data. Unmock it here so we test the real component.
@@ -218,9 +218,8 @@ const mockAssetConditionEdge = {
 const changedNodePosition = { x: 520, y: 260 };
 const changedGroupPosition = { x: 160, y: 140 };
 const changedAssetConditionPosition = { x: 300, y: 180 };
-const freeNodePosition = { x: 420, y: 420 };
 const overlappingNodePosition = { x: 130, y: 20 };
-const simultaneousDropPosition = { x: 130, y: 20 };
+const changedViewport = { x: -240, y: -160, zoom: 0.75 };
 
 const getGraphControlsProps = () => {
   const children = vi.mocked(ReactFlow).mock.lastCall?.[0]?.children;
@@ -247,6 +246,7 @@ describe("Graph", () => {
   beforeEach(() => {
     mockParams = { dagId: "test_dag" };
     localStorage.clear();
+    clearAllManualLayoutStates();
     vi.mocked(ReactFlow).mockClear();
     vi.mocked(useGraphLayout).mockReturnValue({
       data: { edges: [mockGraphEdge], nodes: [mockGraphNode, mockGraphNodeTwo] },
@@ -318,6 +318,7 @@ describe("Graph", () => {
 
     expect(getRenderedEdgeById("edge-task-1-task-2")?.data?.isManualLayout).toBe(false);
     expect(getRenderedEdgeById("edge-task-3-task-4")?.data?.isManualLayout).toBe(false);
+    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.defaultEdgeOptions).toEqual({ zIndex: 1 });
 
     act(() => {
       getGraphControlsProps()?.onToggleManualLayout();
@@ -325,6 +326,10 @@ describe("Graph", () => {
 
     expect(getRenderedEdgeById("edge-task-1-task-2")?.data?.isManualLayout).toBe(false);
     expect(getRenderedEdgeById("edge-task-3-task-4")?.data?.isManualLayout).toBe(false);
+    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.defaultEdgeOptions).toEqual({
+      interactionWidth: 0,
+      zIndex: 1,
+    });
 
     const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
 
@@ -447,125 +452,7 @@ describe("Graph", () => {
     );
   });
 
-  it("keeps the dropped position when releasing with no overlap", () => {
-    render(<Graph />, { wrapper: Wrapper });
-
-    act(() => {
-      getGraphControlsProps()?.onToggleManualLayout();
-    });
-
-    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
-
-    act(() => {
-      onNodesChange?.([{ dragging: true, id: "task_1", position: freeNodePosition, type: "position" }]);
-    });
-
-    expect(getRenderedNodeById("task_1")?.position).toEqual(freeNodePosition);
-
-    act(() => {
-      onNodesChange?.([{ dragging: false, id: "task_1", position: freeNodePosition, type: "position" }]);
-    });
-
-    expect(getRenderedNodeById("task_1")?.position).toEqual(freeNodePosition);
-  });
-
-  it("resolves simultaneous drop changes deterministically", () => {
-    render(<Graph />, { wrapper: Wrapper });
-
-    act(() => {
-      getGraphControlsProps()?.onToggleManualLayout();
-    });
-
-    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
-
-    act(() => {
-      onNodesChange?.([
-        { dragging: false, id: "task_1", position: simultaneousDropPosition, type: "position" },
-        { dragging: false, id: "task_2", position: simultaneousDropPosition, type: "position" },
-      ]);
-    });
-
-    let firstNode = getRenderedNodeById("task_1");
-    let secondNode = getRenderedNodeById("task_2");
-    const firstPassHasOverlap =
-      firstNode !== undefined && secondNode !== undefined
-        ? testUtils.nodesOverlap({ first: firstNode, second: secondNode })
-        : true;
-
-    expect(firstPassHasOverlap).toBe(false);
-
-    const firstPassPositions = {
-      task1: firstNode?.position,
-      task2: secondNode?.position,
-    };
-
-    act(() => {
-      getGraphControlsProps()?.onToggleManualLayout();
-      getGraphControlsProps()?.onToggleManualLayout();
-    });
-
-    const rerunOnNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
-
-    act(() => {
-      rerunOnNodesChange?.([
-        { dragging: false, id: "task_1", position: simultaneousDropPosition, type: "position" },
-        { dragging: false, id: "task_2", position: simultaneousDropPosition, type: "position" },
-      ]);
-    });
-
-    firstNode = getRenderedNodeById("task_1");
-    secondNode = getRenderedNodeById("task_2");
-    const secondPassPositions = {
-      task1: firstNode?.position,
-      task2: secondNode?.position,
-    };
-
-    expect(secondPassPositions).toEqual(firstPassPositions);
-  });
-
-  it("keeps the dropped position when no free slot is found within the search radius", () => {
-    const blockedDropPosition = { x: 100, y: 100 };
-    const blockedPositions = [blockedDropPosition];
-
-    for (let radius = 1; radius <= testUtils.testMaxSearchRadius; radius += 1) {
-      for (const direction of testUtils.testRadialDirections) {
-        blockedPositions.push({
-          x: blockedDropPosition.x + direction.x * radius * testUtils.testSearchGridSize,
-          y: blockedDropPosition.y + direction.y * radius * testUtils.testSearchGridSize,
-        });
-      }
-    }
-
-    const blockingNodes = blockedPositions.map((position, index) => ({
-      data: { id: `task_blocker_${index}`, label: `Task Blocker ${index}`, type: "task" },
-      height: 80,
-      id: `task_blocker_${index}`,
-      position,
-      type: "task",
-      width: 100,
-    }));
-
-    vi.mocked(useGraphLayout).mockReturnValue({
-      data: { edges: [mockGraphEdge], nodes: [mockGraphNode, ...blockingNodes] },
-      isPending: false,
-    } as ReturnType<typeof useGraphLayout>);
-
-    render(<Graph />, { wrapper: Wrapper });
-
-    act(() => {
-      getGraphControlsProps()?.onToggleManualLayout();
-    });
-
-    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
-
-    act(() => {
-      onNodesChange?.([{ dragging: false, id: "task_1", position: blockedDropPosition, type: "position" }]);
-    });
-
-    expect(getRenderedNodeById("task_1")?.position).toEqual(blockedDropPosition);
-  });
-
-  it("keeps overlap during drag preview and snaps to a nearby open position on release", () => {
+  it("allows overlapping nodes after release in manual mode", () => {
     render(<Graph />, { wrapper: Wrapper });
 
     act(() => {
@@ -580,16 +467,7 @@ describe("Graph", () => {
       ]);
     });
 
-    let renderedNodes = vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodes ?? [];
-    let firstNode = renderedNodes.find((node) => node.id === "task_1");
-    let secondNode = renderedNodes.find((node) => node.id === "task_2");
-    let hasOverlap =
-      firstNode !== undefined && secondNode !== undefined
-        ? testUtils.nodesOverlap({ first: firstNode, second: secondNode })
-        : true;
-
-    expect(firstNode?.position).toEqual(overlappingNodePosition);
-    expect(hasOverlap).toBe(true);
+    expect(getRenderedNodeById("task_1")?.position).toEqual(overlappingNodePosition);
 
     act(() => {
       onNodesChange?.([
@@ -597,31 +475,95 @@ describe("Graph", () => {
       ]);
     });
 
-    renderedNodes = vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodes ?? [];
-    firstNode = renderedNodes.find((node) => node.id === "task_1");
-    secondNode = renderedNodes.find((node) => node.id === "task_2");
-    hasOverlap =
-      firstNode !== undefined && secondNode !== undefined
-        ? testUtils.nodesOverlap({ first: firstNode, second: secondNode })
-        : true;
-
-    expect(firstNode?.position).not.toEqual(overlappingNodePosition);
-    expect(hasOverlap).toBe(false);
+    expect(getRenderedNodeById("task_1")?.position).toEqual(overlappingNodePosition);
+    expect(getRenderedNodeById("task_2")?.position).toEqual(mockGraphNodeTwo.position);
   });
 
-  it("forces manual layout mode back to auto after component re-mount", () => {
+  it("keeps manual layout mode after task selection remounts the graph route", () => {
+    vi.useFakeTimers();
+
     const { unmount } = render(<Graph />, { wrapper: Wrapper });
 
     act(() => {
       getGraphControlsProps()?.onToggleManualLayout();
     });
 
+    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
+
+    act(() => {
+      onNodesChange?.([{ dragging: false, id: "task_1", position: changedNodePosition, type: "position" }]);
+    });
+
+    act(() => {
+      vi.mocked(ReactFlow).mock.lastCall?.[0]?.onViewportChange?.(changedViewport);
+    });
+
     expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodesDraggable).toBe(true);
+    expect(getRenderedNodeById("task_1")?.position).toEqual(changedNodePosition);
+
     unmount();
+    scheduleClearManualLayoutStatesForDag("test_dag");
+    mockParams = { dagId: "test_dag", taskId: "task_1" };
+
+    const selectedRouteRender = render(<Graph />, { wrapper: Wrapper });
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodesDraggable).toBe(true);
+    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.defaultViewport).toEqual(changedViewport);
+    expect(getGraphControlsProps()?.isManualLayout).toBe(true);
+    expect(getRenderedNodeById("task_1")?.position).toEqual(changedNodePosition);
+
+    selectedRouteRender.unmount();
+    scheduleClearManualLayoutStatesForDag("test_dag");
+    mockParams = { dagId: "test_dag" };
+
+    render(<Graph />, { wrapper: Wrapper });
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodesDraggable).toBe(true);
+    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.defaultViewport).toEqual(changedViewport);
+    expect(getGraphControlsProps()?.isManualLayout).toBe(true);
+    expect(getRenderedNodeById("task_1")?.position).toEqual(changedNodePosition);
+
+    vi.useRealTimers();
+  });
+
+  it("clears manual layout mode after leaving the Dag graph route", () => {
+    vi.useFakeTimers();
+
+    const { unmount } = render(<Graph />, { wrapper: Wrapper });
+
+    act(() => {
+      getGraphControlsProps()?.onToggleManualLayout();
+    });
+
+    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
+
+    act(() => {
+      onNodesChange?.([{ dragging: false, id: "task_1", position: changedNodePosition, type: "position" }]);
+    });
+
+    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodesDraggable).toBe(true);
+
+    unmount();
+    scheduleClearManualLayoutStatesForDag("test_dag");
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
 
     render(<Graph />, { wrapper: Wrapper });
 
     expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodesDraggable).toBe(false);
     expect(getGraphControlsProps()?.isManualLayout).toBe(false);
+    expect(getRenderedNodeById("task_1")?.position).toEqual(mockGraphNode.position);
+
+    vi.useRealTimers();
   });
 });

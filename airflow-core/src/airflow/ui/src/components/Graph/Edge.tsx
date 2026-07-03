@@ -55,45 +55,53 @@ const CustomEdge = ({
   // useNodesData subscribes to data changes for these specific node IDs only.
   const nodesData = useNodesData([source, target]);
   const isSelected = nodesData.some((node) => Boolean(node.data.isSelected));
-  const isConnectedNodeDragging = useStore((state) => {
-    const sourceDragging = state.nodeLookup.get(source)?.internals.userNode.dragging ?? false;
-    const targetDragging = state.nodeLookup.get(target)?.internals.userNode.dragging ?? false;
-
-    return sourceDragging || targetDragging;
-  });
+  const isManualLayout = data?.isManualLayout ?? false;
   const manualEdgeData = useStore((state) => {
-    const nodes: Array<ManualEdgeNode> = [];
     let sourceNode: ManualEdgeNode | undefined;
     let targetNode: ManualEdgeNode | undefined;
 
-    for (const node of state.nodeLookup.values()) {
+    if (!isManualLayout) {
+      return {
+        isConnectedNodeDragging: false,
+        sourceNode,
+        targetNode,
+      };
+    }
+
+    const sourceStoreNode = state.nodeLookup.get(source);
+    const targetStoreNode = state.nodeLookup.get(target);
+    const isConnectedNodeDragging =
+      (sourceStoreNode?.internals.userNode.dragging ?? false) ||
+      (targetStoreNode?.internals.userNode.dragging ?? false);
+    const getEdgeNode = (node: NonNullable<typeof sourceStoreNode>) => {
       const { id: nodeId, internals, measured } = node;
       const { positionAbsolute, userNode } = internals;
       const nodeData = userNode.data as { height?: number; width?: number };
-      const edgeNode = {
+
+      return {
         height: measured.height ?? userNode.height ?? nodeData.height,
         id: nodeId,
         position: positionAbsolute,
         width: measured.width ?? userNode.width ?? nodeData.width,
       };
+    };
 
-      if (nodeId === source) {
-        sourceNode = edgeNode;
-      } else if (nodeId === target) {
-        targetNode = edgeNode;
-      } else {
-        nodes.push(edgeNode);
-      }
+    if (sourceStoreNode !== undefined) {
+      sourceNode = getEdgeNode(sourceStoreNode);
     }
 
-    return { nodes, sourceNode, targetNode };
+    if (targetStoreNode !== undefined) {
+      targetNode = getEdgeNode(targetStoreNode);
+    }
+
+    return { isConnectedNodeDragging, sourceNode, targetNode };
   });
 
   if (data === undefined) {
     return undefined;
   }
-  const { isManualLayout = false, rest } = data;
-  const isDragPreview = isManualLayout && isConnectedNodeDragging;
+  const { rest } = data;
+  const isDragPreview = isManualLayout && manualEdgeData.isConnectedNodeDragging;
   const selectedEdgeStrokeColor = rest.edgeType === "data" ? dataEdgeColor : blueColor;
   const selectedDraggingEdgeStrokeColor =
     rest.edgeType === "data" ? draggingDataEdgeColor : draggingBlueColor;
@@ -105,7 +113,6 @@ const CustomEdge = ({
 
   if (isManualLayout) {
     const path = getManualEdgePath({
-      nodes: manualEdgeData.nodes,
       source: { x: sourceX, y: sourceY },
       sourceNode: manualEdgeData.sourceNode,
       target: { x: targetX, y: targetY },

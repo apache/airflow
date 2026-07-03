@@ -181,7 +181,7 @@ describe("CustomEdge", () => {
     expect(unconnectedStroke).toBe("#111111");
   });
 
-  it("routes manual edges from side midpoints around other nodes", () => {
+  it("routes manual edges from side midpoints with a simple orthogonal path", () => {
     nodeLookup.set("task_2", buildMockNode({ id: "task_2", position: { x: 100, y: 100 } }));
     nodeLookup.set(
       "blocking_task",
@@ -201,7 +201,7 @@ describe("CustomEdge", () => {
       />,
     );
 
-    expect(getLastBaseEdgePath()).toBe("M 50 80 L 50 100 L 150 100");
+    expect(getLastBaseEdgePath()).toBe("M 50 80 L 100 80 L 100 100 L 150 100");
   });
 
   it("updates manual edge attachment sides as nodes move", () => {

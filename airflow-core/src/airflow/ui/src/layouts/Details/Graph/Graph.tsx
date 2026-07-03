@@ -17,9 +17,16 @@
  * under the License.
  */
 import { Box, Spinner, useToken } from "@chakra-ui/react";
-import { Background, MiniMap, ReactFlow, type Node as ReactFlowNode, type NodeChange } from "@xyflow/react";
+import {
+  Background,
+  MiniMap,
+  ReactFlow,
+  type Node as ReactFlowNode,
+  type NodeChange,
+  type Viewport,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -44,13 +51,25 @@ import { useFilteredNodesAndEdges } from "./hooks/useFilteredNodesAndEdges";
 import { useGraphSearchParams } from "./hooks/useGraphSearchParams";
 import { useGraphFilteredNodes } from "./useGraphFilteredNodes";
 import { applyManualNodeChanges, getManualEdgeNodeIds, type GraphNode } from "./utils/manualLayout";
+import {
+  cancelClearManualLayoutStatesForDag,
+  clearManualLayoutState,
+  getManualLayoutKey,
+  getManualLayoutState,
+  setManualLayoutState,
+  setManualLayoutViewport,
+} from "./utils/manualLayoutStore";
 import { nodeColor } from "./utils/nodeColor";
 
 // Hoisted to module scope so ReactFlow receives a stable reference and skips
 // its internal shallow-equality check on every render.
 const defaultEdgeOptions = {
+  zIndex: 1,
+};
+
+const manualLayoutEdgeOptions = {
+  ...defaultEdgeOptions,
   interactionWidth: 0,
-  zIndex: -1,
 };
 
 export const Graph = () => {
@@ -76,9 +95,19 @@ export const Graph = () => {
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
   const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
-  const [isManualLayout, setIsManualLayout] = useState(false);
-  const [manualEdgeNodeIds, setManualEdgeNodeIds] = useState<Set<string>>(() => new Set());
-  const [manualNodes, setManualNodes] = useState<Array<GraphNode>>([]);
+  const manualLayoutKey = useMemo(() => getManualLayoutKey({ dagId, runId }), [dagId, runId]);
+  const restoredManualLayoutState = getManualLayoutState(manualLayoutKey);
+  const [isManualLayout, setIsManualLayout] = useState(
+    () => restoredManualLayoutState?.isManualLayout ?? false,
+  );
+  const [manualEdgeNodeIds, setManualEdgeNodeIds] = useState<Set<string>>(
+    () => restoredManualLayoutState?.manualEdgeNodeIds ?? new Set(),
+  );
+  const [manualNodes, setManualNodes] = useState<Array<GraphNode>>(
+    () => restoredManualLayoutState?.manualNodes ?? [],
+  );
+  const isRestoringManualLayoutKeyRef = useRef(false);
+  const manualLayoutViewportRef = useRef<Viewport | undefined>(restoredManualLayoutState?.viewport);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
@@ -138,6 +167,20 @@ export const Graph = () => {
   });
   const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
+  useEffect(() => {
+    cancelClearManualLayoutStatesForDag(dagId);
+  }, [dagId]);
+
+  useEffect(() => {
+    isRestoringManualLayoutKeyRef.current = true;
+    const restoredState = getManualLayoutState(manualLayoutKey);
+
+    setIsManualLayout(restoredState?.isManualLayout ?? false);
+    setManualEdgeNodeIds(restoredState?.manualEdgeNodeIds ?? new Set());
+    setManualNodes(restoredState?.manualNodes ?? []);
+    manualLayoutViewportRef.current = restoredState?.viewport;
+  }, [manualLayoutKey]);
+
   // Add task instances to the node data but without having to recalculate how the graph is laid out.
   // Keep the mapped array stable while inputs are unchanged so manual-layout state sync does not
   // retrigger itself in a render loop.
@@ -167,6 +210,27 @@ export const Graph = () => {
     layoutEdges: data?.edges ?? [],
     taskId,
   });
+
+  useEffect(() => {
+    if (isRestoringManualLayoutKeyRef.current) {
+      isRestoringManualLayoutKeyRef.current = false;
+
+      return;
+    }
+
+    if (!isManualLayout) {
+      clearManualLayoutState(manualLayoutKey);
+
+      return;
+    }
+
+    setManualLayoutState(manualLayoutKey, {
+      isManualLayout,
+      manualEdgeNodeIds,
+      manualNodes,
+      viewport: manualLayoutViewportRef.current,
+    });
+  }, [isManualLayout, manualEdgeNodeIds, manualLayoutKey, manualNodes]);
 
   useEffect(() => {
     if (!isManualLayout) {
@@ -217,13 +281,36 @@ export const Graph = () => {
   const toggleManualLayout = () => {
     setIsManualLayout((currentValue) => {
       const nextValue = !currentValue;
+      const nextManualEdgeNodeIds = new Set<string>();
+      const nextManualNodes = nextValue ? (nodes ?? []) : [];
 
-      setManualNodes(nextValue ? (nodes ?? []) : []);
-      setManualEdgeNodeIds(new Set());
+      setManualNodes(nextManualNodes);
+      setManualEdgeNodeIds(nextManualEdgeNodeIds);
+
+      if (nextValue) {
+        setManualLayoutState(manualLayoutKey, {
+          isManualLayout: true,
+          manualEdgeNodeIds: nextManualEdgeNodeIds,
+          manualNodes: nextManualNodes,
+          viewport: manualLayoutViewportRef.current,
+        });
+      } else {
+        clearManualLayoutState(manualLayoutKey);
+      }
 
       return nextValue;
     });
   };
+  const onViewportChange = useCallback(
+    (viewport: Viewport) => {
+      manualLayoutViewportRef.current = viewport;
+
+      if (isManualLayout) {
+        setManualLayoutViewport(manualLayoutKey, viewport);
+      }
+    },
+    [isManualLayout, manualLayoutKey],
+  );
 
   const nodesToRender = isManualLayout ? manualNodes : (nodes ?? []);
   const edgesToRender = useMemo(
@@ -259,7 +346,10 @@ export const Graph = () => {
       ) : undefined}
       <ReactFlow
         colorMode={colorMode}
-        defaultEdgeOptions={defaultEdgeOptions}
+        defaultEdgeOptions={isManualLayout ? manualLayoutEdgeOptions : defaultEdgeOptions}
+        defaultViewport={
+          restoredManualLayoutState?.isManualLayout === true ? restoredManualLayoutState.viewport : undefined
+        }
         edges={edgesToRender}
         edgesFocusable={false}
         edgeTypes={edgeTypes}
@@ -272,6 +362,7 @@ export const Graph = () => {
         nodeTypes={nodeTypes}
         onlyRenderVisibleElements
         onNodesChange={onNodesChange}
+        onViewportChange={onViewportChange}
         style={getReactFlowThemeStyle(colorMode)}
       >
         <Background />

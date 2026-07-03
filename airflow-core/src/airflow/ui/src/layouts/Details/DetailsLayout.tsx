@@ -54,6 +54,10 @@ import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
+import {
+  clearManualLayoutStatesForDag,
+  scheduleClearManualLayoutStatesForDag,
+} from "./Graph/utils/manualLayoutStore";
 import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
@@ -212,6 +216,21 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
   const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
   const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
+
+  useEffect(() => {
+    if (dagView !== "graph") {
+      clearManualLayoutStatesForDag(dagId);
+    }
+  }, [dagId, dagView]);
+
+  useEffect(
+    () => () => {
+      if (dagView === "graph") {
+        scheduleClearManualLayoutStatesForDag(dagId);
+      }
+    },
+    [dagId, dagView],
+  );
 
   return (
     <HoverProvider>
