@@ -47,21 +47,18 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "ts") -> TaskInstance:
 
 
 def _metadata_yaml(schema_version: str) -> str:
-    return "\n".join(
-        [
-            'airflow_bundle_metadata_version: "1.0"',
-            "sdk:",
-            "  language: typescript",
-            '  version: "0.1.0"',
-            f'  supervisor_schema_version: "{schema_version}"',
-            "source: src/airflow.ts",
-            "dags:",
-            "  test_dag:",
-            "    tasks:",
-            "      - test_task",
-            "",
-        ]
-    )
+    return f"""\
+airflow_bundle_metadata_version: "1.0"
+sdk:
+  language: typescript
+  version: "0.1.0"
+  supervisor_schema_version: "{schema_version}"
+source: src/airflow.ts
+dags:
+  test_dag:
+    tasks:
+      - test_task
+"""
 
 
 def write_bundle(root: pathlib.Path, schema_version: str = SCHEMA_VERSION) -> pathlib.Path:
@@ -75,7 +72,7 @@ def write_embedded_bundle(root: pathlib.Path, payload: str | None = None) -> pat
     if payload is None:
         payload = base64.b64encode(_metadata_yaml(SCHEMA_VERSION).encode("utf-8")).decode("ascii")
     bundle = root / "bundle.mjs"
-    bundle.write_text(f"export {{}};\n//# airflowMetadata={payload}\n", encoding="utf-8")
+    bundle.write_text(f"//# airflowMetadata={payload}\nexport {{}};\n", encoding="utf-8")
     return bundle
 
 
@@ -145,8 +142,8 @@ class TestNodeCoordinatorBundleSelection:
         with pytest.raises(FileNotFoundError, match=message):
             _find_bundle([tmp_path])
 
-    def test_find_bundle_rejects_empty_marker_at_end_of_file(self, tmp_path):
-        (tmp_path / "bundle.mjs").write_text("export {};\n//# airflowMetadata=", encoding="utf-8")
+    def test_find_bundle_rejects_empty_marker(self, tmp_path):
+        (tmp_path / "bundle.mjs").write_text("//# airflowMetadata=\nexport {};\n", encoding="utf-8")
 
         with pytest.raises(FileNotFoundError, match="must contain a mapping"):
             _find_bundle([tmp_path])

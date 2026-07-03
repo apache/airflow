@@ -106,10 +106,10 @@ describe("runPack", () => {
     const bundlePath = path.join(nested, "bundle.mjs");
     expect(existsSync(path.join(nested, "airflow-metadata.yaml"))).toBe(false);
 
-    const lastLine = readFileSync(bundlePath, "utf-8").trimEnd().split("\n").at(-1)!;
-    expect(lastLine.startsWith(EMBEDDED_METADATA_PREFIX)).toBe(true);
+    const firstLine = readFileSync(bundlePath, "utf-8").split("\n")[0]!;
+    expect(firstLine.startsWith(EMBEDDED_METADATA_PREFIX)).toBe(true);
     const metadata = Buffer.from(
-      lastLine.slice(EMBEDDED_METADATA_PREFIX.length),
+      firstLine.slice(EMBEDDED_METADATA_PREFIX.length),
       "base64",
     ).toString("utf-8");
     expect(metadata).toBe(

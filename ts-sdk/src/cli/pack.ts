@@ -19,14 +19,14 @@
 
 // airflow-ts-pack: bundle a TypeScript entrypoint into the single-file
 // artifact NodeCoordinator consumes — `bundle.mjs` with the airflow
-// metadata embedded as a trailing `//# airflowMetadata=<base64>` comment.
+// metadata embedded as a leading `//# airflowMetadata=<base64>` comment.
 //
 // Mirrors airflow-go-pack: build first, then run the built bundle with
 // --airflow-metadata so the manifest comes from the bundle's own task
 // registry and schema version, never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { build } from "esbuild";
@@ -157,9 +157,10 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     source: args.source,
     dags: manifest.dags,
   });
-  appendFileSync(
+  const metadataLine = `${EMBEDDED_METADATA_PREFIX}${Buffer.from(metadataYaml, "utf-8").toString("base64")}\n`;
+  writeFileSync(
     bundlePath,
-    `\n${EMBEDDED_METADATA_PREFIX}${Buffer.from(metadataYaml, "utf-8").toString("base64")}\n`,
+    Buffer.concat([Buffer.from(metadataLine, "utf-8"), readFileSync(bundlePath)]),
   );
 
   console.log(`Wrote ${bundlePath} (airflow metadata embedded)`);

@@ -163,7 +163,7 @@ airflow-ts-pack src/main.ts --outdir dist
 It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
 bundle with `--airflow-metadata` so the bundle reports its own registered
 Dag/task pairs and supervisor schema version, and embeds that manifest in the
-bundle as a trailing `//# airflowMetadata=<base64>` comment. The result is a
+bundle as a leading `//# airflowMetadata=<base64>` comment. The result is a
 single deployable file whose metadata cannot drift from its code; no
 hand-written sidecar is needed.
 
