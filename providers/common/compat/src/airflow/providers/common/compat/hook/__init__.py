@@ -30,14 +30,14 @@ async def get_async_hook(conn_id: str, hook_params: dict | None = None) -> BaseH
 
     :param conn_id: The provided connection ID.
     :param hook_params: Additional hook params.
-    :returns: Connection
+    :returns: BaseHook
     """
     from asgiref.sync import sync_to_async
 
     if hasattr(BaseHook, "aget_hook"):
-        log.debug("Get hook using `BaseHook.aget_hook().")
+        log.debug("Get hook using `BaseHook.aget_hook()`.")
         return await BaseHook.aget_hook(conn_id=conn_id, hook_params=hook_params)
-    log.debug("Get hook using `BaseHook.get_hook().")
+    log.debug("Get hook using `BaseHook.get_hook()`.")
     return await sync_to_async(BaseHook.get_hook)(conn_id=conn_id, hook_params=hook_params)
 
 
