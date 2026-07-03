@@ -83,6 +83,7 @@ from airflow.sdk.definitions.deadline import (
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
+from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization import serialized_objects
@@ -1279,7 +1280,6 @@ class TestRetryPolicySerialization:
     def test_has_retry_policy_flag_set_when_policy_present(self):
         """When retry_policy is set, has_retry_policy=True in serialized form."""
         from airflow.sdk import DAG, BaseOperator
-        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
         from airflow.serialization.serialized_objects import DagSerialization
 
         policy = ExceptionRetryPolicy(
@@ -1312,7 +1312,6 @@ class TestRetryPolicySerialization:
     def test_mapped_task_retry_policy_serializes_as_flag(self):
         """A mapped task's retry_policy must serialize as has_retry_policy, not the object."""
         from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
-        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 
         policy = ExceptionRetryPolicy(
             rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="bad data")],
@@ -1341,7 +1340,6 @@ class TestRetryPolicySerialization:
         (and a spurious new DagVersion).
         """
         from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
-        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 
         def build():
             policy = ExceptionRetryPolicy(
@@ -1366,7 +1364,6 @@ class TestRetryPolicySerialization:
         though each task's has_retry_policy was set correctly.
         """
         from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
-        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 
         def build():
             policy = ExceptionRetryPolicy(
@@ -1386,8 +1383,12 @@ class TestRetryPolicySerialization:
             return dag
 
         serialized = DagSerialization.serialize_dag(build())
-        # The RetryPolicy object must never be embedded in serialized default_args.
+        # The RetryPolicy object must never be embedded in serialized default_args...
         assert "ExceptionRetryPolicy object at 0x" not in json.dumps(serialized)
+        # ...and the has_retry_policy flag must be written in its place.
+        default_args_dict = serialized["default_args"][Encoding.VAR]
+        assert default_args_dict.get("has_retry_policy") is True
+        assert "retry_policy" not in default_args_dict
         # Deterministic across independent parses (no embedded memory address).
         assert DagSerialization.serialize_dag(build()) == DagSerialization.serialize_dag(build())
 

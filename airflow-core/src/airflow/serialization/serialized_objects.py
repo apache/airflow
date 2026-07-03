@@ -981,10 +981,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     continue
 
                 if k in _HAS_FLAG_FIELDS:
-                    # These have no serializer; storing the object would str(obj) it and leak
-                    # a non-deterministic memory address. Keep only a has_<field> flag (e.g.
-                    # has_retry_policy, has_on_failure_callback); the live object is recovered
-                    # by re-parsing the DAG source on the worker.
+                    # Store only a has_<field> flag, never the object (see _HAS_FLAG_FIELDS).
                     if bool(v):
                         serialized_op["partial_kwargs"][f"has_{k}"] = True
                     continue
