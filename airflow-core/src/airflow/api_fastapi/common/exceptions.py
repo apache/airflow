@@ -182,7 +182,7 @@ class SQLAlchemyErrorHandler(BaseErrorHandler[SQLAlchemyError]):
         # SQLAlchemyError may not have statement/orig attributes; guard access
         log.exception("Error with id %s, statement: %s", exception_id, statement, exc_info=exc)
         if conf.get("api", "expose_stacktrace") == "True":
-            message = f"Error with id {exception_id}, statement: {statement}"
+            message = f"Error with id {exception_id}, statement: {statement}\n{stacktrace}"
             statement = getattr(exc, "statement", None)
             orig_error = getattr(exc, "orig", None)
         else:
