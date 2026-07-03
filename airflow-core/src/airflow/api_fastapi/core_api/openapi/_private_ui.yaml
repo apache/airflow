@@ -152,6 +152,22 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       - name: dag_id
         in: query
         required: false
@@ -1736,6 +1752,123 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AssetExpressionAlias:
+      properties:
+        alias:
+          $ref: '#/components/schemas/AssetExpressionAliasInfo'
+      type: object
+      required:
+      - alias
+      title: AssetExpressionAlias
+      description: 'An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.'
+    AssetExpressionAliasInfo:
+      properties:
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+      type: object
+      required:
+      - name
+      - group
+      title: AssetExpressionAliasInfo
+      description: Body of an ``alias`` leaf node.
+    AssetExpressionAll:
+      properties:
+        all:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: All
+      type: object
+      required:
+      - all
+      title: AssetExpressionAll
+      description: 'An "and" node: ``{"all": [...]}`` -- satisfied when all children
+        are satisfied.'
+    AssetExpressionAny:
+      properties:
+        any:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: Any
+      type: object
+      required:
+      - any
+      title: AssetExpressionAny
+      description: 'An "or" node: ``{"any": [...]}`` -- satisfied when any child is
+        satisfied.'
+    AssetExpressionAsset:
+      properties:
+        asset:
+          $ref: '#/components/schemas/AssetExpressionAssetInfo'
+      type: object
+      required:
+      - asset
+      title: AssetExpressionAsset
+      description: 'An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group":
+        ...}}``.'
+    AssetExpressionAssetInfo:
+      properties:
+        uri:
+          type: string
+          title: Uri
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+        id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Id
+      type: object
+      required:
+      - uri
+      - name
+      - group
+      title: AssetExpressionAssetInfo
+      description: 'Body of an ``asset`` leaf node.
+
+
+        ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when
+        the expression is
+
+        persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``.
+        It is left
+
+        optional so a row persisted before id-enrichment (or migrated from the pre-3.0
+        dataset format)
+
+        degrades gracefully instead of failing response validation.'
+    AssetExpressionRef:
+      properties:
+        asset_ref:
+          additionalProperties:
+            type: string
+          type: object
+          title: Asset Ref
+      type: object
+      required:
+      - asset_ref
+      title: AssetExpressionRef
+      description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}``
+        or ``{"asset_ref": {"uri": ...}}``.'
     AuthenticatedMeResponse:
       properties:
         id:
@@ -2212,7 +2345,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -2295,8 +2430,12 @@ components:
           title: Owners
         asset_expression:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
           - type: 'null'
           title: Asset Expression
         latest_dag_runs:
@@ -3128,6 +3267,10 @@ components:
           - type: integer
           - type: 'null'
           title: Dag Version Number
+        has_note:
+          type: boolean
+          title: Has Note
+          default: false
       type: object
       required:
       - task_id
@@ -3235,8 +3378,12 @@ components:
       properties:
         asset_expression:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
           - type: 'null'
           title: Asset Expression
         events:
@@ -3396,8 +3543,12 @@ components:
           anyOf:
           - additionalProperties:
               anyOf:
-              - additionalProperties: true
-                type: object
+              - oneOf:
+                - $ref: '#/components/schemas/AssetExpressionAsset'
+                - $ref: '#/components/schemas/AssetExpressionAlias'
+                - $ref: '#/components/schemas/AssetExpressionRef'
+                - $ref: '#/components/schemas/AssetExpressionAny'
+                - $ref: '#/components/schemas/AssetExpressionAll'
               - type: 'null'
             type: object
           - type: 'null'
@@ -3447,8 +3598,12 @@ components:
           title: Total Received
         asset_expression:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
           - type: 'null'
           title: Asset Expression
       type: object

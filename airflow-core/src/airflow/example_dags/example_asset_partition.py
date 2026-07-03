@@ -44,6 +44,7 @@ from airflow.sdk import (
     WeekWindow,
     Window,
     asset,
+    get_current_context,
     task,
 )
 
@@ -217,9 +218,14 @@ with DAG(
     """
 
     @task(outlets=[region_raw_stats])
-    def ingest_region():
+    def ingest_region(dag_run=None):
         """Materialize player statistics for a single region partition."""
-        pass
+        context = get_current_context()
+        if TYPE_CHECKING:
+            assert dag_run
+        print(
+            f"dag_run partition key {dag_run.partition_key} context partition key {context['partition_key']}"
+        )
 
     ingest_region()
 
