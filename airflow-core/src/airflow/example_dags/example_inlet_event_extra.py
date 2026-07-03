@@ -33,9 +33,9 @@ asset = Asset("s3://output/1.txt")
 with DAG(
     dag_id="read_asset_event",
     catchup=False,
-    start_date=datetime.datetime.min,
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
-    tags=["consumes"],
+    tags=["example", "consumes"],
 ):
 
     @task(inlets=[asset])
@@ -48,9 +48,9 @@ with DAG(
 with DAG(
     dag_id="read_asset_event_from_classic",
     catchup=False,
-    start_date=datetime.datetime.min,
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
-    tags=["consumes"],
+    tags=["example", "consumes"],
 ):
     BashOperator(
         task_id="read_asset_event_from_classic",

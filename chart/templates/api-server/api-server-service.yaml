@@ -20,7 +20,7 @@
 ################################
 ## Airflow API Server Service
 #################################
-{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- if .Values.apiServer.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -55,5 +55,11 @@ spec:
   {{- end }}
   {{- if .Values.apiServer.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges: {{- toYaml .Values.apiServer.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  {{- if .Values.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.ipFamilies | nindent 4 }}
   {{- end }}
 {{- end }}

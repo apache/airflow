@@ -31,6 +31,7 @@ from airflow_breeze.utils.packages import (
     expand_all_provider_distributions,
     find_matching_long_package_names,
     get_available_distributions,
+    get_cross_provider_dependencies_for_extras,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
     get_long_package_name,
@@ -263,6 +264,44 @@ def test_get_min_airflow_version(provider_id: str, min_version: str):
     assert get_min_airflow_version(provider_id) == min_version
 
 
+@pytest.mark.parametrize(
+    ("cross_provider_deps", "suspended_ids", "requirements", "expected"),
+    [
+        pytest.param(
+            ["common.compat", "common.sql", "google", "apache.beam"],
+            ["apache.beam"],
+            ["apache-airflow-providers-common-compat>=1.2.3"],
+            ["common.sql", "google"],
+            id="filters_suspended_and_required",
+        ),
+        pytest.param(
+            ["common.sql"],
+            [],
+            ["apache-airflow-providers-common-sql-extra>=1.0.0"],
+            ["common.sql"],
+            id="substring_collision_not_filtered",
+        ),
+    ],
+)
+def test_get_cross_provider_dependencies_for_extras(
+    monkeypatch, cross_provider_deps, suspended_ids, requirements, expected
+):
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_cross_provider_dependent_packages",
+        lambda provider_id: cross_provider_deps,
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_suspended_provider_ids",
+        lambda: suspended_ids,
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_provider_requirements",
+        lambda provider_id: requirements,
+    )
+
+    assert get_cross_provider_dependencies_for_extras("test.provider") == expected
+
+
 def test_convert_cross_package_dependencies_to_table():
     EXPECTED = """
 | Dependent package                                                                       | Extra           |
@@ -384,7 +423,7 @@ def test_apply_version_suffix_to_provider_pyproject_toml(
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
     from unittest.mock import patch
 
     # Get the original provider details
@@ -474,7 +513,7 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
     distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
     original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
     original_contents = [path.read_text() for path in original_pyproject_toml_paths]

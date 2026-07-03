@@ -38,7 +38,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,common-messaging,docker,elasticsearch,fab,ftp,git,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,common-messaging,docker,elasticsearch,fab,ftp,git,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,opensearch,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -48,10 +48,10 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.1.8"
+ARG AIRFLOW_VERSION="3.2.2"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.12.13"
+ARG AIRFLOW_PYTHON_VERSION="3.13.14"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
 #
@@ -71,9 +71,9 @@ ARG PYTHON_LTO="true"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.0.1
+ARG AIRFLOW_PIP_VERSION=26.1.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.2
+ARG AIRFLOW_UV_VERSION=0.11.21
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -122,6 +122,9 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+TEMURIN_VERSION=${TEMURIN_VERSION:-11}
+RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
+RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -254,7 +257,7 @@ function install_docker_cli() {
     apt-get update
     apt-get install ca-certificates curl
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    curl -fsSL --retry 3 --retry-delay 5 https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
     # shellcheck disable=SC1091
     echo \
@@ -359,7 +362,7 @@ function install_cosign() {
         echo "Unsupported architecture for cosign: ${arch}"
         exit 1
     fi
-    curl -fsSL \
+    curl -fsSL --retry 3 --retry-delay 5 \
         "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
         -o /tmp/cosign
     echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
@@ -388,7 +391,7 @@ function install_python() {
         echo "GOOD! System python is not installed - OK"
         echo
     fi
-    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
     local major minor
@@ -413,7 +416,7 @@ function install_python() {
             [3.13]="https://accounts.google.com"
             [3.14]="https://github.com/login/oauth"
         )
-        wget -O python.tar.xz.sigstore \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
         install_cosign
         local identity="${sigstore_identities[${major_minor_version}]}"
@@ -431,12 +434,12 @@ function install_python() {
             # https://peps.python.org/pep-0619/#release-manager-and-crew
             [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
         )
-        wget -O python.tar.xz.asc \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.asc \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
         GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
         local gpg_key="${keys[${major_minor_version}]}"
         echo "Using GPG key ${gpg_key}"
-        gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+        gpg --batch --import "/scripts/docker/keys/python-${major_minor_version}.asc"
         gpg --batch --verify python.tar.xz.asc python.tar.xz
         gpgconf --kill all
         rm -rf "${GNUPGHOME}" python.tar.xz.asc
@@ -489,8 +492,53 @@ function install_python() {
 }
 
 function install_golang() {
-    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
+function install_jdk() {
+    # Install Eclipse Temurin JDK from the Adoptium apt repository (https://adoptium.net/installation/linux/).
+    apt-get update -qq
+    apt-get install -y --no-install-recommends wget gnupg apt-transport-https ca-certificates
+    mkdir -p /etc/apt/keyrings
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+        | tee /etc/apt/keyrings/adoptium.asc > /dev/null
+    # shellcheck disable=SC1091
+    DISTRO_CODENAME=$(. /etc/os-release; echo "${VERSION_CODENAME}")
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] \
+https://packages.adoptium.net/artifactory/deb ${DISTRO_CODENAME} main" \
+        | tee /etc/apt/sources.list.d/adoptium.list > /dev/null
+    apt-get update -qq
+    apt-get install -y --no-install-recommends "temurin-${TEMURIN_VERSION}-jdk"
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+}
+
+function install_rustup() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A rustup_targets=(
+        [amd64]="x86_64-unknown-linux-gnu"
+        [arm64]="aarch64-unknown-linux-gnu"
+    )
+    declare -A rustup_sha256s=(
+        # https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/{target}/rustup-init.sha256
+        [amd64]="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+        [arm64]="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"
+    )
+    local target="${rustup_targets[${arch}]}"
+    local rustup_sha256="${rustup_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for rustup: ${arch}"
+        exit 1
+    fi
+    curl --proto '=https' --tlsv1.2 -sSf --retry 3 --retry-delay 5 \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
+        -o /tmp/rustup-init
+    echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
+    chmod +x /tmp/rustup-init
+    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    rm -f /tmp/rustup-init
 }
 
 function apt_clean() {
@@ -508,8 +556,10 @@ else
     install_debian_dev_dependencies
     install_python
     install_additional_dev_dependencies
+    install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
+        install_jdk
     fi
     install_docker_cli
     apt_clean
@@ -928,29 +978,10 @@ function common::import_trusted_gpg() {
 
     local key=${1:?${COLOR_RED}First argument expects OpenPGP Key ID${COLOR_RESET}}
     local name=${2:?${COLOR_RED}Second argument expected trust storage name${COLOR_RESET}}
-    # Please note that not all servers could be used for retrieve keys
-    #  sks-keyservers.net: Unmaintained and DNS taken down due to GDPR requests.
-    #  keys.openpgp.org: User ID Mandatory, not suitable for APT repositories
-    #  keyring.debian.org: Only accept keys in Debian keyring.
-    #  pgp.mit.edu: High response time.
-    local keyservers=(
-        "hkps://keyserver.ubuntu.com"
-        "hkps://pgp.surf.nl"
-    )
+    local key_file="/scripts/docker/keys/${name}.asc"
 
-    GNUPGHOME="$(mktemp -d)"
-    export GNUPGHOME
-    set +e
-    for keyserver in $(shuf -e "${keyservers[@]}"); do
-        echo "${COLOR_BLUE}Try to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
-        echo "${COLOR_YELLOW}Unable to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-    done
-    set -e
-    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
-    gpgconf --kill all
-    rm -rf "${GNUPGHOME}"
-    unset GNUPGHOME
+    echo "${COLOR_BLUE}Installing GPG public key ${key} from ${key_file}${COLOR_RESET}"
+    gpg --dearmor < "${key_file}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
 }
 EOF
 
@@ -1037,8 +1068,11 @@ function install_airflow_and_providers_from_docker_context_files(){
         install_airflow_core_distribution=("apache-airflow-core==${AIRFLOW_VERSION}")
     fi
 
-    # Find Provider/TaskSDK/CTL distributions in docker-context files
-    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk,airflowctl}*.{whl,tar.gz} 2>/dev/null || true)
+    # Find Provider/TaskSDK/CTL distributions in docker-context files.
+    # NOTE: the ctl wheel is named ``apache_airflow_ctl-*.whl`` (distribution
+    # ``apache-airflow-ctl``), not ``apache_airflow_airflowctl-*.whl`` — the
+    # glob must say ``ctl``, not ``airflowctl``.
+    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk,ctl}*.{whl,tar.gz} 2>/dev/null || true)
     echo
     echo "${COLOR_BLUE}Found provider distributions in docker-context-files folder: ${airflow_distributions[*]}${COLOR_RESET}"
     echo
@@ -1217,8 +1251,8 @@ function install_from_sources() {
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+        uv sync --all-packages --resolution highest --group ci-image \
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
         set +x
@@ -1230,8 +1264,8 @@ function install_from_sources() {
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        if ! uv sync --all-packages --frozen --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+        if ! uv sync --all-packages --frozen --group ci-image \
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python; then
             set +x
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
@@ -1246,8 +1280,8 @@ function install_from_sources() {
             echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv sync without --frozen).${COLOR_RESET}"
             echo
             set -x
-            uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            uv sync --all-packages --group ci-image \
+                ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
                 --no-python-downloads --no-managed-python
             set +x
         fi
@@ -1417,6 +1451,14 @@ EOF
 COPY <<"EOF" /entrypoint_prod.sh
 #!/usr/bin/env bash
 AIRFLOW_COMMAND="${1:-}"
+AIRFLOW_COMMAND_TO_RUN="${AIRFLOW_COMMAND}"
+if [[ "${AIRFLOW_COMMAND}" == "airflow" ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${2:-}"
+elif [[ "${AIRFLOW_COMMAND}" =~ ^(bash|sh)$ ]] \
+    && [[ "${2:-}" == "-c" ]] \
+    && [[ "${3:-}" =~ (^|[[:space:]])(exec[[:space:]]+)?airflow[[:space:]]+(scheduler|dag-processor|triggerer|api-server)([[:space:]]|$) ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${BASH_REMATCH[3]}"
+fi
 
 set -euo pipefail
 
@@ -1668,7 +1710,8 @@ readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
-if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]] \
+    && [[ ${AIRFLOW_COMMAND_TO_RUN} =~ ^(scheduler|dag-processor|triggerer|api-server)$ ]]; then
     wait_for_airflow_db
 fi
 
@@ -1834,7 +1877,12 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
 
 ARG PYTHON_LTO
 
+ENV RUSTUP_HOME="/usr/local/rustup"
+ENV CARGO_HOME="/home/airflow/.cargo"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
+
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
 RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
@@ -2031,6 +2079,11 @@ RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.
 RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
     if [[ -f /docker-context-files/requirements.txt ]]; then \
         pip install -r /docker-context-files/requirements.txt; \
+        find "${AIRFLOW_USER_HOME_DIR}/.local/" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
+        find "${AIRFLOW_USER_HOME_DIR}/.local/" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ; \
+        # make sure that all directories and files in .local are also group accessible
+        find "${AIRFLOW_USER_HOME_DIR}/.local" -executable ! -type l -print0 | xargs --null chmod g+x; \
+        find "${AIRFLOW_USER_HOME_DIR}/.local" ! -type l -print0 | xargs --null chmod g+rw; \
     fi
 
 ##############################################################################################
@@ -2106,6 +2159,8 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:${PATH}" \
 
 COPY --from=scripts common.sh /scripts/docker/
 
+COPY scripts/docker/keys/ /scripts/docker/keys/
+
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
@@ -2125,6 +2180,8 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && mkdir -pv "${AIRFLOW_HOME}/logs" \
     && chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
     && chmod -R g+rw "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
+    && find "${AIRFLOW_USER_HOME_DIR}" -name '*.pyc' -print0 | xargs -0 rm -f || true \
+    && find "${AIRFLOW_USER_HOME_DIR}" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true \
     && find "${AIRFLOW_HOME}" -executable ! -type l -print0 | xargs --null chmod g+x \
     && find "${AIRFLOW_USER_HOME_DIR}" -executable ! -type l -print0 | xargs --null chmod g+x
 

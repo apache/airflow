@@ -29,24 +29,27 @@ import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion } from "src/components/ui";
 
 import { DataTable } from "../DataTable";
-import { getColumns } from "./columns";
+import { getColumns, type RowSelection } from "./columns";
 
 type Props = {
   readonly affectedTasks?: TaskInstanceCollectionResponse;
   readonly groupByRunId?: boolean;
   readonly note: DAGRunResponse["note"];
+  readonly selection?: RowSelection;
   readonly setNote: (value: string) => void;
 };
 
 const TasksTable = ({
   noRowsMessage,
+  selection,
   tasks,
 }: {
   readonly noRowsMessage: string;
+  readonly selection?: RowSelection;
   readonly tasks: Array<TaskInstanceResponse>;
 }) => {
   const { t: translate } = useTranslation();
-  const columns = getColumns(translate);
+  const columns = getColumns(translate, selection);
 
   return (
     <DataTable
@@ -55,6 +58,7 @@ const TasksTable = ({
       displayMode="table"
       modelName="common:taskInstance"
       noRowsMessage={noRowsMessage}
+      showRowCountHeading={false}
       total={tasks.length}
     />
   );
@@ -62,7 +66,7 @@ const TasksTable = ({
 
 // Table is in memory, pagination and sorting are disabled.
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
-const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }: Props) => {
+const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, selection, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
   const { t: translate } = useTranslation();
 
@@ -99,7 +103,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
           <Accordion.ItemTrigger>
             <Text fontWeight="bold">
               {translate("dags:runAndTaskActions.affectedTasks.title", {
-                count: affectedTasks.total_entries,
+                count: affectedTasks.total_entries ?? 0,
               })}
             </Text>
           </Accordion.ItemTrigger>
@@ -120,6 +124,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
                       <Accordion.ItemContent>
                         <TasksTable
                           noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
+                          selection={selection}
                           tasks={tis}
                         />
                       </Accordion.ItemContent>
@@ -129,6 +134,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
               ) : (
                 <TasksTable
                   noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
+                  selection={selection}
                   tasks={affectedTasks.task_instances}
                 />
               )}

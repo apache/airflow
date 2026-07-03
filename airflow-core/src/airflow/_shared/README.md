@@ -32,4 +32,4 @@ library code is stored in "shared" folder) - and at the same time we can have di
 same shared library in different packages when for example `airflow-core` and `task-sdk` package are
 installed together in different version.
 
-You can read about it in [the shared README.md](../../shared/README.md) document.
+You can read about it in [the shared README.md](../../../../shared/README.md) document.

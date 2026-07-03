@@ -48,6 +48,7 @@ def get_provider_info():
             {
                 "connection-type": "pig_cli",
                 "hook-class-name": "airflow.providers.apache.pig.hooks.pig.PigCliHook",
+                "hook-name": "Pig Client Wrapper",
             }
         ],
     }

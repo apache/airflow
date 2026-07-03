@@ -210,7 +210,11 @@ func BindFlagsToViper(cmd *cobra.Command, viper *viper.Viper) {
 
 func setDefaults(viper *viper.Viper) {
 	viper.SetDefault("edge.api_retries", 10)
-	viper.SetDefault("edge.api_retry_wait_min", "1m")
-	viper.SetDefault("edge.api_retry_wait_max", "90m")
+	viper.SetDefault("edge.api_retry_wait_min", "5s")
+	viper.SetDefault("edge.api_retry_wait_max", "90s")
 	viper.SetDefault("api_auth.issuer", "airflow")
+	hostname, err := os.Hostname()
+	if err == nil {
+		viper.SetDefault("edge.hostname", hostname)
+	}
 }

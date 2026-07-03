@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-postgres``
 
-Release: ``6.6.2``
+Release: ``6.8.0``
 
 
 `PostgreSQL <https://www.postgresql.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``postgres`` provider. All classes for this provi
 are in ``airflow.providers.postgres`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.6.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.8.0/>`_.
 
 Installation
 ------------
@@ -61,8 +61,8 @@ PIP package                                 Version required
 ``asyncpg``                                 ``>=0.30.0``
 ==========================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -78,8 +78,6 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 ======================================================================================================================  ===================
@@ -100,4 +98,4 @@ Extra                Dependencies
 ===================  ============================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.6.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.8.0/changelog.html>`_.

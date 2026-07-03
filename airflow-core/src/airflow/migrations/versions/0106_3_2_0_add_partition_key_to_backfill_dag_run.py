@@ -43,10 +43,11 @@ airflow_version = "3.2.0"
 
 def upgrade():
     """Apply Add partition_key to backfill_dag_run."""
-    op.add_column("dag_run", sa.Column("created_at", UtcDateTime(timezone=True), nullable=True))
-    with disable_sqlite_fkeys(op), op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("partition_key", StringID(), nullable=True))
-        batch_op.alter_column("logical_date", existing_type=sa.TIMESTAMP(), nullable=True)
+    with disable_sqlite_fkeys(op):
+        op.add_column("dag_run", sa.Column("created_at", UtcDateTime(timezone=True), nullable=True))
+        with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
+            batch_op.add_column(sa.Column("partition_key", StringID(), nullable=True))
+            batch_op.alter_column("logical_date", existing_type=sa.TIMESTAMP(), nullable=True)
 
 
 def downgrade():

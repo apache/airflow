@@ -19,7 +19,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from tableauserverclient import JobItem
+
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+)
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
     TableauJobFailedException,
@@ -60,6 +66,8 @@ class TableauOperator(BaseOperator):
     :param blocking_refresh: By default will be blocking means it will wait until it has finished.
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
+    :param incremental_refresh: Whether to perform an incremental refresh instead of a full refresh.
+        Only applies to datasource and workbook refresh operations. Defaults to False (full refresh).
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
     """
@@ -79,6 +87,7 @@ class TableauOperator(BaseOperator):
         site_id: str | None = None,
         blocking_refresh: bool = True,
         check_interval: float = 20,
+        incremental_refresh: bool = False,
         tableau_conn_id: str = "tableau_default",
         **kwargs,
     ) -> None:
@@ -90,6 +99,7 @@ class TableauOperator(BaseOperator):
         self.check_interval = check_interval
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
+        self.incremental_refresh = incremental_refresh
         self.tableau_conn_id = tableau_conn_id
 
     def execute(self, context: Context) -> str:
@@ -109,15 +119,43 @@ class TableauOperator(BaseOperator):
             error_message = f"Method not found! Available methods for {self.resource}: {available_methods}"
             raise AirflowException(error_message)
 
+        if self.incremental_refresh and self.method != "refresh":
+            self.log.warning(
+                "incremental_refresh parameter is set to True but method is '%s'. "
+                "This parameter only applies to 'refresh' operations and will be ignored.",
+                self.method,
+            )
+
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
             resource = getattr(tableau_hook.server, self.resource)
             method = getattr(resource, self.method)
 
             resource_id = self._get_resource_id(tableau_hook)
 
-            response = method(resource_id)
-
-            job_id = response.id
+            if self.resource == "tasks" and self.method == "run":
+                task_item = resource.get_by_id(resource_id)
+                response_bytes = method(task_item)
+                job_items = JobItem.from_response(response_bytes, tableau_hook.server.namespace)
+                if not job_items:
+                    raise ValueError("Tableau tasks.run returned no JobItem in response")
+                job_id = job_items[0].id
+            elif self.method == "refresh":
+                if self.incremental_refresh:
+                    try:
+                        response = method(resource_id, incremental=True)
+                    except TypeError as e:
+                        if "incremental" in str(e):
+                            raise AirflowOptionalProviderFeatureException(
+                                "Incremental refresh requires tableauserverclient>=0.35. "
+                                "Please upgrade: pip install 'tableauserverclient>=0.35'"
+                            ) from e
+                        raise
+                else:
+                    response = method(resource_id)
+                job_id = response.id
+            else:
+                response = method(resource_id)
+                job_id = response.id
 
             if self.method == "refresh":
                 if self.blocking_refresh:

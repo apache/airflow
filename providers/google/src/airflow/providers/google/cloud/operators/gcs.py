@@ -280,6 +280,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         of objects in the bucket, not including gs://bucket/
     :param prefix: String or list of strings, which filter objects whose name begin with
            it/them. (templated)
+    :param ignore_error: (Optional) whether to ignore NotFound exceptions. Default: False
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -305,6 +306,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         bucket_name: str,
         objects: list[str] | None = None,
         prefix: str | list[str] | None = None,
+        ignore_error: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -312,6 +314,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
+        self.ignore_error = ignore_error
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -338,7 +341,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
-            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+            hook.delete(bucket_name=self.bucket_name, object_name=object_name, ignore_error=self.ignore_error)
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import (
@@ -826,7 +829,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
         timespan_start = orig_start
         if orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
-            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
+            self.log.warning("Dag schedule not periodic, setting timespan end to max %s", orig_end)
             timespan_end = pendulum.instance(datetime.datetime.max)
         else:
             timespan_end = orig_end
@@ -874,6 +877,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
         with TemporaryDirectory() as temp_input_dir, TemporaryDirectory() as temp_output_dir:
             temp_input_dir_path = Path(temp_input_dir)
+            temp_input_dir_resolved = temp_input_dir_path.resolve()
             temp_output_dir_path = Path(temp_output_dir)
 
             num_downloads = len(blobs_to_transform)
@@ -894,6 +898,15 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                 blob = bucket.blob(blob_name=blob_name, chunk_size=self.chunk_size)
 
                 destination_file = temp_input_dir_path / blob_name
+                # Containment check: ``blob_name`` originates outside the worker, and GCS
+                # allows object names containing ``..``. Resolve the target and assert it
+                # stays under ``temp_input_dir_path`` so a hostile blob name cannot write
+                # outside the worker's temp directory (CWE-22).
+                if not destination_file.resolve().is_relative_to(temp_input_dir_resolved):
+                    raise ValueError(
+                        f"Refusing to download GCS blob {blob_name!r}: resolved path "
+                        f"{destination_file} escapes the temp directory {temp_input_dir_path}."
+                    )
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
 
                 blob.download_to_filename(filename=str(destination_file))

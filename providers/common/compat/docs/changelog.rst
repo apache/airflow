@@ -25,6 +25,33 @@
 Changelog
 ---------
 
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add BundleVersion dataclass and version_data persistence to DagVersion (#66491)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
+1.14.3
+......
+
+Misc
+~~~~
+
+* ``Add OpenLineage parent and transport info injection to 'EmrServerlessStartJobOperator' (#64807)``
+* ``Add OpenLineage parent info injection to GlueJobOperator (#64513)``
+* ``Fix RESOURCE_ASSET compatibility with Airflow 2.x in common-compat (#64933)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-04-07 (#64864)``
+
 1.14.2
 ......
 

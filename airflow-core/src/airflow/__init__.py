@@ -25,7 +25,7 @@
 # lib.)  This is required by some IDEs to resolve the import paths.
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
-__version__ = "3.2.0"
+__version__ = "3.4.0"
 
 
 import os
@@ -89,7 +89,6 @@ __lazy_imports: dict[str, tuple[str, str, bool]] = {
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
     "Dataset": (".sdk", "Asset", True),
-    "Stats": (".observability.stats", "Stats", True),
     "Trace": (".observability.trace", "Trace", True),
     "metrics": (".observability.metrics", "", True),
     "traces": ("._shared.observability.traces", "", True),

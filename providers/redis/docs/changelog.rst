@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Redis client self-identification for Apache Airflow (#61866)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.4.5
+.....
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+
+4.4.4
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Fix advertising some of the missing provider capabilities via provider info (#64127)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.4.3
 .....
 

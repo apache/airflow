@@ -38,6 +38,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+from airflow.providers.databricks.utils.query_tags import build_query_tags
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -68,6 +69,8 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
         If not specified, it could be specified in the Databricks connection's extra parameters.
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters
+    :param query_tags: Optional dictionary of query tags to attach to Databricks SQL queries.
+    :param include_airflow_query_tags: If True, add Airflow DAG/task/run metadata as query tags.
     :param http_headers: An optional list of (k, v) pairs that will be set as HTTP headers on every request.
          (templated)
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)
@@ -93,6 +96,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             "http_headers",
             "databricks_conn_id",
             "_gcs_impersonation_chain",
+            "query_tags",
         }
         | set(SQLExecuteQueryOperator.template_fields)
     )
@@ -115,6 +119,8 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         output_format: str = "csv",
         csv_params: dict[str, Any] | None = None,
         client_parameters: dict[str, Any] | None = None,
+        query_tags: dict[str, str | None] | None = None,
+        include_airflow_query_tags: bool = True,
         gcp_conn_id: str = "google_cloud_default",
         gcs_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -132,6 +138,8 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
+        self.query_tags = query_tags or {}
+        self.include_airflow_query_tags = include_airflow_query_tags
         self._gcp_conn_id = gcp_conn_id
         self._gcs_impersonation_chain = gcs_impersonation_chain
 
@@ -303,6 +311,13 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
 
         return list(zip(descriptions, results))
 
+    def _get_query_tags(self, context: Context) -> dict[str, str | None] | None:
+        return build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
+
+    def execute(self, context: Context) -> Any:
+        self.get_db_hook().query_tags = self._get_query_tags(context)
+        return super().execute(context)
+
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]
 
@@ -335,6 +350,8 @@ class DatabricksCopyIntoOperator(BaseOperator):
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters
+    :param query_tags: Optional dictionary of query tags to attach to Databricks SQL queries.
+    :param include_airflow_query_tags: If True, add Airflow DAG/task/run metadata as query tags.
     :param files: optional list of files to import. Can't be specified together with ``pattern``. (templated)
     :param pattern: optional regex string to match file names to import.
         Can't be specified together with ``files``.
@@ -355,6 +372,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         "files",
         "table_name",
         "databricks_conn_id",
+        "query_tags",
     )
 
     def __init__(
@@ -381,9 +399,11 @@ class DatabricksCopyIntoOperator(BaseOperator):
         force_copy: bool | None = None,
         copy_options: dict[str, str] | None = None,
         validate: bool | int | None = None,
+        query_tags: dict[str, str | None] | None = None,
+        include_airflow_query_tags: bool = True,
         **kwargs,
     ) -> None:
-        """Create a new ``DatabricksSqlOperator``."""
+        """Create a new ``DatabricksCopyIntoOperator``."""
         super().__init__(**kwargs)
         if files is not None and pattern is not None:
             raise AirflowException("Only one of 'pattern' or 'files' should be specified")
@@ -413,6 +433,8 @@ class DatabricksCopyIntoOperator(BaseOperator):
         self._validate = validate
         self._http_headers = http_headers
         self._client_parameters = client_parameters or {}
+        self.query_tags = query_tags or {}
+        self.include_airflow_query_tags = include_airflow_query_tags
         if force_copy is not None:
             self._copy_options["force"] = "true" if force_copy else "false"
         self._sql: str | None = None
@@ -514,10 +536,14 @@ FILEFORMAT = {self._file_format}
 """
         return sql.strip()
 
+    def _get_query_tags(self, context: Context) -> dict[str, str | None] | None:
+        return build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
+
     def execute(self, context: Context) -> Any:
         self._sql = self._create_sql_query()
         self.log.info("Executing: %s", self._sql)
         hook = self._get_hook()
+        hook.query_tags = self._get_query_tags(context)
         hook.run(self._sql)
 
     def on_kill(self) -> None:

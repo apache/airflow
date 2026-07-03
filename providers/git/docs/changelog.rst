@@ -19,6 +19,43 @@
 Changelog
 ---------
 
+0.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Git Sparse Checkout to Git Dag Bundle (#67047)``
+* ``Add BundleVersion dataclass and version_data persistence to DagVersion (#66491)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add skip on git clone when local version matches bundle version (#63814)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Add tests for git bundle force-push resilience, error recovery, etc. (#65750)``
+
+0.3.1
+.....
+
+Misc
+~~~~
+
+* ``Harden GitHook SSH command building and URL construction (#64756)``
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.3.0
 .....
 

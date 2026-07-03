@@ -53,6 +53,7 @@ class DagVersion(Base):
     dag_model = relationship("DagModel", back_populates="dag_versions")
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     bundle_version: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    version_data: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
     bundle = relationship(
         "DagBundleModel",
         primaryjoin="foreign(DagVersion.bundle_name) == DagBundleModel.name",
@@ -111,6 +112,7 @@ class DagVersion(Base):
         dag_id: str,
         bundle_name: str,
         bundle_version: str | None = None,
+        version_data: dict | None = None,
         version_number: int = 1,
         session: Session = NEW_SESSION,
     ) -> DagVersion:
@@ -120,6 +122,9 @@ class DagVersion(Base):
         Checks if a version of the DAG exists and increments the version number if it does.
 
         :param dag_id: The DAG ID.
+        :param bundle_name: The bundle name.
+        :param bundle_version: The bundle version string.
+        :param version_data: Optional structured data associated with this version (e.g., S3 manifest).
         :param version_number: The version number.
         :param session: The database session.
         :return: The DagVersion object.
@@ -135,6 +140,7 @@ class DagVersion(Base):
             version_number=version_number,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            version_data=version_data,
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
@@ -157,7 +163,7 @@ class DagVersion(Base):
         :return: The select object.
         """
         query = select(cls).where(cls.dag_id == dag_id)
-        if bundle_version:
+        if bundle_version is not None:
             query = query.where(cls.bundle_version == bundle_version)
 
         if load_dag_model:
@@ -169,7 +175,12 @@ class DagVersion(Base):
         if load_serialized_dag:
             query = query.options(joinedload(cls.serialized_dag))
 
-        query = query.order_by(cls.created_at.desc()).limit(1)
+        # Order by version_number, not created_at: version_number is monotonic and unique per
+        # dag_id, so it is deterministic even when two versions share a created_at timestamp.
+        # write_dag relies on this select to compute the next version_number; ordering by
+        # created_at could pick a non-max row under a tie and collide with the
+        # (dag_id, version_number) unique constraint.
+        query = query.order_by(cls.version_number.desc()).limit(1)
         return query
 
     @classmethod
@@ -225,7 +236,7 @@ class DagVersion(Base):
         if version_number:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
 
-        return session.scalar(version_select_obj.order_by(cls.id.desc()).limit(1))
+        return session.scalar(version_select_obj.order_by(cls.version_number.desc()).limit(1))
 
     @property
     def version(self) -> str:

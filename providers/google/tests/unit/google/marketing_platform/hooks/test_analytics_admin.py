@@ -51,16 +51,21 @@ class TestGoogleAnalyticsAdminHook:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
+    @mock.patch(f"{ANALYTICS_HOOK_PATH}.GoogleAnalyticsAdminHook.get_client_options")
     @mock.patch(f"{ANALYTICS_HOOK_PATH}.CLIENT_INFO")
     @mock.patch(f"{ANALYTICS_HOOK_PATH}.GoogleAnalyticsAdminHook.get_credentials")
     @mock.patch(f"{ANALYTICS_HOOK_PATH}.AnalyticsAdminServiceClient")
-    def test_get_conn(self, mock_client, get_credentials, mock_client_info):
+    def test_get_conn(self, mock_client, get_credentials, mock_client_info, mock_get_client_options):
         mock_credentials = mock.MagicMock()
         get_credentials.return_value = mock_credentials
 
         result = self.hook.get_conn()
 
-        mock_client.assert_called_once_with(credentials=mock_credentials, client_info=mock_client_info)
+        mock_client.assert_called_once_with(
+            credentials=mock_credentials,
+            client_info=mock_client_info,
+            client_options=mock_get_client_options.return_value,
+        )
         assert self.hook._conn == result
 
     @mock.patch(f"{ANALYTICS_HOOK_PATH}.GoogleAnalyticsAdminHook.get_conn")

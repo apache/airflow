@@ -36,16 +36,20 @@ class TestGoogleDisplayVideo360Hook:
             self.hook = GoogleDisplayVideo360Hook(api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.display_video.GoogleDisplayVideo360Hook.get_client_options"
+    )
+    @mock.patch(
         "airflow.providers.google.marketing_platform.hooks.display_video.GoogleDisplayVideo360Hook._authorize"
     )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.display_video.build")
-    def test_get_conn_to_display_video(self, mock_build, mock_authorize):
+    def test_get_conn_to_display_video(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.hook.get_conn_to_display_video()
         mock_build.assert_called_once_with(
             "displayvideo",
             API_VERSION,
             http=mock_authorize.return_value,
             cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
 
@@ -189,15 +193,19 @@ class TestGoogleDisplayVideo360v2Hook:
             self.hook = GoogleDisplayVideo360Hook(api_version=self.api_version, gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.display_video.GoogleDisplayVideo360Hook.get_client_options"
+    )
+    @mock.patch(
         "airflow.providers.google.marketing_platform.hooks.display_video.GoogleDisplayVideo360Hook._authorize"
     )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.display_video.build")
-    def test_get_conn_to_display_video(self, mock_build, mock_authorize):
+    def test_get_conn_to_display_video(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.hook.get_conn_to_display_video()
         mock_build.assert_called_once_with(
             "displayvideo",
             self.api_version,
             http=mock_authorize.return_value,
             cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result

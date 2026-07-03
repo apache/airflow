@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerAirflowCLICommandTrigger,
@@ -83,21 +84,22 @@ def cli_command_trigger(mock_conn):
     return_value=Connection(conn_id="test_conn"),
 )
 def dag_run_trigger(mock_conn):
-    return CloudComposerDAGRunTrigger(
-        project_id=TEST_PROJECT_ID,
-        region=TEST_LOCATION,
-        environment_id=TEST_ENVIRONMENT_ID,
-        composer_dag_id=TEST_COMPOSER_DAG_ID,
-        composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
-        start_date=TEST_START_DATE,
-        end_date=TEST_END_DATE,
-        allowed_states=TEST_ALLOWED_STATES,
-        gcp_conn_id=TEST_GCP_CONN_ID,
-        impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        poll_interval=TEST_POLL_INTERVAL,
-        composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
-        use_rest_api=TEST_USE_REST_API,
-    )
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        return CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_LOCATION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
+            start_date=TEST_START_DATE,
+            end_date=TEST_END_DATE,
+            allowed_states=TEST_ALLOWED_STATES,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            poll_interval=TEST_POLL_INTERVAL,
+            composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
+            use_rest_api=TEST_USE_REST_API,
+        )
 
 
 @pytest.fixture
@@ -178,7 +180,6 @@ class TestCloudComposerDAGRunTrigger:
                 "impersonation_chain": TEST_IMPERSONATION_CHAIN,
                 "poll_interval": TEST_POLL_INTERVAL,
                 "composer_airflow_version": TEST_COMPOSER_AIRFLOW_VERSION,
-                "use_rest_api": TEST_USE_REST_API,
             },
         )
         assert actual_data == expected_data

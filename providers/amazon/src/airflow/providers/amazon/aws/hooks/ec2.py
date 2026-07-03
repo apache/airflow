@@ -89,6 +89,7 @@ class EC2Hook(AwsBaseHook):
         :param filters: List of filters to specify instances to get
         :return: Instance object
         """
+        self.log.debug("Getting EC2 instance %s with filters %s", instance_id, filters)
         if self._api_type == "client_type":
             return self.get_instances(filters=filters, instance_ids=[instance_id])[0]
 
@@ -104,7 +105,9 @@ class EC2Hook(AwsBaseHook):
         """
         self.log.info("Stopping instances: %s", instance_ids)
 
-        return self.conn.stop_instances(InstanceIds=instance_ids)
+        result = self.conn.stop_instances(InstanceIds=instance_ids)
+        self.log.debug("stop_instances response: %s", result.get("StoppingInstances"))
+        return result
 
     @only_client_type
     def start_instances(self, instance_ids: list) -> dict:
@@ -116,7 +119,9 @@ class EC2Hook(AwsBaseHook):
         """
         self.log.info("Starting instances: %s", instance_ids)
 
-        return self.conn.start_instances(InstanceIds=instance_ids)
+        result = self.conn.start_instances(InstanceIds=instance_ids)
+        self.log.debug("start_instances response: %s", result.get("StartingInstances"))
+        return result
 
     @only_client_type
     def terminate_instances(self, instance_ids: list) -> dict:
@@ -128,7 +133,9 @@ class EC2Hook(AwsBaseHook):
         """
         self.log.info("Terminating instances: %s", instance_ids)
 
-        return self.conn.terminate_instances(InstanceIds=instance_ids)
+        result = self.conn.terminate_instances(InstanceIds=instance_ids)
+        self.log.debug("terminate_instances response: %s", result.get("TerminatingInstances"))
+        return result
 
     @only_client_type
     def describe_instances(self, filters: list | None = None, instance_ids: list | None = None):
@@ -173,9 +180,12 @@ class EC2Hook(AwsBaseHook):
         return [instance["InstanceId"] for instance in self.get_instances(filters=filters)]
 
     async def get_instance_state_async(self, instance_id: str) -> str:
+        self.log.debug("Getting instance state (async) for %s", instance_id)
         async with await self.get_async_conn() as client:
             response = await client.describe_instances(InstanceIds=[instance_id])
-            return response["Reservations"][0]["Instances"][0]["State"]["Name"]
+            state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
+        self.log.debug("Instance %s state (async): %s", instance_id, state)
+        return state
 
     def get_instance_state(self, instance_id: str) -> str:
         """
@@ -200,8 +210,15 @@ class EC2Hook(AwsBaseHook):
         :return: None
         """
         instance_state = self.get_instance_state(instance_id=instance_id)
+        self.log.debug(
+            "Waiting for instance %s to reach state '%s', current state: '%s'",
+            instance_id,
+            target_state,
+            instance_state,
+        )
 
         while instance_state != target_state:
+            self.log.debug("Sleeping %ss before next state check", check_interval)
             time.sleep(check_interval)
             instance_state = self.get_instance_state(instance_id=instance_id)
 

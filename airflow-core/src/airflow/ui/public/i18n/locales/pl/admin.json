@@ -128,7 +128,8 @@
       "includeDeferred": "Uwzględnij odroczone",
       "nameMaxLength": "Nazwa może zawierać maksymalnie 256 znaków",
       "nameRequired": "Nazwa jest wymagana",
-      "slots": "Miejsca"
+      "slots": "Miejsca",
+      "slotsHelperText": "Użyj -1 dla nieograniczonej liczby miejsc."
     },
     "noPoolsFound": "Nie znaleziono pul",
     "pool_few": "Pule",

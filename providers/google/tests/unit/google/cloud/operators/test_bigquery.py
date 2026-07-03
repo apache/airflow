@@ -27,8 +27,10 @@ from unittest.mock import ANY, MagicMock
 import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
+from google.cloud.bigquery.routine import Routine
 from google.cloud.exceptions import Conflict
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.openlineage.facet import (
     DocumentationDatasetFacet,
     ErrorMessageRunFacet,
@@ -52,16 +54,21 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryColumnCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateRoutineOperator,
     BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
+    BigQueryDeleteRoutineOperator,
     BigQueryDeleteTableOperator,
     BigQueryGetDataOperator,
     BigQueryGetDatasetOperator,
     BigQueryGetDatasetTablesOperator,
+    BigQueryGetRoutineOperator,
     BigQueryInsertJobOperator,
     BigQueryIntervalCheckOperator,
+    BigQueryListRoutinesOperator,
     BigQueryTableCheckOperator,
     BigQueryUpdateDatasetOperator,
+    BigQueryUpdateRoutineOperator,
     BigQueryUpdateTableOperator,
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
@@ -926,6 +933,47 @@ class TestBigQueryCheckOperators:
         mock_get_db_hook.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    ("operator_class", "kwargs"),
+    [
+        pytest.param(
+            BigQueryValueCheckOperator,
+            {"sql": "SELECT COUNT(*) FROM Any", "pass_value": 1},
+            id="value-check",
+        ),
+        pytest.param(
+            BigQueryIntervalCheckOperator,
+            {"table": TEST_TABLE_ID, "metrics_thresholds": {"COUNT(*)": 1.5}},
+            id="interval-check",
+        ),
+        pytest.param(
+            BigQueryGetDataOperator,
+            {"dataset_id": TEST_DATASET, "table_id": TEST_TABLE_ID},
+            id="get-data",
+        ),
+        pytest.param(
+            BigQueryColumnCheckOperator,
+            {"table": TEST_TABLE_ID, "column_mapping": {"col1": {"min": {"greater_than": 0}}}},
+            id="column-check",
+        ),
+        pytest.param(
+            BigQueryTableCheckOperator,
+            {
+                "table": TEST_TABLE_ID,
+                "checks": {"row_count_check": {"check_statement": "COUNT(*) > 0"}},
+            },
+            id="table-check",
+        ),
+    ],
+)
+def test_other_implicit_legacy_sql_default_warns(operator_class, kwargs):
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match="The default value of `use_legacy_sql` is deprecated",
+    ):
+        operator_class(task_id=TASK_ID, **kwargs)
+
+
 class TestBigQueryUpsertTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
@@ -1023,6 +1071,33 @@ class TestBigQueryInsertJobOperator:
         )
 
         assert result == real_job_id
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_pushes_deprecated_job_id_path_xcom(self, mock_hook):
+        job_id = "123456"
+        real_job_id = f"{job_id}_hash"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        job = MagicMock(state="DONE", job_id=real_job_id, error_result=False)
+        job.to_api_repr.return_value = {"configuration": {"query": {}}}
+        mock_hook.return_value.insert_job.return_value = job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="`job_id_path` XCom is deprecated"):
+            op.execute(context=MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_copy_success(self, mock_hook):
@@ -1890,6 +1965,7 @@ class TestBigQueryInsertJobOperator:
             },
             "labels": None,
         }
+        mock_hook.return_value.labels = {"airflow-env": "test-env-2"}
         mock_hook.return_value.insert_job.return_value = MagicMock(
             state="DONE", job_id=real_job_id, error_result=False
         )
@@ -1904,6 +1980,57 @@ class TestBigQueryInsertJobOperator:
         )
         op.execute(context=MagicMock())
         assert configuration["labels"] is None
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_inherits_labels_from_connection(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        mock_hook.return_value.labels = {"airflow-env": "test-env-2"}
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op.execute(context=MagicMock())
+
+        assert configuration["labels"]["airflow-env"] == "test-env-2"
+        assert configuration["labels"]["airflow-task"] == "insert_query_job"
+
+    def test_add_job_labels_merges_connection_labels(self):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+            "labels": {"manual-label": "manual-value"},
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        op._add_job_labels(hook=MagicMock(labels={"airflow-env": "test-env-2"}))
+
+        assert configuration["labels"]["airflow-env"] == "test-env-2"
+        assert configuration["labels"]["manual-label"] == "manual-value"
+        assert configuration["labels"]["airflow-task"] == "insert_query_job"
 
     def test_task_label_too_big(self):
         configuration = {
@@ -2311,6 +2438,16 @@ class TestBigQueryIntervalCheckOperator:
 
 
 class TestBigQueryCheckOperator:
+    def test_implicit_legacy_sql_default_warns(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The default value of `use_legacy_sql` is deprecated",
+        ):
+            BigQueryCheckOperator(
+                task_id="check_query",
+                sql="SELECT COUNT(*) FROM Any",
+            )
+
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator._validate_records")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.defer")
@@ -2825,3 +2962,180 @@ class TestBigQueryTableCheckOperator:
             job_id="",
             nowait=False,
         )
+
+
+TEST_ROUTINE_ID = "test-routine-id"
+TEST_ROUTINE_REF = {
+    "projectId": TEST_GCP_PROJECT_ID,
+    "datasetId": TEST_DATASET,
+    "routineId": TEST_ROUTINE_ID,
+}
+TEST_ROUTINE_RESOURCE = {
+    "routineReference": TEST_ROUTINE_REF,
+    "routineType": "SCALAR_FUNCTION",
+    "language": "SQL",
+    "definitionBody": "x + 1",
+    "arguments": [{"name": "x", "dataType": {"typeKind": "INT64"}}],
+    "returnType": {"typeKind": "INT64"},
+}
+
+
+class TestBigQueryCreateRoutineOperator:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_with_resource(self, mock_hook):
+        mock_hook.return_value.create_routine.return_value.to_api_repr.return_value = TEST_ROUTINE_RESOURCE
+        operator = BigQueryCreateRoutineOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            routine_id=TEST_ROUTINE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            routine_resource=dict(TEST_ROUTINE_RESOURCE),
+        )
+        result = operator.execute(context=MagicMock())
+
+        assert result == TEST_ROUTINE_RESOURCE
+        mock_hook.return_value.create_routine.assert_called_once()
+        call_kwargs = mock_hook.return_value.create_routine.call_args.kwargs
+        assert call_kwargs["dataset_id"] == TEST_DATASET
+        assert call_kwargs["routine_id"] == TEST_ROUTINE_ID
+        assert call_kwargs["project_id"] == TEST_GCP_PROJECT_ID
+        assert call_kwargs["if_exists"] == "fail"
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_builds_resource_from_fields(self, mock_hook):
+        mock_hook.return_value.create_routine.return_value.to_api_repr.return_value = {}
+        operator = BigQueryCreateRoutineOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            routine_id=TEST_ROUTINE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            routine_type="SCALAR_FUNCTION",
+            language="SQL",
+            definition_body="x + 1",
+            arguments=[{"name": "x", "dataType": {"typeKind": "INT64"}}],
+            return_type={"typeKind": "INT64"},
+            if_exists="replace",
+        )
+        operator.execute(context=MagicMock())
+
+        call_kwargs = mock_hook.return_value.create_routine.call_args.kwargs
+        routine_resource = call_kwargs["routine"]
+        assert routine_resource["routineType"] == "SCALAR_FUNCTION"
+        assert routine_resource["language"] == "SQL"
+        assert routine_resource["definitionBody"] == "x + 1"
+        assert routine_resource["returnType"] == {"typeKind": "INT64"}
+        assert call_kwargs["if_exists"] == "replace"
+
+    def test_invalid_if_exists(self):
+        with pytest.raises(ValueError, match="must be one of"):
+            BigQueryCreateRoutineOperator(
+                task_id=TASK_ID,
+                dataset_id=TEST_DATASET,
+                routine_id=TEST_ROUTINE_ID,
+                if_exists="bogus",
+            )
+
+
+class TestBigQueryUpdateRoutineOperator:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute(self, mock_hook):
+        mock_hook.return_value.update_routine.return_value.to_api_repr.return_value = TEST_ROUTINE_RESOURCE
+        operator = BigQueryUpdateRoutineOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            routine_id=TEST_ROUTINE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            routine_resource=dict(TEST_ROUTINE_RESOURCE),
+            fields=["description", "definitionBody"],
+        )
+        result = operator.execute(context=MagicMock())
+
+        assert result == TEST_ROUTINE_RESOURCE
+        call_kwargs = mock_hook.return_value.update_routine.call_args.kwargs
+        assert call_kwargs["fields"] == ["description", "definitionBody"]
+        assert call_kwargs["dataset_id"] == TEST_DATASET
+        assert call_kwargs["routine_id"] == TEST_ROUTINE_ID
+
+    def test_empty_fields_raises(self):
+        with pytest.raises(ValueError, match="non-empty sequence"):
+            BigQueryUpdateRoutineOperator(
+                task_id=TASK_ID,
+                dataset_id=TEST_DATASET,
+                routine_id=TEST_ROUTINE_ID,
+                routine_resource=dict(TEST_ROUTINE_RESOURCE),
+                fields=[],
+            )
+
+
+class TestBigQueryDeleteRoutineOperator:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute(self, mock_hook):
+        operator = BigQueryDeleteRoutineOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            routine_id=TEST_ROUTINE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        operator.execute(context=MagicMock())
+
+        call_kwargs = mock_hook.return_value.delete_routine.call_args.kwargs
+        assert call_kwargs["dataset_id"] == TEST_DATASET
+        assert call_kwargs["routine_id"] == TEST_ROUTINE_ID
+        assert call_kwargs["project_id"] == TEST_GCP_PROJECT_ID
+        assert call_kwargs["not_found_ok"] is False
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_ignore_if_missing(self, mock_hook):
+        operator = BigQueryDeleteRoutineOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            routine_id=TEST_ROUTINE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            ignore_if_missing=True,
+        )
+        operator.execute(context=MagicMock())
+        call_kwargs = mock_hook.return_value.delete_routine.call_args.kwargs
+        assert call_kwargs["not_found_ok"] is True
+
+
+class TestBigQueryGetRoutineOperator:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute(self, mock_hook):
+        mock_hook.return_value.get_routine.return_value.to_api_repr.return_value = TEST_ROUTINE_RESOURCE
+        operator = BigQueryGetRoutineOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            routine_id=TEST_ROUTINE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        result = operator.execute(context=MagicMock())
+
+        assert result == TEST_ROUTINE_RESOURCE
+        call_kwargs = mock_hook.return_value.get_routine.call_args.kwargs
+        assert call_kwargs["dataset_id"] == TEST_DATASET
+        assert call_kwargs["routine_id"] == TEST_ROUTINE_ID
+
+
+class TestBigQueryListRoutinesOperator:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute(self, mock_hook):
+        first, second = MagicMock(spec=Routine), MagicMock(spec=Routine)
+        first.to_api_repr.return_value = {"routineReference": {"routineId": "r1"}}
+        second.to_api_repr.return_value = {"routineReference": {"routineId": "r2"}}
+        mock_hook.return_value.list_routines.return_value = [first, second]
+
+        operator = BigQueryListRoutinesOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            max_results=10,
+        )
+        result = operator.execute(context=MagicMock())
+
+        assert result == [
+            {"routineReference": {"routineId": "r1"}},
+            {"routineReference": {"routineId": "r2"}},
+        ]
+        call_kwargs = mock_hook.return_value.list_routines.call_args.kwargs
+        assert call_kwargs["dataset_id"] == TEST_DATASET
+        assert call_kwargs["max_results"] == 10

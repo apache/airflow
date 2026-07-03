@@ -22,15 +22,22 @@ Configuration Reference
 This page contains the list of all the available Airflow configurations that you
 can set in ``airflow.cfg`` file or using environment variables.
 
-Use the same configuration across all the Airflow components. While each component
-does not require all, some configurations need to be same otherwise they would not
-work as expected. A good example for that is :ref:`secret_key<config:api__secret_key>` which
-should be same on the Webserver and Worker to allow Webserver to fetch logs from Worker.
+Different Airflow components may require different configuration parameters, and for
+improved security, you should restrict sensitive configuration to only the components that
+need it. Some configuration values must be shared across specific components to work
+correctly — for example, the JWT signing key (``[api_auth] jwt_secret`` or
+``[api_auth] jwt_private_key_path``) must be consistent across all components that generate
+or validate JWT tokens (Scheduler, API Server). However, other sensitive parameters such as
+database connection strings or Fernet keys should only be provided to components that need them.
 
-The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
-generated using the secret key has a short expiry time though - make sure that time on ALL the machines
-that you run Airflow components on is synchronized (for example using ntpd) otherwise you might get
-"forbidden" errors when the logs are accessed.
+For security-sensitive deployments, pass configuration values via environment variables
+scoped to individual components rather than sharing a single configuration file across all
+components. See :doc:`/security/security_model` for details on which configuration
+parameters should be restricted to which components.
+
+Make sure that time on ALL the machines that you run Airflow components on is synchronized
+(for example using ntpd) otherwise you might get "forbidden" errors when the logs are
+accessed or API calls are made.
 
 .. note::
     For more information see :doc:`/howto/set-config`.

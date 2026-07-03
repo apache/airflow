@@ -89,7 +89,9 @@ class RedshiftDataTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
-            while await self.hook.is_still_running(self.statement_id):
+            while True:
+                if not await self.hook.is_still_running(self.statement_id):
+                    break
                 await asyncio.sleep(self.poll_interval)
 
             is_finished = await self.hook.check_query_is_finished_async(self.statement_id)

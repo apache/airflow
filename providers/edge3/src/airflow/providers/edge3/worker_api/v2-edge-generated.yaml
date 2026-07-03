@@ -65,6 +65,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -959,11 +965,43 @@ components:
           - type: string
           - type: 'null'
           title: Version
+        version_data:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Version Data
       type: object
       required:
       - name
       title: BundleInfo
       description: Schema for telling task which bundle to run with.
+    CallbackDTO:
+      properties:
+        id:
+          type: string
+          title: Id
+        fetch_method:
+          $ref: '#/components/schemas/CallbackFetchMethod'
+        data:
+          additionalProperties: true
+          type: object
+          title: Data
+      type: object
+      required:
+      - id
+      - fetch_method
+      - data
+      title: CallbackDTO
+      description: Schema for Callback with minimal required fields needed for Executors
+        and Task SDK.
+    CallbackFetchMethod:
+      type: string
+      enum:
+      - dag_attribute
+      - import_path
+      title: CallbackFetchMethod
+      description: Methods used to fetch callback at runtime.
     ConcurrencyRequest:
       properties:
         concurrency:
@@ -1000,9 +1038,18 @@ components:
           title: Try Number
           description: The number of attempt to execute this task.
         command:
-          $ref: '#/components/schemas/ExecuteTask'
+          oneOf:
+          - $ref: '#/components/schemas/ExecuteTask'
+          - $ref: '#/components/schemas/ExecuteCallback'
+          - $ref: '#/components/schemas/TestConnection'
           title: Command
           description: Command line to use to execute the job in Airflow
+          discriminator:
+            propertyName: type
+            mapping:
+              ExecuteCallback: '#/components/schemas/ExecuteCallback'
+              ExecuteTask: '#/components/schemas/ExecuteTask'
+              TestConnection: '#/components/schemas/TestConnection'
         concurrency_slots:
           type: integer
           title: Concurrency Slots
@@ -1035,6 +1082,38 @@ components:
       - offline maintenance
       title: EdgeWorkerState
       description: Status of a Edge Worker instance.
+    ExecuteCallback:
+      properties:
+        token:
+          type: string
+          title: Token
+        dag_rel_path:
+          type: string
+          format: path
+          title: Dag Rel Path
+        bundle_info:
+          $ref: '#/components/schemas/BundleInfo'
+        log_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Log Path
+        callback:
+          $ref: '#/components/schemas/CallbackDTO'
+        type:
+          type: string
+          const: ExecuteCallback
+          title: Type
+          default: ExecuteCallback
+      type: object
+      required:
+      - token
+      - dag_rel_path
+      - bundle_info
+      - log_path
+      - callback
+      title: ExecuteCallback
+      description: Execute the given Callback.
     ExecuteTask:
       properties:
         token:
@@ -1204,10 +1283,6 @@ components:
           type: string
           format: uuid
           title: Id
-        dag_version_id:
-          type: string
-          format: uuid
-          title: Dag Version Id
         task_id:
           type: string
           title: Task Id
@@ -1220,45 +1295,55 @@ components:
         try_number:
           type: integer
           title: Try Number
+        dag_version_id:
+          type: string
+          format: uuid
+          title: Dag Version Id
         map_index:
           type: integer
           title: Map Index
           default: -1
-        pool_slots:
-          type: integer
-          title: Pool Slots
-        queue:
-          type: string
-          title: Queue
-        priority_weight:
-          type: integer
-          title: Priority Weight
-        parent_context_carrier:
+        hostname:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - type: string
           - type: 'null'
-          title: Parent Context Carrier
+          title: Hostname
         context_carrier:
           anyOf:
           - additionalProperties: true
             type: object
           - type: 'null'
           title: Context Carrier
+        queue:
+          type: string
+          title: Queue
+          default: default
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        priority_weight:
+          type: integer
+          title: Priority Weight
       type: object
       required:
       - id
-      - dag_version_id
       - task_id
       - dag_id
       - run_id
       - try_number
+      - dag_version_id
       - pool_slots
-      - queue
       - priority_weight
       title: TaskInstanceDTO
-      description: Schema for TaskInstance with minimal required fields needed for
-        Executors and Task SDK.
+      description: 'The versioned execution API ``TaskInstance`` schema plus executor-only
+        fields.
+
+
+        The base class is the single source of truth for the fields a worker needs;
+
+        the fields added here are executor concerns (queueing order and pool
+
+        accounting) the worker never reads.'
     TaskInstanceState:
       type: string
       enum:
@@ -1274,11 +1359,45 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
 
         Note that None is also allowed, so always use this in a type hint with Optional.'
+    TestConnection:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_test_id:
+          type: string
+          format: uuid
+          title: Connection Test Id
+        connection_id:
+          type: string
+          title: Connection Id
+        timeout:
+          type: integer
+          title: Timeout
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        type:
+          type: string
+          const: TestConnection
+          title: Type
+          default: TestConnection
+      type: object
+      required:
+      - token
+      - connection_test_id
+      - connection_id
+      - timeout
+      title: TestConnection
+      description: Execute a connection test on a worker.
     ValidationError:
       properties:
         loc:
@@ -1321,8 +1440,11 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-          description: Team name for multi-team setups. If not provided, worker operates
-            without team isolation.
+          description: 'Team name for the experimental ``[core] multi_team`` feature.
+            This is a UI/REST API-level hint; the Execution API does not currently
+            enforce team-based access boundaries -- see ``airflow-core/docs/security/workload.rst``
+            (section: ''No team-level isolation in Execution API''). Workers without
+            team_name behave as default-team workers.'
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
@@ -1336,6 +1458,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1344,6 +1469,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string
@@ -1431,8 +1557,11 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-          description: Team name for multi-team setups. If not provided, worker operates
-            without team isolation.
+          description: 'Team name for the experimental ``[core] multi_team`` feature.
+            This is a UI/REST API-level hint; the Execution API does not currently
+            enforce team-based access boundaries -- see ``airflow-core/docs/security/workload.rst``
+            (section: ''No team-level isolation in Execution API''). Workers without
+            team_name behave as default-team workers.'
         free_concurrency:
           type: integer
           title: Free Concurrency
@@ -1449,6 +1578,14 @@ components:
           format: date-time
           title: Last Update
           description: Time of the last update of the worker.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - last_update
@@ -1481,6 +1618,14 @@ components:
           title: Concurrency
           description: Desired concurrency for the worker set by an administrator.
             None means no remote override; the worker uses its startup value.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - state
@@ -1503,8 +1648,11 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-          description: Team name for multi-team setups. If not provided, worker operates
-            without team isolation.
+          description: 'Team name for the experimental ``[core] multi_team`` feature.
+            This is a UI/REST API-level hint; the Execution API does not currently
+            enforce team-based access boundaries -- see ``airflow-core/docs/security/workload.rst``
+            (section: ''No team-level isolation in Execution API''). Workers without
+            team_name behave as default-team workers.'
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
@@ -1518,6 +1666,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1526,6 +1677,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string

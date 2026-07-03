@@ -59,6 +59,8 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
     PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
@@ -352,7 +354,7 @@ class BackfillOperations(BaseOperations):
         """Create a backfill."""
         try:
             self.response = self.client.post(
-                "backfills", data=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills", json=backfill.model_dump(mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -362,7 +364,7 @@ class BackfillOperations(BaseOperations):
         """Create a dry run backfill."""
         try:
             self.response = self.client.post(
-                "backfills/dry_run", data=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills/dry_run", json=backfill.model_dump(mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -448,7 +450,7 @@ class ConnectionsOperations(BaseOperations):
         """Create a connection."""
         try:
             self.response = self.client.post(
-                "connections", json=connection.model_dump(mode="json", exclude_none=True)
+                "connections", json=connection.model_dump(mode="json", by_alias=True, exclude_none=True)
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -457,7 +459,9 @@ class ConnectionsOperations(BaseOperations):
     def bulk(self, connections: BulkBodyConnectionBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple connections."""
         try:
-            self.response = self.client.patch("connections", json=connections.model_dump(mode="json"))
+            self.response = self.client.patch(
+                "connections", json=connections.model_dump(mode="json", by_alias=True)
+            )
             return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -485,7 +489,8 @@ class ConnectionsOperations(BaseOperations):
         """Update a connection."""
         try:
             self.response = self.client.patch(
-                f"connections/{connection.connection_id}", json=connection.model_dump(mode="json")
+                f"connections/{connection.connection_id}",
+                json=connection.model_dump(mode="json", by_alias=True),
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -497,7 +502,9 @@ class ConnectionsOperations(BaseOperations):
     ) -> ConnectionTestResponse | ServerResponseError:
         """Test a connection."""
         try:
-            self.response = self.client.post("connections/test", json=connection.model_dump(mode="json"))
+            self.response = self.client.post(
+                "connections/test", json=connection.model_dump(mode="json", by_alias=True)
+            )
             return ConnectionTestResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -507,7 +514,7 @@ class DagsOperations(BaseOperations):
     """Dags operations."""
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
-        """Get a DAG."""
+        """Get a Dag."""
         try:
             self.response = self.client.get(f"dags/{dag_id}")
             return DAGResponse.model_validate_json(self.response.content)
@@ -604,8 +611,8 @@ class DagRunOperations(BaseOperations):
 
     def list(
         self,
-        state: str,
-        limit: int,
+        state: str | None = None,
+        limit: int = 100,
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
@@ -614,7 +621,7 @@ class DagRunOperations(BaseOperations):
         List dag runs (at most `limit` results).
 
         Args:
-            state: Filter dag runs by state
+            state: Filter dag runs by state (optional; no filter applied when omitted)
             start_date: Filter dag runs by start date (optional)
             end_date: Filter dag runs by end date (optional)
             limit: Limit the number of results returned
@@ -624,10 +631,9 @@ class DagRunOperations(BaseOperations):
         if not dag_id:
             dag_id = "~"
 
-        params: dict[str, Any] = {
-            "state": str(state),
-            "limit": limit,
-        }
+        params: dict[str, Any] = {"limit": limit}
+        if state is not None:
+            params["state"] = str(state)
         if start_date is not None:
             params["start_date"] = start_date.isoformat()
         if end_date is not None:
@@ -644,10 +650,20 @@ class JobsOperations(BaseOperations):
     """Job operations."""
 
     def list(
-        self, job_type: str, hostname: str, is_alive: bool
+        self,
+        job_type: str | None = None,
+        hostname: str | None = None,
+        is_alive: bool | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params = {"job_type": job_type, "hostname": hostname, "is_alive": is_alive}
+        params: dict[str, Any] = {}
+        if job_type:
+            params["job_type"] = job_type
+        if hostname:
+            params["hostname"] = hostname
+        if is_alive is not None:
+            params["is_alive"] = is_alive
+
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
 
@@ -891,5 +907,21 @@ class XComOperations(BaseOperations):
                 params=params,
             )
             return key
+        except ServerResponseError as e:
+            raise e
+
+
+class PluginsOperations(BaseOperations):
+    """Plugins operations."""
+
+    def list(self) -> PluginCollectionResponse | ServerResponseError:
+        """List all plugins from the API server."""
+        return super().execute_list(path="plugins", data_model=PluginCollectionResponse)
+
+    def list_import_errors(self) -> PluginImportErrorCollectionResponse | ServerResponseError:
+        """List plugin import errors from the API server."""
+        try:
+            self.response = self.client.get("plugins/importErrors")
+            return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e

@@ -128,8 +128,24 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_not_called()
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+            ],
+            any_order=True,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_delete_objects_with_ignore_error(self, mock_hook):
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2], ignore_error=True
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.list.assert_not_called()
+        mock_hook.return_value.delete.assert_has_calls(
+            calls=[
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=True),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=True),
             ],
             any_order=True,
         )
@@ -151,8 +167,8 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix=PREFIX)
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2], ignore_error=False),
             ],
             any_order=True,
         )
@@ -166,10 +182,10 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix="")
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[3]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[3], ignore_error=False),
             ],
             any_order=True,
         )
@@ -974,6 +990,44 @@ class TestGCSTimeSpanFileTransformOperator:
                     op.execute(context=context)
 
                 other_future.cancel.assert_called()
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_execute_rejects_path_traversal_in_blob_name(self, mock_hook, mock_subprocess, tmp_path):
+        """A blob name that resolves outside the temp input dir must be refused.
+
+        GCS allows ``..`` segments in object names. Without a containment check,
+        ``temp_input_dir_path / blob_name`` could write outside the worker's temp
+        directory (CWE-22) — exploitable when the source bucket is shared with
+        untrusted writers.
+        """
+        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
+        timespan_end = timespan_start + timedelta(hours=1)
+        context = dict(
+            logical_date=timespan_start,
+            data_interval_start=timespan_start,
+            data_interval_end=timespan_end,
+            ti=mock.Mock(),
+            task=mock.MagicMock(),
+        )
+
+        mock_hook.return_value.list_by_timespan.return_value = ["../escape.py"]
+        mock_client, mock_bucket, mock_blob = self._setup_gcs_client_chain(mock_hook)
+
+        op = GCSTimeSpanFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_prefix=None,
+            source_gcp_conn_id="",
+            destination_bucket=TEST_BUCKET + "_dest",
+            destination_prefix=None,
+            destination_gcp_conn_id="",
+            transform_script="script.py",
+        )
+
+        with pytest.raises(ValueError, match="escapes the temp directory"):
+            op.execute(context=context)
+        mock_blob.download_to_filename.assert_not_called()
 
 
 class TestGCSDeleteBucketOperator:

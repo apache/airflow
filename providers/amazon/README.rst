@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.24.0``
+Release: ``9.31.0``
 
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.24.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.31.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``apache-airflow-providers-common-compat``  ``>=1.14.3``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.41.0``
@@ -63,6 +63,7 @@ PIP package                                 Version required
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
 ``redshift_connector``                      ``>=2.1.3``
+``redshift_connector``                      ``>=2.1.13; python_version >= "3.14"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``PyAthena``                                ``>=3.10.0``
@@ -71,8 +72,8 @@ PIP package                                 Version required
 ``marshmallow``                             ``>=3``
 ==========================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -89,13 +90,10 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 `apache-airflow-providers-apache-hive <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive>`_            ``apache.hive``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_              ``common.sql``
 `apache-airflow-providers-exasol <https://airflow.apache.org/docs/apache-airflow-providers-exasol>`_                      ``exasol``
 `apache-airflow-providers-ftp <https://airflow.apache.org/docs/apache-airflow-providers-ftp>`_                            ``ftp``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
 `apache-airflow-providers-imap <https://airflow.apache.org/docs/apache-airflow-providers-imap>`_                          ``imap``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_    ``microsoft.azure``
 `apache-airflow-providers-mongo <https://airflow.apache.org/docs/apache-airflow-providers-mongo>`_                        ``mongo``
@@ -110,7 +108,7 @@ Optional dependencies
 ====================  ============================================================================================================================================================
 Extra                 Dependencies
 ====================  ============================================================================================================================================================
-``aiobotocore``       ``aiobotocore[boto3]>=2.26.0``
+``aiobotocore``       ``aiobotocore>=3.0.0``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
 ``s3fs``              ``s3fs>=2023.10.0``
 ``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
@@ -132,4 +130,4 @@ Extra                 Dependencies
 ====================  ============================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.24.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.31.0/changelog.html>`_.

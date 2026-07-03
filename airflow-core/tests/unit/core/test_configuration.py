@@ -1855,6 +1855,7 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("database", "sql_alchemy_conn_async"),
         ("core", "fernet_key"),
+        ("core", "sql_alchemy_conn"),  # NOTE: Added for 3.2.1
         ("api_auth", "jwt_secret"),
         ("api", "secret_key"),
         ("secrets", "backend_kwargs"),

@@ -62,7 +62,7 @@ apache-airflow-providers-common-compat package
 Common Compatibility Provider - providing compatibility code for previous Airflow versions
 
 
-Release: 1.14.2
+Release: 1.15.0
 
 Provider package
 ----------------
@@ -90,8 +90,8 @@ PIP package         Version required
 ``asgiref``         ``>=3.11.1; python_version >= "3.14"``
 ==================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -115,5 +115,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-compat 1.14.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.14.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.14.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.14.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-compat 1.14.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.14.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.14.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.14.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-compat 1.15.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.15.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.15.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.15.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-compat 1.15.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.15.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.15.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_compat-1.15.0-py3-none-any.whl.sha512>`__)

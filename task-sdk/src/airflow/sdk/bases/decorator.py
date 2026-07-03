@@ -30,6 +30,7 @@ import typing_extensions
 
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk.bases.operator import (
+    BASEOPERATOR_ARGS_EXPECTED_TYPES,
     BaseOperator,
     coerce_resources,
     coerce_timedelta,
@@ -467,6 +468,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     _airflow_is_task_decorator: ClassVar[bool] = True
     is_setup: bool = False
     is_teardown: bool = False
+    returns_dag_result: bool = False
     on_failure_fail_dagrun: bool = False
 
     # This is set in __attrs_post_init__ by update_wrapper. Provided here for type hints.
@@ -498,6 +500,13 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if "self" in self.function_signature.parameters:
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault("task_id", self.function.__name__)
+        for arg_name, expected_type in BASEOPERATOR_ARGS_EXPECTED_TYPES.items():
+            if arg_name in self.kwargs:
+                value = self.kwargs[arg_name]
+                if value is not None and not isinstance(value, expected_type):
+                    raise TypeError(
+                        f"Expected {arg_name!r} to be {expected_type}, got {type(value).__name__}: {value!r}"
+                    )
         update_wrapper(self, self.function)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
@@ -516,6 +525,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        op.returns_dag_result = self.returns_dag_result
         op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
         # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
         if self.function.__doc__ and not any(op_doc_attrs):
@@ -677,6 +687,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             expand_input_attr="op_kwargs_expand_input",
             start_trigger_args=self.operator_class.start_trigger_args,
             start_from_trigger=self.operator_class.start_from_trigger,
+            returns_dag_result=self.returns_dag_result,
         )
         return XComArg(operator=operator)
 
@@ -826,3 +837,7 @@ def task_decorator_factory(
         )
 
     return cast("TaskDecorator", decorator_factory)
+
+
+def is_decorated_task(f: Callable) -> typing_extensions.TypeIs[_TaskDecorator]:
+    return getattr(f, "_airflow_is_task_decorator", False)

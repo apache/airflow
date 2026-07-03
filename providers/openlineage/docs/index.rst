@@ -83,7 +83,7 @@ apache-airflow-providers-openlineage package
 At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 
-Release: 2.13.0
+Release: 2.18.1
 
 Provider package
 ----------------
@@ -108,31 +108,11 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.0``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``attrs``                                   ``>=22.2``
-``openlineage-integration-common``          ``>=1.41.0``
-``openlineage-python``                      ``>=1.41.0``
+``openlineage-integration-common``          ``>=1.47.0``
+``openlineage-python``                      ``>=1.47.0``
 ==========================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-openlineage[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -140,5 +120,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-openlineage 2.13.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.13.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.13.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.13.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-openlineage 2.13.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.13.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.13.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.13.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-openlineage 2.18.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.18.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.18.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.18.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openlineage 2.18.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.18.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.18.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-2.18.1-py3-none-any.whl.sha512>`__)

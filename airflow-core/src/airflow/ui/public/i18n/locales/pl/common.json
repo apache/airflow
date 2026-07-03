@@ -22,18 +22,23 @@
   "assetEvent_many": "Zdarzeń zasobów",
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
+  "assetInactive": {
+    "tooltip": "Zasób nadrzędny został deaktywowany; harmonogram wstrzymuje ocenę partycji do czasu jego ponownej aktywacji."
+  },
   "backfill_few": "Wypełnienia wsteczne",
   "backfill_many": "Wypełnień wstecznych",
   "backfill_one": "Wypełnienie wsteczne",
   "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
+    "deadlines": "Terminy",
     "jobs": "Zadania",
     "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
   },
   "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
   "collapseDetailsPanel": "Zwiń panel szczegółów",
+  "consumingAsset": "Zabierający zasób",
   "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
   "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
   "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
@@ -70,6 +75,11 @@
     "dagVersions": "Wersje Daga",
     "dataIntervalEnd": "Koniec interwału danych",
     "dataIntervalStart": "Początek interwału danych",
+    "durationStats": {
+      "mean": "Średnia",
+      "mode": "Dominanta"
+    },
+    "expectedDuration": "Oczekiwany Czas Trwania",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
     "mappedPartitionKey": "Zmapowany klucz partycji",
     "partitionKey": "Klucz partycji",
@@ -115,6 +125,12 @@
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Nie masz uprawnień do wykonania tej akcji.",
+      "title": "Dostęp zabroniony"
+    }
+  },
   "expand": {
     "collapse": "Zwiń",
     "expand": "Rozwiń",
@@ -137,9 +153,12 @@
     "logicalDateTo": "Data logiczna do",
     "runAfterFrom": "Uruchom po (od)",
     "runAfterTo": "Uruchom po (do)",
+    "searchAsset": "Szukaj zasobu",
     "selectDateRange": "Wybierz zakres dat",
     "startTime": "Czas rozpoczęcia"
   },
+  "generateToken": "Wygeneruj token",
+  "key": "Klucz",
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -173,6 +192,7 @@
     "placeholder": "Dodaj notatkę...",
     "taskInstance": "Notatka instancji zadania"
   },
+  "overallStatus": "Stan ogólny",
   "partitionedDagRun_few": "Partycjonowane wykonania Dagów",
   "partitionedDagRun_many": "Partycjonowanych wykonań Dagów",
   "partitionedDagRun_one": "Partycjonowane wykonanie Daga",
@@ -187,6 +207,7 @@
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
+    "asset_materialization": "Materializacja zasobu",
     "asset_triggered": "Uruchomiony przez zasób",
     "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
@@ -199,6 +220,12 @@
     },
     "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Dopasuj w dowolnym miejscu wartości (wyszukiwanie podciągu). Wolniejsze w dużych wdrożeniach, ponieważ nie może użyć domyślnego indeksu B-drzewa. Szczegóły w sekcji dokumentacji o niestandardowych indeksach metadanych.",
+      "title": "Dopasuj w dowolnym miejscu"
+    }
+  },
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
@@ -207,6 +234,7 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "selected": "Wybrano",
   "showDetailsPanel": "Pokaż panel szczegółów",
   "signedInAs": "Zalogowano jako",
   "source": {
@@ -221,6 +249,7 @@
   "startDate": "Data rozpoczęcia",
   "state": "Stan",
   "states": {
+    "awaiting_input": "Oczekuje na dane wejściowe",
     "deferred": "Odłożone",
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
@@ -255,19 +284,29 @@
       "any": "Dowolne"
     },
     "tagPlaceholder": "Filtruj według etykiety",
-    "to": "Do"
+    "to": "Do",
+    "updatedAt": "Zaktualizowano"
   },
   "task": {
+    "dependsOnPast": "Zależy od przeszłych uruchomień",
     "documentation": "Dokumentacja zadania",
     "lastInstance": "Ostatnia instancja zadania",
     "operator": "Operator",
-    "triggerRule": "Reguła zależności"
+    "retries": "Ponowne próby",
+    "triggerRule": "Reguła zależności",
+    "waitForDownstream": "Czekaj na zadania podrzędne"
   },
   "task_few": "Zadania",
   "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
-  "taskGroup": "Grupa zadań",
+  "taskGroup": {
+    "documentation": "Dokumentacja grupy zadań"
+  },
+  "taskGroup_few": "Grupy zadań",
+  "taskGroup_many": "Grup zadań",
+  "taskGroup_one": "Grupa zadań",
+  "taskGroup_other": "Grupy zadań",
   "taskId": "Identyfikator Zadania",
   "taskInstance": {
     "dagVersion": "Wersja Daga",
@@ -281,6 +320,7 @@
     "priorityWeight": "Waga priorytetu",
     "queue": "Kolejka",
     "queuedWhen": "Zakolejkowano o",
+    "renderedMapIndex": "Wyrenderowany indeks mapowania",
     "scheduledWhen": "Zaplanowano o",
     "triggerer": {
       "assigned": "Przypisany wyzwalacz",
@@ -315,11 +355,25 @@
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Nie udało się wykonać żądania grupowego wyczyszczenia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie wyczyszczono {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "title": "Wysłano żądanie grupowego wyczyszczenia {{resourceName}}"
+      }
+    },
     "bulkDelete": {
-      "error": "Nie udało się wykonać żądania masowego usunięcia {{resourceName}}",
+      "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
         "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
-        "title": "Wysłano żądanie masowego usunięcia {{resourceName}}"
+        "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Nie udało się wykonać żądania grupowej aktualizacji {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaktualizowano {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "title": "Wysłano żądanie grupowej aktualizacji {{resourceName}}"
       }
     },
     "create": {
@@ -351,10 +405,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "Token API",
+    "cliToken": "Token CLI",
+    "errorDescription": "Podczas generowania tokenu wystąpił błąd. Spróbuj ponownie.",
+    "errorTitle": "Nie udało się wygenerować tokenu",
+    "generate": "Wygeneruj",
+    "selectType": "Wybierz typ tokenu do wygenerowania.",
+    "title": "Wygeneruj token",
+    "tokenExpiresIn": "Ten token wygasa za {{duration}}.",
+    "tokenGenerated": "Twój token został wygenerowany.",
+    "tokenShownOnce": "Ten token zostanie wyświetlony tylko raz. Skopiuj go teraz."
+  },
   "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Profil",
+  "validation": {
+    "mustBeAtLeast": "Musi wynosić co najmniej {{min}}.",
+    "mustBeValidNumber": "Musi być prawidłową liczbą."
+  },
+  "value": "Wartość",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",

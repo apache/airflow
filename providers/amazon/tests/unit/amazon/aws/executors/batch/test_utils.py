@@ -152,7 +152,7 @@ class TestBatchJobCollection:
         """Test adding a job to the collection."""
         self.collection.add_job(
             job_id=self.job_id1,
-            airflow_task_key=self.key1,
+            airflow_workload_key=self.key1,
             airflow_cmd=self.cmd1,
             queue=self.queue1,
             exec_config=self.config1,
@@ -170,7 +170,7 @@ class TestBatchJobCollection:
         """Test adding multiple jobs to the collection."""
         self.collection.add_job(
             job_id=self.job_id1,
-            airflow_task_key=self.key1,
+            airflow_workload_key=self.key1,
             airflow_cmd=self.cmd1,
             queue=self.queue1,
             exec_config=self.config1,
@@ -178,7 +178,7 @@ class TestBatchJobCollection:
         )
         self.collection.add_job(
             job_id=self.job_id2,
-            airflow_task_key=self.key2,
+            airflow_workload_key=self.key2,
             airflow_cmd=self.cmd2,
             queue=self.queue2,
             exec_config=self.config2,
@@ -194,7 +194,7 @@ class TestBatchJobCollection:
         """Test removing a job from the collection by its ID."""
         self.collection.add_job(
             job_id=self.job_id1,
-            airflow_task_key=self.key1,
+            airflow_workload_key=self.key1,
             airflow_cmd=self.cmd1,
             queue=self.queue1,
             exec_config=self.config1,
@@ -222,7 +222,7 @@ class TestBatchJobCollection:
         attempt_number = 5
         self.collection.add_job(
             job_id=self.job_id1,
-            airflow_task_key=self.key1,
+            airflow_workload_key=self.key1,
             airflow_cmd=self.cmd1,
             queue=self.queue1,
             exec_config=self.config1,
@@ -240,7 +240,7 @@ class TestBatchJobCollection:
         initial_attempt = 1
         self.collection.add_job(
             job_id=self.job_id1,
-            airflow_task_key=self.key1,
+            airflow_workload_key=self.key1,
             airflow_cmd=self.cmd1,
             queue=self.queue1,
             exec_config=self.config1,
@@ -264,7 +264,7 @@ class TestBatchJobCollection:
         """Test getting all job IDs from a collection with jobs."""
         self.collection.add_job(
             job_id=self.job_id1,
-            airflow_task_key=self.key1,
+            airflow_workload_key=self.key1,
             airflow_cmd=self.cmd1,
             queue=self.queue1,
             exec_config=self.config1,
@@ -272,7 +272,7 @@ class TestBatchJobCollection:
         )
         self.collection.add_job(
             job_id=self.job_id2,
-            airflow_task_key=self.key2,
+            airflow_workload_key=self.key2,
             airflow_cmd=self.cmd2,
             queue=self.queue2,
             exec_config=self.config2,
@@ -288,7 +288,7 @@ class TestBatchJobCollection:
         assert len(self.collection) == 0
         self.collection.add_job(
             job_id=self.job_id1,
-            airflow_task_key=self.key1,
+            airflow_workload_key=self.key1,
             airflow_cmd=self.cmd1,
             queue=self.queue1,
             exec_config=self.config1,
@@ -297,7 +297,7 @@ class TestBatchJobCollection:
         assert len(self.collection) == 1
         self.collection.add_job(
             job_id=self.job_id2,
-            airflow_task_key=self.key2,
+            airflow_workload_key=self.key2,
             airflow_cmd=self.cmd2,
             queue=self.queue2,
             exec_config=self.config2,

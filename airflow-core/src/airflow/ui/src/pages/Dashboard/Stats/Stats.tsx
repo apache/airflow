@@ -21,11 +21,11 @@ import { useTranslation } from "react-i18next";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
 import { useDashboardServiceDagStats } from "openapi/queries";
-import { NeedsReviewButton } from "src/components/NeedsReviewButton";
+import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
-import { DAGImportErrors } from "./DAGImportErrors";
+import { DagImportErrors } from "./DagImportErrors";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 export const Stats = () => {
@@ -52,7 +52,7 @@ export const Stats = () => {
       </Flex>
 
       <Flex flexWrap="wrap" gap={4}>
-        <NeedsReviewButton />
+        <NeedsReviewButtonWithModal />
 
         <StatsCard
           colorScheme="failed"
@@ -64,7 +64,7 @@ export const Stats = () => {
           state="failed"
         />
 
-        <DAGImportErrors />
+        <DagImportErrors />
 
         <PluginImportErrors />
 

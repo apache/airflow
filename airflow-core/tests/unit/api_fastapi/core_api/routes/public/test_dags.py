@@ -137,7 +137,17 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://scheduled_asset"}]},
+            asset_expression={
+                "any": [
+                    {
+                        "asset": {
+                            "uri": "test://scheduled_asset",
+                            "name": "scheduled_asset",
+                            "group": "test-group",
+                        }
+                    }
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -156,7 +166,9 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://asset1"}]},
+            asset_expression={
+                "any": [{"asset": {"uri": "test://asset1", "name": "test_asset_1", "group": "test-group"}}]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -174,7 +186,11 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "s3://bucket/dataset"}]},
+            asset_expression={
+                "any": [
+                    {"asset": {"uri": "s3://bucket/dataset", "name": "dataset_asset", "group": "test-group"}}
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -388,6 +404,9 @@ class TestGetDags(TestDagEndpoint):
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_id_pattern": "1|2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
+            ({"dag_id_prefix_pattern": "test_dag1"}, 1, [DAG1_ID]),
+            ({"dag_id_prefix_pattern": "test_dag1|test_dag2"}, 2, [DAG1_ID, DAG2_ID]),
+            ({"dag_display_name_prefix_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
             (
                 {"bundle_name": "dag_maker"},
@@ -788,7 +807,67 @@ class TestPatchDags(TestDagEndpoint):
             assert {dag["dag_id"] for dag in body["dags"]} == set(expected_ids)
             paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
             assert paused_dag_ids == set(expected_paused_ids)
-            check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
+            check_last_log(session, dag_id=None, event="patch_dags", logical_date=None)
+
+    @pytest.mark.parametrize(
+        ("tags_to_add", "query_params", "body", "expected_ids", "expected_paused_ids"),
+        [
+            (
+                [(DAG1_ID, "tag_1"), (DAG2_ID, "tag_1")],
+                {"dag_id_pattern": "~", "tags": ["tag_1"], "tags_match_mode": "any"},
+                {"is_paused": True},
+                [DAG1_ID, DAG2_ID],
+                [DAG1_ID, DAG2_ID],
+            ),
+            (
+                [(DAG1_ID, "tag_1"), (DAG2_ID, "tag_2")],
+                {"dag_id_pattern": "~", "tags": ["tag_1", "tag_2"], "tags_match_mode": "any"},
+                {"is_paused": True},
+                [DAG1_ID, DAG2_ID],
+                [DAG1_ID, DAG2_ID],
+            ),
+            (
+                [(DAG1_ID, "tag_1"), (DAG1_ID, "tag_3"), (DAG2_ID, "tag_1"), (DAG2_ID, "tag_3")],
+                {"dag_id_pattern": "~", "tags": ["tag_1", "tag_3"], "tags_match_mode": "all"},
+                {"is_paused": True},
+                [DAG1_ID, DAG2_ID],
+                [DAG1_ID, DAG2_ID],
+            ),
+        ],
+    )
+    def test_patch_dags_by_tags(
+        self,
+        test_client,
+        tags_to_add,
+        query_params,
+        body,
+        expected_ids,
+        expected_paused_ids,
+        session,
+    ):
+        for dag_id, tag_name in tags_to_add:
+            session.add(DagTag(dag_id=dag_id, name=tag_name))
+        session.commit()
+
+        response = test_client.patch("/dags", json=body, params=query_params)
+        assert response.status_code == 200
+        resp_body = response.json()
+        assert {dag["dag_id"] for dag in resp_body["dags"]} == set(expected_ids)
+        paused_dag_ids = {dag["dag_id"] for dag in resp_body["dags"] if dag["is_paused"]}
+        assert paused_dag_ids == set(expected_paused_ids)
+
+    def test_patch_dags_updates_all_beyond_limit(self, test_client, session):
+        response = test_client.patch(
+            "/dags",
+            json={"is_paused": True},
+            params={"dag_id_pattern": "~", "limit": 1},
+        )
+        assert response.status_code == 200
+        assert len(response.json()["dags"]) == 1
+        paused_dags = session.scalars(
+            select(DagModel.dag_id).where(DagModel.is_paused, ~DagModel.is_stale)
+        ).all()
+        assert set(paused_dags) == {DAG1_ID, DAG2_ID}
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
@@ -956,6 +1035,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_favorite": False,
             "is_paused": False,
             "is_paused_upon_creation": None,
@@ -993,11 +1073,13 @@ class TestDagDetails(TestDagEndpoint):
             },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
+            "rerun_with_latest_version": None,
             "start_date": start_date,
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
         }
@@ -1055,6 +1137,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_favorite": False,
             "is_stale": False,
             "is_paused": False,
@@ -1092,12 +1175,14 @@ class TestDagDetails(TestDagEndpoint):
             },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
+            "rerun_with_latest_version": None,
             "start_date": start_date,
             "tags": [],
             "template_search_path": None,
             "timetable_summary": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timezone": UTC_JSON_REPR,
         }
         assert res_json == expected
@@ -1133,6 +1218,19 @@ class TestDagDetails(TestDagEndpoint):
         assert "is_favorite" in body
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
+
+    def test_dag_details_serves_legacy_asset_expression_as_null(self, session, test_client):
+        """A pre-3.0 dataset-format ``asset_expression`` that the typed model cannot describe is
+        served as ``null`` instead of 500ing the endpoint (handled by ``MaybeAssetExpression``)."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        # The 2.x dataset scheduler stored bare-string leaves; the 3.0 column rename kept them verbatim.
+        dag_model.asset_expression = {"any": ["s3://legacy-a", "s3://legacy-b"]}
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] is None
 
     def test_dag_details_includes_active_runs_count(self, session, test_client):
         """Test that DAG details include the active_runs_count field."""
@@ -1235,6 +1333,7 @@ class TestGetDag(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_backfillable": False,
             "is_paused": False,
             "is_stale": False,
             "last_expired": None,
@@ -1252,6 +1351,7 @@ class TestGetDag(TestDagEndpoint):
             "tags": tags,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_periodic": False,
             "timetable_summary": None,
         }
         assert res_json == expected

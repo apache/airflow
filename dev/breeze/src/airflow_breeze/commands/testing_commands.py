@@ -89,6 +89,7 @@ from airflow_breeze.global_constants import (
     ALL_TEST_TYPE,
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
+    TESTCONTAINERS_IMAGES_BY_PROVIDER,
     GroupOfTests,
     all_selective_core_test_types,
     providers_test_type,
@@ -105,6 +106,7 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
     remove_docker_networks,
 )
+from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
@@ -117,6 +119,7 @@ from airflow_breeze.utils.run_tests import (
     are_all_test_paths_excluded,
     file_name_from_test_type,
     generate_args_for_pytest,
+    is_provider_selected_in_test_types,
     run_docker_compose_tests,
 )
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
@@ -276,7 +279,7 @@ def _run_test(
         )
         if result.returncode != 0:
             notify_on_unhealthy_backend_container(
-                project_name=project_name, backend=shell_params.backend, output=output
+                project_name=compose_project_name, backend=shell_params.backend, output=output
             )
         if os.environ.get("CI") == "true" and result.returncode != 0:
             get_console(output=output).print(f"[error]Test failed with {result.returncode}.[/]")
@@ -308,9 +311,9 @@ def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
     """Return compose project name and project name."""
     project_name = file_name_from_test_type(shell_params.test_type)
     if shell_params.test_type == ALL_TEST_TYPE:
-        compose_project_name = "airflow-test"
+        compose_project_name = "breeze-airflow-test"
     else:
-        compose_project_name = f"airflow-test-{project_name}"
+        compose_project_name = f"breeze-airflow-test-{project_name}"
     return compose_project_name, project_name
 
 
@@ -429,6 +432,28 @@ def pull_images_for_docker_compose(shell_params: ShellParams):
         "pull",
     ]
     run_command(pull_cmd, output=None, check=False, env=env)
+    pull_testcontainers_images(shell_params)
+
+
+def pull_testcontainers_images(shell_params: ShellParams):
+    """Pre-pull images that specific provider tests start directly via testcontainers.
+
+    These bypass docker compose, so ``docker compose pull`` does not warm them. Only in CI, and only
+    when the owning provider's tests are actually in the run, pull the image on the shared host daemon
+    before the timed run -- keeping the (cold-cache, ARM-slow) pull out of the per-test setup timeout.
+    Locally this is a no-op: testcontainers pulls on demand as usual.
+    """
+    if not is_ci_environment() or shell_params.test_group != GroupOfTests.PROVIDERS:
+        return
+    test_types = shell_params.parallel_test_types_list or (
+        [shell_params.test_type] if shell_params.test_type else []
+    )
+    env = shell_params.env_variables_for_docker_commands
+    for provider_id, images in TESTCONTAINERS_IMAGES_BY_PROVIDER.items():
+        if not is_provider_selected_in_test_types(provider_id, test_types):
+            continue
+        for image in images:
+            run_command(["docker", "pull", image], output=None, check=False, env=env)
 
 
 def run_tests_in_parallel(
@@ -1413,7 +1438,16 @@ option_e2e_test_mode = click.option(
     show_default=True,
     envvar="E2E_TEST_MODE",
     type=click.Choice(
-        ["basic", "remote_log", "remote_log_elasticsearch", "xcom_object_storage"],
+        [
+            "basic",
+            "remote_log",
+            "remote_log_elasticsearch",
+            "remote_log_opensearch",
+            "xcom_object_storage",
+            "event_driven",
+            "java_sdk",
+            "go_sdk",
+        ],
         case_sensitive=False,
     ),
 )
@@ -1454,7 +1488,7 @@ def airflow_e2e_tests(
 
     console_print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
     # If the image is used from docker hub, test container will pull that part of test.
-    skip_image_check = True if image_name.startswith("apache/airflow") else False
+    skip_image_check = bool(image_name and image_name.startswith("apache/airflow"))
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,

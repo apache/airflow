@@ -23,7 +23,7 @@ from copy import deepcopy
 from unittest import mock
 
 import pytest
-from kubernetes.client import models as k8s
+from kubernetes.client import Configuration, models as k8s
 from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
@@ -346,3 +346,37 @@ class TestExecutorConfigType:
         # show that the pickled (bad) pod is now a good pod, and same as the copy made
         # before making it bad
         assert result["pod_override"].to_dict() == copy_of_test_pod.to_dict()
+
+    def test_ensure_pod_is_valid_after_unpickling_is_picklable_in_cluster(self, monkeypatch):
+        """The repaired pod must not capture the unpicklable in-cluster Configuration.
+
+        In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
+        ``refresh_api_key_hook`` is an unpicklable local closure. When the repair branch re-deserializes
+        the pod it must round-trip through a fresh ``Configuration`` so it stays picklable onto the
+        KubernetesExecutor queue.
+        """
+
+        def _make_unpicklable_hook():
+            def _refresh_api_key(config):
+                return None
+
+            return _refresh_api_key
+
+        dirty = Configuration()
+        dirty.refresh_api_key_hook = _make_unpicklable_hook()
+        monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
+
+        container = k8s.V1Container(name="base")
+        pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[container]))
+        # Force the repair (re-deserialize) branch the way real version-skew does: drop a protected
+        # attr so ``to_dict()`` raises and ``ensure_pod_is_valid_after_unpickling`` reserializes.
+        del container._tty
+        with pytest.raises(AttributeError):
+            pod.to_dict()
+
+        fixed_pod = ensure_pod_is_valid_after_unpickling(pod)
+
+        assert fixed_pod is not None
+        pickle.dumps(fixed_pod)
+        assert fixed_pod.local_vars_configuration.refresh_api_key_hook is None
+        assert fixed_pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None

@@ -27,6 +27,7 @@ from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils import timezone
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.apache.hive import DEFAULT_DATE, MockSubProcess, TestHiveEnvironment
 
 
@@ -125,6 +126,7 @@ class TestHivePresto(TestHiveEnvironment):
             "airflow.ctx.dag_owner=airflow",
             "-hiveconf",
             "airflow.ctx.dag_email=",
+            *(["-hiveconf", "airflow.ctx.team_name="] if AIRFLOW_V_3_3_PLUS else []),
             "-hiveconf",
             "mapreduce.job.queuename=airflow",
             "-hiveconf",
@@ -169,6 +171,7 @@ class TestHivePresto(TestHiveEnvironment):
             "airflow.ctx.dag_owner=airflow",
             "-hiveconf",
             "airflow.ctx.dag_email=",
+            *(["-hiveconf", "airflow.ctx.team_name="] if AIRFLOW_V_3_3_PLUS else []),
             "-hiveconf",
             "mapreduce.job.queuename=default",
             "-hiveconf",
@@ -227,6 +230,7 @@ class TestHivePresto(TestHiveEnvironment):
             "airflow.ctx.dag_owner=",
             "-hiveconf",
             "airflow.ctx.dag_email=",
+            *(["-hiveconf", "airflow.ctx.team_name="] if AIRFLOW_V_3_3_PLUS else []),
             "-hiveconf",
             "mapreduce.job.queuename=airflow",
             "-hiveconf",
@@ -268,6 +272,7 @@ class TestHivePresto(TestHiveEnvironment):
             "airflow.ctx.dag_owner=airflow",
             "-hiveconf",
             "airflow.ctx.dag_email=",
+            *(["-hiveconf", "airflow.ctx.team_name="] if AIRFLOW_V_3_3_PLUS else []),
             "-hiveconf",
             "mapreduce.job.queuename=airflow",
             "-hiveconf",

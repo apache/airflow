@@ -25,11 +25,13 @@
   "backfill_other": "Rattrapages",
   "browse": {
     "auditLog": "Journal d'audit",
+    "jobs": "Travaux",
     "requiredActions": "Actions requises",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Réduire tous les extra json",
   "collapseDetailsPanel": "Replier le panneau des détails",
+  "consumingAsset": "Asset consommateur",
   "createdAssetEvent_many": "Événements d'Asset créés",
   "createdAssetEvent_one": "Événement d'Asset créé",
   "createdAssetEvent_other": "Événements d'Asset créés",
@@ -64,7 +66,14 @@
     "dagVersions": "Version(s) du Dag",
     "dataIntervalEnd": "Fin de l'intervalle de données",
     "dataIntervalStart": "Début de l'intervalle de données",
+    "durationStats": {
+      "mean": "Moyenne",
+      "mode": "Mode"
+    },
+    "expectedDuration": "Durée Attendue",
     "lastSchedulingDecision": "Dernière décision de planification",
+    "mappedPartitionKey": "Clé de partition mappée",
+    "partitionKey": "Clé de partition",
     "queuedAt": "Mis en file à",
     "runAfter": "Exécuté après",
     "runType": "Type d'exécution",
@@ -79,6 +88,11 @@
   "dagWarnings": "Avertissements/erreurs du Dag",
   "defaultToGraphView": "Vue par défaut : graphe",
   "defaultToGridView": "Vue par défaut : grille",
+  "delete": "Supprimer",
+  "diff": "Différences",
+  "diffCompareWith": "Comparer avec",
+  "diffExit": "Quitter les différences",
+  "diffSelectVersionToCompare": "Sélectionnez une version à comparer",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
@@ -91,6 +105,7 @@
     "tooltip": "Appuyez sur {{hotkey}} pour télécharger les journaux"
   },
   "duration": "Durée",
+  "edit": "Modifier",
   "endDate": "Date de fin",
   "error": {
     "back": "Retour",
@@ -99,6 +114,12 @@
     "invalidUrl": "Page introuvable. Veuillez vérifier l'URL et réessayer.",
     "notFound": "Page introuvable",
     "title": "Erreur"
+  },
+  "errors": {
+    "forbidden": {
+      "description": "Vous n'avez pas l'autorisation d'effectuer cette action.",
+      "title": "Accès refusé"
+    }
   },
   "expand": {
     "collapse": "Réduire",
@@ -115,22 +136,31 @@
   },
   "filter": "Filtre",
   "filters": {
+    "durationFrom": "Durée à partir de",
+    "durationTo": "Durée jusqu'à",
+    "endTime": "Heure de fin",
     "logicalDateFrom": "Date logique de début",
     "logicalDateTo": "Date logique de fin",
     "runAfterFrom": "Exécuté après - de",
-    "runAfterTo": "Exécuté après - à"
+    "runAfterTo": "Exécuté après - à",
+    "searchAsset": "Rechercher un Asset",
+    "selectDateRange": "Sélectionner une plage de dates",
+    "startTime": "Heure de début"
   },
+  "generateToken": "Générer un jeton",
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
   "logoutConfirmation": "Vous êtes sur le point de vous déconnecter de l'application.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Ajouter",
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "delete": {
       "button": "Supprimer",
       "confirmation": "Êtes-vous sûr de vouloir supprimer {{resourceName}} ? Cette action est irréversible."
-    }
+    },
+    "save": "Enregistrer"
   },
   "nav": {
     "admin": "Admin",
@@ -151,19 +181,19 @@
     "placeholder": "Ajouter une note...",
     "taskInstance": "Note de Task Instance"
   },
-  "pools": {
-    "deferred": "Différé",
-    "open": "Libre",
-    "pools_many": "Pools",
-    "pools_one": "Pool",
-    "pools_other": "Pools",
-    "queued": "En file",
-    "running": "En cours",
-    "scheduled": "Planifié"
+  "partitionedDagRun_many": "Exécutions de Dag partitionnées",
+  "partitionedDagRun_one": "Exécution de Dag partitionnée",
+  "partitionedDagRun_other": "Exécutions de Dag partitionnées",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Événements d'Asset reçus"
   },
+  "pendingDagRun_many": "{{count}} exécutions de Dag en attente",
+  "pendingDagRun_one": "{{count}} exécution de Dag en attente",
+  "pendingDagRun_other": "{{count}} exécutions de Dag en attente",
   "reset": "Réinitialiser",
   "runId": "ID d'exécution",
   "runTypes": {
+    "asset_materialization": "Matérialisation d'Asset",
     "asset_triggered": "Déclenché par Asset",
     "backfill": "Rattrapage",
     "manual": "Manuel",
@@ -176,6 +206,12 @@
     },
     "tooltip": "Appuyez sur {{hotkey}} pour faire défiler vers le {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Correspond n'importe où dans la valeur (recherche par sous-chaîne). Plus lent sur les grands déploiements car cela ne peut pas utiliser l'index B-tree par défaut. Consultez la section de la documentation sur les index de métadonnées personnalisés pour plus de détails.",
+      "title": "Correspondance n'importe où"
+    }
+  },
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -184,7 +220,9 @@
     "users": "Utilisateurs"
   },
   "selectLanguage": "Choisir la langue",
+  "selected": "Sélectionné",
   "showDetailsPanel": "Afficher le panneau des détails",
+  "signedInAs": "Connecté en tant que",
   "source": {
     "hide": "Masquer la source",
     "hotkey": "s",
@@ -200,6 +238,7 @@
     "failed": "Échoué",
     "no_status": "Aucun statut",
     "none": "Aucun statut",
+    "open": "Ouvert",
     "planned": "Planifié",
     "queued": "En file",
     "removed": "Supprimé",
@@ -239,7 +278,9 @@
   "task_many": "Tâches",
   "task_one": "Tâche",
   "task_other": "Tâches",
-  "taskGroup": "Groupe de tâches",
+  "taskGroup_many": "Groupes de tâches",
+  "taskGroup_one": "Groupe de tâches",
+  "taskGroup_other": "Groupes de tâches",
   "taskId": "ID de la tâche",
   "taskInstance": {
     "dagVersion": "Version du Dag",
@@ -253,6 +294,7 @@
     "priorityWeight": "Poids de la priorité",
     "queue": "File",
     "queuedWhen": "Mis en file à",
+    "renderedMapIndex": "Map Index rendu",
     "scheduledWhen": "Planifié à",
     "triggerer": {
       "assigned": "Déclencheur assigné",
@@ -286,11 +328,25 @@
     "utc": "UTC (Temps universel coordonné)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Échec de la réinitialisation en masse de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} ont été réinitialisés avec succès. Clés : {{keys}}",
+        "title": "Requête de réinitialisation en masse de {{resourceName}} soumise"
+      }
+    },
     "bulkDelete": {
       "error": "Échec de la suppression en masse de {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} ont été supprimés avec succès. Clés : {{keys}}",
         "title": "Requête de suppression en masse de {{resourceName}} soumise"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Échec de la mise à jour en masse de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} ont été mis à jour avec succès. Clés : {{keys}}",
+        "title": "Requête de mise à jour en masse de {{resourceName}} soumise"
       }
     },
     "create": {
@@ -322,10 +378,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "Jeton d'API",
+    "cliToken": "Jeton CLI",
+    "errorDescription": "Une erreur est survenue lors de la génération du jeton. Veuillez réessayer.",
+    "errorTitle": "Échec de la génération du jeton",
+    "generate": "Générer",
+    "selectType": "Sélectionnez le type de jeton à générer.",
+    "title": "Générer un jeton",
+    "tokenExpiresIn": "Ce jeton expire dans {{duration}}.",
+    "tokenGenerated": "Votre jeton a été généré.",
+    "tokenShownOnce": "Ce jeton ne sera affiché qu'une seule fois. Copiez-le maintenant."
+  },
   "total": "Total {{state}}",
   "triggered": "Déclenché",
   "tryNumber": "Numéro de l'essai",
   "user": "Utilisateur",
+  "validation": {
+    "mustBeAtLeast": "Doit être au moins {{min}}.",
+    "mustBeValidNumber": "Doit être un nombre valide."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Appuyez sur {{hotkey}} pour activer/désactiver le retour à la ligne",

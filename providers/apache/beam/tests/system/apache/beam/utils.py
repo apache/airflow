@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Utils for Apache Beam operator example DAG's
+Example Utils for Apache Beam operator example Dag's
 """
 
 from __future__ import annotations

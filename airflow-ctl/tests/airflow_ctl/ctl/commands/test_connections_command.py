@@ -20,6 +20,7 @@ import json
 from unittest import mock
 from unittest.mock import patch
 
+import httpx
 import pytest
 
 from airflowctl.api.client import Client, ClientKind
@@ -178,6 +179,40 @@ class TestCliConnectionCommands:
             port=None,
             extra=None,
             description="",
+        )
+
+    def test_import_preserves_schema(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "postgres",
+                "host": "test_host",
+                "schema": "warehouse",
+            }
+        }
+
+        json_path.write_text(json.dumps(connection_file))
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == "/api/v2/connections"
+            request_body = json.loads(request.content.decode())
+            entity = request_body["actions"][0]["entities"][0]
+            assert entity["schema"] == "warehouse"
+            assert "schema_" not in entity
+            return httpx.Response(200, json=self.bulk_response_success.model_dump())
+
+        api_client = Client(
+            base_url="test://server",
+            transport=httpx.MockTransport(handle_request),
+            token="",
+            kind=ClientKind.CLI,
+        )
+
+        connection_command.import_(
+            self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+            api_client=api_client,
         )
 
     @pytest.mark.parametrize(

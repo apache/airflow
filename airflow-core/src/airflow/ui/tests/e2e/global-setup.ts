@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chromium, firefox, webkit, type FullConfig } from "@playwright/test";
+import { chromium, firefox, request, webkit, type FullConfig } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
 import { AUTH_FILE, testConfig } from "../../playwright.config";
 import { LoginPage } from "./pages/LoginPage";
+import { waitForDagReady } from "./utils/api/dag-runs";
 
 const browsers = { chromium, firefox, webkit };
 
@@ -30,7 +31,7 @@ const browsers = { chromium, firefox, webkit };
  */
 async function globalSetup(config: FullConfig) {
   const [firstProject] = config.projects as [FullConfig["projects"][number]];
-  const baseURL = firstProject.use.baseURL ?? "http://localhost:28080";
+  const baseURL = firstProject.use.baseURL ?? testConfig.connection.baseUrl;
   const { password, username } = testConfig.credentials;
   const browserName = firstProject.name as keyof typeof browsers;
   const browserType = browsers[browserName];
@@ -52,6 +53,25 @@ async function globalSetup(config: FullConfig) {
     await context.storageState({ path: AUTH_FILE });
   } finally {
     await browser.close();
+  }
+
+  // Pre-warm: wait for all Dags used by E2E tests to be parsed before workers start.
+  const apiContext = await request.newContext({
+    baseURL,
+    storageState: AUTH_FILE,
+  });
+
+  try {
+    await Promise.all(
+      [
+        testConfig.testDag.id,
+        testConfig.testDag.hitlId,
+        testConfig.xcomDag.id,
+        "example_python_operator",
+      ].map((dagId) => waitForDagReady(apiContext, dagId, { timeout: 300_000 })),
+    );
+  } finally {
+    await apiContext.dispose();
   }
 }
 

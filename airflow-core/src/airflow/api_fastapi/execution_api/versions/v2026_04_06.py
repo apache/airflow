@@ -169,7 +169,10 @@ class AddNoteField(VersionChange):
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(DagRun).field("note").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRun).field("note").didnt_exist,
+        schema(TriggerDAGRunPayload).field("note").didnt_exist,
+    )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
     def remove_note_field(response: ResponseInfo) -> None:  # type: ignore[misc]
@@ -178,18 +181,17 @@ class AddNoteField(VersionChange):
             response.body["dag_run"].pop("note", None)
 
 
-class AddBundleVersionField(VersionChange):
-    """Add the `bundle_version` field to DagRun model."""
+class AddTaskInstanceStartDateField(VersionChange):
+    """Add `start_date` field to TIRunContext."""
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(DagRun).field("bundle_version").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("start_date").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_bundle_version_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Remove the `bundle_version` field from the dag_run object when converting to the previous version."""
-        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
-            response.body["dag_run"].pop("bundle_version", None)
+    def remove_start_date_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove start_date field for older API versions."""
+        response.body.pop("start_date", None)
 
 
 class AddDagEndpoint(VersionChange):
@@ -198,3 +200,13 @@ class AddDagEndpoint(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}", ["GET"]).didnt_exist,)
+
+
+class AddRunAfterField(VersionChange):
+    """Add run_after parameter to TriggerDAGRunPayload Model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TriggerDAGRunPayload).field("run_after").didnt_exist,
+    )

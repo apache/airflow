@@ -145,6 +145,29 @@ class TestSqsHook:
         immediate_receive = hook.get_conn().receive_message(QueueUrl=self.queue_url, WaitTimeSeconds=0)
         assert "Messages" not in immediate_receive or len(immediate_receive.get("Messages", [])) == 0
 
+    def test_create_queue_with_int_attributes(self, hook):
+        """Test that int attribute values are internally cast to strings and queue creation succeeds."""
+        queue_name = "test-queue-int-casting"
+        # These are the int values that the casting logic (fixed in SqsHook) should handle.
+        attributes = {
+            "DelaySeconds": 10,
+            "MaximumMessageSize": 262144,
+        }
+
+        response = hook.create_queue(queue_name=queue_name, attributes=attributes)
+
+        assert "QueueUrl" in response
+        assert queue_name in response["QueueUrl"]
+
+        # Verify that the attributes were correctly cast and stored as strings in the SQS service (moto).
+        queue_attrs = hook.get_conn().get_queue_attributes(
+            QueueUrl=response["QueueUrl"], AttributeNames=["DelaySeconds", "MaximumMessageSize"]
+        )
+
+        # moto/boto3 returns values as strings; if these assertions pass, the casting logic is verified.
+        assert queue_attrs["Attributes"]["DelaySeconds"] == "10"
+        assert queue_attrs["Attributes"]["MaximumMessageSize"] == "262144"
+
 
 @pytest.mark.asyncio
 class TestAsyncSqsHook:

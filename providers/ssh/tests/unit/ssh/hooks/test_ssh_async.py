@@ -170,3 +170,65 @@ class TestSSHHookAsync:
         with mock.patch.object(hook, "run_command", return_value=(0, "test output", "")):
             output = await hook.run_command_output("echo test")
             assert output == "test output"
+
+    @pytest.mark.asyncio
+    async def test_get_tunnel(self):
+        """Test that get_tunnel returns an AsyncSSHTunnel."""
+        from airflow.providers.ssh.tunnel import AsyncSSHTunnel
+
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+
+        mock_ssh_conn = mock.MagicMock()
+
+        with mock.patch.object(hook, "_get_conn", new_callable=mock.AsyncMock, return_value=mock_ssh_conn):
+            tunnel = await hook.get_tunnel(remote_port=5432)
+            assert isinstance(tunnel, AsyncSSHTunnel)
+
+    @pytest.mark.asyncio
+    async def test_get_tunnel_async_context_manager(self):
+        """Test AsyncSSHTunnel as async context manager with local_bind_port."""
+
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+
+        mock_listener = mock.MagicMock()
+        mock_listener.get_port.return_value = 15432
+        mock_listener.close = mock.MagicMock()
+        mock_listener.wait_closed = mock.AsyncMock()
+
+        mock_ssh_conn = mock.MagicMock()
+        mock_ssh_conn.forward_local_port = mock.AsyncMock(return_value=mock_listener)
+        mock_ssh_conn.close = mock.MagicMock()
+        mock_ssh_conn.wait_closed = mock.AsyncMock()
+
+        with mock.patch.object(hook, "_get_conn", new_callable=mock.AsyncMock, return_value=mock_ssh_conn):
+            async with await hook.get_tunnel(remote_port=5432) as tunnel:
+                assert tunnel.local_bind_port == 15432
+                mock_ssh_conn.forward_local_port.assert_called_once_with("localhost", 0, "localhost", 5432)
+
+        # Verify cleanup
+        mock_listener.close.assert_called_once()
+        mock_listener.wait_closed.assert_called_once()
+        mock_ssh_conn.close.assert_called_once()
+        mock_ssh_conn.wait_closed.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_tunnel_with_local_port(self):
+        """Test AsyncSSHTunnel with explicit local port."""
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+
+        mock_listener = mock.MagicMock()
+        mock_listener.get_port.return_value = 19999
+        mock_listener.close = mock.MagicMock()
+        mock_listener.wait_closed = mock.AsyncMock()
+
+        mock_ssh_conn = mock.MagicMock()
+        mock_ssh_conn.forward_local_port = mock.AsyncMock(return_value=mock_listener)
+        mock_ssh_conn.close = mock.MagicMock()
+        mock_ssh_conn.wait_closed = mock.AsyncMock()
+
+        with mock.patch.object(hook, "_get_conn", new_callable=mock.AsyncMock, return_value=mock_ssh_conn):
+            async with await hook.get_tunnel(remote_port=5432, local_port=19999) as tunnel:
+                assert tunnel.local_bind_port == 19999
+                mock_ssh_conn.forward_local_port.assert_called_once_with(
+                    "localhost", 19999, "localhost", 5432
+                )

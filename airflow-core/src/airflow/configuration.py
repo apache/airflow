@@ -279,6 +279,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         ("logging", "gunicorn_logging_level"): _available_logging_levels,
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
         ("api", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
+        ("logging", "dag_processor_log_target"): ["file", "stdout"],
     }
 
     upgraded_values: dict[tuple[str, str], str]

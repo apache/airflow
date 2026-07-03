@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from fsspec.implementations.local import LocalFileSystem
 
 from airflow.sdk._shared.module_loading import import_string
-from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
@@ -54,7 +54,7 @@ def _register_filesystems() -> Mapping[
     Callable[[str | None, Properties], AbstractFileSystem] | Callable[[str | None], AbstractFileSystem],
 ]:
     scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
-    with Stats.timer("airflow.io.load_filesystems") as timer:
+    with stats.timer("airflow.io.load_filesystems") as timer:
         manager = ProvidersManagerTaskRuntime()
         for fs_module_name in manager.filesystem_module_names:
             fs_module = import_string(fs_module_name)
