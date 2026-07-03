@@ -179,13 +179,11 @@ class SQLAlchemyErrorHandler(BaseErrorHandler[SQLAlchemyError]):
     def exception_handler(self, request: Request, exc: SQLAlchemyError):
         exception_id = get_random_string()
         # SQLAlchemyError may not have statement/orig attributes; guard access
-        statement = getattr(exc, "statement", "hidden")
-        orig_error = getattr(exc, "orig", "hidden")
         log.exception("Error with id %s, statement: %s", exception_id, statement, exc_info=exc)
         if conf.get("api", "expose_stacktrace") == "True":
             message = f"Error with id {exception_id}, statement: {statement}"
-            statement = str(statement)
-            orig_error = str(orig_error)
+            statement = getattr(exc, "statement", None)
+            orig_error = getattr(exc, "orig", None)
         else:
             message = (
                 "Serious error when handling your request. Check logs for more details - "
