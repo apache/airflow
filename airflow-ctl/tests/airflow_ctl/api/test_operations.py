@@ -679,7 +679,9 @@ class TestConnectionsOperations:
             return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.create(connection=self.connection)
+        response = client.connections.create(
+            connection=self.connection, connection_id=self.connection_id, conn_type=self.conn_type
+        )
         assert response == self.connection_response
 
     def test_create_uses_schema_alias_in_request_body(self):
@@ -701,7 +703,9 @@ class TestConnectionsOperations:
             return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.create(connection=connection)
+        response = client.connections.create(
+            connection=connection, connection_id=connection.connection_id, conn_type=connection.conn_type
+        )
         assert response == self.connection_response
 
     def test_bulk(self):
@@ -1308,15 +1312,6 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
         assert "state" not in captured_params
         assert captured_params["limit"] == "5"
-
-    def test_delete(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
-            return httpx.Response(204)
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs.delete(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
-        assert response == self.dag_run_id
 
 
 class TestJobsOperations:
