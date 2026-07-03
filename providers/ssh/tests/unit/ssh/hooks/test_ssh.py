@@ -69,6 +69,8 @@ TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
 TEST_PKEY_ECDSA = paramiko.ECDSAKey.generate()
 TEST_PRIVATE_KEY_ECDSA = generate_key_string(pkey=TEST_PKEY_ECDSA)
+TEST_HOST_KEY_ECDSA = TEST_PKEY_ECDSA.get_base64()
+TEST_HOST_KEY_ECDSA_TYPED = f"{TEST_PKEY_ECDSA.get_name()} {TEST_HOST_KEY_ECDSA}"
 
 TEST_TIMEOUT = 20
 TEST_CONN_TIMEOUT = 30
@@ -573,6 +575,78 @@ class TestSSHHook:
             assert ssh_client.return_value.get_host_keys.return_value.add.call_args == mock.call(
                 hook.remote_host, "ssh-rsa", hook.host_key
             )
+
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_dss_host_key_in_connection_extra_raises(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_dss_host_key",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps({"host_key": "ssh-dss AAAAB3NzaC1kc3MAAA==", "no_host_key_check": False}),
+        )
+        with pytest.raises(ValueError, match="DSA/DSS host keys"):
+            SSHHook(ssh_conn_id="ssh_dss_host_key")
+
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_unsupported_host_key_algorithm_raises(self, mock_get_connection):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_fake_alg",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps(
+                {"host_key": "ssh-fake AAAAB3NzaC1yc2EAAAADAQABAA==", "no_host_key_check": False}
+            ),
+        )
+        with pytest.raises(ValueError, match=r"Unsupported SSH host key algorithm 'ssh-fake'"):
+            SSHHook(ssh_conn_id="ssh_fake_alg")
+
+    @pytest.mark.parametrize(
+        ("host_key_value", "expected_key_type"),
+        [
+            (f"ssh-rsa {TEST_HOST_KEY}", paramiko.RSAKey),
+            (TEST_HOST_KEY_ECDSA_TYPED, paramiko.ECDSAKey),
+            # Bare base64 remains RSA for backward compatibility.
+            (TEST_HOST_KEY, paramiko.RSAKey),
+        ],
+    )
+    @mock.patch.object(SSHHook, "get_connection")
+    def test_supported_host_key_types_are_parsed(
+        self, mock_get_connection, host_key_value, expected_key_type
+    ):
+        mock_get_connection.return_value = Connection(
+            conn_id="ssh_typed_host_key",
+            conn_type="ssh",
+            host="remote_host",
+            login="user",
+            extra=json.dumps({"host_key": host_key_value, "no_host_key_check": False}),
+        )
+        hook = SSHHook(ssh_conn_id="ssh_typed_host_key")
+        assert isinstance(hook.host_key, expected_key_type)
+
+    @pytest.mark.parametrize(
+        ("host_key_value", "expected_key_class", "expected_data"),
+        [
+            (f"ssh-rsa {TEST_HOST_KEY}", paramiko.RSAKey, TEST_HOST_KEY),
+            (TEST_HOST_KEY_ECDSA_TYPED, paramiko.ECDSAKey, TEST_HOST_KEY_ECDSA),
+            (
+                "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTY=",
+                paramiko.ECDSAKey,
+                "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTY=",
+            ),
+            (
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJustAPlaceholderBase64Value",
+                paramiko.Ed25519Key,
+                "AAAAC3NzaC1lZDI1NTE5AAAAIJustAPlaceholderBase64Value",
+            ),
+            (TEST_HOST_KEY, paramiko.RSAKey, TEST_HOST_KEY),
+        ],
+    )
+    def test_parse_host_key_selects_constructor(self, host_key_value, expected_key_class, expected_data):
+        key_class, key_data = SSHHook._parse_host_key(host_key_value)
+        assert key_class is expected_key_class
+        assert key_data == expected_data
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_false(self, ssh_client):

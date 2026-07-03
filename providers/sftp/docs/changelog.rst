@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS keys are no longer supported (#54079)``
+
+  This provider requires paramiko 4.0+, which dropped DSS/DSA keys; see `paramiko changelog <https://www.paramiko.org/changelog.html>`__. To migrate: create a non-DSA key pair (Ed25519 or RSA are typical, e.g. ``ssh-keygen -t ed25519``), add the public key to the SFTP server, then update your Airflow SFTP (or shared SSH) connection so ``key_file`` or the ``private_key`` extra uses the new key, and ensure any ``host_key`` extra is not in ``ssh-dss`` form. Host key pinning should use ``ssh-rsa``, ``ssh-ed25519``, or ``ecdsa-sha2-nistp*`` tokens as in ``ssh-keyscan`` output. If you are not ready to migrate keys, stay on a provider release that still pins ``paramiko<4`` until you can switch.
+
 5.8.2
 .....
 
