@@ -37,7 +37,7 @@ export const TriggeredRuns = ({ dagRuns }: Props) => {
 
   return dagRuns.length === 1 ? (
     <Flex gap={1}>
-      <Text>{`${translate("triggered")} ${translate("dagRun_one")}`}: </Text>
+      <Text flexShrink={0}>{`${translate("triggered")} ${translate("dagRun_one")}`}: </Text>
       <StateBadge state={dagRuns[0]?.state as DagRunState} />
       <RouterLink to={`/dags/${dagRuns[0]?.dag_id}/runs/${dagRuns[0]?.run_id}`}>
         {dagRuns[0]?.dag_id}
