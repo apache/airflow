@@ -419,7 +419,7 @@ class KiotaRequestAdapterHook(BaseHook):
         transport = cast("AioHttpTransport", credential._client._pipeline._transport)
 
         if not transport._has_been_opened and transport.session is None:
-            return True
+            return False
         if transport.session is not None:
             return transport.session.closed
         return False
