@@ -1311,11 +1311,8 @@ class TestRetryPolicySerialization:
 
     def test_mapped_task_retry_policy_serializes_as_flag(self):
         """A mapped task's retry_policy must serialize as has_retry_policy, not the object."""
-        import json
-
-        from airflow.sdk import DAG, task
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
         from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
-        from airflow.serialization.serialized_objects import DagSerialization
 
         policy = ExceptionRetryPolicy(
             rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="bad data")],
@@ -1343,9 +1340,8 @@ class TestRetryPolicySerialization:
         per-process memory address, so every re-parse produced a different serialized DAG
         (and a spurious new DagVersion).
         """
-        from airflow.sdk import DAG, task
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
         from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
-        from airflow.serialization.serialized_objects import DagSerialization
 
         def build():
             policy = ExceptionRetryPolicy(
@@ -1360,6 +1356,39 @@ class TestRetryPolicySerialization:
                 mapped.expand(x=[1, 2, 3])
             return dag
 
+        assert DagSerialization.serialize_dag(build()) == DagSerialization.serialize_dag(build())
+
+    def test_dag_default_args_retry_policy_serializes_as_flag(self):
+        """A retry_policy in DAG default_args must not leak the object into serialized default_args.
+
+        Regression test: serialize_dag serializes the raw default_args dict, so a RetryPolicy
+        there hit the str(obj) fallback (memory address -> new DagVersion every parse) even
+        though each task's has_retry_policy was set correctly.
+        """
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+
+        def build():
+            policy = ExceptionRetryPolicy(
+                rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL)],
+            )
+            with DAG(
+                dag_id="test_default_args_retry_policy",
+                start_date=DEFAULT_DATE,
+                default_args={"retry_policy": policy},
+            ) as dag:
+
+                @task
+                def plain():
+                    return 1
+
+                plain()
+            return dag
+
+        serialized = DagSerialization.serialize_dag(build())
+        # The RetryPolicy object must never be embedded in serialized default_args.
+        assert "ExceptionRetryPolicy object at 0x" not in json.dumps(serialized)
+        # Deterministic across independent parses (no embedded memory address).
         assert DagSerialization.serialize_dag(build()) == DagSerialization.serialize_dag(build())
 
 

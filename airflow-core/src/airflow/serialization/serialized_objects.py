@@ -133,6 +133,12 @@ log = logging.getLogger(__name__)
 _CALLBACK_TYPES = ("execute", "failure", "success", "retry", "skipped")
 _OPERATOR_CALLBACK_FIELDS = frozenset(f"on_{x}_callback" for x in _CALLBACK_TYPES)
 _HAS_CALLBACK_FIELDS = frozenset(f"has_on_{x}_callback" for x in _CALLBACK_TYPES)
+# Fields whose value must never be serialized: the object has no serializer, so it would
+# fall back to str(obj) and leak a non-deterministic memory address (a new DagVersion every
+# parse). Only a boolean ``has_<field>`` flag is stored; the live object is recovered by
+# re-parsing the DAG source on the worker. Applies both to a mapped operator's
+# ``partial_kwargs`` and to a DAG's ``default_args``.
+_HAS_FLAG_FIELDS = _OPERATOR_CALLBACK_FIELDS | frozenset({"retry_policy"})
 
 
 def _get_registered_priority_weight_strategy(
@@ -974,16 +980,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if cls._is_excluded(v, k, op):
                     continue
 
-                if k == "retry_policy":
-                    # A RetryPolicy has no serializer, so serializing it falls back to
-                    # str(obj) -- which embeds the object's memory address and makes the
-                    # serialized DAG non-deterministic (a new DagVersion every parse). Mirror
-                    # the non-mapped path and keep only a has_retry_policy flag; the worker
-                    # re-parses the DAG source for the live policy.
-                    if bool(v):
-                        serialized_op["partial_kwargs"]["has_retry_policy"] = True
-                    continue
-                if k in _OPERATOR_CALLBACK_FIELDS:
+                if k in _HAS_FLAG_FIELDS:
+                    # These have no serializer; storing the object would str(obj) it and leak
+                    # a non-deterministic memory address. Keep only a has_<field> flag (e.g.
+                    # has_retry_policy, has_on_failure_callback); the live object is recovered
+                    # by re-parsing the DAG source on the worker.
                     if bool(v):
                         serialized_op["partial_kwargs"][f"has_{k}"] = True
                     continue
@@ -1737,13 +1738,13 @@ class DagSerialization(BaseSerialization):
             #   Ideally default_args goes through same logic as fields of SerializedBaseOperator.
             if serialized_dag.get("default_args", {}):
                 default_args_dict = serialized_dag["default_args"][Encoding.VAR]
-                callbacks_to_remove = []
+                flags_to_remove = []
                 for k, v in list(default_args_dict.items()):
-                    if k in _OPERATOR_CALLBACK_FIELDS:
+                    if k in _HAS_FLAG_FIELDS:
                         if bool(v):
                             default_args_dict[f"has_{k}"] = True
-                        callbacks_to_remove.append(k)
-                for k in callbacks_to_remove:
+                        flags_to_remove.append(k)
+                for k in flags_to_remove:
                     del default_args_dict[k]
 
             return serialized_dag
