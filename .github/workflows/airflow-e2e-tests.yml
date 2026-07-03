@@ -127,6 +127,8 @@ jobs:
             java-sdk/.gradle/caches
             java-sdk/.gradle/wrapper
             java-sdk/.gradle/jdks
+            !java-sdk/.gradle/caches/*.lock
+            !java-sdk/.gradle/caches/journal-1
           key: java-sdk-gradle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('java-sdk/**/*.gradle*', 'java-sdk/**/gradle.properties', 'java-sdk/gradle/wrapper/gradle-wrapper.properties', 'java-sdk/gradle/libs.versions.toml') }}  # yamllint disable-line rule:line-length
           restore-keys: |
             java-sdk-gradle-${{ runner.os }}-${{ runner.arch }}-
@@ -145,6 +147,8 @@ jobs:
             java-sdk/.gradle/caches
             java-sdk/.gradle/wrapper
             java-sdk/.gradle/jdks
+            !java-sdk/.gradle/caches/*.lock
+            !java-sdk/.gradle/caches/journal-1
           key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
       - name: Zip logs
         run: |

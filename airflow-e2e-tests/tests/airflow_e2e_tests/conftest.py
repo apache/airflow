@@ -284,7 +284,11 @@ def _run_java_sdk_gradle_container(workdir, *gradle_argv, capture_output=False):
 
     * --user keeps build outputs owned by the current user (not root).
     * --network=host shares one loopback across concurrent builds so Gradle's
-      cross-process lock handover (a UDP ping to the lock owner) works.
+      cross-process lock handover works: a UDP ping to the lock owner's port
+      (org.gradle.cache.internal.locklistener.FileLockCommunicator.pingOwner,
+      see https://github.com/gradle/gradle/blob/v8.14.4/platforms/core-execution/persistent-cache/src/main/java/org/gradle/cache/internal/locklistener/FileLockCommunicator.java)
+      would fail across isolated container network namespaces, as reported in
+      https://github.com/gradle/gradle/issues/851.
     * --no-daemon avoids a background JVM that would outlive the container.
     * GRADLE_USER_HOME persists the Gradle distribution and dependency cache
       in java-sdk/.gradle/ so subsequent runs skip straight to compilation.
@@ -329,10 +333,10 @@ def _build_example_bundle(workdir):
         completed = _run_java_sdk_gradle_container(workdir, "bundle", capture_output=True)
     except subprocess.CalledProcessError as e:
         console.print(f"[red]Bundle build failed in {workdir}:")
-        print(e.stdout, e.stderr, sep="\n")
+        console.print(e.stdout, e.stderr, sep="\n", markup=False, soft_wrap=True)
         raise
     console.print(f"[yellow]Bundle build finished in {workdir}:")
-    print(completed.stdout)
+    console.print(completed.stdout, completed.stderr, sep="\n", markup=False, soft_wrap=True)
 
 
 def _setup_java_sdk_integration(dot_env_file, tmp_dir):
@@ -362,11 +366,12 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     console.print(
         "[yellow]Building Java SDK and Scala Spark example bundles concurrently (eclipse-temurin:17-jdk)..."
     )
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        bundle_builds = [
-            pool.submit(_build_example_bundle, "/repo/java-sdk/example"),
-            pool.submit(_build_example_bundle, "/repo/java-sdk/scala_spark_example"),
-        ]
+    example_bundle_workdirs = [
+        "/repo/java-sdk/example",
+        "/repo/java-sdk/scala_spark_example",
+    ]
+    with ThreadPoolExecutor(max_workers=len(example_bundle_workdirs)) as pool:
+        bundle_builds = [pool.submit(_build_example_bundle, workdir) for workdir in example_bundle_workdirs]
         for build in bundle_builds:
             build.result()
 
