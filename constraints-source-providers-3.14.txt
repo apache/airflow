@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-02T20:00:24.582681
+# This constraints file was automatically generated on 2026-07-03T10:29:57.948954
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -9,7 +9,7 @@
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
-APScheduler==3.11.2
+APScheduler==3.11.3
 Authlib==1.7.2
 Deprecated==1.3.1
 Events==0.5
@@ -89,7 +89,7 @@ astroid==4.1.2
 asttokens==3.0.1
 async-timeout==4.0.3
 asyncpg==0.31.0
-asyncssh==2.23.1
+asyncssh==2.24.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==26.1.0
@@ -203,7 +203,7 @@ facebook_business==25.0.2
 fastapi-cli==0.0.27
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.13.7
+fastcore==1.13.8
 fastjsonschema==2.21.2
 fastmcp-slim==3.4.2
 fastuuid==0.14.0
@@ -531,7 +531,7 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-skills==0.11.0
+pydantic-ai-skills==1.1.0
 pydantic-ai-slim==1.107.0
 pydantic-extra-types==2.11.1
 pydantic-graph==1.107.0
@@ -593,7 +593,7 @@ readme_renderer==45.0
 redis==6.4.0
 redshift_connector==2.1.15
 referencing==0.37.0
-regex==2026.5.9
+regex==2026.6.28
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -620,7 +620,7 @@ s3transfer==0.17.1
 sagemaker_studio==1.0.26
 scikit-learn==1.9.0
 scipy==1.18.0
-scramp==1.4.9
+scramp==1.4.10
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 semver==3.0.4
@@ -632,7 +632,7 @@ shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.42.0
-smart_open==7.7.1
+smart_open==8.0.0
 smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
@@ -753,7 +753,7 @@ wheel==0.47.0
 wirerope==1.0.0
 wrapt==2.2.2
 xmltodict==1.0.4
-xxhash==3.7.1
+xxhash==3.8.0
 yamllint==1.38.0
 yandex-query-client==0.1.4
 yandexcloud==0.396.0
