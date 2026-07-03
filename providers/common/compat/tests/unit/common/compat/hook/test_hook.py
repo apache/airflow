@@ -28,20 +28,12 @@ _MOCK_HOOK = mock.MagicMock(spec=BaseHook)
 
 class MockAgetBaseHook:
     def __init__(self, *args, **kwargs):
-        self.last_call = {}
-
-    async def aget_hook(self, conn_id: str, hook_params: dict | None = None):
-        self.last_call = {"conn_id": conn_id, "hook_params": hook_params}
-        return _MOCK_HOOK
+        self.aget_hook = mock.AsyncMock(return_value=_MOCK_HOOK)
 
 
 class MockBaseHook:
     def __init__(self, *args, **kwargs):
-        self.last_call = {}
-
-    def get_hook(self, conn_id: str, hook_params: dict | None = None):
-        self.last_call = {"conn_id": conn_id, "hook_params": hook_params}
-        return _MOCK_HOOK
+        self.get_hook = mock.MagicMock(return_value=_MOCK_HOOK)
 
 
 class TestGetAsyncHook:
@@ -51,7 +43,7 @@ class TestGetAsyncHook:
     async def test_get_async_hook_uses_aget_hook_when_available(self, mock_hook_class, hook_params):
         result = await get_async_hook("test_conn", hook_params=hook_params)
         assert result is _MOCK_HOOK
-        assert mock_hook_class.last_call == {"conn_id": "test_conn", "hook_params": hook_params}
+        mock_hook_class.aget_hook.assert_called_once_with(conn_id="test_conn", hook_params=hook_params)
 
     @pytest.mark.parametrize("hook_params", [None, {"key": "value"}])
     @mock.patch("airflow.providers.common.compat.hook.BaseHook", new_callable=MockBaseHook)
@@ -59,4 +51,4 @@ class TestGetAsyncHook:
     async def test_get_async_hook_falls_back_to_get_hook(self, mock_hook_class, hook_params):
         result = await get_async_hook("test_conn", hook_params=hook_params)
         assert result is _MOCK_HOOK
-        assert mock_hook_class.last_call == {"conn_id": "test_conn", "hook_params": hook_params}
+        mock_hook_class.get_hook.assert_called_once_with(conn_id="test_conn", hook_params=hook_params)
