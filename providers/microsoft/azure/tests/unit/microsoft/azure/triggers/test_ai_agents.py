@@ -68,6 +68,20 @@ class TestAzureAIAgentVersionTrigger:
             "poll_interval": 2,
         }
 
+    def test_serialize_default_endpoint(self):
+        trigger = AzureAIAgentVersionTrigger(
+            azure_ai_agents_conn_id=CONN_ID,
+            api_version="v1",
+            agent_name=AGENT_NAME,
+            agent_version="1",
+            timeout=10,
+            poll_interval=2,
+        )
+
+        _, kwargs = trigger.serialize()
+
+        assert kwargs["endpoint"] is None
+
     @pytest.mark.asyncio
     @mock.patch.object(AzureAIAgentsAsyncHook, "close", autospec=True)
     @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
@@ -115,6 +129,20 @@ class TestAzureAIAgentVersionTrigger:
 
         assert event.payload["status"] == "error"
         assert "boom" in event.payload["message"]
+        assert event.payload["version"]["status"] == "failed"
+
+    @pytest.mark.asyncio
+    @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)
+    async def test_run_failure_without_error_details(self, mock_get_version):
+        mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "failed"}
+        trigger = build_trigger()
+
+        event = await get_trigger_event(trigger)
+
+        assert event.payload["status"] == "error"
+        assert event.payload["message"] == (
+            f"Azure AI Hosted agent {AGENT_NAME} version 1 failed: No error details were returned."
+        )
         assert event.payload["version"]["status"] == "failed"
 
     @pytest.mark.asyncio

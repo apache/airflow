@@ -108,10 +108,12 @@ class AzureAIAgentsHook(BaseHook):
     https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent
 
     :param azure_ai_agents_conn_id: The Azure AI Agents connection id.
+        Default is ``azure_ai_agents_default``.
     :param endpoint: Optional Azure AI Foundry project endpoint. If not provided, the hook uses the
-        connection host or the ``endpoint`` connection extra.
-    :param api_version: Foundry Agent Service API version.
+        connection host or the ``endpoint`` connection extra. Default is ``None``.
+    :param api_version: Foundry Agent Service API version. Default is ``v1``.
     :param timeout: Optional connection/read timeout for service requests, in seconds.
+        Default is ``60.0``.
     """
 
     conn_name_attr = "azure_ai_agents_conn_id"
@@ -264,7 +266,7 @@ class AzureAIAgentsHook(BaseHook):
             definition=cast("AgentDefinition", definition),
             metadata=metadata,
             description=description,
-            blueprint_reference=cast("AgentBlueprintReference | None", blueprint_reference),
+            blueprint_reference=blueprint_reference,
         )
 
     def get_agent_version(self, agent_name: str, agent_version: str) -> AgentVersionDetails:
@@ -398,9 +400,11 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
     Async hook for Microsoft Foundry Hosted agents.
 
     :param azure_ai_agents_conn_id: The Azure AI Agents connection id.
-    :param endpoint: Optional Azure AI Foundry project endpoint override.
-    :param api_version: Foundry Agent Service API version.
+        Default is ``azure_ai_agents_default``.
+    :param endpoint: Optional Azure AI Foundry project endpoint override. Default is ``None``.
+    :param api_version: Foundry Agent Service API version. Default is ``v1``.
     :param timeout: Optional connection/read timeout for service requests, in seconds.
+        Default is ``60.0``.
     """
 
     def __init__(

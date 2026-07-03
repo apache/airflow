@@ -39,7 +39,7 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
     Trigger that polls an Azure AI Hosted agent version until it becomes active.
 
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
-    :param endpoint: Optional Azure AI Foundry project endpoint override.
+    :param endpoint: Optional Azure AI Foundry project endpoint override. Default is ``None``.
     :param api_version: Foundry Agent Service API version.
     :param agent_name: Hosted agent name.
     :param agent_version: Hosted agent version to poll.
@@ -51,7 +51,7 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
         self,
         *,
         azure_ai_agents_conn_id: str,
-        endpoint: str | None,
+        endpoint: str | None = None,
         api_version: str,
         agent_name: str,
         agent_version: str,
@@ -97,12 +97,13 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
                 }
             )
         if status in VERSION_FAILURE_STATUSES:
+            error = _get_resource_attr(version, "error") or "No error details were returned"
             return TriggerEvent(
                 {
                     "status": "error",
                     "message": (
                         f"Azure AI Hosted agent {self.agent_name} version {self.agent_version} failed: "
-                        f"{_get_resource_attr(version, 'error')}."
+                        f"{error}."
                     ),
                     "version": serialized_version,
                 }
@@ -140,22 +141,25 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
                     yield event
                     return
                 if time.monotonic() >= end_time:
-                    break
+                    yield TriggerEvent(
+                        {
+                            "status": "timeout",
+                            "message": (
+                                f"Timeout waiting for Azure AI Hosted agent {self.agent_name} "
+                                f"version {self.agent_version}."
+                            ),
+                            "version": {"name": self.agent_name, "version": self.agent_version},
+                        }
+                    )
+                    return
 
                 await asyncio.sleep(self.poll_interval)
-
-            yield TriggerEvent(
-                {
-                    "status": "timeout",
-                    "message": (
-                        f"Timeout waiting for Azure AI Hosted agent {self.agent_name} "
-                        f"version {self.agent_version}."
-                    ),
-                    "version": {"name": self.agent_name, "version": self.agent_version},
-                }
-            )
         except Exception as e:
-            self.log.exception("Exception occurred while waiting for Azure AI Hosted agent version.")
+            self.log.exception(
+                "Exception while polling Azure AI Hosted agent %s version %s.",
+                self.agent_name,
+                self.agent_version,
+            )
             yield TriggerEvent(
                 {
                     "status": "error",

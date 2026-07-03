@@ -28,7 +28,6 @@ from airflow.providers.microsoft.azure.operators.ai_agents import (
     DeleteAzureAIAgentOperator,
     RunAzureAIAgentOperator,
     UpdateAzureAIAgentOperator,
-    validate_execute_complete_event,
 )
 from airflow.providers.microsoft.azure.triggers.ai_agents import AzureAIAgentVersionTrigger
 
@@ -130,7 +129,10 @@ class TestCreateAzureAIAgentOperator:
             task_id="create_agent", agent_name=AGENT_NAME, definition=DEFINITION
         )
 
-        with pytest.raises(RuntimeError, match="version 1 failed"):
+        with pytest.raises(
+            RuntimeError,
+            match=f"Azure AI Hosted agent {AGENT_NAME} version 1 failed: No error details were returned.",
+        ):
             operator.execute(context={})
 
     @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
@@ -339,11 +341,13 @@ class TestDeleteAzureAIAgentOperator:
             poll_interval=0,
         )
 
-        result = operator.execute(context={})
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            result = operator.execute(context={})
 
         assert result == {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
         mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=False)
         mock_is_deleted.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME)
+        mock_log_info.assert_any_call("Azure AI Hosted %s was deleted.", f"agent {AGENT_NAME}")
 
     @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
     def test_execute_deletes_agent_with_force(self, mock_delete_agent):
@@ -372,11 +376,13 @@ class TestDeleteAzureAIAgentOperator:
             poll_interval=0,
         )
 
-        result = operator.execute(context={})
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            result = operator.execute(context={})
 
         assert result == {"object": "agent.version.deleted", "deleted": True}
         mock_delete_version.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="2")
         mock_is_deleted.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="2")
+        mock_log_info.assert_any_call("Azure AI Hosted %s was deleted.", f"agent {AGENT_NAME} version 2")
 
     @mock.patch(f"{MODULE}.time.sleep", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)
@@ -426,6 +432,12 @@ class TestDeleteAzureAIAgentOperator:
         ({"status": "unknown"}, ValueError, "Unexpected trigger event status"),
     ],
 )
-def test_validate_execute_complete_event_errors(event, exception, message):
+def test_execute_complete_event_errors(event, exception, message):
+    operator = CreateAzureAIAgentOperator(
+        task_id="create_agent",
+        agent_name=AGENT_NAME,
+        definition=DEFINITION,
+    )
+
     with pytest.raises(exception, match=message):
-        validate_execute_complete_event(event)
+        operator.execute_complete(context={}, event=event)

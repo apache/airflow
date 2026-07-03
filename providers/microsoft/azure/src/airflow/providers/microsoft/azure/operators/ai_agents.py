@@ -36,47 +36,12 @@ from airflow.providers.microsoft.azure.hooks.ai_agents import (
 from airflow.providers.microsoft.azure.triggers.ai_agents import AzureAIAgentVersionTrigger
 
 if TYPE_CHECKING:
+    from azure.ai.projects.models import AgentBlueprintReference
+
     from airflow.sdk import Context
 
 
-def validate_execute_complete_event(
-    event: dict[str, Any] | None, *, require_version: bool = False
-) -> dict[str, Any]:
-    """Validate a trigger event and raise a specific exception for non-success events."""
-    if event is None:
-        raise RuntimeError("Trigger returned no event.")
-
-    status = event.get("status")
-    message = event.get("message", "No message returned from trigger.")
-    if status == "success":
-        if require_version and "version" not in event:
-            raise RuntimeError("Trigger success event did not include version payload.")
-        return event
-    if status == "timeout":
-        raise TimeoutError(message)
-    if status == "error":
-        raise RuntimeError(message)
-    raise ValueError(f"Unexpected trigger event status: {status!r}")
-
-
-class AzureAIHostedAgentBaseOperator(BaseOperator):
-    """Base operator for Azure AI Hosted agent operations."""
-
-    azure_ai_agents_conn_id: str
-    endpoint: str | None
-    api_version: str
-
-    @cached_property
-    def hook(self) -> AzureAIAgentsHook:
-        """Create and return an AzureAIAgentsHook."""
-        return AzureAIAgentsHook(
-            azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
-            endpoint=self.endpoint,
-            api_version=self.api_version,
-        )
-
-
-class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
+class CreateAzureAIAgentOperator(BaseOperator):
     """
     Create an Azure AI Hosted agent version from a container image definition.
 
@@ -85,16 +50,19 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
     :param agent_name: Hosted agent name.
     :param definition: Hosted agent definition. Include ``container_configuration.image`` with
         the Azure Container Registry image URI.
-    :param metadata: Optional metadata attached to the Hosted agent.
-    :param description: Optional human-readable Hosted agent description.
-    :param blueprint_reference: Optional managed identity blueprint reference.
+    :param metadata: Optional metadata attached to the Hosted agent. Default is ``None``.
+    :param description: Optional human-readable Hosted agent description. Default is ``None``.
+    :param blueprint_reference: Optional managed identity blueprint reference. Default is ``None``.
     :param wait_for_completion: Whether to wait until the created version reaches ``active``.
-    :param poll_interval: Time in seconds between status checks.
-    :param timeout: Time in seconds to wait for the version to become active.
+        Default is ``True``.
+    :param poll_interval: Time in seconds between status checks. Default is ``30.0``.
+    :param timeout: Time in seconds to wait for the version to become active. Default is ``3600``.
     :param deferrable: Run in deferrable mode when ``wait_for_completion`` is ``True``.
+        Default is configured by ``operators.default_deferrable``.
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
-    :param endpoint: Optional Azure AI Foundry project endpoint override.
-    :param api_version: Foundry Agent Service API version.
+        Default is ``azure_ai_agents_default``.
+    :param endpoint: Optional Azure AI Foundry project endpoint override. Default is ``None``.
+    :param api_version: Foundry Agent Service API version. Default is ``v1``.
     """
 
     template_fields: Sequence[str] = (
@@ -121,7 +89,7 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         definition: dict[str, Any],
         metadata: dict[str, str] | None = None,
         description: str | None = None,
-        blueprint_reference: dict[str, Any] | None = None,
+        blueprint_reference: AgentBlueprintReference | None = None,
         wait_for_completion: bool = True,
         poll_interval: float = 30.0,
         timeout: float = 60 * 60,
@@ -144,6 +112,15 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.azure_ai_agents_conn_id = azure_ai_agents_conn_id
         self.endpoint = endpoint
         self.api_version = api_version
+
+    @cached_property
+    def hook(self) -> AzureAIAgentsHook:
+        """Create and return an AzureAIAgentsHook."""
+        return AzureAIAgentsHook(
+            azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
+            endpoint=self.endpoint,
+            api_version=self.api_version,
+        )
 
     def execute(self, context: Context) -> dict[str, Any]:
         """Create an Azure AI Hosted agent version and optionally wait for it to become active."""
@@ -182,7 +159,7 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
             if status in VERSION_SUCCESS_STATUSES:
                 return _serialize_resource(version)
             if status in VERSION_FAILURE_STATUSES:
-                error = _get_resource_attr(version, "error")
+                error = _get_resource_attr(version, "error") or "No error details were returned"
                 raise RuntimeError(
                     f"Azure AI Hosted agent {self.agent_name} version {agent_version} failed: {error}."
                 )
@@ -192,7 +169,9 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
                     f"reached unknown status {status}."
                 )
             if time.monotonic() >= end_time:
-                break
+                raise TimeoutError(
+                    f"Timeout waiting for Azure AI Hosted agent {self.agent_name} version {agent_version}."
+                )
 
             self.log.info(
                 "Azure AI Hosted agent %s version %s is in status %s. Sleeping for %s seconds.",
@@ -203,15 +182,23 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
             )
             time.sleep(self.poll_interval)
 
-        raise TimeoutError(
-            f"Timeout waiting for Azure AI Hosted agent {self.agent_name} version {agent_version}."
-        )
-
     def execute_complete(self, context: Context, event: dict[str, Any] | None) -> dict[str, Any]:
         """Resume after the version trigger completes."""
-        validated_event = validate_execute_complete_event(event, require_version=True)
-        self.log.info(validated_event["message"])
-        return validated_event["version"]
+        if event is None:
+            raise RuntimeError("Trigger returned no event.")
+
+        status = event.get("status")
+        message = event.get("message", "No message returned from trigger.")
+        if status == "success":
+            if "version" not in event:
+                raise RuntimeError("Trigger success event did not include version payload.")
+            self.log.info(message)
+            return event["version"]
+        if status == "timeout":
+            raise TimeoutError(message)
+        if status == "error":
+            raise RuntimeError(message)
+        raise ValueError(f"Unexpected trigger event status: {status!r}")
 
 
 class UpdateAzureAIAgentOperator(CreateAzureAIAgentOperator):
@@ -223,18 +210,22 @@ class UpdateAzureAIAgentOperator(CreateAzureAIAgentOperator):
     """
 
 
-class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
+class RunAzureAIAgentOperator(BaseOperator):
     """
     Invoke an Azure AI Hosted agent.
 
     :param agent_name: Hosted agent name.
     :param input_data: Request payload for the selected protocol.
-    :param protocol: Hosted agent protocol to use. Supported values are ``responses`` and ``invocations``.
+    :param protocol: Hosted agent protocol to use. Supported values are ``responses`` and
+        ``invocations``. Default is ``responses``.
     :param agent_session_id: Optional session id used by the ``invocations`` protocol.
+        Default is ``None``.
     :param user_isolation_key: Optional per-user isolation key for endpoint-scoped resources.
+        Default is ``None``.
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
-    :param endpoint: Optional Azure AI Foundry project endpoint override.
-    :param api_version: Foundry Agent Service API version.
+        Default is ``azure_ai_agents_default``.
+    :param endpoint: Optional Azure AI Foundry project endpoint override. Default is ``None``.
+    :param api_version: Foundry Agent Service API version. Default is ``v1``.
     """
 
     template_fields: Sequence[str] = (
@@ -273,6 +264,15 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.endpoint = endpoint
         self.api_version = api_version
 
+    @cached_property
+    def hook(self) -> AzureAIAgentsHook:
+        """Create and return an AzureAIAgentsHook."""
+        return AzureAIAgentsHook(
+            azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
+            endpoint=self.endpoint,
+            api_version=self.api_version,
+        )
+
     def execute(self, context: Context) -> Any:
         """Invoke an Azure AI Hosted agent and return the response payload."""
         self.log.info("Invoking Azure AI Hosted agent %s with %s protocol.", self.agent_name, self.protocol)
@@ -292,19 +292,22 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         raise ValueError("protocol must be either 'responses' or 'invocations'.")
 
 
-class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
+class DeleteAzureAIAgentOperator(BaseOperator):
     """
     Delete an Azure AI Hosted agent or one Hosted agent version.
 
     :param agent_name: Hosted agent name.
     :param agent_version: Optional Hosted agent version. When omitted, the whole agent is deleted.
+        Default is ``None``.
     :param force: Whether to cascade-delete active sessions when deleting the whole agent.
-    :param wait_for_completion: Whether to wait until the resource is deleted.
-    :param poll_interval: Time in seconds between status checks.
-    :param timeout: Time in seconds to wait for deletion to complete.
+        Default is ``False``.
+    :param wait_for_completion: Whether to wait until the resource is deleted. Default is ``True``.
+    :param poll_interval: Time in seconds between status checks. Default is ``30.0``.
+    :param timeout: Time in seconds to wait for deletion to complete. Default is ``3600``.
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
-    :param endpoint: Optional Azure AI Foundry project endpoint override.
-    :param api_version: Foundry Agent Service API version.
+        Default is ``azure_ai_agents_default``.
+    :param endpoint: Optional Azure AI Foundry project endpoint override. Default is ``None``.
+    :param api_version: Foundry Agent Service API version. Default is ``v1``.
     """
 
     template_fields: Sequence[str] = (
@@ -341,6 +344,15 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.endpoint = endpoint
         self.api_version = api_version
 
+    @cached_property
+    def hook(self) -> AzureAIAgentsHook:
+        """Create and return an AzureAIAgentsHook."""
+        return AzureAIAgentsHook(
+            azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
+            endpoint=self.endpoint,
+            api_version=self.api_version,
+        )
+
     def execute(self, context: Context) -> dict[str, Any]:
         """Delete an Azure AI Hosted agent or version and optionally wait for deletion."""
         delete_response: Any
@@ -361,6 +373,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
 
     def _wait_for_deletion(self) -> None:
         end_time = time.monotonic() + self.timeout
+        resource_description = self._delete_resource_description()
         while True:
             if self.agent_version is None:
                 is_deleted = self.hook.is_agent_deleted(agent_name=self.agent_name)
@@ -369,16 +382,19 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
                     agent_name=self.agent_name, agent_version=self.agent_version
                 )
             if is_deleted:
-                self.log.info("Azure AI Hosted agent %s was deleted.", self.agent_name)
+                self.log.info("Azure AI Hosted %s was deleted.", resource_description)
                 return
             if time.monotonic() >= end_time:
-                break
+                raise TimeoutError(f"Timeout waiting for Azure AI Hosted {resource_description} deletion.")
 
             self.log.info(
-                "Azure AI Hosted agent %s is still retrievable. Sleeping for %s seconds.",
-                self.agent_name,
+                "Azure AI Hosted %s is still retrievable. Sleeping for %s seconds.",
+                resource_description,
                 self.poll_interval,
             )
             time.sleep(self.poll_interval)
 
-        raise TimeoutError(f"Timeout waiting for Azure AI Hosted agent {self.agent_name} deletion.")
+    def _delete_resource_description(self) -> str:
+        if self.agent_version is None:
+            return f"agent {self.agent_name}"
+        return f"agent {self.agent_name} version {self.agent_version}"
