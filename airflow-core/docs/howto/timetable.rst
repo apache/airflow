@@ -144,6 +144,15 @@ how the Dag and its tasks specify the schedule, and contains three attributes:
     (the *start* of the data interval), not when the run will be scheduled
     (usually after the end of the data interval).
 
+.. note::
+
+    ``last_automated_data_interval`` is only ever ``None`` when the Dag is
+    first picked up by the Dag processor: the first run is calculated at
+    parsing time, before any Dag run exists, and the result is stored on the
+    Dag. During scheduling, ``next_dagrun_info`` is always called with the
+    previous run's data interval already populated, so the ``None`` case does
+    not appear in scheduler logs when a Dag is unpaused for the first time.
+
 If there was a run scheduled previously, we should now schedule for the next
 non-holiday weekday by looping through subsequent days to find one that is not
 a Saturday, Sunday, or US holiday. If there was not a previous scheduled run,
