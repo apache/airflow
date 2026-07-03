@@ -67,6 +67,10 @@ def test_supports_multi_team_default_value():
     assert not BaseExecutor.supports_multi_team
 
 
+def test_supports_streaming_logs_default_value():
+    assert not BaseExecutor.supports_streaming_logs
+
+
 def test_invalid_slotspool():
     with pytest.raises(ValueError, match="parallelism is set to 0 or lower"):
         BaseExecutor(0)
@@ -76,6 +80,14 @@ def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
     assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
+
+
+def test_get_streaming_task_log_not_implemented():
+    executor = BaseExecutor()
+    ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
+
+    with pytest.raises(NotImplementedError):
+        executor.get_streaming_task_log(ti=ti, try_number=1)
 
 
 def test_serve_logs_default_value():

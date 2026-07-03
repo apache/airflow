@@ -30,7 +30,7 @@ from enum import Enum
 from itertools import chain, islice
 from pathlib import Path
 from types import GeneratorType
-from typing import IO, TYPE_CHECKING, TypedDict, cast
+from typing import IO, TYPE_CHECKING, Literal, TypedDict, cast, overload
 from urllib.parse import urljoin
 
 import pendulum
@@ -557,27 +557,52 @@ class FileTaskHandler(logging.Handler):
             )
         raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
-    def _get_executor_get_task_log(
-        self, ti: TaskInstance | TaskInstanceHistory
-    ) -> Callable[[TaskInstance | TaskInstanceHistory, int], tuple[list[str], list[str]]]:
+    @overload
+    def _get_executor_log_callable(
+        self, ti: TaskInstance | TaskInstanceHistory, *, streaming: Literal[True]
+    ) -> Callable[[TaskInstance | TaskInstanceHistory, int], StreamingLogResponse] | None: ...
+
+    @overload
+    def _get_executor_log_callable(
+        self, ti: TaskInstance | TaskInstanceHistory, *, streaming: Literal[False] = ...
+    ) -> Callable[[TaskInstance | TaskInstanceHistory, int], tuple[list[str], list[str]]]: ...
+
+    def _get_executor_log_callable(
+        self, ti: TaskInstance | TaskInstanceHistory, *, streaming: bool = False
+    ) -> (
+        Callable[[TaskInstance | TaskInstanceHistory, int], StreamingLogResponse]
+        | None
+        | Callable[[TaskInstance | TaskInstanceHistory, int], tuple[list[str], list[str]]]
+    ):
         """
-        Get the get_task_log method from executor of current task instance.
+        Get the get_task_log or get_streaming_task_log method from executor of current task instance.
 
         Since there might be multiple executors, so we need to get the executor of current task instance instead of getting from default executor.
 
         :param ti: task instance object
-        :return: get_task_log method of the executor
+        :param streaming: if True, get the get_streaming_task_log method, otherwise get the get_task_log method
+        :return: get_task_log or get_streaming_task_log method of the executor
         """
         executor_name = ti.executor or self.DEFAULT_EXECUTOR_KEY
         executor = self.executor_instances.get(executor_name)
-        if executor is not None:
-            return executor.get_task_log
+        if executor is None:
+            if executor_name == self.DEFAULT_EXECUTOR_KEY:
+                executor = ExecutorLoader.get_default_executor()
+            else:
+                executor = ExecutorLoader.load_executor(executor_name)
+            self.executor_instances[executor_name] = executor
 
-        if executor_name == self.DEFAULT_EXECUTOR_KEY:
-            self.executor_instances[executor_name] = ExecutorLoader.get_default_executor()
-        else:
-            self.executor_instances[executor_name] = ExecutorLoader.load_executor(executor_name)
-        return self.executor_instances[executor_name].get_task_log
+        if streaming:
+            # The `supports_streaming_logs` class attribute and `get_streaming_task_log` method was added in Airflow 3.2.0.
+            # And some of the provider executors or custom executors haven't supported `get_streaming_task_log` yet.
+            # For backward compatibility with earlier versions, we need to check for their existence.
+            if hasattr(executor, "get_streaming_task_log") and getattr(
+                executor, "supports_streaming_logs", False
+            ):
+                return executor.get_streaming_task_log
+            return None
+
+        return executor.get_task_log
 
     def _read(
         self,
@@ -632,23 +657,28 @@ class FileTaskHandler(logging.Handler):
                 raise TypeError("Logs should be either a list of strings or a generator of log lines.")
             # Extend LogSourceInfo
             source_list.extend(sources)
-        has_k8s_exec_pod = False
+
+        has_executor_log = False
         if ti.state == TaskInstanceState.RUNNING:
-            executor_get_task_log = self._get_executor_get_task_log(ti)
-            response = executor_get_task_log(ti, try_number)
-            if response:
-                sources, logs = response
+            # check for streaming logs first
+            if executor_streaming_get_task_log := self._get_executor_log_callable(ti, streaming=True):
+                sources, executor_logs = executor_streaming_get_task_log(ti, try_number)
+            else:  # fallback to non-streaming logs if streaming not supported
+                executor_get_task_log = self._get_executor_log_callable(ti)
+                sources, logs = executor_get_task_log(ti, try_number)
                 # make the logs stream-like compatible
                 executor_logs = [_get_compatible_log_stream(logs)]
+
             if sources:
                 source_list.extend(sources)
-                has_k8s_exec_pod = True
+                has_executor_log = True
+
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             sources, local_logs = self._read_from_local(worker_log_full_path)
             source_list.extend(sources)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_executor_log:
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
         elif (ti.state not in State.unfinished or ti.state in _STATES_WITH_COMPLETED_ATTEMPT) and not (
