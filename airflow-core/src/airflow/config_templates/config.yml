@@ -320,7 +320,18 @@ core:
       default: "True"
     dag_discovery_safe_mode:
       description: |
-        If enabled, Airflow will only scan files containing both ``DAG`` and ``airflow`` (case-insensitive).
+        If enabled, Airflow only scans files containing both ``DAG`` and ``airflow`` (case-insensitive)
+        when looking for Dags. Set this to ``False`` to scan every Python file instead -- required when
+        your Dags are defined through a wrapper or abstraction whose source does not contain those strings.
+
+        This setting is read by the Dag file processor, so it must be configured for that component. In a
+        separate-process deployment (for example the Helm chart) set it on the ``dag-processor`` as well as
+        on anything that runs ``airflow dags reserialize``, and restart the component for a change to take
+        effect. If only some components see ``False``, Dags can appear after a manual reserialize and then
+        be deactivated again on the next processor scan.
+
+        As an alternative to scanning every file, set ``[core] might_contain_dag_callable`` to a custom
+        heuristic that recognizes your wrapper.
       version_added: 1.10.3
       type: string
       example: ~
