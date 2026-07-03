@@ -2988,7 +2988,7 @@ kerberos:
         Whether to include the renewable lifetime option (`-r`) in the `kinit` command.
         This is enabled by default for MIT Kerberos, but can be disabled (set to False)
         if using a Kerberos implementation that doesn't support this flag, such as `Heimdal`.
-      version_added: 3.3.0
+      version_added: 3.4.0
       type: boolean
       example: ~
       default: "True"
