@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, cast
 
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, select
 
-from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
     QueryPartitionedDagRunDagIdFilter,
     QueryPartitionedDagRunHasCreatedDagRunIdFilter,
 )
@@ -244,6 +246,8 @@ def _build_response(row, required_count: int, received_count: int) -> Partitione
 )
 def get_partitioned_dag_runs(
     session: SessionDep,
+    limit: QueryLimit,
+    offset: QueryOffset,
     readable_dags_filter: ReadableDagsFilterDep,
     dag_id: QueryPartitionedDagRunDagIdFilter,
     has_created_dag_run_id: QueryPartitionedDagRunHasCreatedDagRunIdFilter,
@@ -268,14 +272,21 @@ def get_partitioned_dag_runs(
     readable_dag_ids = readable_dags_filter.value
     if readable_dag_ids is not None:
         query = query.where(AssetPartitionDagRun.target_dag_id.in_(readable_dag_ids))
-    query = query.order_by(AssetPartitionDagRun.created_at.desc())
+    query = query.order_by(AssetPartitionDagRun.created_at.desc(), AssetPartitionDagRun.id.desc())
+
+    query, total_entries = paginated_select(
+        statement=query,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
 
     if not (rows := session.execute(query).all()):
-        if dag_id.value is not None:
+        if dag_id.value is not None and total_entries == 0:
             dag_exists = session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value))
             if dag_exists is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found")
-        return PartitionedDagRunCollectionResponse(partitioned_dag_runs=[], total=0)
+        return PartitionedDagRunCollectionResponse(partitioned_dag_runs=[], total=total_entries)
 
     # Batch-fetch DagModels (for cached partition_mapper_info), required assets,
     # and APDR log entries in three single queries instead of N per-Dag queries.
@@ -334,11 +345,12 @@ def get_partitioned_dag_runs(
     if dag_id.value is None:
         asset_expressions = {dm.dag_id: dm.asset_expression for dm in dag_models.values()}
 
-    return PartitionedDagRunCollectionResponse(
-        partitioned_dag_runs=results,
-        total=len(results),
-        asset_expressions=asset_expressions,
-    )
+    model_data: dict[str, Any] = {
+        "partitioned_dag_runs": results,
+        "total": total_entries,
+        "asset_expressions": asset_expressions,
+    }
+    return PartitionedDagRunCollectionResponse.model_validate(model_data)
 
 
 @partitioned_dag_runs_router.get(
@@ -463,15 +475,16 @@ def get_pending_partitioned_dag_run(
     total_required = sum(a.required_count for a in assets)
     asset_expression = dag_model.asset_expression if dag_model is not None else None
 
-    return PartitionedDagRunDetailResponse(
-        id=partitioned_dag_run.id,
-        dag_id=dag_id,
-        partition_key=partition_key,
-        created_at=partitioned_dag_run.created_at.isoformat() if partitioned_dag_run.created_at else None,
-        updated_at=partitioned_dag_run.updated_at.isoformat() if partitioned_dag_run.updated_at else None,
-        created_dag_run_id=partitioned_dag_run.created_dag_run_id,
-        assets=assets,
-        total_required=total_required,
-        total_received=total_received,
-        asset_expression=asset_expression,
-    )
+    model_data: dict[str, Any] = {
+        "id": partitioned_dag_run.id,
+        "dag_id": dag_id,
+        "partition_key": partition_key,
+        "created_at": partitioned_dag_run.created_at.isoformat() if partitioned_dag_run.created_at else None,
+        "updated_at": partitioned_dag_run.updated_at.isoformat() if partitioned_dag_run.updated_at else None,
+        "created_dag_run_id": partitioned_dag_run.created_dag_run_id,
+        "assets": assets,
+        "total_required": total_required,
+        "total_received": total_received,
+        "asset_expression": asset_expression,
+    }
+    return PartitionedDagRunDetailResponse.model_validate(model_data)

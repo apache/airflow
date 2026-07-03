@@ -88,12 +88,14 @@ jobs:
       AIRFLOW_VERSION: ${{ inputs.airflow-version || '' }}
       APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
     outputs:
-      include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
+      include-docs: ${{ case(inputs.include-docs == 'all', '', inputs.include-docs) }}
       destination-location: ${{ steps.parameters.outputs.destination-location }}
       destination: ${{ steps.parameters.outputs.destination }}
       extra-build-options: ${{ steps.parameters.outputs.extra-build-options }}
       airflow-base-version: ${{ steps.parameters.outputs.airflow-base-version }}
       airflow-version: ${{ steps.parameters.outputs.airflow-version }}
+      publish-execution-api-schema: ${{ steps.parameters.outputs.publish-execution-api-schema }}
+      publish-supervisor-schema: ${{ steps.parameters.outputs.publish-supervisor-schema }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
       default-python-version: "3.10"
@@ -211,6 +213,17 @@ jobs:
              echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
              echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
+          PUBLISH_EXEC="false"
+          PUBLISH_SUP="false"
+          if [[ "${INCLUDE_DOCS}" == "all" || "${INCLUDE_DOCS}" == "" ]]; then
+             PUBLISH_EXEC="true"
+             PUBLISH_SUP="true"
+          else
+             [[ " ${INCLUDE_DOCS} " == *" apache-airflow "* ]] && PUBLISH_EXEC="true"
+             [[ " ${INCLUDE_DOCS} " == *" task-sdk "* ]] && PUBLISH_SUP="true"
+          fi
+          echo "publish-execution-api-schema=${PUBLISH_EXEC}" >> ${GITHUB_OUTPUT}
+          echo "publish-supervisor-schema=${PUBLISH_SUP}" >> ${GITHUB_OUTPUT}
 
   build-docs:
     needs: [build-info]
@@ -323,6 +336,31 @@ jobs:
           key: cache-docs-inventory-v1
           if-no-files-found: 'error'
           retention-days: '2'
+      - name: "Generate Execution API schema artifact"
+        if: needs.build-info.outputs.publish-execution-api-schema == 'true'
+        env:
+          # Building the in-process app runs its lifespan, which constructs the
+          # JWT validator and requires a secret. The value is never used.
+          AIRFLOW__API_AUTH__JWT_SECRET: "schema-generation-not-a-real-secret"
+        run: |
+          mkdir -p schemas
+          uv run --frozen --project airflow-core -s \
+            scripts/ci/prek/generate_execution_api_schema.py > schemas/execution-api.json
+      - name: "Generate Supervisor schema artifact"
+        if: needs.build-info.outputs.publish-supervisor-schema == 'true'
+        run: |
+          mkdir -p schemas
+          uv run --frozen --project task-sdk -s \
+            scripts/ci/prek/dump_supervisor_schemas.py > schemas/supervisor-schema.json
+      - name: "Upload schema artifacts"
+        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: airflow-schemas
+          path: schemas/
+          retention-days: '7'
+          if-no-files-found: 'error'
+          overwrite: 'true'
       - name: "Store stable versions"
         run: uv run /tmp/store_stable_versions.py
       - name: "Saving build docs folder"
@@ -522,6 +560,30 @@ jobs:
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
           --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
+      - name: "Download schema artifacts"
+        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: airflow-schemas
+          path: schemas
+      - name: "Publish schemas to S3"
+        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true'
+        env:
+          DESTINATION_LOCATION: "${{ needs.build-info.outputs.destination-location }}"
+          PUBLISH_EXEC: "${{ needs.build-info.outputs.publish-execution-api-schema }}"
+          PUBLISH_SUP: "${{ needs.build-info.outputs.publish-supervisor-schema }}"
+        run: |
+          # Reuse the docs bucket but publish under the schemas/ prefix.
+          SCHEMAS_DESTINATION="${DESTINATION_LOCATION%docs/}schemas/"
+          args=()
+          if [[ "${PUBLISH_EXEC}" == "true" ]]; then
+             args+=(--execution-api schemas/execution-api.json)
+          fi
+          if [[ "${PUBLISH_SUP}" == "true" ]]; then
+             args+=(--supervisor schemas/supervisor-schema.json)
+          fi
+          breeze release-management publish-schemas-to-s3 \
+            --destination-location "${SCHEMAS_DESTINATION}" "${args[@]}"
 
   update-registry:
     needs: [publish-docs-to-s3, build-info]

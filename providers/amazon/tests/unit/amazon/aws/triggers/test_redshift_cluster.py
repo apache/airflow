@@ -54,7 +54,32 @@ class TestRedshiftClusterTrigger:
             "cluster_identifier": "mock_cluster_identifier",
             "target_status": "available",
             "poke_interval": POLLING_PERIOD_SECONDS,
+            "region_name": None,
+            "verify": None,
+            "botocore_config": None,
         }
+
+    def test_redshift_cluster_trigger_serializes_generic_hook_params(self):
+        """Asserts the generic AWS hook params are serialized and used to build the hook."""
+        trigger = RedshiftClusterTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            target_status="available",
+            poke_interval=POLLING_PERIOD_SECONDS,
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["region_name"] == "eu-west-1"
+        assert kwargs["verify"] is False
+        assert kwargs["botocore_config"] == {"read_timeout": 42}
+
+        hook = trigger.hook
+        assert hook.aws_conn_id == "test_redshift_conn_id"
+        assert hook._region_name == "eu-west-1"
+        assert hook._verify is False
+        assert hook._config.read_timeout == 42
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
