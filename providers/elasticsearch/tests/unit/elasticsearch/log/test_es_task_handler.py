@@ -962,6 +962,7 @@ class TestBuildStructuredLogFields:
         assert "error_detail" not in result
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage fallback is Airflow 3+ only")
 class TestSafeBuildStructuredLogMessage:
     def test_string_event_returns_unchanged_and_does_not_warn(self):
         hit = {"event": "hello", "level": "info"}
