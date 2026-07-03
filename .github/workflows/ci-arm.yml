@@ -974,7 +974,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
-          go-version: 1.24
+          go-version: 1.25
           cache-dependency-path: go-sdk/go.sum
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Gotestsum
