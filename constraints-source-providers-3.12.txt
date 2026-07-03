@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-03T16:25:07.726385
+# This constraints file was automatically generated on 2026-07-03T21:19:19.026074
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -540,9 +540,9 @@ pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
 pydantic-ai-skills==1.1.0
-pydantic-ai-slim==1.107.0
+pydantic-ai-slim==2.1.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.107.0
+pydantic-graph==2.1.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
