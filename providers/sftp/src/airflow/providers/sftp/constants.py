@@ -19,8 +19,10 @@
 
 from __future__ import annotations
 
+from enum import Enum
 
-class SFTPOperation:
+
+class SFTPOperation(str, Enum):
     """SFTP operation constants."""
 
     GET = "get"
