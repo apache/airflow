@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from ci.prek import check_provide_session_kwargs as hook
 from ci.prek.check_provide_session_kwargs import (
-    AllowlistManager,
+    ProvideSessionAllowlistManager as AllowlistManager,
     _check_provide_session_kwargs,
     _count_violations,
     _expand_for_allowlist_edits,

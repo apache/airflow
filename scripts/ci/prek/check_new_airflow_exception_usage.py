@@ -54,87 +54,31 @@ from __future__ import annotations
 
 import argparse
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
+from common_prek_utils import AIRFLOW_ROOT_PATH, AllowListManager
 from rich.console import Console
 from rich.panel import Panel
 
 console = Console(color_system="standard", width=200)
 
-REPO_ROOT = Path(__file__).parents[3]
+REPO_ROOT = AIRFLOW_ROOT_PATH
 
 # Match lines that actually raise AirflowException. Comment filtering is done
 # in _raise_lines() by skipping lines whose stripped form starts with "#".
 _RAISE_RE = re.compile(r"raise\s+AirflowException\b")
 
 
-class AllowlistManager:
+class AirflowExceptionAllowlistManager(AllowListManager):
     def __init__(self, allowlist_file: Path) -> None:
-        self.allowlist_file = allowlist_file
+        super().__init__(allowlist_file, repo_root=REPO_ROOT)
 
-    def load(self) -> dict[str, int]:
-        """Return mapping of ``relative_path -> allowed_count``."""
-        if not self.allowlist_file.exists():
-            return {}
+    def iter_files(self) -> Iterable[Path]:
+        return _iter_python_files()
 
-        result: dict[str, int] = {}
-        for raw_line in self.allowlist_file.read_text().splitlines():
-            if not (stripped := raw_line.strip()):
-                continue
-
-            rel_str, _, count_str = stripped.rpartition("::")
-            if not rel_str or not count_str:
-                continue
-
-            try:
-                result[rel_str] = int(count_str)
-            except ValueError:
-                continue
-
-        return result
-
-    def save(self, counts: dict[str, int]) -> None:
-        lines = [f"{rel}::{count}" for rel, count in sorted(counts.items())]
-        self.allowlist_file.write_text("\n".join(lines) + "\n")
-
-    def generate(self) -> int:
-        console.print(f"Scanning [cyan]{REPO_ROOT}[/cyan] for raise AirflowException …")
-        counts: dict[str, int] = {}
-        for path in _iter_python_files():
-            n = len(_raise_lines(path))
-            if n > 0:
-                counts[str(path.relative_to(REPO_ROOT))] = n
-
-        self.save(counts)
-        total = sum(counts.values())
-        console.print(
-            f"[green]✓ Generated[/green] [cyan]{self.allowlist_file.relative_to(REPO_ROOT)}[/cyan] "
-            f"with [bold]{len(counts)}[/bold] files / [bold]{total}[/bold] occurrences."
-        )
-        return 0
-
-    def cleanup(self) -> int:
-        allowlist = self.load()
-        if not allowlist:
-            console.print("[yellow]Allowlist is empty – nothing to clean up.[/yellow]")
-            return 0
-
-        stale: list[str] = [rel for rel in allowlist if not (REPO_ROOT / rel).exists()]
-        if stale:
-            console.print(
-                f"[yellow]Removing {len(stale)} stale entr{'y' if len(stale) == 1 else 'ies'}:[/yellow]"
-            )
-            for s in sorted(stale):
-                console.print(f"  [dim]-[/dim] {s}")
-            for s in stale:
-                del allowlist[s]
-            self.save(allowlist)
-            console.print(
-                f"\n[green]Updated[/green] [cyan]{self.allowlist_file.relative_to(REPO_ROOT)}[/cyan]"
-            )
-        else:
-            console.print("[green]✓ No stale entries found.[/green]")
-        return 0
+    def count_occurrences(self, path: Path) -> int:
+        return len(_raise_lines(path))
 
 
 def _raise_lines(path: Path) -> list[str]:
@@ -162,7 +106,7 @@ def _iter_python_files() -> list[Path]:
 
 
 def _check_airflow_exception_usage(
-    files: list[Path], allowlist: dict[str, int], manager: AllowlistManager
+    files: list[Path], allowlist: dict[str, int], manager: AirflowExceptionAllowlistManager
 ) -> int:
     violations: list[tuple[Path, int, int]] = []
     tightened: list[tuple[str, int, int]] = []  # (rel, old_count, new_count)
@@ -239,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    manager = AllowlistManager(REPO_ROOT / "generated" / "known_airflow_exceptions.txt")
+    manager = AirflowExceptionAllowlistManager(REPO_ROOT / "generated" / "known_airflow_exceptions.txt")
 
     if args.generate:
         return manager.generate()
