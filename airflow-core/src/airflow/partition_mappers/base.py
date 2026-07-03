@@ -38,6 +38,10 @@ class PartitionMapper(ABC):
 
     is_rollup: ClassVar[bool] = False
 
+    # Class-level default so the attribute resolves even on subclasses whose
+    # __init__ (e.g. attrs-generated in plugins) never calls this base __init__.
+    max_downstream_keys: int | None = None
+
     def __init__(self, *, max_downstream_keys: int | None = None) -> None:
         if max_downstream_keys is not None and (
             not isinstance(max_downstream_keys, int) or max_downstream_keys < 1
