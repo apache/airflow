@@ -43,6 +43,8 @@ class FixedKeyMapper(PartitionMapper):
     :raises ValueError: if *downstream_key* is not a non-empty ``str``.
     """
 
+    downstream_key: str
+
     def __init__(self, downstream_key: str, *, max_downstream_keys: int | None = None) -> None:
         if not downstream_key or not isinstance(downstream_key, str):
             raise ValueError(
