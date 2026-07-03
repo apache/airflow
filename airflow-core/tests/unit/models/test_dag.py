@@ -2570,7 +2570,7 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
 
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
 
@@ -2589,7 +2589,7 @@ class TestDagModel:
             EmptyOperator(task_id="dummy")
 
         # there's no queue record yet, so no runs needed at this time.
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
 
@@ -2603,7 +2603,7 @@ class TestDagModel:
             AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
         )
         session.flush()
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
 
@@ -2613,14 +2613,14 @@ class TestDagModel:
             state=DagRunState.QUEUED,
             logical_date=pendulum.now("UTC"),
         )
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
 
         # increase max active runs and we should now need another run
         dag_maker.dag_model.max_active_runs = 2
         session.flush()
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
 
@@ -2662,7 +2662,7 @@ class TestDagModel:
         session.flush()
 
         with caplog.at_level(logging.DEBUG, logger="airflow.models.dag"):
-            _query, triggered_date_by_dag, _ = DagModel.dags_needing_dagruns(session)
+            _query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
 
         assert orphan_dag_id not in triggered_date_by_dag
         assert (
@@ -2739,7 +2739,7 @@ class TestDagModel:
         session.flush()
 
         with caplog.at_level(logging.DEBUG, logger="airflow.models.dag"):
-            _query, triggered_date_by_dag, _ = DagModel.dags_needing_dagruns(session)
+            _query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
 
         assert "ghost_a" not in triggered_date_by_dag
         assert "ghost_z" not in triggered_date_by_dag
@@ -2791,7 +2791,7 @@ class TestDagModel:
         session.expire_all()
 
         with assert_queries_count(6):
-            query, _, _ = DagModel.dags_needing_dagruns(session)
+            query, _ = DagModel.dags_needing_dagruns(session)
             query.all()
 
     def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
@@ -2812,7 +2812,7 @@ class TestDagModel:
             EmptyOperator(task_id="dummy")
 
         # there's no queue record yet, so no runs needed at this time.
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
 
@@ -2825,7 +2825,7 @@ class TestDagModel:
             AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
         )
         session.flush()
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
 
@@ -2835,14 +2835,14 @@ class TestDagModel:
             state=DagRunState.QUEUED,
             logical_date=pendulum.now("UTC"),
         )
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
 
         # increase max active runs and we should now need another run
         dag_maker.dag_model.max_active_runs = 2
         session.flush()
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
 
@@ -2863,7 +2863,7 @@ class TestDagModel:
 
         # Nothing from the upstream yet, no runs needed.
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == []
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         assert query.all() == []
 
         # Upstream triggered, now we need a run.
@@ -2872,7 +2872,7 @@ class TestDagModel:
         run_task_instance(ti, op)
 
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == ["consumer"]
 
     @pytest.mark.want_activate_assets
@@ -2892,7 +2892,7 @@ class TestDagModel:
 
         # An adrq should be created when the outlet task is run.
         run_task_instance(outlet_ti, op)
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == [dag_id_to_test]
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == [dag_id_to_test]
 
@@ -2900,7 +2900,7 @@ class TestDagModel:
         # Rerunning dags_needing_dagruns should clear up that adrq.
         with dag_maker(dag_id=dag_id_to_test, schedule=None, session=session):
             pass
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         assert query.all() == []
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == []
 
@@ -2949,7 +2949,7 @@ class TestDagModel:
         session.merge(orm_dag)
         session.flush()
 
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         needed = query.all()
         assert [d.dag_id for d in needed] == [orm_dag.dag_id]
 
@@ -2957,7 +2957,7 @@ class TestDagModel:
         session.merge(orm_dag)
         session.flush()
 
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
 
@@ -2984,7 +2984,7 @@ class TestDagModel:
         session.add(orm_dag)
         session.flush()
 
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         needed = query.all()
         assert needed == [orm_dag]
 
@@ -2992,7 +2992,7 @@ class TestDagModel:
         session.merge(orm_dag)
         session.flush()
 
-        query, _, _ = DagModel.dags_needing_dagruns(session)
+        query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == []
 
@@ -3105,7 +3105,7 @@ class TestDagModel:
         )
         session.flush()
 
-        query, triggered_date_by_dag, _ = DagModel.dags_needing_dagruns(session)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         assert len(triggered_date_by_dag) == 1
         assert dag.dag_id in triggered_date_by_dag
         last_queued_time = triggered_date_by_dag[dag.dag_id]
