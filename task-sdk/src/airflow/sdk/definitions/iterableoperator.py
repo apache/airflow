@@ -421,7 +421,7 @@ class IterableOperator(BaseOperator):
         mapped_kwargs: Context,
         jinja_env: jinja2.Environment,
         try_number: int = 0,
-    ) -> IndexedTaskInstance | None:
+    ) -> IndexedTaskInstance:
         run_id = context["ti"].run_id
         map_index = context["ti"].map_index
         operator = self._unmap_operator(context.copy(), mapped_kwargs, jinja_env)
@@ -485,7 +485,7 @@ class IterableOperator(BaseOperator):
             for index, value in enumerate(self.expand_input.iter_values(context=context))
             if str(index) in failed_tasks
         )
-        return self._run_tasks(context=context, tasks=filter(None, tasks))
+        return self._run_tasks(context=context, tasks=tasks)
 
 
 class MappedIterableOperator(MappedOperator):
