@@ -25,7 +25,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from io import StringIO
 from select import select
-from typing import Any
+from typing import Any, TypeAlias
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -46,6 +46,10 @@ except ImportError:
 
     def is_arg_set(value):  # type: ignore[misc,no-redef]
         return value is not NOTSET
+
+
+# Concrete host-key classes accept bytes via ``data=``; base ``PKey`` stubs do not.
+_HostKeyConstructor: TypeAlias = type[paramiko.RSAKey] | type[paramiko.ECDSAKey] | type[paramiko.Ed25519Key]
 
 
 CMD_TIMEOUT = 10
@@ -97,7 +101,7 @@ class SSHHook(BaseHook):
 
     # Map OpenSSH known_hosts key-type tokens (and legacy short names) to Paramiko key classes.
     # DSA/DSS (ssh-dss) is intentionally absent — paramiko 4.0 removed DSS support.
-    _host_key_mappings: dict[str, type[paramiko.PKey]] = {
+    _host_key_mappings: dict[str, _HostKeyConstructor] = {
         "ssh-rsa": paramiko.RSAKey,
         "rsa": paramiko.RSAKey,
         "ssh-ed25519": paramiko.Ed25519Key,
@@ -426,7 +430,7 @@ class SSHHook(BaseHook):
         return key_constructor(data=decoded_host_key)
 
     @classmethod
-    def _parse_host_key(cls, host_key: str) -> tuple[type[paramiko.PKey], str]:
+    def _parse_host_key(cls, host_key: str) -> tuple[_HostKeyConstructor, str]:
         """
         Parse a ``host_key`` extra into ``(key class, base64 key data)``.
 
