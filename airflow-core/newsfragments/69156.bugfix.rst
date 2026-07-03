@@ -1,1 +1,0 @@
-Hide stale-only Dag tags from the public Dag tags API.
