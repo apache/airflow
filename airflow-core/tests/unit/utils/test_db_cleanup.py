@@ -600,6 +600,35 @@ class TestDBCleanup:
         commit_call_index = tracker.mock_calls.index(call.session.commit(), drop_call_index)
         assert rollback_call_index < drop_call_index < commit_call_index
 
+    def test_do_delete_propagates_original_error_when_rollback_fails(self):
+        session = MagicMock(spec=Session)
+        session.get_bind.return_value.dialect.name = "mysql"
+        session.connection.return_value = object()
+        session.scalars.return_value.one.side_effect = [1, 0]
+
+        metadata, source_table, target_table, query = _build_do_delete_test_objects()
+        delete_failure = IntegrityError("DELETE FROM dag_version", {}, Exception("fk violation"))
+        session.execute.side_effect = [None, None, delete_failure]
+        session.rollback.side_effect = OperationalError("ROLLBACK", {}, Exception("connection lost"))
+
+        with (
+            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
+            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
+            patch.object(target_table, "drop") as drop_mock,
+        ):
+            with pytest.raises(IntegrityError) as exc_info:
+                _do_delete(
+                    query=query,
+                    orm_model=source_table,
+                    skip_archive=True,
+                    session=session,
+                    batch_size=None,
+                )
+
+        assert exc_info.value is delete_failure
+        session.rollback.assert_called_once_with()
+        drop_mock.assert_called_once_with(bind=session.connection.return_value)
+
     @pytest.mark.parametrize(
         ("skip_archive", "expected_commit_count"),
         [pytest.param(True, 3, id="skip_archive"), pytest.param(False, 2, id="keep_archive")],
