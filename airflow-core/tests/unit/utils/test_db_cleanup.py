@@ -710,7 +710,7 @@ class TestDBCleanup:
             try:
                 with create_session() as session:
                     _cleanup_table(
-                        **config_dict["dag_version"].__dict__,
+                        **_dag_version_config_without_row_exclusion(),
                         clean_before_timestamp=clean_before_date,
                         dry_run=False,
                         session=session,
@@ -747,7 +747,7 @@ class TestDBCleanup:
         with pytest.raises(IntegrityError):
             with create_session() as session:
                 _cleanup_table(
-                    **config_dict["dag_version"].__dict__,
+                    **_dag_version_config_without_row_exclusion(),
                     clean_before_timestamp=clean_before_date,
                     dry_run=False,
                     session=session,
@@ -1351,3 +1351,20 @@ def _get_dag_version_archive_table_names(*, session):
         for table_name in _get_archived_table_names(["dag_version"], session)
         if table_name.startswith(f"{ARCHIVE_TABLE_PREFIX}dag_version__")
     ]
+
+
+def _dag_version_config_without_row_exclusion():
+    """Live dag_version cleanup config with row-exclusion filters disabled.
+
+    The backend regression tests above pin ``_do_delete``'s rollback-before-drop
+    behaviour (the MySQL metadata-lock hang from #66177), which requires the
+    DELETE to actually hit the ``task_instance.dag_version_id`` FK violation.
+    The live config may exclude FK-pinned rows from the deletion query (see
+    PR #68339), which would turn these tests into no-ops -- so strip any such
+    filters from a copy of the config.
+    """
+    config = dict(config_dict["dag_version"].__dict__)
+    for key in ("extra_filters", "skip_if_referenced"):
+        if key in config:
+            config[key] = None
+    return config
