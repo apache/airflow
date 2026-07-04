@@ -56,7 +56,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=1.99.0,<2``
+``pydantic-ai-slim``                        ``>=2.0.0``
 ==========================================  ==================
 
 Optional cross provider package dependencies
