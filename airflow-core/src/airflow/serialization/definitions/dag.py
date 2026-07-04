@@ -80,17 +80,6 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-_DAG_CALLBACK_ATTRS = (
-    "sla_miss_callback",
-    "on_success_callback",
-    "on_failure_callback",
-    "on_retry_callback",
-    "on_execute_callback",
-    "on_skipped_callback",
-    "has_on_success_callback",
-    "has_on_failure_callback",
-)
-
 
 # TODO (GH-52141): Share definition with SDK?
 class EdgeInfoType(TypedDict):
