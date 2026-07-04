@@ -19,8 +19,8 @@
 
 from __future__ import annotations
 
-import concurrent.futures
 import asyncio
+import concurrent.futures
 import datetime
 import functools
 import os
@@ -50,6 +50,14 @@ if TYPE_CHECKING:
     from paramiko.sftp_client import SFTPClient
 
 CHUNK_SIZE = 64 * 1024  # 64KB
+
+
+class SFTPOperation:
+    """SFTP operation constants."""
+
+    GET = "get"
+    PUT = "put"
+    DELETE = "delete"
 
 
 def handle_connection_management(func: Callable) -> Callable:
@@ -751,8 +759,6 @@ class SFTPHook(SSHHook):
         :param concurrency: Number of threads for directory transfers (default: 1).
         :param prefetch: Whether to prefetch during GET (default: True).
         """
-        from airflow.providers.sftp.constants import SFTPOperation
-
         if isinstance(local_filepath, str):
             local_filepath_array = [local_filepath] if local_filepath else []
         else:
@@ -782,9 +788,7 @@ class SFTPHook(SSHHook):
                     self.create_directory(os.path.dirname(remote))
                 if os.path.isdir(local):
                     if concurrency > 1:
-                        self.store_directory_concurrently(
-                            remote, local, confirm=confirm, workers=concurrency
-                        )
+                        self.store_directory_concurrently(remote, local, confirm=confirm, workers=concurrency)
                     else:
                         self.store_directory(remote, local, confirm=confirm)
                 else:
@@ -1151,8 +1155,6 @@ class SFTPHookAsync(BaseHook):
         prefetch: bool = True,
     ) -> None:
         """Perform an SFTP transfer operation (GET, PUT, or DELETE) using native async I/O."""
-        from airflow.providers.sftp.constants import SFTPOperation
-
         if isinstance(local_filepath, str):
             local_filepath_array = [local_filepath] if local_filepath else []
         else:
@@ -1199,7 +1201,6 @@ class SFTPHookAsync(BaseHook):
                         await sftp.unlink(remote)
 
                     tasks = [
-                        asyncio.create_task(_bounded(_delete(remote)))
-                        for remote in remote_filepath_array
+                        asyncio.create_task(_bounded(_delete(remote))) for remote in remote_filepath_array
                     ]
                     await asyncio.gather(*tasks)

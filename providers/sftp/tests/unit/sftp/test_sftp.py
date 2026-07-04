@@ -15,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""SFTP constants."""
 
-from __future__ import annotations
+from airflow.providers.sftp.hooks.sftp import SFTPOperation
 
 
-class SFTPOperation:
-    """SFTP operation constants."""
-
-    GET = "get"
-    PUT = "put"
-    DELETE = "delete"
+def test_sftp_operation_values():
+    assert SFTPOperation.GET == "get"
+    assert SFTPOperation.PUT == "put"
+    assert SFTPOperation.DELETE == "delete"
