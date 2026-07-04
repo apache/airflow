@@ -40,10 +40,13 @@ if TYPE_CHECKING:
 
 SECTION = "common.ai"
 
-# OTel GenAI semantic-convention attribute set. Pinned so the emitted span and
-# ``gen_ai.*`` attribute names stay stable regardless of the pydantic-ai default
-# (which tracks the latest, still-evolving revision).
-_SEMCONV_VERSION: Literal[4] = 4
+# OTel GenAI semantic-convention format version. Pinned so a change in the
+# pydantic-ai default does not silently shift the emitted span/attribute format
+# between provider releases. Version 5 is the current default in pydantic-ai 2.x;
+# formats 2-4 still work but are deprecated. Note: independent of this version,
+# pydantic-ai 2.x reports agent-run token usage under ``gen_ai.aggregated_usage.*``
+# (model-request spans keep ``gen_ai.usage.*``) -- see docs/observability.rst.
+_SEMCONV_VERSION: Literal[5] = 5
 
 
 def _otel_export_enabled() -> bool:
