@@ -38,6 +38,15 @@ MCP-capable coding agent (Claude Code, Cursor, or any other client of the vendor
 protocol) inspect and debug an Airflow instance -- typically a local Breeze development
 environment -- through Airflow's public REST API (`/api/v2/...`).
 
+> **What it proxies:** this is a proxy for the **Airflow REST API**, not for Breeze. It exposes
+> the *data and state of the running Airflow instance* (Dags, Dag runs, task instances, logs,
+> import errors, ...) as typed tools. It does **not** wrap Breeze, the `breeze` CLI, or the
+> `airflow` CLI, and it exposes none of their commands. Breeze is only *how* the target Airflow
+> (and this proxy) is launched -- the tool surface is the Airflow API server behind it, which is
+> backed by the metadata database. For encoding *how to use Breeze itself* (build, test, static
+> checks, host/container workflows) agent skills are the right tool; this is the complementary
+> runtime-inspection layer for the Airflow those workflows produce.
+
 **Scope:** this is groundwork for AIP-91 (Airflow MCP server), specifically its "internal
 Breeze tool" phase. It is **not** shipped to users, **not** part of any released Airflow
 distribution, and **not** intended for production use. It talks to exactly one Airflow

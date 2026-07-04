@@ -21,7 +21,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [18. Run an internal MCP server as a Breeze service for agent-assisted development](#18-run-an-internal-mcp-server-as-a-breeze-service-for-agent-assisted-development)
+- [18. Run an internal MCP server for the Airflow REST API as a Breeze service](#18-run-an-internal-mcp-server-for-the-airflow-rest-api-as-a-breeze-service)
   - [Status](#status)
   - [Context](#context)
   - [Decision](#decision)
@@ -29,7 +29,7 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# 18. Run an internal MCP server as a Breeze service for agent-assisted development
+# 18. Run an internal MCP server for the Airflow REST API as a Breeze service
 
 Date: 2026-07-04
 
@@ -49,6 +49,16 @@ agent can only answer those questions by shelling out: hand-rolling a JWT agains
 each one, and keeping track of run ids and map indexes by hand. That is brittle, easy to get
 wrong, and burns the agent's steps on plumbing instead of on the actual problem.
 
+To be precise about the target: what we want to expose is **Airflow's own REST API** — the data
+and state behind the running Airflow instance (Dags, Dag runs, task instances, logs, import
+errors) — **not Breeze**. Breeze has no data of its own to serve; it is only *how* the Airflow
+under test (and this proxy) is launched. This is therefore not a wrapper around Breeze or its
+CLI, and it does not expose Breeze commands. Encoding *how to drive Breeze itself* — build,
+run the right static checks, reproduce CI, host-vs-container awareness — is the job of agent
+skills (e.g. the GSoC Breeze Agent Skills effort); this MCP is the complementary layer that
+inspects the *running Airflow* those workflows produce. The two operate at different layers and
+compose (a verification skill can drive Breeze and then use these tools to check the outcome).
+
 Separately, [AIP-91](https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/364349979)
 proposes a *user-facing* Airflow MCP server: a stateless proxy over the public REST API,
 read-only in its first phase, with per-user RBAC enforced by passing the caller's token through
@@ -67,12 +77,14 @@ diverge.
 We ship a small, **internal, development-only** MCP server that lives in the repository at
 `dev/mcp_server` and is wired into Breeze as a first-class service.
 
-- **It is a stateless REST proxy.** Every tool call is translated into a request against the
-  running Breeze instance's public REST API (`/api/v2/...`). It never touches the metadata
-  database directly and adds no capability to Airflow itself — it only repackages the REST API
-  behind a curated, agent-oriented tool surface (`list_dags`, `list_task_instances`,
-  `get_task_log`, a composite `diagnose_dag_run`, `trigger_dag_run`, `clear_task_instances`, …),
-  plus two escape hatches (`airflow_api_get` / `airflow_api_call`) so no endpoint is out of reach.
+- **It is a stateless proxy for the Airflow REST API** (not for Breeze). Every tool call is
+  translated into a request against the running *Airflow* instance's public REST API
+  (`/api/v2/...`) — the instance Breeze happens to launch. It never touches the metadata database
+  directly and adds no capability to Airflow itself — it only repackages the REST API behind a
+  curated, agent-oriented tool surface (`list_dags`, `list_task_instances`, `get_task_log`, a
+  composite `diagnose_dag_run`, `trigger_dag_run`, `clear_task_instances`, …), plus two escape
+  hatches (`airflow_api_get` / `airflow_api_call`) so no endpoint is out of reach. The surface is
+  overwhelmingly read-only runtime *data*; no tool shells out to Breeze or the CLI.
 - **It runs as a Breeze service.** `breeze start-airflow --mcp-server` starts it inside the same
   container as the rest of Airflow (host port `28081` → container `8081`, analogous to `28080`
   for the API server). It is launched straight from the mounted sources via
