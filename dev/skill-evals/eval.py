@@ -49,6 +49,12 @@ AGENTS_SRC = REPO_ROOT / "AGENTS.md"
 CASES_DIR = SCRIPT_DIR / "cases"
 HASH_FILE = SCRIPT_DIR / "last-eval-hash.txt"
 
+# Tool state lives under .build (repo-scoped, established cleanup culture);
+# per-run reports go to files/ per the AGENTS.md output convention.
+PROMPTFOO_STATE_DIR = REPO_ROOT / ".build" / "promptfoo"
+SDK_DIR = REPO_ROOT / ".build" / "promptfoo-sdk"
+RESULTS_FILE = REPO_ROOT / "files" / "skill-evals" / "results.json"
+
 # Shared with the check-eval-hash prek hook so recorded and verified hashes can't drift.
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci" / "prek"))
 from check_eval_hash import compute_guidance_hash, write_recorded_hash  # noqa: E402
@@ -94,11 +100,10 @@ def check_prerequisites(promptfoo_cmd: list[str]) -> None:
         print("Error: npx not found.", file=sys.stderr)
         sys.exit(1)
 
-    sdk_dir = Path.home() / ".promptfoo-sdk" / "node_modules" / "@anthropic-ai" / "claude-agent-sdk"
-    if not sdk_dir.is_dir():
+    if not (SDK_DIR / "node_modules" / "@anthropic-ai" / "claude-agent-sdk").is_dir():
         print("Error: Claude Agent SDK not found. Run:", file=sys.stderr)
         print(
-            "  mkdir -p ~/.promptfoo-sdk && cd ~/.promptfoo-sdk"
+            f"  mkdir -p {SDK_DIR} && cd {SDK_DIR}"
             " && npm init -y && npm install @anthropic-ai/claude-agent-sdk",
             file=sys.stderr,
         )
@@ -259,8 +264,7 @@ def main() -> int:
         # Symlink node_modules for promptfoo SDK resolution (npx path only —
         # the prek env bundles the SDK inside promptfoo's own node_modules)
         if promptfoo_cmd[0] != "promptfoo":
-            sdk_modules = Path.home() / ".promptfoo-sdk" / "node_modules"
-            (work_dir / "node_modules").symlink_to(sdk_modules)
+            (work_dir / "node_modules").symlink_to(SDK_DIR / "node_modules")
 
         # Extract main-branch AGENTS.md
         main_agents = work_dir / "main-agents.md"
@@ -354,10 +358,13 @@ def main() -> int:
             print(f"  SKILL.md  — {'modified' if skill_changed else 'unchanged'} ({skill_name})")
         print()
 
-        # Run promptfoo
+        # Run promptfoo — state under .build, per-run report under files/
+        PROMPTFOO_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
-            [*promptfoo_cmd, "eval", "-c", str(config_path), *promptfoo_args],
+            [*promptfoo_cmd, "eval", "-c", str(config_path), "--output", str(RESULTS_FILE), *promptfoo_args],
             check=False,
+            env={**os.environ, "PROMPTFOO_CONFIG_DIR": str(PROMPTFOO_STATE_DIR)},
         )
 
         # 0 = all passed, 100 = some assertions failed — both mean the eval
@@ -374,7 +381,11 @@ def main() -> int:
             print("Partial run (--filter*) — hash not recorded; run the full case set to update it.")
 
         print()
-        print(f"View results: {' '.join(promptfoo_cmd)} view")
+        print(f"Results report: {RESULTS_FILE.relative_to(REPO_ROOT)}")
+        print(
+            f"View results: PROMPTFOO_CONFIG_DIR={PROMPTFOO_STATE_DIR.relative_to(REPO_ROOT)}"
+            f" {' '.join(promptfoo_cmd)} view"
+        )
         return result.returncode
 
     finally:

@@ -1015,6 +1015,10 @@ repos:
         language_version: '22.22.0'
         additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
         stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
         pass_filenames: false
         require_serial: true
       - id: check-eval-hash

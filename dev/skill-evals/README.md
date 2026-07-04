@@ -24,6 +24,7 @@
 - [Skill-Eval Harness](#skill-eval-harness)
   - [Prerequisites](#prerequisites)
   - [Usage](#usage)
+  - [Cleanup](#cleanup)
   - [Adding cases](#adding-cases)
   - [How it works](#how-it-works)
   - [Eval-run hash gate](#eval-run-hash-gate)
@@ -59,8 +60,9 @@ the Claude Agent SDK automatically. The direct path needs extra setup
 
 ```bash
 # Zero-setup: run the eval through the prek-provisioned environment
-# (single pass over all cases — satisfies the hash gate):
-prek run run-skill-eval --hook-stage manual
+# (single pass over all cases — satisfies the hash gate).
+# Stage your changes first — prek stashes unstaged edits:
+prek run run-skill-eval --hook-stage manual --all-files
 
 # Direct invocation — accepts promptfoo flags; needs Node.js >=22.22.0
 # and the one-time SDK setup below:
@@ -82,19 +84,33 @@ MODEL=claude-haiku-4-5-20251001 uv run dev/skill-evals/eval.py
 # Disable cache (force fresh LLM calls):
 uv run dev/skill-evals/eval.py --no-cache
 
-# View results in browser (use the pinned version printed by eval.py):
-npx promptfoo@0.121.17 view
+# View results in browser (state lives under .build/promptfoo):
+PROMPTFOO_CONFIG_DIR=.build/promptfoo npx promptfoo@0.121.17 view
 ```
 
 One-time setup for the **direct path only** — install the Claude Agent
 SDK where promptfoo can resolve it:
 
 ```bash
-mkdir -p ~/.promptfoo-sdk && cd ~/.promptfoo-sdk && npm init -y && npm install @anthropic-ai/claude-agent-sdk
+mkdir -p .build/promptfoo-sdk && cd .build/promptfoo-sdk && npm init -y && npm install @anthropic-ai/claude-agent-sdk
 ```
 
 A run with `--filter*` flags covers only a subset of cases, so it does
 not update the hash file.
+
+Each run also writes a JSON report to `files/skill-evals/results.json`
+(per the `files/` output convention) — handy for pasting results into
+a PR.
+
+## Cleanup
+
+Everything the harness stores lives inside the repo — nothing is left
+in your home directory:
+
+```bash
+rm -rf .build/promptfoo .build/promptfoo-sdk   # eval history, cache, SDK
+prek clean                                     # prek-provisioned node envs
+```
 
 ## Adding cases
 
