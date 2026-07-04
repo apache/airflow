@@ -746,6 +746,52 @@ class TestCreateXComEntry(TestXComEndpoint):
         assert "reserved serialization keys" in detail
         assert key in detail
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(
+                json.dumps({"__classname__": "airflow.sdk.definitions.connection.Connection"}),
+                id="classname-in-json-string",
+            ),
+            pytest.param(
+                json.dumps(
+                    {"nested": {"__type": "airflow.sdk.definitions.connection.Connection", "__var": {}}}
+                ),
+                id="nested-forbidden-in-json-string",
+            ),
+        ],
+    )
+    def test_create_xcom_entry_blocks_forbidden_keys_in_json_string(self, test_client, value):
+        """A forbidden payload submitted as a JSON string literal is blocked too.
+
+        ``_check_forbidden_xcom_keys._walk`` previously descended dict/list/tuple but not
+        ``str``, so a value like ``json.dumps({"__classname__": ...})`` slipped past the
+        filter and was reconstructed into a dict on a ``deserialize=true`` read.
+        """
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json={"key": "test_key", "value": value, "map_index": -1},
+        )
+        assert response.status_code == 422
+        assert "reserved serialization keys" in str(response.json()["detail"])
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("just a plain string", id="plain-string"),
+            pytest.param(json.dumps({"safe": "data", "count": 3}), id="benign-json-object-string"),
+            pytest.param(json.dumps(["a", "b"]), id="benign-json-array-string"),
+            pytest.param('{"not valid json', id="not-json"),
+        ],
+    )
+    def test_create_xcom_entry_allows_benign_string_values(self, test_client, value):
+        """String values that do not decode to a reserved-key structure stay accepted."""
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json={"key": "test_key", "value": value, "map_index": -1},
+        )
+        assert response.status_code != 422
+
 
 class TestDeleteXComEntry(TestXComEndpoint):
     def test_delete_xcom_entry(self, test_client, session):
@@ -893,6 +939,19 @@ class TestPatchXComEntry(TestXComEndpoint):
         detail = str(response.json()["detail"])
         assert "reserved serialization keys" in detail
         assert key in detail
+
+    def test_patch_xcom_entry_blocks_forbidden_keys_in_json_string(self, test_client):
+        """A forbidden payload submitted as a JSON string literal is blocked on PATCH too."""
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            json={
+                "value": json.dumps({"__classname__": "airflow.sdk.definitions.connection.Connection"}),
+                "map_index": -1,
+            },
+        )
+        assert response.status_code == 422
+        assert "reserved serialization keys" in str(response.json()["detail"])
 
     def test_patch_xcom_preserves_int_type(self, test_client, session):
         """Test scenario described in #59032: if existing XCom value type is int,
