@@ -522,6 +522,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc = super().start(
             id=proc_id,
             job=job,
+            client=cls.make_client(),
             target=cls.run_in_process,
             logger=logger,
             use_exec=supervisor._should_use_exec(),
