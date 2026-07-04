@@ -19,8 +19,13 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
+from tableauserverclient import ServerResponseError
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowSkipException,
+)
 from airflow.providers.tableau.hooks.tableau import TableauJobFinishCode
 from airflow.providers.tableau.operators.tableau import TableauOperator
 
@@ -530,3 +535,144 @@ class TestTableauOperator:
             exponential_backoff=True,
             max_check_interval=120,
         )
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_resource_refresh_skip_on_conflict_raises_skip_exception(self, mock_tableau_hook):
+        """
+        Test that a 409093 Resource Conflict on a Tableau resource refresh is turned into an
+        AirflowSkipException when skip_on_conflict=True.
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.datasources.refresh.side_effect = ServerResponseError(
+            "409093", "Resource Conflict", "Job is already queued. Not queuing a duplicate."
+        )
+
+        operator = TableauOperator(
+            find="ds_2",
+            resource="datasources",
+            skip_on_conflict=True,
+            **self.kwargs,
+        )
+
+        with pytest.raises(AirflowSkipException):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_incremental_resource_refresh_skip_on_conflict_raises_skip_exception(self, mock_tableau_hook):
+        """
+        Test that a 409093 Resource Conflict on a Tableau incremental resource refresh is turned into an
+        AirflowSkipException when skip_on_conflict=True.
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.datasources.refresh.side_effect = ServerResponseError(
+            "409093", "Resource Conflict", "Job is already queued. Not queuing a duplicate."
+        )
+        operator = TableauOperator(
+            find="ds_2",
+            resource="datasources",
+            incremental_refresh=True,
+            skip_on_conflict=True,
+            **self.kwargs,
+        )
+        with pytest.raises(AirflowSkipException):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_resource_refresh_conflict_not_skipped_by_default(self, mock_tableau_hook):
+        """
+        Test that a 409093 Resource Conflict on a Tableau resource refresh still fails the
+        task when skip_on_conflict is left at its default (False), preserving pre-existing
+        behavior.
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.datasources.refresh.side_effect = ServerResponseError(
+            "409093", "Resource Conflict", "Job is already queued. Not queuing a duplicate."
+        )
+
+        operator = TableauOperator(
+            find="ds_2",
+            resource="datasources",
+            **self.kwargs,
+        )
+
+        with pytest.raises(ServerResponseError):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_resource_refresh_skip_on_conflict_does_not_swallow_other_server_errors(self, mock_tableau_hook):
+        """
+        Test that skip_on_conflict on a Tableau resource refresh only catches the 409093
+        conflict code; other ServerResponseErrors still fail the task.
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.datasources.refresh.side_effect = ServerResponseError(
+            "500000", "Internal Server Error", "Something else went wrong."
+        )
+
+        operator = TableauOperator(
+            find="ds_2",
+            resource="datasources",
+            skip_on_conflict=True,
+            **self.kwargs,
+        )
+
+        with pytest.raises(ServerResponseError):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_task_run_skip_on_conflict_raises_skip_exception(self, mock_tableau_hook):
+        """
+        Test that a 409093 Resource Conflict on a Tableau task run is turned into an
+        AirflowSkipException when skip_on_conflict=True.
+        """
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=Mock())
+        mock_tableau_hook.server.tasks.run.side_effect = ServerResponseError(
+            "409093", "Resource Conflict", "Job is already queued. Not queuing a duplicate."
+        )
+
+        kwargs = {**self.kwargs, "method": "run", "match_with": "id"}
+        operator = TableauOperator(find="task-abc", resource="tasks", skip_on_conflict=True, **kwargs)
+
+        with pytest.raises(AirflowSkipException):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_task_run_conflict_not_skipped_by_default(self, mock_tableau_hook):
+        """
+        Test that a 409093 Resource Conflict on a Tableau task run still fails the task when
+        skip_on_conflict is left at its default (False), preserving pre-existing behavior.
+        """
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=Mock())
+        mock_tableau_hook.server.tasks.run.side_effect = ServerResponseError(
+            "409093", "Resource Conflict", "Job is already queued. Not queuing a duplicate."
+        )
+
+        kwargs = {**self.kwargs, "method": "run", "match_with": "id"}
+        operator = TableauOperator(find="task-abc", resource="tasks", **kwargs)
+
+        with pytest.raises(ServerResponseError):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_task_run_skip_on_conflict_does_not_swallow_other_server_errors(self, mock_tableau_hook):
+        """
+        Test that skip_on_conflict on a Tableau task run only catches the 409093 conflict
+        code; other ServerResponseErrors still fail the task.
+        """
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=Mock())
+        mock_tableau_hook.server.tasks.run.side_effect = ServerResponseError(
+            "500000", "Internal Server Error", "Something else went wrong."
+        )
+
+        kwargs = {**self.kwargs, "method": "run", "match_with": "id"}
+        operator = TableauOperator(find="task-abc", resource="tasks", skip_on_conflict=True, **kwargs)
+
+        with pytest.raises(ServerResponseError):
+            operator.execute(context={})
