@@ -35,7 +35,17 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
+from sqlalchemy import (
+    Column,
+    String,
+    and_,
+    func,
+    literal,
+    not_,
+    or_,
+    select as sql_select,
+    true as sql_true,
+)
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.functions import FunctionElement
@@ -883,8 +893,14 @@ class _OwnersFilter(BaseParam[list[str]]):
         if not self.value:
             return select
 
+        # DagModel.owners stores a comma-joined list of owners (see DAG.owner), normally joined
+        # with ", " but not guaranteed to have the space. Squash the separator and wrap both ends
+        # with "," so a requested owner only matches a whole entry in that list, never a substring
+        # of a neighboring owner's name.
+        squashed_owners = func.replace(DagModel.owners, ", ", ",")
+        wrapped_owners = literal(",").concat(squashed_owners).concat(",")
         conditions = [
-            DagModel.owners.ilike(f"%{_escape_like_pattern(owner)}%", escape=_LIKE_ESCAPE_CHAR)
+            wrapped_owners.ilike(f"%,{_escape_like_pattern(owner.strip())},%", escape=_LIKE_ESCAPE_CHAR)
             for owner in self.value
         ]
         return select.where(or_(*conditions))

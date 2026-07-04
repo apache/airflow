@@ -1,0 +1,1 @@
+The ``owners`` filter on ``GET /api/v2/dags`` now matches an owner exactly instead of doing a substring match, so filtering by ``owners=air`` no longer incorrectly returns Dags owned by ``airflow``.

@@ -312,7 +312,7 @@ class TestNonSearchFilterEscaping:
         param = _OwnersFilter().set_value(["100%_alice"])
         statement = param.to_orm(select(DagModel))
         sql = _compile(statement)
-        assert r"'%100\%\_alice%'" in sql
+        assert r"'%,100\%\_alice,%'" in sql
         assert "escape" in sql
 
     def test_asset_dependency_filter_escapes_user_wildcards(self):

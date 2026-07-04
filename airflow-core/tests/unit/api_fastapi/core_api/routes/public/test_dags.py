@@ -56,6 +56,7 @@ DAG5_DISPLAY_NAME = "display5"
 ASSET_SCHEDULED_DAG_ID = "test_asset_scheduled_dag"
 ASSET_DEP_DAG_ID = "test_asset_dep_dag"
 ASSET_DEP_DAG2_ID = "test_asset_dep_dag2"
+MULTI_OWNER_DAG_ID = "test_multi_owner_dag"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 API_PREFIX = "/dags"
@@ -111,6 +112,20 @@ class TestDagEndpoint:
         session.add(dag_model)
         session.add(dagrun_failed)
         session.add(dagrun_success)
+
+    def _create_multi_owner_dag(self, session=None):
+        # Owners as persisted by DAG.owner: a ", "-joined list (see task-sdk DAG.owner property).
+        dag_model = DagModel(
+            dag_id=MULTI_OWNER_DAG_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="multi_owner_dag.py",
+            fileloc="/tmp/multi_owner_dag.py",
+            timetable_summary=None,
+            is_stale=False,
+            is_paused=False,
+            owners="alice, bob",
+        )
+        session.add(dag_model)
 
     def _create_dag_tags(self, session=None):
         session.add(DagTag(dag_id=DAG1_ID, name="tag_2"))
@@ -286,6 +301,22 @@ class TestGetDags(TestDagEndpoint):
                 [DAG1_ID, DAG2_ID],
             ),
             ({"owners": ["test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
+            # "air" must not match a Dag owned by "airflow" (substring, not exact match).
+            ({"owners": ["air"], "exclude_stale": False}, 0, []),
+            # "owner" must not match "test_owner,another_test_owner" (substring of both entries).
+            ({"owners": ["owner"], "exclude_stale": False}, 0, []),
+            # An owner in the middle/end of a ", "-joined list must match exactly.
+            (
+                {"owners": ["alice"], "exclude_stale": False},
+                1,
+                [MULTI_OWNER_DAG_ID],
+            ),
+            (
+                {"owners": ["bob"], "exclude_stale": False},
+                1,
+                [MULTI_OWNER_DAG_ID],
+            ),
+            ({"owners": ["ali"], "exclude_stale": False}, 0, []),
             ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
             ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
@@ -445,6 +476,10 @@ class TestGetDags(TestDagEndpoint):
         # Only create asset test data for asset-related tests to avoid affecting other tests
         if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
             self._create_asset_test_data(session)
+        # Only create the multi-owner Dag for owners-related tests to avoid affecting other tests
+        if "owners" in query_params:
+            self._create_multi_owner_dag(session)
+            session.commit()
 
         with assert_queries_count(4):
             response = test_client.get("/dags", params=query_params)
