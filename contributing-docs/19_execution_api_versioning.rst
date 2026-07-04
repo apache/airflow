@@ -48,9 +48,9 @@ Version Changes
 When making changes to the Execution API, you must:
 
 1. Check the latest version file in ``airflow-core/src/airflow/api_fastapi/execution_api/versions/``.
-   If its date is in the future and has not been released yet, add your ``VersionChange`` class to
-   that file. Otherwise add a new migration module (e.g., ``v2025_04_28.py``). Pick a likely date
-   for when the Airflow version will be released.
+   If the latest version has not been released yet, add your ``VersionChange`` class to that file.
+   Otherwise add a new migration module (e.g., ``v2025_04_28.py``). Pick a likely date for when the
+   Airflow version will be released.
 
    - Use the ``vYYYY_MM_DD`` format.
    - New migrations can be added to an existing unreleased version; not every migration needs a new version.
@@ -64,7 +64,7 @@ When making changes to the Execution API, you must:
 
    .. code-block:: bash
 
-       uv run --project task-sdk python dev/generate_task_sdk_models.py
+       uv run --project task-sdk python task-sdk/dev/generate_task_sdk_models.py
 
 5. Update tests to cover both old and new versions.
 6. Ensure backward compatibility wherever possible.
