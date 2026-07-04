@@ -25,6 +25,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicAgentSessionTimeout,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicTriggerEventError,
 )
 from airflow.providers.anthropic.hooks.anthropic import (
     DEFAULT_MODEL,
@@ -33,6 +34,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
     BatchStatus,
     SessionStatus,
     evaluate_session_state,
+    validate_execute_complete_event,
 )
 
 pytest.importorskip("anthropic")
@@ -74,6 +76,33 @@ class TestSessionStatus:
     )
     def test_is_terminal(self, status, expected):
         assert SessionStatus.is_terminal(status) is expected
+
+
+class TestValidateTriggerEvent:
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param({}, "Unexpected trigger event status None", id="missing-status"),
+            pytest.param(
+                {"status": "ended", "batch_id": "b"}, "Unexpected trigger event status", id="unknown-status"
+            ),
+        ],
+    )
+    def test_invalid_event_raises(self, event, match):
+        with pytest.raises(AnthropicTriggerEventError, match=match):
+            validate_execute_complete_event(event)
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param({"status": "success", "batch_id": "b"}, id="success"),
+            pytest.param({"status": "error", "batch_id": "b", "message": "boom"}, id="error"),
+            pytest.param({"status": "timeout", "batch_id": "b", "message": "slow"}, id="timeout"),
+        ],
+    )
+    def test_valid_event_is_returned(self, event):
+        assert validate_execute_complete_event(event) is event
 
 
 def _session(status, outcome_results=None):
