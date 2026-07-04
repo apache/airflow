@@ -76,6 +76,21 @@ class TestKiotaRequestAdapterHook:
             assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
     @classmethod
+    def mock_authentication_provider_never_opened(self) -> AuthenticationProvider:
+        """Return an auth provider whose transport has never been opened (session is None)."""
+        transport = Mock(spec=AioHttpTransport, _has_been_opened=False)
+        transport.session = None
+        pipeline = Mock(spec=AsyncPipelineClient)
+        pipeline._transport = transport
+        client = Mock(spec=AadClient)
+        client._pipeline = pipeline
+        credentials = Mock(spec=AsyncTokenCredential)
+        credentials._client = client
+        access_token_provider = Mock(spec=AzureIdentityAccessTokenProvider)
+        access_token_provider._credentials = credentials
+        return BaseBearerTokenAuthenticationProvider(access_token_provider=access_token_provider)
+
+    @classmethod
     def mock_authentication_provider(self, closed: bool) -> AuthenticationProvider:
         transport = Mock(spec=AioHttpTransport, _has_been_opened=not closed)
         transport.session = Mock(spec=ClientSession, closed=closed)
@@ -592,6 +607,20 @@ class TestKiotaRequestAdapterHook:
 
             assert result is fresh_adapter
             assert hook.cached_request_adapters[hook.conn_id] == ("v1.0", fresh_adapter)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_does_not_rebuild_adapter_when_transport_never_opened(self):
+        """get_async_conn must keep the cached adapter when transport has never been opened (session is None)."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = self.mock_authentication_provider_never_opened()
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            result = await hook.get_async_conn()
+
+            assert result is adapter
 
     @pytest.mark.asyncio
     async def test_send_request_invalidates_cache_and_raises_on_any_error(self):

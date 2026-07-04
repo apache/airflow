@@ -68,6 +68,7 @@ apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-teradata = false
 apache-airflow-providers-jdbc = false
 apache-airflow-helm-chart = false
+apache-airflow-providers-anthropic = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-cohere = false
 apache-airflow-providers-pinecone = false
@@ -175,6 +176,7 @@ members = [
     "apache-airflow-providers-akeyless",
     "apache-airflow-providers-alibaba",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-anthropic",
     "apache-airflow-providers-apache-cassandra",
     "apache-airflow-providers-apache-drill",
     "apache-airflow-providers-apache-druid",
@@ -958,6 +960,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/26/ea71185027956325be1903d4fcaf7461d5ef40ca8f0e64f992e24ea9db0e/anthropic-0.112.0-py3-none-any.whl", hash = "sha256:bcc6268612c716dbb77133dd60fc41d26016d1b81dee9a52314d210193638751", size = 931954, upload-time = "2026-06-24T18:45:58.205Z" },
 ]
 
+[package.optional-dependencies]
+aws = [
+    { name = "boto3" },
+    { name = "botocore" },
+]
+bedrock = [
+    { name = "boto3" },
+    { name = "botocore" },
+]
+vertex = [
+    { name = "google-auth", extra = ["requests"] },
+]
+
 [[package]]
 name = "anyio"
 version = "4.14.1"
@@ -1001,6 +1016,7 @@ all = [
     { name = "apache-airflow-providers-akeyless" },
     { name = "apache-airflow-providers-alibaba" },
     { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"] },
+    { name = "apache-airflow-providers-anthropic" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
@@ -1118,6 +1134,9 @@ amazon = [
 ]
 amazon-aws-auth = [
     { name = "apache-airflow-providers-amazon", extra = ["python3-saml"] },
+]
+anthropic = [
+    { name = "apache-airflow-providers-anthropic" },
 ]
 apache-atlas = [
     { name = "atlasclient" },
@@ -1567,6 +1586,8 @@ requires-dist = [
     { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "extra == 'aiobotocore'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "extra == 'amazon-aws-auth'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "extra == 's3fs'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-anthropic", marker = "extra == 'all'", editable = "providers/anthropic" },
+    { name = "apache-airflow-providers-anthropic", marker = "extra == 'anthropic'", editable = "providers/anthropic" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
@@ -1778,7 +1799,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.25" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -3220,6 +3241,58 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
+name = "apache-airflow-providers-anthropic"
+version = "0.1.0"
+source = { editable = "providers/anthropic" }
+dependencies = [
+    { name = "anthropic" },
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+]
+
+[package.optional-dependencies]
+aws = [
+    { name = "anthropic", extra = ["aws"] },
+]
+bedrock = [
+    { name = "anthropic", extra = ["bedrock"] },
+]
+vertex = [
+    { name = "anthropic", extra = ["vertex"] },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", specifier = ">=0.101.0" },
+    { name = "anthropic", extras = ["aws"], marker = "extra == 'aws'", specifier = ">=0.101.0" },
+    { name = "anthropic", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=0.101.0" },
+    { name = "anthropic", extras = ["vertex"], marker = "extra == 'vertex'", specifier = ">=0.101.0" },
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+]
+provides-extras = ["bedrock", "vertex", "aws"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
 name = "apache-airflow-providers-apache-cassandra"
 version = "3.9.5"
 source = { editable = "providers/apache/cassandra" }
@@ -4419,7 +4492,7 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=0.11.0" },
-    { name = "pydantic-ai-slim", specifier = ">=1.99.0,<2" },
+    { name = "pydantic-ai-slim", specifier = ">=2.0.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'" },
     { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'" },
     { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'" },
@@ -6386,6 +6459,7 @@ source = { editable = "providers/microsoft/winrm" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "pyspnego" },
     { name = "pywinrm" },
 ]
 
@@ -6404,6 +6478,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "pyspnego", specifier = ">=0.4.0" },
     { name = "pywinrm", specifier = ">=0.5.0" },
 ]
 
@@ -19156,7 +19231,7 @@ wheels = [
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "1.107.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
@@ -19168,9 +19243,9 @@ dependencies = [
     { name = "pydantic-graph" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4c/26/ced63dfaabbc77f3beb86d59689cdea748e7ccffb6b419dbaf4780f211e8/pydantic_ai_slim-1.107.0.tar.gz", hash = "sha256:4616f689a92fcfecfecf2a7af27aca22f139a873cf6d7a8929eaeee9c0eedbb4", size = 779902, upload-time = "2026-06-10T14:53:10.574Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/d1/78fd15c9c68b95ac0bec2d2afe22feb3b2f46e4b8e3a6dd1cead61cde434/pydantic_ai_slim-2.1.0.tar.gz", hash = "sha256:f79dca2429dbb9d2e32a0e2c613cfb9b9d6f0dc81d42cff8a5c81ede8ca0a6c7", size = 738698, upload-time = "2026-06-29T09:51:18.634Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/57/71044e17f931b08cc3930bc0fe5a1e1fd37fa474ae826be004729ef1cb4a/pydantic_ai_slim-1.107.0-py3-none-any.whl", hash = "sha256:1af49bbae06a6c598f72c54d4734ba377100cac493c9a05fa8e089bebeae0da6", size = 964046, upload-time = "2026-06-10T14:53:03.333Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/c7/b531cf65a1f8b221ab39739a16fe08f7b6a56fd24db875b9c33010320c9c/pydantic_ai_slim-2.1.0-py3-none-any.whl", hash = "sha256:2afda56459606226113ab433ee659aac7ff29bb66feefa716c67144bd82e5ce2", size = 910109, upload-time = "2026-06-29T09:51:11.016Z" },
 ]
 
 [package.optional-dependencies]
@@ -19322,7 +19397,7 @@ wheels = [
 
 [[package]]
 name = "pydantic-graph"
-version = "1.107.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -19330,9 +19405,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/c3/6e8c2d13b8701041f1b3eac5deb41f25d4dbfa479a190d5c6becc23f2a49/pydantic_graph-1.107.0.tar.gz", hash = "sha256:278dd89b3e33f3a2963ac949f27a53aef705c5d883a8ce5d06d23e6e3cfbd972", size = 62564, upload-time = "2026-06-10T14:53:13.366Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/20/018532c826aba3c29ffc37bda46c20f3db4584bb555a8c7dc2769866267d/pydantic_graph-2.1.0.tar.gz", hash = "sha256:36ed6af24543421fb628fee593ccf5553a286c1dd1677018f5064a4e44c4daba", size = 43052, upload-time = "2026-06-29T09:51:20.832Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/72/621556e3f5068400d43a0375d38e5963de30256eaa5a702aba12e82ed0ff/pydantic_graph-1.107.0-py3-none-any.whl", hash = "sha256:71add94fe7e14c703977a895117c475aae6c0b02a774a036c4d00d9a63c78b00", size = 80106, upload-time = "2026-06-10T14:53:06.543Z" },
+    { url = "https://files.pythonhosted.org/packages/42/a8/7f32bdeda6cff28652bba1c21ab2155c81d1733abd4b8bfef46a26e8d3fe/pydantic_graph-2.1.0-py3-none-any.whl", hash = "sha256:bae1e99829abf590a8693442ba5693ace38d2d93a80ae48be55c610a503e3709", size = 50772, upload-time = "2026-06-29T09:51:14.161Z" },
 ]
 
 [[package]]
