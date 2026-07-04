@@ -418,8 +418,6 @@ def _fork_main(
     - Catch un-handled exceptions and attempt to show _something_ in case of error
     - Finally, run the actual task runner code (``target`` argument, defaults to ``.task_runner:main`)
     """
-    # TODO: Make this process a session leader
-
     # Store original stderr for last-chance exception handling
     last_chance_stderr = _get_last_chance_stderr()
 
@@ -673,6 +671,9 @@ class WatchedSubprocess:
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
 
+    _new_process_group: bool = False
+    """Whether the child was placed in its own process group at fork time (see ``start``)."""
+
     start_time: float = attrs.field(factory=time.monotonic)
     """The start time of the child process."""
 
@@ -683,6 +684,7 @@ class WatchedSubprocess:
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
         use_exec: bool = False,
+        new_process_group: bool = False,
         **constructor_kwargs,
     ) -> Self:
         """
@@ -694,6 +696,12 @@ class WatchedSubprocess:
             ``target`` is rehydrated in the exec'd child from its ``module:qualname``,
             so any importable entry point (task execution, DAG processor, triggerer)
             is supported.
+        :param new_process_group: If True, place the child in its own process
+            group (PGID == its PID, like
+            ``airflow.utils.process_utils.set_new_process_group``) so signals
+            can be delivered to the child's whole process tree via
+            ``os.killpg``. Task execution opts in; DAG processor and triggerer
+            keep the supervisor's process group and are signalled directly.
         """
         if use_exec and "<" in getattr(target, "__qualname__", "<"):
             # Closures/lambdas (``<locals>`` / ``<lambda>`` in the qualname) and
@@ -711,15 +719,18 @@ class WatchedSubprocess:
 
         pid = os.fork()
         if pid == 0:
-            # Put the task-runner into its own session so its PGID == its own
-            # PID. The supervisor can then deliver signals to the whole tree
-            # via os.killpg() in kill(), reaching every subprocess the
-            # task-runner spawned (e.g. venv children from
-            # PythonVirtualenvOperator). Without this, a SIGTERM from kill()
-            # only hits the task-runner and any Popen children are reparented
-            # to PID 1 and leak as orphans. See issue #65505.
-            with suppress(OSError):
-                os.setsid()
+            if new_process_group:
+                # Put the task-runner into its own process group so its PGID
+                # equals its own PID. The supervisor can then deliver signals
+                # to the whole tree via os.killpg(), reaching every subprocess
+                # the task-runner spawned (e.g. venv children from
+                # PythonVirtualenvOperator). Without this, a SIGTERM from
+                # kill() only hits the task-runner and any Popen children are
+                # reparented to PID 1 and leak as orphans. Also set from the
+                # parent below so the group exists no matter which side of the
+                # fork runs first. See issue #65505.
+                with suppress(OSError):
+                    os.setpgid(0, 0)
 
             # Close and delete of the parent end of the sockets.
             cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
@@ -772,6 +783,15 @@ class WatchedSubprocess:
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
             os._exit(124)
 
+        if new_process_group:
+            # Mirror of the child-side setpgid, so the group is guaranteed to
+            # exist once start() returns. Without this, kill() invoked before
+            # the child is first scheduled (e.g. task_instances.start()
+            # failing synchronously in _on_child_started) would resolve the
+            # child's PGID to the supervisor's own group and killpg it.
+            with suppress(OSError):
+                os.setpgid(pid, pid)
+
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
         cls._close_unused_sockets(child_stdout, child_stderr, child_logs)
@@ -783,6 +803,7 @@ class WatchedSubprocess:
             process=PsutilTracker(psutil.Process(pid)),
             process_log=logger,
             start_time=time.monotonic(),
+            new_process_group=new_process_group,
             **constructor_kwargs,
         )
 
@@ -1017,6 +1038,30 @@ class WatchedSubprocess:
         self.selector.close()
         self.stdin.close()
 
+    def _signal_subprocess(self, sig: signal.Signals) -> None:
+        """
+        Deliver ``sig`` to the child process, or to its whole process group when it has its own.
+
+        When ``new_process_group`` was set at ``start()`` time, the signal is sent with
+        ``os.killpg`` so subprocesses spawned by the child (venv children, bash shells, etc.)
+        are reached too (see issue #65505). Falls back to signalling the child PID alone when
+        the group cannot be resolved or signalled -- and, critically, when the child still
+        shares the supervisor's own process group (``setpgid`` failed), because ``killpg`` on
+        our own group would signal the supervisor itself and its siblings.
+        """
+        if self._new_process_group:
+            try:
+                pgid = os.getpgid(self._process.pid)
+            except (ProcessLookupError, PermissionError):
+                pgid = None
+            if pgid is not None and pgid != os.getpgid(0):
+                try:
+                    os.killpg(pgid, sig)
+                    return
+                except (ProcessLookupError, PermissionError):
+                    pass
+        self._process.send_signal(sig)
+
     def kill(
         self,
         signal_to_send: signal.Signals = signal.SIGINT,
@@ -1046,18 +1091,7 @@ class WatchedSubprocess:
 
         for sig in escalation_path:
             try:
-                # Signal the whole process group so subprocesses the
-                # task-runner spawned (venv children, Docker exec, bash
-                # shells, etc.) are also reached. Requires the task-runner to
-                # have been placed in its own session via os.setsid() at fork
-                # time (see start()). See issue #65505.
-                try:
-                    os.killpg(os.getpgid(self._process.pid), sig)
-                except (ProcessLookupError, PermissionError):
-                    # Group vanished or we lack permission (e.g. task already
-                    # reaped, or the child never reached setsid). Fall back
-                    # to signalling the task-runner alone.
-                    self._process.send_signal(sig)
+                self._signal_subprocess(sig)
 
                 start = time.monotonic()
                 end = start + escalation_delay
@@ -1381,7 +1415,13 @@ class ActivitySubprocess(WatchedSubprocess):
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and _should_use_exec()
         proc: Self = super().start(
-            id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
+            id=what.id,
+            client=client,
+            target=target,
+            logger=logger,
+            use_exec=use_exec,
+            new_process_group=True,
+            **kwargs,
         )
         # Tell the task process what it needs to do!
         proc._on_child_started(
