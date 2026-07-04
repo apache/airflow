@@ -113,9 +113,7 @@ def _executor_initializer():
         log.debug("Exception details:", exc_info=True)
 
 
-_process_adapter: OpenLineageAdapter | None = None
-
-
+@cache
 def _get_process_adapter() -> OpenLineageAdapter:
     """
     Return the per-process ``OpenLineageAdapter`` used inside pool worker processes.
@@ -123,10 +121,7 @@ def _get_process_adapter() -> OpenLineageAdapter:
     Each ``ProcessPoolExecutor`` worker keeps exactly one adapter — and therefore one
     ``OpenLineageClient`` with one set of transports — for its whole lifetime.
     """
-    global _process_adapter
-    if _process_adapter is None:
-        _process_adapter = OpenLineageAdapter()
-    return _process_adapter
+    return OpenLineageAdapter()
 
 
 def _run_adapter_method(method_name: str, /, *args, **kwargs):
