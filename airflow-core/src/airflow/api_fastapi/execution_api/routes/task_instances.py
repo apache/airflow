@@ -789,7 +789,12 @@ def _create_ti_state_update_query_and_update_state(
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
         updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
-        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
+        query = query.values(
+            state=updated_state,
+            next_method=None,
+            next_kwargs=None,
+            _rendered_map_index=ti_patch_payload.rendered_map_index,
+        )
     else:
         raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")
 

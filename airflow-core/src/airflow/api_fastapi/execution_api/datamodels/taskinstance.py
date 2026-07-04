@@ -166,6 +166,7 @@ class TIRescheduleStatePayload(StrictBaseModel):
     ]
     reschedule_date: UtcDateTime
     end_date: UtcDateTime
+    rendered_map_index: str | None = None
 
 
 class TIAwaitingInputStatePayload(StrictBaseModel):
