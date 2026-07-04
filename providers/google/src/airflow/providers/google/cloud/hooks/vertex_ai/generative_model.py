@@ -19,16 +19,37 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import vertexai
 from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.preview import generative_models as preview_generative_model
 from vertexai.preview.caching import CachedContent
-from vertexai.preview.evaluation import EvalResult, EvalTask
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    # Keep the optional evaluation import from breaking users who never touch EvalTask.
+    from vertexai.preview.evaluation import EvalResult, EvalTask
+
+
+def _import_vertex_evaluation():
+    """
+    Import the optional ``vertexai.preview.evaluation`` module lazily.
+
+    Raise a clear ``ImportError`` pointing at the ``[vertex-eval]`` provider extra
+    when the Vertex AI evaluation dependencies are missing.
+    """
+    try:
+        from vertexai.preview import evaluation as vertex_evaluation
+    except ImportError as e:
+        raise ImportError(
+            "Vertex AI generative-model evaluation requires optional dependencies. "
+            "Install the provider extra with:\n\n"
+            "    pip install 'apache-airflow-providers-google[vertex-eval]'\n"
+        ) from e
+    return vertex_evaluation
 
 
 class GenerativeModelHook(GoogleBaseHook):
@@ -64,7 +85,8 @@ class GenerativeModelHook(GoogleBaseHook):
         experiment: str,
     ) -> EvalTask:
         """Return an EvalTask object."""
-        eval_task = EvalTask(
+        vertex_evaluation = _import_vertex_evaluation()
+        eval_task = vertex_evaluation.EvalTask(
             dataset=dataset,
             metrics=metrics,
             experiment=experiment,

@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+.. Breaking change
+
+The optional dependency stack for Vertex AI generative-model evaluation is no
+longer enabled by the base install of ``apache-airflow-providers-google``. Users
+who exercise Vertex AI generative-model evaluation via
+``GenerativeModelHook.get_eval_task`` / ``run_evaluation`` (or
+``RunEvaluationOperator``) must install the new ``vertex-eval`` extra:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-google[vertex-eval]'
+
+Users who do not touch those Vertex AI evaluation APIs are unaffected and will
+no longer pull in these evaluation-only dependencies transitively.
+
 22.4.0
 ......
 
@@ -52,11 +67,10 @@ Misc
 * ``Add type annotations to sql hooks (#70815)``
 
 .. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Replace the ACL calls with IAM roles for the system tests + add new (#70978)``
-   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
-   * ``Fix Java Beam SDK example to target Java 11 (#71218)``
-
+  appropriate section above if needed. Do not delete the lines(!):
+  * ``Replace the ACL calls with IAM roles for the system tests + add new (#70978)``
+  * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+  * ``Fix Java Beam SDK example to target Java 11 (#71218)``
 
 22.3.0
 ......
