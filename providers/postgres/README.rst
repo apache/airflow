@@ -58,7 +58,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
 ``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
-``asyncpg``                                 ``>=0.30.0``
+``psycopg[binary]``                         ``>=3.2.9; python_version < "3.14"``
+``psycopg[binary]``                         ``>=3.3.3; python_version >= "3.14"``
 ==========================================  ======================================
 
 Optional cross provider package dependencies
@@ -89,11 +90,11 @@ Optional dependencies
 Extra                Dependencies
 ===================  ============================================================================================================================================================
 ``amazon``           ``apache-airflow-providers-amazon>=2.6.0``
+``asyncpg``          ``asyncpg>=0.30.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
 ``openlineage``      ``apache-airflow-providers-openlineage``
 ``pandas``           ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``polars``           ``polars>=1.26.0``
-``psycopg``          ``psycopg[binary]>=3.2.9; python_version < '3.14'``, ``psycopg[binary]>=3.3.3; python_version >= '3.14'``
 ``sqlalchemy``       ``sqlalchemy>=1.4.54``
 ===================  ============================================================================================================================================================
 
