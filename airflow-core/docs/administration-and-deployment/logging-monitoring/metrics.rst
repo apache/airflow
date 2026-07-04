@@ -155,7 +155,9 @@ Allow/Block Lists
 -----------------
 
 If you want to avoid sending all the available metrics, you can configure an allow list or block list
-of prefixes to send or block only the metrics that start with the elements of the list:
+to send or block only certain metrics. Each list is a comma-separated set of regular expressions
+matched anywhere in the metric name (anchor a pattern with ``^`` to match a prefix). If both lists
+are set, the block list is ignored:
 
 .. code-block:: ini
 
@@ -179,6 +181,43 @@ to the stat name if necessary, and returns the transformed stat name. The functi
 
     def my_custom_stat_name_handler(stat_name: str) -> str:
         return stat_name.lower()[:32]
+
+
+Custom Metrics
+--------------
+
+You can emit your own metrics from inside a task, plugin, or custom operator through
+the same stats client Airflow uses internally. In Airflow 3 the recommended import
+path is ``airflow.sdk.observability``:
+
+.. code-block:: python
+
+    from airflow.sdk.observability import stats
+
+    stats.incr("my_service.processed")
+    stats.decr("my_service.in_flight")
+    stats.gauge("my_service.queue_depth", 42)
+    stats.timing("my_service.batch_ms", 1234)
+
+    with stats.timer("my_service.batch"):
+        ...
+
+``incr``, ``decr``, ``gauge``, ``timing`` and ``timer`` also accept an optional
+``tags`` mapping for dimensional metrics on backends that support them:
+
+.. code-block:: python
+
+    stats.incr("my_service.requests", tags={"endpoint": "checkout"})
+
+.. note::
+
+    These metrics are silently dropped unless a backend is enabled (see `Setup - StatsD`_
+    or `Setup - OpenTelemetry`_).
+
+.. note::
+
+    If your custom metrics do not appear, check ``[metrics] metrics_allow_list`` and
+    ``[metrics] metrics_block_list`` (see `Allow/Block Lists`_).
 
 
 Other Configuration Options
