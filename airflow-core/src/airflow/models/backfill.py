@@ -123,6 +123,17 @@ class InvalidBackfillConf(AirflowException):
     """
 
 
+class NoBackfillRunsToCreate(ValueError):
+    """
+    Raised when a backfill request yields no Dag runs for the given date range.
+
+    This happens when the from/to date range falls entirely outside the Dag's
+    scheduled intervals (e.g. the range predates the first partition boundary).
+
+    :meta private:
+    """
+
+
 class UnknownActiveBackfills(AirflowException):
     """
     Raised when the quantity of active backfills cannot be determined.
@@ -665,6 +676,17 @@ def _create_backfill(
             dag_run_conf,
         )
 
+        dagrun_info_list = _get_info_list(
+            from_date=from_date,
+            to_date=to_date,
+            reverse=reverse,
+            dag=dag,
+        )
+        if not dagrun_info_list:
+            raise NoBackfillRunsToCreate(
+                f"No runs to create for Dag {dag_id} in the range [{from_date}, {to_date}]"
+            )
+
         br = Backfill(
             dag_id=dag_id,
             from_date=from_date,
@@ -679,15 +701,6 @@ def _create_backfill(
         session.commit()
 
         session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
-
-        dagrun_info_list = _get_info_list(
-            from_date=from_date,
-            to_date=to_date,
-            reverse=reverse,
-            dag=dag,
-        )
-        if not dagrun_info_list:
-            raise RuntimeError(f"No runs to create for Dag {dag_id}")
 
         first_info = dagrun_info_list[0]
         if first_info.partition_key:
