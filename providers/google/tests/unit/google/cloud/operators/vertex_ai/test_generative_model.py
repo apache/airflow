@@ -24,6 +24,10 @@ import pytest
 pytest.importorskip("google.cloud.aiplatform_v1")
 pytest.importorskip("google.cloud.aiplatform_v1beta1")
 vertexai = pytest.importorskip("vertexai.generative_models")
+# The evaluation stack ships via the optional ``google-cloud-aiplatform[evaluation]``
+# extra (exposed as the ``vertex-eval`` provider extra) and is not installed in the
+# lean base test environment.
+pytest.importorskip("vertexai.preview.evaluation")
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
