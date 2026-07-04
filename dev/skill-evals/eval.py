@@ -46,6 +46,12 @@ PROMPTFOO_VERSION = "0.121.17"
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPT_DIR = Path(__file__).resolve().parent
 AGENTS_SRC = REPO_ROOT / "AGENTS.md"
+CASES_DIR = SCRIPT_DIR / "cases"
+HASH_FILE = SCRIPT_DIR / "last-eval-hash.txt"
+
+# Shared with the check-eval-hash prek hook so recorded and verified hashes can't drift.
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci" / "prek"))
+from check_eval_hash import compute_guidance_hash, write_recorded_hash  # noqa: E402
 
 OUTPUT_SCHEMA = """\
       output_format:
@@ -229,6 +235,9 @@ def main() -> int:
     base_branch = resolve_base_branch()
     check_claude_md_symlink(base_branch)
 
+    # Hash before building arms so edits made mid-run aren't recorded as tested.
+    guidance_hash = compute_guidance_hash(AGENTS_SRC, CASES_DIR)
+
     # Temp dir for config and worktrees
     work_dir = Path(tempfile.mkdtemp())
     worktrees: list[Path] = []
@@ -335,6 +344,13 @@ def main() -> int:
             ["npx", f"promptfoo@{PROMPTFOO_VERSION}", "eval", "-c", str(config_path), *promptfoo_args],
             check=False,
         )
+
+        # 0 = all passed, 100 = some assertions failed — both mean the eval
+        # completed and the results were seen, which is what the hash proves.
+        if result.returncode in (0, 100):
+            write_recorded_hash(guidance_hash, HASH_FILE)
+            print()
+            print(f"Recorded eval run in {HASH_FILE.relative_to(REPO_ROOT)} — commit it with your change.")
 
         print()
         print(f"View results: npx promptfoo@{PROMPTFOO_VERSION} view")

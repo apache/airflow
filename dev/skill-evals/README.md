@@ -27,7 +27,7 @@
   - [Usage](#usage)
   - [Adding cases](#adding-cases)
   - [How it works](#how-it-works)
-  - [Prek hook](#prek-hook)
+  - [Eval-run hash gate](#eval-run-hash-gate)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -117,13 +117,22 @@ Use `output.should_create` directly in assertions.
 3. Runs each case against all arms in parallel.
 4. Reports pass/fail diff. Worktrees cleaned up on exit.
 
-## Prek hook
+## Eval-run hash gate
 
-A prek hook prints a reminder when `AGENTS.md` or `SKILL.md` is
-staged for commit:
+After every completed run, `eval.py` records a hash of its inputs
+(`AGENTS.md` + `cases/*.yaml`) in `last-eval-hash.txt`. The
+`check-eval-hash` prek hook — enforced locally and in CI — recomputes
+the hash and fails when guidance changed without a re-run. Commit the
+updated hash file together with your change.
 
-```
-⚠  AGENTS.md modified — consider running uv run dev/skill-evals/eval.py before pushing
-```
-
-The hook never blocks the commit — it is informational only.
+- The hash proves the eval **ran** on this exact content, not that all
+  cases passed (some cases fail even on `main` — that is signal, not a
+  defect).
+- WIP commits: `SKIP=check-eval-hash git commit ...` — CI stays red
+  until the eval is re-run.
+- Can't run the eval (no Claude subscription or API key)? Ask a
+  maintainer to run it and push the updated hash file to your PR branch.
+- `SKILL.md` files are not covered by the gate yet — there are no skill
+  cases, so a hash over them would prove nothing. Extend
+  `compute_guidance_hash` in `scripts/ci/prek/check_eval_hash.py` when
+  per-skill cases land.
