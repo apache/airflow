@@ -1,0 +1,1 @@
+Allow users with Dag-specific read access to load structure data without task-instance permission.
