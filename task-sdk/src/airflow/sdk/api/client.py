@@ -620,7 +620,6 @@ class XComOperations:
         mapped_length: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
-        
         params: dict[str, Any] = {}
         if dag_result:
             params["dag_result"] = dag_result
