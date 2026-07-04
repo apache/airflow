@@ -4461,6 +4461,10 @@
         "10.18.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-11T22:00:11Z"
+        },
+        "10.19.0": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-04T18:17:53Z"
         }
     },
     "cohere": {
@@ -4797,6 +4801,10 @@
         "1.7.3": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-07T10:04:18Z"
+        },
+        "1.8.0": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-04T18:17:53Z"
         }
     },
     "common.messaging": {
@@ -9273,6 +9281,10 @@
         "0.8.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-22T21:14:32Z"
+        },
+        "0.8.1": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-04T18:17:53Z"
         }
     },
     "microsoft.azure": {
