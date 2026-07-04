@@ -48,6 +48,10 @@ OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # value: a dictionary containing package distributions with an optional version specifier, e.g., >=2.3.4
     # yandexcloud is automatically removed in case botocore is upgraded to latest
     r".*example_yandexcloud.*\.py": {"yandexcloud": None},
+    # example_gen_ai_generative_model builds a RunEvaluationOperator at parse time, which
+    # imports vertexai.preview.evaluation -> scikit-learn from the optional google[vertex-eval]
+    # extra. Skip the import check when that extra is not installed.
+    r".*example_gen_ai_generative_model\.py": {"scikit-learn": None},
 }
 IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Certain examples or system tests may trigger AirflowProviderDeprecationWarnings.
