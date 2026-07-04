@@ -97,6 +97,33 @@ jobs:
       - name: "Run unit tests"
         run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
         working-directory: ./dev/breeze/
+  tests-mcp-server:
+    timeout-minutes: 10
+    name: Dev MCP server tests
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: "Install uv"
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
+      # Standalone uv project (its own uv.lock), like dev/breeze -- resolve and run in isolation.
+      # AIRFLOW_MCP_LIVE_TESTS is unset, so the live-Breeze tests skip; the manual LLM-client
+      # integration script under tests/manual/ is not collected by pytest.
+      - name: "Run dev MCP server tests"
+        run: uv run --project . pytest --color=yes
+        working-directory: ./dev/mcp_server/
   run-breeze-integration-tests:
     timeout-minutes: 120
     name: Breeze integration tests

@@ -14,11 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    ports:
-      - "${SSH_PORT}:22"
-      - "${WEB_HOST_PORT}:8080"
-      - "${FLOWER_HOST_PORT}:5555"
-      - "${MCP_HOST_PORT}:8081"
+from __future__ import annotations
+
+__version__ = "0.1.0"

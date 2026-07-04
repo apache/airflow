@@ -203,6 +203,14 @@ def generate_mprocs_config() -> str:
             "scrollback": 100000,
         }
 
+    # MCP Server (conditional)
+    if get_env_bool("MCP_SERVER"):
+        procs["mcp_server"] = {
+            "shell": "/opt/airflow/scripts/in_container/bin/run_mcp_server",
+            "restart": "always",
+            "scrollback": 100000,
+        }
+
     procs["shell"] = {
         "shell": "bash",
         "restart": "always",
