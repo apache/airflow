@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+.. Breaking change
+
+The Vertex AI generative-model evaluation stack (``jsonschema``, ``litellm``,
+``pyyaml``, ``ruamel.yaml``, ``scikit-learn``, and ``tqdm``) is no longer part
+of the base install of ``apache-airflow-providers-google``. Users who exercise
+Vertex AI generative-model evaluation via ``GenerativeModelHook.get_eval_task``
+/ ``run_evaluation`` (or ``RunEvaluationOperator``) must install the new
+``vertex-eval`` extra:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-google[vertex-eval]'
+
+Users who do not touch those Vertex AI evaluation APIs are unaffected and will
+no longer pull in these evaluation-only dependencies transitively.
+
 22.3.0
 ......
 
