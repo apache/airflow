@@ -56,6 +56,7 @@ from airflow.models.backfill import (
     InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
+    NoBackfillRunsToCreate,
     _create_backfill,
     _do_dry_run,
 )
@@ -276,6 +277,7 @@ def create_backfill(
         InvalidBackfillDate,
         InvalidBackfillDateRange,
         InvalidBackfillConf,
+        NoBackfillRunsToCreate,
     ) as e:
         raise RequestValidationError(str(e))
 
