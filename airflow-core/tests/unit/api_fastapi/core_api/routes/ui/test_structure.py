@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import copy
+from unittest import mock
 
 import pendulum
 import pytest
 
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
@@ -308,6 +310,39 @@ class TestStructureDataEndpoint:
 
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
+        assert response.status_code == 403
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={DAG_ID},
+    )
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_return_200_with_dag_specific_read_access(self, _, test_client):
+        def allow_only_dag_read(self, *, method, user, access_entity=None, details=None):
+            return method == "GET" and access_entity is None and details is not None and details.id == DAG_ID
+
+        with mock.patch.object(SimpleAuthManager, "is_authorized_dag", allow_only_dag_read):
+            response = test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
+
+        assert response.status_code == 200
+        assert {node["id"] for node in response.json()["nodes"]} == {
+            "task_1",
+            "external_task_sensor",
+            "task_2",
+        }
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={DAG_ID},
+    )
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_return_403_for_unreadable_dag_with_dag_specific_read_access(self, _, test_client):
+        def allow_only_dag_read(self, *, method, user, access_entity=None, details=None):
+            return method == "GET" and access_entity is None and details is not None and details.id == DAG_ID
+
+        with mock.patch.object(SimpleAuthManager, "is_authorized_dag", allow_only_dag_read):
+            response = test_client.get("/structure/structure_data", params={"dag_id": DAG_ID_LINEAR_DEPTH})
+
         assert response.status_code == 403
 
     def test_should_return_404(self, test_client):

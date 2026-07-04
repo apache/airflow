@@ -20,7 +20,6 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import QueryIncludeDownstream, QueryIncludeUpstream
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -44,7 +43,6 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
     ),
     dependencies=[
         Depends(requires_access_dag("GET")),
-        Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)),
     ],
 )
 def structure_data(
