@@ -267,10 +267,15 @@ def ti_run(
             .unique()
             .one_or_none()
         )
-
         if not dr:
             log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
-            raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.",
+                },
+            )
 
         # Send the keys to the SDK so that the client requests to clear those XComs from the server.
         # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
