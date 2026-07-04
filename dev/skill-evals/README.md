@@ -52,48 +52,36 @@ regular-file CLAUDE.md would make every arm read identical guidance.
   - Claude Code session (`claude /login`) — Pro/Max subscription
   - `ANTHROPIC_API_KEY` environment variable — API credits
 
-That's it for the prek path below — prek provisions Node, promptfoo, and
-the Claude Agent SDK automatically. The direct path needs extra setup
-(see below).
+That's it — prek provisions Node, promptfoo, and the Claude Agent SDK
+automatically.
 
 ## Usage
 
 ```bash
-# Zero-setup: run the eval through the prek-provisioned environment
-# (single pass over all cases — satisfies the hash gate).
+# Run the eval (single pass over all cases — satisfies the hash gate).
 # Stage your changes first — prek stashes unstaged edits:
 prek run run-skill-eval --hook-stage manual --all-files
 
-# Direct invocation — accepts promptfoo flags; needs Node.js >=22.22.0
-# and the one-time SDK setup below:
-uv run dev/skill-evals/eval.py
-
 # Repeat each case to reduce nondeterminism:
-uv run dev/skill-evals/eval.py --repeat 3
+EVAL_REPEAT=3 prek run run-skill-eval --hook-stage manual --all-files
 
-# Add baseline arm (no AGENTS.md) to measure raw model capability:
-uv run dev/skill-evals/eval.py --full
-
-# Test a skill alongside AGENTS.md (not combinable with --full — the
-# baseline arm has no skill, so the skill-used assertion would always fail):
-SKILL_NAME=airflow-contribution uv run dev/skill-evals/eval.py
+# Add a baseline arm (no AGENTS.md) to measure raw model capability:
+EVAL_FULL=1 prek run run-skill-eval --hook-stage manual --all-files
 
 # Use a cheaper model for fast iteration:
-MODEL=claude-haiku-4-5-20251001 uv run dev/skill-evals/eval.py
+MODEL=claude-haiku-4-5-20251001 prek run run-skill-eval --hook-stage manual --all-files
 
-# Disable cache (force fresh LLM calls):
-uv run dev/skill-evals/eval.py --no-cache
+# Test a skill alongside AGENTS.md (not combinable with EVAL_FULL — the
+# baseline arm has no skill, so the skill-used assertion would always fail):
+SKILL_NAME=airflow-contribution prek run run-skill-eval --hook-stage manual --all-files
 
 # View results in browser (state lives under .build/promptfoo):
 PROMPTFOO_CONFIG_DIR=.build/promptfoo npx promptfoo@0.121.17 view
 ```
 
-One-time setup for the **direct path only** — install the Claude Agent
-SDK where promptfoo can resolve it:
-
-```bash
-mkdir -p .build/promptfoo-sdk && cd .build/promptfoo-sdk && npm init -y && npm install @anthropic-ai/claude-agent-sdk
-```
+Other promptfoo flags (`--filter*`, `--no-cache`) are argv-only —
+`prek run` can't forward arguments, so wire them as fixed entry args
+on a hook variant if a preset is needed.
 
 A run with `--filter*` flags covers only a subset of cases, so it does
 not update the hash file.
@@ -108,8 +96,8 @@ Everything the harness stores lives inside the repo — nothing is left
 in your home directory:
 
 ```bash
-rm -rf .build/promptfoo .build/promptfoo-sdk   # eval history, cache, SDK
-prek clean                                     # prek-provisioned node envs
+rm -rf .build/promptfoo   # eval history and cache
+prek clean                # prek-provisioned node envs
 ```
 
 ## Adding cases

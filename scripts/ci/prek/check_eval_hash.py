@@ -89,7 +89,6 @@ def main() -> int:
         " skill-eval\n(dev/skill-evals/last-eval-hash.txt does not match).\n"
         "\n"
         "  Run:  prek run run-skill-eval --hook-stage manual --all-files\n"
-        "        (or: uv run dev/skill-evals/eval.py)\n"
         "        then commit the updated dev/skill-evals/last-eval-hash.txt\n"
         "\n"
         "  WIP commit: SKIP=check-eval-hash git commit ...\n"

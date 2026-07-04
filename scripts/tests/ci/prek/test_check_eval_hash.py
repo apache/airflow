@@ -125,5 +125,5 @@ def test_main_fails_on_mismatch_or_missing_record(guidance, tmp_path, capsys, re
         assert main() == 1
 
     err = capsys.readouterr().err
-    assert "uv run dev/skill-evals/eval.py" in err
+    assert "prek run run-skill-eval" in err
     assert "SKIP=check-eval-hash" in err

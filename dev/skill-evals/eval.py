@@ -25,9 +25,11 @@ arms with and without the guidance. Each arm is a git worktree of the
 real repo — the agent sees actual source files.
 
 Usage:
-    uv run dev/skill-evals/eval.py                  Test AGENTS.md changes
-    uv run dev/skill-evals/eval.py --full            Add baseline arm (no AGENTS.md)
-    uv run dev/skill-evals/eval.py --repeat 3        Reduce nondeterminism
+    prek run run-skill-eval --hook-stage manual --all-files
+
+Env knobs: MODEL, SKILL_NAME, EVAL_REPEAT, EVAL_FULL (baseline arm).
+Promptfoo flags like --filter* are argv-only — wire them as fixed entry
+args on a hook variant when needed.
 
 Authentication: Claude Code session (claude /login) or ANTHROPIC_API_KEY.
 """
@@ -53,7 +55,6 @@ HASH_FILE = SCRIPT_DIR / "last-eval-hash.txt"
 # Tool state lives under .build (repo-scoped, established cleanup culture);
 # per-run reports go to files/ per the AGENTS.md output convention.
 PROMPTFOO_STATE_DIR = REPO_ROOT / ".build" / "promptfoo"
-SDK_DIR = REPO_ROOT / ".build" / "promptfoo-sdk"
 RESULTS_FILE = REPO_ROOT / "files" / "skill-evals" / "results.json"
 
 # Shared with the check-eval-hash prek hook so recorded and verified hashes can't drift.
@@ -82,34 +83,30 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, check=False, **kwargs)
 
 
-def resolve_promptfoo_command() -> list[str]:
-    """Use promptfoo from PATH if it matches the pinned version (the prek run-skill-eval env), else npx."""
-    if shutil.which("promptfoo"):
+def find_sdk_modules() -> Path:
+    """Locate the node_modules dir (in the prek env) that contains the Claude Agent SDK.
+
+    promptfoo resolves the SDK from the eval config's directory, not from its
+    own install tree — the caller symlinks this dir next to the config.
+    """
+    promptfoo_bin = shutil.which("promptfoo")
+    if promptfoo_bin:
         version = run(["promptfoo", "--version"]).stdout.strip()
         if version == PROMPTFOO_VERSION:
-            return ["promptfoo"]
-    return ["npx", f"promptfoo@{PROMPTFOO_VERSION}"]
-
-
-def check_prerequisites(promptfoo_cmd: list[str]) -> None:
-    if promptfoo_cmd[0] == "promptfoo":
-        return  # prek env provides node, promptfoo, and the SDK
-
-    if not shutil.which("node"):
-        print("Error: Node.js not found. Install Node.js >=22.22.0", file=sys.stderr)
-        sys.exit(1)
-    if not shutil.which("npx"):
-        print("Error: npx not found.", file=sys.stderr)
-        sys.exit(1)
-
-    if not (SDK_DIR / "node_modules" / "@anthropic-ai" / "claude-agent-sdk").is_dir():
-        print("Error: Claude Agent SDK not found. Run:", file=sys.stderr)
-        print(
-            f"  mkdir -p {SDK_DIR} && cd {SDK_DIR}"
-            " && npm init -y && npm install @anthropic-ai/claude-agent-sdk",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+            pf_pkg = Path(promptfoo_bin).resolve()
+            while pf_pkg.name != "promptfoo" or not (pf_pkg / "package.json").is_file():
+                if pf_pkg.parent == pf_pkg:
+                    break
+                pf_pkg = pf_pkg.parent
+            for candidate in (pf_pkg / "node_modules", pf_pkg.parent):
+                if (candidate / "@anthropic-ai" / "claude-agent-sdk").is_dir():
+                    return candidate
+    print(
+        "Error: promptfoo with the Claude Agent SDK not found. Run the eval via:\n"
+        "  prek run run-skill-eval --hook-stage manual --all-files",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def check_claude_md_symlink(base_branch: str) -> None:
@@ -220,9 +217,17 @@ def build_provider(label: str, working_dir: Path, model: str, skill_name: str | 
     return {"id": "anthropic:claude-agent-sdk", "label": label, "config": config}
 
 
+def count_provider_errors(results_file: Path) -> int:
+    """Count results whose provider call errored (as opposed to failing an assertion)."""
+    try:
+        results = json.loads(results_file.read_text())["results"]["results"]
+    except (OSError, KeyError, ValueError):
+        return 0
+    return sum(1 for r in results if (r.get("response") or {}).get("error"))
+
+
 def main() -> int:
-    promptfoo_cmd = resolve_promptfoo_command()
-    check_prerequisites(promptfoo_cmd)
+    sdk_modules = find_sdk_modules()
 
     model = os.environ.get("MODEL", "claude-sonnet-4-6")
     skill_name = os.environ.get("SKILL_NAME")
@@ -233,14 +238,22 @@ def main() -> int:
             print(f"Error: {skill_src} not found", file=sys.stderr)
             return 1
 
-    # Parse flags
-    full_mode = "--full" in sys.argv
+    # Parse flags — argv (hook entry args) plus single-value env knobs,
+    # since `prek run` can't forward arguments. No filter knob on purpose:
+    # a lingering export must not be able to change what the proof claims.
+    full_mode = "--full" in sys.argv or os.environ.get("EVAL_FULL", "").lower() in ("1", "true")
     promptfoo_args = [a for a in sys.argv[1:] if a != "--full"]
+    repeat = os.environ.get("EVAL_REPEAT")
+    if repeat:
+        if not repeat.isdigit() or int(repeat) < 1:
+            print(f"Error: EVAL_REPEAT must be a positive integer, got {repeat!r}", file=sys.stderr)
+            return 1
+        promptfoo_args += ["--repeat", repeat]
 
     if full_mode and skill_name:
         print(
-            "Error: --full cannot be combined with SKILL_NAME — the baseline arm has"
-            " no skill, so the 'skill-used' assertion would always fail on it.",
+            "Error: EVAL_FULL/--full cannot be combined with SKILL_NAME — the baseline"
+            " arm has no skill, so the 'skill-used' assertion would always fail on it.",
             file=sys.stderr,
         )
         return 1
@@ -256,10 +269,8 @@ def main() -> int:
     worktrees: list[Path] = []
 
     try:
-        # Symlink node_modules for promptfoo SDK resolution (npx path only —
-        # the prek env bundles the SDK inside promptfoo's own node_modules)
-        if promptfoo_cmd[0] != "promptfoo":
-            (work_dir / "node_modules").symlink_to(SDK_DIR / "node_modules")
+        # promptfoo resolves the Claude Agent SDK from the config directory
+        (work_dir / "node_modules").symlink_to(sdk_modules)
 
         # Extract main-branch AGENTS.md
         main_agents = work_dir / "main-agents.md"
@@ -340,29 +351,33 @@ def main() -> int:
         PROMPTFOO_STATE_DIR.mkdir(parents=True, exist_ok=True)
         RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
-            [*promptfoo_cmd, "eval", "-c", str(config_path), "--output", str(RESULTS_FILE), *promptfoo_args],
+            ["promptfoo", "eval", "-c", str(config_path), "--output", str(RESULTS_FILE), *promptfoo_args],
             check=False,
             env={**os.environ, "PROMPTFOO_CONFIG_DIR": str(PROMPTFOO_STATE_DIR)},
         )
 
         # 0 = all passed, 100 = some assertions failed — both mean the eval
         # completed and the results were seen, which is what the hash proves.
-        # A filtered run covers only a subset of cases, so it proves nothing
-        # about the full set — don't record it.
+        # Don't record partial runs (--filter* covers a subset of cases) or
+        # runs with provider errors (nothing was actually evaluated).
         partial_run = any(arg.startswith("--filter") for arg in promptfoo_args)
-        if result.returncode in (0, 100) and not partial_run:
+        provider_errors = count_provider_errors(RESULTS_FILE)
+        if result.returncode in (0, 100) and not partial_run and not provider_errors:
             write_recorded_hash(guidance_hash, HASH_FILE)
             print()
             print(f"Recorded eval run in {HASH_FILE.relative_to(REPO_ROOT)} — commit it with your change.")
         elif partial_run:
             print()
             print("Partial run (--filter*) — hash not recorded; run the full case set to update it.")
+        elif provider_errors:
+            print()
+            print(f"{provider_errors} provider error(s) — hash not recorded; fix the setup and rerun.")
 
         print()
         print(f"Results report: {RESULTS_FILE.relative_to(REPO_ROOT)}")
         print(
             f"View results: PROMPTFOO_CONFIG_DIR={PROMPTFOO_STATE_DIR.relative_to(REPO_ROOT)}"
-            f" {' '.join(promptfoo_cmd)} view"
+            f" npx promptfoo@{PROMPTFOO_VERSION} view"
         )
         return result.returncode
 
