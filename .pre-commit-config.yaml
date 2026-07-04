@@ -1008,6 +1008,15 @@ repos:
           ^scripts/ci/prek/generate_agent_skills\.py$
         pass_filenames: false
         additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      - id: run-skill-eval
+        name: Run skill-eval against AGENTS.md and cases
+        entry: ./dev/skill-evals/eval.py
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        pass_filenames: false
+        require_serial: true
       - id: check-eval-hash
         name: Verify skill-eval ran on current AGENTS.md and cases
         entry: ./scripts/ci/prek/check_eval_hash.py

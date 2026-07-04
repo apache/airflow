@@ -74,7 +74,19 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, check=False, **kwargs)
 
 
-def check_prerequisites() -> None:
+def resolve_promptfoo_command() -> list[str]:
+    """Use promptfoo from PATH if it matches the pinned version (the prek run-skill-eval env), else npx."""
+    if shutil.which("promptfoo"):
+        version = run(["promptfoo", "--version"]).stdout.strip()
+        if version == PROMPTFOO_VERSION:
+            return ["promptfoo"]
+    return ["npx", f"promptfoo@{PROMPTFOO_VERSION}"]
+
+
+def check_prerequisites(promptfoo_cmd: list[str]) -> None:
+    if promptfoo_cmd[0] == "promptfoo":
+        return  # prek env provides node, promptfoo, and the SDK
+
     if not shutil.which("node"):
         print("Error: Node.js not found. Install Node.js >=22.22.0", file=sys.stderr)
         sys.exit(1)
@@ -209,7 +221,8 @@ def add_provider(
 
 
 def main() -> int:
-    check_prerequisites()
+    promptfoo_cmd = resolve_promptfoo_command()
+    check_prerequisites(promptfoo_cmd)
 
     model = os.environ.get("MODEL", "claude-sonnet-4-6")
     skill_name = os.environ.get("SKILL_NAME")
@@ -243,9 +256,11 @@ def main() -> int:
     worktrees: list[Path] = []
 
     try:
-        # Symlink node_modules for promptfoo SDK resolution
-        sdk_modules = Path.home() / ".promptfoo-sdk" / "node_modules"
-        (work_dir / "node_modules").symlink_to(sdk_modules)
+        # Symlink node_modules for promptfoo SDK resolution (npx path only —
+        # the prek env bundles the SDK inside promptfoo's own node_modules)
+        if promptfoo_cmd[0] != "promptfoo":
+            sdk_modules = Path.home() / ".promptfoo-sdk" / "node_modules"
+            (work_dir / "node_modules").symlink_to(sdk_modules)
 
         # Extract main-branch AGENTS.md
         main_agents = work_dir / "main-agents.md"
@@ -341,19 +356,25 @@ def main() -> int:
 
         # Run promptfoo
         result = subprocess.run(
-            ["npx", f"promptfoo@{PROMPTFOO_VERSION}", "eval", "-c", str(config_path), *promptfoo_args],
+            [*promptfoo_cmd, "eval", "-c", str(config_path), *promptfoo_args],
             check=False,
         )
 
         # 0 = all passed, 100 = some assertions failed — both mean the eval
         # completed and the results were seen, which is what the hash proves.
-        if result.returncode in (0, 100):
+        # A filtered run covers only a subset of cases, so it proves nothing
+        # about the full set — don't record it.
+        partial_run = any(arg.startswith("--filter") for arg in promptfoo_args)
+        if result.returncode in (0, 100) and not partial_run:
             write_recorded_hash(guidance_hash, HASH_FILE)
             print()
             print(f"Recorded eval run in {HASH_FILE.relative_to(REPO_ROOT)} — commit it with your change.")
+        elif partial_run:
+            print()
+            print("Partial run (--filter*) — hash not recorded; run the full case set to update it.")
 
         print()
-        print(f"View results: npx promptfoo@{PROMPTFOO_VERSION} view")
+        print(f"View results: {' '.join(promptfoo_cmd)} view")
         return result.returncode
 
     finally:

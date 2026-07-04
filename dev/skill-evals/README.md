@@ -23,7 +23,6 @@
 
 - [Skill-Eval Harness](#skill-eval-harness)
   - [Prerequisites](#prerequisites)
-  - [One-time setup](#one-time-setup)
   - [Usage](#usage)
   - [Adding cases](#adding-cases)
   - [How it works](#how-it-works)
@@ -48,23 +47,23 @@ regular-file CLAUDE.md would make every arm read identical guidance.
 
 ## Prerequisites
 
-- **Node.js >=22.22.0** — check with `node --version`
 - **Authentication** (one of):
   - Claude Code session (`claude /login`) — Pro/Max subscription
   - `ANTHROPIC_API_KEY` environment variable — API credits
 
-## One-time setup
-
-Install the Claude Agent SDK (promptfoo needs it at runtime):
-
-```bash
-mkdir -p ~/.promptfoo-sdk && cd ~/.promptfoo-sdk && npm init -y && npm install @anthropic-ai/claude-agent-sdk
-```
+That's it for the prek path below — prek provisions Node, promptfoo, and
+the Claude Agent SDK automatically. The direct path needs extra setup
+(see below).
 
 ## Usage
 
 ```bash
-# Check for regressions after editing AGENTS.md:
+# Zero-setup: run the eval through the prek-provisioned environment
+# (single pass over all cases — satisfies the hash gate):
+prek run run-skill-eval --hook-stage manual
+
+# Direct invocation — accepts promptfoo flags; needs Node.js >=22.22.0
+# and the one-time SDK setup below:
 uv run dev/skill-evals/eval.py
 
 # Repeat each case to reduce nondeterminism:
@@ -86,6 +85,16 @@ uv run dev/skill-evals/eval.py --no-cache
 # View results in browser (use the pinned version printed by eval.py):
 npx promptfoo@0.121.17 view
 ```
+
+One-time setup for the **direct path only** — install the Claude Agent
+SDK where promptfoo can resolve it:
+
+```bash
+mkdir -p ~/.promptfoo-sdk && cd ~/.promptfoo-sdk && npm init -y && npm install @anthropic-ai/claude-agent-sdk
+```
+
+A run with `--filter*` flags covers only a subset of cases, so it does
+not update the hash file.
 
 ## Adding cases
 
