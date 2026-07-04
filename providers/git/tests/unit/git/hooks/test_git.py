@@ -504,23 +504,23 @@ class TestGitHook:
 
     def test_only_app_id_without_installation_id_raises(self):
         with pytest.raises(
-            AirflowException, match="Both 'github_app_id' and 'github_installation_id' must be provided"
+            ValueError, match="Both 'github_app_id' and 'github_installation_id' must be provided"
         ):
             GitHook(git_conn_id=CONN_APP_ONLY_APP_ID)
 
     def test_only_installation_id_without_app_id_raises(self):
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match="Both 'github_app_id' and 'github_installation_id' must be provided",
         ):
             GitHook(git_conn_id=CONN_APP_ONLY_INSTALLATION_ID)
 
-    def test_app_id_and_installation_id_without_key_raises(self):
-        with pytest.raises(
-            AirflowException,
-            match="Missing inline private_key or key_file for GitHub App Auth",
-        ):
-            GitHook(git_conn_id=CONN_APP_NO_KEY)
+    def test_app_id_and_installation_id_without_key_does_not_raise_on_init(self):
+        hook = GitHook(git_conn_id=CONN_APP_NO_KEY)
+
+        assert hook.github_app_id == "12345"
+        assert hook.github_installation_id == "67890"
+        assert hook.github_app_private_key is None
 
     def test_app_auth_with_key_file_reads_file(self, create_connection_without_db, tmp_path, monkeypatch):
         key_file = tmp_path / "app_key.pem"
@@ -544,7 +544,8 @@ class TestGitHook:
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             lambda self: ("x-access-token", "ghs_test_token", mock_expiry),
         )
-        hook = GitHook(git_conn_id="git_app_key_file")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id="git_app_key_file")
 
         assert hook.private_key == "file_pem_key_content"
 
@@ -561,8 +562,9 @@ class TestGitHook:
                 },
             )
         )
-        with pytest.raises(AirflowException, match="Failed to read GitHub App private key file"):
-            GitHook(git_conn_id="git_app_missing_key_file")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            with pytest.raises(FileNotFoundError):
+                GitHook(git_conn_id="git_app_missing_key_file")
 
     def test_app_auth_defers_token_fetch(self, monkeypatch):
         """GitHub App token is not fetched in __init__, only on configure_hook_env."""
@@ -579,7 +581,8 @@ class TestGitHook:
             mock_get_token,
         )
         # __init__ should NOT call _get_github_app_token
-        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         assert len(mock_called) == 0
         assert hook.auth_token == ""
         assert hook.github_app_id == "12345"
@@ -593,7 +596,8 @@ class TestGitHook:
 
     def test_app_auth_success_stores_app_id_and_installation_id(self):
         """App ID and installation ID are stored at __init__ time."""
-        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         assert hook.github_app_id == "12345"
         assert hook.github_installation_id == "67890"
 
@@ -625,7 +629,8 @@ class TestGitHook:
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             lambda self: ("x-access-token", "token", datetime.now(timezone.utc) + timedelta(hours=1)),
         )
-        hook = GitHook(git_conn_id="git_app_int_check")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id="git_app_int_check")
         assert hook.github_app_id == app_id
         assert hook.github_installation_id == installation_id
 
@@ -655,7 +660,8 @@ class TestGitHook:
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             mock_get_token,
         )
-        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         assert mock_get_token_call_count[0] == 0  # No call in __init__
 
         # First configure_hook_env triggers first token fetch
@@ -688,7 +694,8 @@ class TestGitHook:
         )
         monkeypatch.setitem(sys.modules, "github", fake_github)
 
-        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         with hook.configure_hook_env():
             # Verify get_access_token was called with installation_id kwarg
             assert mock_integration.get_access_token.call_count == 1
