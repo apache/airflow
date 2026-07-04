@@ -1021,6 +1021,7 @@ repos:
           ^dev/skill-evals/
         pass_filenames: false
         require_serial: true
+        verbose: true
       - id: check-eval-hash
         name: Verify skill-eval ran on current AGENTS.md and cases
         entry: ./scripts/ci/prek/check_eval_hash.py

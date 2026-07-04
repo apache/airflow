@@ -34,6 +34,7 @@ Authentication: Claude Code session (claude /login) or ANTHROPIC_API_KEY.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -59,21 +60,22 @@ RESULTS_FILE = REPO_ROOT / "files" / "skill-evals" / "results.json"
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci" / "prek"))
 from check_eval_hash import compute_guidance_hash, write_recorded_hash  # noqa: E402
 
-OUTPUT_SCHEMA = """\
-      output_format:
-        type: json_schema
-        schema:
-          type: object
-          required: [should_create, rationale]
-          additionalProperties: false
-          properties:
-            should_create:
-              type: boolean
-            type:
-              type: string
-              enum: [bugfix, feature, improvement, doc, misc, significant]
-            rationale:
-              type: string"""
+OUTPUT_FORMAT = {
+    "type": "json_schema",
+    "schema": {
+        "type": "object",
+        "required": ["should_create", "rationale"],
+        "additionalProperties": False,
+        "properties": {
+            "should_create": {"type": "boolean"},
+            "type": {
+                "type": "string",
+                "enum": ["bugfix", "feature", "improvement", "doc", "misc", "significant"],
+            },
+            "rationale": {"type": "string"},
+        },
+    },
+}
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
@@ -204,25 +206,18 @@ def remove_worktree(wt_dir: Path) -> None:
     run(["git", "-C", str(REPO_ROOT), "worktree", "remove", "--force", str(wt_dir)])
 
 
-def add_provider(
-    config_lines: list[str],
-    label: str,
-    working_dir: Path,
-    model: str,
-    skill_name: str | None = None,
-) -> None:
-    config_lines.append("  - id: anthropic:claude-agent-sdk")
-    config_lines.append(f"    label: {label}")
-    config_lines.append("    config:")
-    config_lines.append(f"      model: {model}")
-    config_lines.append("      apiKeyRequired: false")
-    config_lines.append("      setting_sources: ['project']")
-    config_lines.append("      append_allowed_tools: ['Read', 'Grep', 'Glob']")
-    config_lines.append(f"      working_dir: {working_dir}")
+def build_provider(label: str, working_dir: Path, model: str, skill_name: str | None = None) -> dict:
+    config: dict = {
+        "model": model,
+        "apiKeyRequired": False,
+        "setting_sources": ["project"],
+        "append_allowed_tools": ["Read", "Grep", "Glob"],
+        "working_dir": str(working_dir),
+        "output_format": OUTPUT_FORMAT,
+    }
     if skill_name:
-        config_lines.append(f"      skills: ['{skill_name}']")
-    config_lines.append(OUTPUT_SCHEMA)
-    config_lines.append("")
+        config["skills"] = [skill_name]
+    return {"id": "anthropic:claude-agent-sdk", "label": label, "config": config}
 
 
 def main() -> int:
@@ -308,48 +303,31 @@ def main() -> int:
         if full_mode:
             arm_baseline = create_worktree(work_dir, "baseline", base_branch, None, worktrees)
 
-        # Generate config
-        config_lines: list[str] = []
-        config_lines.append("prompts:")
-        config_lines.append("  - '{{request}}'")
-        config_lines.append("")
-        config_lines.append("providers:")
-
-        arm_count = 0
-        skill_for_provider = skill_name if skill_name else None
-
-        add_provider(config_lines, "main", arm_main, model, skill_for_provider)
-        arm_count += 1
-
+        # Generate config (JSON — valid promptfoo config, keeps the script stdlib-only)
+        providers = [build_provider("main", arm_main, model, skill_name)]
         if arm_working:
-            add_provider(config_lines, "working", arm_working, model, skill_for_provider)
-            arm_count += 1
-
+            providers.append(build_provider("working", arm_working, model, skill_name))
         if full_mode and arm_baseline:
-            add_provider(config_lines, "baseline", arm_baseline, model)
-            arm_count += 1
+            providers.append(build_provider("baseline", arm_baseline, model))
 
-        # Default test config
-        config_lines.append("defaultTest:")
-        config_lines.append("  options:")
-        config_lines.append("    disableVarExpansion: true")
+        default_test: dict = {"options": {"disableVarExpansion": True}}
         if skill_name:
-            config_lines.append("  assert:")
-            config_lines.append("    - type: skill-used")
-            config_lines.append(f"      value: {skill_name}")
-        config_lines.append("")
+            default_test["assert"] = [{"type": "skill-used", "value": skill_name}]
 
-        # Cases
-        config_lines.append(f"tests: file://{SCRIPT_DIR}/cases/*.yaml")
-
-        config_path = work_dir / "promptfooconfig.yaml"
-        config_path.write_text("\n".join(config_lines) + "\n")
+        config = {
+            "prompts": ["{{request}}"],
+            "providers": providers,
+            "defaultTest": default_test,
+            "tests": f"file://{SCRIPT_DIR}/cases/*.yaml",
+        }
+        config_path = work_dir / "promptfooconfig.json"
+        config_path.write_text(json.dumps(config, indent=2))
 
         # Report
         if skill_name:
-            print(f"Mode: {arm_count} arms, skill '{skill_name}', model: {model}")
+            print(f"Mode: {len(providers)} arms, skill '{skill_name}', model: {model}")
         else:
-            print(f"Mode: {arm_count} arms, AGENTS.md only, model: {model}")
+            print(f"Mode: {len(providers)} arms, AGENTS.md only, model: {model}")
 
         print()
         print(f"Changes detected (vs {base_branch}):")
