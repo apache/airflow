@@ -2494,7 +2494,7 @@ LANG_SDK_GO_BUNDLE_NAME = "lang_sdk_combined"
 LANG_SDK_JAVA_EXAMPLE_PATH = LANG_SDK_PATH / "java_example"
 # Build the artifacts inside ephemeral toolchain containers so the host needs
 # neither Go nor a JDK installed (mirrors the airflow-e2e-tests conftest).
-LANG_SDK_GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.24-alpine")
+LANG_SDK_GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
 LANG_SDK_JAVA_BUILDER_IMAGE = "eclipse-temurin:17-jdk"
 LANG_SDK_MAVEN_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "m2"
 # The Java queue needs a JRE the JavaCoordinator can exec; the Go queue runs on

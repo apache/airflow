@@ -129,7 +129,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
+        agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self._build_system_prompt(),
             **self.agent_params,
