@@ -550,6 +550,8 @@ class DAG:
 
     fileloc: str = attrs.field(init=False, factory=_default_fileloc)
     relative_fileloc: str | None = attrs.field(init=False, default=None)
+    bundle_name: str | None = attrs.field(init=False, default=None)
+
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)
@@ -1404,8 +1406,23 @@ class DAG:
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
                 scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
-                ids_unrunnable = {x for x in all_tis if x.state not in FINISHED_STATES} - scheduled_tis
-                if not scheduled_tis and ids_unrunnable:
+                awaiting_input_tis = {x for x in all_tis if x.state == TaskInstanceState.AWAITING_INPUT}
+                ids_unrunnable = (
+                    {x for x in all_tis if x.state not in FINISHED_STATES}
+                    - scheduled_tis
+                    - awaiting_input_tis
+                )
+                if not scheduled_tis and awaiting_input_tis:
+                    # Human-in-the-loop tasks stay parked in AWAITING_INPUT: dag.test() never
+                    # resolves them itself. Keep the run alive until a response recorded from
+                    # outside -- the Required Actions UI or the HITL REST API of an api-server
+                    # sharing this metadata DB -- flips them back to SCHEDULED.
+                    log.info(
+                        "Waiting for Human-in-the-loop input for tasks: %s",
+                        sorted(x.task_id for x in awaiting_input_tis),
+                    )
+                    time.sleep(1)
+                elif not scheduled_tis and ids_unrunnable:
                     log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
 

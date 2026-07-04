@@ -40,6 +40,7 @@ from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
+from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
@@ -568,13 +569,24 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         logger = kwargs["logger"]
 
-        _pre_import_airflow_modules(os.fspath(path), logger)
+        # Parsing DAG files runs user code that can trigger macOS-unsafe ObjC
+        # initialization (secret backends, connection/variable lookups, HTTP
+        # clients). Fork+exec a clean interpreter there. Tests override `target`
+        # with a stub to exercise the base infrastructure; keep bare fork for those.
+        use_exec = target is _parse_file_entrypoint and supervisor._should_use_exec()
+
+        # Pre-importing only helps the bare-fork child (it inherits the imports via
+        # copy-on-write). An exec'd child re-imports from scratch, so skip it there
+        # to avoid leaking user modules into the long-lived processor manager.
+        if not use_exec:
+            _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(
             target=target,
             client=client,
             bundle_name=bundle_name,
             dag_file_rel_path=dag_file_rel_path,
+            use_exec=use_exec,
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks

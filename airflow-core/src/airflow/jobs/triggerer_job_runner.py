@@ -58,6 +58,7 @@ from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
@@ -515,10 +516,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         **kwargs,
     ):
         proc_id = job.id if job is not None else uuid4()
-
+        # Triggers run user code that polls APIs / watches queues / hits HTTP
+        # endpoints -- almost always network calls that trigger macOS-unsafe ObjC
+        # initialization. Fork+exec a clean interpreter for the runner child.
         proc = super().start(
-            id=proc_id, job=job, client=cls.make_client(), target=cls.run_in_process, logger=logger, **kwargs
+            id=proc_id,
+            job=job,
+            target=cls.run_in_process,
+            logger=logger,
+            use_exec=supervisor._should_use_exec(),
+            **kwargs,
         )
+
         proc.send_msg(messages.StartTriggerer(), request_id=0)
         return proc
 
