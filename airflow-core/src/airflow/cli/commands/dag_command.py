@@ -638,6 +638,7 @@ def dag_details(args, *, session: Session = NEW_SESSION):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags list-import-errors")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
