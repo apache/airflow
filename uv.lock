@@ -4492,7 +4492,7 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=0.11.0" },
-    { name = "pydantic-ai-slim", specifier = ">=1.99.0,<2" },
+    { name = "pydantic-ai-slim", specifier = ">=2.0.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'" },
     { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'" },
     { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'" },
@@ -7150,13 +7150,16 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
-    { name = "asyncpg" },
+    { name = "psycopg", extra = ["binary"] },
     { name = "psycopg2-binary" },
 ]
 
 [package.optional-dependencies]
 amazon = [
     { name = "apache-airflow-providers-amazon" },
+]
+asyncpg = [
+    { name = "asyncpg" },
 ]
 microsoft-azure = [
     { name = "apache-airflow-providers-microsoft-azure" },
@@ -7169,9 +7172,6 @@ pandas = [
 ]
 polars = [
     { name = "polars" },
-]
-psycopg = [
-    { name = "psycopg", extra = ["binary"] },
 ]
 sqlalchemy = [
     { name = "sqlalchemy" },
@@ -7186,7 +7186,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-openlineage" },
-    { name = "apache-airflow-providers-postgres", extra = ["sqlalchemy"] },
+    { name = "apache-airflow-providers-postgres", extra = ["asyncpg", "sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -7201,18 +7201,18 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "asyncpg", specifier = ">=0.30.0" },
+    { name = "asyncpg", marker = "extra == 'asyncpg'", specifier = ">=0.30.0" },
     { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
-    { name = "psycopg", extras = ["binary"], marker = "python_full_version >= '3.14' and extra == 'psycopg'", specifier = ">=3.3.3" },
-    { name = "psycopg", extras = ["binary"], marker = "python_full_version < '3.14' and extra == 'psycopg'", specifier = ">=3.2.9" },
+    { name = "psycopg", extras = ["binary"], marker = "python_full_version < '3.14'", specifier = ">=3.2.9" },
+    { name = "psycopg", extras = ["binary"], marker = "python_full_version >= '3.14'", specifier = ">=3.3.3" },
     { name = "psycopg2-binary", marker = "python_full_version < '3.13'", specifier = ">=2.9.9" },
     { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
-provides-extras = ["amazon", "microsoft-azure", "openlineage", "pandas", "polars", "psycopg", "sqlalchemy"]
+provides-extras = ["amazon", "asyncpg", "microsoft-azure", "openlineage", "pandas", "polars", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -7225,6 +7225,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extras = ["polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
+    { name = "apache-airflow-providers-postgres", extras = ["asyncpg"], editable = "providers/postgres" },
     { name = "apache-airflow-providers-postgres", extras = ["sqlalchemy"], editable = "providers/postgres" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
@@ -19221,7 +19222,7 @@ wheels = [
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "1.107.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
@@ -19233,9 +19234,9 @@ dependencies = [
     { name = "pydantic-graph" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4c/26/ced63dfaabbc77f3beb86d59689cdea748e7ccffb6b419dbaf4780f211e8/pydantic_ai_slim-1.107.0.tar.gz", hash = "sha256:4616f689a92fcfecfecf2a7af27aca22f139a873cf6d7a8929eaeee9c0eedbb4", size = 779902, upload-time = "2026-06-10T14:53:10.574Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/d1/78fd15c9c68b95ac0bec2d2afe22feb3b2f46e4b8e3a6dd1cead61cde434/pydantic_ai_slim-2.1.0.tar.gz", hash = "sha256:f79dca2429dbb9d2e32a0e2c613cfb9b9d6f0dc81d42cff8a5c81ede8ca0a6c7", size = 738698, upload-time = "2026-06-29T09:51:18.634Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/57/71044e17f931b08cc3930bc0fe5a1e1fd37fa474ae826be004729ef1cb4a/pydantic_ai_slim-1.107.0-py3-none-any.whl", hash = "sha256:1af49bbae06a6c598f72c54d4734ba377100cac493c9a05fa8e089bebeae0da6", size = 964046, upload-time = "2026-06-10T14:53:03.333Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/c7/b531cf65a1f8b221ab39739a16fe08f7b6a56fd24db875b9c33010320c9c/pydantic_ai_slim-2.1.0-py3-none-any.whl", hash = "sha256:2afda56459606226113ab433ee659aac7ff29bb66feefa716c67144bd82e5ce2", size = 910109, upload-time = "2026-06-29T09:51:11.016Z" },
 ]
 
 [package.optional-dependencies]
@@ -19387,7 +19388,7 @@ wheels = [
 
 [[package]]
 name = "pydantic-graph"
-version = "1.107.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -19395,9 +19396,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/c3/6e8c2d13b8701041f1b3eac5deb41f25d4dbfa479a190d5c6becc23f2a49/pydantic_graph-1.107.0.tar.gz", hash = "sha256:278dd89b3e33f3a2963ac949f27a53aef705c5d883a8ce5d06d23e6e3cfbd972", size = 62564, upload-time = "2026-06-10T14:53:13.366Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/20/018532c826aba3c29ffc37bda46c20f3db4584bb555a8c7dc2769866267d/pydantic_graph-2.1.0.tar.gz", hash = "sha256:36ed6af24543421fb628fee593ccf5553a286c1dd1677018f5064a4e44c4daba", size = 43052, upload-time = "2026-06-29T09:51:20.832Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/72/621556e3f5068400d43a0375d38e5963de30256eaa5a702aba12e82ed0ff/pydantic_graph-1.107.0-py3-none-any.whl", hash = "sha256:71add94fe7e14c703977a895117c475aae6c0b02a774a036c4d00d9a63c78b00", size = 80106, upload-time = "2026-06-10T14:53:06.543Z" },
+    { url = "https://files.pythonhosted.org/packages/42/a8/7f32bdeda6cff28652bba1c21ab2155c81d1733abd4b8bfef46a26e8d3fe/pydantic_graph-2.1.0-py3-none-any.whl", hash = "sha256:bae1e99829abf590a8693442ba5693ace38d2d93a80ae48be55c610a503e3709", size = 50772, upload-time = "2026-06-29T09:51:14.161Z" },
 ]
 
 [[package]]
