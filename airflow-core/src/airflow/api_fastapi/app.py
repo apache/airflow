@@ -128,7 +128,6 @@ def create_app(apps: str = "all") -> FastAPI:
     if "all" in apps_list or "execution" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
         task_exec_api_app.state.dag_bag = dag_bag
-        init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:
