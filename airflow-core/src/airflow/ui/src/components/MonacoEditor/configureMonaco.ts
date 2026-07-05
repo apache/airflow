@@ -34,7 +34,11 @@ const loadMonacoModules = async () => {
     import("monaco-editor/esm/vs/editor/editor.api"),
     import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
     import("monaco-editor/esm/vs/editor/contrib/find/browser/findController"),
-    import("monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles"),
+    // monaco-editor 0.53 removed the `codiconStyles` side-effect module; import the two codicon
+    // stylesheets it used to pull in directly so folding/find glyphs still render. Both files
+    // ship in 0.52 and 0.55, so this resolves against the current pin and any newer bump.
+    import("monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css"),
+    import("monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon-modifiers.css"),
   ]).then(([api]) => api);
 
   // Resolve the bundled worker URLs (`?worker&url` runs the worker through Vite's worker
