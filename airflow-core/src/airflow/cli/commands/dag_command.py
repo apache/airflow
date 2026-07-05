@@ -128,7 +128,6 @@ def dag_delete(args) -> None:
         print("Cancelled")
 
 
-@deprecated_for_airflowctl("airflowctl dags clear")
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -695,7 +694,6 @@ def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
         sys.exit(1)
 
 
-@deprecated_for_airflowctl("airflowctl dags report")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -731,7 +729,6 @@ def dag_report(args) -> None:
     )
 
 
-@deprecated_for_airflowctl("airflowctl dags list-jobs")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -763,7 +760,7 @@ def dag_list_jobs(args, dag: DAG | None = None, *, session: Session = NEW_SESSIO
     )
 
 
-@deprecated_for_airflowctl("airflowctl dags list-runs")
+@deprecated_for_airflowctl("airflowctl dagrun list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
