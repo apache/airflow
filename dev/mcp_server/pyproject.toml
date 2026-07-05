@@ -34,7 +34,7 @@ requires-python = ">=3.10"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
     # Brings in the official `mcp` SDK and `httpx` transitively.
-    "fastmcp>=3.0,<4.0",
+    "fastmcp>=3.4,<4.0",
 ]
 
 [project.scripts]

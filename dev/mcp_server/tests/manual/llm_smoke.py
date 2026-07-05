@@ -18,7 +18,7 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #     "pydantic-ai-slim[mcp,anthropic,openai]",
-#     "fastmcp>=3.0,<4.0",
+#     "fastmcp>=3.4,<4.0",
 # ]
 # ///
 """Manual smoke test: connect a real LLM agent to the Airflow dev MCP server over stdio.

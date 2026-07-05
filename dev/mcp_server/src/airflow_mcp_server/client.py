@@ -133,7 +133,7 @@ def _check_method_gate(method: str) -> None:
     ``DELETE`` needs its own, stricter ``AIRFLOW_MCP_ALLOW_DELETES`` gate (off by default even
     when writes are enabled, since deletions are irreversible).
     """
-    if method == "GET":
+    if method in ("GET", "QUERY"):
         return
     if method == "DELETE":
         if not _is_gate_enabled(_DELETES_ENV):

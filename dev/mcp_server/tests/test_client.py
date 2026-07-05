@@ -135,6 +135,16 @@ class TestTokenFlow:
 
 
 class TestWriteGate:
+    @mock.patch("airflow_mcp_server.client._build_http_client", autospec=True)
+    @mock.patch.dict(os.environ, {"AIRFLOW_ACCESS_TOKEN": "tok"})
+    async def test_query_allowed_without_flag(self, mock_build):
+        """QUERY is safe/idempotent (RFC 10008) and should be allowed like GET."""
+        mock_build.return_value = _mock_client(lambda request: httpx.Response(200, json={"ok": True}))
+
+        result = await client_module.call_api("QUERY", "/api/v2/dags/search", json_body={"filter": "dag"})
+
+        assert result == {"ok": True}
+
     async def test_post_blocked_without_flag(self):
         with pytest.raises(ToolError, match="read-only"):
             await client_module.call_api("POST", "/api/v2/dags/foo/dagRuns", json_body={})

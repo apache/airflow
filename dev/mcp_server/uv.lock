@@ -223,7 +223,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "fastmcp", specifier = ">=3.0,<4.0" }]
+requires-dist = [{ name = "fastmcp", specifier = ">=3.4,<4.0" }]
 
 [package.metadata.requires-dev]
 dev = [
