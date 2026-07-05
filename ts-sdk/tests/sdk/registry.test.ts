@@ -73,14 +73,41 @@ describe("registry", () => {
     const registry = new TaskRegistry();
     expect(() =>
       registry.register({ dagId: "", taskId: "my_task" }, async () => undefined),
-    ).toThrowError(/dagId must be a non-empty string/);
+    ).toThrowError(/dagId must be made of alphanumeric/);
   });
 
   it("rejects an empty taskId", () => {
     const registry = new TaskRegistry();
     expect(() =>
       registry.register({ dagId: "example_dag", taskId: "" }, async () => undefined),
-    ).toThrowError(/taskId must be a non-empty string/);
+    ).toThrowError(/taskId must be made of alphanumeric/);
+  });
+
+  it.each(["   ", "\t", "my dag", "a/b", "task@1"])(
+    "rejects a dagId with characters no Python dag_id allows: %j",
+    (dagId) => {
+      const registry = new TaskRegistry();
+      expect(() =>
+        registry.register({ dagId, taskId: "my_task" }, async () => undefined),
+      ).toThrowError(/dagId must be made of alphanumeric/);
+    },
+  );
+
+  it.each(["   ", "\t", "my task", "a/b", "task@1"])(
+    "rejects a taskId with characters no Python task_id allows: %j",
+    (taskId) => {
+      const registry = new TaskRegistry();
+      expect(() =>
+        registry.register({ dagId: "example_dag", taskId }, async () => undefined),
+      ).toThrowError(/taskId must be made of alphanumeric/);
+    },
+  );
+
+  it("accepts a Unicode dagId that Python's word-character rule allows", () => {
+    const registry = new TaskRegistry();
+    const handler = async () => undefined;
+    registry.register({ dagId: "café_dag", taskId: "任務" }, handler);
+    expect(registry.get("café_dag", "任務")).toBe(handler);
   });
 
   it("rejects non-function handlers", () => {
