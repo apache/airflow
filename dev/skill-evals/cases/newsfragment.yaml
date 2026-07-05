@@ -62,3 +62,28 @@
   assert:
     - type: javascript
       value: 'output.should_create === false'
+
+- description: "Worker connection testing (#62343): feature newsfragment"
+  vars:
+    request: |
+      I added asynchronous connection testing: connection tests can now
+      run on a worker instead of in-process on the API server, submitted
+      via a new POST /connections/enqueue-test endpoint and configured
+      under a new [connection_test] config section. The changes span
+      airflow-core and task-sdk.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === true'
+
+- description: "Coordinator layer (#65958): feature newsfragment"
+  vars:
+    request: |
+      I added a coordinator layer to the task execution supervisor so
+      coordinators written in other languages can drive task execution,
+      along with a first Java coordinator and a new config option. Most
+      of the changes are in task-sdk, with some in airflow-core.
+      Should I create a newsfragment?
+  assert:
+    - type: javascript
+      value: 'output.should_create === true'

@@ -1022,6 +1022,19 @@ repos:
         pass_filenames: false
         require_serial: true
         verbose: true
+      - id: view-skill-eval
+        name: View skill-eval results in browser (manual)
+        entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
       - id: check-eval-hash
         name: Verify skill-eval ran on current AGENTS.md and cases
         entry: ./scripts/ci/prek/check_eval_hash.py

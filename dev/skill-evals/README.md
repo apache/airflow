@@ -75,8 +75,8 @@ MODEL=claude-haiku-4-5-20251001 prek run run-skill-eval --hook-stage manual --al
 # baseline arm has no skill, so the skill-used assertion would always fail):
 SKILL_NAME=airflow-contribution prek run run-skill-eval --hook-stage manual --all-files
 
-# View results in browser (state lives under .build/promptfoo):
-PROMPTFOO_CONFIG_DIR=.build/promptfoo npx promptfoo@0.121.17 view
+# View results in browser (Ctrl-C to stop the server):
+prek run view-skill-eval --hook-stage manual --all-files
 ```
 
 Other promptfoo flags (`--filter*`, `--no-cache`) are argv-only —
