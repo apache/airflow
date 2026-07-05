@@ -2480,9 +2480,6 @@ class TestDagModel:
         clear_db_dag_bundles()
         clear_db_teams()
 
-    def setup_method(self):
-        self._clean()
-
     def teardown_method(self):
         self._clean()
 
