@@ -297,6 +297,20 @@ class AnthropicHook(BaseHook):
             kwargs["scope"] = wif["scope"]
         return WorkloadIdentityCredentials(**kwargs)
 
+    def _resolve_model(self, model: str | None) -> str:
+        """Resolve the effective model id; Bedrock rejects a bare id, so require its prefix."""
+        resolved = model or self.default_model
+        # Valid Bedrock ids either start with the ``anthropic.`` provider prefix or carry a
+        # region/profile prefix as a dotted component (e.g. ``us.anthropic.``, ``global.anthropic.``).
+        is_bedrock_model_id = resolved.startswith("anthropic.") or ".anthropic." in resolved
+        if self.platform == "bedrock" and not is_bedrock_model_id:
+            raise AnthropicError(
+                f"Model {resolved!r} is not a valid Amazon Bedrock model id. Bedrock ids carry a "
+                "provider/region prefix (e.g. 'global.anthropic.claude-opus-4-6-v1'); set one via "
+                "the 'model' argument or the connection's extra['model']."
+            )
+        return resolved
+
     def _require_first_party(self, feature: str) -> None:
         if self.platform not in FIRST_PARTY_PLATFORMS:
             raise AnthropicError(
@@ -348,7 +362,7 @@ class AnthropicHook(BaseHook):
         :param system: Optional system prompt.
         """
         params: dict[str, Any] = {
-            "model": model or self.default_model,
+            "model": self._resolve_model(model),
             "max_tokens": max_tokens,
             "messages": messages,
             **kwargs,
