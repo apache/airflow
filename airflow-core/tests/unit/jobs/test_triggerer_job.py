@@ -2616,6 +2616,7 @@ class TestTriggererMessageTypes:
             "SetTaskStateStore",
             "DeleteTaskStateStore",
             "ClearTaskStateStore",
+            "UpdateDagRunNote",
         }
 
         in_task_but_not_in_trigger_runner = {
