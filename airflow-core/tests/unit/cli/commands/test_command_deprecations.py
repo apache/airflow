@@ -54,6 +54,7 @@ MIGRATED_CLI_COMMANDS = [
     (dag_command.dag_list_import_errors, "airflowctl dags list-import-errors"),
     (dag_command.dag_pause, "airflowctl dags pause"),
     (dag_command.dag_unpause, "airflowctl dags unpause"),
+    (dag_command.dag_list_dag_runs, "airflowctl dagrun list"),
     (pool_command.pool_list, "airflowctl pools list"),
     (pool_command.pool_get, "airflowctl pools get"),
     (pool_command.pool_set, "airflowctl pools create"),
