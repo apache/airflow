@@ -392,6 +392,7 @@ class TestElasticsearchTaskHandler:
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage fallback is Airflow 3+ only")
     @pytest.mark.db_test
     def test_read_with_malformed_event_falls_back_to_stringified_event(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         malformed_event = ["not", "a", "string"]
         malformed_source = {
             "message": self.test_message,
