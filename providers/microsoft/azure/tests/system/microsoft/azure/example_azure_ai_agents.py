@@ -33,26 +33,19 @@ Azure Container Registry:
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
+import tempfile
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
-
-from airflow import settings
-from airflow.models import Connection
 from airflow.providers.microsoft.azure.operators.ai_agents import (
     CreateAzureAIAgentOperator,
     DeleteAzureAIAgentOperator,
     RunAzureAIAgentOperator,
     UpdateAzureAIAgentOperator,
 )
-
-try:
-    from airflow.sdk import task
-except ImportError:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -139,20 +132,16 @@ RUN_AGENT_PROMPT = (
 RUN_AGENT_INPUT = {"input" if RUN_AGENT_PROTOCOL == "responses" else "message": RUN_AGENT_PROMPT}
 
 
-@task
-def create_connection(conn_id_name: str, conn_uri: str) -> None:
+def create_connection_file(conn_id_name: str, conn_uri: str) -> str | None:
     if not conn_uri:
-        raise RuntimeError("AIRFLOW_CONN_AZURE_AI_AGENTS_DEFAULT is required for this system test.")
-    if settings.Session is None:
-        raise RuntimeError("Session not configured. Call configure_orm() first.")
-    session = settings.Session()
-    conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id_name))
-    if conn is None:
-        conn = Connection(conn_id=conn_id_name, uri=conn_uri)
-        session.add(conn)
-    else:
-        conn.uri = conn_uri
-    session.commit()
+        return None
+    with tempfile.NamedTemporaryFile("w", suffix=".env", delete=False) as conn_file:
+        conn_file.write(f"{conn_id_name}={conn_uri}\n")
+        atexit.register(os.unlink, conn_file.name)
+        return conn_file.name
+
+
+CONN_FILE_PATH = create_connection_file(AZURE_AI_AGENTS_CONN_ID, AZURE_AI_AGENTS_CONN_URI)
 
 
 with DAG(
@@ -161,8 +150,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    set_up_connection = create_connection(AZURE_AI_AGENTS_CONN_ID, AZURE_AI_AGENTS_CONN_URI)
-
     # [START howto_operator_azure_ai_agent_create]
     create_agent = CreateAzureAIAgentOperator(
         task_id="create_agent",
@@ -188,6 +175,19 @@ with DAG(
         endpoint=ENDPOINT,
     )
     # [END howto_operator_azure_ai_agent_update]
+
+    # [START howto_operator_azure_ai_agent_update_deferrable]
+    update_agent_deferrable = UpdateAzureAIAgentOperator(
+        task_id="update_agent_deferrable",
+        agent_name=AGENT_NAME,
+        definition=UPDATED_AGENT_DEFINITION,
+        poll_interval=10,
+        timeout=900,
+        deferrable=True,
+        azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
+        endpoint=ENDPOINT,
+    )
+    # [END howto_operator_azure_ai_agent_update_deferrable]
 
     if RUN_AGENT_PROTOCOL:
         # [START howto_operator_azure_ai_agent_run]
@@ -217,9 +217,9 @@ with DAG(
     # [END howto_operator_azure_ai_agent_delete]
 
     if run_agent is None:
-        chain(set_up_connection, create_agent, update_agent, delete_agent)
+        chain(create_agent, update_agent, update_agent_deferrable, delete_agent)
     else:
-        chain(set_up_connection, create_agent, update_agent, run_agent, delete_agent)
+        chain(create_agent, update_agent, update_agent_deferrable, run_agent, delete_agent)
 
     from tests_common.test_utils.watcher import watcher
 
@@ -227,4 +227,4 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-test_run = get_test_run(dag)
+test_run = get_test_run(dag, conn_file_path=CONN_FILE_PATH)

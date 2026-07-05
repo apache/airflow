@@ -71,6 +71,15 @@ The operator accepts the same parameters as ``CreateAzureAIAgentOperator``.
     :start-after: [START howto_operator_azure_ai_agent_update]
     :end-before: [END howto_operator_azure_ai_agent_update]
 
+Set ``deferrable=True`` to release the worker slot while the new version deploys; the wait then
+runs in the triggerer. The same parameter is available on ``CreateAzureAIAgentOperator``.
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_azure_ai_agent_update_deferrable]
+    :end-before: [END howto_operator_azure_ai_agent_update_deferrable]
+
 .. _howto/operator:RunAzureAIAgentOperator:
 
 RunAzureAIAgentOperator
