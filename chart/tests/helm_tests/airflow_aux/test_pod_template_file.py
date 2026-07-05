@@ -1111,6 +1111,17 @@ class TestPodTemplateFile:
             "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
         } in jmespath.search("spec.containers[0].env", docs[0])
 
+    def test_should_set_dumb_init_setsid_for_warm_shutdown(self):
+        """Pod-termination signals must reach only the supervisor so a running task can warm-shut-down."""
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"name": "DUMB_INIT_SETSID", "value": "0"} in jmespath.search(
+            "spec.containers[0].env", docs[0]
+        )
+
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={

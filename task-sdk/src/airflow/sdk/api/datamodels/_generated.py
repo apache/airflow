@@ -726,6 +726,7 @@ class AssetEventDagRunReference(BaseModel):
     source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
     source_aliases: Annotated[list[AssetAliasReferenceAssetEventDagRun], Field(title="Source Aliases")]
     timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class AssetEventResponse(BaseModel):

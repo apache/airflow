@@ -296,7 +296,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.2"
-UV_VERSION = "0.11.21"
+UV_VERSION = "0.11.25"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -828,7 +828,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai opensearch",
+        "remove-providers": "anthropic common.messaging edge3 fab git keycloak informatica common.ai opensearch",
         "run-unit-tests": "true",
     },
     {

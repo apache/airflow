@@ -1764,7 +1764,7 @@ class DAGResponse(BaseModel):
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
-    fileloc: Annotated[str, Field(title="Fileloc")]
+    fileloc: Annotated[str | None, Field(title="Fileloc")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
@@ -2557,7 +2557,7 @@ class DAGDetailsResponse(BaseModel):
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
-    fileloc: Annotated[str, Field(title="Fileloc")]
+    fileloc: Annotated[str | None, Field(title="Fileloc")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
