@@ -229,6 +229,10 @@ GOLANG_WORKER = "go"
 JAVA_SDK = "java"
 ALLOWED_SDKS = [JAVA_SDK]
 
+# JDK version used to build the Java SDK and its example bundles (e.g. the lang-SDK k8s system test).
+# Keep in sync with the toolchain the Java SDK Gradle build targets.
+JAVA_SDK_VERSION = "17"
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
