@@ -1111,6 +1111,12 @@ class GetDagRunState(BaseModel):
     type: Literal["GetDagRunState"] = "GetDagRunState"
 
 
+class UpdateDagRunNote(BaseModel):
+    ti_id: UUID
+    note: str | None
+    type: Literal["UpdateDagRunNote"] = "UpdateDagRunNote"
+
+
 class GetPreviousDagRun(BaseModel):
     dag_id: str
     logical_date: AwareDatetime
@@ -1300,6 +1306,7 @@ ToSupervisor = Annotated[
     | ValidateInletsAndOutlets
     | TaskState
     | TriggerDagRun
+    | UpdateDagRunNote
     | DeleteVariable
     | ResendLoggingFD
     | CreateHITLDetailPayload

@@ -140,6 +140,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStateStoreResult,
     ToSupervisor,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
     _RequestFrame,
     _ResponseFrame,
@@ -165,6 +166,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_mask_secret,
     handle_put_variable,
     handle_set_xcom,
+    handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
 
@@ -2093,6 +2095,11 @@ class ActivitySubprocess(WatchedSubprocess):
         )
         return resp, {}
 
+    def _handle_update_dag_run_note(
+        self, msg: UpdateDagRunNote, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        return handle_update_dag_run_note(self.client, msg)
+
     def _handle_get_dag_run(self, msg: GetDagRun, log: FilteringBoundLogger, req_id: int) -> RequestResult:
         dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
         resp = DagRunResult.from_api_response(dr_resp)
@@ -2305,6 +2312,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(SucceedTask, _handle_finished_task),
                 register_request_method(TaskState, _handle_task_state),
                 register_request_method(TriggerDagRun, _handle_trigger_dag_run),
+                register_request_method(UpdateDagRunNote, _handle_update_dag_run_note),
                 register_request_method(ValidateInletsAndOutlets, _handle_validate_inlets_and_outlets),
             ]
         ),
