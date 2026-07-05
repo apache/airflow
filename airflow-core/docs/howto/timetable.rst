@@ -238,6 +238,13 @@ purpose, we'd want to do something like:
                 run_after=DateTime.combine(end.date(), self._schedule_at).replace(tzinfo=UTC),
             )
 
+If you adapt the first-run logic from ``AfterWorkdayTimetable`` for a custom
+``schedule_at`` value, compare the candidate time with ``self._schedule_at``.
+The midnight-specific check in the earlier example is only correct when runs
+are scheduled at ``00:00``. For example, an earliest time of ``06:00`` should
+still allow an ``08:00`` same-day run, while an earliest time of ``09:00`` should
+move to the next workday.
+
 However, since the timetable is a part of the Dag, we need to tell Airflow how
 to serialize it with the context we provide in ``__init__``. This is done by
 implementing two additional methods on our timetable class:
