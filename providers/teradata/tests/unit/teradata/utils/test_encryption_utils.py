@@ -70,7 +70,8 @@ class TestEncryptionUtils:
         quoted = shell_quote_single(s)
         assert quoted == "'O'\\''Reilly'"
 
-    def test_decrypt_remote_file_to_string(self):
+    @patch("airflow.providers.teradata.utils.encryption_utils.get_remote_os", return_value="unix")
+    def test_decrypt_remote_file_to_string(self, mock_get_remote_os):
         password = "mysecret"
         remote_enc_file = "/remote/encrypted.enc"
         bteq_command_str = "bteq -c UTF-8"
@@ -101,3 +102,40 @@ class TestEncryptionUtils:
         assert exit_status == 0
         assert output == "decrypted output"
         assert err == ""
+
+    @patch("airflow.providers.teradata.utils.encryption_utils.get_remote_os", return_value="windows")
+    def test_decrypt_remote_file_to_string_windows(self, mock_get_remote_os):
+        """Regression test for https://github.com/apache/airflow/issues/69396.
+
+        Single-quoting does not work on Windows CMD; the function must use
+        double-quote escaping when the remote host is detected as Windows.
+        """
+        password = 'my"secret'  # password with an embedded double-quote
+        remote_enc_file = "C:\\remote\\encrypted.enc"
+        bteq_command_str = "bteq"
+
+        ssh_client = MagicMock()
+        mock_stdin = MagicMock()
+        mock_stdout = MagicMock()
+        mock_stderr = MagicMock()
+
+        mock_stdout.channel.recv_exit_status.return_value = 0
+        mock_stdout.read.return_value = b"decrypted output"
+        mock_stderr.read.return_value = b""
+
+        ssh_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+        exit_status, output, err = decrypt_remote_file_to_string(
+            ssh_client, remote_enc_file, password, bteq_command_str
+        )
+
+        # Windows: double quotes wrapping, embedded " escaped as ""
+        expected_quoted_password = '"my""secret"'
+        expected_cmd = (
+            f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:{expected_quoted_password}"
+            f" -in {remote_enc_file} | {bteq_command_str}"
+        )
+
+        ssh_client.exec_command.assert_called_once_with(expected_cmd)
+        assert exit_status == 0
+        assert output == "decrypted output"
