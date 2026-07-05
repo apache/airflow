@@ -20,7 +20,7 @@ import random
 import re
 import string
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -2389,7 +2389,7 @@ class TestCleanupZombieKpoPods:
         pod = mock.MagicMock()
         pod.metadata.name = name
         pod.metadata.namespace = namespace
-        pod.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
+        pod.metadata.creation_timestamp = timezone.utcnow() - timedelta(seconds=age_seconds)
         labels = {
             "dag_id": make_safe_label_value(dag_id),
             "task_id": make_safe_label_value(task_id),

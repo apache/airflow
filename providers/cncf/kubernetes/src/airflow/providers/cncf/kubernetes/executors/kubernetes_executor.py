@@ -860,10 +860,12 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.providers.cncf.kubernetes.pod_generator import make_safe_label_value
         from airflow.utils.state import State
 
-        pod_list = self._list_pods({
-            "label_selector": "kubernetes_pod_operator=True",
-            "field_selector": "status.phase=Running",
-        })
+        pod_list = self._list_pods(
+            {
+                "label_selector": "kubernetes_pod_operator=True",
+                "field_selector": "status.phase=Running",
+            }
+        )
         if not pod_list:
             return
 
