@@ -143,6 +143,21 @@ class DagRunAssetReference(BaseModel):
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Note")]
+
+
+class DagRunNoteUpdatePayload(BaseModel):
+    """
+    Schema for updating the DagRun note associated with a task instance.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    note: Annotated[Note | None, Field(title="Note")] = None
+
+
 class DagRunState(str, Enum):
     """
     All possible states that a DagRun can be in.

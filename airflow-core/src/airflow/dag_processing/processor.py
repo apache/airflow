@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     TaskStatesResult,
+    UpdateDagRunNote,
     VariableKeysResult,
     VariableResult,
     XComCountResponse,
@@ -85,6 +86,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_xcom_sequence_slice,
     handle_mask_secret,
     handle_put_variable,
+    handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
@@ -157,6 +159,7 @@ ToManager = Annotated[
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
     | GetPreviousTI
+    | UpdateDagRunNote
     | GetXCom
     | GetXComCount
     | GetXComSequenceItem
@@ -708,6 +711,8 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             resp, dump_opts = handle_get_task_states(self.client, msg)
         elif isinstance(msg, GetPreviousTI):
             resp, dump_opts = handle_get_previous_ti(self.client, msg)
+        elif isinstance(msg, UpdateDagRunNote):
+            resp, dump_opts = handle_update_dag_run_note(self.client, msg)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

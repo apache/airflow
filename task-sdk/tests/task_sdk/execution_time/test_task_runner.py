@@ -146,6 +146,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     TICount,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
     VariableResult,
     XComResult,
@@ -2957,6 +2958,16 @@ class TestRuntimeTaskInstance:
         assert dr.dag_id == "test_dag"
         assert dr.run_id == "prev_run"
         assert dr.state == "success"
+
+    def test_update_dagrun_note(self, create_runtime_ti, mock_supervisor_comms):
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task)
+
+        runtime_ti.update_dagrun_note("Updated from task runtime")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=UpdateDagRunNote(ti_id=runtime_ti.id, note="Updated from task runtime")
+        )
 
     def test_get_previous_dagrun_with_state(self, create_runtime_ti, mock_supervisor_comms):
         """Test that get_previous_dagrun sends the correct request with state filter."""
