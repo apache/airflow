@@ -2283,6 +2283,7 @@ class TestDagProcessingMessageTypes:
             "DeleteAssetStateStoreByUri",
             "ClearAssetStateStoreByName",
             "ClearAssetStateStoreByUri",
+            "UpdateDagRunNote",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
