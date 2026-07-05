@@ -27,7 +27,6 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.common.exceptions import (
     ERROR_HANDLERS,
     DagErrorHandler,
@@ -35,6 +34,7 @@ from airflow.api_fastapi.common.exceptions import (
     _DatabaseDialect,
     _UniqueConstraintErrorHandler,
 )
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.models import DagRun, Pool, Variable
