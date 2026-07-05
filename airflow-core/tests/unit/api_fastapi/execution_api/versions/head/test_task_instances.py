@@ -346,15 +346,15 @@ class TestTIRunState:
             [
                 TaskReschedule(
                     ti_id=ti.id,
-                    start_date=first_reschedule_start_date,
-                    end_date=timezone.datetime(2024, 9, 30, 10, 1),
-                    reschedule_date=timezone.datetime(2024, 9, 30, 10, 2),
-                ),
-                TaskReschedule(
-                    ti_id=ti.id,
                     start_date=second_reschedule_start_date,
                     end_date=timezone.datetime(2024, 9, 30, 11, 1),
                     reschedule_date=timezone.datetime(2024, 9, 30, 11, 2),
+                ),
+                TaskReschedule(
+                    ti_id=ti.id,
+                    start_date=first_reschedule_start_date,
+                    end_date=timezone.datetime(2024, 9, 30, 10, 1),
+                    reschedule_date=timezone.datetime(2024, 9, 30, 10, 2),
                 ),
             ]
         )
