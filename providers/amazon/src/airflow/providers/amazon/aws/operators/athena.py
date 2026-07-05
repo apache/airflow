@@ -254,11 +254,13 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 ],
             )
 
+        fallback_database = self.database or self.query_execution_context.get("Database")
+
         inputs: list[Dataset] = list(
             filter(
                 None,
                 [
-                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    self.get_openlineage_dataset(table.schema or fallback_database, table.name)
                     for table in parse_result.in_tables
                 ],
             )
@@ -268,7 +270,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             filter(
                 None,
                 [
-                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    self.get_openlineage_dataset(table.schema or fallback_database, table.name)
                     for table in parse_result.out_tables
                 ],
             )

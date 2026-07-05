@@ -341,6 +341,21 @@ class TestAthenaOperator:
         )
         assert operator.query_execution_id == query_execution_id
 
+    @mock.patch.object(AthenaOperator, "get_openlineage_dataset")
+    def test_openlineage_uses_database_from_query_execution_context(self, mock_get_dataset):
+        op = AthenaOperator(
+            task_id="test_athena_openlineage",
+            query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
+            database=None,
+            query_execution_context={"Database": "TEST_DATABASE"},
+            dag=self.dag,
+        )
+
+        op.get_openlineage_facets_on_complete(None)
+
+        mock_get_dataset.assert_any_call("TEST_DATABASE", "DISCOUNTS")
+        mock_get_dataset.assert_any_call("TEST_DATABASE", "TEST_TABLE")
+
     @mock.patch.object(AthenaHook, "region_name", new_callable=mock.PropertyMock)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_operator_openlineage_data(self, mock_conn, mock_region_name):
