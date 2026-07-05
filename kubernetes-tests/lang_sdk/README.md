@@ -104,7 +104,10 @@ worker image) and the localstack deploy run in parallel.
 
 By default the Go bundle and Java jar are built inside ephemeral toolchain containers so a dev host
 needs neither Go nor a JDK installed. In CI that variant sets `LANG_SDK_NATIVE_TOOLCHAIN=true`, which
-makes breeze build both artifacts with the host `go` / `./gradlew` instead: the workflow provisions
-the toolchains via `actions/setup-go` and `actions/setup-java` (whose built-in caches persist the Go
-module/build cache and the Gradle distribution + dependency cache across runs), so the build skips the
-per-run toolchain-image pulls and cold dependency downloads.
+makes breeze build both artifacts with the host `go` / `./gradlew` instead: the workflow installs the
+toolchains via `actions/setup-go` and `actions/setup-java` and restores the Go module/build cache and
+the Gradle distribution + dependency cache with `actions/cache`, so the build skips the per-run
+toolchain-image pulls and cold dependency downloads. The cache keys carry a `-v1-` salt (see
+`lang-sdk-go-v1-` / `lang-sdk-gradle-v1-` in `k8s-tests.yml`) — bump it to force-invalidate a poisoned
+cache. The JDK version comes from the `java-sdk-version` build-info output (the `JAVA_SDK_VERSION`
+breeze constant).
