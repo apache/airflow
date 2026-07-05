@@ -101,3 +101,10 @@ deploy, then runs the test. The `k8s-tests.yml` workflow enables it (`RUN_LANG_S
 which `--lang-sdk-test` reads) for a single variant only -- KubernetesExecutor with standard-naming
 off -- so the other five k8s jobs skip the test. The provisioning builds (Go bundle, Java jar, Java
 worker image) and the localstack deploy run in parallel.
+
+By default the Go bundle and Java jar are built inside ephemeral toolchain containers so a dev host
+needs neither Go nor a JDK installed. In CI that variant sets `LANG_SDK_NATIVE_TOOLCHAIN=true`, which
+makes breeze build both artifacts with the host `go` / `./gradlew` instead: the workflow provisions
+the toolchains via `actions/setup-go` and `actions/setup-java` (whose built-in caches persist the Go
+module/build cache and the Gradle distribution + dependency cache across runs), so the build skips the
+per-run toolchain-image pulls and cold dependency downloads.

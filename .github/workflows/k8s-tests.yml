@@ -96,6 +96,24 @@ jobs:
           make-mnt-writeable-and-cleanup: true
         id: breeze
       # preparing k8s environment with uv takes < 15 seconds with `uv` - there is no point in caching it.
+      # Provision the lang-SDK Go/Java toolchains on the host (with actions/setup-* built-in caching)
+      # only for the single variant that runs the lang-SDK test (KubernetesExecutor, standard-naming
+      # off). LANG_SDK_NATIVE_TOOLCHAIN=true then makes breeze build the artifacts natively instead of
+      # in throwaway toolchain containers, skipping the image pulls and reusing the cached toolchains.
+      # keep go-version in sync with go-sdk/go.mod and the sibling Go SDK job in ci-amd.yml.
+      - name: "Setup Go for lang-SDK build"
+        if: matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        with:
+          go-version: 1.25
+          cache-dependency-path: kubernetes-tests/lang_sdk/go_example/go.sum
+      - name: "Setup Java for lang-SDK build"
+        if: matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520  # v5.4.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
       - name: "\
           Run complete K8S tests ${{ matrix.executor }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-\
           ${{env.KUBERNETES_VERSION}}-${{ matrix.use-standard-naming }}"
@@ -106,6 +124,7 @@ jobs:
           # Provision + run the lang-SDK coordinator system test in a single variant only
           # (KubernetesExecutor, standard-naming off) to keep it off the other five k8s jobs.
           RUN_LANG_SDK_K8S_TESTS: ${{ (matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false) && 'true' || 'false' }}  # yamllint disable-line rule:line-length
+          LANG_SDK_NATIVE_TOOLCHAIN: ${{ (matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false) && 'true' || 'false' }}  # yamllint disable-line rule:line-length
           VERBOSE: "false"
       - name: "\
           Print logs ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\
