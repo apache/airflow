@@ -63,12 +63,25 @@ has the right symlink is a no-op.
 ln -s <main>/.apache-magpie <worktree>/.apache-magpie
 ```
 
+**Trusted external skill sources.** If the main checkout has a
+`.apache-magpie-sources/` directory (the adopter trusts at least
+one [external source](../../docs/skill-sources/README.md)), share
+it the same way so this worktree's source-skill symlinks resolve
+against one snapshot on disk:
+
+```bash
+# only when <main>/.apache-magpie-sources exists:
+ln -s <main>/.apache-magpie-sources <worktree>/.apache-magpie-sources
+```
+
 Then verify the chain end-to-end:
 
 - `ls -la <worktree>/.apache-magpie` returns a symlink pointing
   at `<main>/.apache-magpie`.
 - `ls <worktree>/.apache-magpie/skills/` lists the
   same skills as `ls <main>/.apache-magpie/skills/`.
+- when sources are in use, `ls -la <worktree>/.apache-magpie-sources`
+  is likewise a symlink to `<main>/.apache-magpie-sources`.
 
 ## Step 1b — Wire up the worktree's per-target symlinks
 

@@ -700,6 +700,35 @@ as ⚠ overall only, never ✗. `CONTRIBUTING.md` counts as a
 fallback for `README.md` if the adopter declared it so during
 adoption.
 
+### 10. Trusted external source snapshots + symlinks
+
+Only when `<project-config>/skill-sources.md` (the trust list)
+lists at least one source — otherwise skip this check silently
+(the adopter runs in-tree skills only). For each trusted source
+([`skill-sources.md`](skill-sources.md)):
+
+- **Committed pin present.** The source has a block in
+  `.apache-magpie.sources.lock` (`method`/`url`/`ref` + anchor).
+  Missing ⇒ ✗: the trust list vouches for a source that was never
+  pinned — run `/magpie-setup skill-sources`.
+- **Snapshot present.** `.apache-magpie-sources/<id>/` exists on
+  disk with the source's `skills_root`. Missing ⇒ ✗ with the
+  remediation `/magpie-setup skill-sources` (the fetch is
+  gitignored, so a fresh clone has none — expected, same as the
+  framework snapshot).
+- **Source drift.** The source's committed block vs its
+  `.apache-magpie.sources.local.lock` block — a mismatch ⇒ ⚠ and
+  proposes `/magpie-setup upgrade`, exactly like framework drift
+  (check 3).
+- **Symlinks live.** Every `magpie-<name>` the source `provides`
+  resolves through the canonical
+  `.agents/skills/magpie-<name>` → `../../.apache-magpie-sources/<id>/skills/<name>/`
+  and its relays (same rule as check 5). Dangling / misdirected ⇒
+  ✗ with `/magpie-setup verify --auto-fix-symlinks`.
+- **No name collision.** No `magpie-<name>` provided by a source
+  shadows a framework skill or another source's skill. Collision
+  ⇒ ✗ (surface, do not auto-resolve).
+
 ## After the report
 
 If every check is ✓ (or ⚠ on items the adopter has
