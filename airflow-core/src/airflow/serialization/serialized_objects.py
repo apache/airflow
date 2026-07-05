@@ -295,7 +295,7 @@ class _DagParamRef(NamedTuple):
     default: Any
 
     def deref(self, dag: SerializedDAG) -> DagParam:
-        return DagParam(current_dag=dag, name=self.name, default=self.default)
+        return DagParam(current_dag=cast(DAG, dag), name=self.name, default=self.default)
 
 
 # These two should be kept in sync. Note that these are intentionally not using
@@ -1273,7 +1273,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
         # Resolve DagParam references that may be nested inside partial_kwargs
         # (e.g. inside op_kwargs of a mapped @task operator).
-        if isinstance(task, MappedOperator) and task.partial_kwargs:
+        if task.is_mapped and task.partial_kwargs:
             task.partial_kwargs = OperatorSerialization._resolve_dag_param_refs(task.partial_kwargs, dag)
 
         for task_id in task.downstream_task_ids:
