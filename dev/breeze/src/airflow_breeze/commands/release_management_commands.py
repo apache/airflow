@@ -2035,13 +2035,8 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name == "helm-chart":
         return chart_version()
 
-    if package_name in ("docker-stack", "apache-airflow-providers"):
-        return None
-
-    if package_name == "java-sdk":
-        # Without a staged stable.txt the Javadoc was not built and the publisher skips the
-        # package anyway; don't fall back to java-sdk/gradle.properties since the checkout
-        # running publish-docs may not contain java-sdk/ at all (e.g. older refs).
+    if package_name in ("docker-stack", "apache-airflow-providers", "java-sdk"):
+        # Non-versioned packages; java-sdk is versioned but only via a staged stable.txt.
         return None
 
     if package_name.startswith("apache-airflow-providers-"):

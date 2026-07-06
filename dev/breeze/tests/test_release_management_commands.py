@@ -209,7 +209,7 @@ def test_get_suffix_from_package_in_dist(dist_files: list[str], package: str, ex
 @pytest.mark.parametrize(
     ("stable_txt_content", "expected_version"),
     [
-        # No stable.txt staged (Javadoc not built for this ref) -> None, not an error
+        # No stable.txt staged (docs not built for this ref) -> None, not an error
         (None, None),
         ("0.1.0\n", "0.1.0"),
     ],

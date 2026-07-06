@@ -98,8 +98,9 @@ class DocsPublisher:
     def publish(self, override_versioned: bool, airflow_site_dir: str):
         """Copy documentation packages files to airflow-site repository."""
         get_console(output=self.output).print(f"Publishing docs for {self.package_name}")
-        # Check the build dir before resolving _publish_dir: resolving the version of a
-        # package whose docs were not built (no stable.txt staged) raises SystemExit.
+        # Nothing staged for this package: skip before _publish_dir resolves a version
+        # that may not be resolvable, and before an existing output dir is deleted below
+        # with nothing to replace it.
         if not os.path.exists(self._build_dir):
             get_console(output=self.output).print(f"Build directory {self._build_dir} does not exist!")
             get_console(output=self.output).print()

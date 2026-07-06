@@ -337,9 +337,6 @@ jobs:
             fi
           done
           if [[ -n "${INCLUDE_DOCS}" && -z "${SPHINX_INCLUDE_DOCS// /}" ]]; then
-            # Only java-sdk was requested. An empty package list means "build everything"
-            # to breeze, so skip the Sphinx build entirely instead. The marker file keeps
-            # the docs artifact non-empty for the upload/download steps.
             echo "Only java-sdk docs were requested - skipping the Sphinx docs build."
             mkdir -p generated/_build/docs
             echo "The Sphinx docs build was skipped: only java-sdk docs were requested." \
@@ -540,9 +537,6 @@ jobs:
       - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
-        # java-sdk needs no extra argument: an explicit package list already names it, and a
-        # full build (empty INCLUDE_DOCS) publishes every doc package, where publish-docs
-        # skips java-sdk gracefully when its Javadoc was not staged.
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
           ${INCLUDE_DOCS}
