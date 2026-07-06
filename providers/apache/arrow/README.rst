@@ -56,6 +56,7 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``adbc-driver-manager``                  ``>=1.7.0``
 ``importlib-resources``                  ``>=1.3``
+``more-itertools``                       ``>=9.0.0``
 ``pyarrow``                              ``>=16.1.0; python_version < "3.13"``
 ``pyarrow``                              ``>=18.0.0; python_version >= "3.13"``
 =======================================  ======================================
