@@ -1316,9 +1316,9 @@ class ActivitySubprocess(WatchedSubprocess):
     # this attribute stays set and the dispatcher in
     # `update_task_state_if_needed` re-issues the matching API call on
     # subprocess exit — re-attempting the original transition rather than
-    # falling back to `finish()`, which doesn't accept SUCCESS / DEFERRED /
-    # SERVER_TERMINATED on the server side. Cleared (and `_terminal_state`
-    # set) only after the API call returns successfully.
+    # falling back to the generic non-success terminal-state update, which
+    # does not accept SUCCESS / DEFERRED / SERVER_TERMINATED. Cleared
+    # (and `_terminal_state` set) only after the API call returns successfully.
     _pending_terminal_state_msg: (
         SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
     ) = attrs.field(default=None, init=False)
@@ -1446,20 +1446,19 @@ class ActivitySubprocess(WatchedSubprocess):
         # the original request. Re-issue the matching dedicated API call so
         # the server learns the terminal state we couldn't deliver earlier.
         # Without this recovery, a transient API failure during the direct
-        # call would leave the TI stuck RUNNING on the server — `finish()`
-        # cannot substitute because the server-side `finish` endpoint does
-        # not accept SUCCESS / DEFERRED / SERVER_TERMINATED transitions.
+        # call would leave the TI stuck RUNNING on the server. The generic
+        # non-success terminal-state update cannot substitute because its
+        # payload does not accept SUCCESS / DEFERRED / SERVER_TERMINATED.
         if self._pending_terminal_state_msg is not None:
             self._replay_pending_terminal_state_msg()
             return
 
-        # If the process has finished a non-directly-patched state (e.g.
-        # FAILED, UP_FOR_RETRY without RetryTask), `finish()` is the
-        # dedicated endpoint for those transitions. For states already in
-        # STATES_SENT_DIRECTLY whose direct API call succeeded, no further
-        # action is needed.
+        # If the process has finished in a non-success terminal state that was
+        # not sent directly, report it with `set_terminal_state()`. For states
+        # already in STATES_SENT_DIRECTLY whose direct API call succeeded, no
+        # further action is needed.
         if self.final_state not in STATES_SENT_DIRECTLY:
-            self.client.task_instances.finish(
+            self.client.task_instances.set_terminal_state(
                 id=self.id,
                 state=self.final_state,
                 when=datetime.now(tz=timezone.utc),
@@ -1695,7 +1694,7 @@ class ActivitySubprocess(WatchedSubprocess):
         dump_opts: dict[str, bool] = {}
         if isinstance(msg, TaskState):
             # No direct API call here — the recovery path in
-            # `update_task_state_if_needed` will call `finish()` for
+            # `update_task_state_if_needed` will call `set_terminal_state()` for
             # non-direct states (FAILED, etc.) once the subprocess exits.
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()

@@ -3233,9 +3233,9 @@ class TestHandleRequest:
         self, watched_subprocess, mocker, msg, api_method, expected_state
     ):
         """If a direct terminal-state API call was attempted and raised, the
-        recovery dispatcher must re-issue the dedicated endpoint (not
-        `finish()`, which the server-side endpoint refuses for SUCCESS /
-        DEFERRED / SERVER_TERMINATED). Covers all four message types.
+        recovery dispatcher must re-issue the dedicated method, not the
+        generic non-success terminal-state update, which refuses SUCCESS /
+        DEFERRED / SERVER_TERMINATED. Covers all four message types.
         """
         watched_subprocess, _ = watched_subprocess
         watched_subprocess._exit_code = 0
@@ -3244,9 +3244,9 @@ class TestHandleRequest:
 
         watched_subprocess.update_task_state_if_needed()
 
-        # Recovery re-issues the dedicated endpoint, NOT finish().
+        # Recovery re-issues the dedicated method, not the generic terminal-state update.
         getattr(watched_subprocess.client.task_instances, api_method).assert_called_once()
-        watched_subprocess.client.task_instances.finish.assert_not_called()
+        watched_subprocess.client.task_instances.set_terminal_state.assert_not_called()
         assert watched_subprocess._terminal_state == expected_state
         assert watched_subprocess._pending_terminal_state_msg is None
 
@@ -3260,7 +3260,7 @@ class TestHandleRequest:
 
         watched_subprocess.update_task_state_if_needed()
 
-        watched_subprocess.client.task_instances.finish.assert_not_called()
+        watched_subprocess.client.task_instances.set_terminal_state.assert_not_called()
         watched_subprocess.client.task_instances.succeed.assert_not_called()
 
 
@@ -3378,7 +3378,7 @@ class TestInProcessTestSupervisor:
         )
 
         # Patch the API client used by InProcessTestSupervisor to return a predictable TI context
-        fake_task_instances = mock.MagicMock(spec_set=["start", "finish"])
+        fake_task_instances = mock.MagicMock(spec_set=["start", "set_terminal_state"])
         fake_task_instances.start.return_value = make_ti_context()
         fake_client = mock.MagicMock(spec_set=["task_instances"])
         fake_client.task_instances = fake_task_instances

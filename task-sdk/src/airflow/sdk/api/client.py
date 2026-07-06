@@ -265,11 +265,12 @@ class TaskInstanceOperations:
             raise
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
-        """Tell the API server that this TI has reached a terminal state."""
+    def set_terminal_state(
+        self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index
+    ):
+        """Tell the API server that this TI has reached a non-success terminal state."""
         if state == TaskInstanceState.SUCCESS:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
-        # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(
             end_date=when, state=TerminalStateNonSuccess(state), rendered_map_index=rendered_map_index
         )
