@@ -1846,6 +1846,30 @@
           "title": "Ascending",
           "type": "boolean"
         },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
+        "partition_key_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key Pattern"
+        },
         "type": {
           "const": "GetAssetEventByAsset",
           "default": "GetAssetEventByAsset",
@@ -1908,6 +1932,30 @@
           "default": true,
           "title": "Ascending",
           "type": "boolean"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
+        "partition_key_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key Pattern"
         },
         "type": {
           "const": "GetAssetEventByAssetAlias",
