@@ -20,6 +20,7 @@ import { Box, Table } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { SqlParserProvider } from "src/components/SqlParserProvider";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
@@ -44,54 +45,67 @@ const RenderedTemplatesContent = () => {
       <Table.Root striped>
         <Table.Body>
           {Object.entries(taskInstance?.rendered_fields ?? {}).map(([key, value]) => {
-            if (value !== null && value !== undefined) {
-              const renderedValue =
-                typeof value === "string"
-                  ? value.split("\\n").join("\n").replaceAll(/\\$/gmu, "")
-                  : JSON.stringify(value, null, 2);
-              const language = detectLanguage(renderedValue);
+            if (value === null || value === undefined) {
+              return undefined;
+            }
 
+            // Objects and arrays render as a collapsible JSON tree (Monaco), matching how
+            // XCom values and Dag run conf are displayed, instead of a single highlighted line.
+            if (typeof value === "object") {
               return (
                 <Table.Row key={key}>
-                  <Table.Cell>{key}</Table.Cell>
+                  <Table.Cell verticalAlign="top">{key}</Table.Cell>
                   <Table.Cell>
-                    <Box
-                      css={{
-                        "&:hover .copy-button": {
-                          opacity: 1,
-                        },
-                      }}
-                    >
-                      <Box borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
-                        <SyntaxHighlighter
-                          language={language}
-                          PreTag="pre"
-                          showLineNumbers
-                          style={style}
-                          wrapLongLines
-                        >
-                          {renderedValue}
-                        </SyntaxHighlighter>
-                      </Box>
-                      <ClipboardRoot
-                        className="copy-button"
-                        float="right"
-                        marginTop="-3.5rem"
-                        opacity={0}
-                        position="sticky"
-                        right={4}
-                        transition="opacity 0.2s ease-in-out"
-                        value={renderedValue}
-                      >
-                        <ClipboardIconButton />
-                      </ClipboardRoot>
-                    </Box>
+                    <RenderedJsonField content={value} showStructureGuides />
                   </Table.Cell>
                 </Table.Row>
               );
             }
 
-            return undefined;
+            const renderedValue =
+              typeof value === "string"
+                ? value.split("\\n").join("\n").replaceAll(/\\$/gmu, "")
+                : JSON.stringify(value, null, 2);
+            const language = detectLanguage(renderedValue);
+
+            return (
+              <Table.Row key={key}>
+                <Table.Cell>{key}</Table.Cell>
+                <Table.Cell>
+                  <Box
+                    css={{
+                      "&:hover .copy-button": {
+                        opacity: 1,
+                      },
+                    }}
+                  >
+                    <Box borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
+                      <SyntaxHighlighter
+                        language={language}
+                        PreTag="pre"
+                        showLineNumbers
+                        style={style}
+                        wrapLongLines
+                      >
+                        {renderedValue}
+                      </SyntaxHighlighter>
+                    </Box>
+                    <ClipboardRoot
+                      className="copy-button"
+                      float="right"
+                      marginTop="-3.5rem"
+                      opacity={0}
+                      position="sticky"
+                      right={4}
+                      transition="opacity 0.2s ease-in-out"
+                      value={renderedValue}
+                    >
+                      <ClipboardIconButton />
+                    </ClipboardRoot>
+                  </Box>
+                </Table.Cell>
+              </Table.Row>
+            );
           })}
         </Table.Body>
       </Table.Root>
