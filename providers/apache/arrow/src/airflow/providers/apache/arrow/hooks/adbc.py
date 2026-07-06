@@ -18,7 +18,10 @@
 from __future__ import annotations
 
 import contextlib
+import importlib_resources
+import pathlib
 import re
+import sys
 from collections.abc import Iterable, Mapping
 from contextlib import closing
 from functools import cached_property
@@ -106,11 +109,6 @@ class AdbcHook(DbApiHook):
 
     @cached_property
     def _driver_path(self) -> str:
-        import pathlib
-        import sys
-
-        import importlib_resources
-
         # Wheels bundle the shared library
         root = importlib_resources.files(self.driver)
         # The filename is always the same regardless of platform
