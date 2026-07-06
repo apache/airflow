@@ -152,6 +152,7 @@ hooks:
     python-modules:
       - airflow.providers.snowflake.hooks.snowflake
       - airflow.providers.snowflake.hooks.snowflake_sql_api
+      - airflow.providers.snowflake.hooks.snowflake_cortex_agent
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)
