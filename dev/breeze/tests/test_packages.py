@@ -27,6 +27,7 @@ from airflow_breeze.utils.packages import (
     apply_version_suffix_to_non_provider_pyproject_tomls,
     apply_version_suffix_to_provider_pyproject_toml,
     convert_cross_package_dependencies_to_table,
+    convert_optional_dependencies_to_table,
     convert_pip_requirements_to_table,
     expand_all_provider_distributions,
     find_matching_long_package_names,
@@ -39,11 +40,13 @@ from airflow_breeze.utils.packages import (
     get_pip_package_name,
     get_provider_details,
     get_provider_info_dict,
+    get_provider_jinja_context,
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
+    render_template,
     validate_provider_info_with_runtime_schema,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -315,6 +318,43 @@ def test_convert_cross_package_dependencies_to_table():
         convert_cross_package_dependencies_to_table(get_cross_provider_dependent_packages("trino")).strip()
         == EXPECTED.strip()
     )
+
+
+@pytest.mark.parametrize("markdown", [True, False])
+def test_convert_optional_dependencies_to_table(markdown: bool):
+    optional_dependencies = {
+        "aiobotocore": ["aiobotocore>=3.0.0"],
+        "s3fs": ["s3fs>=2023.10.0", "boto3>=1.0"],
+    }
+    table = convert_optional_dependencies_to_table(optional_dependencies, markdown=markdown)
+    quote = "`" if markdown else "``"
+    assert "Extra" in table
+    assert "Dependencies" in table
+    assert f"{quote}aiobotocore{quote}" in table
+    assert f"{quote}aiobotocore>=3.0.0{quote}" in table
+    # Multiple dependencies for a single extra are comma-joined in one cell.
+    assert f"{quote}s3fs>=2023.10.0{quote}, {quote}boto3>=1.0{quote}" in table
+
+
+def test_provider_index_template_renders_optional_dependencies():
+    # Amazon carries plain-PyPI extras (e.g. ``aiobotocore``) that are not cross-provider
+    # dependencies, so their only rendering path is the "Optional dependencies" section.
+    context = get_provider_jinja_context("amazon", current_release_version="1.0.0", version_suffix="")
+    rendered = render_template(
+        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
+    )
+    assert "Optional dependencies\n---------------------" in rendered
+    assert "``aiobotocore``" in rendered
+
+
+def test_provider_index_template_omits_optional_dependencies_when_none():
+    context = get_provider_jinja_context("amazon", current_release_version="1.0.0", version_suffix="")
+    context["OPTIONAL_DEPENDENCIES"] = {}
+    context["OPTIONAL_DEPENDENCIES_TABLE_RST"] = ""
+    rendered = render_template(
+        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
+    )
+    assert "Optional dependencies\n---------------------" not in rendered
 
 
 def test_get_provider_info_dict():

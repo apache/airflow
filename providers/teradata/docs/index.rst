@@ -128,6 +128,26 @@ Dependent package                                                               
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                          ``ssh``
 ======================================================================================================================  ===================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-teradata[microsoft.azure]
+
+
+===================  ============================================
+Extra                Dependencies
+===================  ============================================
+``microsoft.azure``  ``apache-airflow-providers-microsoft-azure``
+``amazon``           ``apache-airflow-providers-amazon``
+``sqlalchemy``       ``sqlalchemy>=1.4.54``
+``ssh``              ``apache-airflow-providers-ssh``
+===================  ============================================
+
 Downloading official packages
 -----------------------------
 

@@ -123,6 +123,23 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
 ====================================================================================================  ==========
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-samba[google]
+
+
+==========  ===================================
+Extra       Dependencies
+==========  ===================================
+``google``  ``apache-airflow-providers-google``
+==========  ===================================
+
 Downloading official packages
 -----------------------------
 

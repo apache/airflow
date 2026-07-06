@@ -125,6 +125,24 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
 ==============================================================================================================  ===============
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-oracle[numpy]
+
+
+===============  ============================================================================================================================================================================================================================================
+Extra            Dependencies
+===============  ============================================================================================================================================================================================================================================
+``numpy``        ``numpy>=1.22.4; python_version<'3.11'``, ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
+``openlineage``  ``apache-airflow-providers-openlineage``
+===============  ============================================================================================================================================================================================================================================
+
 Downloading official packages
 -----------------------------
 

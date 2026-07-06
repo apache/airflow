@@ -229,6 +229,43 @@ Dependent package                                                               
 `apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_                        ``trino``
 ========================================================================================================================  ====================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-google[cncf.kubernetes]
+
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
+``fab``               ``apache-airflow-providers-fab>=2.0.0``
+``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
+``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
+``facebook``          ``apache-airflow-providers-facebook>=2.2.0``
+``amazon``            ``apache-airflow-providers-amazon>=2.6.0``
+``apache.cassandra``  ``apache-airflow-providers-apache-cassandra``
+``microsoft.azure``   ``apache-airflow-providers-microsoft-azure>=13.0.0``
+``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
+``mongo``             ``apache-airflow-providers-mongo``
+``mysql``             ``apache-airflow-providers-mysql``
+``openlineage``       ``apache-airflow-providers-openlineage``
+``postgres``          ``apache-airflow-providers-postgres``
+``presto``            ``apache-airflow-providers-presto``
+``salesforce``        ``apache-airflow-providers-salesforce``
+``sftp``              ``apache-airflow-providers-sftp``
+``ssh``               ``apache-airflow-providers-ssh``
+``trino``             ``apache-airflow-providers-trino``
+``http``              ``apache-airflow-providers-http``
+``standard``          ``apache-airflow-providers-standard``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
+
 Downloading official packages
 -----------------------------
 

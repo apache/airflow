@@ -127,6 +127,25 @@ Dependent package                                                               
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
 ======================================================================================================================  ===================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-spark[cncf.kubernetes]
+
+
+===================  ===================================================
+Extra                Dependencies
+===================  ===================================================
+``cncf.kubernetes``  ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
+``openlineage``      ``apache-airflow-providers-openlineage``
+``pyspark``          ``pyspark>=4.0.0``
+===================  ===================================================
+
 Downloading official packages
 -----------------------------
 

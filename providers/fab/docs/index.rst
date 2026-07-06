@@ -129,6 +129,24 @@ PIP package                                 Version required
 ``flask_limiter``                           ``>3``
 ==========================================  =====================================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-fab[kerberos]
+
+
+============  ===================
+Extra         Dependencies
+============  ===================
+``kerberos``  ``kerberos>=1.3.0``
+``oauth``     ``authlib>=1.0.0``
+============  ===================
+
 Downloading official packages
 -----------------------------
 

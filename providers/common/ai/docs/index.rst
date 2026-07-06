@@ -132,6 +132,38 @@ Dependent package                                                               
 `apache-airflow-providers-git <https://airflow.apache.org/docs/apache-airflow-providers-git>`_                ``git``
 ============================================================================================================  ==============
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-common-ai[anthropic]
+
+
+==============  ==========================================================================================================
+Extra           Dependencies
+==============  ==========================================================================================================
+``anthropic``   ``pydantic-ai-slim[anthropic]``
+``bedrock``     ``pydantic-ai-slim[bedrock]``
+``google``      ``pydantic-ai-slim[google]``
+``openai``      ``pydantic-ai-slim[openai]``
+``mcp``         ``pydantic-ai-slim[mcp]``
+``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
+``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=0.11.0``
+``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
+``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
+``sql``         ``apache-airflow-providers-common-sql``, ``sqlglot>=30.0.0``
+``common.sql``  ``apache-airflow-providers-common-sql``
+``langchain``   ``langchain>=1.0.0``
+``llamaindex``  ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
+``pdf``         ``pypdf>=4.0.0``
+``docx``        ``python-docx>=1.0.0``
+``git``         ``apache-airflow-providers-git``
+==============  ==========================================================================================================
+
 Downloading official packages
 -----------------------------
 
