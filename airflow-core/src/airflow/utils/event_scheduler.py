@@ -49,8 +49,13 @@ class EventScheduler(scheduler, LoggingMixin):
             if non_fatal:
                 try:
                     action(*args, **kwargs)
-                except Exception:
-                    self.log.exception("Exception raised in periodic action %s", action)
+                except Exception as e:
+                    self.log.exception(
+                        "Failed to run periodic action %s due to %s. "
+                        "Please investigate if this is persistent.",
+                        getattr(action, "__name__", action),
+                        e,
+                    )
             else:
                 action(*args, **kwargs)
             # This is not perfect. If we want a timer every 60s, but action
