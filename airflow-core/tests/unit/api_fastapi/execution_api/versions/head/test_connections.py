@@ -86,6 +86,28 @@ class TestGetConnection:
         session.delete(connection)
         session.commit()
 
+    def test_connection_get_with_slash(self, client, session):
+        # Clear any dirty state
+        session.query(Connection).filter(Connection.conn_id == "test/conn/with/slash").delete()
+        session.commit()
+
+        connection = Connection(
+            conn_id="test/conn/with/slash",
+            conn_type="http",
+            host="localhost",
+        )
+
+        session.add(connection)
+        session.commit()
+
+        try:
+            response = client.get("/execution/connections/test/conn/with/slash")
+            assert response.status_code == 200
+            assert response.json()["conn_id"] == "test/conn/with/slash"
+        finally:
+            session.delete(connection)
+            session.commit()
+
     @mock.patch.dict(
         "os.environ",
         {"AIRFLOW_CONN_TEST_CONN2": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}'},
