@@ -21,6 +21,8 @@ import secrets
 import string
 import subprocess
 
+from airflow.providers.teradata.utils.tpt_util import get_remote_os
+
 
 def generate_random_password(length=12):
     # Define the character set: letters, digits, and special characters
@@ -51,13 +53,12 @@ def generate_encrypted_file_with_openssl(file_path: str, password: str, out_file
 
 
 def decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, bteq_command_str):
-    """Run openssl decrypt command on remote machine and pipe output to bteq.
+    """
+    Run openssl decrypt command on remote machine and pipe output to bteq.
 
     Quoting adapts to the remote OS: single quotes for Unix/Linux,
     double quotes for Windows (single-quoting does not work on Windows CMD).
     """
-    from airflow.providers.teradata.utils.tpt_util import get_remote_os
-
     remote_os = get_remote_os(ssh_client)
     if remote_os == "windows":
         # Windows CMD: wrap in double quotes and escape any embedded double quotes
