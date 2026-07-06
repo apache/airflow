@@ -1737,7 +1737,15 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, PutVariable):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, SetRenderedFields):
-            self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+            try:
+                self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+            except ServerResponseError as e:
+                # On retry/clear the server replaces the TI id (archiving the old one), so a late RTIF
+                # overwrite from finalize() lands on an id that no longer exists. Supervisor kills such
+                # a worker when handling 410 heartbeat response. We only need to skip this stale overwrite here.
+                if e.response.status_code != HTTPStatus.GONE:
+                    raise
+                log.debug("Skipping RTIF overwrite; task instance archived on retry/clear", ti_id=self.id)
         elif isinstance(msg, SetRenderedMapIndex):
             self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):

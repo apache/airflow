@@ -22,7 +22,7 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn, cast
 from uuid import UUID
 
 import attrs
@@ -859,6 +859,29 @@ def ti_skip_downstream(
     log.info("Downstream tasks skipped", tasks_skipped=getattr(result, "rowcount", 0))
 
 
+def _raise_ti_not_in_live_table(task_instance_id: UUID, session: SessionDep) -> NoReturn:
+    """Raise 410 Gone if the missing TI id was archived to history, else 404 Not Found."""
+    if session.scalar(
+        select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
+    ):
+        log.error("TaskInstance not in live table but archived in history", ti_id=str(task_instance_id))
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+            },
+        )
+    log.error("Task Instance not found", ti_id=str(task_instance_id))
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            "reason": "not_found",
+            "message": "Task Instance not found",
+        },
+    )
+
+
 @ti_id_router.put(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -919,29 +942,7 @@ def ti_heartbeat(
         # Check if the TI exists in the Task Instance History table.
         # If it does, it was likely cleared while running, so return 410 Gone
         # instead of 404 Not Found to give the client a more specific signal.
-        tih_exists = session.scalar(
-            select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
-        )
-        if tih_exists:
-            log.error(
-                "TaskInstance was previously cleared and archived in history, heartbeat skipped",
-                ti_id=str(task_instance_id),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={
-                    "reason": "not_found",
-                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
-                },
-            )
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
-        )
+        _raise_ti_not_in_live_table(task_instance_id, session)
 
     if hostname != ti_payload.hostname or pid != ti_payload.pid:
         log.warning(
@@ -989,6 +990,10 @@ def ti_heartbeat(
         [
             (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
             (
+                status.HTTP_410_GONE,
+                "Task Instance not found in the TI table but exists in the Task Instance History table",
+            ),
+            (
                 HTTP_422_UNPROCESSABLE_CONTENT,
                 "Invalid payload for the setting rendered task instance fields",
             ),
@@ -1006,10 +1011,8 @@ def ti_put_rtif(
 
     task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance:
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
+        # On retry/clear, the server regenerates the TI id. Return 410 for the stale id.
+        _raise_ti_not_in_live_table(task_instance_id, session)
     task_instance.update_rtif(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 
