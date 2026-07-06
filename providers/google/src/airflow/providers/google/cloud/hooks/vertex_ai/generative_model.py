@@ -34,6 +34,7 @@ try:
 except ImportError:
     _VERTEXAI_EVALUATION_AVAILABLE = False
 
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -71,7 +72,7 @@ class GenerativeModelHook(GoogleBaseHook):
     ) -> EvalTask:
         """Return an EvalTask object."""
         if not _VERTEXAI_EVALUATION_AVAILABLE:
-            raise ImportError(
+            raise AirflowOptionalProviderFeatureException(
                 "The Vertex AI evaluation feature requires the 'google-cloud-aiplatform[evaluation]' "
                 "package. Install it with: pip install 'apache-airflow-providers-google[vertex-ai-evaluation]'"
             )
@@ -127,7 +128,7 @@ class GenerativeModelHook(GoogleBaseHook):
         :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
         """
         if not _VERTEXAI_EVALUATION_AVAILABLE:
-            raise ImportError(
+            raise AirflowOptionalProviderFeatureException(
                 "The Vertex AI evaluation feature requires the 'google-cloud-aiplatform[evaluation]' "
                 "package. Install it with: pip install 'apache-airflow-providers-google[vertex-ai-evaluation]'"
             )
