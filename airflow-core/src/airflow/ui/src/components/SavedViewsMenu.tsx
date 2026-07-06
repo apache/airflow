@@ -48,7 +48,7 @@ export const SavedViewsMenu = () => {
   const { t: translate } = useTranslation("common");
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [sorting, setSorting] = useLocalStorage<SortingState>(tableSortKey(pathname), []);
+  const [, setSorting] = useLocalStorage<SortingState>(tableSortKey(pathname), []);
   const [savedViews, setSavedViews] = useLocalStorage<Array<SavedView>>(savedViewsKey(pathname), []);
   const [defaultViewName, setDefaultViewName] = useLocalStorage<string | null>(
     savedViewsDefaultKey(pathname),
@@ -62,13 +62,9 @@ export const SavedViewsMenu = () => {
 
   viewParams.delete(SearchParamsKeys.OFFSET);
   viewParams.delete(SearchParamsKeys.CURSOR);
-  // Only URL filters count, so the bare page blocks save even when a sort sits in localStorage.
+  // Pagination doesn't define a view; filters and a non-default sort (both live in the URL) do. So a
+  // bare page has no params left and can't be saved.
   const hasViewToSave = [...viewParams].length > 0;
-
-  // The sort is often only in localStorage, not the URL — bake it into the snapshot so it is restored.
-  if (viewParams.getAll(SearchParamsKeys.SORT).length === 0) {
-    sorting.forEach(({ desc, id }) => viewParams.append(SearchParamsKeys.SORT, `${desc ? "-" : ""}${id}`));
-  }
   const search = viewParams.toString();
 
   const duplicateView = savedViews.find((view) => normalizeSearch(view.search) === normalizeSearch(search));
@@ -91,13 +87,14 @@ export const SavedViewsMenu = () => {
   const applyView = (view: SavedView) => {
     const params = new URLSearchParams(view.search);
 
+    // The sort rides in the URL like any other param. Mirror it into localStorage as well, so the
+    // table's fallback default (used when the URL carries no sort) matches the view rather than a
+    // leftover sort from before.
     setSorting(
       params
         .getAll(SearchParamsKeys.SORT)
         .map((sort) => ({ desc: sort.startsWith("-"), id: sort.replace("-", "") })),
     );
-    // Keep the sort out of the URL (it lives in localStorage), or it lingers as a `sort` param after reset.
-    params.delete(SearchParamsKeys.SORT);
     setSearchParams(params);
     setOpen(false);
   };
@@ -112,17 +109,17 @@ export const SavedViewsMenu = () => {
   };
 
   // Restore the default view on a filterless landing. Keyed on pathname so the user's later edits/clears
-  // don't re-trigger it and a deep link's filters win; sort and pagination don't count toward "filterless".
+  // don't re-trigger it and a deep link's params win; only pagination is ignored — a non-default sort,
+  // like any filter, is an explicit landing that should be left alone.
   useEffect(() => {
     const target =
       defaultViewName === null ? undefined : savedViews.find((view) => view.name === defaultViewName);
-    const filters = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams);
 
-    filters.delete(SearchParamsKeys.OFFSET);
-    filters.delete(SearchParamsKeys.CURSOR);
-    filters.delete(SearchParamsKeys.SORT);
+    params.delete(SearchParamsKeys.OFFSET);
+    params.delete(SearchParamsKeys.CURSOR);
 
-    if (target !== undefined && [...filters].length === 0) {
+    if (target !== undefined && [...params].length === 0) {
       applyView(target);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

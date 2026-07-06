@@ -62,10 +62,10 @@ describe("SavedViewsMenu", () => {
     expect(screen.getByText("savedViews.empty")).toBeInTheDocument();
   });
 
-  it("saves the current view, dropping pagination and baking in the active sort", async () => {
-    localStorage.setItem("dags-table-sort", JSON.stringify([{ desc: true, id: "start_date" }]));
-
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running&offset=40"]) });
+  it("saves the current view from the URL, dropping pagination and keeping the sort", async () => {
+    render(<SavedViewsMenu />, {
+      wrapper: createWrapper(["/dags?state=running&sort=-start_date&offset=40"]),
+    });
     const input = await openMenu();
 
     fireEvent.change(input, { target: { value: "Running runs" } });
@@ -132,7 +132,7 @@ describe("SavedViewsMenu", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
     });
-    expect(screen.getByTestId("location-search")).not.toHaveTextContent("sort");
+    expect(screen.getByTestId("location-search")).toHaveTextContent("sort=-run_after");
     expect(JSON.parse(localStorage.getItem("dags-table-sort") ?? "[]")).toEqual([
       { desc: true, id: "run_after" },
     ]);
@@ -206,13 +206,13 @@ describe("SavedViewsMenu", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
     });
-    expect(screen.getByTestId("location-search")).not.toHaveTextContent("sort");
+    expect(screen.getByTestId("location-search")).toHaveTextContent("sort=-run_after");
     expect(JSON.parse(localStorage.getItem("dags-table-sort") ?? "[]")).toEqual([
       { desc: true, id: "run_after" },
     ]);
   });
 
-  it("restores the default view even when only a leftover sort is in the URL", async () => {
+  it("does not restore the default view when the URL carries a non-default sort", async () => {
     localStorage.setItem(
       "dags-saved-views",
       JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
@@ -220,10 +220,10 @@ describe("SavedViewsMenu", () => {
     localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
 
     render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?sort=-run_after"]) });
+    await openMenu();
 
-    await waitFor(() => {
-      expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
-    });
+    expect(screen.getByTestId("location-search")).toHaveTextContent("sort=-run_after");
+    expect(screen.getByTestId("location-search")).not.toHaveTextContent("state=success");
   });
 
   it("does not restore the default view when the page already has filters", async () => {
