@@ -102,6 +102,22 @@ class TestVariables:
 
         mock_supervisor_comms.send.assert_called_once_with(msg=DeleteVariable(key="my_key"))
 
+    def test_var_set_raises_on_error_response(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            Variable.set(key="key", value="value")
+
+    def test_var_delete_raises_on_error_response(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            Variable.delete(key="key")
+
 
 class TestVariableKeys:
     @pytest.mark.parametrize(

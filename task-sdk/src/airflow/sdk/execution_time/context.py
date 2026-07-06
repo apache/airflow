@@ -377,8 +377,9 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     #   keep Task SDK as a separate package than execution time mods.
     import json
 
+    from airflow.sdk.exceptions import AirflowRuntimeError
     from airflow.sdk.execution_time.cache import SecretCache
-    from airflow.sdk.execution_time.comms import PutVariable
+    from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
     from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -412,7 +413,9 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     except Exception as e:
         log.exception(e)
 
-    SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
+    res = SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
+    if isinstance(res, ErrorResponse):
+        raise AirflowRuntimeError(res)
 
     # Invalidate cache after setting the variable
     SecretCache.invalidate_variable(key)
@@ -424,11 +427,14 @@ def _delete_variable(key: str) -> None:
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.exceptions import AirflowRuntimeError
     from airflow.sdk.execution_time.cache import SecretCache
-    from airflow.sdk.execution_time.comms import DeleteVariable
+    from airflow.sdk.execution_time.comms import DeleteVariable, ErrorResponse
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
+    if isinstance(msg, ErrorResponse):
+        raise AirflowRuntimeError(msg)
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
 
