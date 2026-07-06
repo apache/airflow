@@ -1765,7 +1765,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._remove_unreferenced_triggers,
-            catch_exceptions=True,
+            non_fatal=True,
         )
 
         if any(x.is_local for x in self.executors):
@@ -1783,7 +1783,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
-            catch_exceptions=True,
+            non_fatal=True,
         )
 
         idle_count = 0

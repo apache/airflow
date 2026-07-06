@@ -32,13 +32,13 @@ class EventScheduler(scheduler, LoggingMixin):
         action: Callable,
         arguments=(),
         kwargs=None,
-        catch_exceptions: bool = False,
+        non_fatal: bool = False,
     ):
         """
         Call a function at (roughly) a given interval.
 
-        :param catch_exceptions: If True, an exception raised by ``action`` is logged
-            and swallowed instead of propagating, so a single bad cycle can't kill
+        :param non_fatal: If True, an exception raised by ``action`` is logged and
+            swallowed instead of propagating, so a single bad cycle can't kill
             whatever is driving this scheduler. The next cycle is still scheduled either
             way. Defaults to False (propagate), preserving prior behavior for callers
             that rely on the exception surfacing.
@@ -46,7 +46,7 @@ class EventScheduler(scheduler, LoggingMixin):
 
         def repeat(*args, **kwargs):
             self.log.debug("Calling %s", action)
-            if catch_exceptions:
+            if non_fatal:
                 try:
                     action(*args, **kwargs)
                 except Exception:
