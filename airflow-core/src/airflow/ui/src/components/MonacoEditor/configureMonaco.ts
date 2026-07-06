@@ -31,9 +31,9 @@ const loadMonacoModules = async () => {
   // to register their actions and render their glyphs. The CDN bundle pulled these in
   // transitively; the local ESM build does not.
   const monacoApi = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.api"),
-    import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
-    import("monaco-editor/esm/vs/editor/contrib/find/browser/findController"),
+    import("monaco-editor/esm/vs/editor/editor.api.js"),
+    import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding.js"),
+    import("monaco-editor/esm/vs/editor/contrib/find/browser/findController.js"),
     // monaco-editor 0.53 removed the `codiconStyles` side-effect module; import the two codicon
     // stylesheets it used to pull in directly so folding/find glyphs still render. Both files
     // ship in 0.52 and 0.55, so this resolves against the current pin and any newer bump.
@@ -61,7 +61,7 @@ const loadMonacoModules = async () => {
   // whose lazy tokens provider would overwrite our patched grammar on first use.
   // The grammar module is a private monaco internal (verified against monaco-editor
   // 0.52.2); the runtime guard below fails loudly if its export shape changes.
-  const jsonContribution = import("monaco-editor/esm/vs/language/json/monaco.contribution");
+  const jsonContribution = import("monaco-editor/esm/vs/language/json/monaco.contribution.js");
   const pythonGrammar = import("monaco-editor/esm/vs/basic-languages/python/python.js");
 
   const [monaco, [editorWorkerUrl, jsonWorkerUrl], { conf: pythonConf, language: pythonLanguage }] =
