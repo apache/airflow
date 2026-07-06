@@ -61,6 +61,24 @@ def test_publish_skips_package_without_staged_docs_before_resolving_version(
     assert message == "Skipping java-sdk: Build directory does not exist"
 
 
+def test_publish_preserves_existing_docs_when_build_dir_missing(
+    generated_path, airflow_site_dir, monkeypatch
+):
+    # A previous version is already published to airflow-site, but nothing is staged
+    # for this run (build dir missing). Publishing with --override-versioned must not
+    # delete the existing docs when there is nothing to copy in their place.
+    monkeypatch.setattr(docs_publisher, "get_java_sdk_version", lambda: "1.2.3")
+    existing = Path(airflow_site_dir) / "docs-archive" / "java-sdk" / "1.2.3"
+    existing.mkdir(parents=True)
+    (existing / "index.html").write_text("previously published")
+
+    publisher = DocsPublisher(package_name="java-sdk", output=None, verbose=False)
+    return_code, message = publisher.publish(override_versioned=True, airflow_site_dir=airflow_site_dir)
+
+    assert (return_code, message) == (0, "Skipping java-sdk: Build directory does not exist")
+    assert (existing / "index.html").read_text() == "previously published"
+
+
 def test_publish_java_sdk_docs_with_staged_stable_txt(generated_path, airflow_site_dir):
     _stage_java_sdk_docs(generated_path, version="1.2.3")
     publisher = DocsPublisher(package_name="java-sdk", output=None, verbose=False)
