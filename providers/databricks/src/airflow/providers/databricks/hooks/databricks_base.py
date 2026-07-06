@@ -92,6 +92,15 @@ class DatabricksProxyConfigurationError(AirflowException):
     """Raised when Databricks connection proxy configuration is invalid."""
 
 
+def _describe_last_retry_error(retry_error: RetryError) -> str:
+    """Best-effort description of a RetryError last exception, some exceptions raise from __str__ when partially initialized."""
+    last_exc = retry_error.last_attempt.exception()
+    try:
+        return str(last_exc)
+    except Exception:
+        return repr(last_exc)
+
+
 class BaseDatabricksHook(BaseHook):
     """
     Base for interaction with Databricks.
@@ -328,7 +337,7 @@ class BaseDatabricksHook(BaseHook):
         except RetryError as e:
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
-                f"(last error: {e.last_attempt.exception()}). Giving up."
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
             ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
@@ -369,7 +378,7 @@ class BaseDatabricksHook(BaseHook):
         except RetryError as e:
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
-                f"(last error: {e.last_attempt.exception()}). Giving up."
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
             ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
@@ -1222,7 +1231,7 @@ class BaseDatabricksHook(BaseHook):
         except RetryError as e:
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
-                f"(last error: {e.last_attempt.exception()}). Giving up."
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
             ) from e
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
@@ -1289,7 +1298,7 @@ class BaseDatabricksHook(BaseHook):
         except RetryError as e:
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
-                f"(last error: {e.last_attempt.exception()}). Giving up."
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
             ) from e
         except aiohttp.ClientResponseError as err:
             raise DatabricksApiError(
