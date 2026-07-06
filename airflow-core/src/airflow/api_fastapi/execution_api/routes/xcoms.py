@@ -166,7 +166,11 @@ def get_mapped_xcom_by_index(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": message},
         )
-    return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
+    val = (result[0] if isinstance(result, tuple) else result).value
+    if not isinstance(val, str):
+        import json
+        val = json.dumps(val)
+    return XComSequenceIndexResponse(val)
 
 
 class GetXComSliceFilterParams(BaseModel):
@@ -254,7 +258,13 @@ def get_mapped_xcom_by_slice(
             else:
                 query = query.slice(-stop, -start)
 
-    values = [row.value for row in session.execute(query.with_only_columns(XComModel.value)).all()]
+    values = []
+    for row in session.execute(query.with_only_columns(XComModel.value)).all():
+        val = row.value
+        if not isinstance(val, str):
+            import json
+            val = json.dumps(val)
+        values.append(val)
     if step != 1:
         values = values[::step]
     return XComSequenceSliceResponse(values)
@@ -353,7 +363,11 @@ def get_xcom(
             detail={"reason": "not_found", "message": message},
         )
 
-    return XComResponse(key=key, value=(result[0] if isinstance(result, tuple) else result).value)
+    val = (result[0] if isinstance(result, tuple) else result).value
+    if not isinstance(val, str):
+        import json
+        val = json.dumps(val)
+    return XComResponse(key=key, value=val)
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
@@ -396,6 +410,10 @@ def set_xcom(
 ):
     """Set an Airflow XCom."""
     from airflow.configuration import conf
+
+    if value is not None and not isinstance(value, str):
+        import json
+        value = json.dumps(value)
 
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.

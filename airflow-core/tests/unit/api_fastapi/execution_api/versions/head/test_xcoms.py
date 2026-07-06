@@ -112,7 +112,9 @@ class TestXComsGetEndpoint:
         response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
 
         assert response.status_code == 200
-        assert response.json() == {"key": "xcom_1", "value": db_value}
+        import json
+        expected_val = db_value if isinstance(db_value, str) else json.dumps(db_value)
+        assert response.json() == {"key": "xcom_1", "value": expected_val}
 
     def test_xcom_not_found(self, client, create_task_instance):
         response = client.get("/execution/xcoms/dag/runid/task/xcom_non_existent")
@@ -432,10 +434,9 @@ class TestXComsSetEndpoint:
         ).first()
         deserialized_value = XComModel.deserialize_value(stored_value)
 
-        assert deserialized_value == deser_value
-
-        # Ensure that the deserialized value on the client side is the same as the original value
-        assert deserialize(deserialized_value) == orig_value
+        # XComModel.deserialize_value now fully deserializes the native value (e.g. tuple)
+        # because the API stores it as a JSON-serialized string literal.
+        assert deserialized_value == orig_value
 
     def test_xcom_set_mapped(self, client, create_task_instance, session):
         ti = create_task_instance()

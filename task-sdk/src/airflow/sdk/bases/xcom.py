@@ -526,16 +526,22 @@ class BaseXCom:
         map_index: int | None = None,
     ) -> str:
         """Serialize XCom value to JSON str."""
+        import json
         from airflow.sdk.serde import serialize
 
-        # return back the value for BaseXCom, custom backends will implement this
-        return serialize(value)  # type: ignore[return-value]
+        return json.dumps(serialize(value))
 
     @staticmethod
     def deserialize_value(result) -> Any:
         """Deserialize XCom value from str objects."""
+        import json
         from airflow.sdk.serde import deserialize
 
+        if isinstance(result.value, str):
+            try:
+                return deserialize(json.loads(result.value))
+            except (json.JSONDecodeError, TypeError):
+                pass
         return deserialize(result.value)
 
     @classmethod

@@ -519,26 +519,26 @@ class XComResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: JsonValue
+    value: str | None = None
 
 
-class XComSequenceIndexResponse(RootModel[JsonValue]):
+class XComSequenceIndexResponse(RootModel[str | None]):
     root: Annotated[
-        JsonValue,
+        str | None,
         Field(
             description="XCom schema with minimal structure for index-based access.",
             title="XComSequenceIndexResponse",
         ),
-    ]
+    ] = None
 
 
-class XComSequenceSliceResponse(RootModel[list[JsonValue]]):
+class XComSequenceSliceResponse(RootModel[list[str | None]]):
     """
     XCom schema with minimal structure for slice-based access.
     """
 
     root: Annotated[
-        list[JsonValue],
+        list[str | None],
         Field(
             description="XCom schema with minimal structure for slice-based access.",
             title="XComSequenceSliceResponse",

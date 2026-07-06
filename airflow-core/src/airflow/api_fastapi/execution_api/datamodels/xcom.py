@@ -26,17 +26,17 @@ class XComResponse(BaseModel):
     """XCom schema for responses with fields that are needed for Runtime."""
 
     key: str
-    value: JsonValue
+    value: str | None = None
     """The returned XCom value in a JSON-compatible format."""
 
 
-class XComSequenceIndexResponse(RootModel):
+class XComSequenceIndexResponse(RootModel[str | None]):
     """XCom schema with minimal structure for index-based access."""
 
-    root: JsonValue
+    root: str | None = None
 
 
-class XComSequenceSliceResponse(RootModel):
+class XComSequenceSliceResponse(RootModel[list[str | None]]):
     """XCom schema with minimal structure for slice-based access."""
 
-    root: list[JsonValue]
+    root: list[str | None]
