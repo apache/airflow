@@ -277,7 +277,22 @@ class TestUniqueConstraintErrorHandler:
 
         exeinfo_response_error.value.detail.pop("message", None)  # type: ignore[attr-defined]
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
-        assert exeinfo_response_error.value.detail == expected_exception.detail
+
+        # The exact rendered SQL (e.g. explicit driver-added type casts) and trailing whitespace in
+        # the driver's own error text are driver-specific rendering details, not meaningful content —
+        # match on the statement's target table and normalize trailing newlines instead of an exact
+        # string compare.
+        response_detail = exeinfo_response_error.value.detail
+        expected_detail = expected_exception.detail
+        actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
+        expected_statement = expected_detail.pop("statement", None)
+        response_detail["orig_error"] = response_detail["orig_error"].rstrip("\n")  # type: ignore[index]
+        expected_detail["orig_error"] = expected_detail["orig_error"].rstrip("\n")
+
+        assert response_detail == expected_detail
+        assert expected_statement is not None
+        assert actual_statement is not None
+        assert f"INSERT INTO {expected_statement.split()[2]}" in actual_statement
 
     @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
     @conf_vars({("api", "expose_stacktrace"): "False"})
@@ -391,6 +406,9 @@ class TestUniqueConstraintErrorHandler:
 
         # Removes the stacktrace from response to remove during comparison.
         response_detail.pop("message", None)  # type: ignore[attr-defined]
+        # Trailing whitespace in the driver's own error text is a driver-specific rendering detail.
+        response_detail["orig_error"] = response_detail["orig_error"].rstrip("\n")  # type: ignore[index]
+        expected_detail["orig_error"] = expected_detail["orig_error"].rstrip("\n")
         assert response_detail == expected_detail
         assert "INSERT INTO dag_run" in actual_statement
         assert exeinfo_response_error.value.detail == expected_exception.detail

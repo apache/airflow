@@ -442,12 +442,14 @@ data:
   #   connection: base64_encoded_connection_string
   #
   # The 'connection' key is base64-encoded SQLAlchemy connection string, e.g.:
-  #   postgresql+psycopg2://airflow:password@postgres/airflow
+  #   postgresql+psycopg://airflow:password@postgres/airflow   (Airflow >=3.4.0)
+  #   postgresql+psycopg2://airflow:password@postgres/airflow  (Airflow <3.4.0, or with the [psycopg2] extra)
   metadataSecretName: ~
 
   # If not set, falls back to metadataSecretName. The secret must contain 'connection' key which is
   # a base64-encoded connection string, e.g.:
-  #   postgresql+psycopg2://user:password@host/db
+  #   postgresql+psycopg://user:password@host/db   (Airflow >=3.4.0)
+  #   postgresql+psycopg2://user:password@host/db  (Airflow <3.4.0, or with the [psycopg2] extra)
   resultBackendSecretName: ~
 
   brokerUrlSecretName: ~
