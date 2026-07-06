@@ -756,10 +756,19 @@ class TestAsyncSensor:
                 context={},
             )
 
-    @pytest.mark.parametrize("sensor_kwargs", [{}, {"soft_fail": True}, {"never_fail": True}])
+    @pytest.mark.parametrize(
+        "sensor_kwargs",
+        [
+            {},  # control: passes with or without the fix (only soft_fail/never_fail were broken)
+            {"soft_fail": True},
+            {"never_fail": True},
+        ],
+    )
     def test_reschedule_after_resuming_deferred_sensor_propagates(self, sensor_kwargs):
-        """A deferred sensor that requests a reschedule on resume must go
-        UP_FOR_RESCHEDULE; soft_fail / never_fail must not convert it into a skip."""
+        """A deferred sensor that requests a reschedule on resume must propagate
+        AirflowRescheduleException; soft_fail / never_fail must not convert it into a skip.
+        The runtime mapping of that exception to UP_FOR_RESCHEDULE is covered by
+        test_ok_with_reschedule / test_fail_with_reschedule."""
         reschedule_date = DEFAULT_DATE + timedelta(minutes=5)
 
         class RescheduleAsyncSensor(BaseSensorOperator):
