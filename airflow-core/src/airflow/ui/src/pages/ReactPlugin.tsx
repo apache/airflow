@@ -40,8 +40,7 @@ const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginCompon
       // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
       // global variable.
       let pluginComponent = (globalThis as Record<string, unknown>)[reactApp.name] as
-        | PluginComponentType
-        | undefined;
+        PluginComponentType | undefined;
 
       if (pluginComponent === undefined) {
         pluginComponent = (globalThis as Record<string, unknown>).AirflowPlugin as PluginComponentType;

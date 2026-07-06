@@ -23,7 +23,11 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
-from airflow.providers.anthropic.hooks.anthropic import AnthropicHook, evaluate_batch_counts
+from airflow.providers.anthropic.hooks.anthropic import (
+    AnthropicHook,
+    evaluate_batch_counts,
+    validate_execute_complete_event,
+)
 from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
@@ -149,6 +153,7 @@ class AnthropicBatchOperator(BaseOperator):
         The deferred task is a fresh instance, so the batch ID is read from the event,
         not ``self.batch_id``.
         """
+        event = validate_execute_complete_event(event)
         self.batch_id = event["batch_id"]
         status = event["status"]
         if status == "timeout":

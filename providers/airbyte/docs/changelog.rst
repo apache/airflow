@@ -50,6 +50,18 @@ Breaking changes
     transitively, declare ``requests`` as an explicit dependency of your own project.
 
 
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``Cap airbyte-api < 1.0.0 due to breaking changes (#69081)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 5.5.1
 .....
 

@@ -21,7 +21,11 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
+from airflow.providers.anthropic.exceptions import (
+    AnthropicBatchJobError,
+    AnthropicBatchTimeout,
+    AnthropicTriggerEventError,
+)
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
 from airflow.providers.anthropic.operators.batch import AnthropicBatchOperator
 from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
@@ -186,6 +190,18 @@ class TestExecuteComplete:
         op = AnthropicBatchOperator(task_id="t", requests=REQUESTS, fail_on_partial_error=True)
         event = {"status": "success", "batch_id": "b", "request_counts": {"succeeded": 9, "errored": 1}}
         with pytest.raises(AnthropicBatchJobError, match="failed request"):
+            op.execute_complete(_context(), event)
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param(None, id="none"),
+            pytest.param({"status": "ended", "batch_id": "b"}, id="unknown-status"),
+        ],
+    )
+    def test_invalid_event_raises_instead_of_succeeding(self, event):
+        op = AnthropicBatchOperator(task_id="t", requests=REQUESTS)
+        with pytest.raises(AnthropicTriggerEventError):
             op.execute_complete(_context(), event)
 
 

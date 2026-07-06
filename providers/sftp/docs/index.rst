@@ -128,6 +128,24 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
 ==============================================================================================================  ===============
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-sftp[openlineage]
+
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+``sshfs``        ``sshfs>=2023.1.0``
+===============  ========================================
+
 Downloading official packages
 -----------------------------
 

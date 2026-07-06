@@ -27,6 +27,8 @@
 Changelog
 ---------
 
+7.0.0
+.....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -41,6 +43,13 @@ Breaking changes
     transaction-mode PgBouncer with no extra configuration. To keep using asyncpg, install
     ``apache-airflow-providers-postgres[asyncpg]`` and set
     ``[database] sql_alchemy_conn_async = postgresql+asyncpg://...`` explicitly.
+
+* ``Switch the default async Postgres driver from asyncpg to psycopg3 (#69089)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
 
 6.8.0
 .....
