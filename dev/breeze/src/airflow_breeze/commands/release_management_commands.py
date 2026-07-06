@@ -2039,8 +2039,9 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
         return None
 
     if package_name == "java-sdk":
-        # The Java SDK version only comes from the stable.txt staged by the Javadoc build
-        # (breeze build-docs --sdk-docs-only --sdk=java); there is no Python source to read.
+        # Without a staged stable.txt the Javadoc was not built and the publisher skips the
+        # package anyway; don't fall back to java-sdk/gradle.properties since the checkout
+        # running publish-docs may not contain java-sdk/ at all (e.g. older refs).
         return None
 
     if package_name.startswith("apache-airflow-providers-"):

@@ -19,7 +19,12 @@ from __future__ import annotations
 import os
 import shutil
 
-from airflow_breeze.global_constants import get_airflow_version, get_airflowctl_version, get_task_sdk_version
+from airflow_breeze.global_constants import (
+    get_airflow_version,
+    get_airflowctl_version,
+    get_java_sdk_version,
+    get_task_sdk_version,
+)
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import get_provider_distributions_metadata, get_short_package_name
@@ -80,6 +85,8 @@ class DocsPublisher:
             return chart_version()
         if self.package_name == "apache-airflow-ctl":
             return get_airflowctl_version()
+        if self.package_name == "java-sdk":
+            return get_java_sdk_version()
         raise SystemExit(f"Unsupported package: {self.package_name}")
 
     @property
