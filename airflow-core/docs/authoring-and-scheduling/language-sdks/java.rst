@@ -33,7 +33,7 @@ scheduling remain in Python; individual tasks delegate to a JVM subprocess that 
 API reference
 -------------
 
-The generated API reference (Javadoc) for the Java SDK is published with the Airflow documentation at
+The generated API reference for the Java SDK is published with the Airflow documentation at
 `Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__.
 
 Prerequisites
