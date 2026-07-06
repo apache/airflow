@@ -729,6 +729,7 @@ def dag_report(args) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl jobs list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
