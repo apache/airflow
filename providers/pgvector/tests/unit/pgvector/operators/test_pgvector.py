@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
 
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.pgvector.operators.pgvector import PgVectorIngestOperator
 
 
@@ -32,7 +35,12 @@ def pg_vector_ingest_operator():
     )
 
 
-@patch("airflow.providers.pgvector.operators.pgvector.register_vector")
+# These two tests patch pgvector.psycopg2.register_vector, which requires psycopg2 to be
+# installed. Once apache-airflow-providers-postgres stops hard-requiring psycopg2 (a separate,
+# independently-branched fix for the same migration, apache/airflow#68453), this provider's own
+# dev environment could lose psycopg2 unless its dependency on that provider requests the
+# [psycopg2] extra explicitly -- currently not declared because that extra doesn't exist yet.
+@patch("pgvector.psycopg2.register_vector")
 @patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator.get_db_hook")
 def test_register_vector(mock_get_db_hook, mock_register_vector, pg_vector_ingest_operator):
     # Create a mock database connection
@@ -43,7 +51,7 @@ def test_register_vector(mock_get_db_hook, mock_register_vector, pg_vector_inges
     mock_register_vector.assert_called_with(mock_db_hook.get_conn())
 
 
-@patch("airflow.providers.pgvector.operators.pgvector.register_vector")
+@patch("pgvector.psycopg2.register_vector")
 @patch("airflow.providers.pgvector.operators.pgvector.SQLExecuteQueryOperator.execute")
 @patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator.get_db_hook")
 def test_execute(
@@ -54,3 +62,22 @@ def test_execute(
 
     pg_vector_ingest_operator.execute(None)
     mock_execute_query_operator_execute.assert_called_once()
+
+
+def test_register_vector_raises_clear_error_without_psycopg2(monkeypatch, pg_vector_ingest_operator):
+    monkeypatch.setitem(sys.modules, "pgvector.psycopg2", None)
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="psycopg2 is not installed"):
+        pg_vector_ingest_operator._register_vector()
+
+
+def test_pgvector_module_imports_without_psycopg2(monkeypatch):
+    """The module must import cleanly even when psycopg2/pgvector.psycopg2 isn't installed."""
+    monkeypatch.setitem(sys.modules, "psycopg2", None)
+    monkeypatch.setitem(sys.modules, "pgvector.psycopg2", None)
+    module_name = "airflow.providers.pgvector.operators.pgvector"
+    monkeypatch.delitem(sys.modules, module_name, raising=False)
+    try:
+        module = importlib.import_module(module_name)
+        assert module.PgVectorIngestOperator is not None
+    finally:
+        monkeypatch.delitem(sys.modules, module_name, raising=False)
