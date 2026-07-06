@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+.. note::
+    When ``[celery] result_backend`` is not set and Airflow derives it from ``sql_alchemy_conn``, a
+    driverless ``postgresql://`` connection string now produces ``db+postgresql+psycopg://...`` instead
+    of ``db+postgresql+psycopg2://...``, matching the sync Postgres driver default change in
+    ``apache-airflow`` and ``apache-airflow-providers-postgres``. An explicit ``[celery] result_backend``
+    or an explicit driver in ``sql_alchemy_conn`` is unaffected.
+
 3.21.0
 ......
 

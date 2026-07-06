@@ -79,9 +79,9 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
     else:
         log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
         sql_alchemy_conn = team_conf.get("database", "SQL_ALCHEMY_CONN")
-        # In SQLAlchemy 2.1 the default PostgreSQL driver changed from psycopg2 to psycopg (v3).
-        # To maintain existing behavior, we explicitly specify psycopg2 for driverless PostgreSQL URLs.
-        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", "postgresql+psycopg2://", 1)
+        # Airflow's sync metadata-database driver default is psycopg (v3); mirror that explicitly
+        # for driverless PostgreSQL URLs instead of relying on SQLAlchemy's own default.
+        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", "postgresql+psycopg://", 1)
         result_backend = f"db+{sql_alchemy_conn}"
 
     # Handle result backend transport options (for Redis Sentinel support)
