@@ -285,8 +285,12 @@ class KubernetesExecutor(BaseExecutor):
     def start(self) -> None:
         """Start the executor."""
         self.log.info("Start Kubernetes executor")
-        self.scheduler_job_id = str(self.job_id)
+        self.scheduler_job_id = str(self.job_id) if self.job_id else None
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
+        if not self.scheduler_job_id:
+            self.log.debug("Skipping scheduler and client initialization as no job_id is set.")
+            return
+
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
             AirflowKubernetesScheduler,
         )
@@ -346,6 +350,8 @@ class KubernetesExecutor(BaseExecutor):
 
     def sync(self) -> None:
         """Synchronize task state."""
+        if not self.kube_scheduler:
+            return
         if TYPE_CHECKING:
             assert self.scheduler_job_id
             assert self.kube_scheduler
