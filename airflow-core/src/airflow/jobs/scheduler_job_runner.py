@@ -1265,6 +1265,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
             raise
 
+    @staticmethod
+    def _emit_executor_events_batch_metrics(num_events: int) -> None:
+        stats.gauge("scheduler.executor_events.batch_size", num_events)
+        stats.incr("scheduler.executor_events.processed", num_events)
+
     @classmethod
     def process_executor_events(
         cls, executor: BaseExecutor, job_id: int | None, scheduler_dag_bag: DBDagBag, session: Session
@@ -1363,15 +1368,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Return if no finished tasks
         if not tis_with_right_state:
-            stats.gauge("scheduler.executor_events.batch_size", num_events)
-            stats.incr("scheduler.executor_events.processed", num_events)
+            cls._emit_executor_events_batch_metrics(num_events)
             return len(event_buffer)
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         if filter_for_tis is None:
-            stats.gauge("scheduler.executor_events.batch_size", num_events)
-            stats.incr("scheduler.executor_events.processed", num_events)
+            cls._emit_executor_events_batch_metrics(num_events)
             return len(event_buffer)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
@@ -1595,8 +1598,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
-        stats.gauge("scheduler.executor_events.batch_size", num_events)
-        stats.incr("scheduler.executor_events.processed", num_events)
+        cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)
 
     def _execute(self) -> int | None:
