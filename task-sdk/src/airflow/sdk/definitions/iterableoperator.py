@@ -68,7 +68,7 @@ except ModuleNotFoundError:
 
 class IterableOperator(BaseOperator):
     """
-    Operator used for Dynamic Task Iteration (DTI) that runs a mapped operator over an iterable input.
+    Operator used for Task Iteration (TI) that runs a mapped operator over an iterable input.
 
     The IterableOperator wraps a :class:`MappedOperator` together with an
     :class:`ExpandInput` and is responsible for creating and running the
