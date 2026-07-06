@@ -20,6 +20,25 @@
 Changelog
 ---------
 
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG named "DAGs" colliding with the global DAGs permission resource (#69106)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69344)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69210)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69186)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69133)``
+
 3.7.1
 .....
 
