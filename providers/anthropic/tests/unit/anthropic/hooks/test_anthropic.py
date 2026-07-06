@@ -185,6 +185,40 @@ class TestDefaultModel:
         hook.create_agent(name="a")
         assert client.beta.agents.create.call_args.kwargs["model"] == "claude-sonnet-4-6"
 
+    @pytest.mark.parametrize(
+        "model",
+        [None, "my-anthropic.model"],  # bare default id and a substring that is not a real prefix
+    )
+    def test_bedrock_rejects_invalid_model_id(self, model):
+        extra = {"platform": "bedrock", **({"model": model} if model else {})}
+        hook, client = _make_hook(extra=extra)
+        with pytest.raises(AnthropicError, match="not a valid Amazon Bedrock model id"):
+            hook.create_message([{"role": "user", "content": "hi"}])
+        client.messages.create.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("platform", "model", "expected"),
+        [
+            (
+                "bedrock",
+                "anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ),
+            ("bedrock", "global.anthropic.claude-opus-4-6-v1", "global.anthropic.claude-opus-4-6-v1"),
+            (
+                "bedrock",
+                "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ),
+            ("vertex", None, DEFAULT_MODEL),  # non-Bedrock platforms skip the guard
+        ],
+    )
+    def test_accepts_valid_model_id(self, platform, model, expected):
+        extra = {"platform": platform, **({"model": model} if model else {})}
+        hook, client = _make_hook(extra=extra)
+        hook.create_message([{"role": "user", "content": "hi"}])
+        assert client.messages.create.call_args.kwargs["model"] == expected
+
 
 class TestManagedAgentsHook:
     def _hook_with_client(self, extra=None):
