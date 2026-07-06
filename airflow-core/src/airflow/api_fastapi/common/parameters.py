@@ -540,26 +540,14 @@ class _RegexParam(BaseParam[str]):
         raise NotImplementedError("Use regex_param_factory instead, depends is not implemented.")
 
 
-# Maximum length allowed for a user-supplied regex filter. The pattern is evaluated by the
-# database's own regex engine (see ``_RegexParam``), so an overly long/complex pattern could be
-# used to consume excessive DB CPU (ReDoS). Partition-key patterns are short in practice, so we
-# cap the length as a cheap first line of defense against pathological input.
-MAX_REGEX_PATTERN_LENGTH = 200
-
-
 def _validate_regex_pattern(value: str | None) -> str | None:
-    """Validate that the regex pattern is enabled, syntactically correct and not excessively long."""
+    """Validate that the regex pattern is enabled and syntactically correct."""
     if value is None:
         return value
     if not conf.getboolean("api", "enable_regexp_query_filters"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Regex query filters are disabled. Set [api] enable_regexp_query_filters = True to use them.",
-        )
-    if len(value) > MAX_REGEX_PATTERN_LENGTH:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Regular expression is too long (max {MAX_REGEX_PATTERN_LENGTH} characters).",
         )
     try:
         re.compile(value)

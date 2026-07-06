@@ -681,18 +681,6 @@ class TestGetAssetEventByAssetPartitionKey:
         assert response.status_code == 400
         assert "Invalid regex" in response.json()["detail"]["reason"]
 
-    def test_get_by_asset_with_too_long_pattern_returns_400(self, client):
-        response = client.get(
-            "/execution/asset-events/by-asset",
-            params={
-                "name": "test_get_asset_by_name",
-                "uri": None,
-                "partition_key_pattern": "a" * 201,
-            },
-        )
-        assert response.status_code == 400
-        assert "too long" in response.json()["detail"]["message"]
-
     def test_get_by_asset_with_pattern_disabled_returns_400(self, client):
         with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
             response = client.get(

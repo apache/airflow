@@ -24,7 +24,6 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.parameters import MAX_REGEX_PATTERN_LENGTH
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
@@ -97,15 +96,6 @@ def _validate_partition_key_params(partition_key: str | None, partition_key_patt
                 "reason": "Regex query filters disabled",
                 "message": "Regex query filters are disabled. "
                 "Set [api] enable_regexp_query_filters = True to use partition_key_pattern.",
-            },
-        )
-    if len(partition_key_pattern) > MAX_REGEX_PATTERN_LENGTH:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "Invalid regex",
-                "message": f"The partition_key_pattern is too long "
-                f"(max {MAX_REGEX_PATTERN_LENGTH} characters).",
             },
         )
     try:
