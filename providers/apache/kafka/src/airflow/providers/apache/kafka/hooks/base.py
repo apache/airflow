@@ -116,7 +116,7 @@ class KafkaBaseHook(BaseHook):
             self._maybe_add_msk_iam_oauth(config, bootstrap_servers)
         return self._get_client(config)
 
-    def _maybe_add_msk_iam_oauth(self, config: dict[str, Any], bootstrap_servers: str) -> None:
+    def _maybe_add_msk_iam_oauth(self, config: dict[str, Any], bootstrap_servers: str | None) -> None:
         """
         Inject an OAUTHBEARER token callback for Amazon MSK IAM authentication.
 
@@ -124,6 +124,9 @@ class KafkaBaseHook(BaseHook):
         cluster and the connection is configured to use the ``OAUTHBEARER`` SASL
         mechanism. An explicit user-provided ``oauth_cb`` is never overwritten.
         """
+        if not bootstrap_servers:
+            return
+
         sasl_mechanism = config.get("sasl.mechanism") or config.get("sasl.mechanisms")
         if sasl_mechanism != "OAUTHBEARER":
             return
