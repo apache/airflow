@@ -99,6 +99,11 @@ class IterableOperator(BaseOperator):
         the per-index tasks.
 
     :returns: An :class:`XComIterable` if the mapped operator pushes XComs, otherwise ``None``.
+
+    .. note::
+        Deferred operators (those that raise :class:`~airflow.sdk.exceptions.TaskDeferred`) are not
+        supported yet inside IterableOperator. A ``TaskDeferred`` exception raised by an indexed task
+        instance will propagate as an error rather than pausing and resuming the task.
     """
 
     _operator: MappedOperator
