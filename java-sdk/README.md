@@ -98,6 +98,12 @@ The SDK is published to Maven Central via the
 The full release process follows the
 [ASF Maven publishing guide](https://infra.apache.org/publishing-maven-artifacts.html).
 
+Any versions published to Maven Central (instead of Snapshots) are considered
+releases, including alpha, beta, etc (see the
+[ASF Release Policy](https://www.apache.org/legal/release-policy.html#release-types)).
+Every release therefore requires a PMC vote before it is published; only
+`-SNAPSHOT` builds may be published without a vote.
+
 ### Prerequisites
 
 * An ASF committer account with access to
@@ -115,6 +121,30 @@ projectVersion=1.0.0
 ```
 
 Commit the change and push it to the release branch.
+
+Use a Maven-compatible version string, as defined by the
+[Maven version order specification](https://maven.apache.org/pom.html#Version_Order_Specification).
+For example, version 1 beta 1 is `1.0.0-beta1`, and the eventual
+general-availability release is `1.0.0`.
+
+*NOTE:* Editing `gradle.properties` as above is the standard procedure. You can
+alternatively override the version for a single command without editing the
+file, by passing `-PprojectVersion=1.0.0-beta1` to any Gradle invocation. This
+is handy for one-off or pre-release builds. Either way, `main` should stay on a
+`-SNAPSHOT` version between releases: a snapshot sorts after `1.0.0-beta1` and
+before the `1.0.0` GA, so no extra bump is needed after a beta.
+
+### Tag the release candidate
+
+Tag the release commit, keeping the RC number in the tag name so a failed vote
+simply bumps to the next RC (the artifact version itself does not carry the RC
+suffix). Push the tag before sending the vote so reviewers can check out the
+exact source being voted on.
+
+```bash
+git tag -s java-sdk/1.0.0-beta1-rc1 -m "Java SDK 1.0.0-beta1 RC 1"
+git push origin java-sdk/1.0.0-beta1-rc1
+```
 
 ### Verify the POM locally
 
@@ -172,10 +202,15 @@ mavenPassword=your-asf-nexus-token-password
 signing.password=your-gpg-key-passphrase
 ```
 
-Then run the publish task.
+Then stage and close the release. The
+[Gradle Nexus Publish Plugin](https://github.com/gradle-nexus/publish-plugin)
+(applied in the root `build.gradle.kts`) gathers every module into one staging
+repository, so there is no per-module fan-out to reconcile.
 
 ```bash
-./gradlew publish -P"signing.key=$(gpg --armor --export-secret-keys your-gpg-key-fingerprint)"
+./gradlew publishToApache closeApacheStagingRepository \
+  --no-configuration-cache \
+  -P"signing.key=$(gpg --armor --export-secret-keys your-gpg-key-fingerprint)"
 ```
 
 *NOTE:* The signing key is supplied through the command line since it contains
@@ -185,13 +220,109 @@ newlines, which does not work well in a Gradle properties file.
 credentials instead: `ASF_NEXUS_USERNAME`, `ASF_NEXUS_PASSWORD`, `SIGNING_KEY`,
 and `SIGNING_PASSWORD`. This is especially useful on e.g. CI.
 
+*NOTE:* We enable Gradle's configuration cache globally, but the staging tasks
+(`publishToApache`, `closeApacheStagingRepository`, `releaseApacheStagingRepository`)
+talk to the Nexus REST API and are not configuration-cache compatible. Hence
+the `--no-configuration-cache` flag on the release commands.
+
 ### Verify the upload
 
-Verify all artifacts have been released correctly to the
-[ASF Nexus server](https://repository.apache.org/#nexus-search;quick~org.apache.airflow).
+Under *Staging Repositories* on the
+[ASF Nexus server](https://repository.apache.org/), open the closed repository
+and verify it contains all modules, each with its jar, `-sources.jar`,
+`-javadoc.jar` (where applicable), `.pom`, and `.asc` signature.
 
 Check *Updated by* (should be your ID), *Uploaded Date*, and *Last Modified*.
 
+### Upload the source package
+
+The closed staging repository from the previous step is the convenience-binary
+URL you link in the vote.
+
+The signed source package is the artifact the vote is formally on; the Maven
+artifacts are convenience binaries. The `sourceRelease` task builds it from the
+committed `java-sdk` sources (`LICENSE` and `NOTICE` included) and produces its
+signature and checksum in one step:
+
+```bash
+# Signing uses your local gpg keyring, so have your key/passphrase ready.
+./gradlew sourceRelease -PgitRef=java-sdk/1.0.0-beta1-rc1
+```
+
+This writes three files to `build/distributions/`:
+
+```
+apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz
+apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.asc
+apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.sha512
+```
+
+Copy the three files into your checkout of the ASF dist *dev* repo and commit
+them with Subversion. If you don't already have the repo checked out, replace
+`<dist-dev-checkout>` with wherever you want it and `<path-to>` with this
+project's location:
+
+```bash
+# One-time: check out the Airflow dist dev area.
+svn checkout https://dist.apache.org/repos/dist/dev/airflow <dist-dev-checkout>
+
+cd <dist-dev-checkout>
+mkdir -p java-sdk/1.0.0-beta1-rc1
+cp <path-to>/java-sdk/build/distributions/apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz* \
+   java-sdk/1.0.0-beta1-rc1/
+
+svn add --parents java-sdk/1.0.0-beta1-rc1
+svn commit -m "Add Apache Airflow Java SDK 1.0.0-beta1-rc1 source release candidate"
+```
+
+The commit publishes them under
+`https://dist.apache.org/repos/dist/dev/airflow/java-sdk/1.0.0-beta1-rc1/`, which
+is the source-package URL you link in the vote.
+
+### Call the vote
+
+Send a `[VOTE]` email to `dev@airflow.apache.org` linking the git tag and
+commit, the source package in `dist/dev`, the closed Nexus staging repository,
+and the `KEYS` file.
+
+### After a successful vote
+
+Reply with a `[RESULT][VOTE]` tally, then:
+
+1. **Release** the staging repository so the artifacts sync to Maven Central
+   (a few hours). Nothing is rebuilt or re-signed:
+
+   ```bash
+   ./gradlew releaseApacheStagingRepository --no-configuration-cache
+   ```
+
+   (Or click *Release* on the repository in the Nexus UI.)
+
+2. **Move** the source package from `dist/dev` to `dist/release`:
+
+   ```bash
+   svn mv https://dist.apache.org/repos/dist/dev/airflow/java-sdk/1.0.0-beta1-rc1 \
+          https://dist.apache.org/repos/dist/release/airflow/java-sdk/1.0.0-beta1 \
+          -m "Release Apache Airflow Java SDK 1.0.0-beta1"
+   ```
+
+3. **Tag** the final version on the same commit that was voted:
+
+   ```bash
+   git tag -s java-sdk/1.0.0-beta1 <voted-commit-hash> -m "Apache Airflow Java SDK 1.0.0-beta1"
+   git push origin java-sdk/1.0.0-beta1
+   ```
+
+   Keep the RC tag for traceability.
+
+4. Update the download page and wait ~1 hour after promoting so Central has
+   synced. Send the `[ANNOUNCE]` email.
+
+### If the vote fails
+
+Close the vote, **drop** the staging repository in Nexus, remove the `dist/dev`
+candidate, fix the issue, and cut the next RC (`...-rc2`). The released version
+stays the same (e.g. `1.0.0-beta1`); only the RC counter in the tag increments.
 
 ## Contributing
 
