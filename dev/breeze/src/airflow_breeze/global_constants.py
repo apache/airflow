@@ -308,6 +308,7 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "java-sdk",
     "task-sdk",
     "apache-airflow-ctl",
 ]

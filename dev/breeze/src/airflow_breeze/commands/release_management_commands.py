@@ -2038,6 +2038,11 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name in ("docker-stack", "apache-airflow-providers"):
         return None
 
+    if package_name == "java-sdk":
+        # The Java SDK version only comes from the stable.txt staged by the Javadoc build
+        # (breeze build-docs --sdk-docs-only --sdk=java); there is no Python source to read.
+        return None
+
     if package_name.startswith("apache-airflow-providers-"):
         provider = get_provider_distributions_metadata().get(get_short_package_name(package_name))
         if provider and "versions" in provider and provider["versions"]:

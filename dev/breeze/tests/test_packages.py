@@ -86,6 +86,7 @@ def test_get_short_package_name():
     assert get_short_package_name("apache-airflow") == "apache-airflow"
     assert get_short_package_name("docker-stack") == "docker-stack"
     assert get_short_package_name("task-sdk") == "task-sdk"
+    assert get_short_package_name("java-sdk") == "java-sdk"
     assert get_short_package_name("apache-airflow-providers-amazon") == "amazon"
     assert get_short_package_name("apache-airflow-providers-apache-hdfs") == "apache.hdfs"
 
@@ -99,6 +100,7 @@ def test_get_long_package_name():
     assert get_long_package_name("apache-airflow") == "apache-airflow"
     assert get_long_package_name("docker-stack") == "docker-stack"
     assert get_long_package_name("task-sdk") == "task-sdk"
+    assert get_long_package_name("java-sdk") == "java-sdk"
     assert get_long_package_name("amazon") == "apache-airflow-providers-amazon"
     assert get_long_package_name("apache.hdfs") == "apache-airflow-providers-apache-hdfs"
 
@@ -131,6 +133,7 @@ def test_get_suspended_provider_folders():
     ("short_packages", "filters", "long_packages"),
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
+        (("java-sdk",), (), ("java-sdk",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
         (
             ("apache.hdfs",),

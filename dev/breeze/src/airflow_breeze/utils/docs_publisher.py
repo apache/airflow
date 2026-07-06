@@ -91,6 +91,12 @@ class DocsPublisher:
     def publish(self, override_versioned: bool, airflow_site_dir: str):
         """Copy documentation packages files to airflow-site repository."""
         get_console(output=self.output).print(f"Publishing docs for {self.package_name}")
+        # Check the build dir before resolving _publish_dir: resolving the version of a
+        # package whose docs were not built (no stable.txt staged) raises SystemExit.
+        if not os.path.exists(self._build_dir):
+            get_console(output=self.output).print(f"Build directory {self._build_dir} does not exist!")
+            get_console(output=self.output).print()
+            return 0, f"Skipping {self.package_name}: Build directory does not exist"
         output_dir = os.path.join(airflow_site_dir, self._publish_dir)
         pretty_source = pretty_format_path(self._build_dir, os.getcwd())
         pretty_target = pretty_format_path(output_dir, airflow_site_dir)
@@ -108,10 +114,6 @@ class DocsPublisher:
                     return 1, f"Skipping {self.package_name}: Previously existing directory"
             # If output directory exists and is not versioned, delete it
             shutil.rmtree(output_dir)
-        if not os.path.exists(self._build_dir):
-            get_console(output=self.output).print(f"Build directory {self._build_dir} does not exist!")
-            get_console(output=self.output).print()
-            return 0, f"Skipping {self.package_name}: Build directory does not exist"
         shutil.copytree(self._build_dir, output_dir)
         if self.is_versioned:
             with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:
