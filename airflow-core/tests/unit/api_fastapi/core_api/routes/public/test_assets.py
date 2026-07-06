@@ -253,7 +253,6 @@ class TestAssets:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
         clear_db_logs()
 
         yield
@@ -710,7 +709,6 @@ class TestAssetAliases:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_assets()
