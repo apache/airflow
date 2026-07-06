@@ -61,24 +61,21 @@ def get_dialect_name(session: Session) -> str | None:
     return getattr(bind.dialect, "name", None)
 
 
-# Upper bound (milliseconds) for a query that evaluates a user-supplied regular expression.
-# The regex is matched by the database engine, so a pathological pattern could otherwise consume
-# DB CPU indefinitely (ReDoS). PostgreSQL has no built-in bound, so we cap it with a
-# transaction-local ``statement_timeout``. MySQL bounds regex evaluation with its own engine
-# limits (``regexp_time_limit``), and SQLite has no server-side regex in Airflow.
-REGEX_QUERY_STATEMENT_TIMEOUT_MS = 30_000
-
-
-def apply_regex_query_timeout(session: Session, timeout_ms: int = REGEX_QUERY_STATEMENT_TIMEOUT_MS) -> None:
+def apply_regex_query_timeout(session: Session) -> None:
     """
     Bound the runtime of a user-supplied regex filter on PostgreSQL.
 
-    Sets a transaction-local ``statement_timeout`` (via ``set_config(..., is_local=True)``) so it
-    applies only to the current transaction and resets automatically at commit/rollback. This is a
-    ReDoS safeguard: a malicious pattern is aborted instead of pinning a database backend. No-op on
-    non-PostgreSQL backends.
+    Reads the ``[api] regexp_query_timeout`` config (in seconds) and sets a transaction-local
+    ``statement_timeout`` (via ``set_config(..., is_local=True)``) so it applies only to the current
+    transaction and resets automatically at commit/rollback. This is a ReDoS safeguard: a malicious
+    pattern is aborted instead of pinning a database backend. No-op on non-PostgreSQL backends and
+    when the configured timeout is ``0`` (disabled).
     """
+    timeout_seconds = conf.getint("api", "regexp_query_timeout")
+    if timeout_seconds <= 0:
+        return
     if get_dialect_name(session) == "postgresql":
+        timeout_ms = timeout_seconds * 1000
         session.execute(
             text("SELECT set_config('statement_timeout', :timeout, true)").bindparams(timeout=str(timeout_ms))
         )

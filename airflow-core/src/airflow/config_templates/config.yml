@@ -1635,6 +1635,39 @@ api:
       type: boolean
       example: ~
       default: "True"
+    enable_regexp_query_filters:
+      description: |
+        Whether to enable regular-expression based query filters in the API. Currently this
+        controls the ``partition_key_pattern`` filter on ``GET /assets/events`` and on the
+        Execution API asset-event endpoints.
+
+        Disabled by default for security reasons. When enabled, a user-supplied regular
+        expression is passed to the database's own regex engine, which is a Regular expression
+        Denial of Service (ReDoS) vector: a crafted pattern can force the engine into
+        pathological backtracking and consume database backend CPU. Only enable this if you
+        accept that trade-off, and keep ``regexp_query_timeout`` set to a sensible value.
+
+        Exact-match ``partition_key`` filtering is always available and is not affected by this
+        setting.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
+    regexp_query_timeout:
+      description: |
+        Maximum time, in seconds, that a query using a regular-expression filter (see
+        ``enable_regexp_query_filters``) is allowed to run.
+
+        This is the primary runtime mitigation for the ReDoS risk described above: on PostgreSQL
+        it is enforced as a transaction-local ``statement_timeout`` so that a pathological
+        pattern is aborted instead of pinning a database backend (PostgreSQL has no built-in
+        regex step limit, unlike MySQL's ``regexp_time_limit``). Keep it as low as your
+        legitimate queries allow. A value of ``0`` disables the timeout, which is not
+        recommended while the feature is enabled.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "30"
     secret_key:
       description: |
         Secret key used to run your api server. It should be as random as possible. However, when running

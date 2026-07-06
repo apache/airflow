@@ -1086,6 +1086,11 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
     unanchored expressions where appropriate.
     """
 
+    @pytest.fixture(autouse=True)
+    def _enable_regexp_query_filters(self):
+        with conf_vars({("api", "enable_regexp_query_filters"): "True"}):
+            yield
+
     @provide_session
     def _create_partition_key_test_data(self, session=None):
         _create_assets(session=session)
@@ -1194,6 +1199,20 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
         response = test_client.get("/assets/events", params={"partition_key_pattern": "a" * 201})
         assert response.status_code == 400
         assert "too long" in response.json()["detail"]
+
+    def test_partition_key_pattern_disabled_returns_400(self, test_client, session):
+        with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
+            response = test_client.get("/assets/events", params={"partition_key_pattern": "^2024-"})
+        assert response.status_code == 400
+        assert "disabled" in response.json()["detail"]
+
+    @provide_session
+    def test_exact_match_works_when_regex_disabled(self, test_client, session):
+        self._create_partition_key_test_data()
+        with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
+            response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
 
     @provide_session
     def test_partition_key_exact_match_via_regex(self, test_client, session):

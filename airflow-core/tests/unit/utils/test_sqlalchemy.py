@@ -35,6 +35,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
+    apply_regex_query_timeout,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
     prohibit_commit,
@@ -43,6 +44,7 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
@@ -380,3 +382,32 @@ class TestExecutorConfigType:
         pickle.dumps(fixed_pod)
         assert fixed_pod.local_vars_configuration.refresh_api_key_hook is None
         assert fixed_pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+
+
+class TestApplyRegexQueryTimeout:
+    @staticmethod
+    def _mock_session(dialect_name):
+        session = mock.MagicMock()
+        session.get_bind.return_value.dialect.name = dialect_name
+        return session
+
+    def test_sets_statement_timeout_on_postgresql(self):
+        session = self._mock_session("postgresql")
+        with conf_vars({("api", "regexp_query_timeout"): "5"}):
+            apply_regex_query_timeout(session)
+        session.execute.assert_called_once()
+        stmt = session.execute.call_args.args[0]
+        # 5 seconds -> 5000 ms, passed as a bound parameter (no SQL injection).
+        assert stmt.compile().params == {"timeout": "5000"}
+
+    def test_noop_on_non_postgresql(self):
+        session = self._mock_session("mysql")
+        with conf_vars({("api", "regexp_query_timeout"): "5"}):
+            apply_regex_query_timeout(session)
+        session.execute.assert_not_called()
+
+    def test_noop_when_timeout_disabled(self):
+        session = self._mock_session("postgresql")
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            apply_regex_query_timeout(session)
+        session.execute.assert_not_called()

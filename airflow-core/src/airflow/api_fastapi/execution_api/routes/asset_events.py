@@ -31,6 +31,7 @@ from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventResponse,
     AssetEventsResponse,
 )
+from airflow.configuration import conf
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.utils.sqlalchemy import apply_regex_query_timeout
 
@@ -89,6 +90,15 @@ def _validate_partition_key_params(partition_key: str | None, partition_key_patt
         )
     if partition_key_pattern is None:
         return
+    if not conf.getboolean("api", "enable_regexp_query_filters"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "Regex query filters disabled",
+                "message": "Regex query filters are disabled. "
+                "Set [api] enable_regexp_query_filters = True to use partition_key_pattern.",
+            },
+        )
     if len(partition_key_pattern) > MAX_REGEX_PATTERN_LENGTH:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -24,6 +24,8 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 
+from tests_common.test_utils.config import conf_vars
+
 DEFAULT_DATE = timezone.parse("2021-01-01T00:00:00")
 
 pytestmark = pytest.mark.db_test
@@ -532,6 +534,11 @@ class TestGetAssetEventByAssetPartitionKey:
     achieve SQLite ``re.match``-compatible behavior.
     """
 
+    @pytest.fixture(autouse=True)
+    def _enable_regexp_query_filters(self):
+        with conf_vars({("api", "enable_regexp_query_filters"): "True"}):
+            yield
+
     @pytest.fixture
     def test_partitioned_events(self, session, test_asset):
         def make_timestamp(day):
@@ -685,6 +692,19 @@ class TestGetAssetEventByAssetPartitionKey:
         )
         assert response.status_code == 400
         assert "too long" in response.json()["detail"]["message"]
+
+    def test_get_by_asset_with_pattern_disabled_returns_400(self, client):
+        with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
+            response = client.get(
+                "/execution/asset-events/by-asset",
+                params={
+                    "name": "test_get_asset_by_name",
+                    "uri": None,
+                    "partition_key_pattern": "^2021-",
+                },
+            )
+        assert response.status_code == 400
+        assert "disabled" in response.json()["detail"]["message"]
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_events")
     def test_get_by_asset_exact_partition_key(self, client):
