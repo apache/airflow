@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterSettledTrigger,
     RedshiftClusterTrigger,
     RedshiftCreateClusterSnapshotTrigger,
     RedshiftCreateClusterTrigger,
@@ -145,6 +146,125 @@ class TestRedshiftClusterTrigger:
         # so we validate for length of task to be 1
         assert len(task) == 1
         assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+
+
+class TestRedshiftClusterSettledTrigger:
+    def test_serialization(self):
+        """Asserts that RedshiftClusterSettledTrigger serializes its arguments and classpath."""
+        trigger = RedshiftClusterSettledTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            poke_interval=POLLING_PERIOD_SECONDS,
+            max_attempts=42,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == (
+            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterSettledTrigger"
+        )
+        assert kwargs == {
+            "aws_conn_id": "test_redshift_conn_id",
+            "cluster_identifier": "mock_cluster_identifier",
+            "poke_interval": POLLING_PERIOD_SECONDS,
+            "max_attempts": 42,
+            "region_name": None,
+            "verify": None,
+            "botocore_config": None,
+        }
+
+    def test_serializes_generic_hook_params(self):
+        """Asserts the generic AWS hook params are serialized and used to build the hook."""
+        trigger = RedshiftClusterSettledTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            poke_interval=POLLING_PERIOD_SECONDS,
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["region_name"] == "eu-west-1"
+        assert kwargs["verify"] is False
+        assert kwargs["botocore_config"] == {"read_timeout": 42}
+
+        hook = trigger.hook
+        assert hook.aws_conn_id == "test_redshift_conn_id"
+        assert hook._region_name == "eu-west-1"
+        assert hook._verify is False
+        assert hook._config.read_timeout == 42
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("settled_status", ["available", "paused", "cluster_not_found"])
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
+    async def test_fires_when_settled(self, mock_cluster_status, settled_status):
+        """Fires success as soon as the cluster leaves every transitional state."""
+        mock_cluster_status.return_value = settled_status
+        trigger = RedshiftClusterSettledTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+        actual = await trigger.run().asend(None)
+        assert actual == TriggerEvent(
+            {"status": "success", "message": "Cluster settled", "cluster_state": settled_status}
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
+    async def test_fires_when_cluster_gone(self, mock_cluster_status):
+        """A missing cluster (status None) counts as settled."""
+        mock_cluster_status.return_value = None
+        trigger = RedshiftClusterSettledTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+        actual = await trigger.run().asend(None)
+        assert actual.payload["status"] == "success"
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
+    async def test_keeps_polling_while_transitional(self, mock_cluster_status, mock_sleep):
+        """Keeps polling while the cluster is transitional, then fires when it settles."""
+        mock_cluster_status.side_effect = ["pausing", "pausing", "paused"]
+        trigger = RedshiftClusterSettledTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+        actual = await trigger.run().asend(None)
+        assert actual.payload["status"] == "success"
+        assert actual.payload["cluster_state"] == "paused"
+        assert mock_cluster_status.call_count == 3
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
+    async def test_errors_after_max_attempts(self, mock_cluster_status, mock_sleep):
+        """Emits an error event if the cluster never settles within max_attempts."""
+        mock_cluster_status.return_value = "resizing"
+        trigger = RedshiftClusterSettledTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            poke_interval=POLLING_PERIOD_SECONDS,
+            max_attempts=3,
+        )
+        actual = await trigger.run().asend(None)
+        assert actual.payload["status"] == "error"
+        assert mock_cluster_status.call_count == 3
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
+    async def test_error_on_exception(self, mock_cluster_status):
+        """Emits an error event when polling raises."""
+        mock_cluster_status.side_effect = Exception("boom")
+        trigger = RedshiftClusterSettledTrigger(
+            aws_conn_id="test_redshift_conn_id",
+            cluster_identifier="mock_cluster_identifier",
+            poke_interval=POLLING_PERIOD_SECONDS,
+        )
+        actual = await trigger.run().asend(None)
+        assert actual == TriggerEvent({"status": "error", "message": "boom"})
 
 
 WAITER_TRIGGER_PARAMS = [

@@ -28,6 +28,28 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
+# Cluster lifecycle states during which a ``delete_cluster`` call is rejected with an
+# ``InvalidClusterStateFault`` because an operation is already in flight. Once the cluster leaves all
+# of these states it has "settled" into a deletable lifecycle (e.g. ``available`` or ``paused``) and the
+# delete can be re-issued.
+REDSHIFT_TRANSITIONAL_CLUSTER_STATES = frozenset(
+    {
+        "creating",
+        "deleting",
+        "modifying",
+        "rebooting",
+        "renaming",
+        "resizing",
+        "resuming",
+        "pausing",
+        "rotating-keys",
+        "updating-hsm",
+        "cancelling-resize",
+        "prep-for-resize",
+        "final-snapshot",
+    }
+)
+
 
 class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
     """
@@ -341,5 +363,92 @@ class RedshiftClusterTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "success", "message": "target state met"})
                     return
                 await asyncio.sleep(self.poke_interval)
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+
+
+class RedshiftClusterSettledTrigger(BaseTrigger):
+    """
+    Poll a Redshift cluster until it settles into a non-transitional (deletable) lifecycle.
+
+    A ``delete_cluster`` call is rejected with ``InvalidClusterStateFault`` while an operation is in
+    flight (e.g. a pause or resize). Because a busy cluster can settle into *different* terminal states
+    depending on the in-flight operation (a ``pausing`` cluster becomes ``paused``; a ``resizing`` cluster
+    becomes ``available``), this trigger fires as soon as the status leaves every transitional state
+    rather than waiting for a single hardcoded ``target_status``. The operator then re-issues the delete.
+
+    :param aws_conn_id: Reference to AWS connection id for redshift
+    :param cluster_identifier: unique identifier of a cluster
+    :param poke_interval: polling period in seconds to check for the status
+    :param max_attempts: maximum number of polls before emitting an error event
+    :param region_name: The AWS region where the cluster is. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
+    """
+
+    def __init__(
+        self,
+        *,
+        aws_conn_id: str | None,
+        cluster_identifier: str,
+        poke_interval: float = 30,
+        max_attempts: int = 30,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+    ):
+        super().__init__()
+        self.aws_conn_id = aws_conn_id
+        self.cluster_identifier = cluster_identifier
+        self.poke_interval = poke_interval
+        self.max_attempts = max_attempts
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize RedshiftClusterSettledTrigger arguments and classpath."""
+        return (
+            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterSettledTrigger",
+            {
+                "aws_conn_id": self.aws_conn_id,
+                "cluster_identifier": self.cluster_identifier,
+                "poke_interval": self.poke_interval,
+                "max_attempts": self.max_attempts,
+                "region_name": self.region_name,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
+            },
+        )
+
+    @cached_property
+    def hook(self) -> RedshiftHook:
+        return RedshiftHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Run async until the cluster leaves every transitional state (or is already gone)."""
+        try:
+            for _ in range(self.max_attempts):
+                status = await self.hook.cluster_status_async(self.cluster_identifier)
+                if status is None or status.lower() not in REDSHIFT_TRANSITIONAL_CLUSTER_STATES:
+                    yield TriggerEvent(
+                        {"status": "success", "message": "Cluster settled", "cluster_state": status}
+                    )
+                    return
+                await asyncio.sleep(self.poke_interval)
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": (
+                        f"Cluster {self.cluster_identifier} did not settle into a deletable state "
+                        f"within {self.max_attempts} attempts."
+                    ),
+                }
+            )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})

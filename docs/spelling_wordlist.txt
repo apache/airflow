@@ -447,6 +447,7 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
 delim
 deltalake
 denylist
