@@ -362,7 +362,7 @@ def test_dag_run_team_name(
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.1+")
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
 def test_dag_run_team_name_no_bundle():
     dagrun_mock = MagicMock(DagRun)
     del dagrun_mock.dag_versions
@@ -371,7 +371,7 @@ def test_dag_run_team_name_no_bundle():
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.1+")
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
 @patch("airflow.providers.openlineage.utils.utils.DagBundleModel.get_team_name")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=False)
 def test_dag_run_team_name_multi_team_disabled(mock_getboolean, mock_get_team_name):

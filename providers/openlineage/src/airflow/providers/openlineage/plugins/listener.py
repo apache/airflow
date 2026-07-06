@@ -270,7 +270,6 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            team_name = None
             team_name = DagRunInfo.team_name(dagrun)
 
             if controls.extract_operator_metadata:
@@ -331,12 +330,6 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            airflow_facet = redacted_event.run.facets.get("airflow")
-            team_name = None
-
-            if airflow_facet:
-                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
 
             Stats.gauge(
                 "ol.event.size",
@@ -439,7 +432,6 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            team_name = None
             team_name = DagRunInfo.team_name(dagrun)
 
             if controls.extract_operator_metadata:
@@ -499,12 +491,6 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            airflow_facet = redacted_event.run.facets.get("airflow")
-            team_name = None
-
-            if airflow_facet:
-                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
 
             Stats.gauge(
                 "ol.event.size",
@@ -622,7 +608,6 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            team_name = None
             team_name = DagRunInfo.team_name(dagrun)
 
             if controls.extract_operator_metadata:
@@ -682,12 +667,6 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            airflow_facet = redacted_event.run.facets.get("airflow")
-            team_name = None
-
-            if airflow_facet:
-                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
 
             Stats.gauge(
                 "ol.event.size",
@@ -781,7 +760,6 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            team_name = None
             team_name = DagRunInfo.team_name(dagrun)
 
             if controls.extract_operator_metadata:
@@ -840,12 +818,6 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            airflow_facet = redacted_event.run.facets.get("airflow")
-            team_name = None
-
-            if airflow_facet:
-                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
 
             Stats.gauge(
                 "ol.event.size",
