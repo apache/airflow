@@ -47,7 +47,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-arrow/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-arrow/>
     Example Dags <https://github.com/apache/airflow/tree/providers-apache-arrow/|version|/providers/apache/arrow/tests/system/apache/arrow>
     Installing from sources <installing-providers-from-sources>
 
