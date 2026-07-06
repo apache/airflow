@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.parameters import MAX_REGEX_PATTERN_LENGTH
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
@@ -31,6 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventsResponse,
 )
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.utils.sqlalchemy import apply_regex_query_timeout
 
 router = APIRouter(
     responses={
@@ -87,6 +89,15 @@ def _validate_partition_key_params(partition_key: str | None, partition_key_patt
         )
     if partition_key_pattern is None:
         return
+    if len(partition_key_pattern) > MAX_REGEX_PATTERN_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "Invalid regex",
+                "message": f"The partition_key_pattern is too long "
+                f"(max {MAX_REGEX_PATTERN_LENGTH} characters).",
+            },
+        )
     try:
         re.compile(partition_key_pattern)
     except re.error as e:
@@ -145,6 +156,7 @@ def get_asset_event_by_asset_name_uri(
     if partition_key is not None:
         where_clause = and_(where_clause, AssetEvent.partition_key == partition_key)
     elif partition_key_pattern is not None:
+        apply_regex_query_timeout(session)
         where_clause = and_(where_clause, AssetEvent.partition_key.regexp_match(partition_key_pattern))
 
     return _get_asset_events_through_sql_clauses(
@@ -187,6 +199,7 @@ def get_asset_event_by_asset_alias(
     if partition_key is not None:
         where_clause = and_(where_clause, AssetEvent.partition_key == partition_key)
     elif partition_key_pattern is not None:
+        apply_regex_query_timeout(session)
         where_clause = and_(where_clause, AssetEvent.partition_key.regexp_match(partition_key_pattern))
 
     return _get_asset_events_through_sql_clauses(

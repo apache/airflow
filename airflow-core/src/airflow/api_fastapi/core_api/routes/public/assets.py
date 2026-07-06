@@ -85,6 +85,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.typing_compat import Unpack
+from airflow.utils.sqlalchemy import apply_regex_query_timeout
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -334,6 +335,10 @@ def get_asset_events(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="partition_key and partition_key_pattern are mutually exclusive.",
         )
+
+    if partition_key_pattern.value is not None:
+        # Bound the runtime of the user-supplied regex to guard against ReDoS (PostgreSQL only).
+        apply_regex_query_timeout(session)
 
     base_statement = select(AssetEvent)
     if name_pattern.value or name_prefix_pattern.value:

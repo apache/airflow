@@ -989,6 +989,14 @@ Two parameters are available:
 
 These parameters are mutually exclusive; providing both returns a 400 error.
 
+.. note::
+
+    ``partition_key_pattern`` is evaluated by the database's own regular-expression engine.
+    To guard against denial-of-service from pathological patterns (ReDoS), the pattern length
+    is capped and, on PostgreSQL, the query runs under a bounded ``statement_timeout``. MySQL
+    bounds regex evaluation with its built-in ``regexp_time_limit``. Prefer the exact-match
+    ``partition_key`` (which uses the B-tree index) whenever a full key is known.
+
 The same filters are available in the ``InletEventsAccessor``:
 
 .. code-block:: python

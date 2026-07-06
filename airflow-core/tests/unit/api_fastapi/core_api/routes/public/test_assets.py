@@ -1190,6 +1190,11 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
         assert response.status_code == 400
         assert "Invalid regular expression" in response.json()["detail"]
 
+    def test_partition_key_pattern_too_long_returns_400(self, test_client, session):
+        response = test_client.get("/assets/events", params={"partition_key_pattern": "a" * 201})
+        assert response.status_code == 400
+        assert "too long" in response.json()["detail"]
+
     @provide_session
     def test_partition_key_exact_match_via_regex(self, test_client, session):
         self._create_partition_key_test_data()
