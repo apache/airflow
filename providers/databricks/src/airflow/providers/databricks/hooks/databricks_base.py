@@ -329,7 +329,7 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
                 f"(last error: {e.last_attempt.exception()}). Giving up."
-            )
+            ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -370,7 +370,7 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
                 f"(last error: {e.last_attempt.exception()}). Giving up."
-            )
+            ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -1223,7 +1223,7 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
                 f"(last error: {e.last_attempt.exception()}). Giving up."
-            )
+            ) from e
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
                 msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
@@ -1290,7 +1290,7 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(
                 f"API requests to Databricks failed {self.retry_limit} times "
                 f"(last error: {e.last_attempt.exception()}). Giving up."
-            )
+            ) from e
         except aiohttp.ClientResponseError as err:
             raise DatabricksApiError(
                 f"Response: {err.message}, Status Code: {err.status}", http_status_code=err.status
