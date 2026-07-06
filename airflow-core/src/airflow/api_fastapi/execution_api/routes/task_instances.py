@@ -653,7 +653,7 @@ def _create_ti_state_update_query_and_update_state(
                 ti.retry_reason = retry_reason
                 ti.end_date = ti_patch_payload.end_date
                 ti.set_duration()
-                if ti_patch_payload.rendered_map_index is not None:
+                if "rendered_map_index" in ti_patch_payload.model_fields_set:
                     ti._rendered_map_index = ti_patch_payload.rendered_map_index
                 ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
