@@ -269,6 +269,21 @@ repos:
           ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
+      - id: check-go-version-in-sync
+        name: Check Go toolchain version is consistent across build files
+        entry: ./scripts/ci/prek/check_go_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^go-sdk/go\.mod$|
+          ^kubernetes-tests/lang_sdk/go_example/go\.mod$|
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$|
+          ^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$|
+          ^go-sdk/\.pre-commit-config\.yaml$|
+          ^\.pre-commit-config\.yaml$
+        pass_filenames: false
+        require_serial: true
       - id: check-partition-mapper-defaults-in-sync
         name: Check partition-mapper core/SDK sync (FanOutMapper table + SegmentWindow/FixedKeyMapper)
         entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
