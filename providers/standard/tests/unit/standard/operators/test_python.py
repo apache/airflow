@@ -2003,6 +2003,32 @@ class TestPythonVirtualenvOperator(_VenvTestBase):
         assert type(result["tuple"][0]) is datetime
         assert result["string"] == "test_value"
 
+    def test_pendulum_to_native_datetime_extended(self):
+        import datetime as dt
+        from zoneinfo import ZoneInfo
+
+        import pendulum
+
+        from airflow.providers.standard.operators.python import _pendulum_to_native_datetime
+
+        pd = pendulum.date(2025, 5, 3)
+        pt = pendulum.time(10, 30, 45, 123456)
+        dur = pendulum.duration(days=1, hours=2)
+        tz1 = pendulum.timezone("America/New_York")
+        tz2 = pendulum.timezone(3600)
+
+        assert type(_pendulum_to_native_datetime(pd)) is dt.date
+        assert not isinstance(_pendulum_to_native_datetime(pd), pendulum.Date)
+
+        assert type(_pendulum_to_native_datetime(pt)) is dt.time
+        assert not isinstance(_pendulum_to_native_datetime(pt), pendulum.Time)
+
+        assert type(_pendulum_to_native_datetime(dur)) is dt.timedelta
+        assert not isinstance(_pendulum_to_native_datetime(dur), pendulum.Duration)
+
+        assert type(_pendulum_to_native_datetime(tz1)) is ZoneInfo
+        assert type(_pendulum_to_native_datetime(tz2)) is dt.timezone
+
     @pytest.mark.parametrize(
         "serializer",
         [

@@ -89,8 +89,15 @@ except ImportError:
 
 def _native_datetime_to_pendulum(obj):
     """Convert native datetime to pendulum DateTime (using virtualenv's pendulum version)."""
-    if _pendulum_available and isinstance(obj, _dt.datetime) and not isinstance(obj, _pendulum.DateTime):
-        return _pendulum.instance(obj)
+    if _pendulum_available:
+        if isinstance(obj, _dt.datetime) and not isinstance(obj, _pendulum.DateTime):
+            return _pendulum.instance(obj)
+        if isinstance(obj, _dt.date) and not isinstance(obj, _pendulum.Date):
+            return _pendulum.date(obj.year, obj.month, obj.day)
+        if isinstance(obj, _dt.time) and not isinstance(obj, _pendulum.Time):
+            return _pendulum.time(obj.hour, obj.minute, obj.second, obj.microsecond)
+        if isinstance(obj, _dt.timedelta) and not isinstance(obj, _pendulum.Duration):
+            return _pendulum.duration(seconds=obj.total_seconds())
     if isinstance(obj, dict):
         return {k: _native_datetime_to_pendulum(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
@@ -99,19 +106,32 @@ def _native_datetime_to_pendulum(obj):
 
 def _pendulum_to_native_datetime(obj):
     """Convert pendulum DateTime to native datetime (using virtualenv's pendulum version)."""
-    if _pendulum_available and isinstance(obj, _pendulum.DateTime):
-        tz = None
-        if obj.timezone_name:
-            from zoneinfo import ZoneInfo
+    if _pendulum_available:
+        if isinstance(obj, _pendulum.DateTime):
+            tz = None
+            if obj.timezone_name:
+                from zoneinfo import ZoneInfo
+                try:
+                    tz = ZoneInfo(obj.timezone_name)
+                except KeyError:
+                    tz = _dt.timezone(obj.utcoffset()) if obj.utcoffset() is not None else None
+            return _dt.datetime(
+                obj.year, obj.month, obj.day,
+                obj.hour, obj.minute, obj.second, obj.microsecond,
+                tzinfo=tz,
+            )
+        if isinstance(obj, _pendulum.Date):
+            return _dt.date(obj.year, obj.month, obj.day)
+        if isinstance(obj, _pendulum.Time):
+            return _dt.time(obj.hour, obj.minute, obj.second, obj.microsecond)
+        if isinstance(obj, _pendulum.Duration):
+            return _dt.timedelta(seconds=obj.total_seconds())
+        if isinstance(obj, _pendulum.tz.timezone.PendulumTimezone):
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
             try:
-                tz = ZoneInfo(obj.timezone_name)
-            except KeyError:
-                tz = _dt.timezone(obj.utcoffset()) if obj.utcoffset() is not None else None
-        return _dt.datetime(
-            obj.year, obj.month, obj.day,
-            obj.hour, obj.minute, obj.second, obj.microsecond,
-            tzinfo=tz,
-        )
+                return ZoneInfo(obj.name)
+            except (ZoneInfoNotFoundError, ValueError, KeyError):
+                return _dt.timezone(obj.utcoffset(None))
     if isinstance(obj, dict):
         return {k: _pendulum_to_native_datetime(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):

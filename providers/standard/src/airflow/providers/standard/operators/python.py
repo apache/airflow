@@ -752,6 +752,19 @@ def _pendulum_to_native_datetime(obj):
             obj.microsecond,
             tzinfo=tz,
         )
+    if isinstance(obj, pendulum.Date):
+        return dt.date(obj.year, obj.month, obj.day)
+    if isinstance(obj, pendulum.Time):
+        return dt.time(obj.hour, obj.minute, obj.second, obj.microsecond)
+    if isinstance(obj, pendulum.Duration):
+        return dt.timedelta(seconds=obj.total_seconds())
+    if isinstance(obj, pendulum.tz.timezone.PendulumTimezone):
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            return ZoneInfo(obj.name)
+        except (ZoneInfoNotFoundError, ValueError, KeyError):
+            return dt.timezone(obj.utcoffset(None))
     if isinstance(obj, dict):
         return {k: _pendulum_to_native_datetime(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
