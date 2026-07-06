@@ -56,12 +56,12 @@ class TestEventScheduler:
         # The next cycle was never scheduled because the exception propagated.
         assert len(timers.queue) == 1
 
-    def test_call_regular_interval_catch_exceptions_swallows_action_exception(self):
-        """With catch_exceptions=True, a raising action is swallowed and the next cycle is still scheduled."""
+    def test_call_regular_interval_non_fatal_swallows_action_exception(self):
+        """With non_fatal=True, a raising action is swallowed and the next cycle is still scheduled."""
         failing_action = mock.MagicMock(side_effect=RuntimeError("boom"))
 
         timers = EventScheduler()
-        timers.call_regular_interval(30, failing_action, catch_exceptions=True)
+        timers.call_regular_interval(30, failing_action, non_fatal=True)
         assert len(timers.queue) == 1
 
         # Should not raise, even though the action does.
