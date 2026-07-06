@@ -795,14 +795,11 @@ def test_result_backend_transport_options_with_multiple_options():
         ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
     }
 )
-def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg():
+def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg(monkeypatch):
     """A driverless sql_alchemy_conn must derive a psycopg (v3) result_backend, not psycopg2."""
-    import importlib
-
-    importlib.reload(default_celery)
-    assert (
-        default_celery.DEFAULT_CELERY_CONFIG["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
-    )
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", True)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
 
 
 @conf_vars(
