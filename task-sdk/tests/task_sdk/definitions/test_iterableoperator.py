@@ -33,7 +33,7 @@ from airflow.sdk import DAG, BaseOperator, BaseXCom, get_current_context
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
-from airflow.sdk.exceptions import AirflowFailException
+from airflow.sdk.exceptions import AirflowFailException, TaskDeferred
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context
@@ -79,6 +79,15 @@ class MockOperator(BaseOperator):
 
         assert context == expected, "Context was unexpectedly mutated during task execution"
         return result
+
+
+class MockDeferredOperator(BaseOperator):
+    """Operator that immediately defers on execute, simulating a deferrable operator."""
+
+    template_fields = ()
+
+    def execute(self, context):
+        raise TaskDeferred(trigger=None, method_name="execute_complete")  # type: ignore[arg-type]
 
 
 @pytest.fixture
@@ -583,6 +592,24 @@ class TestIterableOperator:
 
             with pytest.raises(AirflowFailException):
                 iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    def test_deferred_operator_raises_airflow_fail_exception(self, dag_maker, session, mock_xcom_get_one):
+        """A sub-task that raises TaskDeferred must cause IterableOperator to raise AirflowFailException."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{}, {}])
+            mapped_op = MockDeferredOperator.partial(task_id="deferred_task", dag=dag)._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        context = mock_context(task=iterable_op)
+        mock_xcom_get_one(context)
+
+        with pytest.raises(AirflowFailException, match="attempted to defer"):
+            iterable_op.execute(context=context)
 
 
 class TestIterableOperatorContextIsolation:
