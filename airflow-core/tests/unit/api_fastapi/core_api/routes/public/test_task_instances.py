@@ -6119,7 +6119,6 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     @pytest.fixture(autouse=True)
     def clean_db(self, session):
         clear_db_runs()
-        clear_db_teams()
         yield
         clear_db_teams()
         clear_db_runs()
