@@ -184,6 +184,7 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
         is_path = isinstance(local_full_path_or_buffer, str)
+        output_handle = None
 
         # without a callback, default to writing to a user-provided file or
         # file-like buffer
@@ -195,12 +196,15 @@ class FTPHook(BaseHook):
 
             callback = output_handle.write
 
-        self.log.info("Retrieving file from FTP: %s", remote_full_path)
-        conn.retrbinary(f"RETR {remote_full_path}", callback, block_size)
-        self.log.info("Finished retrieving file from FTP: %s", remote_full_path)
-
-        if is_path and output_handle:
-            output_handle.close()
+        try:
+            self.log.info("Retrieving file from FTP: %s", remote_full_path)
+            conn.retrbinary(f"RETR {remote_full_path}", callback, block_size)
+            self.log.info("Finished retrieving file from FTP: %s", remote_full_path)
+        finally:
+            # Only close handles we opened ourselves; a caller-supplied buffer
+            # must stay open per this method's contract.
+            if is_path and output_handle:
+                output_handle.close()
 
     def store_file(
         self, remote_full_path: str, local_full_path_or_buffer: Any, block_size: int = 8192
@@ -226,10 +230,13 @@ class FTPHook(BaseHook):
         else:
             input_handle = local_full_path_or_buffer
 
-        conn.storbinary(f"STOR {remote_full_path}", input_handle, block_size)
-
-        if is_path:
-            input_handle.close()
+        try:
+            conn.storbinary(f"STOR {remote_full_path}", input_handle, block_size)
+        finally:
+            # Only close handles we opened ourselves; a caller-supplied buffer
+            # must stay open per this method's contract.
+            if is_path:
+                input_handle.close()
 
     def delete_file(self, path: str) -> None:
         """
@@ -313,5 +320,7 @@ class FTPSHook(FTPHook):
             else:
                 self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
             self.conn.set_pasv(pasv)
+            # Without prot_p() ftplib transfers file payloads over cleartext sockets even though the control connection is TLS.
+            self.conn.prot_p()
 
         return self.conn

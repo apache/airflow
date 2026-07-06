@@ -24,16 +24,18 @@ from operator import attrgetter
 import pendulum
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -151,7 +153,7 @@ def examples_dag_bag():
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, session=None):
+def setup(dag_maker, *, session: Session = NEW_SESSION):
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -641,6 +643,31 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 200
         assert _strip_dag_version_ids(response.json()) == [GRID_RUN_1, GRID_RUN_2]
 
+    def test_get_grid_runs_multiple_dag_versions(self, session, test_client):
+        # run_5_2 is created after version 2 exists, so its task instances run on version 2.
+        # Reassign one of them to version 1 so the run spans two versions.
+        first_dag_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == DAG_ID_5, DagVersion.version_number == 1)
+        )
+        task_instance = session.scalar(
+            select(TaskInstance)
+            .where(TaskInstance.dag_id == DAG_ID_5, TaskInstance.run_id == "run_5_2")
+            .limit(1)
+        )
+        task_instance.dag_version = first_dag_version
+        session.commit()
+
+        response = test_client.get(f"/grid/runs/{DAG_ID_5}?limit=5")
+        assert response.status_code == 200
+        dag_versions_by_run_id = {
+            run["run_id"]: [dag_version["version_number"] for dag_version in run["dag_versions"]]
+            for run in response.json()
+        }
+        assert dag_versions_by_run_id == {
+            "run_5_1": [1],
+            "run_5_2": [1, 2],
+        }
+
     @pytest.mark.parametrize(
         ("endpoint", "run_type", "expected"),
         [
@@ -711,6 +738,7 @@ class TestGetGridDataEndpoint:
                     "task_display_name": "t1",
                     "child_states": None,
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:00Z",
                     "min_start_date": "2025-03-01T23:59:58Z",
                 },
@@ -720,6 +748,7 @@ class TestGetGridDataEndpoint:
                     "task_display_name": "t2",
                     "child_states": None,
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:02Z",
                     "min_start_date": "2025-03-02T00:00:00Z",
                 },
@@ -729,12 +758,14 @@ class TestGetGridDataEndpoint:
                     "task_display_name": "t7",
                     "child_states": None,
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:04Z",
                     "min_start_date": "2025-03-02T00:00:02Z",
                 },
                 {
                     "child_states": {"success": 4},
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:12Z",
                     "min_start_date": "2025-03-02T00:00:04Z",
                     "state": "success",
@@ -747,12 +778,14 @@ class TestGetGridDataEndpoint:
                     "task_display_name": "task_group-1.t6",
                     "child_states": None,
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:06Z",
                     "min_start_date": "2025-03-02T00:00:04Z",
                 },
                 {
                     "child_states": {"success": 3},
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:12Z",
                     "min_start_date": "2025-03-02T00:00:06Z",
                     "state": "success",
@@ -765,6 +798,7 @@ class TestGetGridDataEndpoint:
                     "task_display_name": "task_group-1.task_group-2.t3",
                     "child_states": None,
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:08Z",
                     "min_start_date": "2025-03-02T00:00:06Z",
                 },
@@ -774,6 +808,7 @@ class TestGetGridDataEndpoint:
                     "task_display_name": "task_group-1.task_group-2.t4",
                     "child_states": None,
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:10Z",
                     "min_start_date": "2025-03-02T00:00:08Z",
                 },
@@ -783,6 +818,7 @@ class TestGetGridDataEndpoint:
                     "task_display_name": "task_group-1.task_group-2.t5",
                     "child_states": None,
                     "dag_version_number": 1,
+                    "has_note": False,
                     "max_end_date": "2025-03-02T00:00:12Z",
                     "min_start_date": "2025-03-02T00:00:10Z",
                 },
@@ -813,8 +849,9 @@ class TestGetGridDataEndpoint:
 
         expected = [
             {
-                "child_states": {"None": 1},
+                "child_states": {"none": 1},
                 "dag_version_number": 1,
+                "has_note": False,
                 "task_id": "mapped_task_2",
                 "task_display_name": "mapped_task_2",
                 "max_end_date": None,
@@ -822,8 +859,9 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"success": 1, "running": 1, "None": 1},
+                "child_states": {"success": 1, "running": 1, "none": 1},
                 "dag_version_number": 1,
+                "has_note": False,
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
                 "state": "running",
@@ -836,6 +874,7 @@ class TestGetGridDataEndpoint:
                 "task_display_name": "mapped_task_group.subtask",
                 "child_states": None,
                 "dag_version_number": 1,
+                "has_note": False,
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
             },
@@ -845,12 +884,14 @@ class TestGetGridDataEndpoint:
                 "task_display_name": "A Beautiful Task Name \U0001f680",
                 "child_states": None,
                 "dag_version_number": 1,
+                "has_note": False,
                 "max_end_date": None,
                 "min_start_date": None,
             },
             {
-                "child_states": {"None": 6},
+                "child_states": {"none": 6},
                 "dag_version_number": 1,
+                "has_note": False,
                 "task_id": "task_group",
                 "task_display_name": "task_group",
                 "max_end_date": None,
@@ -858,8 +899,9 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
+                "has_note": False,
                 "task_id": "task_group.inner_task_group",
                 "task_display_name": "task_group.inner_task_group",
                 "max_end_date": None,
@@ -867,8 +909,9 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
+                "has_note": False,
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
                 "task_display_name": "Inner Task Group Sub Task Label",
                 "max_end_date": None,
@@ -876,8 +919,9 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 4},
+                "child_states": {"none": 4},
                 "dag_version_number": 1,
+                "has_note": False,
                 "task_id": "task_group.mapped_task",
                 "task_display_name": "task_group.mapped_task",
                 "max_end_date": None,
@@ -1115,6 +1159,22 @@ class TestGetGridDataEndpoint:
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
         assert task_ids == expected_task_ids, description
+
+    def test_grid_ti_summaries_has_note(self, session, test_client):
+        """has_note is true when a TaskInstanceNote exists for a TI, false otherwise."""
+        ti = session.scalar(
+            select(TaskInstance).where(TaskInstance.run_id == "run_1", TaskInstance.task_id == TASK_ID)
+        )
+        ti.task_instance_note = TaskInstanceNote(content="test note")
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids=run_1")
+        assert response.status_code == 200
+        [data] = self._parse_ndjson(response)
+        by_task_id = {ti["task_id"]: ti for ti in data["task_instances"]}
+
+        assert by_task_id[TASK_ID]["has_note"] is True
+        assert all(not ti["has_note"] for task_id, ti in by_task_id.items() if task_id != TASK_ID)
 
     @staticmethod
     def _parse_ndjson(response) -> list[dict]:

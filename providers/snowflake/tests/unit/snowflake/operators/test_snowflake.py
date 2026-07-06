@@ -27,7 +27,7 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeCheckOperator,
@@ -339,8 +339,66 @@ class TestSnowflakeSqlApiOperator:
         )
         mock_execute_query.return_value = ["uuid1", "uuid2"]
         mock_get_sql_api_query_status.side_effect = [{"status": "error"}, {"status": "success"}]
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=None)
+
+    def test_poll_on_queries_raises_runtime_error_on_status_check_failure(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        """Tests poll_on_queries raises RuntimeError when status check fails."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+        mock_get_sql_api_query_status.side_effect = RuntimeError("connection timeout")
+
+        with pytest.raises(RuntimeError, match="Failed to get status for query uuid1"):
+            operator.poll_on_queries()
+
+    def test_poll_on_queries_no_sleep_when_all_resolved(self, mock_get_sql_api_query_status):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "success"}, {"status": "error"}]
+
+        with mock.patch("time.sleep") as mock_sleep:
+            result = operator.poll_on_queries()
+
+        mock_sleep.assert_not_called()
+        assert result["success"] == {"uuid1": {"status": "success"}}
+        assert result["error"] == {"uuid2": {"status": "error"}}
+        assert result["running"] == {}
+
+    def test_poll_on_queries_sleeps_once_per_cycle(self, mock_get_sql_api_query_status):
+        """One handle is still running, so the cycle sleeps -- but only once, not per handle."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2", "uuid3"]
+        mock_get_sql_api_query_status.side_effect = [
+            {"status": "success"},
+            {"status": "running"},
+            {"status": "success"},
+        ]
+
+        with mock.patch("time.sleep") as mock_sleep:
+            result = operator.poll_on_queries()
+
+        mock_sleep.assert_called_once_with(operator.poll_interval)
+        assert result["running"] == {"uuid2": {"status": "running"}}
 
     @pytest.mark.parametrize(
         ("mock_sql", "statement_count"),
@@ -372,8 +430,38 @@ class TestSnowflakeSqlApiOperator:
             "Trigger is not a SnowflakeSqlApiTrigger"
         )
 
+    def test_snowflake_sql_api_pushes_query_ids_to_xcom(
+        self,
+        mock_execute_query,
+        mock_get_sql_api_query_status,
+    ):
+        """
+        Tests that query IDs returned by the Snowflake SQL API are pushed to XCom
+        when ``do_xcom_push=True``.
+        """
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=True,
+            deferrable=False,
+        )
+
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+
+        context = create_context(operator)
+
+        operator.execute(context)
+
+        context["ti"].xcom_push.assert_called_once_with(
+            key="query_ids",
+            value=["uuid1"],
+        )
+
     def test_snowflake_sql_api_execute_complete_failure(self):
-        """Test SnowflakeSqlApiOperator raise AirflowException of error event"""
+        """Test SnowflakeSqlApiOperator raise RuntimeError of error event"""
 
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
@@ -382,7 +470,7 @@ class TestSnowflakeSqlApiOperator:
             statement_count=4,
             deferrable=True,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute_complete(
                 context=None,
                 event={"status": "error", "message": "Test failure message", "type": "FAILED_WITH_ERROR"},
@@ -469,7 +557,7 @@ class TestSnowflakeSqlApiOperator:
         )
         mock_execute_query.return_value = ["uuid1"]
         mock_get_sql_api_query_status.side_effect = [{"status": "error"}]
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(create_context(operator))
         assert not mock_defer.called
 
@@ -534,24 +622,26 @@ class TestSnowflakeSqlApiOperator:
         mock_get_sql_api_query_status.side_effect = [
             # Initial get_sql_api_query_status check
             {"status": "running"},
-            # 1st poll_on_queries check (poll_interval: 5s)
+            # 1st poll_on_queries check (poll_interval: 5s) -- still running, sleeps
             {"status": "running"},
-            # 2nd poll_on_queries check (poll_interval: 5s)
+            # 2nd poll_on_queries check (poll_interval: 5s) -- still running, sleeps
             {"status": "running"},
-            # 3rd poll_on_queries check (poll_interval: 5s)
+            # 3rd poll_on_queries check -- resolves to success, no sleep needed
             {"status": "success"},
         ]
 
         with mock.patch("time.sleep") as mock_sleep:
             operator.execute(context=None)
             mock_check_query_output.assert_called_once_with(["uuid1"])
-            assert mock_sleep.call_count == 3
+            # Only 2 sleeps: the cycle that resolves the last running query returns
+            # immediately instead of sleeping once more before reporting success.
+            assert mock_sleep.call_count == 2
 
     def test_snowflake_sql_api_execute_operator_polling_failed(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
     ):
         """
-        Tests that the execute method raises AirflowException if any query fails during polling
+        Tests that the execute method raises RuntimeError if any query fails during polling
         when ``deferrable=False``
         """
         operator = SnowflakeSqlApiOperator(
@@ -572,7 +662,7 @@ class TestSnowflakeSqlApiOperator:
             {"status": "error"},
         ]
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=None)
         mock_check_query_output.assert_not_called()
 

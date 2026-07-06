@@ -106,8 +106,8 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 "password": "AWS Secret Access Key",
             },
             "placeholders": {
-                "login": "AKIAIOSFODNN7EXAMPLE",
-                "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "login": "YOUR_AWS_ACCESS_KEY_ID",
+                "password": "YOUR_AWS_SECRET_ACCESS_KEY",
                 "extra": json.dumps(
                     {
                         "aws_domain": "amazonaws.com",
@@ -120,7 +120,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                         "role_arn": "arn:aws:iam::123456789098:role/role-name",
                         "assume_role_method": "assume_role",
                         "assume_role_kwargs": {"RoleSessionName": "airflow"},
-                        "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+                        "aws_session_token": "YOUR_AWS_SESSION_TOKEN",
                         "endpoint_url": "http://localhost:4566",
                     },
                     indent=2,
@@ -176,6 +176,37 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             region_name=self.conn.region_name,
             aws_domain=self.conn.extra_dejson.get("aws_domain", "amazonaws.com"),
         )
+
+    def get_openlineage_database_info(self, connection):
+        """Return Amazon Athena specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        region_name = self.region_name or connection.extra_dejson.get("region_name")
+        aws_domain = connection.extra_dejson.get("aws_domain", "amazonaws.com")
+        authority = f"athena.{region_name}.{aws_domain}" if region_name else f"athena.{aws_domain}"
+
+        return DatabaseInfo(
+            scheme="awsathena",
+            authority=authority,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            database=connection.extra_dejson.get("catalog", "AwsDataCatalog"),
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        """Return Athena dialect. Athena uses Trino SQL engine."""
+        return "trino"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return Athena default schema."""
+        return self.conn.schema or "default"
 
     def get_uri(self) -> str:
         """Overridden to use the Athena dialect as driver name."""

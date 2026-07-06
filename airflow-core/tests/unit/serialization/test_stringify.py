@@ -60,6 +60,30 @@ class TestStringify:
         s = stringify(e)
         assert "t=(1, 2)" in s
 
+    def test_stringify_quotes_string_fields(self):
+        """String field values are repr-quoted so they read like a Pydantic/dataclass instance."""
+        e = {
+            CLASSNAME: "mymod.MyClass",
+            VERSION: 1,
+            "__data__": {"name": "alice", "age": 30, "active": True},
+        }
+        s = stringify(e)
+        assert "name='alice'" in s
+        assert "age=30" in s
+        assert "active=True" in s
+
+    def test_stringify_strips_dagbag_module_prefix(self):
+        """DagBag's ``unusual_prefix_<sha>_`` is stripped from the displayed classname."""
+        e = {
+            CLASSNAME: "unusual_prefix_" + "a" * 40 + "_my_dag.MyModel",
+            VERSION: 1,
+            "__data__": {"field": "value"},
+        }
+        s = stringify(e)
+        assert "unusual_prefix_" not in s
+        assert "my_dag.MyModel@version=1" in s
+        assert "field='value'" in s
+
     @pytest.mark.parametrize(
         ("value", "expected"),
         [
@@ -194,7 +218,7 @@ class TestStringify:
         }
         result = stringify(e)
         assert "deltalake.table.DeltaTable@version=1" in result
-        assert "table_uri=s3://bucket/path" in result
+        assert "table_uri='s3://bucket/path'" in result
         assert "version=0" in result
 
     def test_stringify_empty_classname_error(self):

@@ -58,6 +58,7 @@ class IsAuthorizedRequest(TypedDict, total=False):
     entity_type: AvpEntities
     entity_id: str | None
     context: dict | None
+    team_name: str | None
 
 
 class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
@@ -87,6 +88,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         user: AwsAuthManagerUser,
         entity_id: str | None = None,
         context: dict | None = None,
+        team_name: str | None = None,
     ) -> bool:
         """
         Make an authorization decision against Amazon Verified Permissions.
@@ -102,7 +104,9 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         :param entity_id: the entity ID the user accesses. If not provided, all entities of the type will be
             considered.
         :param context: optional additional context to pass to Amazon Verified Permissions.
+        :param team_name: optional team name for multi-team authorization.
         """
+        context = self._enrich_context_with_team(context, team_name)
         entity_list = self._get_user_group_entities(user)
 
         self.log.debug(
@@ -260,6 +264,21 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         return [user_entity, *group_entities]
 
     @staticmethod
+    def _enrich_context_with_team(context: dict | None, team_name: str | None) -> dict | None:
+        """
+        Add team_name to context if provided.
+
+        :param context: existing context dict or None
+        :param team_name: team name to add to context
+        """
+        if not team_name:
+            return context
+        team_context = {"team_name": {"string": team_name}}
+        if context is None:
+            return team_context
+        return {**context, **team_context}
+
+    @staticmethod
     def _build_context(context: dict | None) -> dict | None:
         if context is None or len(context) == 0:
             return None
@@ -275,6 +294,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         :param request: the request information
         :param user: the user
         """
+        context = self._enrich_context_with_team(request.get("context"), request.get("team_name"))
         return prune_dict(
             {
                 "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
@@ -288,6 +308,6 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
                     "entityType": get_entity_type(request["entity_type"]),
                     "entityId": request.get("entity_id", "*"),
                 },
-                "context": self._build_context(request.get("context")),
+                "context": self._build_context(context),
             }
         )

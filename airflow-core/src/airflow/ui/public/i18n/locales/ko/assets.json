@@ -2,8 +2,24 @@
   "additional_data": "추가 데이터",
   "asset_many": "에셋들",
   "asset_one": "에셋",
+  "assetStateStore": {
+    "add": "에셋 상태 저장소 추가",
+    "clearAll": {
+      "resource": "모든 에셋 상태 저장소",
+      "title": "모든 에셋 상태 저장소 삭제",
+      "warning": "모든 에셋 상태 저장소가 삭제됩니다. 작업을 조율하기 위해 이 저장소를 사용하는 태스크는 저장된 메모리를 잃게 됩니다."
+    },
+    "delete": "에셋 상태 저장소 삭제",
+    "deleteWarning": "에셋이 저장된 상태 저장소 항목을 잃게 됩니다.",
+    "edit": "에셋 상태 저장소 편집",
+    "emptyState": "에셋 상태 저장소는 에셋 식별자 범위로 지정된 값을 저장하며, 모든 Dag 실행에서 공유됩니다. 워커는 Task SDK를 통해 에셋 상태 저장소에 값을 기록할 수 있습니다.",
+    "lastUpdatedBy": "마지막 수정자",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "에셋 상태 저장소"
+  },
   "consumingDags": "사용 중인 Dags",
-  "consumingTasks": "사용 중인 Tasks",
+  "consumingTasks": "사용 중인 태스크",
   "createEvent": {
     "button": "이벤트 생성",
     "manual": {
@@ -25,11 +41,12 @@
     },
     "title": "{{name}}에 대한 에셋 이벤트 생성"
   },
+  "events": "이벤트",
   "extra": "추가 정보",
   "group": "그룹",
   "lastAssetEvent": "마지막 에셋 이벤트",
   "name": "이름",
-  "producingTasks": "생성하는 태스크",
+  "producingTasks": "생성 중인 태스크",
   "scheduledDags": "스케줄 된 Dags",
   "scheduling": "스케줄링",
   "searchPlaceholder": "에셋 검색",

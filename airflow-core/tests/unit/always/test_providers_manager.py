@@ -37,6 +37,7 @@ from airflow.providers_manager import (
     PluginInfo,
     ProviderInfo,
     ProvidersManager,
+    RemoteLoggingInfo,
 )
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -45,6 +46,16 @@ if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
     from airflow.cli.cli_config import CLICommand
+
+
+class FakeRemoteLogIO:
+    """Importable stub used by remote-logging discovery tests."""
+
+    processors: tuple = ()
+
+    @classmethod
+    def from_config(cls):
+        return cls()
 
 
 def test_cleanup_providers_manager(cleanup_providers_manager):
@@ -162,6 +173,78 @@ class TestProviderManager:
                 provider_name="airflow.providers.common.sql",
             ),
         )
+
+    def test_providers_manager_register_remote_logging_by_scheme(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": f"{__name__}.FakeRemoteLogIO",
+                        "scheme": "fake",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        assert len(providers_manager._remote_logging_info_list) == 1
+        assert providers_manager._remote_logging_by_scheme["fake"] == RemoteLoggingInfo(
+            classpath=f"{__name__}.FakeRemoteLogIO",
+            scheme="fake",
+            package_name="fake.remote.logging",
+        )
+        assert "unknown" not in providers_manager._remote_logging_by_scheme
+
+    def test_providers_manager_register_remote_logging_duplicate_scheme_first_wins(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging.first"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": f"{__name__}.FakeRemoteLogIO",
+                        "scheme": "dup",
+                    }
+                ]
+            },
+        )
+        providers_manager._provider_dict["fake.remote.logging.second"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": f"{__name__}.FakeRemoteLogIO",
+                        "scheme": "dup",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        winner = providers_manager._remote_logging_by_scheme["dup"]
+        assert winner.package_name == "fake.remote.logging.first"
+        assert len(providers_manager._remote_logging_info_list) == 1
+        assert providers_manager._remote_logging_info_list[0].package_name == "fake.remote.logging.first"
+
+    def test_providers_manager_remote_logging_bad_class_filtered(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": "fake.module.does.not.exist.FakeRemoteLogIO",
+                        "scheme": "bad",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        assert "bad" not in providers_manager._remote_logging_by_scheme
+        assert providers_manager._remote_logging_info_list == []
 
     def test_connection_form_widgets(self, yaml_ui_metadata_counts):
         yaml_widgets, _ = yaml_ui_metadata_counts
@@ -428,6 +511,14 @@ class TestProvidersMetadataLoading:
         assert "relabeling" in behaviour
         assert "placeholders" in behaviour
 
+    def test_iter_connection_type_hook_ui_metadata_matches_field_behaviours(self):
+        """iter_connection_type_hook_ui_metadata should expose the same standard-field behaviour dict."""
+        pm = ProvidersManager()
+        pm.initialize_providers_hooks()
+        by_type = {m.connection_type: m for m in pm.iter_connection_type_hook_ui_metadata()}
+        assert "http" in by_type
+        assert by_type["http"].field_behaviour == pm._field_behaviours["http"]
+
     def test_ui_metadata_loading_without_hook_import(self):
         """Test that UI metadata loads from provider info without importing hook classes."""
         with patch("airflow.providers_manager.import_string") as mock_import:
@@ -474,3 +565,9 @@ class TestProvidersMetadataLoading:
             # Validate deprecated_provider_since is set correctly
             assert widgets_warning[0].message.deprecated_provider_since == "3.2.0"
             assert behaviour_warning[0].message.deprecated_provider_since == "3.2.0"
+
+    def test_already_initialized_provider_configs_emits_deprecation_warning(self):
+        """Test that already_initialized_provider_configs emits a DeprecationWarning."""
+        pm = ProvidersManager()
+        with pytest.warns(DeprecationWarning, match="already_initialized_provider_configs.*deprecated"):
+            pm.already_initialized_provider_configs

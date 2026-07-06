@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
@@ -38,11 +39,15 @@ export class ConfigurationPage extends BasePage {
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo("/configs");
+    await expect(async () => {
+      await this.navigateTo("/configs");
+      await this.page.waitForURL(/.*configs/, { timeout: 10_000 });
+      await this.waitForLoad();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.rows.first().waitFor({ state: "visible", timeout: 30_000 });
+    await expect(this.table).toBeVisible();
+    await expect(this.rows.first()).toBeVisible();
   }
 }

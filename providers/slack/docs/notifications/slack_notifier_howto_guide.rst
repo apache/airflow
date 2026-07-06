@@ -30,12 +30,15 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.slack.notifications.slack import send_slack_notification
 
     with DAG(
+        dag_id="slack_notifier",
+        schedule=None,
         start_date=datetime(2023, 1, 1),
+        catchup=False,
         on_success_callback=[
             send_slack_notification(
                 text="The Dag {{ dag.dag_id }} succeeded",

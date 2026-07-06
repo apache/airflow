@@ -20,9 +20,11 @@
 ################################
 ## Airflow API Server Ingress
 #################################
-{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-{{- if or .Values.ingress.apiServer.enabled .Values.ingress.enabled }}
-{{- $fullname := (include "airflow.fullname" .) }}
+{{- if and .Values.apiServer.enabled .Values.ingress.apiServer.enabled }}
+{{- if .Values.apiServer.httpRoute.enabled }}
+{{- fail "`ingress.apiServer.enabled` and `apiServer.httpRoute.enabled` are both set to `true`. The API server Ingress is an alternative to HTTPRoute (Gateway API); enable only one of them." }}
+{{- end }}
+{{- $fullname := include "airflow.fullname" . }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -33,7 +35,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.apiServer.labels) }}
+    {{- if or .Values.labels .Values.apiServer.labels }}
       {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   {{- with .Values.ingress.apiServer.annotations }}
@@ -43,17 +45,14 @@ spec:
   {{- if and .Values.ingress.apiServer.hosts (.Values.ingress.apiServer.hosts | first | kindIs "string" | not) }}
   {{- $anyTlsHosts := false -}}
   {{- range .Values.ingress.apiServer.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
   {{- $anyTlsHosts = true -}}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- if $anyTlsHosts }}
   tls:
   {{- range .Values.ingress.apiServer.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
     - hosts:
         - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
@@ -61,16 +60,8 @@ spec:
   {{- end }}
   {{- end }}
   {{- end }}
-  {{- else if .Values.ingress.apiServer.tls.enabled }}
-  tls:
-    - hosts:
-        {{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
-        - {{ tpl . $ | quote }}
-        {{- end }}
-      secretName: {{ .Values.ingress.apiServer.tls.secretName }}
-  {{- end }}
   rules:
-    {{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
+    {{- range .Values.ingress.apiServer.hosts | default (list "") }}
     - http:
         paths:
           {{- range $.Values.ingress.apiServer.precedingPaths }}
@@ -102,7 +93,7 @@ spec:
           {{- end }}
       {{- $hostname := . -}}
       {{- if . | kindIs "string" | not }}
-      {{- $hostname = .name -}}
+        {{- $hostname = .name -}}
       {{- end }}
       {{- if $hostname }}
       host: {{ tpl $hostname $ | quote }}
@@ -111,5 +102,4 @@ spec:
   {{- if .Values.ingress.apiServer.ingressClassName }}
   ingressClassName: {{ .Values.ingress.apiServer.ingressClassName }}
   {{- end }}
-{{- end }}
 {{- end }}

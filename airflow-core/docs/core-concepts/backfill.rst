@@ -18,8 +18,8 @@
 Backfill
 ========
 
-Backfill is when you create runs for past dates of a Dag.  Airflow provides a mechanism
-to do this through the CLI and REST API.  You provide a Dag, a start date, and an end date,
+Backfill is when you create runs for past dates of a Dag. Airflow provides a mechanism
+to do this through the CLI and REST API. You provide a Dag, a start date, and an end date,
 and Airflow will create runs in the range according to the Dag's schedule.
 
 Backfill does not make sense for Dags that don't have a time-based schedule.
@@ -45,13 +45,13 @@ the Dag ``max_active_runs`` setting.
 Run ordering
 ------------
 
-You can run your backfill in reverse, i.e. latest runs first.  The CLI option is ``--run-backwards``.
+You can run your backfill in reverse, i.e. latest runs first. The CLI option is ``--run-backwards``.
 
 Dry run
 -------
 
 Backfill dry run is a CLI option that will print out the dates that the
-backfill will consider creating runs for.  Whether or not they will be created
+backfill will consider creating runs for. Whether or not they will be created
 depends on your chosen reprocessing behavior and the states of any existing
 runs in the range at the time you actually run the backfill.
 
@@ -65,9 +65,9 @@ For CLI, below is an example command:
 .. code-block:: bash
 
     airflow backfill create --dag-id tutorial \
-        --start-date 2015-06-01 \
-        --end-date 2015-06-07 \
-        --reprocessing-behavior failed \
+        --from-date 2015-06-01 \
+        --to-date 2015-06-07 \
+        --reprocess-behavior failed \
         --max-active-runs 3 \
         --run-backwards \
         --dag-run-conf '{"my": "param"}'
@@ -87,3 +87,21 @@ For UI, follow the following steps:
 
 .. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)
+
+Partitioned Dag backfills
+-------------------------
+
+For Dags that use a partition-based timetable (e.g. ``CronPartitionTimetable``),
+the same ``--from-date`` / ``--to-date`` flags are used for all backfills.
+Airflow automatically detects whether the Dag is partitioned and interprets
+the date range as a partition-date range accordingly — one Dag run is created
+per partition within the window.
+
+Example: backfill the partitions from 2026-02-18 to 2026-02-20::
+
+    airflow backfill create --dag-id my_partitioned_dag \
+        --from-date 2026-02-18 \
+        --to-date 2026-02-20
+
+Concurrency is controlled by the same ``--max-active-runs`` option used for
+all backfills.

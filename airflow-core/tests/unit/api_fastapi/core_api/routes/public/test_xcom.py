@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
@@ -31,7 +33,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -41,6 +43,9 @@ from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clea
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
+
+if TYPE_CHECKING:
+    from airflow.sdk.types import MappedOperator
 
 pytestmark = pytest.mark.db_test
 
@@ -70,7 +75,7 @@ run_id = DagRun.generate_run_id(
 
 
 @provide_session
-def _create_xcom(key, value, backend, session=None) -> None:
+def _create_xcom(key, value, backend, *, session: Session = NEW_SESSION) -> None:
     XComModel.set(
         key=key,
         value=value,
@@ -82,7 +87,7 @@ def _create_xcom(key, value, backend, session=None) -> None:
 
 
 @provide_session
-def _create_dag_run(dag_maker, session=None):
+def _create_dag_run(dag_maker, *, session: Session = NEW_SESSION):
     with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date_parsed):
         EmptyOperator(task_id=TEST_TASK_ID)
     dag_maker.create_dagrun(
@@ -443,13 +448,16 @@ class TestGetXComEntries(TestXComEndpoint):
         }
 
     @provide_session
-    def _create_xcom_entries(self, dag_id, run_id, logical_date, task_id, mapped_ti=False, session=None):
+    def _create_xcom_entries(
+        self, dag_id, run_id, logical_date, task_id, mapped_ti=False, *, session: Session = NEW_SESSION
+    ):
         bundle_name = "testing"
         orm_dag_bundle = DagBundleModel(name=bundle_name)
         session.merge(orm_dag_bundle)
         session.flush()
 
         with DAG(dag_id=dag_id) as dag:
+            task: EmptyOperator | MappedOperator
             if mapped_ti:
                 task = MockOperator.partial(task_id=task_id).expand(arg1=[0, 1])
             else:
@@ -464,6 +472,7 @@ class TestGetXComEntries(TestXComEndpoint):
         )
         session.add(dagrun)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
         if mapped_ti:
             for i in [0, 1]:
                 ti = create_task_instance(task, run_id=run_id, map_index=i, dag_version_id=dag_version.id)
@@ -680,7 +689,7 @@ class TestCreateXComEntry(TestXComEndpoint):
             # Validate the created XCom response
             current_data = response.json()
             assert current_data["key"] == request_body.key
-            assert current_data["value"] == XComModel.serialize_value(request_body.value)
+            assert current_data["value"] == request_body.value
             assert current_data["dag_id"] == dag_id
             assert current_data["task_id"] == task_id
             assert current_data["run_id"] == dag_run_id
@@ -716,7 +725,7 @@ class TestCreateXComEntry(TestXComEndpoint):
         )
         assert get_resp.status_code == 200
         assert get_resp.json()["key"] == slash_key
-        assert get_resp.json()["value"] == json.dumps(TEST_XCOM_VALUE)
+        assert get_resp.json()["value"] == TEST_XCOM_VALUE
 
     @pytest.mark.parametrize(
         ("key", "value"),
@@ -736,6 +745,52 @@ class TestCreateXComEntry(TestXComEndpoint):
         detail = str(response.json()["detail"])
         assert "reserved serialization keys" in detail
         assert key in detail
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(
+                json.dumps({"__classname__": "airflow.sdk.definitions.connection.Connection"}),
+                id="classname-in-json-string",
+            ),
+            pytest.param(
+                json.dumps(
+                    {"nested": {"__type": "airflow.sdk.definitions.connection.Connection", "__var": {}}}
+                ),
+                id="nested-forbidden-in-json-string",
+            ),
+        ],
+    )
+    def test_create_xcom_entry_blocks_forbidden_keys_in_json_string(self, test_client, value):
+        """A forbidden payload submitted as a JSON string literal is blocked too.
+
+        ``_check_forbidden_xcom_keys._walk`` previously descended dict/list/tuple but not
+        ``str``, so a value like ``json.dumps({"__classname__": ...})`` slipped past the
+        filter and was reconstructed into a dict on a ``deserialize=true`` read.
+        """
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json={"key": "test_key", "value": value, "map_index": -1},
+        )
+        assert response.status_code == 422
+        assert "reserved serialization keys" in str(response.json()["detail"])
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("just a plain string", id="plain-string"),
+            pytest.param(json.dumps({"safe": "data", "count": 3}), id="benign-json-object-string"),
+            pytest.param(json.dumps(["a", "b"]), id="benign-json-array-string"),
+            pytest.param('{"not valid json', id="not-json"),
+        ],
+    )
+    def test_create_xcom_entry_allows_benign_string_values(self, test_client, value):
+        """String values that do not decode to a reserved-key structure stay accepted."""
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json={"key": "test_key", "value": value, "map_index": -1},
+        )
+        assert response.status_code != 422
 
 
 class TestDeleteXComEntry(TestXComEndpoint):
@@ -833,7 +888,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == json.dumps(patch_body["value"])
+            assert response.json()["value"] == patch_body["value"]
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
@@ -862,5 +917,56 @@ class TestPatchXComEntry(TestXComEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["key"] == slash_key
-        assert response.json()["value"] == json.dumps(new_value)
+        assert response.json()["value"] == new_value
+        check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [
+            ("__classname__", {"__classname__": "airflow.sdk.definitions.connection.Connection"}),
+            ("__type", {"__type": "airflow.sdk.definitions.connection.Connection", "__var": {}}),
+            ("__data__", {"nested": {"__data__": "malicious"}}),
+        ],
+    )
+    def test_patch_xcom_entry_blocks_forbidden_keys(self, test_client, key, value):
+        """Test that XCom update blocks deserialization metadata keys."""
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            json={"value": value, "map_index": -1},
+        )
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+
+    def test_patch_xcom_entry_blocks_forbidden_keys_in_json_string(self, test_client):
+        """A forbidden payload submitted as a JSON string literal is blocked on PATCH too."""
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            json={
+                "value": json.dumps({"__classname__": "airflow.sdk.definitions.connection.Connection"}),
+                "map_index": -1,
+            },
+        )
+        assert response.status_code == 422
+        assert "reserved serialization keys" in str(response.json()["detail"])
+
+    def test_patch_xcom_preserves_int_type(self, test_client, session):
+        """Test scenario described in #59032: if existing XCom value type is int,
+        after patching with different value, it should still be int in the API response.
+        """
+        key = "int_type_xcom"
+        # Create with int value
+        self._create_xcom(key, 42)
+        patch_value = 100
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
+            json={"value": patch_value},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["value"] == patch_value
+        assert isinstance(data["value"], int), f"Expected int type but got {type(data['value'])}"
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)

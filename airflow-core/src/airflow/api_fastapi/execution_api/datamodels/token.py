@@ -17,16 +17,31 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Literal
 from uuid import UUID
+
+from pydantic import ConfigDict
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
+TokenScope = Literal["execution", "workload"]
 
-# TODO: This is a placeholder for Task Identity Token schema.
+
+class TIClaims(BaseModel):
+    """
+    Validated JWT claims for a task identity token.
+
+    Only fields used by the Execution API (sub, scope) are explicitly typed.
+    JWTValidator already validates exp/iat/nbf/aud/etc. Extra claims are allowed.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    scope: TokenScope = "execution"
+
+
 class TIToken(BaseModel):
     """Task Identity Token."""
 
     id: UUID
-
-    claims: dict[str, Any]
+    claims: TIClaims

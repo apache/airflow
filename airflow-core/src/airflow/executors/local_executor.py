@@ -25,6 +25,7 @@ LocalExecutor.
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import multiprocessing
 import multiprocessing.sharedctypes
@@ -35,10 +36,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from airflow.executors import workloads
-from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads.callback import execute_callback_workload
-from airflow.utils.state import CallbackState, TaskInstanceState
+from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -49,8 +47,7 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
-    from structlog.typing import FilteringBoundLogger as Logger
-
+    from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadResultType
 
 
@@ -66,7 +63,7 @@ def _get_executor_process_title_prefix(team_name: str | None) -> str:
 
 def _run_worker(
     logger_name: str,
-    input: SimpleQueue[workloads.All | None],
+    input: SimpleQueue[ExecutorWorkload | None],
     output: Queue[WorkloadResultType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
     team_conf,
@@ -99,73 +96,20 @@ def _run_worker(
         with unread_messages:
             unread_messages.value -= 1
 
-        # Handle different workload types
-        if isinstance(workload, workloads.ExecuteTask):
-            try:
-                _execute_work(log, workload, team_conf)
-                output.put((workload.ti.key, TaskInstanceState.SUCCESS, None))
-            except Exception as e:
-                log.exception("Task execution failed.")
-                output.put((workload.ti.key, TaskInstanceState.FAILED, e))
+        if workload.running_state is not None:
+            output.put((workload.key, workload.running_state, None))
 
-        elif isinstance(workload, workloads.ExecuteCallback):
-            output.put((workload.callback.id, CallbackState.RUNNING, None))
-            try:
-                _execute_callback(log, workload, team_conf)
-                output.put((workload.callback.id, CallbackState.SUCCESS, None))
-            except Exception as e:
-                log.exception("Callback execution failed")
-                output.put((workload.callback.id, CallbackState.FAILED, e))
-
-        else:
-            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
-
-
-def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> None:
-    """
-    Execute command received and stores result state in queue.
-
-    :param log: Logger instance
-    :param workload: The workload to execute
-    :param team_conf: Team-specific executor configuration
-    """
-    from airflow.sdk.execution_time.supervisor import supervise
-
-    setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.ti.id}", log)
-
-    base_url = team_conf.get("api", "base_url", fallback="/")
-    # If it's a relative URL, use localhost:8080 as the default
-    if base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
-    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-
-    # This will return the exit code of the task process, but we don't care about that, just if the
-    # _supervisor_ had an error reporting the state back (which will result in an exception.)
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
-
-
-def _execute_callback(log: Logger, workload: workloads.ExecuteCallback, team_conf) -> None:
-    """
-    Execute a callback workload.
-
-    :param log: Logger instance
-    :param workload: The ExecuteCallback workload to execute
-    :param team_conf: Team-specific executor configuration
-    """
-    setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.callback.id}", log)
-
-    success, error_msg = execute_callback_workload(workload.callback, log)
-
-    if not success:
-        raise RuntimeError(error_msg or "Callback execution failed")
+        try:
+            BaseExecutor.run_workload(
+                workload,
+                server=get_execution_api_server_url(team_conf),
+                proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
+                subprocess_logs_to_stdout=True,
+            )
+            output.put((workload.key, workload.success_state, None))
+        except Exception as e:
+            log.exception("Workload execution failed.", workload_type=type(workload).__name__)
+            output.put((workload.key, workload.failure_state, e))
 
 
 class LocalExecutor(BaseExecutor):
@@ -178,19 +122,24 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
-    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
+    is_mp_using_fork: bool
 
     supports_multi_team: bool = True
     serve_logs: bool = True
     supports_callbacks: bool = True
+    supports_connection_test: bool = True
 
-    activity_queue: SimpleQueue[workloads.All | None]
+    activity_queue: SimpleQueue[ExecutorWorkload | None]
     result_queue: SimpleQueue[WorkloadResultType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Resolve the start method at instantiation, not at import: the component CLI entry may have
+        # set it via [<component>]/[core] mp_start_method before the executor is created.
+        self.is_mp_using_fork = multiprocessing.get_start_method() == "fork"
 
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of
@@ -213,6 +162,7 @@ class LocalExecutor(BaseExecutor):
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
+
         self._unread_messages = multiprocessing.Value(ctypes.c_uint)
 
         if self.is_mp_using_fork:
@@ -294,10 +244,12 @@ class LocalExecutor(BaseExecutor):
         self._check_workers()
 
     def _read_results(self):
-        while not self.result_queue.empty():
-            key, state, exc = self.result_queue.get()
-
-            self.change_state(key, state)
+        try:
+            while not self.result_queue.empty():
+                key, state, exc = self.result_queue.get()
+                self.change_state(key, state)
+        except (OSError, EOFError):
+            self.log.exception("Error reading from result queue")
 
     def end(self) -> None:
         """End the executor."""
@@ -314,28 +266,60 @@ class LocalExecutor(BaseExecutor):
             if proc.is_alive():
                 self.activity_queue.put(None)
 
-        for proc in self.workers.values():
-            if proc.is_alive():
-                proc.join()
-            proc.close()
+        # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
+        # Otherwise, a worker blocked on putting results into a full result_queue pipe will never exit,
+        # and an unbounded proc.join() will hang the scheduler indefinitely.
+        try:
+            for proc in self.workers.values():
+                while proc.is_alive():
+                    self._read_results()
+                    proc.join(timeout=0.05)
+        except (KeyboardInterrupt, SystemExit):
+            self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
+            for proc in self.workers.values():
+                self._terminate_worker_process(proc)
+            raise
+        finally:
+            # Process any extra results before closing
+            self._read_results()
 
-        # Process any extra results before closing
-        self._read_results()
+            for proc in self.workers.values():
+                with contextlib.suppress(ValueError):
+                    proc.close()
 
-        self.activity_queue.close()
-        self.result_queue.close()
+            self.activity_queue.close()
+            self.result_queue.close()
 
     def terminate(self):
-        """Terminate the executor is not doing anything."""
+        """Terminate all worker processes under control of the executor forcefully."""
+        self.log.info("Terminating all LocalExecutor worker processes.")
+        for proc in self.workers.values():
+            self._terminate_worker_process(proc)
+
+    def _terminate_worker_process(self, proc: multiprocessing.Process) -> None:
+        """Terminate a worker process, escalating to kill if it stays alive."""
+        if not proc.is_alive():
+            return
+
+        proc.terminate()
+        proc.join(timeout=0.2)
+        if proc.is_alive():
+            self.log.warning("Worker process %s did not stop after SIGTERM. Sending SIGKILL.", proc.pid)
+            proc.kill()
+            proc.join(timeout=0.2)
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
             self.activity_queue.put(workload)
-            # Remove from appropriate queue based on workload type
-            if isinstance(workload, workloads.ExecuteTask):
-                del self.queued_tasks[workload.ti.key]
-            elif isinstance(workload, workloads.ExecuteCallback):
-                del self.queued_callbacks[workload.callback.id]
+            # A valid workload will exist in exactly one of these dicts.
+            # One pop will succeed, the others will return None gracefully.
+            removed = (
+                self.queued_tasks.pop(workload.key, None)
+                or self.queued_callbacks.pop(workload.key, None)
+                or self.queued_connection_tests.pop(workload.key, None)
+            )
+            if not removed:
+                raise KeyError(f"Workload {workload.key} was not found in any queue")
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()

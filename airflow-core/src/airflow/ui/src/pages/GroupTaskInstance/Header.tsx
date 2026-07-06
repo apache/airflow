@@ -24,6 +24,7 @@ import { MdOutlineTask } from "react-icons/md";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
+import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
@@ -31,9 +32,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
-  Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
+  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
     entries.push({
-      label: translate("total", { state: translate(`states.${taskState.toLowerCase()}`) }),
+      label: translate("total", { state: translate(`states.${state.toLowerCase()}`) }),
       value: count,
     });
   });
@@ -54,7 +55,12 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   return (
     <Box>
       <HeaderCard
-        actions={<ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled />}
+        actions={
+          <>
+            <ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled />
+            <MarkTaskGroupAsButton groupTaskInstance={taskInstance} isHotkeyEnabled />
+          </>
+        }
         icon={<MdOutlineTask />}
         state={taskInstance.state}
         stats={stats}

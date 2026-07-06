@@ -26,7 +26,7 @@ import json
 import logging
 import traceback
 import warnings
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, Iterator, MutableMapping
 from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files as resource_files
@@ -223,6 +223,14 @@ class NotificationInfo(NamedTuple):
     package_name: str
 
 
+class RemoteLoggingInfo(NamedTuple):
+    """Remote logging IO handler registered by a provider."""
+
+    classpath: str
+    scheme: str
+    package_name: str
+
+
 class PluginInfo(NamedTuple):
     """Plugin class, name and provider it comes from."""
 
@@ -241,6 +249,15 @@ class HookInfo(NamedTuple):
     connection_type: str
     connection_testable: bool
     dialects: list[str] = []
+
+
+class ConnectionTypeHookUIMetadata(NamedTuple):
+    """Hook metadata for one connection type (connection UI); ``field_behaviour`` is standard fields."""
+
+    connection_type: str
+    hook_name: str
+    hook_class_name: str | None
+    field_behaviour: dict | None
 
 
 class ConnectionFormWidgetInfo(NamedTuple):
@@ -413,6 +430,8 @@ class ProvidersManager(LoggingMixin):
         self._dialect_provider_dict: dict[str, DialectInfo] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
+        # Keeps hook display names read from provider.yaml (hook-name field)
+        self._hook_name_dict: dict[str, str] = {}
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
@@ -421,6 +440,8 @@ class ProvidersManager(LoggingMixin):
         self._cli_command_provider_name_set: set[str] = set()
         self._extra_link_class_name_set: set[str] = set()
         self._logging_class_name_set: set[str] = set()
+        self._remote_logging_info_list: list[RemoteLoggingInfo] = []
+        self._remote_logging_by_scheme: dict[str, RemoteLoggingInfo] = {}
         self._auth_manager_class_name_set: set[str] = set()
         self._auth_manager_without_check_set: set[tuple[str, str]] = set()
         self._secrets_backend_class_name_set: set[str] = set()
@@ -560,6 +581,12 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         self._discover_logging()
 
+    @provider_info_cache("remote_logging")
+    def initialize_providers_remote_logging(self):
+        """Lazy initialization of providers remote logging IO handlers."""
+        self.initialize_providers_list()
+        self._discover_remote_logging()
+
     @provider_info_cache("secrets_backends")
     def initialize_providers_secrets_backends(self):
         """Lazy initialization of providers secrets_backends information."""
@@ -613,10 +640,6 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of provider configuration metadata and merge it into ``conf``."""
         self.initialize_providers_list()
         self._discover_config()
-        # Imported lazily to avoid a configuration/providers_manager import cycle during startup.
-        from airflow.configuration import conf
-
-        conf.load_providers_configuration()
 
     @provider_info_cache("plugins")
     def initialize_providers_plugins(self):
@@ -983,6 +1006,9 @@ class ProvidersManager(LoggingMixin):
                 if not connection_type or not hook_class_name:
                     continue
 
+                if hook_name := conn_config.get("hook-name"):
+                    self._hook_name_dict[connection_type] = hook_name
+
                 if conn_fields := conn_config.get("conn-fields"):
                     self._add_widgets(package_name, hook_class_name, connection_type, conn_fields)
 
@@ -1230,6 +1256,31 @@ class ProvidersManager(LoggingMixin):
                     if _correctness_check(provider_package, logging_class_name, provider):
                         self._logging_class_name_set.add(logging_class_name)
 
+    def _discover_remote_logging(self) -> None:
+        """Retrieve all remote logging IO handlers defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            entries = provider.data.get("remote-logging") or []
+            for entry in entries:
+                classpath = entry["classpath"]
+                if not _correctness_check(provider_package, classpath, provider):
+                    continue
+                info = RemoteLoggingInfo(
+                    classpath=classpath,
+                    scheme=entry["scheme"],
+                    package_name=provider_package,
+                )
+                if (existing := self._remote_logging_by_scheme.get(info.scheme)) is not None:
+                    log.warning(
+                        "Remote logging scheme '%s' is already registered by %s; ignoring "
+                        "duplicate registration from %s.",
+                        info.scheme,
+                        existing.package_name,
+                        info.package_name,
+                    )
+                    continue
+                self._remote_logging_info_list.append(info)
+                self._remote_logging_by_scheme[info.scheme] = info
+
     def _discover_secrets_backends(self) -> None:
         """Retrieve all secrets backends defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1353,6 +1404,45 @@ class ProvidersManager(LoggingMixin):
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict
 
+    def iter_connection_type_hook_ui_metadata(self) -> Iterator[ConnectionTypeHookUIMetadata]:
+        """
+        Yield hook metadata per connection type for the connection UI.
+
+        Does not import hook classes.
+        """
+        self.initialize_providers_hooks()
+        all_types = frozenset(self._hooks_lazy_dict) | frozenset(self._hook_provider_dict)
+        for conn_type in sorted(all_types):
+            raw_entry = self._hooks_lazy_dict._raw_dict.get(conn_type)
+            provider_entry = self._hook_provider_dict.get(conn_type)
+            if isinstance(raw_entry, HookInfo):
+                hook_name = raw_entry.hook_name
+                hook_class_name = raw_entry.hook_class_name
+            elif provider_entry:
+                hook_name = self._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = provider_entry.hook_class_name
+            else:
+                hook_name = self._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = None
+            yield ConnectionTypeHookUIMetadata(
+                connection_type=conn_type,
+                hook_name=hook_name,
+                hook_class_name=hook_class_name,
+                field_behaviour=self._field_behaviours.get(conn_type),
+            )
+
+    @property
+    def _connection_form_widgets_from_metadata(self) -> dict[str, ConnectionFormWidgetInfo]:
+        """Return connection form widgets from metadata without importing every hook."""
+        self.initialize_providers_hooks()
+        return self._connection_form_widgets
+
+    @property
+    def _field_behaviours_from_metadata(self) -> dict[str, dict]:
+        """Return field behaviour dicts from metadata without importing every hook."""
+        self.initialize_providers_hooks()
+        return self._field_behaviours
+
     @property
     def dialects(self) -> MutableMapping[str, DialectInfo]:
         """Return dictionary of connection_type-to-dialect mapping."""
@@ -1400,6 +1490,17 @@ class ProvidersManager(LoggingMixin):
         """Returns set of log task handlers class names."""
         self.initialize_providers_logging()
         return sorted(self._logging_class_name_set)
+
+    @property
+    def remote_logging_handlers(self) -> list[RemoteLoggingInfo]:
+        """Return all remote logging IO handlers contributed by providers."""
+        self.initialize_providers_remote_logging()
+        return list(self._remote_logging_info_list)
+
+    def remote_logging_handler_by_scheme(self, scheme: str) -> RemoteLoggingInfo | None:
+        """Return the remote logging IO handler registered for the given URL scheme, if any."""
+        self.initialize_providers_remote_logging()
+        return self._remote_logging_by_scheme.get(scheme)
 
     @property
     def secrets_backend_class_names(self) -> list[str]:
@@ -1457,6 +1558,18 @@ class ProvidersManager(LoggingMixin):
 
     @property
     def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        """
+        Return provider configs that have already been initialized.
+
+        .. deprecated:: 3.2.0
+            Use ``provider_configs`` instead.  This property is kept for backwards
+            compatibility and will be removed in a future version.
+        """
+        warnings.warn(
+            "already_initialized_provider_configs is deprecated. Use `provider_configs` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
 
     def _cleanup(self):
@@ -1471,6 +1584,8 @@ class ProvidersManager(LoggingMixin):
         self._field_behaviours.clear()
         self._extra_link_class_name_set.clear()
         self._logging_class_name_set.clear()
+        self._remote_logging_info_list.clear()
+        self._remote_logging_by_scheme.clear()
         self._auth_manager_class_name_set.clear()
         self._auth_manager_without_check_set.clear()
         self._secrets_backend_class_name_set.clear()

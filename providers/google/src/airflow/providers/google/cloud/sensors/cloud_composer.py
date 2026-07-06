@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-import json
+import warnings
 from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime, timedelta
 from functools import cached_property
@@ -27,8 +27,9 @@ from typing import TYPE_CHECKING
 
 from dateutil import parser
 from google.api_core.exceptions import NotFound
-from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
+from google.cloud.orchestration.airflow.service_v1.types import Environment
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowSkipException,
@@ -60,9 +61,9 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param environment_id: The name of the Composer environment.
-    :param composer_dag_id: The ID of executable DAG.
+    :param composer_dag_id: The ID of executable Dag.
     :param allowed_states: Iterable of allowed states, default is ``['success']``.
-    :param execution_range: execution DAGs time range. Sensor checks DAGs states only for DAGs which were
+    :param execution_range: execution Dags time range. Sensor checks Dags states only for Dags which were
         started in this time range. For yesterday, use [positive!] datetime.timedelta(days=1).
         For future, use [negative!] datetime.timedelta(days=-1). For specific time, use list of
         datetimes [datetime(2024,3,22,11,0,0), datetime(2024,3,22,12,0,0)].
@@ -105,9 +106,16 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
-        use_rest_api: bool = False,
         **kwargs,
     ) -> None:
+        if "use_rest_api" in kwargs:
+            warnings.warn(
+                "use_rest_api parameter is deprecated and will be removed on August 12, 2026. REST API now will be used by default.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=1,
+            )
+            kwargs.pop("use_rest_api")
+
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -120,7 +128,6 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        self.use_rest_api = use_rest_api
 
         if self.composer_dag_run_id and self.execution_range:
             self.log.warning(
@@ -178,51 +185,30 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
 
     def _pull_dag_runs(self) -> list[dict]:
         """Pull the list of dag runs."""
-        if self.use_rest_api:
-            try:
-                environment = self.hook.get_environment(
-                    project_id=self.project_id,
-                    region=self.region,
-                    environment_id=self.environment_id,
-                    timeout=self.timeout,
-                )
-            except NotFound as not_found_err:
-                self.log.info("The Composer environment %s does not exist.", self.environment_id)
-                raise AirflowException(not_found_err)
-            composer_airflow_uri = environment.config.airflow_uri
-
-            self.log.info(
-                "Pulling the DAG %s runs from the %s environment...",
-                self.composer_dag_id,
-                self.environment_id,
-            )
-            dag_runs_response = self.hook.get_dag_runs(
-                composer_airflow_uri=composer_airflow_uri,
-                composer_dag_id=self.composer_dag_id,
+        try:
+            environment = self.hook.get_environment(
+                project_id=self.project_id,
+                region=self.region,
+                environment_id=self.environment_id,
                 timeout=self.timeout,
             )
-            dag_runs = dag_runs_response["dag_runs"]
-        else:
-            cmd_parameters = (
-                ["-d", self.composer_dag_id, "-o", "json"]
-                if self._composer_airflow_version < 3
-                else [self.composer_dag_id, "-o", "json"]
-            )
-            dag_runs_cmd = self.hook.execute_airflow_command(
-                project_id=self.project_id,
-                region=self.region,
-                environment_id=self.environment_id,
-                command="dags",
-                subcommand="list-runs",
-                parameters=cmd_parameters,
-            )
-            cmd_result = self.hook.wait_command_execution_result(
-                project_id=self.project_id,
-                region=self.region,
-                environment_id=self.environment_id,
-                execution_cmd_info=ExecuteAirflowCommandResponse.to_dict(dag_runs_cmd),
-            )
-            dag_runs = json.loads(cmd_result["output"][0]["content"])
+        except NotFound as not_found_err:
+            self.log.info("The Composer environment %s does not exist.", self.environment_id)
+            raise AirflowException(not_found_err)
+        composer_airflow_uri = environment.config.airflow_uri
+
+        self.log.info(
+            "Pulling the Dag %s runs from the %s environment...",
+            self.composer_dag_id,
+            self.environment_id,
+        )
+        dag_runs_response = self.hook.get_dag_runs(
+            composer_airflow_uri=composer_airflow_uri,
+            composer_dag_id=self.composer_dag_id,
+            composer_airflow_version=self._composer_airflow_version,
+            timeout=self.timeout,
+        )
+        dag_runs = dag_runs_response["dag_runs"]
         return dag_runs
 
     def _check_dag_runs_states(
@@ -255,10 +241,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
 
     def _check_composer_dag_run_id_states(self, dag_runs: list[dict]) -> bool:
         for dag_run in dag_runs:
-            if (
-                dag_run["dag_run_id" if self.use_rest_api else "run_id"] == self.composer_dag_run_id
-                and dag_run["state"] in self.allowed_states
-            ):
+            if dag_run["dag_run_id"] == self.composer_dag_run_id and dag_run["state"] in self.allowed_states:
                 return True
         return False
 
@@ -281,7 +264,6 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
                     composer_airflow_version=self._composer_airflow_version,
-                    use_rest_api=self.use_rest_api,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
@@ -290,7 +272,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict):
         if event and event["status"] == "error":
             raise AirflowException(event["message"])
-        self.log.info("DAG %s has executed successfully.", self.composer_dag_id)
+        self.log.info("Dag %s has executed successfully.", self.composer_dag_id)
 
     @cached_property
     def hook(self) -> CloudComposerHook:
@@ -302,10 +284,10 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
 
 class CloudComposerExternalTaskSensor(BaseSensorOperator):
     """
-    Waits for a different DAG, task group, or task to complete for a specific composer environment.
+    Waits for a different Dag, task group, or task to complete for a specific composer environment.
 
     If both `composer_external_task_group_id` and `composer_external_task_id` are ``None`` (default), the sensor
-    waits for the DAG.
+    waits for the Dag.
     Values for `composer_external_task_group_id` and `composer_external_task_id` can't be set at the same time.
 
     By default, the CloudComposerExternalTaskSensor will wait for the external task to
@@ -346,7 +328,7 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
     :param composer_external_task_id: The task_id that contains the task you want to
         wait for. (templated)
     :param composer_external_task_ids: The list of task_ids that you want to wait for. (templated)
-        If ``None`` (default value) the sensor waits for the DAG. Either
+        If ``None`` (default value) the sensor waits for the Dag. Either
         composer_external_task_id or composer_external_task_ids can be passed to
         CloudComposerExternalTaskSensor, but not both.
     :param composer_external_task_group_id: The task_group_id that contains the task you want to
@@ -354,7 +336,7 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
     :param allowed_states: Iterable of allowed states, default is ``['success']``
     :param skipped_states: Iterable of states to make this task mark as skipped, default is ``None``
     :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
-    :param execution_range: execution DAGs time range. Sensor checks DAGs states only for DAGs which were
+    :param execution_range: execution Dags time range. Sensor checks Dags states only for Dags which were
         started in this time range. For yesterday, use [positive!] datetime.timedelta(days=1).
         For future, use [negative!] datetime.timedelta(days=-1). For specific time, use list of
         datetimes [datetime(2024,3,22,11,0,0), datetime(2024,3,22,12,0,0)].
@@ -540,13 +522,14 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         composer_airflow_uri = environment.config.airflow_uri
 
         self.log.info(
-            "Pulling the DAG '%s' task instances from the '%s' environment...",
+            "Pulling the Dag '%s' task instances from the '%s' environment...",
             self.composer_external_dag_id,
             self.environment_id,
         )
         task_instances_response = self.hook.get_task_instances(
             composer_airflow_uri=composer_airflow_uri,
             composer_dag_id=self.composer_external_dag_id,
+            composer_airflow_version=self._composer_airflow_version,
             query_parameters={
                 "execution_date_gte"
                 if self._composer_airflow_version < 3
@@ -608,27 +591,27 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
                 if self.soft_fail:
                     raise AirflowSkipException(
                         f"Some of the external tasks '{self.composer_external_task_ids}' "
-                        f"in DAG '{self.composer_external_dag_id}' failed. Skipping due to soft_fail."
+                        f"in Dag '{self.composer_external_dag_id}' failed. Skipping due to soft_fail."
                     )
                 raise ExternalTaskFailedError(
                     f"Some of the external tasks '{self.composer_external_task_ids}' "
-                    f"in DAG '{self.composer_external_dag_id}' failed."
+                    f"in Dag '{self.composer_external_dag_id}' failed."
                 )
             if self.composer_external_task_group_id:
                 if self.soft_fail:
                     raise AirflowSkipException(
                         f"The external task_group '{self.composer_external_task_group_id}' "
-                        f"in DAG '{self.composer_external_dag_id}' failed. Skipping due to soft_fail."
+                        f"in Dag '{self.composer_external_dag_id}' failed. Skipping due to soft_fail."
                     )
                 raise ExternalTaskGroupFailedError(
                     f"The external task_group '{self.composer_external_task_group_id}' "
-                    f"in DAG '{self.composer_external_dag_id}' failed."
+                    f"in Dag '{self.composer_external_dag_id}' failed."
                 )
             if self.soft_fail:
                 raise AirflowSkipException(
-                    f"The external DAG '{self.composer_external_dag_id}' failed. Skipping due to soft_fail."
+                    f"The external Dag '{self.composer_external_dag_id}' failed. Skipping due to soft_fail."
                 )
-            raise ExternalDagFailedError(f"The external DAG '{self.composer_external_dag_id}' failed.")
+            raise ExternalDagFailedError(f"The external Dag '{self.composer_external_dag_id}' failed.")
 
     def _handle_skipped_states(self, skipped_status: bool) -> None:
         """Handle skipped states and raise appropriate exceptions."""
@@ -636,15 +619,15 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
             if self.composer_external_task_ids:
                 raise AirflowSkipException(
                     f"Some of the external tasks '{self.composer_external_task_ids}' "
-                    f"in DAG '{self.composer_external_dag_id}' reached a state in our states-to-skip-on list. Skipping."
+                    f"in Dag '{self.composer_external_dag_id}' reached a state in our states-to-skip-on list. Skipping."
                 )
             if self.composer_external_task_group_id:
                 raise AirflowSkipException(
                     f"The external task_group '{self.composer_external_task_group_id}' "
-                    f"in DAG '{self.composer_external_dag_id}' reached a state in our states-to-skip-on list. Skipping."
+                    f"in Dag '{self.composer_external_dag_id}' reached a state in our states-to-skip-on list. Skipping."
                 )
             raise AirflowSkipException(
-                f"The external DAG '{self.composer_external_dag_id}' reached a state in our states-to-skip-on list. "
+                f"The external Dag '{self.composer_external_dag_id}' reached a state in our states-to-skip-on list. "
                 "Skipping."
             )
 
@@ -678,7 +661,7 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
             and not self.composer_external_task_ids
         ):
             self.log.info(
-                "Poking for DAG '%s' on Composer environment '%s' ... ",
+                "Poking for Dag '%s' on Composer environment '%s' ... ",
                 self.composer_external_dag_id,
                 self.environment_id,
             )
@@ -716,7 +699,7 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         elif event and event["status"] == "skipped":
             self._handle_skipped_states(True)
 
-        self.log.info("External tasks for DAG '%s' has executed successfully.", self.composer_external_dag_id)
+        self.log.info("External tasks for Dag '%s' has executed successfully.", self.composer_external_dag_id)
 
     @cached_property
     def hook(self) -> CloudComposerHook:

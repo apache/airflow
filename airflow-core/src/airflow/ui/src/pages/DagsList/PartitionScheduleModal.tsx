@@ -18,6 +18,7 @@
  */
 import { Heading, HStack, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
@@ -25,9 +26,11 @@ import { usePartitionedDagRunServiceGetPartitionedDagRuns } from "openapi/querie
 import type { PartitionedDagRunResponse } from "openapi/requests/types.gen";
 import { AssetProgressCell } from "src/components/AssetProgressCell";
 import { DataTable } from "src/components/DataTable";
+import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 
 type PartitionScheduleModalProps = {
   readonly dagId: string;
@@ -71,9 +74,24 @@ const getColumns = (
 
 export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionScheduleModalProps) => {
   const { t: translate } = useTranslation("common");
+  const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
+  const [pageIndex, setPageIndex] = useState(0);
+  const tableState = {
+    pagination: {
+      pageIndex,
+      pageSize,
+    },
+    sorting: [],
+  } satisfies TableState;
+  const { pagination } = tableState;
 
   const { data, error, isFetching, isLoading } = usePartitionedDagRunServiceGetPartitionedDagRuns(
-    { dagId, hasCreatedDagRunId: false },
+    {
+      dagId,
+      hasCreatedDagRunId: false,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+    },
     undefined,
     { enabled: open },
   );
@@ -82,8 +100,13 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
   const total = data?.total ?? 0;
   const columns = getColumns(translate, dagId);
 
+  const handleOpenChange = () => {
+    setPageIndex(0);
+    onClose();
+  };
+
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} scrollBehavior="inside" size="xl" unmountOnExit>
+    <Dialog.Root lazyMount onOpenChange={handleOpenChange} open={open} scrollBehavior="inside" unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <HStack>
@@ -97,9 +120,11 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
           <DataTable
             columns={columns}
             data={partitionedDagRuns}
+            initialState={tableState}
             isFetching={isFetching}
             isLoading={isLoading}
             modelName="partitionedDagRun"
+            onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
             showRowCountHeading={false}
             total={total}
           />

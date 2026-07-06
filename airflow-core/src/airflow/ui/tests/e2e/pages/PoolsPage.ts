@@ -31,7 +31,7 @@ export class PoolsPage extends BasePage {
   public constructor(page: Page) {
     super(page);
     this.addPoolButton = page.getByRole("button", { name: "Add Pool" });
-    this.cardList = page.locator('[data-testid="card-list"]');
+    this.cardList = page.getByTestId("card-list");
     this.searchInput = page.getByPlaceholder("Search Pools");
   }
 
@@ -40,19 +40,19 @@ export class PoolsPage extends BasePage {
 
     const dialog = this.page.getByRole("dialog");
 
-    await expect(dialog).toBeVisible({ timeout: 10_000 });
+    await expect(dialog).toBeVisible();
 
-    const nameInput = dialog.locator('input[name="name"]');
+    const nameInput = dialog.getByLabel("Name");
 
     await nameInput.fill(name);
 
-    const slotsInput = dialog.locator('input[type="number"]');
+    const slotsInput = dialog.getByLabel("Slots");
 
     await slotsInput.fill("");
     await slotsInput.fill(String(slots));
 
     if (description !== undefined && description !== "") {
-      const descriptionInput = dialog.locator("textarea");
+      const descriptionInput = dialog.getByLabel("Description");
 
       await descriptionInput.fill(description);
     }
@@ -68,7 +68,6 @@ export class PoolsPage extends BasePage {
 
     await saveButton.click();
     await responsePromise;
-    await this.page.waitForLoadState("networkidle");
   }
 
   public async deletePool(poolName: string): Promise<void> {
@@ -79,7 +78,7 @@ export class PoolsPage extends BasePage {
 
     const confirmDialog = this.page.getByRole("dialog");
 
-    await expect(confirmDialog).toBeVisible({ timeout: 10_000 });
+    await expect(confirmDialog).toBeVisible();
 
     const confirmDeleteButton = confirmDialog.getByRole("button", { name: "Delete" });
 
@@ -90,7 +89,6 @@ export class PoolsPage extends BasePage {
 
     await confirmDeleteButton.click();
     await responsePromise;
-    await this.page.waitForLoadState("networkidle");
   }
 
   public async editPoolSlots(poolName: string, newSlots: number): Promise<void> {
@@ -101,9 +99,9 @@ export class PoolsPage extends BasePage {
 
     const dialog = this.page.getByRole("dialog");
 
-    await expect(dialog).toBeVisible({ timeout: 10_000 });
+    await expect(dialog).toBeVisible();
 
-    const slotsInput = dialog.locator('input[type="number"]');
+    const slotsInput = dialog.getByLabel("Slots");
 
     await slotsInput.fill("");
     await slotsInput.fill(String(newSlots));
@@ -119,7 +117,6 @@ export class PoolsPage extends BasePage {
 
     await saveButton.click();
     await responsePromise;
-    await this.page.waitForLoadState("networkidle");
   }
 
   public getPoolCard(poolName: string): Locator {
@@ -127,52 +124,47 @@ export class PoolsPage extends BasePage {
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo(PoolsPage.poolsUrl);
-    await this.page.waitForURL("**/pools", { timeout: 15_000 });
-    await this.page.waitForLoadState("networkidle");
+    await expect(async () => {
+      await this.navigateTo(PoolsPage.poolsUrl);
+      await this.page.waitForURL("**/pools", { timeout: 15_000 });
+      await expect(this.addPoolButton).toBeVisible({ timeout: 15_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async verifyPoolExists(poolName: string): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
-
     const poolText = this.cardList.getByText(poolName, { exact: false });
 
-    await expect(poolText.first()).toBeVisible({ timeout: 10_000 });
+    await expect(poolText.first()).toBeVisible();
   }
 
   public async verifyPoolNotExists(poolName: string): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
-    await this.page.waitForTimeout(1000);
-
     const poolText = this.cardList.getByText(poolName, { exact: true });
 
-    await expect(poolText).toBeHidden({ timeout: 10_000 });
+    await expect(poolText).toBeHidden();
   }
 
   public async verifyPoolsListDisplays(): Promise<void> {
-    await expect(this.addPoolButton).toBeVisible({ timeout: 10_000 });
-    await expect(this.cardList).toBeVisible({ timeout: 10_000 });
+    await expect(this.addPoolButton).toBeVisible();
+    await expect(this.cardList).toBeVisible();
 
     const defaultPoolCard = this.cardList.getByText("default_pool", { exact: false });
 
-    await expect(defaultPoolCard.first()).toBeVisible({ timeout: 10_000 });
+    await expect(defaultPoolCard.first()).toBeVisible();
   }
 
   public async verifyPoolSlots(poolName: string, expectedSlots: number): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
-
     const slotsText = this.cardList.getByText(`${poolName} (${expectedSlots} Slots)`, { exact: false });
 
-    await expect(slotsText.first()).toBeVisible({ timeout: 10_000 });
+    await expect(slotsText.first()).toBeVisible();
   }
 
   public async verifyPoolUsageDisplays(poolName: string): Promise<void> {
     const poolCard = this.getPoolCard(poolName);
 
-    await expect(poolCard).toBeVisible({ timeout: 10_000 });
+    await expect(poolCard).toBeVisible();
 
     const slotsText = poolCard.getByText("Slots", { exact: false });
 
-    await expect(slotsText.first()).toBeVisible({ timeout: 10_000 });
+    await expect(slotsText.first()).toBeVisible();
   }
 }

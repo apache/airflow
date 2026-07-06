@@ -38,6 +38,22 @@ def get_provider_info():
         "operators": [
             {"integration-name": "Oracle", "python-modules": ["airflow.providers.oracle.operators.oracle"]}
         ],
+        "asset-uris": [
+            {
+                "schemes": ["oracle"],
+                "handler": "airflow.providers.oracle.assets.oracle.sanitize_uri",
+                "factory": "airflow.providers.oracle.assets.oracle.create_asset",
+                "to_openlineage_converter": "airflow.providers.oracle.assets.oracle.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["oracle"],
+                "handler": "airflow.providers.oracle.assets.oracle.sanitize_uri",
+                "factory": "airflow.providers.oracle.assets.oracle.create_asset",
+                "to_openlineage_converter": "airflow.providers.oracle.assets.oracle.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Oracle",
@@ -57,6 +73,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.oracle.hooks.oracle.OracleHook",
+                "hook-name": "Oracle",
                 "connection-type": "oracle",
             }
         ],

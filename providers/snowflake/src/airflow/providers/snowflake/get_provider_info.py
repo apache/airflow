@@ -33,6 +33,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-snowflake/operators/snowflake.rst",
                     "/docs/apache-airflow-providers-snowflake/operators/snowpark.rst",
+                    "/docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst",
                 ],
                 "logo": "/docs/integration-logos/Snowflake.png",
                 "tags": ["service"],
@@ -44,6 +45,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.snowflake.operators.snowflake",
                     "airflow.providers.snowflake.operators.snowpark",
+                    "airflow.providers.snowflake.operators.snowpark_containers",
                 ],
             }
         ],
@@ -53,12 +55,29 @@ def get_provider_info():
                 "name": "snowpark",
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["snowflake"],
+                "handler": "airflow.providers.snowflake.assets.snowflake.sanitize_uri",
+                "factory": "airflow.providers.snowflake.assets.snowflake.create_asset",
+                "to_openlineage_converter": "airflow.providers.snowflake.assets.snowflake.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["snowflake"],
+                "handler": "airflow.providers.snowflake.assets.snowflake.sanitize_uri",
+                "factory": "airflow.providers.snowflake.assets.snowflake.create_asset",
+                "to_openlineage_converter": "airflow.providers.snowflake.assets.snowflake.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Snowflake",
                 "python-modules": [
                     "airflow.providers.snowflake.hooks.snowflake",
                     "airflow.providers.snowflake.hooks.snowflake_sql_api",
+                    "airflow.providers.snowflake.hooks.snowflake_cortex_agent",
                 ],
             }
         ],
@@ -85,6 +104,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook",
+                "hook-name": "Snowflake",
                 "connection-type": "snowflake",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "host"],

@@ -32,12 +32,15 @@ from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
     GetTICount,
     GetXCom,
+    GetXComSequenceItem,
     GetXComSequenceSlice,
     SetXCom,
     TICount,
     XComResult,
+    XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
 
@@ -659,6 +662,13 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
             task_id = msg.task_id
             values = [v for k, v in expected_values.items() if k[0] == task_id and k[1] is not None]
             return XComSequenceSliceResult(root=values)
+        elif isinstance(msg, GetXComSequenceItem):
+            # The aggregated task-group value now resolves lazily, so iterating it fetches one item at a time.
+            task_id = msg.task_id
+            values = [v for k, v in expected_values.items() if k[0] == task_id and k[1] is not None]
+            if 0 <= msg.offset < len(values):
+                return XComSequenceIndexResult(root=values[msg.offset])
+            return ErrorResponse()
         elif isinstance(msg, GetTICount):
             # Handle TI count queries for upstream_map_indexes computation
             if msg.task_ids:
@@ -680,14 +690,14 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         ("tg.t2", 0): ["a", "b"],
         ("tg.t2", 1): [4],
         ("tg.t2", 2): ["z"],
-        ("t3", None): [["a", "b"], [4], ["z"]],
+        ("t3", -1): [["a", "b"], [4], ["z"]],
     }
 
     # We hard-code the number of expansions here as the server is in charge of that.
     expansion_per_task_id = {
         "tg.t1": range(3),
         "tg.t2": range(3),
-        "t3": [None],
+        "t3": [-1],
     }
     for task in dag.tasks:
         for map_index in expansion_per_task_id[task.task_id]:

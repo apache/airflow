@@ -19,3 +19,4 @@
 
 export * from "./ColorModeProvider";
 export * from "./useColorMode";
+export * from "./useMonacoTheme";

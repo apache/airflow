@@ -36,10 +36,33 @@ from tenacity import (
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.common.compat.sdk import AirflowException
 
 DEFAULT_LOG_SUFFIX = "output"
 ERROR_LOG_SUFFIX = "error"
+
+
+def get_glue_log_group_names(job_run: dict[str, Any]) -> tuple[str, str]:
+    """Extract the output and error CloudWatch log group names from a Glue job run response."""
+    log_group_prefix = job_run["LogGroupName"]
+    return (
+        f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}",
+        f"{log_group_prefix}/{ERROR_LOG_SUFFIX}",
+    )
+
+
+def format_glue_logs(fetched_logs: list[str], log_group: str) -> str:
+    """
+    Format fetched CloudWatch log messages for display.
+
+    Shared between ``GlueJobHook.print_job_logs`` and ``GlueJobCompleteTrigger._forward_logs``
+    so that both the sync and async paths produce identical output.
+    """
+    if fetched_logs:
+        messages = "\t".join(line.rstrip() + "\n" for line in fetched_logs)
+        return f"Glue Job Run {log_group} Logs:\n\t{messages}"
+    return f"No new log from the Glue Job in {log_group}"
 
 
 class GlueJobHook(AwsBaseHook):
@@ -350,22 +373,14 @@ class GlueJobHook(AwsBaseHook):
                 else:
                     raise
 
-            if len(fetched_logs):
-                # Add a tab to indent those logs and distinguish them from airflow logs.
-                # Log lines returned already contain a newline character at the end.
-                messages = "\t".join(fetched_logs)
-                self.log.info("Glue Job Run %s Logs:\n\t%s", log_group, messages)
-            else:
-                self.log.info("No new log from the Glue Job in %s", log_group)
+            self.log.info(format_glue_logs(fetched_logs, log_group))
             return next_token
 
-        log_group_prefix = job_run["LogGroupName"]
-        log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
-        log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
+        log_group_output, log_group_error = get_glue_log_group_names(job_run)
         # one would think that the error log group would contain only errors, but it actually contains
         # a lot of interesting logs too, so it's valuable to have both
         continuation_tokens.output_stream_continuation = display_logs_from(
-            log_group_default, continuation_tokens.output_stream_continuation
+            log_group_output, continuation_tokens.output_stream_continuation
         )
         continuation_tokens.error_stream_continuation = display_logs_from(
             log_group_error, continuation_tokens.error_stream_continuation
@@ -471,6 +486,8 @@ class GlueJobHook(AwsBaseHook):
         :return: True if job was updated and false otherwise
         """
         job_name = job_kwargs.pop("Name")
+        # Glue ``update_job`` does not accept ``Tags`` in ``JobUpdate``; reconcile them separately.
+        tags_updated = self.update_tags(job_name, job_kwargs.pop("Tags")) if "Tags" in job_kwargs else False
         current_job = self.conn.get_job(JobName=job_name)["Job"]
 
         update_config = {
@@ -481,7 +498,34 @@ class GlueJobHook(AwsBaseHook):
             self.conn.update_job(JobName=job_name, JobUpdate=job_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
-        return False
+        return tags_updated
+
+    def update_tags(self, job_name: str, job_tags: dict) -> bool:
+        """
+        Reconcile a job's tags with the desired set.
+
+        Glue manages tags outside of ``update_job``, so adds/updates go through
+        ``tag_resource`` and removals through ``untag_resource``.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.tag_resource`
+            - :external+boto3:py:meth:`Glue.Client.untag_resource`
+
+        :param job_name: Name of the job for which to update tags
+        :param job_tags: Desired tags. Keys absent from this mapping are removed from the job.
+        :return: True if any tag was added, changed, or removed, False otherwise
+        """
+        account_number = StsHook(aws_conn_id=self.aws_conn_id).get_account_number()
+        job_arn = f"arn:{self.conn_partition}:glue:{self.conn_region_name}:{account_number}:job/{job_name}"
+        current_tags: dict = self.conn.get_tags(ResourceArn=job_arn)["Tags"]
+
+        if tags_to_add := {key: value for key, value in job_tags.items() if current_tags.get(key) != value}:
+            self.log.info("Updating job tags: %s", job_name)
+            self.conn.tag_resource(ResourceArn=job_arn, TagsToAdd=tags_to_add)
+        if tags_to_remove := [key for key in current_tags if key not in job_tags]:
+            self.log.info("Removing job tags: %s", job_name)
+            self.conn.untag_resource(ResourceArn=job_arn, TagsToRemove=tags_to_remove)
+        return bool(tags_to_add or tags_to_remove)
 
     def get_or_create_glue_job(self) -> str | None:
         """

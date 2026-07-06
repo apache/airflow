@@ -31,12 +31,22 @@ from airflow.sdk._shared.providers_discovery import (
     LazyDictWithCache,
     ProviderInfo,
 )
-from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime, RemoteLoggingInfo
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
 PY313 = sys.version_info >= (3, 13)
+
+
+class FakeRemoteLogIO:
+    """Importable stub used by remote-logging discovery tests."""
+
+    processors: tuple = ()
+
+    @classmethod
+    def from_config(cls):
+        return cls()
 
 
 def test_cleanup_providers_manager_runtime(cleanup_providers_manager):
@@ -237,6 +247,12 @@ class TestProvidersManagerRuntime:
                 "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
             ]
 
+    def test_already_initialized_provider_configs_emits_deprecation_warning(self):
+        """Test that already_initialized_provider_configs emits a DeprecationWarning."""
+        pm = ProvidersManagerTaskRuntime()
+        with pytest.warns(DeprecationWarning, match="already_initialized_provider_configs.*deprecated"):
+            pm.already_initialized_provider_configs
+
     def test_initialize_provider_configs_can_reload_sdk_conf(self):
         from airflow.sdk.configuration import conf
 
@@ -260,7 +276,7 @@ class TestProvidersManagerRuntime:
             with patch.object(providers_manager, "initialize_providers_list"):
                 providers_manager.initialize_provider_configs()
 
-        conf.restore_core_default_configuration()
+        conf.invalidate_cache()
         try:
             initialize_provider_configs()
             assert conf.get("test_sdk_provider", "test_option") == "provider-default"
@@ -270,4 +286,62 @@ class TestProvidersManagerRuntime:
             initialize_provider_configs()
             assert conf.get("test_sdk_provider", "test_option") == "provider-default"
         finally:
-            conf.restore_core_default_configuration()
+            conf.invalidate_cache()
+
+    def test_register_remote_logging_by_scheme(self):
+        providers_manager = ProvidersManagerTaskRuntime()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": f"{__name__}.FakeRemoteLogIO",
+                        "scheme": "fake",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        assert len(providers_manager._remote_logging_info_list) == 1
+        assert providers_manager._remote_logging_by_scheme["fake"] == RemoteLoggingInfo(
+            classpath=f"{__name__}.FakeRemoteLogIO",
+            scheme="fake",
+            package_name="fake.remote.logging",
+        )
+
+    def test_register_remote_logging_duplicate_scheme_first_wins(self):
+        providers_manager = ProvidersManagerTaskRuntime()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging.first"] = ProviderInfo(
+            version="0.0.1",
+            data={"remote-logging": [{"classpath": f"{__name__}.FakeRemoteLogIO", "scheme": "dup"}]},
+        )
+        providers_manager._provider_dict["fake.remote.logging.second"] = ProviderInfo(
+            version="0.0.1",
+            data={"remote-logging": [{"classpath": f"{__name__}.FakeRemoteLogIO", "scheme": "dup"}]},
+        )
+        providers_manager._discover_remote_logging()
+        assert providers_manager._remote_logging_by_scheme["dup"].package_name == (
+            "fake.remote.logging.first"
+        )
+        assert len(providers_manager._remote_logging_info_list) == 1
+        assert providers_manager._remote_logging_info_list[0].package_name == "fake.remote.logging.first"
+
+    def test_register_remote_logging_bad_class_filtered(self):
+        providers_manager = ProvidersManagerTaskRuntime()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.remote.logging"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "remote-logging": [
+                    {
+                        "classpath": "fake.module.does.not.exist.FakeRemoteLogIO",
+                        "scheme": "bad",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_remote_logging()
+        assert "bad" not in providers_manager._remote_logging_by_scheme
+        assert providers_manager._remote_logging_info_list == []

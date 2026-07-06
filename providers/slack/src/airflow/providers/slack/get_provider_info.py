@@ -82,6 +82,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.slack.hooks.slack.SlackHook",
+                "hook-name": "Slack API",
                 "connection-type": "slack",
                 "ui-field-behaviour": {
                     "hidden-fields": ["login", "port", "host", "schema", "extra"],
@@ -113,6 +114,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook",
+                "hook-name": "Slack Incoming Webhook",
                 "connection-type": "slackwebhook",
                 "ui-field-behaviour": {
                     "hidden-fields": ["login", "port", "extra"],

@@ -36,16 +36,19 @@
 
     Connection types <connections/pydantic_ai>
     MCP connection <connections/mcp>
-    Hooks <hooks/pydantic_ai>
+    Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>
+    Retry Policies <retry_policies>
     HITL Review <hitl_review>
+    Observability <observability>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/common/ai/index>
 
 .. toctree::
@@ -80,7 +83,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 0.0.1
+Release: 0.6.0
 
 Provider package
 ----------------
@@ -104,13 +107,13 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.1``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=1.34.0``
+``pydantic-ai-slim``                        ``>=2.0.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -119,16 +122,47 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai[common.compat]
+    pip install apache-airflow-providers-common-ai[common.sql]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-`apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_            ``standard``
-==================================================================================================================  =================
+============================================================================================================  ==============
+Dependent package                                                                                             Extra
+============================================================================================================  ==============
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
+`apache-airflow-providers-git <https://airflow.apache.org/docs/apache-airflow-providers-git>`_                ``git``
+============================================================================================================  ==============
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-common-ai[anthropic]
+
+
+==============  ==========================================================================================================
+Extra           Dependencies
+==============  ==========================================================================================================
+``anthropic``   ``pydantic-ai-slim[anthropic]``
+``bedrock``     ``pydantic-ai-slim[bedrock]``
+``google``      ``pydantic-ai-slim[google]``
+``openai``      ``pydantic-ai-slim[openai]``
+``mcp``         ``pydantic-ai-slim[mcp]``
+``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
+``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=0.11.0``
+``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
+``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
+``sql``         ``apache-airflow-providers-common-sql``, ``sqlglot>=30.0.0``
+``common.sql``  ``apache-airflow-providers-common-sql``
+``langchain``   ``langchain>=1.0.0``
+``llamaindex``  ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
+``pdf``         ``pypdf>=4.0.0``
+``docx``        ``python-docx>=1.0.0``
+``git``         ``apache-airflow-providers-git``
+==============  ==========================================================================================================
 
 Downloading official packages
 -----------------------------
@@ -136,5 +170,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 0.0.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.0.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.0.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.0.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 0.0.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.0.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.0.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.0.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.6.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.6.0-py3-none-any.whl.sha512>`__)

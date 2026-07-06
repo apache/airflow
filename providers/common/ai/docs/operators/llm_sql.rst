@@ -110,6 +110,10 @@ and safety validation:
     :start-after: [START howto_decorator_llm_sql]
     :end-before: [END howto_decorator_llm_sql]
 
+The callable may also return a non-empty ``Sequence[UserContent]`` for
+multimodal inputs -- see
+:ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>`.
+
 Dynamic Task Mapping
 --------------------
 

@@ -91,9 +91,50 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
-                title: Response Next Run Assets
+                $ref: '#/components/schemas/NextRunAssetsResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats:
+    get:
+      tags:
+      - DagRun
+      summary: Get Dag Run Stats
+      description: Get duration statistics for a DAG based on its historical completed
+        runs.
+      operationId: get_dag_run_stats
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagRunStatsResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -111,6 +152,22 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       - name: dag_id
         in: query
         required: false
@@ -225,7 +282,7 @@ paths:
       tags:
       - DAG
       summary: Get Dags
-      description: Get DAGs with recent DagRun.
+      description: Get Dags with recent DagRun.
       operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
@@ -299,12 +356,43 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
+            \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Id Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -313,12 +401,43 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter\
+            \ when possible."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``dag_display_name_prefix_pattern`` parameter when possible."
+      - name: dag_display_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Dag Display Name Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       - name: exclude_stale
         in: query
         required: false
@@ -571,7 +690,7 @@ paths:
       tags:
       - Dashboard
       summary: Dag Stats
-      description: Return basic DAG stats with counts of DAGs in various states.
+      description: Return basic Dag stats with counts of Dags in various states.
       operationId: dag_stats
       responses:
         '200':
@@ -587,9 +706,15 @@ paths:
     get:
       tags:
       - Deadlines
-      summary: Get Dag Run Deadlines
-      description: Get all deadlines for a specific DAG run.
-      operationId: get_dag_run_deadlines
+      summary: Get Deadlines
+      description: 'Get deadlines for a Dag run.
+
+
+        This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve
+        Deadlines for all
+
+        Dags and Dag runs.'
+      operationId: get_deadlines
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -631,13 +756,93 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
-            created_at, alert_name`'
+            created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
           default:
           - deadline_time
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, deadline_time,
-          created_at, alert_name`'
+          created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
+      - name: missed
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Missed
+      - name: deadline_time_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gte
+      - name: deadline_time_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gt
+      - name: deadline_time_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lte
+      - name: deadline_time_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lt
+      - name: last_updated_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Gte
+      - name: last_updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Gt
+      - name: last_updated_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Lte
+      - name: last_updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Lt
       responses:
         '200':
           description: Successful Response
@@ -645,6 +850,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeadlineCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/deadlineAlerts:
+    get:
+      tags:
+      - Deadlines
+      summary: Get Dag Deadline Alerts
+      description: Get all deadline alerts defined on a Dag.
+      operationId: get_dag_deadline_alerts
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, created_at,
+            name, interval`'
+          default:
+          - created_at
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, created_at, name,
+          interval`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeadlineAlertCollectionResponse'
         '404':
           content:
             application/json:
@@ -726,6 +1005,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StructureDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -952,12 +1237,42 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``triggering_user`` parameter when possible."
+      - name: triggering_user_prefix
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Triggering User Prefix
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -1095,12 +1410,42 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
+            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
+            \ the database from using B-tree indexes, which can be very slow on large\
+            \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
+          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
+          \ the equivalent ``triggering_user`` parameter when possible."
+      - name: triggering_user_prefix
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Triggering User Prefix
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
       responses:
         '200':
           description: Successful Response
@@ -1145,9 +1490,11 @@ paths:
         progressively without waiting for all runs to complete.
 
 
-        The serialized Dag structure is loaded once and reused for all runs that
+        The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
 
-        share the same ``dag_version_id``, avoiding repeated deserialization.'
+        (keyed by ``dag_version_id``), which avoids repeated deserialization across
+
+        runs of the same version *and* across requests.'
       operationId: get_grid_ti_summaries_stream
       security:
       - OAuth2PasswordBearer: []
@@ -1242,7 +1589,7 @@ paths:
       tags:
       - Calendar
       summary: Get Calendar
-      description: Get calendar data for a DAG including historical and planned DAG
+      description: Get calendar data for a Dag including historical and planned Dag
         runs.
       operationId: get_calendar
       security:
@@ -1405,6 +1752,123 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AssetExpressionAlias:
+      properties:
+        alias:
+          $ref: '#/components/schemas/AssetExpressionAliasInfo'
+      type: object
+      required:
+      - alias
+      title: AssetExpressionAlias
+      description: 'An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.'
+    AssetExpressionAliasInfo:
+      properties:
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+      type: object
+      required:
+      - name
+      - group
+      title: AssetExpressionAliasInfo
+      description: Body of an ``alias`` leaf node.
+    AssetExpressionAll:
+      properties:
+        all:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: All
+      type: object
+      required:
+      - all
+      title: AssetExpressionAll
+      description: 'An "and" node: ``{"all": [...]}`` -- satisfied when all children
+        are satisfied.'
+    AssetExpressionAny:
+      properties:
+        any:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: Any
+      type: object
+      required:
+      - any
+      title: AssetExpressionAny
+      description: 'An "or" node: ``{"any": [...]}`` -- satisfied when any child is
+        satisfied.'
+    AssetExpressionAsset:
+      properties:
+        asset:
+          $ref: '#/components/schemas/AssetExpressionAssetInfo'
+      type: object
+      required:
+      - asset
+      title: AssetExpressionAsset
+      description: 'An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group":
+        ...}}``.'
+    AssetExpressionAssetInfo:
+      properties:
+        uri:
+          type: string
+          title: Uri
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+        id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Id
+      type: object
+      required:
+      - uri
+      - name
+      - group
+      title: AssetExpressionAssetInfo
+      description: 'Body of an ``asset`` leaf node.
+
+
+        ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when
+        the expression is
+
+        persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``.
+        It is left
+
+        optional so a row persisted before id-enrichment (or migrated from the pre-3.0
+        dataset format)
+
+        degrades gracefully instead of failing response validation.'
+    AssetExpressionRef:
+      properties:
+        asset_ref:
+          additionalProperties:
+            type: string
+          type: object
+          title: Asset Ref
+      type: object
+      required:
+      - asset_ref
+      title: AssetExpressionRef
+      description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}``
+        or ``{"asset_ref": {"uri": ...}}``.'
     AuthenticatedMeResponse:
       properties:
         id:
@@ -1553,6 +2017,11 @@ components:
           - sensor
           - trigger
           title: Type
+        team:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team
       type: object
       required:
       - id
@@ -1647,6 +2116,11 @@ components:
         multi_team:
           type: boolean
           title: Multi Team
+        rerun_with_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Rerun With Latest Version
       type: object
       required:
       - fallback_page_limit
@@ -1871,7 +2345,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -1891,6 +2367,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -1951,8 +2430,12 @@ components:
           title: Owners
         asset_expression:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
           - type: 'null'
           title: Asset Expression
         latest_dag_runs:
@@ -1968,6 +2451,11 @@ components:
         is_favorite:
           type: boolean
           title: Is Favorite
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this Dag's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -1990,6 +2478,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -2006,6 +2495,7 @@ components:
       - latest_dag_runs
       - pending_actions
       - is_favorite
+      - is_backfillable
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
@@ -2025,12 +2515,24 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
+    DagRunStatsResponse:
+      properties:
+        duration:
+          anyOf:
+          - $ref: '#/components/schemas/DurationStats'
+          - type: 'null'
+      type: object
+      required:
+      - duration
+      title: DagRunStatsResponse
+      description: DAG Run statistics serializer for responses.
     DagRunType:
       type: string
       enum:
       - backfill
       - scheduled
       - manual
+      - operator_triggered
       - asset_triggered
       - asset_materialization
       title: DagRunType
@@ -2052,7 +2554,7 @@ components:
       - dag_id
       - dag_display_name
       title: DagTagResponse
-      description: DAG Tag serializer for responses.
+      description: Dag Tag serializer for responses.
     DagVersionResponse:
       properties:
         id:
@@ -2121,6 +2623,52 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineAlertCollectionResponse:
+      properties:
+        deadline_alerts:
+          items:
+            $ref: '#/components/schemas/DeadlineAlertResponse'
+          type: array
+          title: Deadline Alerts
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deadline_alerts
+      - total_entries
+      title: DeadlineAlertCollectionResponse
+      description: DeadlineAlert Collection serializer for responses.
+    DeadlineAlertResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        reference_type:
+          type: string
+          title: Reference Type
+        interval:
+          type: number
+          title: Interval
+          description: Interval in seconds between deadline evaluations.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - reference_type
+      - interval
+      - created_at
+      title: DeadlineAlertResponse
+      description: DeadlineAlert serializer for responses.
     DeadlineCollectionResponse:
       properties:
         deadlines:
@@ -2154,24 +2702,65 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        alert_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Alert Id
         alert_name:
           anyOf:
           - type: string
           - type: 'null'
           title: Alert Name
-        alert_description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Alert Description
       type: object
       required:
       - id
       - deadline_time
       - missed
       - created_at
+      - dag_id
+      - dag_run_id
       title: DeadlineResponse
       description: Deadline serializer for responses.
+    DurationStats:
+      properties:
+        mean:
+          type: number
+          title: Mean
+        mode:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Mode
+        p50:
+          type: number
+          title: P50
+        p90:
+          type: number
+          title: P90
+        p95:
+          type: number
+          title: P95
+        p99:
+          type: number
+          title: P99
+      type: object
+      required:
+      - mean
+      - mode
+      - p50
+      - p90
+      - p95
+      - p99
+      title: DurationStats
+      description: Duration statistics for a DAG across historical runs.
     EdgeResponse:
       properties:
         source_id:
@@ -2214,6 +2803,8 @@ components:
       - text
       - href
       title: ExtraMenuItem
+      description: Define a menu item that can be added to the menu by auth managers
+        or plugins.
     GanttResponse:
       properties:
         dag_id:
@@ -2249,6 +2840,18 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
+        scheduled_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled Dttm
+        queued_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued Dttm
         start_date:
           anyOf:
           - type: string
@@ -2275,6 +2878,8 @@ components:
       - task_display_name
       - try_number
       - state
+      - scheduled_dttm
+      - queued_dttm
       - start_date
       - end_date
       title: GanttTaskInstance
@@ -2332,6 +2937,11 @@ components:
             - teardown
           - type: 'null'
           title: Setup Teardown Type
+        doc_md:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Doc Md
       type: object
       required:
       - id
@@ -2657,6 +3267,10 @@ components:
           - type: integer
           - type: 'null'
           title: Dag Version Number
+        has_note:
+          type: boolean
+          title: Has Note
+          default: false
       type: object
       required:
       - task_id
@@ -2676,6 +3290,7 @@ components:
       - Config
       - Connections
       - Dags
+      - Deadlines
       - Docs
       - Jobs
       - Plugins
@@ -2703,6 +3318,89 @@ components:
       - extra_menu_items
       title: MenuItemCollectionResponse
       description: Menu Item Collection serializer for responses.
+    NextRunAssetEventResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        uri:
+          type: string
+          title: Uri
+        last_update:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Update
+        received_count:
+          type: integer
+          title: Received Count
+          default: 0
+        required_count:
+          type: integer
+          title: Required Count
+          default: 1
+        received_keys:
+          items:
+            type: string
+          type: array
+          title: Received Keys
+        required_keys:
+          items:
+            type: string
+          type: array
+          title: Required Keys
+        is_rollup:
+          type: boolean
+          title: Is Rollup
+          default: false
+        mapper_error:
+          type: boolean
+          title: Mapper Error
+          default: false
+        asset_inactive:
+          type: boolean
+          title: Asset Inactive
+          default: false
+      type: object
+      required:
+      - id
+      - name
+      - uri
+      title: NextRunAssetEventResponse
+      description: One asset event in the ``next_run_assets`` payload.
+    NextRunAssetsResponse:
+      properties:
+        asset_expression:
+          anyOf:
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          - type: 'null'
+          title: Asset Expression
+        events:
+          items:
+            $ref: '#/components/schemas/NextRunAssetEventResponse'
+          type: array
+          title: Events
+        pending_partition_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pending Partition Count
+      type: object
+      required:
+      - events
+      title: NextRunAssetsResponse
+      description: Response for the ``next_run_assets`` endpoint.
     NodeResponse:
       properties:
         id:
@@ -2725,6 +3423,11 @@ components:
           - sensor
           - trigger
           title: Type
+        team:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team
         children:
           anyOf:
           - items:
@@ -2786,12 +3489,44 @@ components:
         received:
           type: boolean
           title: Received
+        received_count:
+          type: integer
+          title: Received Count
+        required_count:
+          type: integer
+          title: Required Count
+        received_keys:
+          items:
+            type: string
+          type: array
+          title: Received Keys
+        required_keys:
+          items:
+            type: string
+          type: array
+          title: Required Keys
+        is_rollup:
+          type: boolean
+          title: Is Rollup
+          default: false
+        mapper_error:
+          type: boolean
+          title: Mapper Error
+          default: false
+        asset_inactive:
+          type: boolean
+          title: Asset Inactive
+          default: false
       type: object
       required:
       - asset_id
       - asset_name
       - asset_uri
       - received
+      - received_count
+      - required_count
+      - received_keys
+      - required_keys
       title: PartitionedDagRunAssetResponse
       description: Asset info within a partitioned Dag run detail.
     PartitionedDagRunCollectionResponse:
@@ -2808,8 +3543,12 @@ components:
           anyOf:
           - additionalProperties:
               anyOf:
-              - additionalProperties: true
-                type: object
+              - oneOf:
+                - $ref: '#/components/schemas/AssetExpressionAsset'
+                - $ref: '#/components/schemas/AssetExpressionAlias'
+                - $ref: '#/components/schemas/AssetExpressionRef'
+                - $ref: '#/components/schemas/AssetExpressionAny'
+                - $ref: '#/components/schemas/AssetExpressionAll'
               - type: 'null'
             type: object
           - type: 'null'
@@ -2859,8 +3598,12 @@ components:
           title: Total Received
         asset_expression:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
           - type: 'null'
           title: Asset Expression
       type: object
@@ -3180,6 +3923,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
@@ -3226,6 +3970,9 @@ components:
         deferred:
           type: integer
           title: Deferred
+        awaiting_input:
+          type: integer
+          title: Awaiting Input
       type: object
       required:
       - no_status
@@ -3241,6 +3988,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
     TeamCollectionResponse:
@@ -3272,11 +4020,13 @@ components:
     Theme:
       properties:
         tokens:
-          additionalProperties:
-            $ref: '#/components/schemas/ThemeColors'
-          propertyNames:
-            const: colors
-          type: object
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/ThemeColors'
+            propertyNames:
+              const: colors
+            type: object
+          - type: 'null'
           title: Tokens
         globalCss:
           anyOf:
@@ -3297,13 +4047,80 @@ components:
           - type: 'null'
           title: Icon Dark Mode
       type: object
-      required:
-      - tokens
       title: Theme
       description: JSON to modify Chakra's theme.
     ThemeColors:
-      additionalProperties: true
+      properties:
+        brand:
+          anyOf:
+          - additionalProperties:
+              additionalProperties:
+                $ref: '#/components/schemas/OklchColor'
+              propertyNames:
+                const: value
+              type: object
+            propertyNames:
+              enum:
+              - '50'
+              - '100'
+              - '200'
+              - '300'
+              - '400'
+              - '500'
+              - '600'
+              - '700'
+              - '800'
+              - '900'
+              - '950'
+            type: object
+          - type: 'null'
+          title: Brand
+        gray:
+          anyOf:
+          - additionalProperties:
+              additionalProperties:
+                $ref: '#/components/schemas/OklchColor'
+              propertyNames:
+                const: value
+              type: object
+            propertyNames:
+              enum:
+              - '50'
+              - '100'
+              - '200'
+              - '300'
+              - '400'
+              - '500'
+              - '600'
+              - '700'
+              - '800'
+              - '900'
+              - '950'
+            type: object
+          - type: 'null'
+          title: Gray
+        black:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/OklchColor'
+            propertyNames:
+              const: value
+            type: object
+          - type: 'null'
+          title: Black
+        white:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/OklchColor'
+            propertyNames:
+              const: value
+            type: object
+          - type: 'null'
+          title: White
       type: object
+      title: ThemeColors
+      description: Color tokens for the UI theme. All fields are optional; at least
+        one must be provided.
     TokenType:
       type: string
       enum:
@@ -3322,6 +4139,7 @@ components:
         kwargs:
           type: string
           title: Kwargs
+          deprecated: true
         created_date:
           type: string
           format: date-time

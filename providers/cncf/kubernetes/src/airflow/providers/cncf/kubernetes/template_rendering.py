@@ -35,9 +35,9 @@ if TYPE_CHECKING:
 def _get_executor_conf(dag_id: str):
     """Build a team-aware ExecutorConf for the given dag_id, if multi-team is available."""
     try:
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
         from airflow.models.dag import DagModel
+        from airflow.providers.common.compat.sdk import conf
 
         if not conf.getboolean("core", "multi_team", fallback=False):
             return None
@@ -85,8 +85,9 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
     return sanitized_pod
 
 
+# Note: AIRFLOW_V_3_0_PLUS - this is only needed for Airflow 2.x, can be removed if the support is dropped
 @provide_session
-def get_rendered_k8s_spec(task_instance: TaskInstance, session=NEW_SESSION) -> dict | None:
+def get_rendered_k8s_spec(task_instance: TaskInstance, *, session=NEW_SESSION) -> dict | None:
     """Fetch rendered template fields from DB."""
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 

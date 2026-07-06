@@ -41,7 +41,12 @@ from airflow.providers.amazon.aws.utils import trim_none_values, validate_execut
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowFailException,
+    BaseBranchOperator,
+    conf,
+)
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -253,8 +258,25 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         (default) and "fail".
     :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
         set to True.
-    :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
+    :param output_files_to_xcom: Read small JSON output files from S3 after the job completes and push
+        their parsed contents to XCom useful for feeding metrics into downstream tasks. Each entry is a dict with:
+        ``output_name`` (matches an output you declared in ``ProcessingOutputConfig.Outputs`` - the
+        operator uses it to locate that output's S3 URI), ``file_name`` (the file your processing script
+        wrote inside that output, and ``result_name`` (a label
+        you choose for the parsed contents in the returned ``OutputFiles`` dict). Intended for small JSON
+        summary files (metrics, evaluation reports), not large datasets. Optional; if omitted, no post-job
+        S3 reading occurs. Example::
+
+            output_files_to_xcom=[
+                {"output_name": "evaluation", "file_name": "metrics.json", "result_name": "EvaluationReport"}
+            ]
+            # Downstream: ti.xcom_pull("this_task")["OutputFiles"]["EvaluationReport"]["mse"]
+    :return: Dict with a ``Processing`` key (the job description) and, when ``output_files_to_xcom``
+        is configured, an ``OutputFiles`` key containing the parsed JSON contents of the configured
+        output files (keyed by their ``result_name``).
     """
+
+    template_fields: Sequence[str] = (*SageMakerBaseOperator.template_fields, "output_files_to_xcom")
 
     def __init__(
         self,
@@ -267,13 +289,20 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         action_if_job_exists: str = "timestamp",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        output_files_to_xcom: list[dict] | None = None,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
+        self.output_files_to_xcom = output_files_to_xcom
         if action_if_job_exists not in ("fail", "timestamp"):
             raise AirflowException(
                 f"Argument action_if_job_exists accepts only 'timestamp' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
+            )
+        if output_files_to_xcom and not wait_for_completion:
+            raise ValueError(
+                "output_files_to_xcom requires wait_for_completion=True. "
+                "Output files cannot be read before the job completes."
             )
         self.action_if_job_exists = action_if_job_exists
         self.wait_for_completion = wait_for_completion
@@ -330,11 +359,13 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         if self.deferrable and self.wait_for_completion:
             response = self.hook.describe_processing_job(self.config["ProcessingJobName"])
             status = response["ProcessingJobStatus"]
-            if status in self.hook.failed_states:
+            if status in self.hook.processing_job_failed_states:
                 raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
             if status == "Completed":
                 self.log.info("%s completed successfully.", self.task_id)
-                return {"Processing": serialize(response)}
+                result = {"Processing": serialize(response)}
+                result.update(self._read_output_files())
+                return result
 
             timeout = self.execution_timeout
             if self.max_ingestion_time:
@@ -345,15 +376,17 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=self.config["ProcessingJobName"],
                     job_type="Processing",
-                    poke_interval=self.check_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.check_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
             )
 
         self.serialized_job = serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))
-        return {"Processing": self.serialized_job}
+        result = {"Processing": self.serialized_job}
+        result.update(self._read_output_files())
+        return result
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         validated_event = validate_execute_complete_event(event)
@@ -361,10 +394,74 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info(validated_event["message"])
+        self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         self.serialized_job = serialize(self.hook.describe_processing_job(validated_event["job_name"]))
         self.log.info("%s completed successfully.", self.task_id)
-        return {"Processing": self.serialized_job}
+        result = {"Processing": self.serialized_job}
+        result.update(self._read_output_files())
+        return result
+
+    def _read_output_files(self) -> dict:
+        """Read configured output files from S3 after job completion and return them for XCom."""
+        if not self.output_files_to_xcom:
+            return {}
+
+        s3_client = self.hook.get_session().client("s3")
+        processing_outputs = self.config.get("ProcessingOutputConfig", {}).get("Outputs", [])
+        output_files_data: dict = {}
+
+        for output_file in self.output_files_to_xcom:
+            missing_keys = {"result_name", "output_name", "file_name"} - output_file.keys()
+            if missing_keys:
+                raise ValueError(
+                    f"output_files_to_xcom entry missing required keys: {missing_keys}. "
+                    f"Each entry requires 'result_name', 'output_name', and 'file_name'."
+                )
+            result_name = output_file["result_name"]
+            output_name = output_file["output_name"]
+            file_name = output_file["file_name"]
+
+            matching_output = next(
+                (output for output in processing_outputs if output["OutputName"] == output_name),
+                None,
+            )
+            if not matching_output:
+                self.log.warning(
+                    "output_files_to_xcom '%s': no matching output '%s' found.",
+                    result_name,
+                    output_name,
+                )
+                continue
+
+            s3_output_uri = matching_output["S3Output"]["S3Uri"].rstrip("/")
+            s3_full_path = f"{s3_output_uri}/{file_name}"
+            bucket_name, object_key = s3_full_path.replace("s3://", "").split("/", 1)
+            self.log.debug("Attempting to read output file: s3://%s/%s", bucket_name, object_key)
+
+            try:
+                s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+                file_content = s3_response["Body"].read().decode("utf-8")
+                output_files_data[result_name] = json.loads(file_content)
+                self.log.info("Output file '%s' loaded from %s", result_name, s3_full_path)
+            except ClientError as error:
+                if error.response.get("Error", {}).get("Code") == "NoSuchKey":
+                    self.log.warning("Output file '%s' not found at %s", result_name, s3_full_path)
+                    output_files_data[result_name] = {"_error": f"File not found: {s3_full_path}"}
+                else:
+                    self.log.exception("Failed to read output file '%s' from %s", result_name, s3_full_path)
+                    output_files_data[result_name] = {"_error": f"Failed to read from {s3_full_path}"}
+            except json.JSONDecodeError as error:
+                self.log.exception(
+                    "Output file '%s' at %s is not valid JSON: %s", result_name, s3_full_path, error
+                )
+                output_files_data[result_name] = {"_error": f"Invalid JSON at {s3_full_path}"}
+            except Exception:
+                self.log.exception("Failed to read output file '%s' from %s", result_name, s3_full_path)
+                output_files_data[result_name] = {"_error": f"Failed to read from {s3_full_path}"}
+
+        if output_files_data:
+            return {"OutputFiles": output_files_data}
+        return {}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """Return OpenLineage data gathered from SageMaker's API response saved by processing job."""
@@ -597,7 +694,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=endpoint_info["EndpointName"],
                     job_type="endpoint",
-                    poke_interval=self.check_interval,
+                    waiter_delay=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -824,8 +921,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=transform_config["TransformJobName"],
                     job_type="Transform",
-                    poke_interval=self.check_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.check_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -847,7 +944,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         validated_event = validate_execute_complete_event(event)
 
-        self.log.info(validated_event["message"])
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while running transform job: {validated_event}")
+
+        self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         return self.serialize_result(validated_event["job_name"])
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:
@@ -998,7 +1098,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=self.config["HyperParameterTuningJobName"],
                     job_type="tuning",
-                    poke_interval=self.check_interval,
+                    waiter_delay=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -1229,8 +1329,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=self.config["TrainingJobName"],
                     job_type="Training",
-                    poke_interval=self.check_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.check_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -1244,7 +1344,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info(validated_event["message"])
+        self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         return self.serialize_result(validated_event["job_name"])
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:
@@ -1991,3 +2091,262 @@ class SageMakerStartNoteBookOperator(AwsBaseOperator[SageMakerHook]):
             self.hook.conn.get_waiter("notebook_instance_in_service").wait(
                 NotebookInstanceName=self.instance_name
             )
+
+
+class SageMakerConditionOperator(BaseBranchOperator):
+    """
+    Evaluates a single condition or a list of conditions, and routes tasks based on the result.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerConditionOperator`
+
+    :param condition_type: Condition type for the simple (flat) interface.
+        Valid types: ``Equals``, ``GreaterThan``, ``GreaterThanOrEqualTo``,
+        ``LessThan``, ``LessThanOrEqualTo``, ``In``.
+        Mutually exclusive with ``conditions``.
+    :param left_value: Left operand for the flat interface. For ``In`` conditions
+        this is the value to check membership of.
+    :param right_value: Right operand for the flat interface. For ``In`` conditions
+        this is the list of allowed values.
+    :param conditions: List of condition dicts to evaluate (AND-ed together).
+        Each dict must have a ``type`` key. Must not be empty.
+        Mutually exclusive with ``condition_type``/``left_value``/``right_value``.
+    :param if_task_ids: Task ID(s) to execute when all conditions are True.
+    :param else_task_ids: Task ID(s) to execute when any condition is False.
+        If omitted, the task fails with ``AirflowFailException`` when conditions are not met.
+    """
+
+    _VALID_FLAT_TYPES: ClassVar[set[str]] = {
+        "Equals",
+        "GreaterThan",
+        "GreaterThanOrEqualTo",
+        "LessThan",
+        "LessThanOrEqualTo",
+        "In",
+    }
+
+    template_fields: Sequence[str] = (
+        "condition_type",
+        "left_value",
+        "right_value",
+        "conditions",
+        "if_task_ids",
+        "else_task_ids",
+    )
+
+    def __init__(
+        self,
+        *,
+        condition_type: str | None = None,
+        left_value: Any = None,
+        right_value: Any = None,
+        conditions: list[dict] | None = None,
+        if_task_ids: str | list[str],
+        else_task_ids: str | list[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        has_flat = condition_type is not None
+        has_list = conditions is not None
+
+        if has_flat and has_list:
+            raise ValueError(
+                "Cannot use 'condition_type' and 'conditions' together. "
+                "Use 'condition_type' with 'left_value'/'right_value' for a single condition, "
+                "or 'conditions' for multiple/nested conditions."
+            )
+        if not has_flat and not has_list:
+            raise ValueError(
+                "Missing condition: provide 'condition_type' with 'left_value'/'right_value' "
+                "for a single condition, or 'conditions' for multiple/nested conditions."
+            )
+
+        if has_flat:
+            if condition_type not in self._VALID_FLAT_TYPES:
+                raise ValueError(
+                    f"Unknown condition_type '{condition_type}'. "
+                    f"Expected one of: {', '.join(sorted(self._VALID_FLAT_TYPES))}."
+                )
+            self.condition_type: str | None = condition_type
+            self.left_value = left_value
+            self.right_value = right_value
+            if condition_type == "In":
+                self.conditions: list[dict[str, Any]] = [
+                    {"type": "In", "value": left_value, "in_values": right_value}
+                ]
+            else:
+                self.conditions = [
+                    {"type": condition_type, "left_value": left_value, "right_value": right_value}
+                ]
+        else:
+            self.condition_type = None
+            self.left_value = None
+            self.right_value = None
+            self.conditions = conditions  # type: ignore[assignment]
+
+        if not self.conditions:
+            raise ValueError("At least 1 condition is required, but got an empty list.")
+        self.if_task_ids = [if_task_ids] if isinstance(if_task_ids, str) else if_task_ids
+        self.else_task_ids = [else_task_ids] if isinstance(else_task_ids, str) else (else_task_ids or [])
+
+    @staticmethod
+    def _cast(value: Any) -> Any:
+        """
+        Cast Jinja-rendered string values to appropriate Python types.
+
+        This is a compatibility shim for environments where
+        ``render_template_as_native_obj=True`` is not available at the Dag or
+        task level (e.g., YAML Dags). Once task-level native rendering
+        is widely supported, this method can be removed in favor of letting
+        Airflow handle the casting natively.
+
+        - Numeric strings become int or float.
+        - ``"true"``/``"false"`` become booleans.
+        - ``"None"`` becomes ``None`` (common when ``xcom_pull`` returns nothing).
+        - Other strings are returned unchanged.
+        - Non-string types pass through as-is.
+        """
+        if not isinstance(value, str):
+            return value
+        if value == "None":
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            pass
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            pass
+        if value.lower() == "true":
+            return True
+        if value.lower() == "false":
+            return False
+        return value
+
+    _COMPARISON_OPERATORS: ClassVar[dict[str, Callable[[Any, Any], bool]]] = {
+        "Equals": lambda left, right: left == right,
+        "GreaterThan": lambda left, right: left > right,
+        "GreaterThanOrEqualTo": lambda left, right: left >= right,
+        "LessThan": lambda left, right: left < right,
+        "LessThanOrEqualTo": lambda left, right: left <= right,
+    }
+
+    def _evaluate(self, condition: dict, depth: int = 0) -> bool:
+        """
+        Recursively evaluate a single condition dict.
+
+        :param condition: A condition dictionary with a ``type`` key.
+        :param depth: Current nesting depth (used for log indentation only).
+        :returns: Boolean result of the condition evaluation.
+        """
+        log_indent = "  " * depth
+        try:
+            condition_type = condition["type"]
+        except KeyError:
+            raise ValueError("Condition dict is missing required key 'type'.")
+
+        if condition_type in self._COMPARISON_OPERATORS:
+            try:
+                left = self._cast(condition["left_value"])
+                right = self._cast(condition["right_value"])
+            except KeyError as e:
+                raise ValueError(f"Condition '{condition_type}' missing required key {e}.") from None
+
+            # None check — likely an XCom that was not pushed
+            if left is None or right is None:
+                raise TypeError(
+                    f"Condition '{condition_type}' received None: left={left!r}, right={right!r}. "
+                    "This usually means the upstream task did not run or did not push a value to XCom."
+                )
+
+            # Type compatibility check
+            left_type = type(left)
+            right_type = type(right)
+            numeric_types = (int, float)
+            left_is_numeric = isinstance(left, numeric_types) and not isinstance(left, bool)
+            right_is_numeric = isinstance(right, numeric_types) and not isinstance(right, bool)
+
+            if not (left_is_numeric and right_is_numeric) and left_type is not right_type:
+                raise TypeError(
+                    f"Cannot compare {left_type.__name__} ({left!r}) with {right_type.__name__} ({right!r}) "
+                    f"in condition '{condition_type}'. Both values must be the same type."
+                )
+
+            comparison_result = self._COMPARISON_OPERATORS[condition_type](left, right)
+            self.log.info(
+                "%s%s: %r %s %r -> %s",
+                log_indent,
+                condition_type,
+                left,
+                condition_type,
+                right,
+                comparison_result,
+            )
+            return comparison_result
+
+        if condition_type == "In":
+            try:
+                query_value = self._cast(condition["value"])
+                allowed_values = [self._cast(val) for val in condition["in_values"]]
+            except KeyError as e:
+                raise ValueError(f"Condition '{condition_type}' missing required key {e}.") from None
+            membership_result = query_value in allowed_values
+            self.log.info("%sIn: %r in %r -> %s", log_indent, query_value, allowed_values, membership_result)
+            return membership_result
+
+        if condition_type == "Not":
+            try:
+                inner_condition = condition["condition"]
+            except KeyError as e:
+                raise ValueError(f"Condition '{condition_type}' missing required key {e}.") from None
+            inner_result = self._evaluate(inner_condition, depth + 1)
+            negated_result = not inner_result
+            self.log.info("%sNot: not %s -> %s", log_indent, inner_result, negated_result)
+            return negated_result
+
+        if condition_type == "Or":
+            try:
+                inner_conditions = condition["conditions"]
+            except KeyError as e:
+                raise ValueError(f"Condition '{condition_type}' missing required key {e}.") from None
+            inner_results = [self._evaluate(inner_cond, depth + 1) for inner_cond in inner_conditions]
+            or_result = any(inner_results)
+            self.log.info("%sOr: any(%r) -> %s", log_indent, inner_results, or_result)
+            return or_result
+
+        raise ValueError(f"Unknown condition type '{condition_type}'.")
+
+    def choose_branch(self, context: Context) -> list[str]:
+        """
+        Evaluate all conditions and return the appropriate branch task IDs.
+
+        :param context: Airflow context dictionary.
+        :returns: ``if_task_ids`` when all conditions are True, ``else_task_ids`` otherwise.
+        """
+        condition_count = len(self.conditions)
+        self.log.info("Evaluating %d condition(s).", condition_count)
+
+        evaluation_results = [self._evaluate(condition) for condition in self.conditions]
+        all_conditions_met = all(evaluation_results)
+
+        if all_conditions_met:
+            self.log.info(
+                "All %d condition(s) evaluated to True. Routing to if_task_ids=%r.",
+                condition_count,
+                self.if_task_ids,
+            )
+            return self.if_task_ids
+
+        if not self.else_task_ids:
+            raise AirflowFailException(
+                f"Condition check failed in task '{self.task_id}': results={evaluation_results}"
+            )
+
+        self.log.info(
+            "Not all conditions are True (results=%r). Routing to else_task_ids=%r.",
+            evaluation_results,
+            self.else_task_ids,
+        )
+        return self.else_task_ids

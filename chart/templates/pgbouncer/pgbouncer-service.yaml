@@ -31,7 +31,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.pgbouncer.labels) }}
+    {{- if or .Values.labels .Values.pgbouncer.labels }}
       {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   annotations:
@@ -56,4 +56,10 @@ spec:
     - name: pgb-metrics
       protocol: TCP
       port: {{ .Values.ports.pgbouncerScrape }}
+  {{- if .Values.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

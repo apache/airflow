@@ -15,6 +15,102 @@
     specific language governing permissions and limitations
     under the License.
 
+ .. This file is populated while releasing after cutting the release candidate. Please do not edit in PRs.
+
+airflowctl 0.1.5 (2026-05-26)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Add dags next execution command #66172 (#66188)
+- Add bulk delete Dag Runs (#67095)
+- Add ``rerun_with_latest_version`` config hierarchy for clear/rerun behavior (#63884)
+- Implement patching of task group instances in API (#62812)
+- Allow remote version check without authentication (#65099)
+- Add cursor based pagination for get_dag_runs endpoint (#65604)
+- Enable queue up new tasks (#63484)
+- Add cursor based pagination for get_task_instances endpoint (#64845)
+- Add ``is_backfillable`` property to DAG API responses (#64644)
+- Expose required primitive parameters of auto-generated commands as positional
+  arguments instead of ``--flag`` options. Optional parameters keep the
+  ``--flag`` form. Follows the dev-list lazy consensus on airflowctl parameter
+  style (see `<https://lists.apache.org/thread/m1qvcvow3l17ytv40vhslh40wn3rntrm>`_) (#66768)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix connections import schema handling (#67063)
+- Fix broken download URLs and variable names in docs (#67046)
+- Fix  missing pyyaml runtime dependency (#65489)
+- Fix dagrun list crash when --state is omitted (#65608)
+- Fix backfill params not overriding existing DAG run conf (#64939)
+- Fix ruff on client-py (#64868)
+
+Improvements
+^^^^^^^^^^^^
+
+- AIP-103: Add Core API endpoints for task state and asset state (#67041)
+- Comment to not edit RELEASE_NOTES.rst manually in PRs for airflowctl (#67128)
+- Align Dag capitalization from "DAG" to "Dag" for airflow-ctl/ (#66112)
+- Send backfill create and dry-run payloads as JSON (#65158)
+- Use existing safe_load function in airflowctl utils to load help texts (#65841)
+- Cap airflow-ctl httpx dependency below 1.0 (#65607)
+- Remove dead airflow-ctl/newsfragments directory (unused by changelog tooling) (#65507)
+- Incorrect fallback logic (#64586)
+- Run non-provider mypy as regular prek static checks instead of separate CI jobs (#64780)
+- Clear, Mark Success/Fail and delete multiple Task Instances (#64141)
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+  - Upgrade important CI environment (#67313)
+  - Upgrade important CI environment (#66843)
+  - Upgrade important CI environment (#66068)
+  - Bump uv to 0.11.8 to adopt uv.lock-conflict fix (#66042)
+  - Upgrade important CI environment (#65933)
+  - Upgrade important CI environment (#65521)
+  - Upgrade important CI environment (#65525)
+  - CI: Upgrade important CI environment (#64458)
+  - CI: Upgrade important CI environment (#64451)
+  - Add 4-day cooldown for uv dependency resolution (#64249)
+  - Upgrade important CI environment (#64239)
+
+airflowctl 0.1.4 (2026-04-18)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Add YAML-based help texts for auto-generated airflowctl commands (#65073)
+- Added plugins command to airflowctl (#64935)
+- Allow direct execution from airflowctl via ``uvx`` (#64406)
+- Python 3.14 support (#63520)
+
+Bug Fixes
+^^^^^^^^^
+
+- Declare ``pyyaml`` as a runtime dependency so ``airflowctl`` starts without crashing on ``ModuleNotFoundError``
+- Prevent path traversal via AIRFLOW_CLI_ENVIRONMENT in airflowctl (#64618)
+- Fix ``is_alive`` default in ``airflowctl jobs list`` to show all jobs (#65065)
+- Fix CLI error handling and exit codes for failed commands (#65052)
+- Fix list-envs auth status for env names containing ``.json`` (#64677)
+- Fix infinite loop for ``limit<0`` in airflowctl list operations (#64582)
+- Fix ``airflowctl dagrun list`` limit handling (#64071)
+- Fix incorrect fallback logic in airflowctl API client (#64586)
+- Fix ``airflowctl connections import`` to return non-zero exit code on failure (#64416)
+- Fix ``airflowctl variables import`` to correctly handle falsy values (#64362)
+- Fix ``airflowctl version`` command prompting for keyring credentials (#63772)
+- Fix ``airflowctl`` boolean flags on Python 3.14 (#63587)
+
+Improvements
+^^^^^^^^^^^^
+
+- Add ``operator`` value to ``DagRunType`` in airflowctl ``datamodels`` (#63733)
+- Use DAG form when materializing assets in airflowctl (#64211)
+- Allow ``null`` ``dag_run_conf`` in ``BackfillResponse`` serialization (#63259)
+- Mention Python 3.14 support in docs (#63950)
+
+
 airflowctl 0.1.3 (2026-03-09)
 -----------------------------
 

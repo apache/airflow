@@ -35,13 +35,12 @@ type PluginComponentType = FC<PluginProps>;
 
 const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginComponentType }> =>
   // We are assuming the plugin manager is trusted and the bundle_url is safe
-  import(/* @vite-ignore */ reactApp.bundle_url)
+  import(/* @vite-ignore */ new URL(reactApp.bundle_url, document.baseURI).href)
     .then(() => {
       // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
       // global variable.
       let pluginComponent = (globalThis as Record<string, unknown>)[reactApp.name] as
-        | PluginComponentType
-        | undefined;
+        PluginComponentType | undefined;
 
       if (pluginComponent === undefined) {
         pluginComponent = (globalThis as Record<string, unknown>).AirflowPlugin as PluginComponentType;

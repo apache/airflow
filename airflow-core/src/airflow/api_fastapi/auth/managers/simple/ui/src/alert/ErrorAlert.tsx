@@ -18,6 +18,7 @@
  */
 import { HStack } from "@chakra-ui/react";
 import type { AxiosError } from "axios";
+
 import type { HttpExceptionResponse, HttpValidationError } from "openapi/requests/types.gen";
 
 import { Alert } from "./Alert";

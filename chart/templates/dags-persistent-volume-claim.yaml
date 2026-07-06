@@ -18,9 +18,9 @@
 */}}
 
 ######################################
-## Airflow DAGs PersistentVolumeClaim
+## Airflow Dags PersistentVolumeClaim
 ######################################
-{{- if and (not .Values.dags.persistence.existingClaim ) .Values.dags.persistence.enabled }}
+{{- if and (not .Values.dags.persistence.existingClaim) .Values.dags.persistence.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
