@@ -72,8 +72,8 @@
     "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
-    "partitionDate": "資產分區日期",
-    "partitionKey": "資產分區鍵",
+    "partitionDate": "資源分區日期",
+    "partitionKey": "資源分區鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
@@ -193,8 +193,8 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "收到的資源事件"
   },
-  "pendingDagRun_one": "待執行的 Dag 執行",
-  "pendingDagRun_other": "待執行的 Dag 執行",
+  "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
+  "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
   "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {
