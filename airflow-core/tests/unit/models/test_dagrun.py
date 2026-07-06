@@ -50,7 +50,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
@@ -61,7 +61,16 @@ from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
-from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
+from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    CronPartitionTimetable,
+    get_current_context,
+    setup,
+    task,
+    task_group,
+    teardown,
+)
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.sdk.definitions.variable import Variable
@@ -79,6 +88,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
@@ -104,7 +114,7 @@ async def empty_callback_for_deadline():
 def dagbag():
     from airflow.dag_processing.dagbag import DagBag
 
-    return DagBag(include_examples=True)
+    return DagBag()
 
 
 @pytest.fixture
@@ -854,7 +864,7 @@ class TestDagRun:
     @pytest.mark.parametrize("state", State.task_states)
     @mock.patch.object(settings, "task_instance_mutation_hook", autospec=True)
     def test_task_instance_mutation_hook(self, mock_hook, dag_maker, session, state):
-        def mutate_task_instance(task_instance):
+        def mutate_task_instance(task_instance, dag_run=None):
             if task_instance.queue == "queue1":
                 task_instance.queue = "queue2"
             else:
@@ -887,7 +897,7 @@ class TestDagRun:
         """
         observed_run_ids = []
 
-        def mutate_task_instance(task_instance):
+        def mutate_task_instance(task_instance, dag_run=None):
             observed_run_ids.append(task_instance.run_id)
             if task_instance.run_id and task_instance.run_id.startswith("manual__"):
                 task_instance.pool = "manual_pool"
@@ -906,6 +916,43 @@ class TestDagRun:
         assert any(rid is not None for rid in observed_run_ids), (
             f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
         )
+
+    def test_task_instance_mutation_hook_receives_dag_run(self, dag_maker, session, monkeypatch):
+        """task_instance_mutation_hook can route on dag_run.conf for mapped task instances.
+
+        Exercises the supported dag_run argument end-to-end: a conf-routing hook sets queue based on
+        DagRun.conf, and the routed value persists on every expanded mapped task instance. This is the
+        first-class replacement for reaching the DagRun through unsupported internals.
+        """
+        observed_confs = []
+
+        def mutate_task_instance(task_instance, dag_run=None):
+            observed_confs.append(None if dag_run is None else dag_run.conf)
+            if dag_run is not None and (dag_run.conf or {}).get("route") == "high":
+                task_instance.queue = "high_queue"
+
+        with mock.patch.object(
+            get_policy_plugin_manager().hook, "task_instance_mutation_hook", autospec=True
+        ) as mock_hook:
+            mock_hook.side_effect = mutate_task_instance
+            # Force the non-noop task-creation path so the scheduler invokes the hook with dag_run while
+            # materializing the mapped instances (mocking the hook does not flip the is_noop flag that
+            # import_local_settings would set for a real registered policy).
+            monkeypatch.setattr(settings.task_instance_mutation_hook, "is_noop", False)
+            with dag_maker(dag_id="test_mutation_hook_dag_run", session=session):
+                MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+
+            dr = dag_maker.create_dagrun(conf={"route": "high"})
+
+        # The hook saw the run conf (at least once with the routing value), and every expanded mapped
+        # task instance was routed to the conf-selected queue.
+        assert {"route": "high"} in observed_confs
+        queues = session.scalars(
+            select(TI.queue)
+            .where(TI.task_id == "mapped", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert queues == ["high_queue", "high_queue", "high_queue"]
 
     @pytest.mark.parametrize(
         ("prev_ti_state", "is_ti_schedulable"),
@@ -1498,7 +1545,6 @@ class TestDagRun:
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-
         mock_err = mock.Mock()
         mock_err.error.value = "MISSING_DEADLINE"
         mock_err.detail = "missing deadline"
@@ -1652,7 +1698,7 @@ def test_mutation_hook_committing_session_crashes_under_prohibit_commit(dag_make
     before_commit guard with RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!").
     """
 
-    def naive_hook(task_instance):
+    def naive_hook(task_instance, dag_run=None):
         # Reads DagRun.conf the unsafe way -- opens a fresh @provide_session session that commits on exit.
         task_instance.get_dagrun()
 
@@ -1683,7 +1729,7 @@ def test_mutation_hook_safe_session_reuse_routes_mapped_tis_under_prohibit_commi
     Resolving via the attached session is the discipline a real conf-routing hook must follow.
     """
 
-    def safe_hook(task_instance):
+    def safe_hook(task_instance, dag_run=None):
         attached_session = sa_inspect(task_instance).session
         if attached_session is None:
             # Transient instance (pre-merge); it will be re-invoked once attached. Nothing safe to do.
@@ -1722,7 +1768,7 @@ def test_mutation_hook_deterministic_across_repeated_invocation_during_expansion
     """
     call_counts: dict[int, int] = defaultdict(int)
 
-    def deterministic_hook(task_instance):
+    def deterministic_hook(task_instance, dag_run=None):
         call_counts[task_instance.map_index] += 1
         task_instance.queue = f"q_{task_instance.map_index}"
 
@@ -1806,7 +1852,7 @@ def test_naive_committing_hook_crashes_on_verify_integrity_under_guard(dag_maker
     session; create_session() commits on exit and trips the before_commit guard.
     """
 
-    def naive_hook(task_instance):
+    def naive_hook(task_instance, dag_run=None):
         task_instance.get_dagrun()
 
     dr, dag_version_id = _make_literal_mapped_dagrun(
@@ -1835,7 +1881,7 @@ def test_resolve_dagrun_attribute_access_is_safe_on_verify_integrity_under_guard
     """
     seen_map_indices = []
 
-    def resolve_dagrun_like_hook(task_instance):
+    def resolve_dagrun_like_hook(task_instance, dag_run=None):
         state = sa_inspect(task_instance)
         if "dag_run" not in state.unloaded:
             _ = task_instance.dag_run  # eager-loaded: cheap attribute read
@@ -3192,6 +3238,127 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     assert len(success_tis) == rerun_length
 
 
+def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, dag_maker):
+    @task
+    def producer():
+        context = get_current_context()
+        if context["ti"].try_number == 0:
+            return [i for i in range(3)]
+        return [i for i in range(2)]
+
+    @task
+    def work(arg):
+        return arg
+
+    @task
+    def finish(data):
+        return sum(data)
+
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    with dag_maker(session=session):
+        produced = producer()
+        mapped = work.expand(arg=produced)
+        done = finish(produced)
+        mapped >> done
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    # First run with 3 mapped task instances.
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("work", 0), ("work", 1), ("work", 2)]
+
+    for ti in decision.schedulable_tis:
+        dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("finish", -1)]
+    dag_maker.run_ti("finish", dr)
+
+    # Clear and rerun with one fewer mapped task instance.
+    clear_task_instances(dr.get_task_instances(session=session), session=session)
+    ti = dr.get_task_instance(task_id="producer", session=session)
+    ti.try_number += 1
+    session.merge(ti)
+
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("work", 0), ("work", 1)]
+
+    mapped_states = session.execute(
+        select(TI.map_index, TI.state)
+        .where(TI.task_id == "work", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert mapped_states == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, TaskInstanceState.REMOVED),
+    ]
+
+    for ti in decision.schedulable_tis:
+        dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("finish", -1)]
+
+    dag_maker.run_ti("finish", dr)
+    finish_ti = dr.get_task_instance(task_id="finish", map_index=-1, session=session)
+    assert finish_ti
+    assert finish_ti.state == TaskInstanceState.SUCCESS
+
+
+def test_rerun_with_upstream_task_removed(session, dag_maker):
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    with dag_maker("test", session=session):
+        upstream_1 = EmptyOperator(task_id="upstream_1")
+        upstream_2 = EmptyOperator(task_id="upstream_2")
+        downstream = EmptyOperator(task_id="downstream")
+        [upstream_1, upstream_2] >> downstream
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    dag_maker.run_ti("upstream_1", dr)
+    dag_maker.run_ti("upstream_2", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
+
+    dag_maker.run_ti("downstream", dr)
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+
+    # Rerun with upstream_1 removed
+    with dag_maker("test", session=session, serialized=True) as dag:
+        upstream_2 = EmptyOperator(task_id="upstream_2")
+        downstream = EmptyOperator(task_id="downstream")
+        upstream_2 >> downstream
+
+    latest_version = DagVersion.get_latest_version(dag.dag_id)
+    assert latest_version.version_number == 2
+
+    clear_task_instances(
+        dr.get_task_instances(session=session),
+        session=session,
+        run_on_latest_version=True,
+    )
+
+    upstream_1 = dr.get_task_instance(task_id="upstream_1", map_index=-1, session=session)
+    assert upstream_1.state == TaskInstanceState.REMOVED
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("upstream_2", -1)]
+
+    dag_maker.run_ti("upstream_2", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
+
+    dag_maker.run_ti("downstream", dr)
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+
+
 def test_operator_mapped_task_group_receives_value(dag_maker, session):
     with dag_maker(session=session):
 
@@ -3913,16 +4080,107 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
 
+    def test_produce_dag_callback_drops_last_ti_without_dag_version(self, dag_maker, session):
+        """A historical TI with dag_version_id=None must not crash callback construction."""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        ti = dr.get_task_instance("test_task")
+        # Simulate a task instance created before the dag_version table existed.
+        ti.dag_version_id = None
+        session.flush()
+
+        callback = dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure")
+
+        assert callback is not None
+        # last_ti is dropped so the non-null UUID datamodel validation never fires.
+        assert callback.context_from_server is not None
+        assert callback.context_from_server.last_ti is None
+
+    def test_execute_dag_callbacks_without_dag_version(self, dag_maker, session):
+        """The execute=True path must also tolerate a TI with dag_version_id=None."""
+        context_received = None
+
+        def on_failure(context):
+            nonlocal context_received
+            context_received = context
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        ti = dr.get_task_instance("test_task")
+        ti.dag_version_id = None
+        session.flush()
+
+        dag.on_failure_callback = on_failure
+        dag.has_on_failure_callback = True
+
+        dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure", execute=True)
+
+        # Callback still fires with the minimal fallback context (no last_ti template vars).
+        assert context_received is not None
+        assert context_received["reason"] == "task_failure"
+        assert "ti" not in context_received
+        assert context_received["run_id"] == dr.run_id
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                "true", "team_alpha", {"dag_id": "test_dag", "team_name": "team_alpha"}, id="with_team"
+            ),
+            pytest.param("false", None, {"dag_id": "test_dag"}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    def test_callback_exception_team_name_tag(
+        self, mock_incr, multi_team, team_name, expected_tags, dag_maker, session
+    ):
+        def failing_callback(context):
+            raise RuntimeError("boom")
+
+        with dag_maker("test_dag", session=session, on_failure_callback=failing_callback) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dag.on_failure_callback = failing_callback
+        dag.has_on_failure_callback = True
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
+        ):
+            dr.execute_dag_callbacks(dag, success=False)
+
+        mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
+
 
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
-        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs."""
+        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs.
+
+        Also patch the provider that ``new_dagrun_trace_carrier`` consults so the
+        head-sampling decision is made by a real SDK sampler (default
+        parentbased_always_on -> SAMPLED) rather than the no-op ProxyTracerProvider
+        that is otherwise active in the test process (which would honestly produce
+        an unsampled carrier and suppress emission).
+        """
         provider = TracerProvider()
         real_tracer = provider.get_tracer("airflow.models.dagrun")
-        with mock.patch("airflow.models.dagrun.tracer", real_tracer):
+        with (
+            mock.patch("airflow.models.dagrun.tracer", real_tracer),
+            mock.patch(
+                "airflow._shared.observability.traces.trace.get_tracer_provider",
+                return_value=provider,
+            ),
+        ):
             yield
 
     def test_context_carrier_set_on_init(self, dag_maker):
@@ -4049,9 +4307,24 @@ class TestDagRunTracing:
         assert span.name == f"dag_run.{dr.dag_id}"
         assert span.attributes["airflow.dag_id"] == dr.dag_id
         assert span.attributes["airflow.dag_run.run_id"] == dr.run_id
+        # run_type is set via the shared dagrun_trace_attributes helper
+        assert span.attributes["airflow.dag_run.run_type"] == str(dr.run_type)
 
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
+
+    def test_dagrun_trace_attributes_helper(self, dag_maker, session):
+        """The shared helper returns dag_id, run_id and run_type as airflow.* attributes."""
+        from airflow.models.dagrun import dagrun_trace_attributes
+
+        with dag_maker("test_trace_attrs_helper", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        attrs = dagrun_trace_attributes(dr)
+        assert attrs["airflow.dag_id"] == dr.dag_id
+        assert attrs["airflow.dag_run.run_id"] == dr.run_id
+        assert attrs["airflow.dag_run.run_type"] == str(dr.run_type)
 
     @pytest.mark.parametrize("carrier_value", [None, {}])
     def test_emit_dagrun_span_with_none_or_empty_carrier(self, dag_maker, session, carrier_value):
@@ -4089,6 +4362,34 @@ class TestDagRunTracing:
         else:
             assert len(spans) == 0
 
+    @pytest.mark.parametrize(
+        ("dag_id", "trace_flag", "expected_spans"),
+        [
+            pytest.param("test_tracing_sampled", "01", 1, id="sampled-carrier-emits"),
+            pytest.param("test_tracing_unsampled", "00", 0, id="unsampled-carrier-skips"),
+        ],
+    )
+    def test_emit_dagrun_span_honors_carrier_sampling(
+        self, dag_id, trace_flag, expected_spans, dag_maker, session
+    ):
+        """A SAMPLED carrier (flag 01) emits the dag_run span; an unsampled carrier (flag 00) is head-sampled out."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker(dag_id, session=session) as dag:
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.dag = dag
+        traceparent = f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
+        dr.context_carrier = {"traceparent": traceparent}
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr._emit_dagrun_span(state=DagRunState.SUCCESS)
+
+        assert len(in_mem_exporter.get_finished_spans()) == expected_spans
+
     @pytest.mark.db_test
     def test_context_carrier_includes_detail_level_from_conf(self, dag_maker):
         """DagRun created with TASK_SPAN_DETAIL_LEVEL_KEY in conf should encode the level in trace state."""
@@ -4108,3 +4409,454 @@ class TestDagRunTracing:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 2
+
+    @pytest.mark.parametrize(
+        ("conf", "expected"),
+        [
+            ({"airflow/trace_sampled": True}, True),
+            ({"airflow/trace_sampled": False}, False),
+            ({}, None),
+            (None, None),
+            ({"airflow/trace_sampled": "true"}, None),
+            ({"airflow/trace_sampled": 1}, None),
+            ({"other": True}, None),
+        ],
+    )
+    def test_trace_sampled_override(self, conf, expected):
+        """Only an explicit bool conf value is honored; anything else falls through to the sampler."""
+        from airflow.models.dagrun import trace_sampled_override
+
+        assert trace_sampled_override(conf) is expected
+
+    @pytest.mark.parametrize("flag", [True, False])
+    def test_context_carrier_honors_trace_sampled_conf(self, dag_maker, flag):
+        """airflow/trace_sampled in conf forces the carrier's SAMPLED flag regardless of the sampler."""
+        from opentelemetry import trace
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        with dag_maker("test_trace_sampled_conf"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(conf={"airflow/trace_sampled": flag})
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        span_ctx = trace.get_current_span(ctx).get_span_context()
+        assert span_ctx.trace_flags.sampled is flag
+
+
+class TestDagRunStatsTagsTeamName:
+    def test_stats_tags_without_team_name(self, dag_maker):
+        """stats_tags should not include team_name when _team_name is not set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        tags = dr.stats_tags
+        assert "team_name" not in tags
+        assert tags == {"dag_id": "test_dag", "run_type": "manual"}
+
+    def test_stats_tags_with_team_name(self, dag_maker):
+        """stats_tags should include team_name when _team_name is set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = "my_team"
+        tags = dr.stats_tags
+        assert tags["team_name"] == "my_team"
+        assert tags == {"dag_id": "test_dag", "run_type": "manual", "team_name": "my_team"}
+
+    def test_stats_tags_with_none_team_name(self, dag_maker):
+        """stats_tags should not include team_name when _team_name is None."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = None
+        tags = dr.stats_tags
+        assert "team_name" not in tags
+
+
+class TestClearPartitionRuns:
+    """Direct unit tests for the clear_partition_runs model-layer function."""
+
+    @pytest.fixture(autouse=True)
+    def setup_partitioned_dag(self, dag_maker):
+
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_cpr_dag",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        for day in (1, 2, 3):
+            dag_maker.create_dagrun(
+                run_id=f"cpr_run_{day}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2026, 1, day, tzinfo=pendulum.UTC),
+                partition_key=f"2026-01-0{day}T00:00:00",
+            )
+        dag_maker.sync_dagbag_to_db()
+        self._serialized_dag = SerializedDagModel.get_dag("test_cpr_dag")
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    def _get_run(self, run_id: str, session) -> DagRun:
+        return session.scalar(select(DagRun).where(DagRun.run_id == run_id))
+
+    def test_selector_run_id_clears_single_run(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id="cpr_run_2",
+            partition_key=None,
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 1
+        assert tis == 0
+        run = self._get_run("cpr_run_2", session)
+        assert run.partition_key is None
+        assert run.partition_date is None
+        # Other runs untouched.
+        run_1 = self._get_run("cpr_run_1", session)
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+
+    def test_selector_partition_key_clears_matching_run(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key="2026-01-03T00:00:00",
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 1
+        run = self._get_run("cpr_run_3", session)
+        assert run.partition_key is None
+        # Other runs untouched.
+        run_1 = self._get_run("cpr_run_1", session)
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+
+    def test_selector_date_window_clears_range(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 2, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 2
+        run_2 = self._get_run("cpr_run_2", session)
+        assert run_2.partition_key is None
+        run_3 = self._get_run("cpr_run_3", session)
+        assert run_3.partition_key is None
+        # Out-of-range run untouched.
+        run_1 = self._get_run("cpr_run_1", session)
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+
+    def test_dry_run_returns_correct_count_without_db_changes(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=True,
+            session=session,
+        )
+
+        assert cleared == 3
+        assert tis == 0
+        # DB unchanged.
+        for run_id, expected_key in [
+            ("cpr_run_1", "2026-01-01T00:00:00"),
+            ("cpr_run_2", "2026-01-02T00:00:00"),
+            ("cpr_run_3", "2026-01-03T00:00:00"),
+        ]:
+            run = self._get_run(run_id, session)
+            assert run.partition_key == expected_key
+
+    def test_cross_dag_isolation(self, dag_maker, session):
+        """Runs from another dag sharing the same run_id are not affected."""
+
+        bystander_dag_id = "test_cpr_bystander_dag"
+        with dag_maker(
+            bystander_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id="cpr_run_2",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime.datetime(2026, 1, 2, tzinfo=pendulum.UTC),
+            partition_key="bystander-key",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        cleared, _ = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id="cpr_run_2",
+            partition_key=None,
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 1
+        bystander_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == bystander_dag_id, DagRun.run_id == "cpr_run_2")
+        )
+        assert bystander_run.partition_key == "bystander-key"
+
+    def test_callback_called_once_per_matched_run_before_mutation(self, session):
+        calls: list[tuple[str, bool, str | None]] = []
+
+        def capture(run: DagRun, had_partition_fields: bool) -> None:
+            calls.append((run.run_id, had_partition_fields, run.partition_key))
+
+        clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+            on_run_matched=capture,
+        )
+
+        assert len(calls) == 3
+        for run_id, had_partition_fields, old_partition_key in calls:
+            assert had_partition_fields is True
+            assert old_partition_key is not None, (
+                f"run {run_id}: callback saw None partition_key (mutation before callback)"
+            )
+
+    def test_callback_had_partition_fields_false_for_already_cleared_run(self, dag_maker, session):
+        dag_maker.create_dagrun(
+            run_id="cpr_already_cleared",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=None,
+            partition_key=None,
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        calls: list[tuple[str, bool]] = []
+
+        def capture(run: DagRun, had_partition_fields: bool) -> None:
+            calls.append((run.run_id, had_partition_fields))
+
+        clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id="cpr_already_cleared",
+            partition_key=None,
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+            on_run_matched=capture,
+        )
+
+        assert calls == [("cpr_already_cleared", False)]
+
+    def test_chunk_boundary_at_cap(self, dag_maker, session):
+        """2 DRs × 3 TIs = 6 TIs == chunk size → clear_task_instances called once."""
+
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_cpr_chunk_at_cap",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2024, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+            EmptyOperator(task_id="t3")
+        for i in range(2):
+            dag_maker.create_dagrun(
+                run_id=f"cpr_cap_run_{i:04d}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC)
+                + datetime.timedelta(days=i),
+                partition_key=f"cap-key-{i:04d}",
+            )
+        dag_maker.sync_dagbag_to_db()
+        serialized_dag = SerializedDagModel.get_dag("test_cpr_chunk_at_cap")
+
+        with (
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+        ):
+            cleared, tis = clear_partition_runs(
+                dag=serialized_dag,
+                dag_id="test_cpr_chunk_at_cap",
+                run_id=None,
+                partition_key=None,
+                partition_date_start=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC),
+                partition_date_end=datetime.datetime(2025, 12, 31, tzinfo=pendulum.UTC),
+                clear_tis=True,
+                dry_run=False,
+                session=session,
+            )
+
+        assert cleared == 2
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [6]
+
+    def test_chunk_boundary_over_cap(self, dag_maker, session):
+        """3 DRs × 3 TIs = 9 TIs > chunk size 6 → two calls: [6, 3]."""
+
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_cpr_chunk_over_cap",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2024, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+            EmptyOperator(task_id="t3")
+        for i in range(3):
+            dag_maker.create_dagrun(
+                run_id=f"cpr_over_run_{i:04d}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC)
+                + datetime.timedelta(days=i),
+                partition_key=f"over-key-{i:04d}",
+            )
+        dag_maker.sync_dagbag_to_db()
+        serialized_dag = SerializedDagModel.get_dag("test_cpr_chunk_over_cap")
+
+        with (
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+        ):
+            clear_partition_runs(
+                dag=serialized_dag,
+                dag_id="test_cpr_chunk_over_cap",
+                run_id=None,
+                partition_key=None,
+                partition_date_start=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC),
+                partition_date_end=datetime.datetime(2025, 12, 31, tzinfo=pendulum.UTC),
+                clear_tis=True,
+                dry_run=False,
+                session=session,
+            )
+
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [6, 3]
+
+    def test_date_window_with_dag_none_raises_value_error(self, session):
+        """Date-window selector requires a loaded Dag; dag=None must raise ValueError."""
+        with pytest.raises(ValueError, match="date-window selector requires"):
+            clear_partition_runs(
+                dag=None,
+                dag_id="test_cpr_dag",
+                run_id=None,
+                partition_key=None,
+                partition_date_start=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+                partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+                clear_tis=False,
+                dry_run=False,
+                session=session,
+            )
+
+
+@pytest.mark.db_test
+class TestApplyPartitionDateWindowSubDay:
+    """apply_partition_date_window preserves sub-day precision for hourly partitioned Dags."""
+
+    @pytest.fixture(autouse=True)
+    def setup_hourly_dag(self, dag_maker):
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_subday_dag",
+            schedule=CronPartitionTimetable("0 * * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        for hour in (6, 8, 10):
+            dag_maker.create_dagrun(
+                run_id=f"subday_run_{hour:02d}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2026, 1, 1, hour, tzinfo=pendulum.UTC),
+                partition_key=f"2026-01-01T{hour:02d}:00:00",
+            )
+        dag_maker.sync_dagbag_to_db()
+        self._serialized_dag = SerializedDagModel.get_dag("test_subday_dag")
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    def _get_run(self, run_id: str, session) -> DagRun:
+        return session.scalar(select(DagRun).where(DagRun.run_id == run_id))
+
+    def test_narrow_window_selects_only_matching_partition(self, session):
+        """A one-hour window clears exactly the matching tick, not the entire day."""
+        cleared, _ = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_subday_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, 8, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 1, 8, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+        assert cleared == 1
+        assert self._get_run("subday_run_06", session).partition_key == "2026-01-01T06:00:00"
+        assert self._get_run("subday_run_08", session).partition_key is None
+        assert self._get_run("subday_run_10", session).partition_key == "2026-01-01T10:00:00"
+
+    def test_multi_hour_window_selects_range(self, session):
+        """A window spanning 06:00–10:00 clears all three hourly partitions."""
+        cleared, _ = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_subday_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, 6, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 1, 10, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+        assert cleared == 3

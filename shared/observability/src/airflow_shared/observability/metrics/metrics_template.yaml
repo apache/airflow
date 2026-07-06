@@ -59,6 +59,41 @@ metrics:
     legacy_name: "operator_successes_{operator_name}"
     name_variables: ["operator_name"]
 
+  - name: "resumable_job.fresh_submit"
+    description: "Number of times a ResumableJobMixin operator submitted a fresh job
+    with no prior run ID stored (first run). Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "resumable_job.already_succeeded"
+    description: "Number of times a ResumableJobMixin operator found a stored run ID
+    whose job had already completed successfully and skipped resubmission. Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "resumable_job.terminal_resubmit"
+    description: "Number of times a ResumableJobMixin operator found a stored run ID
+    whose job was in a terminal (failed) state and submitted a fresh job. Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "resumable_job.reconnect_attempt"
+    description: "Number of times a ResumableJobMixin operator found a stored run ID
+    on retry and attempted to reconnect. Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "resumable_job.reconnect_success"
+    description: "Number of times a ResumableJobMixin operator successfully reconnected
+    to an active job on retry. Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ti_failures"
     description: "Overall task instances failures. Metric with dag_id and task_id tagging."
     type: "counter"
@@ -129,18 +164,6 @@ metrics:
 
   - name: "dag_file_processor_timeouts"
     description: "(DEPRECATED) same behavior as ``dag_processing.processor_timeouts``"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "dag_processing.manager_stalls"
-    description: "Number of stalled ``DagFileProcessorManager``"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "dag_file_refresh_error"
-    description: "Number of failures loading any Dag files"
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -376,11 +399,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.last_run.seconds_ago.{dag_file}"
-    description: "Seconds since ``{dag_file}`` was last processed"
+  - name: "dag_processing.last_run.seconds_ago"
+    description: "Seconds since a DAG file was last processed.
+    Metric with file_path, bundle_name and file_name tagging."
     type: "gauge"
-    legacy_name: "-"
-    name_variables: ["dag_file"]
+    legacy_name: "dag_processing.last_run.seconds_ago.{file_name}"
+    name_variables: ["file_name"]
 
   - name: "dag_processing.last_num_of_db_queries.{dag_file}"
     description: "Number of queries to Airflow database during parsing per ``{dag_file}``"
@@ -674,18 +698,6 @@ metrics:
 
   - name: "dagrun.first_task_start_delay"
     description: "Milliseconds elapsed between dagrun queued_at and first task start_date"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "collect_db_dags"
-    description: "Milliseconds taken for fetching all Serialized Dags from DB"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "kubernetes_executor.clear_not_launched_queued_tasks.duration"
-    description: "Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor"
     type: "timer"
     legacy_name: "-"
     name_variables: []

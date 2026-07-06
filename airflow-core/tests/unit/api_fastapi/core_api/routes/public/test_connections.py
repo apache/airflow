@@ -25,6 +25,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
@@ -1068,6 +1069,133 @@ class TestConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 403
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_unreadable_existing_connection_indistinguishable_from_missing(self, test_client):
+        """Route-level POST authorization is not enough on its own — when the
+        request references an existing connection_id, the caller must also be
+        authorized to read that specific connection before its hidden fields
+        are merged into the test object. A caller lacking read access must
+        get the same response shape as for a non-existent connection_id, so
+        the route cannot be used to enumerate protected connection ids."""
+        self.create_connection()
+
+        from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+
+        real_method = SimpleAuthManager.is_authorized_connection
+
+        def gated_authz(self, *, method, details=None, user=None):
+            if method == "GET":
+                return False
+            return real_method(self, method=method, details=details, user=user)
+
+        with mock.patch.object(SimpleAuthManager, "is_authorized_connection", gated_authz):
+            existing_response = test_client.post(
+                "/connections/test",
+                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            )
+            missing_response = test_client.post(
+                "/connections/test",
+                json={"connection_id": "this_connection_does_not_exist", "conn_type": "sqlite"},
+            )
+
+        # Both calls reach the body-only test path (the unreadable existing
+        # connection is treated as if it did not exist), so status + body
+        # shape must be identical — no existence oracle for protected ids.
+        assert existing_response.status_code == missing_response.status_code
+        assert set(existing_response.json().keys()) == set(missing_response.json().keys())
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_unreadable_existing_connection_does_not_trigger_secrets_lookup(self, test_client):
+        """The route must gate the secrets-backend lookup on the GET
+        authorization check, not perform the lookup and then suppress the
+        result. Otherwise an unauthorized caller can still force
+        ``Connection.get_connection_from_secrets`` to query every configured
+        secrets backend for arbitrary connection ids — leaking timing /
+        existence signals, generating access-log entries in audited
+        backends, and imposing backend load."""
+        self.create_connection()
+
+        from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+
+        real_method = SimpleAuthManager.is_authorized_connection
+
+        def gated_authz(self, *, method, details=None, user=None):
+            if method == "GET":
+                return False
+            return real_method(self, method=method, details=details, user=user)
+
+        with (
+            mock.patch.object(SimpleAuthManager, "is_authorized_connection", gated_authz),
+            mock.patch.object(
+                Connection,
+                "get_connection_from_secrets",
+                wraps=Connection.get_connection_from_secrets,
+            ) as spy_secrets,
+        ):
+            response = test_client.post(
+                "/connections/test",
+                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            )
+
+        assert response.status_code == 200
+        spy_secrets.assert_not_called()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_existing_connection_lookup_preserves_team_scope(self, test_client, testing_team, session):
+        """The secrets-backend lookup must propagate the authorized
+        ``team_name`` to ``Connection.get_connection_from_secrets``.
+        Otherwise the call falls back to global / wrong-team paths in
+        team-aware backends (Vault, Akeyless, …) and can return a
+        cross-scope secret with the same ``conn_id`` — exactly what the
+        team-scoped authorization check above is supposed to prevent."""
+        self.create_connection(team_name=testing_team.name)
+        session.commit()
+
+        with mock.patch.object(
+            Connection,
+            "get_connection_from_secrets",
+            wraps=Connection.get_connection_from_secrets,
+        ) as spy_secrets:
+            response = test_client.post(
+                "/connections/test",
+                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            )
+
+        assert response.status_code == 200
+        spy_secrets.assert_called_once_with(TEST_CONN_ID, team_name=testing_team.name)
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_secrets_only_team_connection_uses_body_team_scope(self, test_client, testing_team):
+        """When the connection exists only in a team-aware secrets backend
+        (no metadata-DB row), ``Connection.get_team_name`` returns None.
+        The route must then fall back to the body's validated ``team_name``
+        so the GET authorization and the subsequent secrets lookup both
+        run in the right team scope — otherwise a team-scoped existing
+        connection would be authorized and looked up as global, losing
+        the multi-team isolation guarantee in deployments that keep
+        connections in Vault / Kubernetes / Akeyless rather than the DB."""
+        # No ``self.create_connection()`` — TEST_CONN_ID lives only in a
+        # secrets backend in this scenario.
+
+        with mock.patch.object(
+            Connection,
+            "get_connection_from_secrets",
+            wraps=Connection.get_connection_from_secrets,
+        ) as spy_secrets:
+            response = test_client.post(
+                "/connections/test",
+                json={
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": "sqlite",
+                    "team_name": testing_team.name,
+                },
+            )
+
+        assert response.status_code == 200
+        spy_secrets.assert_called_once_with(TEST_CONN_ID, team_name=testing_team.name)
+
     @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
@@ -1301,6 +1429,27 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         ct = session.scalar(select(ConnectionTestRequest).filter_by(token=token))
         assert ct is not None
         assert ct.commit_on_success is True
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.get_auth_manager", autospec=True)
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_commit_on_success_existing_connection_requires_edit_permission(
+        self, mock_get_auth_manager, test_client, session
+    ):
+        """POST /connections/enqueue-test requires edit permission when it can update a connection."""
+        self.create_connection()
+        mock_auth_manager = mock.create_autospec(BaseAuthManager, instance=True)
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.is_authorized_connection.side_effect = lambda *, method, details, user: (
+            method == "POST"
+        )
+        body = {**self.TEST_REQUEST_BODY, "commit_on_success": True}
+
+        response = test_client.post("/connections/enqueue-test", json=body)
+
+        assert response.status_code == 403
+        mock_auth_manager.is_authorized_connection.assert_called_once()
+        assert mock_auth_manager.is_authorized_connection.call_args.kwargs["method"] == "PUT"
+        assert session.scalar(select(ConnectionTestRequest)) is None
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_post_returns_409_for_duplicate_active_test(self, test_client, session):
@@ -1961,6 +2110,40 @@ class TestBulkConnections(TestConnectionEndpoint):
 
         expected_error_conn_ids = {err["input"]["connection_id"] for err in detail}
         assert sorted(expected_error_conn_ids) == ["test_conn_id_2", "test_conn_id_3"]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_bulk_create_overwrite_preserves_unset_team_name(self, test_client, testing_team, session):
+        """A bulk create+overwrite that omits ``team_name`` must NOT reset an existing connection's
+        ``team_name`` to ``None`` (parity with the pools fix). Overwriting with only ``conn_type``
+        previously clobbered every unset field via ``model_dump(by_alias=True)`` — silently nulling
+        the connection's multi-team ownership. ``exclude_unset=True`` preserves omitted fields.
+        """
+        self.create_connection(team_name=testing_team.name)
+        before = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert before.team_name == testing_team.name
+
+        response = test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "action_on_existence": "overwrite",
+                        "entities": [{"connection_id": TEST_CONN_ID, "conn_type": "new_type"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["create"]["success"] == [TEST_CONN_ID]
+
+        session.expire_all()
+        after = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert after.conn_type == "new_type"  # provided field is applied
+        assert after.team_name == testing_team.name, (
+            "bulk overwrite that omitted team_name must preserve existing ownership, "
+            f"got team_name={after.team_name!r}"
+        )
 
 
 class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):

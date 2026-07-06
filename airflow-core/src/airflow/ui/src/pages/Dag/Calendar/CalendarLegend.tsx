@@ -30,8 +30,48 @@ type Props = {
   readonly viewMode: CalendarColorMode;
 };
 
+type LegendColorType =
+  | Record<string, string>
+  | string
+  | { primary: Record<string, string> | string; secondary: Record<string, string> | string };
+
+const LegendIcon = ({ color, cursor }: { readonly color: LegendColorType; readonly cursor?: string }) => {
+  const isMixedState = typeof color === "object" && "primary" in color && "secondary" in color;
+
+  if (isMixedState) {
+    return (
+      <Box
+        borderRadius="2px"
+        boxShadow="sm"
+        cursor={cursor}
+        height="14px"
+        overflow="hidden"
+        position="relative"
+        width="14px"
+      >
+        <Box
+          bg={color.secondary}
+          clipPath="polygon(0 100%, 100% 100%, 0 0)"
+          height="100%"
+          position="absolute"
+          width="100%"
+        />
+        <Box
+          bg={color.primary}
+          clipPath="polygon(100% 0, 100% 100%, 0 0)"
+          height="100%"
+          position="absolute"
+          width="100%"
+        />
+      </Box>
+    );
+  }
+
+  return <Box bg={color} borderRadius="2px" boxShadow="sm" cursor={cursor} height="14px" width="14px" />;
+};
+
 export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "common"]);
 
   const legendTitle =
     viewMode === "failed" ? translate("overview.buttons.failedRun_other") : translate("calendar.totalRuns");
@@ -54,7 +94,9 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
             <VStack gap={0.5}>
               {[...scale.legendItems].reverse().map(({ color, label }) => (
                 <Tooltip content={`${label} ${viewMode === "failed" ? "failed" : "runs"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
+                  <Box>
+                    <LegendIcon color={color} cursor="pointer" />
+                  </Box>
                 </Tooltip>
               ))}
             </VStack>
@@ -70,7 +112,9 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
             <HStack gap={0.5}>
               {scale.legendItems.map(({ color, label }) => (
                 <Tooltip content={`${label} ${viewMode === "failed" ? "failed" : "runs"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
+                  <Box>
+                    <LegendIcon color={color} cursor="pointer" />
+                  </Box>
                 </Tooltip>
               ))}
             </HStack>
@@ -83,42 +127,49 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
 
       <Box>
         <HStack gap={4} justify="center" wrap="wrap">
+          {viewMode === "total" && (
+            <>
+              <HStack gap={2}>
+                <LegendIcon color={{ _dark: "green.700", _light: "green.400" }} />
+                <Text color="fg.muted" fontSize="xs">
+                  {translate("common:states.success")}
+                </Text>
+              </HStack>
+              <HStack gap={2}>
+                <LegendIcon color={{ _dark: "cyan.700", _light: "cyan.400" }} />
+                <Text color="fg.muted" fontSize="xs">
+                  {translate("common:states.running")}
+                </Text>
+              </HStack>
+            </>
+          )}
+
+          <HStack gap={2}>
+            <LegendIcon color={{ _dark: "red.700", _light: "red.400" }} />
+            <Text color="fg.muted" fontSize="xs">
+              {translate("common:states.failed")}
+            </Text>
+          </HStack>
+
           <HStack gap={2}>
             <Box bg={PLANNED_COLOR} borderRadius="2px" boxShadow="sm" height="14px" width="14px" />
             <Text color="fg.muted" fontSize="xs">
               {translate("common:states.planned")}
             </Text>
           </HStack>
+
           <HStack gap={2}>
-            <Box
-              borderRadius="2px"
-              boxShadow="sm"
-              height="14px"
-              overflow="hidden"
-              position="relative"
-              width="14px"
-            >
-              <Box
-                bg={PLANNED_COLOR}
-                clipPath="polygon(0 100%, 100% 100%, 0 0)"
-                height="100%"
-                position="absolute"
-                width="100%"
-              />
-              <Box
-                bg={
+            <LegendIcon
+              color={{
+                primary:
                   viewMode === "failed"
                     ? { _dark: "red.700", _light: "red.400" }
-                    : { _dark: "green.700", _light: "green.400" }
-                }
-                clipPath="polygon(100% 0, 100% 100%, 0 0)"
-                height="100%"
-                position="absolute"
-                width="100%"
-              />
-            </Box>
+                    : { _dark: "green.700", _light: "green.400" },
+                secondary: PLANNED_COLOR,
+              }}
+            />
             <Text color="fg.muted" fontSize="xs">
-              {translate("calendar.legend.mixed")}
+              {translate("dag:calendar.legend.mixed")}
             </Text>
           </HStack>
         </HStack>

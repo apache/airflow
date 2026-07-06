@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import os
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkResponse,
@@ -52,6 +53,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    AuthManagerDep,
     GetUserDep,
     ReadableConnectionsFilterDep,
     requires_access_connection,
@@ -70,6 +72,9 @@ from airflow.models.connection_test import ConnectionTestRequest
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
+
+if TYPE_CHECKING:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
@@ -93,7 +98,7 @@ def _ensure_executor_is_configured(executor: str | None) -> None:
         executor in (name.alias, name.module_path, name.module_path.split(".")[-1]) for name in configured
     ):
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
             f"Executor '{executor}' is not configured. "
             f"Configured executors: {[name.alias or name.module_path for name in configured]}",
         )
@@ -289,7 +294,11 @@ def patch_connection(
 
 
 @connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
-def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
+def test_connection(
+    test_body: ConnectionBody,
+    user: GetUserDep,
+    auth_manager: AuthManagerDep,
+) -> ConnectionTestResponse:
     """
     Test an API connection.
 
@@ -302,13 +311,49 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
     transient_conn_id = get_random_string()
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
     try:
-        # Try to get existing connection and merge with provided values
-        try:
-            existing_conn = Connection.get_connection_from_secrets(test_body.connection_id)
+        # Authorize read access on the requested ``connection_id`` *before*
+        # touching the secrets backends. The route-level POST dependency only
+        # verifies the caller can create connections; merging the existing
+        # connection's hidden fields also requires read access to that
+        # specific connection. Gating the backend lookup itself (rather than
+        # the post-load merge) prevents an unauthorized caller from using
+        # this endpoint to enumerate protected connection ids, generate
+        # access-log entries in audited backends, or impose backend load for
+        # arbitrary ids. ``get_team_name`` is a metadata-only DB lookup and
+        # does not touch the configured secrets backends.
+        #
+        # When the connection has no metadata-DB row (e.g. it lives only in
+        # a team-aware secrets backend like Vault or Kubernetes), fall back
+        # to the request body's validated ``team_name`` so the GET
+        # authorization and the secrets lookup both run in the right team
+        # scope. ``ConnectionBody.validate_team_name`` already rejects
+        # ``team_name`` from clients when ``[core] multi_team`` is off, so
+        # a non-None body value here is always already gated by that
+        # validator.
+        team_name = Connection.get_team_name(test_body.connection_id)
+        if team_name is None:
+            team_name = test_body.team_name
+        existing_conn: Connection | None = None
+        if auth_manager.is_authorized_connection(
+            method="GET",
+            details=ConnectionDetails(
+                conn_id=test_body.connection_id,
+                team_name=team_name,
+            ),
+            user=user,
+        ):
+            try:
+                existing_conn = Connection.get_connection_from_secrets(
+                    test_body.connection_id, team_name=team_name
+                )
+            except AirflowNotFoundException:
+                existing_conn = None
+
+        if existing_conn is not None:
             existing_conn.conn_id = transient_conn_id
             update_orm_from_pydantic(existing_conn, test_body)
             conn = existing_conn
-        except AirflowNotFoundException:
+        else:
             data = test_body.model_dump(by_alias=True)
             data["conn_id"] = transient_conn_id
             conn = Connection(**data)
@@ -327,7 +372,7 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
         [
             status.HTTP_403_FORBIDDEN,
             status.HTTP_409_CONFLICT,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(action_logging())],
@@ -353,8 +398,9 @@ def enqueue_connection_test(
     else:
         effective_team = test_body.team_name
 
+    auth_method: ResourceMethod = "PUT" if existing is not None and test_body.commit_on_success else "POST"
     if not get_auth_manager().is_authorized_connection(
-        method="POST",
+        method=auth_method,
         details=ConnectionDetails(conn_id=test_body.connection_id, team_name=effective_team),
         user=user,
     ):

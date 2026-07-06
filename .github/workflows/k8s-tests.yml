@@ -48,6 +48,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources"
         required: true
         type: string
+      java-sdk-version:
+        description: "JDK version used to build the lang-SDK Java artifacts natively in CI"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -81,7 +85,7 @@ jobs:
           echo "PYTHON_MAJOR_MINOR_VERSION=${KUBERNETES_COMBO}" | sed 's/-.*//' >> $GITHUB_ENV
           echo "KUBERNETES_VERSION=${KUBERNETES_COMBO}" | sed 's/=[^-]*-/=/'  >> $GITHUB_ENV
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       # env.PYTHON_MAJOR_MINOR_VERSION, env.KUBERNETES_VERSION are set in the previous
@@ -96,6 +100,45 @@ jobs:
           make-mnt-writeable-and-cleanup: true
         id: breeze
       # preparing k8s environment with uv takes < 15 seconds with `uv` - there is no point in caching it.
+      # Provision the lang-SDK Go/Java toolchains on the host only for the single variant that runs the
+      # lang-SDK test (KubernetesExecutor, standard-naming off). LANG_SDK_NATIVE_TOOLCHAIN=true then makes
+      # breeze build the artifacts natively instead of in throwaway toolchain containers, skipping the
+      # image pulls and reusing the caches restored below. The module/build and Gradle caches are keyed
+      # explicitly (rather than via the setup-* built-in caching) so the key carries an ``-vN-`` salt:
+      # bump it to force-invalidate a poisoned cache without waiting for a dependency change to rotate it.
+      # keep go-version in sync with go-sdk/go.mod and the sibling Go SDK job in ci-amd.yml.
+      - name: "Setup Go for lang-SDK build"
+        if: matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        with:
+          go-version: 1.25
+          cache: false
+      - name: "Cache lang-SDK Go module + build cache"
+        if: matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: lang-sdk-go-v1-${{ runner.os }}-${{ hashFiles('kubernetes-tests/lang_sdk/go_example/go.sum') }}
+          restore-keys: |
+            lang-sdk-go-v1-${{ runner.os }}-
+      - name: "Setup Java for lang-SDK build"
+        if: matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520  # v5.4.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java-sdk-version }}
+      - name: "Cache lang-SDK Gradle distribution + dependencies"
+        if: matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: lang-sdk-gradle-v1-${{ runner.os }}-${{ hashFiles('java-sdk/**/*.gradle*', 'java-sdk/**/gradle-wrapper.properties', 'kubernetes-tests/lang_sdk/java_example/**/*.gradle*') }}  # yamllint disable-line rule:line-length
+          restore-keys: |
+            lang-sdk-gradle-v1-${{ runner.os }}-
       - name: "\
           Run complete K8S tests ${{ matrix.executor }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-\
           ${{env.KUBERNETES_VERSION}}-${{ matrix.use-standard-naming }}"
@@ -103,6 +146,10 @@ jobs:
         env:
           EXECUTOR: ${{ matrix.executor }}
           USE_STANDARD_NAMING: ${{ matrix.use-standard-naming }}
+          # Provision + run the lang-SDK coordinator system test in a single variant only
+          # (KubernetesExecutor, standard-naming off) to keep it off the other five k8s jobs.
+          RUN_LANG_SDK_K8S_TESTS: ${{ (matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false) && 'true' || 'false' }}  # yamllint disable-line rule:line-length
+          LANG_SDK_NATIVE_TOOLCHAIN: ${{ (matrix.executor == 'KubernetesExecutor' && matrix.use-standard-naming == false) && 'true' || 'false' }}  # yamllint disable-line rule:line-length
           VERBOSE: "false"
       - name: "\
           Print logs ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\

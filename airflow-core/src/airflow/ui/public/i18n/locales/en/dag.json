@@ -91,10 +91,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Full screen",
-      "tooltip": "Press {{hotkey}} for fullscreen"
-    },
     "info": "INFO",
     "noTryNumber": "No try number",
     "search": {
@@ -107,9 +103,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "navigation": "Navigation: Shift+{{arrow}}",
-    "openGraphFilters": "Task Filters: Ctrl+Shift+F",
-    "toggleGroup": "Toggle group: Space"
+    "openGraphFilters": "Task Filters: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "Go Back",
@@ -232,7 +226,7 @@
     "runs": "Runs",
     "storage": "Storage",
     "taskInstances": "Task Instances",
-    "taskStore": "Task Store",
+    "taskStateStore": "Task State Store",
     "tasks": "Tasks",
     "xcom": "XCom"
   },
@@ -240,17 +234,17 @@
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
   },
-  "taskStore": {
-    "add": "Add Task Store",
+  "taskStateStore": {
+    "add": "Add Task State Store",
     "clearAll": {
-      "resource": "all task store",
-      "title": "Clear All Task Store",
-      "warning": "All task store will be wiped. Tasks that use this store to track external work will not be able to resume without re-running from scratch."
+      "resource": "all task state store",
+      "title": "Clear All Task State Store",
+      "warning": "All task state store will be wiped. Tasks that use this store to track external work will not be able to resume without re-running from scratch."
     },
-    "delete": "Delete Task Store",
+    "delete": "Delete Task State Store",
     "deleteWarning": "The task will lose this persisted memory. If the task is using this key to track external work (e.g. an external job ID), it will not be able to resume it.",
-    "edit": "Edit Task Store",
-    "emptyStore": "Task store stores values that persist across retries. Workers can write task store via the Task SDK.",
+    "edit": "Edit Task State Store",
+    "emptyStore": "Task state store stores values that persist across retries. Workers can write task state store via the Task SDK.",
     "expiresAt": {
       "column": "Expires At",
       "custom": "Custom",
@@ -258,6 +252,6 @@
       "label": "Expiration",
       "never": "Never"
     },
-    "title": "Task Store"
+    "title": "Task State Store"
   }
 }

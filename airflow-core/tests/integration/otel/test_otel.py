@@ -257,7 +257,7 @@ class TestOtelIntegration:
     def serialize_and_get_dags(cls) -> dict[str, SerializedDAG]:
         log.info("Serializing Dags from directory %s", cls.dag_folder)
         # Load DAGs from the dag directory.
-        dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
+        dag_bag = DagBag(dag_folder=cls.dag_folder)
 
         dag_ids = dag_bag.dag_ids
         assert len(dag_ids) == 1
@@ -467,9 +467,10 @@ class TestOtelIntegration:
                     "_validate_task_inlets_and_outlets": "_prepare",
                     "_prepare": "run",
                     "_execute_task": "run",
+                    "task.execute": "_execute_task",
                     "finalize": "worker.task1",
                     "run": "worker.task1",
-                    "sub_span1": "_execute_task",
+                    "sub_span1": "task.execute",
                     "dag_run.otel_test_dag": None,
                     "task_run.task1": "dag_run.otel_test_dag",
                     "worker.task1": "task_run.task1",

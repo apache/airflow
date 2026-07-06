@@ -101,18 +101,18 @@ func main() {
 ```
 
 A task is an ordinary Go function. The runtime inspects its signature and injects arguments by type:
-`context.Context`, `*slog.Logger`, and an `sdk.Client` (or a narrower interface such as
+`sdk.TIRunContext`, `*slog.Logger`, and an `sdk.Client` (or a narrower interface such as
 `sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
 the task failed.
 
 ```go
-func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
+func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
     conn, err := client.GetConnection(ctx, "test_http")
     // ... do work, honour ctx cancellation ...
     return map[string]any{"go_version": runtime.Version()}, nil
 }
 
-func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger) error {
+func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
     val, err := client.GetVariable(ctx, "my_variable")
     if err != nil {
         return err
@@ -125,6 +125,31 @@ func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger)
 Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` instead of `sdk.Client`) makes
 unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
 source of truth for which `dag_id`s and `task_id`s a bundle can run.
+
+### Reading the task runtime context
+
+Declare an `sdk.TIRunContext` parameter on a task to read the identifiers and scheduling timestamps of the
+running task instance and its Dag run -- the Go equivalent of the execution context the Python and Java SDKs
+expose. It is an interface that embeds `context.Context`, so the same `ctx` drives cancellation and client
+calls. The runtime binds it by type, just like the other injected parameters:
+
+```go
+func extract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
+    ti := ctx.TaskInstance()
+    log.Info("running",
+        "dag_id", ti.DagID,
+        "run_id", ti.RunID,
+        "task_id", ti.TaskID,
+        "try_number", ti.TryNumber,
+        "logical_date", ctx.DagRun().LogicalDate,
+    )
+    return nil, nil
+}
+```
+
+`ctx.TaskInstance()` returns `DagID`, `RunID`, `TaskID`, `MapIndex` (nil for an unmapped task), and
+`TryNumber`; `ctx.DagRun()` returns `DagID`, `RunID`, and the `*time.Time` fields `LogicalDate`,
+`DataIntervalStart`, and `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger).
 
 ## Deployment modes
 
@@ -318,6 +343,19 @@ Airflow scheduler ──Edge Executor API──► airflow-go-edge-worker ──
   [`go-plugin`](https://github.com/hashicorp/go-plugin) (gRPC over a handshake-gated socket).
 - The Task API itself has no way to deliver an `ExecuteTaskWorkload` to a Go worker, so the Edge Executor
   API fills that gap. Longer term that API will likely need stabilising and versioning.
+
+## Regenerating the coordinator-protocol models
+
+The types in `pkg/execution/genmodels/` are generated from the in-tree supervisor schema snapshot
+(`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit them by hand. To move the
+SDK to a newer schema version:
+
+1. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
+   snapshot's `api_version` date.
+2. Run `just generate-models`.
+
+`TestSupervisorSchemaVersionMatchesSnapshot` fails when the constant and the snapshot's `api_version`
+drift, so a missed bump is caught by `go test` instead of needing a dedicated prek hook.
 
 ## Architectural decisions
 

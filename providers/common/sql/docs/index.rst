@@ -109,8 +109,8 @@ PIP package                                 Version required
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -127,9 +127,32 @@ Dependent package                                                               
 ====================================================================================================================  ==================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                  ``amazon``
 `apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_    ``common.compat``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_        ``openlineage``
 ====================================================================================================================  ==================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-common-sql[pandas]
+
+
+==================  =======================================================================================================================================================================
+Extra               Dependencies
+==================  =======================================================================================================================================================================
+``pandas``          ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
+``openlineage``     ``apache-airflow-providers-openlineage``
+``polars``          ``polars>=1.26.0``
+``sqlalchemy``      ``sqlalchemy>=1.4.54``
+``amazon``          ``apache-airflow-providers-amazon``
+``datafusion``      ``datafusion>=50.0.0,<52.0.0``
+``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
+``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
+==================  =======================================================================================================================================================================
 
 Downloading official packages
 -----------------------------

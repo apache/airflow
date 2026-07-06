@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``7a98f1b7dbd3`` (head) | ``9ff64e1c35d3`` | ``3.3.0``         | Add index on asset_event (asset_id, partition_key).          |
+| ``7a98f1b7dbd3`` (head) | ``d2f4e1b3c5a7`` | ``3.4.0``         | Add index on asset_event (asset_id, partition_key).          |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``d2f4e1b3c5a7``        | ``9ff64e1c35d3`` | ``3.3.0``         | Add partition_date to asset_partition_dag_run.               |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``9ff64e1c35d3``        | ``dd5f3a8e2b91`` | ``3.3.0``         | Add indexes on dag_run.created_dag_version_id and            |
 |                         |                  |                   | task_instance.dag_version_id.                                |
@@ -66,7 +68,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``b8f3e4a1d2c9``        | ``fde9ed84d07b`` | ``3.3.0``         | Add retry_delay_override and retry_reason to task_instance.  |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``fde9ed84d07b``        | ``9fabad868fdb`` | ``3.3.0``         | Add task_store and asset_store tables.                       |
+| ``fde9ed84d07b``        | ``9fabad868fdb`` | ``3.3.0``         | Add task_state_store and asset_state_store tables.           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``9fabad868fdb``        | ``a4c2d171ae18`` | ``3.3.0``         | Add timetable_periodic to DagModel.                          |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

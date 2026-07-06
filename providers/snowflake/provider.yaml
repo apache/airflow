@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1779138394
+source-date-epoch: 1781642052
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.14.0
   - 6.13.0
   - 6.12.2
   - 6.12.1
@@ -117,6 +118,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-snowflake/operators/snowflake.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark.rst
+      - /docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst
     logo: /docs/integration-logos/Snowflake.png
     tags: [service]
 
@@ -125,6 +127,7 @@ operators:
     python-modules:
       - airflow.providers.snowflake.operators.snowflake
       - airflow.providers.snowflake.operators.snowpark
+      - airflow.providers.snowflake.operators.snowpark_containers
 
 task-decorators:
   - class-name: airflow.providers.snowflake.decorators.snowpark.snowpark_task
@@ -149,6 +152,7 @@ hooks:
     python-modules:
       - airflow.providers.snowflake.hooks.snowflake
       - airflow.providers.snowflake.hooks.snowflake_sql_api
+      - airflow.providers.snowflake.hooks.snowflake_cortex_agent
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)

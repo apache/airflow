@@ -315,6 +315,164 @@ export const $AssetEventResponse = {
     description: 'Asset event serializer for responses.'
 } as const;
 
+export const $AssetExpressionAlias = {
+    properties: {
+        alias: {
+            '$ref': '#/components/schemas/AssetExpressionAliasInfo'
+        }
+    },
+    type: 'object',
+    required: ['alias'],
+    title: 'AssetExpressionAlias',
+    description: 'An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.'
+} as const;
+
+export const $AssetExpressionAliasInfo = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        group: {
+            type: 'string',
+            title: 'Group'
+        }
+    },
+    type: 'object',
+    required: ['name', 'group'],
+    title: 'AssetExpressionAliasInfo',
+    description: 'Body of an ``alias`` leaf node.'
+} as const;
+
+export const $AssetExpressionAll = {
+    properties: {
+        all: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionRef'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAny'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAll'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'All'
+        }
+    },
+    type: 'object',
+    required: ['all'],
+    title: 'AssetExpressionAll',
+    description: 'An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.'
+} as const;
+
+export const $AssetExpressionAny = {
+    properties: {
+        any: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionRef'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAny'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAll'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Any'
+        }
+    },
+    type: 'object',
+    required: ['any'],
+    title: 'AssetExpressionAny',
+    description: 'An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.'
+} as const;
+
+export const $AssetExpressionAsset = {
+    properties: {
+        asset: {
+            '$ref': '#/components/schemas/AssetExpressionAssetInfo'
+        }
+    },
+    type: 'object',
+    required: ['asset'],
+    title: 'AssetExpressionAsset',
+    description: 'An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.'
+} as const;
+
+export const $AssetExpressionAssetInfo = {
+    properties: {
+        uri: {
+            type: 'string',
+            title: 'Uri'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        group: {
+            type: 'string',
+            title: 'Group'
+        },
+        id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Id'
+        }
+    },
+    type: 'object',
+    required: ['uri', 'name', 'group'],
+    title: 'AssetExpressionAssetInfo',
+    description: `Body of an \`\`asset\`\` leaf node.
+
+\`\`id\`\` is injected by \`\`DagModelOperation.update_dag_asset_expression\`\` when the expression is
+persisted; \`\`BaseAsset.as_expression()\`\` itself only emits \`\`uri\`\`/\`\`name\`\`/\`\`group\`\`. It is left
+optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+degrades gracefully instead of failing response validation.`
+} as const;
+
+export const $AssetExpressionRef = {
+    properties: {
+        asset_ref: {
+            additionalProperties: {
+                type: 'string'
+            },
+            type: 'object',
+            title: 'Asset Ref'
+        }
+    },
+    type: 'object',
+    required: ['asset_ref'],
+    title: 'AssetExpressionRef',
+    description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.'
+} as const;
+
 export const $AssetResponse = {
     properties: {
         id: {
@@ -409,7 +567,7 @@ export const $AssetResponse = {
     description: 'Asset serializer for responses.'
 } as const;
 
-export const $AssetStoreBody = {
+export const $AssetStateStoreBody = {
     properties: {
         value: {
             '$ref': '#/components/schemas/JsonValue'
@@ -418,18 +576,18 @@ export const $AssetStoreBody = {
     additionalProperties: false,
     type: 'object',
     required: ['value'],
-    title: 'AssetStoreBody',
-    description: 'Request body for setting an asset store value.'
+    title: 'AssetStateStoreBody',
+    description: 'Request body for setting an asset state store value.'
 } as const;
 
-export const $AssetStoreCollectionResponse = {
+export const $AssetStateStoreCollectionResponse = {
     properties: {
-        asset_store: {
+        asset_state_store: {
             items: {
-                '$ref': '#/components/schemas/AssetStoreResponse'
+                '$ref': '#/components/schemas/AssetStateStoreResponse'
             },
             type: 'array',
-            title: 'Asset Store'
+            title: 'Asset State Store'
         },
         total_entries: {
             type: 'integer',
@@ -437,15 +595,15 @@ export const $AssetStoreCollectionResponse = {
         }
     },
     type: 'object',
-    required: ['asset_store', 'total_entries'],
-    title: 'AssetStoreCollectionResponse',
-    description: 'All asset store entries for an asset.'
+    required: ['asset_state_store', 'total_entries'],
+    title: 'AssetStateStoreCollectionResponse',
+    description: 'All asset state store entries for an asset.'
 } as const;
 
-export const $AssetStoreLastUpdatedBy = {
+export const $AssetStateStoreLastUpdatedBy = {
     properties: {
         kind: {
-            '$ref': '#/components/schemas/AssetStoreWriterKind'
+            '$ref': '#/components/schemas/AssetStateStoreWriterKind'
         },
         dag_id: {
             anyOf: [
@@ -494,11 +652,11 @@ export const $AssetStoreLastUpdatedBy = {
     },
     type: 'object',
     required: ['kind'],
-    title: 'AssetStoreLastUpdatedBy',
-    description: 'Writer info for the last write to an asset store entry.'
+    title: 'AssetStateStoreLastUpdatedBy',
+    description: 'Writer info for the last write to an asset state store entry.'
 } as const;
 
-export const $AssetStoreResponse = {
+export const $AssetStateStoreResponse = {
     properties: {
         key: {
             type: 'string',
@@ -515,7 +673,7 @@ export const $AssetStoreResponse = {
         last_updated_by: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/AssetStoreLastUpdatedBy'
+                    '$ref': '#/components/schemas/AssetStateStoreLastUpdatedBy'
                 },
                 {
                     type: 'null'
@@ -525,15 +683,15 @@ export const $AssetStoreResponse = {
     },
     type: 'object',
     required: ['key', 'value', 'updated_at'],
-    title: 'AssetStoreResponse',
-    description: 'A single asset store key/value pair with metadata.'
+    title: 'AssetStateStoreResponse',
+    description: 'A single asset state store key/value pair with metadata.'
 } as const;
 
-export const $AssetStoreWriterKind = {
+export const $AssetStateStoreWriterKind = {
     type: 'string',
     enum: ['task', 'watcher', 'api'],
-    title: 'AssetStoreWriterKind',
-    description: `Identifies what kind of writer last updated an asset store entry.
+    title: 'AssetStateStoreWriterKind',
+    description: `Identifies what kind of writer last updated an asset state store entry.
 
 \`\`TASK\`\` — written by a task via the execution API.
 \`\`WATCHER\`\` — written by a \`\`BaseEventTrigger\`\` (no task instance).
@@ -1137,6 +1295,44 @@ export const $BulkDAGRunBody = {
 
 export const $BulkDAGRunClearBody = {
     properties: {
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key',
+            description: 'Select runs by exact partition key match. Mutually exclusive with the other partition selectors.'
+        },
+        partition_date_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date Start',
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        partition_date_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date End',
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
         dry_run: {
             type: 'boolean',
             title: 'Dry Run',
@@ -1182,13 +1378,11 @@ export const $BulkDAGRunClearBody = {
                 '$ref': '#/components/schemas/BulkDAGRunBody'
             },
             type: 'array',
-            minItems: 1,
             title: 'Dag Runs'
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['dag_runs'],
     title: 'BulkDAGRunClearBody',
     description: 'Request body for the bulk clear Dag Runs endpoint.'
 } as const;
@@ -1705,6 +1899,98 @@ export const $BulkUpdateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[VariableBody]'
+} as const;
+
+export const $ClearPartitionsBody = {
+    properties: {
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key',
+            description: 'Select runs by exact partition key match. Mutually exclusive with the other partition selectors.'
+        },
+        partition_date_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date Start',
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        partition_date_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date End',
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run Id',
+            description: 'Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.'
+        },
+        clear_task_instances: {
+            type: 'boolean',
+            title: 'Clear Task Instances',
+            description: 'Also clear task instances on the matched runs.',
+            default: false
+        },
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run',
+            description: 'If True, compute counts without writing any changes.',
+            default: true
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'ClearPartitionsBody',
+    description: 'Request body for the clearPartitions endpoint (column-reset: set partition fields to None).'
+} as const;
+
+export const $ClearPartitionsResponse = {
+    properties: {
+        dag_runs_cleared: {
+            type: 'integer',
+            title: 'Dag Runs Cleared'
+        },
+        task_instances_cleared: {
+            type: 'integer',
+            title: 'Task Instances Cleared'
+        },
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run'
+        }
+    },
+    type: 'object',
+    required: ['dag_runs_cleared', 'task_instances_cleared', 'dry_run'],
+    title: 'ClearPartitionsResponse',
+    description: 'Response for the clearPartitions endpoint.'
 } as const;
 
 export const $ClearTaskInstanceCollectionResponse = {
@@ -2514,7 +2800,14 @@ export const $DAGDetailsResponse = {
             title: 'Relative Fileloc'
         },
         fileloc: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Fileloc'
         },
         description: {
@@ -2680,8 +2973,23 @@ export const $DAGDetailsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -2976,7 +3284,14 @@ export const $DAGResponse = {
             title: 'Relative Fileloc'
         },
         fileloc: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Fileloc'
         },
         description: {
@@ -3473,10 +3788,22 @@ export const $DAGRunResponse = {
                 }
             ],
             title: 'Partition Key'
+        },
+        partition_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date'
         }
     },
     type: 'object',
-    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name', 'partition_key'],
+    required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name', 'partition_key', 'partition_date'],
     title: 'DAGRunResponse',
     description: 'Dag Run serializer for responses.'
 } as const;
@@ -7408,7 +7735,7 @@ export const $TaskResponse = {
     description: 'Task serializer for responses.'
 } as const;
 
-export const $TaskStoreBody = {
+export const $TaskStateStoreBody = {
     properties: {
         value: {
             '$ref': '#/components/schemas/JsonValue'
@@ -7434,8 +7761,8 @@ export const $TaskStoreBody = {
     additionalProperties: false,
     type: 'object',
     required: ['value'],
-    title: 'TaskStoreBody',
-    description: `Request body for setting a task store value.
+    title: 'TaskStateStoreBody',
+    description: `Request body for setting a task state store value.
 
 \`\`expires_at\`\` controls expiry:
 
@@ -7444,14 +7771,14 @@ export const $TaskStoreBody = {
 - aware datetime: expire at that time.`
 } as const;
 
-export const $TaskStoreCollectionResponse = {
+export const $TaskStateStoreCollectionResponse = {
     properties: {
-        task_store: {
+        task_state_store: {
             items: {
-                '$ref': '#/components/schemas/TaskStoreResponse'
+                '$ref': '#/components/schemas/TaskStateStoreResponse'
             },
             type: 'array',
-            title: 'Task Store'
+            title: 'Task State Store'
         },
         total_entries: {
             type: 'integer',
@@ -7459,12 +7786,12 @@ export const $TaskStoreCollectionResponse = {
         }
     },
     type: 'object',
-    required: ['task_store', 'total_entries'],
-    title: 'TaskStoreCollectionResponse',
-    description: 'All task store entries for a task instance.'
+    required: ['task_state_store', 'total_entries'],
+    title: 'TaskStateStoreCollectionResponse',
+    description: 'All task state store entries for a task instance.'
 } as const;
 
-export const $TaskStorePatchBody = {
+export const $TaskStateStorePatchBody = {
     properties: {
         value: {
             '$ref': '#/components/schemas/JsonValue'
@@ -7473,11 +7800,11 @@ export const $TaskStorePatchBody = {
     additionalProperties: false,
     type: 'object',
     required: ['value'],
-    title: 'TaskStorePatchBody',
-    description: 'Request body for patching only the value of an existing task store key.'
+    title: 'TaskStateStorePatchBody',
+    description: 'Request body for patching only the value of an existing task state store key.'
 } as const;
 
-export const $TaskStoreResponse = {
+export const $TaskStateStoreResponse = {
     properties: {
         key: {
             type: 'string',
@@ -7506,8 +7833,8 @@ export const $TaskStoreResponse = {
     },
     type: 'object',
     required: ['key', 'value', 'updated_at', 'expires_at'],
-    title: 'TaskStoreResponse',
-    description: 'A single task store key/value pair with metadata.'
+    title: 'TaskStateStoreResponse',
+    description: 'A single task state store key/value pair with metadata.'
 } as const;
 
 export const $TimeDelta = {
@@ -7651,7 +7978,8 @@ export const $TriggerResponse = {
         },
         kwargs: {
             type: 'string',
-            title: 'Kwargs'
+            title: 'Kwargs',
+            deprecated: true
         },
         created_date: {
             type: 'string',
@@ -8234,6 +8562,17 @@ export const $BaseNodeResponse = {
             type: 'string',
             enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
             title: 'Type'
+        },
+        team: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team'
         }
     },
     type: 'object',
@@ -8691,7 +9030,14 @@ export const $DAGWithLatestDagRunsResponse = {
             title: 'Relative Fileloc'
         },
         fileloc: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Fileloc'
         },
         description: {
@@ -8841,8 +9187,23 @@ export const $DAGWithLatestDagRunsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -9585,6 +9946,11 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Dag Version Number'
+        },
+        has_note: {
+            type: 'boolean',
+            title: 'Has Note',
+            default: false
         }
     },
     type: 'object',
@@ -9707,8 +10073,23 @@ export const $NextRunAssetsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -9755,6 +10136,17 @@ export const $NodeResponse = {
             type: 'string',
             enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
             title: 'Type'
+        },
+        team: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team'
         },
         children: {
             anyOf: [
@@ -9919,8 +10311,23 @@ export const $PartitionedDagRunCollectionResponse = {
                     additionalProperties: {
                         anyOf: [
                             {
-                                additionalProperties: true,
-                                type: 'object'
+                                oneOf: [
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionRef'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAny'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAll'
+                                    }
+                                ]
                             },
                             {
                                 type: 'null'
@@ -10007,8 +10414,23 @@ export const $PartitionedDagRunDetailResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'

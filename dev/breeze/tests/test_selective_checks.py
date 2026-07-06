@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    JAVA_SDK_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
@@ -1643,6 +1644,18 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
     assert ("ktlint" in skipped_hooks) is ktlint_skipped
 
 
+def test_java_sdk_version_is_emitted_as_output():
+    # The lang-SDK k8s job reads this to pick the JDK for the native Java build via actions/setup-java.
+    stderr = SelectiveChecks(
+        files=("README.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=tuple(),
+        default_branch="main",
+    )
+    assert get_outputs_from_stderr(str(stderr))["java-sdk-version"] == JAVA_SDK_VERSION
+
+
 @pytest.mark.skipif(
     not (AIRFLOW_ROOT_PATH / ".git").exists(),
     reason="This test should not run if .git folder is missing (for example by default in breeze container)",
@@ -1768,9 +1781,13 @@ def test_excluded_providers():
             pytest.param(
                 ("scripts/ci/prek/file.sh",),
                 {
-                    "full-tests-needed": "true",
+                    # prek hooks are static checks, not tests: they must not force the full
+                    # test matrix, but they still build the CI image so mypy-scripts and the
+                    # image-based static checks run.
+                    "full-tests-needed": "false",
+                    "ci-image-build": "true",
                 },
-                id="Full tests needed when prek scripts change",
+                id="prek scripts build the CI image but do not force full tests",
             )
         ),
         (
@@ -1803,6 +1820,46 @@ def test_excluded_providers():
     ],
 )
 def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "expected_outputs"),
+    [
+        pytest.param(
+            (".github/workflows/ci-amd.yml",),
+            {"full-tests-needed": "true"},
+            id="Test workflow (ci-amd) forces full tests",
+        ),
+        pytest.param(
+            (".github/workflows/run-unit-tests.yml",),
+            {"full-tests-needed": "true"},
+            id="Test workflow (run-unit-tests) forces full tests",
+        ),
+        pytest.param(
+            (".github/workflows/codeql-analysis.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (codeql) does not force full tests",
+        ),
+        pytest.param(
+            (".github/workflows/publish-docs-to-s3.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (publish-docs-to-s3) does not force full tests",
+        ),
+        pytest.param(
+            (".github/workflows/ci-notification.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (ci-notification) does not force full tests",
+        ),
+    ],
+)
+def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
         github_event=GithubEvents.PULL_REQUEST,
@@ -2376,7 +2433,7 @@ def test_expected_output_push(
             {
                 "selected-providers-list-as-string": "amazon apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks "
-                "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
+                "facebook google hashicorp http microsoft.azure microsoft.mssql mongo mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -2388,7 +2445,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.cassandra "
                 "apache.kafka cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
-                "microsoft.mssql mysql openlineage oracle postgres "
+                "microsoft.mssql mongo mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": (
                     "identity,ktlint,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
@@ -2411,7 +2468,7 @@ def test_expected_output_push(
                             "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
-                            "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
+                            "hashicorp,http,microsoft.azure,microsoft.mssql,mongo,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
                             "Providers[google] "
                             "Providers[standard]",
@@ -2484,7 +2541,7 @@ def test_expected_output_push(
             ),
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
-                "databricks dbt.cloud ftp google jdbc microsoft.mssql mysql "
+                "databricks dbt.cloud ftp google jdbc microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres sftp snowflake standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -2503,7 +2560,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
-                            "databricks,dbt.cloud,ftp,jdbc,microsoft.mssql,mysql,openlineage,oracle,"
+                            "databricks,dbt.cloud,ftp,jdbc,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,"
                             "postgres,sftp,snowflake,trino] Providers[google] Providers[standard]",
                         }
                     ]
@@ -2682,7 +2739,7 @@ def test_upgrade_to_newer_dependencies(
             {
                 "docs-list-as-string": "amazon apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http "
-                "microsoft.azure microsoft.mssql mysql openlineage oracle "
+                "microsoft.azure microsoft.mssql mongo mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh standard trino",
             },
             id="Google provider docs changed",
@@ -2692,7 +2749,7 @@ def test_upgrade_to_newer_dependencies(
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
                 "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
-                "exasol google jdbc microsoft.mssql mysql odbc openlineage "
+                "exasol google informatica jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
@@ -3375,6 +3432,8 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
     [
         pytest.param("airflow-core/src/airflow/security/kerberos.py", "kerberos", id="kerberos-source"),
         pytest.param("airflow-core/src/airflow/observability/stats.py", "otel", id="otel-source"),
+        pytest.param("airflow-core/tests/integration/otel/test_otel.py", "otel", id="otel-integration-tests"),
+        pytest.param("task-sdk/src/airflow/sdk/execution_time/task_runner.py", "otel", id="otel-task-runner"),
         pytest.param("airflow-core/src/airflow/executors/executor_loader.py", "redis", id="celery-source"),
     ],
 )

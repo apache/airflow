@@ -11,6 +11,24 @@
     },
     "title": "ऑडिट लॉग"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "अलर्ट नाम",
+      "deadlineTime": "डेडलाइन समय",
+      "status": "स्थिति"
+    },
+    "deadline_one": "डेडलाइन",
+    "deadline_other": "डेडलाइन्स",
+    "filters": {
+      "status": "स्थिति",
+      "statusOptions": {
+        "all": "सभी",
+        "missed": "छूट गई",
+        "pending": "लंबित"
+      }
+    },
+    "title": "डेडलाइन"
+  },
   "xcom": {
     "add": {
       "error": "XCom जोड़ने में विफल",

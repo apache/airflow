@@ -36,7 +36,7 @@ from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.base import unpack_bundle_version
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
@@ -45,6 +45,7 @@ from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import clear_task_instances
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -54,11 +55,11 @@ from airflow.utils.cli import (
     validate_dag_bundle_arg,
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
-from airflow.utils.helpers import ask_yesno
+from airflow.utils.helpers import ask_yesno, chunks
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -75,7 +76,11 @@ DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fiel
 
 log = logging.getLogger(__name__)
 
+# Chunk size for bulk delete.
+_RUN_CHUNK_SIZE = 500
 
+
+@deprecated_for_airflowctl("airflowctl dags trigger")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_trigger(args) -> None:
@@ -103,6 +108,7 @@ def dag_trigger(args) -> None:
         raise AirflowException(err)
 
 
+@deprecated_for_airflowctl("airflowctl dags delete")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_delete(args) -> None:
@@ -129,12 +135,11 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     """
     Clear Dag runs selected by run_id, partition_key, or a partition_date window.
 
-    When a partition_date window is given, both bounds are **day-granular** and
-    anchored in the timetable's timezone for tz-aware partitioned timetables.
-    --partition-date-start is the inclusive start local calendar day;
-    --partition-date-end is the inclusive end local calendar day (any
-    time-of-day or timezone-offset component in either value is ignored; only
-    the calendar date is used).
+    When a partition_date window is given, both bounds are interpreted in the
+    timetable's local timezone.
+    --partition-date-start is the inclusive start; --partition-date-end is the
+    inclusive end.  A date-only value (no time component) is treated as local
+    midnight of that date.
     """
     has_range = args.partition_date_start is not None or args.partition_date_end is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
@@ -166,14 +171,12 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
         query = query.where(DagRun.partition_key == args.partition_key)
     else:
         query = query.where(DagRun.partition_date.is_not(None))
-        if args.partition_date_start is not None:
-            lower = dag.timetable.resolve_day_bound(args.partition_date_start.date())
-            query = query.where(DagRun.partition_date >= lower)
-        if args.partition_date_end is not None:
-            upper = dag.timetable.resolve_day_bound(
-                args.partition_date_end.date() + datetime.timedelta(days=1)
-            )
-            query = query.where(DagRun.partition_date < upper)
+        query = DagRun.apply_partition_date_window(
+            query,
+            timetable=dag.timetable,
+            start=args.partition_date_start,
+            end=args.partition_date_end,
+        )
     query = query.order_by(DagRun.partition_date, DagRun.run_id)
 
     runs = list(session.execute(query).all())
@@ -195,18 +198,50 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
             print("Cancelled, nothing was cleared.")
             return
 
-    cleared = 0
-    for run_id in run_ids:
-        cleared += dag.clear(
-            run_id=run_id,
-            only_failed=args.only_failed,
-            only_running=args.only_running,
-            session=session,
-        )
+    cleared = _bulk_clear_runs(
+        args.dag_id,
+        run_ids,
+        only_failed=args.only_failed,
+        only_running=args.only_running,
+        session=session,
+    )
     print(f"Cleared {cleared} task instance(s) across {len(run_ids)} Dag run(s).")
 
 
+def _bulk_clear_runs(
+    dag_id: str,
+    run_ids: list[str],
+    only_failed: bool,
+    only_running: bool,
+    session: Session,
+) -> int:
+    """Clear task instances for the given run_ids in chunks instead of one transaction per run."""
+    state_filter: list[TaskInstanceState] = []
+    if only_failed:
+        state_filter += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
+    if only_running:
+        state_filter += [TaskInstanceState.RUNNING]
+
+    cleared = 0
+    for chunk_run_ids in chunks(run_ids, _RUN_CHUNK_SIZE):
+        ti_query = select(TaskInstance).where(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id.in_(chunk_run_ids),
+        )
+        if state_filter:
+            ti_query = ti_query.where(TaskInstance.state.in_(state_filter))
+        tis = session.scalars(ti_query).all()
+        if not tis:
+            continue
+        clear_task_instances(list(tis), session=session)
+        session.flush()
+        cleared += len(tis)
+
+    return cleared
+
+
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags pause")
 @providers_configuration_loaded
 def dag_pause(args) -> None:
     """Pauses a DAG."""
@@ -214,6 +249,7 @@ def dag_pause(args) -> None:
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags unpause")
 @providers_configuration_loaded
 def dag_unpause(args) -> None:
     """Unpauses a DAG."""
@@ -580,6 +616,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl dags get-details")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -603,6 +640,7 @@ def dag_details(args, *, session: Session = NEW_SESSION):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags list-import-errors")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
@@ -722,6 +760,7 @@ def dag_list_jobs(args, dag: DAG | None = None, *, session: Session = NEW_SESSIO
     )
 
 
+@deprecated_for_airflowctl("airflowctl dagrun list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
