@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.utils.event_scheduler import EventScheduler
 
 
@@ -37,4 +39,35 @@ class TestEventScheduler:
         # Make sure it added another event to the queue
         assert len(timers.queue) == 2
         somefunction.assert_called_once()
+        assert timers.queue[0].time < timers.queue[1].time
+
+    def test_call_regular_interval_propagates_exception_by_default(self):
+        """Without opting in, an action's exception still propagates (unchanged default behavior)."""
+        failing_action = mock.MagicMock(side_effect=RuntimeError("boom"))
+
+        timers = EventScheduler()
+        timers.call_regular_interval(30, failing_action)
+        assert len(timers.queue) == 1
+
+        with pytest.raises(RuntimeError, match="boom"):
+            timers.queue[0].action()
+
+        failing_action.assert_called_once()
+        # The next cycle was never scheduled because the exception propagated.
+        assert len(timers.queue) == 1
+
+    def test_call_regular_interval_catch_exceptions_swallows_action_exception(self):
+        """With catch_exceptions=True, a raising action is swallowed and the next cycle is still scheduled."""
+        failing_action = mock.MagicMock(side_effect=RuntimeError("boom"))
+
+        timers = EventScheduler()
+        timers.call_regular_interval(30, failing_action, catch_exceptions=True)
+        assert len(timers.queue) == 1
+
+        # Should not raise, even though the action does.
+        timers.queue[0].action()
+
+        failing_action.assert_called_once()
+        # The next cycle was still scheduled despite the exception.
+        assert len(timers.queue) == 2
         assert timers.queue[0].time < timers.queue[1].time
