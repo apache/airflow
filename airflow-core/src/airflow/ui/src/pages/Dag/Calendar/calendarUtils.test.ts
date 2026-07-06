@@ -27,6 +27,7 @@ const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
 const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
 const DEFAULT_TOTAL_COLOR = { _dark: "green.700", _light: "green.400" };
 const DEFAULT_FAILED_COLOR = { _dark: "red.700", _light: "red.400" };
+const DEFAULT_RUNNING_COLOR = { _dark: "cyan.700", _light: "cyan.400" };
 
 const EMPTY_COUNTS: RunCounts = {
   failed: 0,
@@ -158,8 +159,8 @@ describe("createCalendarScale", () => {
     });
 
     expect(scale.getColor({ ...EMPTY_COUNTS, planned: 1, success: 1, total: 2 })).toEqual({
-      actual: DEFAULT_TOTAL_COLOR,
-      planned: PLANNED_COLOR,
+      primary: DEFAULT_TOTAL_COLOR,
+      secondary: PLANNED_COLOR,
     });
   });
 
@@ -171,8 +172,57 @@ describe("createCalendarScale", () => {
     });
 
     expect(scale.getColor({ ...EMPTY_COUNTS, queued: 1, success: 1, total: 2 })).toEqual({
-      actual: DEFAULT_TOTAL_COLOR,
-      planned: PLANNED_COLOR,
+      primary: DEFAULT_TOTAL_COLOR,
+      secondary: PLANNED_COLOR,
+    });
+  });
+
+  it("returns the failed color for a failed-only cell in total mode", () => {
+    const scale = createCalendarScale([run("failed", 1)], {
+      granularity: "hourly",
+      timezone: "UTC",
+      viewMode: "total",
+    });
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, total: 1 })).toEqual(DEFAULT_FAILED_COLOR);
+  });
+
+  it("returns a mixed red and green color for failed and success runs in total mode", () => {
+    const scale = createCalendarScale([run("failed", 1), run("success", 1)], {
+      granularity: "hourly",
+      timezone: "UTC",
+      viewMode: "total",
+    });
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, success: 1, total: 2 })).toEqual({
+      primary: DEFAULT_FAILED_COLOR,
+      secondary: DEFAULT_TOTAL_COLOR,
+    });
+  });
+
+  it("returns a mixed cyan and green color for running and success runs in total mode", () => {
+    const scale = createCalendarScale([run("running", 1), run("success", 1)], {
+      granularity: "hourly",
+      timezone: "UTC",
+      viewMode: "total",
+    });
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, running: 1, success: 1, total: 2 })).toEqual({
+      primary: DEFAULT_RUNNING_COLOR,
+      secondary: DEFAULT_TOTAL_COLOR,
+    });
+  });
+
+  it("returns a mixed cyan and red color for running and failed runs in total mode", () => {
+    const scale = createCalendarScale([run("running", 1), run("failed", 1)], {
+      granularity: "hourly",
+      timezone: "UTC",
+      viewMode: "total",
+    });
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, running: 1, total: 2 })).toEqual({
+      primary: DEFAULT_FAILED_COLOR,
+      secondary: DEFAULT_RUNNING_COLOR,
     });
   });
 
@@ -195,8 +245,8 @@ describe("createCalendarScale", () => {
     });
 
     expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, planned: 1, total: 2 })).toEqual({
-      actual: DEFAULT_FAILED_COLOR,
-      planned: PLANNED_COLOR,
+      primary: DEFAULT_FAILED_COLOR,
+      secondary: PLANNED_COLOR,
     });
   });
 
@@ -218,8 +268,76 @@ describe("createCalendarScale", () => {
     });
 
     expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, queued: 1, total: 2 })).toEqual({
-      actual: DEFAULT_FAILED_COLOR,
-      planned: PLANNED_COLOR,
+      primary: DEFAULT_FAILED_COLOR,
+      secondary: PLANNED_COLOR,
     });
+  });
+
+  it("returns the correct gradient color when runs span across different dates", () => {
+    const scale = createCalendarScale(
+      [run("failed", 1, "2026-04-08T10:00:00Z"), run("failed", 5, "2026-04-09T10:00:00Z")],
+      {
+        granularity: "hourly",
+        timezone: "UTC",
+        viewMode: "total",
+      },
+    );
+
+    const lowIntensityColor = { _dark: "red.900", _light: "red.200" };
+    const highIntensityColor = { _dark: "red.300", _light: "red.800" };
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, total: 1 })).toEqual(lowIntensityColor);
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 5, total: 5 })).toEqual(highIntensityColor);
+  });
+
+  it("prioritizes failed over running over success when multiple actual states coexist with pending", () => {
+    const scale = createCalendarScale([run("planned", 1), run("failed", 1), run("success", 1)], {
+      granularity: "hourly",
+      timezone: "UTC",
+      viewMode: "total",
+    });
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, planned: 1, success: 1, total: 3 })).toEqual({
+      primary: DEFAULT_FAILED_COLOR,
+      secondary: PLANNED_COLOR,
+    });
+  });
+
+  it("returns an empty scale when no data is provided", () => {
+    const scale = createCalendarScale([], {
+      granularity: "hourly",
+      timezone: "UTC",
+      viewMode: "total",
+    });
+
+    expect(scale.type).toBe("empty");
+    expect(scale.getColor(EMPTY_COUNTS)).toEqual(EMPTY_COLOR);
+    expect(scale.legendItems).toEqual([{ color: EMPTY_COLOR, label: "0" }]);
+  });
+
+  it("prioritizes running and failed colors when failed, running, and success coexist without pending states", () => {
+    const scale = createCalendarScale([run("failed", 1), run("running", 1), run("success", 1)], {
+      granularity: "hourly",
+      timezone: "UTC",
+      viewMode: "total",
+    });
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, running: 1, success: 1, total: 3 })).toEqual({
+      primary: DEFAULT_FAILED_COLOR,
+      secondary: DEFAULT_RUNNING_COLOR,
+    });
+  });
+
+  it("returns the correct gradient color for failed mode when failed runs span across different dates", () => {
+    const scale = createCalendarScale(
+      [run("failed", 1, "2026-04-08T10:00:00Z"), run("failed", 10, "2026-04-09T10:00:00Z")],
+      { granularity: "hourly", timezone: "UTC", viewMode: "failed" },
+    );
+
+    const lowIntensityFailedColor = { _dark: "red.900", _light: "red.200" };
+    const highIntensityFailedColor = { _dark: "red.300", _light: "red.800" };
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, total: 1 })).toEqual(lowIntensityFailedColor);
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 10, total: 10 })).toEqual(highIntensityFailedColor);
   });
 });

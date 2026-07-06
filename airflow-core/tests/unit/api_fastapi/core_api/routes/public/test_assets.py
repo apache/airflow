@@ -41,7 +41,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.sdk import Asset
+from airflow.timetables.simple import PartitionedAtRuntime
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -251,7 +253,6 @@ class TestAssets:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
         clear_db_logs()
 
         yield
@@ -708,7 +709,6 @@ class TestAssetAliases:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_assets()
@@ -1519,9 +1519,9 @@ class TestPostAssetMaterialize(TestAssets):
             i: am.to_serialized() for i, am in enumerate(self.create_assets(session=session, num=3), start=1)
         }
         # DAG_ASSET1_ID is materialized with a partition_key in several tests below, so it must be a
-        # partitioned Dag. PartitionAtRuntime accepts runtime-discovered partition keys without
+        # partitioned Dag. PartitionedAtRuntime accepts runtime-discovered partition keys without
         # requiring a partitioned timetable.
-        with dag_maker(self.DAG_ASSET1_ID, schedule=PartitionAtRuntime(), session=session):
+        with dag_maker(self.DAG_ASSET1_ID, schedule=PartitionedAtRuntime(), session=session):
             EmptyOperator(task_id="task", outlets=assets[1])
         with dag_maker(self.DAG_ASSET2_ID_A, schedule=None, session=session):
             EmptyOperator(task_id="task", outlets=assets[2])
@@ -1543,6 +1543,7 @@ class TestPostAssetMaterialize(TestAssets):
             "dag_versions": mock.ANY,
             "logical_date": None,
             "partition_key": None,
+            "partition_date": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,
             "start_date": None,
@@ -1682,6 +1683,40 @@ class TestPostAssetMaterialize(TestAssets):
         )
         assert response.status_code == 400
         assert "must not contain '..'" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_partition_date_for_partitioned_dag(
+        self, test_client, dag_maker, session
+    ):
+        """Materializing a Dag with a real partitioned timetable must populate partition_date.
+
+        Regression guard: before this fix, `partition_date` resolved by `validate_context` was
+        dropped when creating the run, unlike the sibling `/dags/{dag_id}/dagRuns` trigger route.
+        """
+        partitioned_dag_id = "test_materialize_populates_partition_date"
+        asset = Asset(name="materialize_partition_date_asset", uri="s3://bucket/materialize-partition-date")
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=DEFAULT_DATE,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task", outlets=[asset])
+        session.commit()
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        response = test_client.post(
+            f"/assets/{asset_id}/materialize",
+            json={"partition_key": "2025-06-01T00:00:00"},
+        )
+        assert response.status_code == 200
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == partitioned_dag_id))
+        assert dag_run is not None
+        assert dag_run.partition_key == "2025-06-01T00:00:00"
+        assert dag_run.partition_date == timezone.datetime(2025, 6, 1)
 
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):

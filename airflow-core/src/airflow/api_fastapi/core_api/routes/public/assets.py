@@ -464,6 +464,7 @@ def materialize_asset(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            partition_date=params["partition_date"],
             note=params["note"],
             session=session,
         )

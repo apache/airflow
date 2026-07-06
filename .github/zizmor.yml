@@ -19,3 +19,9 @@
 rules:
   secrets-outside-env:
     disable: true
+  # apache/infrastructure-actions is branch-tracked (no version tags); we pin it
+  # by commit SHA with a "# main" comment on purpose, so zizmor's expectation of a
+  # version-matching comment does not apply to that pin.
+  ref-version-mismatch:
+    ignore:
+      - asf-allowlist-check.yml

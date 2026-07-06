@@ -19,10 +19,11 @@
 import { Box, Code, VStack } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 import type { ParsedLogEntry } from "src/queries/useLogs";
 
 import { HighlightedText } from "./HighlightedText";
@@ -148,8 +149,16 @@ export const TaskLogContent = ({
     }
   };
 
-  useHotkeys("mod+ArrowDown", () => handleScrollTo("bottom"), { enabled: !isLoading });
-  useHotkeys("mod+ArrowUp", () => handleScrollTo("top"), { enabled: !isLoading });
+  useShortcut({
+    ...SHORTCUTS.logs.scrollBottom,
+    callback: () => handleScrollTo("bottom"),
+    options: { enabled: !isLoading },
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.scrollTop,
+    callback: () => handleScrollTo("top"),
+    options: { enabled: !isLoading },
+  });
 
   return (
     <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0} position="relative">

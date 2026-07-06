@@ -312,6 +312,8 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+convertToIri
+cooldown
 copyable
 CoreV
 coroutine
@@ -447,6 +449,7 @@ deidentify
 DeidentifyTemplate
 del
 delim
+deliverability
 deltalake
 denylist
 dep
@@ -472,6 +475,7 @@ devel
 DevOps
 devtools
 df
+dictConfig
 dicts
 Dingding
 dingding
@@ -742,6 +746,7 @@ Grpc
 gRPC
 grpc
 gsuite
+gte
 Gunicorn
 gunicorn
 gz
@@ -935,6 +940,7 @@ KerberosClient
 keycloak
 Keyfile
 keyfile
+keyless
 KeyManagementServiceClient
 keyring
 keyspace
@@ -1009,8 +1015,11 @@ Logstash
 logstash
 longblob
 lookups
+loopback
 lshift
+lte
 lxml
+m-NCUs
 machineTypes
 macOS
 mae
@@ -1031,6 +1040,7 @@ maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
+MCP
 md
 mem
 memcached
@@ -1039,6 +1049,7 @@ memorystore
 memray
 Mesos
 mesos
+MessageBatch
 metaclass
 metadatabase
 metadataStores
@@ -1099,6 +1110,7 @@ nat
 natively
 nav
 navbar
+NCUs
 nd
 ndjson
 nearText
@@ -1128,9 +1140,11 @@ NotFound
 notificationChannels
 notin
 npm
+nquads
 ns
 ntlm
 ntpd
+ntriples
 Nullable
 nullable
 num
@@ -1148,6 +1162,8 @@ ok
 oklch
 Okta
 okta
+OL
+ol
 Ollama
 onboarded
 onboarding
@@ -1156,6 +1172,7 @@ Oozie
 OpenAI
 openai
 openapi
+opencypher
 openfaas
 OpenID
 openjdk
@@ -1355,6 +1372,7 @@ RaG
 RBAC
 rbac
 rc
+rdfxml
 RDS
 rds
 readme
@@ -1367,6 +1385,7 @@ rebase
 Rebasing
 Recency
 recurse
+redeclare
 redelivery
 Redhat
 redis

@@ -88,14 +88,12 @@ export const TaskInstancesFilter = () => {
   });
 
   return (
-    <VStack align="start" justifyContent="space-between">
-      <VStack alignItems="flex-start" gap={1}>
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
+    <VStack align="start" gap={4} paddingY="4px">
+      <FilterBar
+        configs={filterConfigs}
+        initialValues={initialValues}
+        onFiltersChange={handleFiltersChange}
+      />
     </VStack>
   );
 };
