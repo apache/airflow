@@ -115,6 +115,23 @@ PIP package                                 Version required
 ``openlineage-python``                      ``>=1.47.0``
 ==========================================  ==================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-openlineage[sqlalchemy]
+
+
+==============  ======================
+Extra           Dependencies
+==============  ======================
+``sqlalchemy``  ``sqlalchemy>=1.4.54``
+==============  ======================
+
 Downloading official packages
 -----------------------------
 

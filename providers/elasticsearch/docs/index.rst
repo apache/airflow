@@ -108,6 +108,23 @@ PIP package                                 Version required
 ``elasticsearch``                           ``<10,>=8.10``
 ==========================================  ==================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-elasticsearch[polars]
+
+
+==========  ==================
+Extra       Dependencies
+==========  ==================
+``polars``  ``polars>=1.26.0``
+==========  ==================
+
 Downloading official packages
 -----------------------------
 

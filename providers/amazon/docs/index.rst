@@ -160,6 +160,41 @@ Dependent package                                                               
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                            ``ssh``
 ========================================================================================================================  ====================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-amazon[aiobotocore]
+
+
+====================  ============================================================================================================================================================
+Extra                 Dependencies
+====================  ============================================================================================================================================================
+``aiobotocore``       ``aiobotocore>=3.0.0``
+``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
+``s3fs``              ``s3fs>=2023.10.0``
+``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
+``apache.hive``       ``apache-airflow-providers-apache-hive``
+``exasol``            ``apache-airflow-providers-exasol``
+``fab``               ``apache-airflow-providers-fab>=2.2.0``
+``ftp``               ``apache-airflow-providers-ftp``
+``google``            ``apache-airflow-providers-google``
+``imap``              ``apache-airflow-providers-imap``
+``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
+``mongo``             ``apache-airflow-providers-mongo``
+``pandas``            ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
+``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
+``salesforce``        ``apache-airflow-providers-salesforce``
+``ssh``               ``apache-airflow-providers-ssh``
+``standard``          ``apache-airflow-providers-standard``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+``sqlalchemy``        ``sqlalchemy>=1.4.54``
+====================  ============================================================================================================================================================
+
 Downloading official packages
 -----------------------------
 

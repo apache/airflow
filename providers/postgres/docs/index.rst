@@ -131,6 +131,29 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 ======================================================================================================================  ===================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-postgres[amazon]
+
+
+===================  ============================================================================================================================================================
+Extra                Dependencies
+===================  ============================================================================================================================================================
+``amazon``           ``apache-airflow-providers-amazon>=2.6.0``
+``asyncpg``          ``asyncpg>=0.30.0``
+``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
+``openlineage``      ``apache-airflow-providers-openlineage``
+``pandas``           ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
+``polars``           ``polars>=1.26.0``
+``sqlalchemy``       ``sqlalchemy>=1.4.54``
+===================  ============================================================================================================================================================
+
 Downloading official packages
 -----------------------------
 

@@ -164,6 +164,28 @@ Dependent package                                                               
 `apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                          ``sftp``
 ========================================================================================================================  ====================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-microsoft-azure[amazon]
+
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``amazon``            ``apache-airflow-providers-amazon``
+``oracle``            ``apache-airflow-providers-oracle``
+``sftp``              ``apache-airflow-providers-sftp``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+``google``            ``apache-airflow-providers-google``
+``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
+====================  ====================================================
+
 Downloading official packages
 -----------------------------
 
