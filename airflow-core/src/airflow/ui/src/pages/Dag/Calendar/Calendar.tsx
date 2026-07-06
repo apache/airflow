@@ -164,9 +164,9 @@ export const Calendar = () => {
                 fontWeight="bold"
                 minWidth="120px"
                 onClick={() => {
-                  if (
-                    !(selectedDate.isSame(currentDate, "month") && selectedDate.isSame(currentDate, "year"))
-                  ) {
+                  if (!(
+                    selectedDate.isSame(currentDate, "month") && selectedDate.isSame(currentDate, "year")
+                  )) {
                     setSelectedDate(currentDate.startOf("month"));
                   }
                 }}

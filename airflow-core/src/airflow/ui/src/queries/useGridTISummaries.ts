@@ -168,6 +168,13 @@ export const useGridTiSummariesStream = ({
             setTimeout(cb, 0);
           };
 
+    const runScheduledRefresh = () => {
+      if (isMounted) {
+        setRefreshTick((tick) => tick + 1);
+      }
+      scheduleScheduled = false;
+    };
+
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       const [firstKey] = event.query.queryKey as Array<unknown>;
 
@@ -180,12 +187,7 @@ export const useGridTiSummariesStream = ({
         // Coalesce: multiple invalidations in the same execution tick only trigger one re-stream.
         if (!scheduleScheduled) {
           scheduleScheduled = true;
-          schedule(() => {
-            if (isMounted) {
-              setRefreshTick((tick) => tick + 1);
-            }
-            scheduleScheduled = false;
-          });
+          schedule(runScheduledRefresh);
         }
       }
     });
