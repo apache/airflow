@@ -40,17 +40,11 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
       ref:
-        description: >-
-          Commit-ish to refresh constraints from (branch, tag or commit hash),
-          e.g. `v3-3-test`, `v3-3-stable`, `constraints-3-3` or a tag/hash.
-          The matching `constraints-X-Y` branch is derived from that ref.
+        description: "Ref to refresh constraints from (e.g. v3-3-stable)"
         required: true
         type: string
       upgrade-to-newer-dependencies:
-        description: >-
-          Re-resolve to the newest matching dependencies (picks up newly
-          released providers/dependencies from PyPI). Leave enabled when
-          refreshing constraints before promoting an RC.
+        description: "Upgrade deps to newest from PyPI"
         type: boolean
         default: true
 permissions:
@@ -123,6 +117,26 @@ jobs:
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+      - name: "Parameters summary"
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ inputs.ref }}
+          UPGRADE: ${{ inputs.upgrade-to-newer-dependencies }}
+          CONSTRAINTS_BRANCH: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+        run: |
+          {
+            echo "## Update constraints"
+            echo ""
+            echo "| Parameter | Value |"
+            echo "|---|---|"
+            echo "| Triggered by | \`${EVENT_NAME}\` |"
+            if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+              echo "| Refresh from ref | \`${REF}\` |"
+              echo "| Upgrade to newer dependencies | \`${UPGRADE}\` |"
+            fi
+            echo "| Target constraints branch | \`${CONSTRAINTS_BRANCH}\` |"
+          } | tee -a "${GITHUB_STEP_SUMMARY}"
 
   build-ci-images:
     name: "Build CI images"
