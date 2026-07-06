@@ -359,9 +359,7 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(RuntimeError, match="Failed to get status for query uuid1"):
             operator.poll_on_queries()
 
-    def test_poll_on_queries_no_sleep_when_all_resolved(
-        self, mock_execute_query, mock_get_sql_api_query_status
-    ):
+    def test_poll_on_queries_no_sleep_when_all_resolved(self, mock_get_sql_api_query_status):
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
             snowflake_conn_id="snowflake_default",
@@ -380,7 +378,7 @@ class TestSnowflakeSqlApiOperator:
         assert result["error"] == {"uuid2": {"status": "error"}}
         assert result["running"] == {}
 
-    def test_poll_on_queries_sleeps_once_per_cycle(self, mock_execute_query, mock_get_sql_api_query_status):
+    def test_poll_on_queries_sleeps_once_per_cycle(self, mock_get_sql_api_query_status):
         """One handle is still running, so the cycle sleeps -- but only once, not per handle."""
         operator = SnowflakeSqlApiOperator(
             task_id=TASK_ID,
