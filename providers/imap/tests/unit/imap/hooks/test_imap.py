@@ -408,6 +408,45 @@ class TestImapHook:
         mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
         assert mock_open_method.call_count == 1
 
+    @pytest.mark.parametrize(
+        ("attachment_name", "expected_filenames"),
+        [
+            ("test1.csv", ["test1.csv", "test1_1.csv", "test1_2.csv"]),
+            ("README", ["README", "README_1", "README_2"]),
+            ("archive.tar.gz", ["archive.tar.gz", "archive.tar_1.gz", "archive.tar_2.gz"]),
+        ],
+    )
+    def test_create_file_without_overwrite_preserves_existing_files(
+        self, tmp_path, attachment_name, expected_filenames
+    ):
+        imap_hook = ImapHook()
+
+        for payload in (b"first", b"second", b"third"):
+            imap_hook._create_file(
+                name=attachment_name,
+                payload=payload,
+                local_output_directory=str(tmp_path),
+                overwrite_file=False,
+            )
+
+        assert sorted(path.name for path in tmp_path.iterdir()) == sorted(expected_filenames)
+        assert [path.read_bytes() for path in sorted(tmp_path.iterdir())] == [b"first", b"second", b"third"]
+
+    @pytest.mark.parametrize("attachment_name", ["test1.csv", "README", "archive.tar.gz"])
+    def test_create_file_with_overwrite_replaces_existing_file(self, tmp_path, attachment_name):
+        imap_hook = ImapHook()
+
+        for payload in (b"first", b"second", b"third"):
+            imap_hook._create_file(
+                name=attachment_name,
+                payload=payload,
+                local_output_directory=str(tmp_path),
+                overwrite_file=True,
+            )
+
+        assert [path.name for path in tmp_path.iterdir()] == [attachment_name]
+        assert (tmp_path / attachment_name).read_bytes() == b"third"
+
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_with_max_mails(self, mock_imaplib):
         mock_conn = _create_fake_imap(mock_imaplib, with_mail=True)
@@ -481,7 +520,6 @@ class TestImapHook:
 
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_with_plaintext_rfc2047_encoded_filename(self, mock_imaplib):
-
         # Filename contains a mix of plain text and RFC 2047 encoded text.
         # Example: 'bar =?utf-8?B?ZsOzbw==?=' decodes to 'bar fóo'
         encoded_name = "bar =?utf-8?B?ZsOzbw==?="
