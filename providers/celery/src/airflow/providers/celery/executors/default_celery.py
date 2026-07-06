@@ -31,6 +31,23 @@ from airflow.providers.common.compat.sdk import AirflowException, conf
 
 log = logging.getLogger(__name__)
 
+_USE_PSYCOPG3: bool
+try:
+    from importlib.util import find_spec
+
+    import sqlalchemy
+    from packaging.version import Version
+
+    _sqlalchemy_version = Version(sqlalchemy.__version__)
+    _is_sqla2 = (_sqlalchemy_version.major, _sqlalchemy_version.minor, _sqlalchemy_version.micro) >= (
+        2,
+        0,
+        0,
+    )
+    _USE_PSYCOPG3 = find_spec("psycopg") is not None and _is_sqla2
+except (ImportError, ModuleNotFoundError):
+    _USE_PSYCOPG3 = False
+
 
 def _broker_supports_visibility_timeout(url):
     return url.startswith(("redis://", "rediss://", "sqs://", "sentinel://"))
@@ -80,8 +97,11 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
         log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
         sql_alchemy_conn = team_conf.get("database", "SQL_ALCHEMY_CONN")
         # Airflow's sync metadata-database driver default is psycopg (v3); mirror that explicitly
-        # for driverless PostgreSQL URLs instead of relying on SQLAlchemy's own default.
-        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", "postgresql+psycopg://", 1)
+        # for driverless PostgreSQL URLs instead of relying on SQLAlchemy's own default. Fall back to
+        # psycopg2 when psycopg/SQLAlchemy 2.0 aren't both available, matching PostgresHook's own
+        # USE_PSYCOPG3 gating so this doesn't break environments still on the older combination.
+        target_scheme = "postgresql+psycopg://" if _USE_PSYCOPG3 else "postgresql+psycopg2://"
+        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", target_scheme, 1)
         result_backend = f"db+{sql_alchemy_conn}"
 
     # Handle result backend transport options (for Redis Sentinel support)
