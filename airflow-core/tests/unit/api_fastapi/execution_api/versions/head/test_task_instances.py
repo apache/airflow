@@ -1891,17 +1891,17 @@ class TestTIUpdateState:
     def test_ti_update_state_retry_policy_overrides_persisted_in_history(
         self, client, session, create_task_instance
     ):
-        """Retry policy override + reason must be archived to task_instance_history.
+        """The finished try's values must be archived to task_instance_history.
 
-        record_ti() snapshots columns off the TI object, so the overrides must be set on
-        the TI before prepare_db_for_next_try() archives it. When they were written only
-        to the live-row UPDATE, the per-try audit trail in task_instance_history was
-        always NULL even though the live row was correct.
+        record_ti() snapshots columns off the TI object, so the overrides, end_date,
+        and rendered_map_index must be set on the TI before prepare_db_for_next_try()
+        archives it; the live-row UPDATE is not visible to it.
         """
         ti = create_task_instance(
             task_id="test_retry_policy_override_history",
             state=State.RUNNING,
         )
+        ti.start_date = DEFAULT_START_DATE
         session.commit()
 
         response = client.patch(
@@ -1909,6 +1909,7 @@ class TestTIUpdateState:
             json={
                 "state": State.UP_FOR_RETRY,
                 "end_date": DEFAULT_END_DATE.isoformat(),
+                "rendered_map_index": DEFAULT_RENDERED_MAP_INDEX,
                 "retry_delay_seconds": 42.5,
                 "retry_reason": "Rate limit: backing off",
             },
@@ -1925,6 +1926,52 @@ class TestTIUpdateState:
         ).one()
         assert tih.retry_delay_override == 42.5
         assert tih.retry_reason == "Rate limit: backing off"
+        assert tih.end_date == DEFAULT_END_DATE
+        assert tih.duration == (DEFAULT_END_DATE - DEFAULT_START_DATE).total_seconds()
+        assert tih.rendered_map_index == DEFAULT_RENDERED_MAP_INDEX
+
+    def test_ti_update_state_retry_clears_rendered_map_index_in_history(
+        self, client, session, create_task_instance
+    ):
+        """An explicit ``rendered_map_index: null`` must clear the value archived to history too.
+
+        The worker sends ``rendered_map_index`` on every retry, even when this try never
+        (re-)computed it (e.g. it failed before rendering). That must null out the archived
+        row along with the live one, not leave the history row snapshotting a stale value
+        left over from an earlier try.
+        """
+        ti = create_task_instance(
+            task_id="test_retry_clears_rendered_map_index_history",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        ti._rendered_map_index = DEFAULT_RENDERED_MAP_INDEX
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "rendered_map_index": None,
+            },
+        )
+
+        assert response.status_code == 204
+
+        ti = session.scalars(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        ).one()
+        assert ti.rendered_map_index is None
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.rendered_map_index is None
 
     def test_ti_update_state_retry_without_policy_overrides(self, client, session, create_task_instance):
         """Without retry policy fields, the columns remain NULL."""
