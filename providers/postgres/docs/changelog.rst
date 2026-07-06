@@ -42,6 +42,17 @@ Breaking changes
     ``apache-airflow-providers-postgres[asyncpg]`` and set
     ``[database] sql_alchemy_conn_async = postgresql+asyncpg://...`` explicitly.
 
+.. note::
+    The default synchronous metadata-database driver is now ``psycopg`` (psycopg3), mirroring the
+    async default above. ``psycopg2-binary`` is no longer installed by default; it moved from a hard
+    dependency to the new ``[psycopg2]`` optional extra.
+
+    A bare ``postgresql://`` or legacy ``postgres://`` / ``postgres+psycopg2://`` ``sql_alchemy_conn``
+    is now rewritten to ``postgresql+psycopg://`` instead of ``postgresql+psycopg2://``. An explicit
+    ``postgresql+psycopg2://`` connection string is never rewritten. To keep using psycopg2, install
+    ``apache-airflow-providers-postgres[psycopg2]`` and keep (or set)
+    ``[database] sql_alchemy_conn = postgresql+psycopg2://...`` explicitly.
+
 6.8.0
 .....
 

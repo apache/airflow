@@ -7151,7 +7151,6 @@ dependencies = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "psycopg", extra = ["binary"] },
-    { name = "psycopg2-binary" },
 ]
 
 [package.optional-dependencies]
@@ -7172,6 +7171,9 @@ pandas = [
 ]
 polars = [
     { name = "polars" },
+]
+psycopg2 = [
+    { name = "psycopg2-binary" },
 ]
 sqlalchemy = [
     { name = "sqlalchemy" },
@@ -7208,11 +7210,11 @@ requires-dist = [
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "psycopg", extras = ["binary"], marker = "python_full_version < '3.14'", specifier = ">=3.2.9" },
     { name = "psycopg", extras = ["binary"], marker = "python_full_version >= '3.14'", specifier = ">=3.3.3" },
-    { name = "psycopg2-binary", marker = "python_full_version < '3.13'", specifier = ">=2.9.9" },
-    { name = "psycopg2-binary", marker = "python_full_version >= '3.13'", specifier = ">=2.9.10" },
+    { name = "psycopg2-binary", marker = "python_full_version >= '3.13' and extra == 'psycopg2'", specifier = ">=2.9.10" },
+    { name = "psycopg2-binary", marker = "python_full_version < '3.13' and extra == 'psycopg2'", specifier = ">=2.9.9" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
-provides-extras = ["amazon", "asyncpg", "microsoft-azure", "openlineage", "pandas", "polars", "sqlalchemy"]
+provides-extras = ["amazon", "asyncpg", "microsoft-azure", "openlineage", "psycopg2", "pandas", "polars", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
