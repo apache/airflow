@@ -22,10 +22,12 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
+import warnings
 
 from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
@@ -113,7 +115,7 @@ class PubSubPullSensor(BaseSensorOperator):
         project_id: str,
         subscription: str,
         max_messages: int = 5,
-        return_immediately: bool = False,
+        return_immediately: bool = True,
         ack_messages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
@@ -134,6 +136,14 @@ class PubSubPullSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poke_interval = poke_interval
         self._return_value = None
+
+        warnings.warn(
+            "The `return_immediately` parameter is deprecated and will be removed in a future release. "
+            "Its default value will be changed to `False` in the next major release. "
+            "Planned removal date: August 01, 2026.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
 
     def poke(self, context: Context) -> bool:
         hook = PubSubHook(

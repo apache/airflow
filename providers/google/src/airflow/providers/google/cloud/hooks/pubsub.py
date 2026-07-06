@@ -520,6 +520,12 @@ class PubSubHook(GoogleBaseHook):
             the base64-encoded message content. See
             https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.ReceivedMessage
         """
+        warnings.warn(
+            "The `return_immediately` parameter is deprecated and will be removed in a future release.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         subscriber = self.subscriber_client
         # E501
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
@@ -712,6 +718,12 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
             the base64-encoded message content. See
             https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.ReceivedMessage
         """
+        warnings.warn(
+            "The `return_immediately` parameter is deprecated and will be removed in a future release.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         subscriber = await self._get_subscriber_client()
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)

@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 from typing import Any
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import TriggerEvent
@@ -73,7 +75,7 @@ class PubsubPullTrigger(BaseEventTrigger):
         gcp_conn_id: str,
         poke_interval: float = 10.0,
         impersonation_chain: str | Sequence[str] | None = None,
-        return_immediately: bool = False,
+        return_immediately: bool = True,
     ):
         super().__init__()
         self.project_id = project_id
@@ -84,6 +86,14 @@ class PubsubPullTrigger(BaseEventTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.return_immediately = return_immediately
+
+        warnings.warn(
+            "The `return_immediately` parameter is deprecated and will be removed in a future release. "
+            "Its default value will be changed to `False` in the next major release. "
+            "Planned removal date: August 01, 2026.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize PubsubPullTrigger arguments and classpath."""

@@ -25,6 +25,7 @@ This module contains Google PubSub operators.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -42,6 +43,7 @@ from google.cloud.pubsub_v1.types import (
     SchemaSettings,
 )
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
@@ -826,7 +828,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 300,
-        return_immediately: bool = False,
+        return_immediately: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -840,6 +842,14 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.return_immediately = return_immediately
+
+        warnings.warn(
+            "The `return_immediately` parameter is deprecated and will be removed in a future release. "
+            "Its default value will be changed to `False` in the next major release. "
+            "Planned removal date: August 01, 2026.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
 
     def execute(self, context: Context) -> list:
         if self.deferrable:

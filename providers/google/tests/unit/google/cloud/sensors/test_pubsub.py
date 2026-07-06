@@ -95,7 +95,7 @@ class TestPubSubPullSensor:
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=False
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
         assert generated_dicts == response
 
@@ -145,7 +145,7 @@ class TestPubSubPullSensor:
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=False
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
 
         messages_callback.assert_called_once()
@@ -167,9 +167,9 @@ class TestPubSubPullSensor:
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
-        assert exc.value.trigger.return_immediately is False
+        assert exc.value.trigger.return_immediately is True
 
-    def test_pubsub_pull_sensor_async_with_return_immediately_true(self):
+    def test_pubsub_pull_sensor_async_with_return_immediately_false(self):
         """
         Asserts that a task is deferred and a PubsubPullTrigger will be fired
         with custom return_immediately value.
@@ -180,12 +180,12 @@ class TestPubSubPullSensor:
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             deferrable=True,
-            return_immediately=True,
+            return_immediately=False,
         )
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
-        assert exc.value.trigger.return_immediately is True
+        assert exc.value.trigger.return_immediately is False
 
     def test_pubsub_pull_sensor_async_execute_should_throw_exception(self):
         """Tests that an AirflowException is raised in case of error event"""

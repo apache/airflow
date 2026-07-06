@@ -507,7 +507,7 @@ class TestPubSubPullOperator:
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=False
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
 
         messages_callback.assert_called_once()
@@ -515,18 +515,18 @@ class TestPubSubPullOperator:
         assert response == messages_callback_return_value
 
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
-    def test_execute_with_return_immediately_true(self, mock_hook):
+    def test_execute_with_return_immediately_false(self, mock_hook):
         operator = PubSubPullOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
-            return_immediately=True,
+            return_immediately=False,
         )
 
         mock_hook.return_value.pull.return_value = []
         operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=False
         )
 
     @pytest.mark.db_test
@@ -541,13 +541,12 @@ class TestPubSubPullOperator:
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             deferrable=True,
-            return_immediately=False,
         )
         with pytest.raises(TaskDeferred) as exc:
             task.execute(mock.MagicMock())
 
         assert isinstance(exc.value.trigger, PubsubPullTrigger)
-        assert exc.value.trigger.return_immediately is False
+        assert exc.value.trigger.return_immediately is True
 
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_get_openlineage_facets(self, mock_hook):
@@ -563,7 +562,7 @@ class TestPubSubPullOperator:
 
         assert generated_dicts == operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=False
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
 
         result = operator.get_openlineage_facets_on_complete(operator)
