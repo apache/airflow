@@ -287,7 +287,7 @@ def _inject_trace_context_dep(routes, mode: str) -> None:
 
 def create_task_execution_api_app(lifespan: svcs.fastapi.lifespan = lifespan) -> FastAPI:
     """Create FastAPI app for task execution API."""
-    from airflow.api_fastapi.core_api.app import init_error_handlers
+    from airflow.api_fastapi.common.exceptions import init_error_handlers
     from airflow.api_fastapi.execution_api.routes import execution_api_router
     from airflow.api_fastapi.execution_api.versions import bundle
     from airflow.configuration import conf

@@ -23,7 +23,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Generic, TypeVar
 
-from fastapi import HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from sqlalchemy.exc import DatabaseError, DataError, IntegrityError, SQLAlchemyError
 
 from airflow.configuration import conf
@@ -212,3 +212,8 @@ ERROR_HANDLERS: list[BaseErrorHandler] = [
     SQLAlchemyErrorHandler(),
     DagErrorHandler(),
 ]
+
+
+def init_error_handlers(app: FastAPI) -> None:
+    for handler in ERROR_HANDLERS:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)

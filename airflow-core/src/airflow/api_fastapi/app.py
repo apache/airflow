@@ -27,9 +27,9 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag
+from airflow.api_fastapi.common.exceptions import init_error_handlers
 from airflow.api_fastapi.core_api.app import (
     init_config,
-    init_error_handlers,
     init_flask_plugins,
     init_middlewares,
     init_views,
