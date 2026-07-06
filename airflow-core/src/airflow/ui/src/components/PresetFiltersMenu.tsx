@@ -65,8 +65,8 @@ export const PresetFiltersMenu = () => {
 
   presetParams.delete(SearchParamsKeys.OFFSET);
   presetParams.delete(SearchParamsKeys.CURSOR);
-  // Pagination doesn't define a preset; filters and a non-default sort (both live in the URL) do. So a
-  // bare page has no params left and can't be saved.
+  // Pagination doesn't define a preset; any other URL param does. So a bare page has no params
+  // left and can't be saved.
   const hasPresetToSave = [...presetParams].length > 0;
   const search = presetParams.toString();
 
@@ -92,9 +92,9 @@ export const PresetFiltersMenu = () => {
   const applyPreset = (preset: PresetFilter) => {
     const params = new URLSearchParams(preset.search);
 
-    // The sort rides in the URL like any other param. Mirror it into localStorage as well, so the
-    // table's fallback default (used when the URL carries no sort) matches the preset rather than a
-    // leftover sort from before.
+    // Unlike filters, the table (useTableURLState) also caches the sort in localStorage and falls
+    // back to it when the URL has no sort. Mirror the preset's sort there too, or a preset without a
+    // sort would inherit a stale one.
     setSorting(
       params
         .getAll(SearchParamsKeys.SORT)
@@ -114,8 +114,8 @@ export const PresetFiltersMenu = () => {
   };
 
   // Restore the default preset on a filterless landing. Keyed on pathname so the user's later
-  // edits/clears don't re-trigger it and a deep link's params win; only pagination is ignored — a
-  // non-default sort, like any filter, is an explicit landing that should be left alone.
+  // edits/clears don't re-trigger it and a deep link wins; only pagination is ignored, since any
+  // other param makes the landing explicit and should be left alone.
   useEffect(() => {
     const target =
       defaultPresetName === null
