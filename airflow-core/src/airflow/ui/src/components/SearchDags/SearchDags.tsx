@@ -62,6 +62,7 @@ export const SearchDags = ({
         queryFn: () =>
           DagService.getDagsUi({
             dagDisplayNamePrefixPattern: inputValue,
+            dagRunsLimit: 1,
             limit: SEARCH_LIMIT,
           }).then((data: DAGWithLatestDagRunsCollectionResponse) => {
             const options = data.dags.map((dag: DAGWithLatestDagRunsResponse) => ({
@@ -87,7 +88,7 @@ export const SearchDags = ({
   const formatOptionLabel = (option: DagSearchOption) => (
     <Flex alignItems="center" gap={2}>
       <StateBadge state={option.state} />
-      <Text>{option.value}</Text>
+      <Text>{option.label}</Text>
     </Flex>
   );
 
