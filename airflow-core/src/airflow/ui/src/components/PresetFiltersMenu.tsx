@@ -28,10 +28,10 @@ import { useLocalStorage } from "usehooks-ts";
 
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton, Popover, Tooltip } from "src/components/ui";
-import { savedViewsDefaultKey, savedViewsKey, tableSortKey } from "src/constants/localStorage";
+import { presetFiltersDefaultKey, presetFiltersKey, tableSortKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
-type SavedView = {
+type PresetFilter = {
   readonly name: string;
   readonly search: string;
 };
@@ -44,51 +44,56 @@ const normalizeSearch = (value: string) => {
   return params.toString();
 };
 
-export const SavedViewsMenu = () => {
+export const PresetFiltersMenu = () => {
   const { t: translate } = useTranslation("common");
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [, setSorting] = useLocalStorage<SortingState>(tableSortKey(pathname), []);
-  const [savedViews, setSavedViews] = useLocalStorage<Array<SavedView>>(savedViewsKey(pathname), []);
-  const [defaultViewName, setDefaultViewName] = useLocalStorage<string | null>(
-    savedViewsDefaultKey(pathname),
+  const [presetFilters, setPresetFilters] = useLocalStorage<Array<PresetFilter>>(
+    presetFiltersKey(pathname),
+    [],
+  );
+  const [defaultPresetName, setDefaultPresetName] = useLocalStorage<string | null>(
+    presetFiltersDefaultKey(pathname),
     null,
   );
   const [name, setName] = useState("");
   const [open, setOpen] = useState(false);
-  const [viewToDelete, setViewToDelete] = useState<string | undefined>(undefined);
+  const [presetToDelete, setPresetToDelete] = useState<string | undefined>(undefined);
 
-  const viewParams = new URLSearchParams(searchParams);
+  const presetParams = new URLSearchParams(searchParams);
 
-  viewParams.delete(SearchParamsKeys.OFFSET);
-  viewParams.delete(SearchParamsKeys.CURSOR);
-  // Pagination doesn't define a view; filters and a non-default sort (both live in the URL) do. So a
+  presetParams.delete(SearchParamsKeys.OFFSET);
+  presetParams.delete(SearchParamsKeys.CURSOR);
+  // Pagination doesn't define a preset; filters and a non-default sort (both live in the URL) do. So a
   // bare page has no params left and can't be saved.
-  const hasViewToSave = [...viewParams].length > 0;
-  const search = viewParams.toString();
+  const hasPresetToSave = [...presetParams].length > 0;
+  const search = presetParams.toString();
 
-  const duplicateView = savedViews.find((view) => normalizeSearch(view.search) === normalizeSearch(search));
+  const duplicatePreset = presetFilters.find(
+    (preset) => normalizeSearch(preset.search) === normalizeSearch(search),
+  );
 
   const handleSave = () => {
     const trimmedName = name.trim();
 
-    if (trimmedName === "" || !hasViewToSave || duplicateView !== undefined) {
+    if (trimmedName === "" || !hasPresetToSave || duplicatePreset !== undefined) {
       return;
     }
 
-    setSavedViews((prev) =>
-      prev.some((view) => view.name === trimmedName)
-        ? prev.map((view) => (view.name === trimmedName ? { name: trimmedName, search } : view))
+    setPresetFilters((prev) =>
+      prev.some((preset) => preset.name === trimmedName)
+        ? prev.map((preset) => (preset.name === trimmedName ? { name: trimmedName, search } : preset))
         : [...prev, { name: trimmedName, search }],
     );
     setName("");
   };
 
-  const applyView = (view: SavedView) => {
-    const params = new URLSearchParams(view.search);
+  const applyPreset = (preset: PresetFilter) => {
+    const params = new URLSearchParams(preset.search);
 
     // The sort rides in the URL like any other param. Mirror it into localStorage as well, so the
-    // table's fallback default (used when the URL carries no sort) matches the view rather than a
+    // table's fallback default (used when the URL carries no sort) matches the preset rather than a
     // leftover sort from before.
     setSorting(
       params
@@ -99,45 +104,47 @@ export const SavedViewsMenu = () => {
     setOpen(false);
   };
 
-  const deleteView = (viewName: string) => {
-    setSavedViews((prev) => prev.filter((view) => view.name !== viewName));
-    setDefaultViewName((previous) => (previous === viewName ? null : previous));
+  const deletePreset = (presetName: string) => {
+    setPresetFilters((prev) => prev.filter((preset) => preset.name !== presetName));
+    setDefaultPresetName((previous) => (previous === presetName ? null : previous));
   };
 
-  const toggleDefault = (viewName: string) => {
-    setDefaultViewName((previous) => (previous === viewName ? null : viewName));
+  const toggleDefault = (presetName: string) => {
+    setDefaultPresetName((previous) => (previous === presetName ? null : presetName));
   };
 
-  // Restore the default view on a filterless landing. Keyed on pathname so the user's later edits/clears
-  // don't re-trigger it and a deep link's params win; only pagination is ignored — a non-default sort,
-  // like any filter, is an explicit landing that should be left alone.
+  // Restore the default preset on a filterless landing. Keyed on pathname so the user's later
+  // edits/clears don't re-trigger it and a deep link's params win; only pagination is ignored — a
+  // non-default sort, like any filter, is an explicit landing that should be left alone.
   useEffect(() => {
     const target =
-      defaultViewName === null ? undefined : savedViews.find((view) => view.name === defaultViewName);
+      defaultPresetName === null
+        ? undefined
+        : presetFilters.find((preset) => preset.name === defaultPresetName);
     const params = new URLSearchParams(searchParams);
 
     params.delete(SearchParamsKeys.OFFSET);
     params.delete(SearchParamsKeys.CURSOR);
 
     if (target !== undefined && [...params].length === 0) {
-      applyView(target);
+      applyPreset(target);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   let saveHint: string | undefined;
 
-  if (!hasViewToSave) {
-    saveHint = translate("savedViews.nothingToSave");
-  } else if (duplicateView !== undefined) {
-    saveHint = translate("savedViews.duplicate", { name: duplicateView.name });
+  if (!hasPresetToSave) {
+    saveHint = translate("presetFilters.nothingToSave");
+  } else if (duplicatePreset !== undefined) {
+    saveHint = translate("presetFilters.duplicate", { name: duplicatePreset.name });
   }
 
   const infoContent = (
     <VStack alignItems="start" gap={2} maxW="260px">
-      <Text fontSize="xs">{translate("savedViews.info.save")}</Text>
-      <Text fontSize="xs">{translate("savedViews.info.default")}</Text>
-      <Text fontSize="xs">{translate("savedViews.info.storage")}</Text>
+      <Text fontSize="xs">{translate("presetFilters.info.save")}</Text>
+      <Text fontSize="xs">{translate("presetFilters.info.default")}</Text>
+      <Text fontSize="xs">{translate("presetFilters.info.storage")}</Text>
     </VStack>
   );
 
@@ -151,9 +158,14 @@ export const SavedViewsMenu = () => {
         unmountOnExit
       >
         <Popover.Trigger asChild>
-          <Button borderRadius="full" colorPalette="gray" data-testid="saved-views-button" variant="outline">
+          <Button
+            borderRadius="full"
+            colorPalette="gray"
+            data-testid="preset-filters-button"
+            variant="outline"
+          >
             <LuBookmark />
-            {translate("savedViews.title")}
+            {translate("presetFilters.title")}
           </Button>
         </Popover.Trigger>
         <Popover.Content width="xs">
@@ -161,7 +173,7 @@ export const SavedViewsMenu = () => {
           <VStack align="stretch" gap={2} p={4}>
             <HStack gap={1}>
               <Text fontSize="sm" fontWeight="medium">
-                {translate("savedViews.title")}
+                {translate("presetFilters.title")}
               </Text>
               <Tooltip content={infoContent}>
                 <Box as="span" color="fg.muted" cursor="pointer">
@@ -171,62 +183,62 @@ export const SavedViewsMenu = () => {
             </HStack>
             <HStack>
               <Input
-                data-testid="saved-view-name"
+                data-testid="preset-filter-name"
                 onChange={(event) => setName(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     handleSave();
                   }
                 }}
-                placeholder={translate("savedViews.namePlaceholder")}
+                placeholder={translate("presetFilters.namePlaceholder")}
                 size="sm"
                 value={name}
               />
               <Tooltip content={saveHint ?? ""} disabled={saveHint === undefined}>
                 <Box>
                   <Button
-                    data-testid="saved-view-save"
-                    disabled={!hasViewToSave || name.trim() === "" || duplicateView !== undefined}
+                    data-testid="preset-filter-save"
+                    disabled={!hasPresetToSave || name.trim() === "" || duplicatePreset !== undefined}
                     onClick={handleSave}
                     size="sm"
                   >
-                    {translate("savedViews.save")}
+                    {translate("presetFilters.save")}
                   </Button>
                 </Box>
               </Tooltip>
             </HStack>
-            {savedViews.length === 0 ? (
+            {presetFilters.length === 0 ? (
               <Text color="fg.muted" fontSize="sm" py={1}>
-                {translate("savedViews.empty")}
+                {translate("presetFilters.empty")}
               </Text>
             ) : (
-              savedViews.map((view) => (
-                <HStack gap={1} key={view.name}>
+              presetFilters.map((preset) => (
+                <HStack gap={1} key={preset.name}>
                   <Button
                     flex="1"
                     justifyContent="flex-start"
                     minW={0}
-                    onClick={() => applyView(view)}
+                    onClick={() => applyPreset(preset)}
                     size="sm"
                     variant="ghost"
                   >
-                    <Text truncate>{view.name}</Text>
+                    <Text truncate>{preset.name}</Text>
                   </Button>
                   <IconButton
                     label={
-                      defaultViewName === view.name
-                        ? translate("savedViews.unsetDefault")
-                        : translate("savedViews.setDefault")
+                      defaultPresetName === preset.name
+                        ? translate("presetFilters.unsetDefault")
+                        : translate("presetFilters.setDefault")
                     }
-                    onClick={() => toggleDefault(view.name)}
+                    onClick={() => toggleDefault(preset.name)}
                     size="sm"
                     variant="ghost"
                   >
-                    {defaultViewName === view.name ? <MdPushPin /> : <MdOutlinePushPin />}
+                    {defaultPresetName === preset.name ? <MdPushPin /> : <MdOutlinePushPin />}
                   </IconButton>
                   <IconButton
-                    aria-label="Delete view"
-                    onClick={() => setViewToDelete(view.name)}
+                    aria-label="Delete preset filter"
+                    onClick={() => setPresetToDelete(preset.name)}
                     size="sm"
                     variant="ghost"
                   >
@@ -240,17 +252,17 @@ export const SavedViewsMenu = () => {
       </Popover.Root>
       <DeleteDialog
         isDeleting={false}
-        onClose={() => setViewToDelete(undefined)}
+        onClose={() => setPresetToDelete(undefined)}
         onDelete={() => {
-          if (viewToDelete !== undefined) {
-            deleteView(viewToDelete);
+          if (presetToDelete !== undefined) {
+            deletePreset(presetToDelete);
           }
-          setViewToDelete(undefined);
+          setPresetToDelete(undefined);
         }}
-        open={viewToDelete !== undefined}
-        resourceName={viewToDelete ?? ""}
-        title={translate("savedViews.deleteTitle")}
-        warningText={translate("savedViews.deleteWarning")}
+        open={presetToDelete !== undefined}
+        resourceName={presetToDelete ?? ""}
+        title={translate("presetFilters.deleteTitle")}
+        warningText={translate("presetFilters.deleteWarning")}
       />
     </>
   );

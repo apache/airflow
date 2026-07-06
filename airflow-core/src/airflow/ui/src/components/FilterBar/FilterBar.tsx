@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
-import { SavedViewsMenu } from "src/components/SavedViewsMenu";
+import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
 import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
@@ -44,7 +44,7 @@ export const FilterBar = ({
   initialValues = defaultInitialValues,
   maxVisibleFilters = 10,
   onFiltersChange,
-  showSavedViews = true,
+  showPresetFilters = true,
 }: FilterBarProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
@@ -221,7 +221,7 @@ export const FilterBar = ({
           </Button>
         )}
       </HStack>
-      {showSavedViews ? <SavedViewsMenu /> : undefined}
+      {showPresetFilters ? <PresetFiltersMenu /> : undefined}
     </Flex>
   );
 };

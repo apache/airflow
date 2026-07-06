@@ -34,16 +34,16 @@ const wrapper = ({ children }: PropsWithChildren) => (
 
 afterEach(cleanup);
 
-describe("FilterBar saved views", () => {
-  it("shows the saved views control by default", () => {
+describe("FilterBar preset filters", () => {
+  it("shows the preset filters control by default", () => {
     render(<FilterBar configs={[]} onFiltersChange={vi.fn()} />, { wrapper });
 
-    expect(screen.getByTestId("saved-views-button")).toBeInTheDocument();
+    expect(screen.getByTestId("preset-filters-button")).toBeInTheDocument();
   });
 
-  it("hides the saved views control when showSavedViews is false", () => {
-    render(<FilterBar configs={[]} onFiltersChange={vi.fn()} showSavedViews={false} />, { wrapper });
+  it("hides the preset filters control when showPresetFilters is false", () => {
+    render(<FilterBar configs={[]} onFiltersChange={vi.fn()} showPresetFilters={false} />, { wrapper });
 
-    expect(screen.queryByTestId("saved-views-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("preset-filters-button")).not.toBeInTheDocument();
   });
 });

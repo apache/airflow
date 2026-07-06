@@ -93,7 +93,7 @@ export const TaskInstancesFilter = () => {
         configs={filterConfigs}
         initialValues={initialValues}
         onFiltersChange={handleFiltersChange}
-        showSavedViews={runId === undefined}
+        showPresetFilters={runId === undefined}
       />
     </VStack>
   );

@@ -24,7 +24,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { BaseWrapper } from "src/utils/Wrapper";
 
-import { SavedViewsMenu } from "./SavedViewsMenu";
+import { PresetFiltersMenu } from "./PresetFiltersMenu";
 
 const LocationProbe = () => {
   const location = useLocation();
@@ -44,9 +44,9 @@ const createWrapper =
   );
 
 const openMenu = async () => {
-  fireEvent.click(screen.getByTestId("saved-views-button"));
+  fireEvent.click(screen.getByTestId("preset-filters-button"));
 
-  return screen.findByTestId("saved-view-name");
+  return screen.findByTestId("preset-filter-name");
 };
 
 afterEach(() => {
@@ -54,77 +54,77 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe("SavedViewsMenu", () => {
-  it("shows an empty state when no views are saved", async () => {
-    render(<SavedViewsMenu />, { wrapper: createWrapper() });
+describe("PresetFiltersMenu", () => {
+  it("shows an empty state when no preset filters are saved", async () => {
+    render(<PresetFiltersMenu />, { wrapper: createWrapper() });
     await openMenu();
 
-    expect(screen.getByText("savedViews.empty")).toBeInTheDocument();
+    expect(screen.getByText("presetFilters.empty")).toBeInTheDocument();
   });
 
-  it("saves the current view from the URL, dropping pagination and keeping the sort", async () => {
-    render(<SavedViewsMenu />, {
+  it("saves the current preset from the URL, dropping pagination and keeping the sort", async () => {
+    render(<PresetFiltersMenu />, {
       wrapper: createWrapper(["/dags?state=running&sort=-start_date&offset=40"]),
     });
     const input = await openMenu();
 
     fireEvent.change(input, { target: { value: "Running runs" } });
-    fireEvent.click(screen.getByTestId("saved-view-save"));
+    fireEvent.click(screen.getByTestId("preset-filter-save"));
 
     await waitFor(() => {
-      expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([
+      expect(JSON.parse(localStorage.getItem("dags-preset-filters") ?? "[]")).toEqual([
         { name: "Running runs", search: "state=running&sort=-start_date" },
       ]);
     });
     expect(input).toHaveValue("");
   });
 
-  it("does not save a view with a blank name", async () => {
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+  it("does not save a preset with a blank name", async () => {
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
     const input = await openMenu();
 
     fireEvent.change(input, { target: { value: "   " } });
 
-    expect(screen.getByTestId("saved-view-save")).toBeDisabled();
+    expect(screen.getByTestId("preset-filter-save")).toBeDisabled();
   });
 
-  it("disables save on the default view, even with a stored sort and a typed name", async () => {
+  it("disables save on a bare page, even with a stored sort and a typed name", async () => {
     localStorage.setItem("dags-table-sort", JSON.stringify([{ desc: true, id: "run_after" }]));
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     const input = await openMenu();
 
-    fireEvent.change(input, { target: { value: "My view" } });
+    fireEvent.change(input, { target: { value: "My preset" } });
 
-    expect(screen.getByTestId("saved-view-save")).toBeDisabled();
+    expect(screen.getByTestId("preset-filter-save")).toBeDisabled();
   });
 
-  it("overwrites an existing view with the same name", async () => {
+  it("overwrites an existing preset with the same name", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Running runs", search: "state=queued" }]),
     );
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
     const input = await openMenu();
 
     fireEvent.change(input, { target: { value: "Running runs" } });
-    fireEvent.click(screen.getByTestId("saved-view-save"));
+    fireEvent.click(screen.getByTestId("preset-filter-save"));
 
     await waitFor(() => {
-      expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([
+      expect(JSON.parse(localStorage.getItem("dags-preset-filters") ?? "[]")).toEqual([
         { name: "Running runs", search: "state=running" },
       ]);
     });
   });
 
-  it("restores a saved view to the URL and the table sort", async () => {
+  it("restores a preset to the URL and the table sort", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Successful runs", search: "state=success&sort=-run_after" }]),
     );
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
     fireEvent.click(screen.getByText("Successful runs"));
@@ -138,70 +138,70 @@ describe("SavedViewsMenu", () => {
     ]);
   });
 
-  it("deletes a saved view after confirming", async () => {
+  it("deletes a preset after confirming", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([
         { name: "Successful runs", search: "state=success" },
         { name: "Failed runs", search: "state=failed" },
       ]),
     );
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
-    fireEvent.click(screen.getAllByLabelText("Delete view")[0] as HTMLElement);
+    fireEvent.click(screen.getAllByLabelText("Delete preset filter")[0] as HTMLElement);
     fireEvent.click(await screen.findByTestId("delete-confirm-button"));
 
     await waitFor(() => {
-      expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([
+      expect(JSON.parse(localStorage.getItem("dags-preset-filters") ?? "[]")).toEqual([
         { name: "Failed runs", search: "state=failed" },
       ]);
     });
   });
 
-  it("keeps the saved view when the delete is cancelled", async () => {
+  it("keeps the preset when the delete is cancelled", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
     );
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
-    fireEvent.click(screen.getByLabelText("Delete view"));
+    fireEvent.click(screen.getByLabelText("Delete preset filter"));
     fireEvent.click(await screen.findByTestId("delete-cancel-button"));
 
     await waitFor(() => {
       expect(screen.queryByTestId("delete-confirm-button")).not.toBeInTheDocument();
     });
-    expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([
+    expect(JSON.parse(localStorage.getItem("dags-preset-filters") ?? "[]")).toEqual([
       { name: "Successful runs", search: "state=success" },
     ]);
   });
 
   it("blocks save when the exact setup is already saved under another name", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Running runs", search: "state=running" }]),
     );
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
     const input = await openMenu();
 
     fireEvent.change(input, { target: { value: "Another name" } });
 
-    expect(screen.getByTestId("saved-view-save")).toBeDisabled();
+    expect(screen.getByTestId("preset-filter-save")).toBeDisabled();
   });
 
-  it("restores the default view automatically on a bare page load", async () => {
+  it("restores the default preset automatically on a bare page load", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Successful runs", search: "state=success&sort=-run_after" }]),
     );
-    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+    localStorage.setItem("dags-preset-filters-default", JSON.stringify("Successful runs"));
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
 
     await waitFor(() => {
       expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
@@ -212,71 +212,73 @@ describe("SavedViewsMenu", () => {
     ]);
   });
 
-  it("does not restore the default view when the URL carries a non-default sort", async () => {
+  it("does not restore the default preset when the URL carries a non-default sort", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
     );
-    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+    localStorage.setItem("dags-preset-filters-default", JSON.stringify("Successful runs"));
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?sort=-run_after"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?sort=-run_after"]) });
     await openMenu();
 
     expect(screen.getByTestId("location-search")).toHaveTextContent("sort=-run_after");
     expect(screen.getByTestId("location-search")).not.toHaveTextContent("state=success");
   });
 
-  it("does not restore the default view when the page already has filters", async () => {
+  it("does not restore the default preset when the page already has filters", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
     );
-    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+    localStorage.setItem("dags-preset-filters-default", JSON.stringify("Successful runs"));
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
     await openMenu();
 
     expect(screen.getByTestId("location-search")).toHaveTextContent("state=running");
     expect(screen.getByTestId("location-search")).not.toHaveTextContent("state=success");
   });
 
-  it("toggles a view as the default and back", async () => {
+  it("toggles a preset as the default and back", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
     );
 
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
-    fireEvent.click(screen.getByLabelText("savedViews.setDefault"));
+    fireEvent.click(screen.getByLabelText("presetFilters.setDefault"));
     await waitFor(() => {
-      expect(JSON.parse(localStorage.getItem("dags-saved-views-default") ?? "null")).toBe("Successful runs");
+      expect(JSON.parse(localStorage.getItem("dags-preset-filters-default") ?? "null")).toBe(
+        "Successful runs",
+      );
     });
 
-    fireEvent.click(screen.getByLabelText("savedViews.unsetDefault"));
+    fireEvent.click(screen.getByLabelText("presetFilters.unsetDefault"));
     await waitFor(() => {
-      expect(JSON.parse(localStorage.getItem("dags-saved-views-default") ?? "null")).toBeNull();
+      expect(JSON.parse(localStorage.getItem("dags-preset-filters-default") ?? "null")).toBeNull();
     });
   });
 
-  it("clears the stored default when the default view is deleted", async () => {
+  it("clears the stored default when the default preset is deleted", async () => {
     localStorage.setItem(
-      "dags-saved-views",
+      "dags-preset-filters",
       JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
     );
-    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+    localStorage.setItem("dags-preset-filters-default", JSON.stringify("Successful runs"));
 
     // A non-bare URL so the default isn't auto-restored before we delete it.
-    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+    render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
     await openMenu();
 
-    fireEvent.click(screen.getByLabelText("Delete view"));
+    fireEvent.click(screen.getByLabelText("Delete preset filter"));
     fireEvent.click(await screen.findByTestId("delete-confirm-button"));
 
     await waitFor(() => {
-      expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([]);
+      expect(JSON.parse(localStorage.getItem("dags-preset-filters") ?? "[]")).toEqual([]);
     });
-    expect(JSON.parse(localStorage.getItem("dags-saved-views-default") ?? "null")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("dags-preset-filters-default") ?? "null")).toBeNull();
   });
 });
