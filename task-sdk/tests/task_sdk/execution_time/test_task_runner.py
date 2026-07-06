@@ -4891,6 +4891,10 @@ class TestTriggerDagRunOperator:
 
         assert state == expected_state
         assert msg.state == expected_state
+        # end_date must be set on the local instance (not just the outbound
+        # message) so finalize() emits the task.duration metric
+        assert ti.end_date is not None
+        assert msg.end_date == ti.end_date
 
         expected_calls = [
             mock.call.send(
