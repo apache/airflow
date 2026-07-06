@@ -181,6 +181,7 @@ def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.app import get_auth_manager
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
     from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+    from airflow.configuration import conf
 
     app.add_middleware(JWTRefreshMiddleware)
 
@@ -194,3 +195,14 @@ def init_middlewares(app: FastAPI) -> None:
     # HttpAccessLogMiddleware must be outermost (added last) so it times the full
     # request lifecycle including all inner middleware.
     app.add_middleware(HttpAccessLogMiddleware)
+
+    # Only wire per-route request metrics when a metrics backend is configured; otherwise
+    # the Stats singleton is a no-op and the middleware would add cost for nothing.
+    if (
+        conf.getboolean("metrics", "otel_on")
+        or conf.getboolean("metrics", "statsd_on")
+        or conf.getboolean("metrics", "statsd_datadog_enabled")
+    ):
+        from airflow.api_fastapi.common.request_metrics import RequestMetricsMiddleware
+
+        app.add_middleware(RequestMetricsMiddleware)
