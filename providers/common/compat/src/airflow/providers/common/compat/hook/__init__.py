@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 async def get_async_hook(conn_id: str, hook_params: dict | None = None) -> BaseHook:
     """
-    Get an asynchronous Airflow connection that is backwards compatible.
+    Get an asynchronous Airflow hook that is backwards compatible.
 
     :param conn_id: The provided connection ID.
     :param hook_params: Additional hook params.
