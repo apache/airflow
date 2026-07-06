@@ -785,7 +785,70 @@ class TestDeleteClusterOperator:
         with pytest.raises(returned_exception):
             redshift_operator.execute(None)
 
-        assert mock_delete_cluster.call_count == 10
+        assert mock_delete_cluster.call_count == 60
+
+    def test_busy_retry_defaults(self):
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+        )
+        assert redshift_operator.busy_retry_attempts == 60
+        assert redshift_operator.busy_retry_interval == 15
+
+    def test_busy_retry_custom_values(self):
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            busy_retry_attempts=3,
+            busy_retry_interval=0,
+        )
+        assert redshift_operator.busy_retry_attempts == 3
+        assert redshift_operator.busy_retry_interval == 0
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch.object(RedshiftHook, "conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_delete_cluster_custom_busy_retry_attempts_fail(self, _, mock_conn, mock_delete_cluster):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_delete_cluster.side_effect = exception
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+            busy_retry_attempts=3,
+            busy_retry_interval=0,
+        )
+        with pytest.raises(returned_exception):
+            redshift_operator.execute(None)
+
+        assert mock_delete_cluster.call_count == 3
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch.object(RedshiftHook, "conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_delete_cluster_succeeds_on_second_attempt(self, _, mock_conn, mock_delete_cluster):
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        returned_exception = type(exception)
+        mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        mock_delete_cluster.side_effect = [exception, True]
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+            busy_retry_attempts=3,
+            busy_retry_interval=0,
+        )
+        redshift_operator.execute(None)
+
+        assert mock_delete_cluster.call_count == 2
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
