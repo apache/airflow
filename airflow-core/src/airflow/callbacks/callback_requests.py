@@ -47,11 +47,7 @@ class BaseCallbackRequest(BaseModel):
     bundle_name: str
     bundle_version: str | None
     version_data: dict[str, Any] | None = None
-    """Optional structured metadata for the pinned bundle version (e.g. an S3 object manifest).
-
-    Populated only for pinned runs so the callback initializes the bundle against the same
-    version the task ran with; ``None`` for unpinned runs.
-    """
+    """Optional structured metadata for the pinned bundle version (e.g. an S3 object manifest)."""
     msg: str | None = None
     """Additional Message that can be used for logging to determine failure/task heartbeat timeout"""
 

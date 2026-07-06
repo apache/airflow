@@ -184,8 +184,8 @@ class TestDagVersion:
         assert retrieved.bundle_version == "abc123"
 
 
-class TestResolvePinnedVersionData:
-    """Unit tests for the resolve_pinned_version_data pin-guard helper."""
+class TestResolveVersionData:
+    """Unit tests for the _resolve_version_data pin-guard helper."""
 
     @pytest.mark.parametrize(
         ("dag_version", "bundle_version", "expected"),
@@ -206,7 +206,7 @@ class TestResolvePinnedVersionData:
             pytest.param(None, None, None, id="unpinned-and-missing"),
         ],
     )
-    def test_resolve_pinned_version_data(self, dag_version, bundle_version, expected):
-        from airflow.models.dag_version import resolve_pinned_version_data
+    def test_resolve_version_data(self, dag_version, bundle_version, expected):
+        from airflow.models.dag_version import _resolve_version_data
 
-        assert resolve_pinned_version_data(dag_version, bundle_version) == expected
+        assert _resolve_version_data(dag_version, bundle_version) == expected

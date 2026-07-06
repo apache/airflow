@@ -1990,6 +1990,9 @@ class TestDagFileProcessorManager:
         mock_bundle_manager.return_value.get_bundle.assert_called_once_with(
             name="testing", version="some_commit_hash", version_data=version_data
         )
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_prepare_callback_bundle_skips_initialize_for_unversioned_request(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True

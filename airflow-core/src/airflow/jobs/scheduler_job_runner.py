@@ -97,7 +97,7 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion, resolve_pinned_version_data
+from airflow.models.dag_version import DagVersion, _resolve_version_data
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -1514,7 +1514,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
-                    _version_data = resolve_pinned_version_data(ti.dag_version, ti.dag_run.bundle_version)
+                    _version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1565,9 +1565,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _email_bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
-                    _email_version_data = resolve_pinned_version_data(
-                        ti.dag_version, ti.dag_run.bundle_version
-                    )
+                    _email_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -3088,9 +3086,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
-                    _stuck_version_data = resolve_pinned_version_data(
-                        ti.dag_version, ti.dag_run.bundle_version
-                    )
+                    _stuck_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
                     # inside a loop.  If backfilling fails we simply skip the callback.
@@ -3563,7 +3559,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if ti.dag_version and ti.dag_run.bundle_version is not None
                 else ti.dag_run.bundle_version
             )
-            _hb_version_data = resolve_pinned_version_data(ti.dag_version, ti.dag_run.bundle_version)
+            _hb_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
                 continue

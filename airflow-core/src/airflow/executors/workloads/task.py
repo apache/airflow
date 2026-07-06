@@ -102,12 +102,12 @@ class ExecuteTask(BaseDagBundleWorkload):
 
         ser_ti = TaskInstanceDTO.model_validate(ti, from_attributes=True)
         if not bundle_info:
-            from airflow.models.dag_version import resolve_pinned_version_data
+            from airflow.models.dag_version import _resolve_version_data
 
             bundle_info = BundleInfo(
                 name=ti.dag_model.bundle_name,
                 version=ti.dag_run.bundle_version,
-                version_data=resolve_pinned_version_data(ti.dag_version, ti.dag_run.bundle_version),
+                version_data=_resolve_version_data(ti.dag_version, ti.dag_run.bundle_version),
             )
         fname = log_filename_template_renderer()(ti=ti)
 
