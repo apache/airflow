@@ -7121,6 +7121,7 @@ common-sql = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "apache-airflow-providers-postgres" },
     { name = "apache-airflow-task-sdk" },
@@ -7143,6 +7144,7 @@ provides-extras = ["common-sql"]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-postgres", editable = "providers/postgres" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
@@ -7263,7 +7265,7 @@ requires-dist = [
     { name = "psycopg2-binary", marker = "python_full_version < '3.13' and extra == 'psycopg2'", specifier = ">=2.9.9" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
-provides-extras = ["amazon", "asyncpg", "microsoft-azure", "openlineage", "psycopg2", "pandas", "polars", "sqlalchemy"]
+provides-extras = ["amazon", "asyncpg", "microsoft-azure", "openlineage", "pandas", "polars", "psycopg2", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
