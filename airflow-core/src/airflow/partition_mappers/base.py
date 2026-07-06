@@ -38,6 +38,10 @@ class PartitionMapper(ABC):
 
     is_rollup: ClassVar[bool] = False
 
+    # Class-level default so the attribute resolves even on subclasses whose
+    # __init__ (e.g. attrs-generated in plugins) never calls this base __init__.
+    max_downstream_keys: int | None = None
+
     def __init__(self, *, max_downstream_keys: int | None = None) -> None:
         if max_downstream_keys is not None and (
             not isinstance(max_downstream_keys, int) or max_downstream_keys < 1
@@ -114,6 +118,21 @@ class PartitionMapper(ABC):
         decode the key into its window anchor; composite mappers
         (:class:`RollupMapper`, :class:`~airflow.partition_mappers.temporal.FanOutMapper`)
         delegate to whichever child owns the downstream key's identity.
+        """
+        return None
+
+    def carry_partition_date(self, source_partition_date: datetime | None) -> datetime | None:
+        """
+        Return the producer's ``partition_date`` to carry onto the consumer APDR.
+
+        Captured at queue time as an asset event arrives, *source_partition_date*
+        is the producing run's ``partition_date``. The base implementation returns
+        ``None``: for most mappers the consumer's date is derived from its own
+        downstream key by :meth:`to_partition_date` at run creation, not carried
+        from the producer.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper` overrides to
+        pass it through, since the consumer's key equals the producer's and the
+        key carries no temporal meaning to decode.
         """
         return None
 

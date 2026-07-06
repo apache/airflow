@@ -643,14 +643,22 @@ def _create_ti_state_update_query_and_update_state(
             if ti is not None:
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
+            retry_delay_override = ti_patch_payload.retry_delay_seconds
+            retry_reason = ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None
             if ti is not None:
+                # Snapshot the finished try onto the TI *before* archiving so record_ti()
+                # copies the values into task_instance_history (it reads attrs off the
+                # ti object and cannot see the live-row UPDATE built below).
+                ti.retry_delay_override = retry_delay_override
+                ti.retry_reason = retry_reason
+                ti.end_date = ti_patch_payload.end_date
+                ti.set_duration()
+                if "rendered_map_index" in ti_patch_payload.model_fields_set:
+                    ti._rendered_map_index = ti_patch_payload.rendered_map_index
                 ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
-            query = query.values(
-                retry_delay_override=ti_patch_payload.retry_delay_seconds,
-                retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
-            )
+            query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
                 TI.register_asset_changes_in_db(

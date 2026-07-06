@@ -68,7 +68,7 @@ class TestGetPartitionedDagRuns:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             resp = test_client.get("/partitioned_dag_runs?dag_id=normal&has_created_dag_run_id=false")
         assert resp.status_code == 200
         assert resp.json() == {"partitioned_dag_runs": [], "total": 0, "asset_expressions": None}
@@ -155,16 +155,17 @@ class TestGetPartitionedDagRuns:
             )
         session.commit()
 
-        # Five batch queries, each independent of len(rows) / num_assets:
-        # 1. outer SELECT of AssetPartitionDagRun rows
-        # 2. SELECT DagModel WHERE dag_id IN (unique_dag_ids)
-        # 3. _fetch_active_assets_per_dag — joined SELECT on AssetModel + DagScheduleAssetReference
-        # 4. SELECT PartitionedAssetKeyLog WHERE asset_partition_dag_run_id IN (apdr_ids)
-        # 5. SELECT timetable for asset_expressions (cached per response)
+        # Six batch queries, each independent of len(rows) / num_assets:
+        # 1. SELECT COUNT of matching AssetPartitionDagRun rows
+        # 2. outer SELECT of paginated AssetPartitionDagRun rows
+        # 3. SELECT DagModel WHERE dag_id IN (unique_dag_ids)
+        # 4. _fetch_active_assets_per_dag — joined SELECT on AssetModel + DagScheduleAssetReference
+        # 5. SELECT PartitionedAssetKeyLog WHERE asset_partition_dag_run_id IN (apdr_ids)
+        # 6. SELECT timetable for asset_expressions (cached per response)
         # The count does not scale with num_assets or len(rows), so the bump
-        # from main's baseline of 3 (3 → 4 → 5 across this branch) is constant
+        # from main's baseline of 3 (3 → 4 → 5 → 6 across this branch) is constant
         # per request, not per row.
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             resp = test_client.get(
                 f"/partitioned_dag_runs?dag_id=list_dag"
                 f"&has_created_dag_run_id={str(has_created_dag_run_id).lower()}"
@@ -177,6 +178,50 @@ class TestGetPartitionedDagRuns:
             assert pdr_resp["state"] == expected_state
             assert pdr_resp["total_received"] == received_count
             assert pdr_resp["total_required"] == num_assets
+
+    def test_should_paginate_partitioned_dag_runs(self, test_client, dag_maker, session):
+        with dag_maker(
+            dag_id="paginated_dag",
+            schedule=PartitionedAssetTimetable(assets=Asset(uri="s3://bucket/page", name="page")),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.sync_dagbag_to_db()
+
+        start = pendulum.datetime(2024, 6, 1, tz="UTC")
+        session.add_all(
+            [
+                AssetPartitionDagRun(
+                    target_dag_id="paginated_dag",
+                    partition_key=f"key-{idx}",
+                    created_at=start.add(minutes=idx),
+                )
+                for idx in range(3)
+            ]
+        )
+        session.commit()
+
+        first_page = test_client.get(
+            "/partitioned_dag_runs?dag_id=paginated_dag&has_created_dag_run_id=false&limit=2"
+        )
+        assert first_page.status_code == 200
+        first_body = first_page.json()
+        assert first_body["total"] == 3
+        assert [row["partition_key"] for row in first_body["partitioned_dag_runs"]] == ["key-2", "key-1"]
+
+        second_page = test_client.get(
+            "/partitioned_dag_runs?dag_id=paginated_dag&has_created_dag_run_id=false&limit=2&offset=2"
+        )
+        assert second_page.status_code == 200
+        second_body = second_page.json()
+        assert second_body["total"] == 3
+        assert [row["partition_key"] for row in second_body["partitioned_dag_runs"]] == ["key-0"]
+
+        empty_page = test_client.get(
+            "/partitioned_dag_runs?dag_id=paginated_dag&has_created_dag_run_id=false&limit=2&offset=20"
+        )
+        assert empty_page.status_code == 200
+        assert empty_page.json() == {"partitioned_dag_runs": [], "total": 3, "asset_expressions": None}
 
     @pytest.mark.parametrize(
         ("num_target_assets", "num_other_assets", "received_count"),

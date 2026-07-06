@@ -54,9 +54,14 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoun
 
 if TYPE_CHECKING:
     from azure.core.credentials_async import AsyncTokenCredential
+    from azure.core.pipeline.transport._aiohttp import AioHttpTransport
+    from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
+    from kiota_authentication_azure.azure_identity_access_token_provider import (
+        AzureIdentityAccessTokenProvider,
+    )
 
     from airflow.providers.common.compat.sdk import Connection
 
@@ -91,7 +96,7 @@ class DefaultResponseHandler(ResponseHandler):
 
     @staticmethod
     def get_value(response: Response) -> Any:
-        with suppress(JSONDecodeError):
+        with suppress(JSONDecodeError, UnicodeDecodeError):
             return response.json()
         content = response.content
         if not content:
@@ -294,6 +299,13 @@ class KiotaRequestAdapterHook(BaseHook):
             return proxies
         return None
 
+    @staticmethod
+    def get_allowed_hosts(authority: str | None, config: dict) -> list[str]:
+        allowed_hosts = config.get("allowed_hosts", authority)
+        if not allowed_hosts:
+            return []
+        return [host for host in allowed_hosts.split(",") if host]
+
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
@@ -311,7 +323,7 @@ class KiotaRequestAdapterHook(BaseHook):
             scopes = scopes.split(",")
         verify = config.get("verify", True)
         trust_env = config.get("trust_env", False)
-        allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
+        allowed_hosts = self.get_allowed_hosts(authority, config)
 
         self.log.info(
             "Creating Microsoft Graph SDK client %s for conn_id: %s",
@@ -394,7 +406,23 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def _is_http_client_closed(request_adapter: RequestAdapter) -> bool:
         """Return True when the underlying httpx AsyncClient has been closed."""
-        return cast("HttpxRequestAdapter", request_adapter)._http_client.is_closed
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+
+        if adapter._http_client.is_closed:
+            return True
+
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        credential = cast(
+            "ClientSecretCredential | CertificateCredential", access_token_provider._credentials
+        )
+        transport = cast("AioHttpTransport", credential._client._pipeline._transport)
+
+        if not transport._has_been_opened and transport.session is None:
+            return False
+        if transport.session is not None:
+            return transport.session.closed
+        return False
 
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
@@ -606,7 +634,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 request_info=request_info,
                 error_map=self.error_mapping(),
             )
-        except Exception as e:
+        except (RuntimeError, ValueError) as e:
             self.log.warning(
                 "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
                 self.conn_id,

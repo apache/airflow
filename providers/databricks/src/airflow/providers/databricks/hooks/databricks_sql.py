@@ -298,7 +298,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         execution_timeout: timedelta | None = None,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple | None] | None: ...
 
     def run(
         self,
@@ -309,7 +309,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
         execution_timeout: timedelta | None = None,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple | None] | None:
         """
         Run a command or a list of commands.
 
@@ -401,10 +401,14 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return results[-1]
         return results
 
-    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple[Any, ...] | list[tuple[Any, ...]]:
+    def _make_common_data_structure(
+        self, result: T | Sequence[T] | None
+    ) -> tuple[Any, ...] | list[tuple[Any, ...]] | None:
         """Transform the databricks Row objects into namedtuple."""
         # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        if result is None:
+            return None
         if isinstance(result, list):
             rows: Sequence[Row] = result
             if not rows:

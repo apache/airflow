@@ -25,7 +25,7 @@ import time
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Protocol
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Protocol
 from uuid import UUID
 
 import attrs
@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     class _BundleInfoLike(Protocol):
         name: str
         version: str | None
+        version_data: dict[str, Any] | None
 
 
 __all__ = ["CallbackSubprocess", "supervise_callback"]
@@ -227,6 +228,7 @@ class CallbackSubprocess(WatchedSubprocess):
                     bundle = DagBundlesManager().get_bundle(
                         name=bundle_info.name,
                         version=bundle_info.version,
+                        version_data=bundle_info.version_data,
                     )
                     bundle.initialize()
                     if (bundle_path := str(bundle.path)) not in sys.path:
