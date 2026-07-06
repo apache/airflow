@@ -1015,6 +1015,7 @@ Logstash
 logstash
 longblob
 lookups
+loopback
 lshift
 lte
 lxml
