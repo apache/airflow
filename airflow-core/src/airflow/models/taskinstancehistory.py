@@ -212,7 +212,7 @@ class TaskInstanceHistory(Base):
         if ti.state not in State.finished:
             ti_history_state = TaskInstanceState.FAILED
             # Callers that know when the try actually ended (e.g. the Execution API
-            # retry path) pre-set end_date; only stamp archive time when unset.
+            # retry path) pre-set end_date and duration; only stamp archive time when unset.
             if ti.end_date is None:
                 ti.end_date = timezone.utcnow()
                 ti.set_duration()
