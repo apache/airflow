@@ -319,14 +319,13 @@ class KubernetesExecutor(BaseExecutor):
                 )
 
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
-        self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
+        self.task_queue.put(
+            KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
+        )
         self.running.add(key)
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
-        self.task_queue.put(
-            KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
-        )
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
