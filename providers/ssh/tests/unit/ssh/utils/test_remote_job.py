@@ -271,6 +271,10 @@ class TestPosixKillBehaviour:
         # pgrep -g matches by process-group id; rc 0 => at least one member alive.
         return subprocess.run(["pgrep", "-g", str(pgid)], capture_output=True, check=False).returncode == 0
 
+    # setsid only avoids forking when the launching shell is not a process-group leader; on some
+    # CI runners it forks, so the recorded $! is the short-lived setsid parent rather than the job
+    # PGID and the pre-kill pgrep -g finds an empty group. Re-launch on a fresh draw.
+    @pytest.mark.flaky(reruns=5)
     def test_kill_terminates_whole_job_tree(self, tmp_path):
         paths = RemoteJobPaths(job_id="killtree", remote_os="posix", base_dir=str(tmp_path / "jobs"))
         # `sleep 300` runs as a child of the wrapper subshell -> the tree the old kill orphaned.

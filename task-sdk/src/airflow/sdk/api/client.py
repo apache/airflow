@@ -581,8 +581,6 @@ class XComOperations:
         include_prior_dates: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
-        # TODO: check if we need to use map_index as params in the uri
-        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
@@ -622,8 +620,6 @@ class XComOperations:
         mapped_length: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
-        # TODO: check if we need to use map_index as params in the uri
-        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params: dict[str, Any] = {}
         if dag_result:
             params["dag_result"] = dag_result
