@@ -163,3 +163,121 @@ class TestAdbcHook:
 
         with AdbcHook()._create_autocommit_connection() as adbc_conn:
             assert isinstance(adbc_conn, dbapi.Connection)
+
+    def _make_real_conn_hook(self, connection: Connection) -> AdbcHook:
+        """Return an AdbcHook whose get_connection() returns *connection* but whose
+        get_conn() is the real implementation (needed to verify connect() kwargs)."""
+
+        class AdbcHookWithRealGetConn(AdbcHook):
+            conn_name_attr = "adbc_default"
+
+            @classmethod
+            def get_connection(cls, conn_id: str) -> Connection:
+                return connection
+
+        return AdbcHookWithRealGetConn()
+
+    @mock.patch("airflow.providers.apache.arrow.hooks.adbc.connect")
+    def test_get_conn_forwards_db_kwargs(self, mock_connect):
+        conn = Connection(
+            conn_id="adbc_default",
+            conn_type="adbc",
+            host="file::memory:",
+            extra=json.dumps(
+                {
+                    "driver": "adbc_driver_sqlite",
+                    "db_kwargs": {"timeout": 30, "username": "admin"},
+                }
+            ),
+        )
+        hook = self._make_real_conn_hook(conn)
+        hook.__dict__["_driver_path"] = "adbc_driver_sqlite"
+
+        hook.get_conn()
+
+        mock_connect.assert_called_once()
+        kw = mock_connect.call_args.kwargs
+        assert kw["db_kwargs"]["timeout"] == 30
+        assert kw["db_kwargs"]["username"] == "admin"
+        assert kw["db_kwargs"]["uri"] == "file::memory:"
+
+    @mock.patch("airflow.providers.apache.arrow.hooks.adbc.connect")
+    def test_get_conn_forwards_conn_kwargs(self, mock_connect):
+        conn = Connection(
+            conn_id="adbc_default",
+            conn_type="adbc",
+            host="file::memory:",
+            extra=json.dumps(
+                {
+                    "driver": "adbc_driver_sqlite",
+                    "conn_kwargs": {"autocommit": True, "read_only": True},
+                }
+            ),
+        )
+        hook = self._make_real_conn_hook(conn)
+        hook.__dict__["_driver_path"] = "adbc_driver_sqlite"
+
+        hook.get_conn()
+
+        mock_connect.assert_called_once()
+        kw = mock_connect.call_args.kwargs
+        assert kw["conn_kwargs"] == {"autocommit": True, "read_only": True}
+
+    @mock.patch("airflow.providers.apache.arrow.hooks.adbc.connect")
+    def test_get_conn_forwards_entrypoint(self, mock_connect):
+        conn = Connection(
+            conn_id="adbc_default",
+            conn_type="adbc",
+            host="file::memory:",
+            extra=json.dumps(
+                {
+                    "driver": "adbc_driver_sqlite",
+                    "entrypoint": "adbc_driver_sqlite.dbapi.connect",
+                }
+            ),
+        )
+        hook = self._make_real_conn_hook(conn)
+        hook.__dict__["_driver_path"] = "adbc_driver_sqlite"
+
+        hook.get_conn()
+
+        mock_connect.assert_called_once()
+        kw = mock_connect.call_args.kwargs
+        assert kw["entrypoint"] == "adbc_driver_sqlite.dbapi.connect"
+
+    def test_dialect_name_from_extra(self):
+        conn = Connection(
+            conn_id="adbc_default",
+            conn_type="adbc",
+            host="file::memory:",
+            extra=json.dumps({"driver": "adbc_driver_postgresql", "dialect": "postgresql"}),
+        )
+        hook = self.make_hook_for_conn(conn)
+        assert hook.dialect_name == "postgresql"
+
+    def test_dialect_name_defaults_to_default(self):
+        conn = Connection(
+            conn_id="adbc_default",
+            conn_type="adbc",
+            host="file::memory:",
+            extra=json.dumps({"driver": "adbc_driver_sqlite"}),
+        )
+        hook = self.make_hook_for_conn(conn)
+        assert hook.dialect_name == "default"
+
+    @mock.patch("airflow.providers.apache.arrow.hooks.adbc.connect")
+    def test_get_conn_empty_extras_defaults(self, mock_connect):
+        conn = Connection(
+            conn_id="adbc_default",
+            conn_type="adbc",
+            host="file::memory:",
+            extra=json.dumps({"driver": "adbc_driver_sqlite"}),
+        )
+        hook = self._make_real_conn_hook(conn)
+        hook.__dict__["_driver_path"] = "adbc_driver_sqlite"
+
+        hook.get_conn()
+
+        kw = mock_connect.call_args.kwargs
+        assert kw["conn_kwargs"] == {}
+        assert kw["entrypoint"] is None
