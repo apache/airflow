@@ -282,7 +282,6 @@ Should result in KinD creating the K8S cluster.
       apiServerPort: 48366
     nodes:
       - role: control-plane
-      - role: worker
         extraPortMappings:
           - containerPort: 30007
             hostPort: 18150
@@ -291,12 +290,11 @@ Should result in KinD creating the K8S cluster.
 
     Creating cluster "airflow-python-3.10-v1.24.2" ...
      ✓ Ensuring node image (kindest/node:v1.24.2) 🖼
-     ✓ Preparing nodes 📦 📦
+     ✓ Preparing nodes 📦
      ✓ Writing configuration 📜
      ✓ Starting control-plane 🕹️
      ✓ Installing CNI 🔌
      ✓ Installing StorageClass 💾
-     ✓ Joining worker nodes 🚜
     Set kubectl context to "kind-airflow-python-3.10-v1.24.2"
     You can now use your cluster with:
 
@@ -379,11 +377,9 @@ Should show the status of current KinD cluster.
     coredns-6d4b75cb6d-rwp9d                                           1/1     Running   0          71s
     coredns-6d4b75cb6d-vqnrc                                           1/1     Running   0          71s
     etcd-airflow-python-3.10-v1.24.2-control-plane                     1/1     Running   0          84s
-    kindnet-ckc8l                                                      1/1     Running   0          69s
     kindnet-qqt8k                                                      1/1     Running   0          71s
     kube-apiserver-airflow-python-3.10-v1.24.2-control-plane           1/1     Running   0          84s
     kube-controller-manager-airflow-python-3.10-v1.24.2-control-plane  1/1     Running   0          84s
-    kube-proxy-6g7hn                                                   1/1     Running   0          69s
     kube-proxy-dwfvp                                                   1/1     Running   0          71s
     kube-scheduler-airflow-python-3.10-v1.24.2-control-plane            1/1     Running   0          84s
 
@@ -449,7 +445,6 @@ Should show the status of current KinD cluster.
     Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
     Stable repo is already added
     Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.10-kubernetes to cluster airflow-python-3.10-v1.24.2
-    Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.10-v1.24.2-worker", loading...
     Image: "ghcr.io/apache/airflow/main/prod/python3.10-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.10-v1.24.2-control-plane", loading...
 
     NEXT STEP: You might now deploy Airflow by:

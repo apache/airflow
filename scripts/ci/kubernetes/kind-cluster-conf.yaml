@@ -23,7 +23,6 @@ networking:
   apiServerPort: {{API_SERVER_PORT}}
 nodes:
   - role: control-plane
-  - role: worker
     extraPortMappings:
       - containerPort: 30007
         hostPort: {{FORWARDED_PORT_NUMBER}}
