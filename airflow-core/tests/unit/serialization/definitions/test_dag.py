@@ -200,3 +200,64 @@ def test_clear_uses_rendered_fields_for_custom_logical_date_template(dag_maker, 
     dag_ids = {ti.dag_id for ti in result}
 
     assert "child_dag" in dag_ids
+
+
+@pytest.mark.parametrize(
+    ("marker_kwargs", "rendered_fields"),
+    [
+        pytest.param(
+            {"external_dag_id": "{{ var.value.child_dag }}", "external_task_id": "wait_for_parent"},
+            {"external_dag_id": "child_dag", "external_task_id": "wait_for_parent"},
+            id="templated-external_dag_id",
+        ),
+        pytest.param(
+            {"external_dag_id": "child_dag", "external_task_id": "{{ var.value.child_task }}"},
+            {"external_dag_id": "child_dag", "external_task_id": "wait_for_parent"},
+            id="templated-external_task_id",
+        ),
+    ],
+)
+def test_clear_uses_rendered_fields_for_templated_dag_and_task_id(
+    dag_maker, session, marker_kwargs, rendered_fields
+):
+    """Use value from RenderedTaskInstanceFields if external_dag_id/external_task_id is a Jinja template."""
+    with dag_maker("parent_dag", session=session, schedule=None):
+        ExternalTaskMarker(
+            task_id="trigger_child",
+            recursion_depth=3,
+            **marker_kwargs,
+        )
+
+    # Create a parent DAG run and retrieved the serialized DAG
+    parent_run = dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    serialized_parent = dag_maker.serialized_dag
+
+    # Create the parent TaskInstances that are to be used to trigger the child
+    parent_ti = next(ti for ti in parent_run.task_instances if ti.task_id == "trigger_child")
+    parent_ti.refresh_from_task(serialized_parent.get_task("trigger_child"))
+    rtif = RenderedTaskInstanceFields(
+        ti=parent_ti,
+        render_templates=False,
+        rendered_fields=rendered_fields,
+    )
+    session.add(rtif)
+    session.flush()
+
+    with dag_maker("child_dag", session=session, schedule=None):
+        ExternalTaskSensor(
+            task_id="wait_for_parent",
+            external_dag_id="parent_dag",
+            external_task_id="trigger_child",
+            poke_interval=5,
+        )
+
+    dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    session.flush()
+
+    # When clearing the parent DAG run, make sure that the child DAG is in the list of DAGs to clear
+    result = serialized_parent.clear(
+        dry_run=True, only_failed=False, include_dependent_dags=True, session=session
+    )
+    dag_ids = {ti.dag_id for ti in result}
+
+    assert "child_dag" in dag_ids

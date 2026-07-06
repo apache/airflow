@@ -36,6 +36,7 @@ from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.exceptions import DagNotFound
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
@@ -3696,6 +3697,72 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert mock_clear.call_count == 1
         assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.get_auth_manager")
+    def test_include_dependent_dags_filters_unauthorized_child_tis(
+        self, mock_get_auth_manager, mock_dag_clear, mock_clear_tis, test_client, session
+    ):
+        """TIs from child DAGs the caller cannot edit must be excluded when include_dependent_dags=True."""
+        import uuid
+
+        self.create_task_instances(session)
+
+        parent_dag_id = "example_python_operator"
+        parent_ti = mock.MagicMock(spec=TaskInstance)
+        parent_ti.dag_id = parent_dag_id
+        parent_ti.id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+        child_ti = mock.MagicMock(spec=TaskInstance)
+        child_ti.dag_id = "child_dag_caller_cannot_edit"
+        child_ti.id = uuid.UUID("00000000-0000-0000-0000-000000000002")
+
+        mock_dag_clear.return_value = [parent_ti, child_ti]
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = {parent_dag_id}
+
+        response = test_client.post(
+            f"/dags/{parent_dag_id}/clearTaskInstances",
+            json={"dry_run": False, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 200
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.assert_called_once_with(
+            method="PUT", user=mock.ANY
+        )
+
+        cleared_tis = mock_clear_tis.call_args[0][0]
+        assert cleared_tis == [parent_ti]  # Child ID's are NOT cleared
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    def test_cyclic_external_task_marker_returns_400(self, mock_clear, test_client, session):
+        """A cyclic or too-deep ExternalTaskMarker chain must return 400, not 500."""
+        from airflow.serialization.definitions.dag import MaxRecursionDepthError
+
+        self.create_task_instances(session)
+        mock_clear.side_effect = MaxRecursionDepthError(
+            "Maximum recursion depth 1 reached for ExternalTaskMarker marker_task."
+        )
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 400
+        assert "Maximum recursion depth" in response.json()["detail"]
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    def test_missing_child_dag_returns_404(self, mock_clear, test_client, session):
+        """A missing child DAG referenced by ExternalTaskMarker must return 404, not 500."""
+        self.create_task_instances(session)
+        mock_clear.side_effect = DagNotFound("Could not find dag child_dag")
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 404
+        assert "child_dag" in response.json()["detail"]
 
     def test_should_respond_200_with_reset_dag_run(self, test_client, session):
         dag_id = "example_python_operator"

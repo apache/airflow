@@ -27,6 +27,7 @@ import weakref
 from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
+import pendulum
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
@@ -44,10 +45,12 @@ from airflow.exceptions import (
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.sdk.definitions.deadline import VariableInterval
@@ -71,7 +74,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from typing_extensions import TypeIs
 
-    from airflow.models.dagbag import DBDagBag
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
@@ -1123,8 +1125,6 @@ class SerializedDAG:
 
         if include_dependent_dags:
             # Recursively find external tasks indicated by ExternalTaskMarker
-            import pendulum
-
             from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
 
             # Build a full-object query for identifying ExternalTaskMarker TIs in the current set
@@ -1152,9 +1152,7 @@ class SerializedDAG:
                         continue
 
                     visited_external_tis.add(ti_key)
-                    task: ExternalTaskMarker = cast(
-                        "ExternalTaskMarker", copy.copy(self.get_task(ti.task_id))
-                    )
+                    task: ExternalTaskMarker = cast("ExternalTaskMarker", self.get_task(ti.task_id))
 
                     if max_recursion_depth is None:
                         # Maximum recursion depth is set from the first ExternalTaskMarker encountered
@@ -1167,29 +1165,21 @@ class SerializedDAG:
                             f"Attempted to clear too many tasks or there may be a cyclic dependency."
                         )
 
-                    # Resolve the logical_date that the ExternalTaskMarker points to
-                    dr_logical_date = session.scalar(
-                        select(DagRun.logical_date).where(
-                            DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id
-                        )
-                    )
-
-                    if dr_logical_date is None:
+                    if ti.dag_run.logical_date is None:
                         continue
 
-                    logical_date_str: str = dr_logical_date.isoformat()
+                    # Retrieve the logical date from the TI, Dag/task ID's from the task
+                    logical_date_str: str = ti.dag_run.logical_date.isoformat()
+                    external_dag_id = task.external_dag_id
+                    external_task_id = task.external_task_id
 
-                    # Check whether a non-default template was used by comparing the serialized template
-                    # field on the task against the default "{{ logical_date.isoformat() }}" pattern
-                    default_template = "{{ logical_date.isoformat() }}"
+                    rendered = RenderedTaskInstanceFields.get_templated_fields(ti, session=session)
 
-                    # If it differs, look up the rendered value from RenderedTaskInstanceFields
-                    if task.logical_date != default_template:
-                        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+                    if rendered:
+                        external_dag_id = rendered.get("external_dag_id", external_dag_id)
+                        external_task_id = rendered.get("external_task_id", external_task_id)
 
-                        rendered = RenderedTaskInstanceFields.get_templated_fields(ti, session=session)
-
-                        if rendered and "logical_date" in rendered:
+                        if "logical_date" in rendered:
                             logical_date_str = rendered["logical_date"]
 
                     external_logical_date = pendulum.parse(logical_date_str)
@@ -1197,18 +1187,17 @@ class SerializedDAG:
                         select(TaskInstance)
                         .join(TaskInstance.dag_run)
                         .where(
-                            TaskInstance.dag_id == task.external_dag_id,
-                            TaskInstance.task_id == task.external_task_id,
+                            TaskInstance.dag_id == external_dag_id,
+                            TaskInstance.task_id == external_task_id,
                             DagRun.logical_date == external_logical_date,
                         )
                     )
 
+                    # Load the DagBag such that Dags can be extracted from it
+                    if not dag_bag:
+                        dag_bag = DBDagBag(load_op_links=False)
+
                     for tii in external_tis:
-                        if not dag_bag:
-                            from airflow.models.dagbag import DBDagBag
-
-                            dag_bag = DBDagBag(load_op_links=False)
-
                         external_dag = dag_bag.get_latest_version_of_dag(tii.dag_id, session=session)
 
                         if not external_dag:
