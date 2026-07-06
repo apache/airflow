@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -2437,8 +2438,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 self.log.error("Failed to cancel BigQuery job %s: %s", job_id, str(e))
                 raise
 
-    # TODO: Convert get_records into an async method
-    def get_records(
+    async def get_records(
         self,
         query_results: dict[str, Any],
         as_dict: bool = False,
@@ -2459,7 +2459,9 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             fields = [field for field in fields if not selected_fields or field["name"] in selected_fields]
             fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
-            for dict_row in rows:
+            for i, dict_row in enumerate(rows):
+                if i % 100 == 0:
+                    await asyncio.sleep(0)
                 typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
                 if as_dict:
                     typed_row_dict = dict(zip(fields_names, typed_row))
