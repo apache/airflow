@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Celery worker mp_start_method config to curb Python 3.14 memory (#69015)``
+
+Misc
+~~~~
+
+* ``Cache Celery apps when publishing workloads (#67127)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.20.0
 ......
 

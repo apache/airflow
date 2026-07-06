@@ -24,6 +24,7 @@ import pytest
 from pydantic_ai.exceptions import ModelRetry
 
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
@@ -63,6 +64,16 @@ class TestSQLToolsetGetTools:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         for tool in tools.values():
             assert tool.tool_def.description
+
+    @pytest.mark.skipif(
+        not _SUPPORTS_RETURN_SCHEMA, reason="pydantic-ai too old for ToolDefinition.return_schema"
+    )
+    def test_tools_declare_string_return_schema(self):
+        # Every tool returns a JSON-encoded string, so code mode should see `-> str`.
+        ts = SQLToolset("pg_default")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        for tool in tools.values():
+            assert tool.tool_def.return_schema == {"type": "string"}
 
 
 class TestSQLToolsetListTables:
@@ -467,3 +478,285 @@ class TestSQLToolsetMetadataStatements:
                 ts.call_tool("check_query", {"sql": "SELECT 1"}, ctx=MagicMock(), tool=MagicMock())
             )
         assert json.loads(result)["valid"] is True
+
+
+def _run_query(ts: SQLToolset, sql: str):
+    return asyncio.run(ts.call_tool("query", {"sql": sql}, ctx=MagicMock(), tool=MagicMock()))
+
+
+def _run_check(ts: SQLToolset, sql: str):
+    return json.loads(
+        asyncio.run(ts.call_tool("check_query", {"sql": sql}, ctx=MagicMock(), tool=MagicMock()))
+    )
+
+
+class TestSQLToolsetAllowedTablesQueryEnforcement:
+    """``allowed_tables`` is enforced on the query/check_query tools, not just on discovery."""
+
+    def test_query_allows_table_on_the_list(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("id",)])
+
+        result = _run_query(ts, "SELECT id FROM orders")
+
+        assert "rows" in json.loads(result)
+        ts._hook.get_records.assert_called_once_with("SELECT id FROM orders")
+
+    def test_query_blocks_table_off_the_list(self):
+        """The headline escape: querying a table that is not on the allow-list is refused."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "SELECT * FROM secret_salaries")
+
+        assert "not in the allowed tables list" in exc_info.value.message
+        assert "secret_salaries" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT * FROM (SELECT * FROM secret_salaries) x",
+            "WITH s AS (SELECT * FROM secret_salaries) SELECT * FROM s",
+            "SELECT * FROM orders JOIN secret_salaries ON orders.id = secret_salaries.id",
+            "SELECT * FROM orders UNION SELECT * FROM secret_salaries",
+            "SELECT * FROM secret_salaries WHERE id IN (SELECT id FROM orders)",
+        ],
+        ids=["subquery", "cte_body", "join", "union", "where_subquery"],
+    )
+    def test_query_blocks_disallowed_table_reached_indirectly(self, sql):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, sql)
+
+        assert "secret_salaries" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_query_blocks_catalog_enumeration(self):
+        """information_schema/pg_catalog are ordinary tables, so the allow-list blocks them too."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "SELECT table_name FROM information_schema.tables")
+
+        assert "information_schema.tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_query_allows_cte_reference_not_mistaken_for_table(self):
+        """A CTE whose name is not on the list is fine as long as its body stays allowed."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("id",)])
+
+        result = _run_query(ts, "WITH ranked AS (SELECT * FROM orders) SELECT * FROM ranked")
+
+        assert "rows" in json.loads(result)
+
+    def test_query_blocks_table_valued_function(self):
+        """dblink reaches data through a path the list can't describe, so it is refused."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "SELECT * FROM dblink('host=evil', 'SELECT 1') AS t(x int)")
+
+        assert "cannot be checked against allowed_tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_query_blocks_show_when_allowlist_active(self):
+        ts = SQLToolset("sf_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "snowflake"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "SHOW TABLES")
+
+        assert "cannot be checked against allowed_tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_query_blocks_describe_of_disallowed_table(self):
+        ts = SQLToolset("sf_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "snowflake"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "DESCRIBE TABLE secret_salaries")
+
+        assert "secret_salaries" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_query_allows_describe_of_allowed_table(self):
+        ts = SQLToolset("sf_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook(records=[("id", "INT")], last_description=[("name",), ("type",)])
+        ts._hook.dialect_name = "snowflake"
+
+        result = _run_query(ts, "DESCRIBE TABLE orders")
+
+        assert "rows" in json.loads(result)
+        ts._hook.get_records.assert_called_once_with("DESCRIBE TABLE orders")
+
+    def test_query_allows_schema_qualified_table_on_list(self):
+        ts = SQLToolset("sf", allowed_tables=["MODEL_CRM.SF_ASTRO_ORGS"])
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("id",)])
+        ts._hook.dialect_name = "snowflake"
+
+        result = _run_query(ts, "SELECT * FROM MODEL_CRM.SF_ASTRO_ORGS")
+
+        assert "rows" in json.loads(result)
+
+    def test_query_unqualified_resolves_to_default_schema(self):
+        """``public.orders`` and ``orders`` denote the same table when schema='public'."""
+        ts = SQLToolset("pg", allowed_tables=["orders"], schema="public")
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("id",)])
+
+        # Qualifying with the default schema must still match the bare allow-list entry.
+        result = _run_query(ts, "SELECT * FROM public.orders")
+        assert "rows" in json.loads(result)
+
+    def test_no_allowlist_leaves_queries_unrestricted(self):
+        """Without allowed_tables the query tool behaves exactly as before (allow-all)."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("id",)])
+
+        result = _run_query(ts, "SELECT * FROM anything_at_all")
+
+        assert "rows" in json.loads(result)
+        ts._hook.get_records.assert_called_once_with("SELECT * FROM anything_at_all")
+
+    def test_check_query_reports_disallowed_table_as_invalid(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+
+        data = _run_check(ts, "SELECT * FROM secret_salaries")
+
+        assert data["valid"] is False
+        assert "secret_salaries" in data["error"]
+
+    def test_check_query_valid_for_allowed_table(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+
+        assert _run_check(ts, "SELECT * FROM orders")["valid"] is True
+
+    def test_writes_still_bounded_by_allowed_tables(self):
+        """allow_writes widens the statement types, but the allow-list still scopes the target."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook(records=[], last_description=None)
+
+        # An allowed target is written.
+        _run_query(ts, "INSERT INTO orders (id) VALUES (1)")
+        ts._hook.get_records.assert_called_once_with("INSERT INTO orders (id) VALUES (1)")
+
+        # A disallowed target is refused before execution.
+        ts._hook.get_records.reset_mock()
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "INSERT INTO secret_salaries (id) VALUES (1)")
+        assert "secret_salaries" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_writes_reject_dynamic_sql_the_parser_cannot_inspect(self):
+        """allow_writes skips the read-only validator, so the allow-list must still
+        refuse dynamic SQL (EXEC/EXECUTE) whose table access is opaque."""
+        ts = SQLToolset("mssql_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "mssql"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "EXEC sp_who")
+
+        assert "cannot be checked against allowed_tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+
+class TestSQLToolsetAllowedTablesBypassRegressions:
+    """Regression tests for bypasses found by adversarial red-teaming of the allow-list."""
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect", "allow_writes"),
+        [
+            # CTE scope: a same-named CTE in an inner/sibling scope must not hide the real table.
+            (
+                "SELECT * FROM secret_salaries WHERE id IN "
+                "(WITH secret_salaries AS (SELECT 1 id) SELECT id FROM secret_salaries)",
+                "postgresql",
+                False,
+            ),
+            # Non-recursive CTE is not in scope within its own body.
+            (
+                "WITH secret_salaries AS (SELECT * FROM secret_salaries) SELECT * FROM secret_salaries",
+                "postgresql",
+                False,
+            ),
+            # A CTE may only reference earlier siblings; a later-defined name is the real table.
+            (
+                "WITH a AS (SELECT * FROM secret_salaries), secret_salaries AS (SELECT 1 id) SELECT * FROM a",
+                "postgresql",
+                False,
+            ),
+            # Cross-database / catalog qualifier the schema.table allow-list cannot describe.
+            ("SELECT * FROM secretdb.public.orders", "snowflake", False),
+            ("SELECT * FROM secret_salaries..orders", "mssql", False),
+            # MySQL executable comments execute on the engine but sqlglot treats them as inert.
+            ("SELECT * FROM orders/*!UNION SELECT * FROM secret_salaries*/", "mysql", False),
+            ("SELECT id FROM orders /*!50000 UNION SELECT id FROM secret_salaries */", "mysql", False),
+            # TABLE <name> shorthand (mis-parsed) and TABLE('name') row source (string-named).
+            ("TABLE secret_salaries UNION SELECT * FROM orders", "postgresql", False),
+            ("SELECT * FROM TABLE('secret_salaries')", "snowflake", False),
+            # Write-mode CTE shadowing the DML target.
+            ("WITH secret_salaries AS (SELECT 1) DELETE FROM secret_salaries", "postgresql", True),
+            # Quoted identifier is case-distinct on the engine but case-folds into the list.
+            ('SELECT * FROM "Orders"', "postgresql", False),
+            # A DML source CTE whose body reads an off-list table is still caught.
+            (
+                "WITH src AS (SELECT * FROM secret_salaries) INSERT INTO orders SELECT * FROM src",
+                "postgresql",
+                True,
+            ),
+        ],
+        ids=[
+            "cte_inner_shadow",
+            "cte_self_body",
+            "cte_forward_ref",
+            "catalog_cross_db",
+            "mssql_empty_middle",
+            "mysql_exec_comment",
+            "mysql_versioned_comment",
+            "table_shorthand",
+            "table_row_source",
+            "write_cte_target",
+            "quoted_case_distinct",
+            "dml_cte_body_reads_offlist",
+        ],
+    )
+    def test_known_bypasses_are_rejected(self, sql, dialect, allow_writes):
+        ts = SQLToolset("c", allowed_tables=["orders"], allow_writes=allow_writes)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = dialect
+
+        with pytest.raises(ModelRetry):
+            _run_query(ts, sql)
+        ts._hook.get_records.assert_not_called()
+
+    def test_legit_cte_over_allowed_table_still_runs(self):
+        """The scope-aware fix must not false-reject a genuine CTE over an allowed table."""
+        ts = SQLToolset("c", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("id",)])
+
+        result = _run_query(ts, "WITH ranked AS (SELECT * FROM orders) SELECT * FROM ranked")
+
+        assert "rows" in json.loads(result)
+        ts._hook.get_records.assert_called_once()
+
+    def test_dml_with_cte_source_over_allowed_table_runs(self):
+        """A CTE used as a DML source must not be mistaken for a disallowed base table."""
+        ts = SQLToolset("c", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook(records=[], last_description=None)
+
+        sql = "WITH src AS (SELECT * FROM orders) INSERT INTO orders SELECT * FROM src"
+        _run_query(ts, sql)
+
+        ts._hook.get_records.assert_called_once_with(sql)

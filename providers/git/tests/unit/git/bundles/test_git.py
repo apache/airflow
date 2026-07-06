@@ -102,6 +102,7 @@ class TestGitDagBundle:
                 conn_id="git_default",
                 host="git@github.com:apache/airflow.git",
                 conn_type="git",
+                extra={"strict_host_key_checking": "accept-new"},
             )
         )
         create_connection_without_db(
@@ -1003,6 +1004,7 @@ class TestGitDagBundle:
                 conn_id="my_git_connection",
                 host=repo_url,
                 conn_type="git",
+                extra={"strict_host_key_checking": "accept-new"},
                 **(extra_conn_kwargs or {}),
             )
         )
@@ -1091,6 +1093,7 @@ class TestGitDagBundle:
                 conn_id="git_default",
                 host=repo_url,
                 conn_type="git",
+                extra={"strict_host_key_checking": "accept-new"},
                 **(extra_conn_kwargs or {}),
             )
         )
@@ -1185,6 +1188,7 @@ class TestGitDagBundle:
                 conn_id="git_default",
                 host=repo_url,
                 conn_type="git",
+                extra={"strict_host_key_checking": "accept-new"},
                 **(extra_conn_kwargs or {}),
             )
         )
@@ -1300,7 +1304,7 @@ class TestGitDagBundle:
         ],
     )
     def test_repo_url_precedence(self, conn_json, repo_url, expected):
-        conn_str = json.dumps(conn_json)
+        conn_str = json.dumps({**conn_json, "extra": {"strict_host_key_checking": "accept-new"}})
         with patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": conn_str}):
             bundle = GitDagBundle(
                 name="test",

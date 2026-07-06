@@ -115,6 +115,7 @@ body:
         - akeyless
         - alibaba
         - amazon
+        - anthropic
         - apache-beam
         - apache-cassandra
         - apache-drill

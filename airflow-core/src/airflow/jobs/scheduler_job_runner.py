@@ -117,6 +117,7 @@ from airflow.timetables.base import Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -574,6 +575,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
+        pool_to_team_name: dict[str, str | None] = {}
+        if self._multi_team:
+            pool_to_team_name = Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         concurrency_map = ConcurrencyMap()
         concurrency_map.load(session=session)
@@ -679,6 +684,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.map_index_for_ordering,
                 )
                 .options(selectinload(TI.dag_model))
+                # Eager-load dag_version: TIs become transient (via make_transient) before
+                # ExecuteTask.make() reads ti.dag_version.version_data. Lazy loads on
+                # transient objects silently return None instead of raising DetachedInstanceError.
+                # Scope the second SELECT to version_data (the PK is auto-included) so we read
+                # two columns rather than the full DagVersion row.
+                .options(selectinload(TI.dag_version).load_only(DagVersion.version_data))
             )
 
             query = query.limit(max_tis)
@@ -747,6 +758,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
                     starved_pools.add(pool_name)
                     continue
+
+                if pool_team := pool_to_team_name.get(pool_name):
+                    dag_team = dag_id_to_team_name.get(task_instance.dag_id)
+                    if dag_team != pool_team:
+                        self.log.debug(
+                            "Not executing %s. Pool '%s' is assigned to team '%s' "
+                            "but task's DAG belongs to team '%s'",
+                            task_instance,
+                            pool_name,
+                            pool_team,
+                            dag_team,
+                        )
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
 
                 # Make sure to emit metrics if pool has no starving tasks
                 pool_num_starving_tasks.setdefault(pool_name, 0)
@@ -1414,6 +1439,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # or the TI is queued by another job. Either ways we should not fail it.
             # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1428,18 +1455,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled (next_method set) before we saw the
-                    # executor success from the defer exit for the same try_number.
-                    ti.state == TaskInstanceState.SCHEDULED
+                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
+                    # before we saw the executor success from the defer exit for the same try_number.
+                    ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
                     and state == TaskInstanceState.SUCCESS
                     and ti.next_method is not None
                 )
             )
 
             if ti_queued and not ti_requeued:
+                team_name = (
+                    DagModel.get_team_name(ti.dag_id, session=session)
+                    if conf.getboolean("core", "multi_team")
+                    else None
+                )
                 stats.incr(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+                    tags=prune_dict({"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": team_name}),
                 )
                 msg = (
                     "Executor %s reported that the task instance %s finished with state %s, but the task instance's state attribute is %s. "  # noqa: RUF100, UP031, flynt
@@ -1869,8 +1901,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             guard.commit()
 
             # Bulk fetch the currently active dag runs for the dags we are
-            # examining, rather than making one query per DagRun
-            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
+            # examining, rather than making one query per DagRun.
+            # Materialize into a list because the multi-team block below iterates
+            # the result and ScalarResult is a one-pass iterator.
+            dag_runs = list(DagRun.get_running_dag_runs_to_examine(session=session))
 
             if self._multi_team and dag_runs:
                 unique_dag_ids = {dr.dag_id for dr in dag_runs}
@@ -2018,13 +2052,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         asset_infos: Iterable[tuple[str, str]],
         partition_key: str,
         dag_id: str,
+        carried_partition_date: datetime | None,
     ) -> datetime | None:
         """
-        Return the temporal anchor (period-start datetime) for *partition_key*.
+        Return the ``partition_date`` the consumer Dag run should be created with.
 
-        Resolves the temporal anchor (period-start datetime) for *partition_key*
-        across *asset_infos* — the ``(name, uri)`` pairs of the upstream assets
-        that contributed to it. Each upstream mapper resolves the key via
+        The temporal anchor (period-start datetime) is resolved for
+        *partition_key* across *asset_infos* — the ``(name, uri)`` pairs of the
+        upstream assets that contributed to it. Each upstream mapper resolves the
+        key via
         :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
         temporal mappers decode the key, composite mappers delegate to their
         child, and non-temporal mappers (e.g.
@@ -2033,16 +2069,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         A partitioned consumer has a single partition identity, so every temporal
         mapper feeding it must resolve the same key to the same instant. Anchors
         are compared by instant (timezone-aware), so equivalent moments collapse
-        to one. When the temporal mappers agree, that anchor is returned; when
-        they disagree — a misconfiguration, e.g. assets mapping the same key under
-        different timezones — ``partition_date`` is left unset and a warning is
-        logged rather than silently picking one by scan order. Returns ``None`` if
-        no mapper is temporal.
+        to one. When the temporal mappers agree, that anchor is returned.
 
-        A failure in any mapper aborts the whole resolution and returns ``None``
-        (logged) — anchors accumulated from earlier mappers are discarded rather
-        than used as a partial result, since a partial set could hide a conflict.
-        A broken mapper must not crash the scheduler tick.
+        When no temporal mapper contributes at all — an identity key carries no
+        temporal meaning and cannot be decoded back into a date — the producer's
+        source date carried on the APDR at queue time (*carried_partition_date*,
+        set only for ``IdentityMapper``) is returned instead.
+
+        When temporal mappers were present but produced no usable anchor — they
+        disagreed (a misconfiguration, e.g. assets mapping the same key under
+        different timezones) or one raised — the conflict/error is logged and
+        ``None`` is returned. The carried date is deliberately *not* substituted
+        here: stamping it would mask the logged suppression. A broken mapper must
+        not crash the scheduler tick.
         """
         anchors: set[datetime] = set()
         try:
@@ -2060,7 +2099,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
 
         if not anchors:
-            return None
+            # No temporal mapper contributed an anchor (e.g. an all-IdentityMapper feed),
+            # so fall back to the date carried on the APDR. A partitioned consumer's feeding
+            # assets are expected to agree on the partition's datetime; when a temporal mapper
+            # *does* resolve an anchor it takes precedence over the carried identity date,
+            # since the key is the authoritative source the scheduler can re-derive.
+            return carried_partition_date
         if len(anchors) > 1:
             self.log.warning(
                 "Upstream partition mappers resolved conflicting partition_date values for the same "
@@ -2262,6 +2306,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     asset_infos=asset_info_per_apdr[apdr.id].values(),
                     partition_key=apdr.partition_key,
                     dag_id=apdr.target_dag_id,
+                    carried_partition_date=apdr.partition_date,
                 )
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
@@ -2369,11 +2414,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
 
-        # todo: AIP-76 we may want to update check existing to also check partitioned dag runs,
-        #  but the thing is, there is not actually a restriction that
-        #  we don't create new runs with the same partition key
-        #  so it's unclear whether we should / need to.
-
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
         active_runs_of_dags = Counter(
@@ -2432,7 +2472,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag_model.dag_id,
                     logical_date=dag_model.next_dagrun,
                 )
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dr)
                 continue
 
             if (
@@ -2472,7 +2512,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     partition_date=next_info.partition_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
                 self._set_exceeds_max_active_runs(
                     dag_model=dag_model,
                     session=session,
@@ -2549,6 +2589,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
+            # A first asset-triggered run has no previous run to floor the event window. With
+            # catchup off, floor it at when the Dag started scheduling on its assets so the
+            # backlog is skipped; with catchup on, only date.min applies and the backlog replays.
+            event_window_floor: list[Any] = [cte.c.previous_dag_run_run_after]
+            if not dag.catchup:
+                event_window_floor.append(
+                    select(func.min(DagScheduleAssetReference.created_at))
+                    .where(DagScheduleAssetReference.dag_id == dag.dag_id)
+                    .scalar_subquery()
+                )
+            event_window_floor.append(date.min)
+
             asset_events = list(
                 session.scalars(
                     select(AssetEvent)
@@ -2566,7 +2618,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         ),
                         AssetEvent.timestamp <= triggered_date,
-                        AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
@@ -2585,7 +2637,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            stats.incr("asset.triggered_dagruns")
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
             dag_run.consumed_asset_events.extend(asset_events)
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
@@ -2669,7 +2726,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    tags={"dag_id": dag.dag_id},
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag.dag_id], session).get(
+                                dag.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
                 )
 
         # cache saves time during scheduling of many dag_runs for same dag
@@ -2820,7 +2886,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.duration.failed",
                     duration,
-                    tags={"dag_id": dag_run.dag_id},
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag_run.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
+                                dag_run.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
                 )
             return callback_to_execute
 
@@ -3104,6 +3179,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         all_states_metric = session.execute(stmt).all()
 
+        if self._multi_team:
+            unique_dag_ids = {row[1] for row in all_states_metric}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+        else:
+            dag_id_to_team_name = {}
+
         for state in metric_states:
             if state not in self.previous_ti_metrics:
                 self.previous_ti_metrics[state] = {}
@@ -3118,7 +3199,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.gauge(
                     f"ti.{state}",
                     float(count),
-                    tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                    tags=prune_dict(
+                        {
+                            "queue": queue,
+                            "dag_id": dag_id,
+                            "task_id": task_id,
+                            "team_name": dag_id_to_team_name.get(dag_id),
+                        }
+                    ),
                 )
 
             for prev_key in self.previous_ti_metrics[state]:
@@ -3128,7 +3216,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     stats.gauge(
                         f"ti.{state}",
                         0,
-                        tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                        tags=prune_dict(
+                            {
+                                "queue": queue,
+                                "dag_id": dag_id,
+                                "task_id": task_id,
+                                "team_name": dag_id_to_team_name.get(dag_id),
+                            }
+                        ),
                     )
 
             self.previous_ti_metrics[state] = ti_metrics
@@ -3506,7 +3601,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
             stats.incr(
-                "task_instances_without_heartbeats_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}
+                "task_instances_without_heartbeats_killed",
+                tags=prune_dict(
+                    {
+                        "dag_id": ti.dag_id,
+                        "task_id": ti.task_id,
+                        "team_name": dag_id_to_team_name.get(ti.dag_id),
+                    }
+                ),
             )
 
     # [END find_and_purge_task_instances_without_heartbeats]

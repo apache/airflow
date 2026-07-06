@@ -26,6 +26,33 @@
 Changelog
 ---------
 
+9.31.0
+......
+
+Features
+~~~~~~~~
+
+* ``Wait for Bedrock AgentCore Runtime deletion (#68140)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Upload log with 'put_object' in 's3_task_handler' (#68619)``
+* ``Add 'evaluation_config', 'inference_config' and 'output_data_config' to BedrockCreateEvaluationJobOperator template_fields (#68310)``
+* ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
+* ``Harden S3 sync target paths (#67847)``
+
+Misc
+~~~~
+
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Version the worker-bound TaskInstance fields in the execution API schema (#68390)``
+   * ``fix(tests): Use unique S3 bucket name in bedrock evaluation system test (#68256)``
+   * ``fix(tests): Add retries to EMR on EKS system test job submission (#68257)``
+
 9.30.0
 ......
 

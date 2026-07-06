@@ -164,12 +164,44 @@ class TestTIRunState:
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
+        clear_db_assets()
 
     def teardown_method(self):
         clear_db_logs()
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
+        clear_db_assets()
+
+    def test_ti_run_context_exposes_consumed_event_partition_key(self, client, session, create_task_instance):
+        """The partition key of each consumed asset event is returned in the run context."""
+        ti = create_task_instance(
+            task_id="test_consumed_event_partition_key",
+            state=State.QUEUED,
+            session=session,
+        )
+        asset = AssetModel(name="upstream", uri="s3://bucket/upstream", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        session.flush()
+        ti.dag_run.consumed_asset_events.append(
+            AssetEvent(asset_id=asset.id, source_dag_id="src", source_run_id="r1", partition_key="2024-01-15")
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "h",
+                "unixname": "u",
+                "pid": 1,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert [e["partition_key"] for e in events] == ["2024-01-15"]
 
     @pytest.mark.parametrize(
         ("max_tries", "should_retry"),
@@ -236,6 +268,7 @@ class TestTIRunState:
                 "triggering_user_name": None,
                 "consumed_asset_events": [],
                 "partition_key": None,
+                "partition_date": None,
                 "note": None,
                 "team_name": None,
             },
@@ -1855,6 +1888,91 @@ class TestTIUpdateState:
         assert ti.retry_delay_override == 42.5
         assert ti.retry_reason == "Rate limit: backing off"
 
+    def test_ti_update_state_retry_policy_overrides_persisted_in_history(
+        self, client, session, create_task_instance
+    ):
+        """The finished try's values must be archived to task_instance_history.
+
+        record_ti() snapshots columns off the TI object, so the overrides, end_date,
+        and rendered_map_index must be set on the TI before prepare_db_for_next_try()
+        archives it; the live-row UPDATE is not visible to it.
+        """
+        ti = create_task_instance(
+            task_id="test_retry_policy_override_history",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "rendered_map_index": DEFAULT_RENDERED_MAP_INDEX,
+                "retry_delay_seconds": 42.5,
+                "retry_reason": "Rate limit: backing off",
+            },
+        )
+
+        assert response.status_code == 204
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.retry_delay_override == 42.5
+        assert tih.retry_reason == "Rate limit: backing off"
+        assert tih.end_date == DEFAULT_END_DATE
+        assert tih.duration == (DEFAULT_END_DATE - DEFAULT_START_DATE).total_seconds()
+        assert tih.rendered_map_index == DEFAULT_RENDERED_MAP_INDEX
+
+    def test_ti_update_state_retry_clears_rendered_map_index_in_history(
+        self, client, session, create_task_instance
+    ):
+        """An explicit ``rendered_map_index: null`` must clear the value archived to history too.
+
+        The worker sends ``rendered_map_index`` on every retry, even when this try never
+        (re-)computed it (e.g. it failed before rendering). That must null out the archived
+        row along with the live one, not leave the history row snapshotting a stale value
+        left over from an earlier try.
+        """
+        ti = create_task_instance(
+            task_id="test_retry_clears_rendered_map_index_history",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        ti._rendered_map_index = DEFAULT_RENDERED_MAP_INDEX
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "rendered_map_index": None,
+            },
+        )
+
+        assert response.status_code == 204
+
+        ti = session.scalars(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        ).one()
+        assert ti.rendered_map_index is None
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.rendered_map_index is None
+
     def test_ti_update_state_retry_without_policy_overrides(self, client, session, create_task_instance):
         """Without retry policy fields, the columns remain NULL."""
         ti = create_task_instance(
@@ -1879,6 +1997,16 @@ class TestTIUpdateState:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.retry_delay_override is None
         assert ti.retry_reason is None
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.retry_delay_override is None
+        assert tih.retry_reason is None
 
     def test_ti_run_clears_retry_policy_overrides(self, client, session, create_task_instance):
         """When a task enters RUNNING, retry policy overrides from the previous attempt are cleared."""
@@ -2010,6 +2138,62 @@ class TestTIUpdateState:
         # Verify the task instance state hasn't changed
         session.refresh(ti)
         assert ti.state == State.SUCCESS
+
+    def test_ti_update_state_same_state_is_idempotent(self, client, session, create_task_instance):
+        """Test that setting a TI to its current state is treated as an idempotent no-op."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_same_state_is_idempotent",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        ti.end_date = DEFAULT_END_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": timezone.parse("2024-10-31T13:00:00Z").isoformat(),
+            },
+        )
+        assert response.status_code == 200
+        assert response.content == b""
+
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+        assert ti.end_date == DEFAULT_END_DATE
+
+    def test_ti_update_state_terminal_state_mismatch_returns_conflict(
+        self, client, session, create_task_instance
+    ):
+        """A completed TI cannot be updated to a different state."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_terminal_state_mismatch_returns_conflict",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        ti.end_date = DEFAULT_END_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "failed",
+                "end_date": timezone.parse("2024-10-31T13:00:00Z").isoformat(),
+            },
+        )
+        assert response.status_code == 409
+        assert response.json()["detail"] == {
+            "reason": "invalid_state",
+            "message": "TI was not in the running state so it cannot be updated",
+            "previous_state": State.SUCCESS,
+        }
+
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+        assert ti.end_date == DEFAULT_END_DATE
 
     def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
         """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""
@@ -4188,3 +4372,19 @@ class TestEmitTaskSpan:
 
         _emit_task_span(ti, TaskInstanceState.SUCCESS)
         assert len(self.exporter.get_finished_spans()) == 0
+
+    @pytest.mark.parametrize(
+        ("trace_flag", "expected_spans"),
+        [
+            pytest.param("01", 1, id="sampled-carrier-emits"),
+            pytest.param("00", 0, id="unsampled-carrier-skips"),
+        ],
+    )
+    def test_emit_task_span_honors_dagrun_carrier_sampling(self, trace_flag, expected_spans):
+        """A SAMPLED dag_run carrier (flag 01) emits the task span; an unsampled one (flag 00) is head-sampled out."""
+        ti = self._make_ti()
+        ti.dag_run.context_carrier = {
+            "traceparent": f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
+        }
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        assert len(self.exporter.get_finished_spans()) == expected_spans

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 
 import pytest
 
@@ -27,6 +28,17 @@ from airflow.partition_mappers.window import DayWindow
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper
 from airflow.serialization.enums import Encoding
+
+
+class TestCarryPartitionDate:
+    def test_base_returns_none_by_default(self):
+        """Non-identity mappers don't carry the producer's date; it's derived from the key instead."""
+        dt = datetime(2026, 5, 20, 1, 0, 0, tzinfo=timezone.utc)
+        assert StartOfDayMapper().carry_partition_date(dt) is None
+        assert (
+            RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow()).carry_partition_date(dt)
+            is None
+        )
 
 
 class TestPartitionMapperInitSubclass:
@@ -168,6 +180,20 @@ class TestPartitionMapperMaxDownstreamKeysValidator:
             match=re.escape(f"max_downstream_keys must be a positive integer or None, got {bad_value!r}"),
         ):
             IdentityMapper(max_downstream_keys=bad_value)
+
+    def test_subclass_skipping_base_init_still_resolves_to_none(self):
+        """A subclass whose __init__ never calls the base __init__ (e.g. an
+        attrs-generated one in a plugin) must still resolve max_downstream_keys
+        via the class-level default instead of raising AttributeError."""
+
+        class NoSuperMapper(PartitionMapper):
+            def __init__(self):
+                pass
+
+            def to_downstream(self, key: str) -> str:
+                return key
+
+        assert NoSuperMapper().max_downstream_keys is None
 
 
 class TestRollupMapperMaxDownstreamKeys:

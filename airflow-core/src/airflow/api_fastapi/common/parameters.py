@@ -718,7 +718,7 @@ class SortParam(BaseParam[list[str]]):
         )
 
         def inner(order_by: list[str] = _order_by_query) -> SortParam:
-            return self.set_value(order_by)
+            return SortParam(self.allowed_attrs, self.model, self.to_replace).set_value(order_by)
 
         return inner
 
