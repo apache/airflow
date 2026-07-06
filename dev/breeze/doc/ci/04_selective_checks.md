@@ -244,6 +244,7 @@ representative examples (file → effect):
 | `scripts/ci/prek/check_*.py` (static-check hook)       | CI image + static checks, **no full matrix**                         | prek hooks are static checks → `Prek files` carve-out |
 | the generated OpenAPI spec                             | **full matrix**                                                      | the API *contract* ripples to UI codegen + every client |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
+| `task-sdk/.../task_runner.py` or `airflow-core/tests/integration/otel/...` | the `otel` core integration                       | matches `OTEL_FILES`; the otel integration tests assert the span hierarchy task_runner emits |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
 
 The "complexity" you feel reading the code is just *many* such rules stacked up — each one on its own
@@ -530,6 +531,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
+| java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
 | kind-version                                            | Which Kind version to use for tests                                                                     | v0.24.0                                  |      |
 | kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.10-v1.25.2 3.11-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |

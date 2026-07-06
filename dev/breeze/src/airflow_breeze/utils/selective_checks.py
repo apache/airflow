@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
+    JAVA_SDK_VERSION,
     KIND_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
@@ -108,6 +109,7 @@ class FileGroupForCi(Enum):
     STANDARD_PROVIDER_FILES = auto()
     API_CODEGEN_FILES = auto()
     HELM_FILES = auto()
+    KUSTOMIZE_OVERLAYS_FILES = auto()
     DEPENDENCY_FILES = auto()
     DOC_FILES = auto()
     TEXT_NON_DOC_FILES = auto()
@@ -298,6 +300,19 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
         ],
+        # `^chart/` (under HELM_FILES) is intentionally NOT reused
+        # — the overlays don't care about every chart-template edit,
+        # only their own files.
+        FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES: [
+            r"^chart/kustomize-overlays/",
+            r"^chart/tests/overlay_tests/",
+            r"^chart/templates/",
+            r"^chart/files/",
+            r"^scripts/ci/prek/build_kustomize_overlays\.py$",
+            r"^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$",
+            r"^dev/breeze/src/airflow_breeze/commands/kubernetes_kustomize_commands\.py$",
+            r"^\.github/workflows/kustomize-overlays-tests\.yml$",
+        ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
@@ -464,6 +479,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-core/src/airflow/observability/.*",
             r"^shared/observability/src/airflow_shared/observability/.*",
             r"^airflow-core/src/airflow/utils/span_status\.py$",
+            # The otel integration tests assert the exact span hierarchy that
+            # task_runner emits, so changes to either must exercise the integration.
+            r"^airflow-core/tests/integration/otel/.*",
+            r"^task-sdk/src/airflow/sdk/execution_time/task_runner\.py$",
         ],
         FileGroupForCi.CELERY_FILES: [
             # Core executor sources - redis is celery's broker/result backend, so the
@@ -677,6 +696,7 @@ class SelectiveChecks:
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
     default_helm_version = HELM_VERSION
+    java_sdk_version = JAVA_SDK_VERSION
 
     @cached_property
     def latest_versions_only(self) -> bool:
@@ -1066,6 +1086,19 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
 
     @cached_property
+    def run_kustomize_overlays_tests(self) -> bool:
+        """Gate for the kustomize-overlays smoke test CI job.
+
+        Distinct from ``run_helm_tests`` so an unrelated chart change
+        (e.g. a values.yaml tweak) does not pull in a 30-40 minute kind
+        cluster spin-up just to verify overlays it does not touch.
+        Trips on changes inside ``chart/kustomize-overlays/`` and the
+        narrow set of files that drive the runner; see
+        ``KUSTOMIZE_OVERLAYS_FILES`` in ``CI_FILE_GROUP_MATCHES``.
+        """
+        return self._should_be_run(FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES) and self._default_branch == "main"
+
+    @cached_property
     def run_unit_tests(self) -> bool:
         def _only_new_ui_files() -> bool:
             all_source_files = set(
@@ -1126,6 +1159,7 @@ class SelectiveChecks:
         return (
             self.run_kubernetes_tests
             or self.run_helm_tests
+            or self.run_kustomize_overlays_tests
             or self.run_task_sdk_integration_tests
             or self.run_airflow_ctl_integration_tests
             or self.run_remote_logging_s3_e2e_tests
@@ -1663,6 +1697,29 @@ class SelectiveChecks:
     @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
+
+    @cached_property
+    def kustomize_overlay_names(self) -> str:
+        """JSON array of overlay names under chart/kustomize-overlays/ to smoke-test.
+
+        Auto-discovered from the filesystem: any directory under
+        ``chart/kustomize-overlays/`` with a ``STATUS.yaml`` that carries a
+        ``verify:`` block is included. Adding a new overlay therefore just
+        works in CI — no second list to maintain anywhere.
+        """
+        import yaml
+
+        overlays_dir = AIRFLOW_ROOT_PATH / "chart" / "kustomize-overlays"
+        names: list[str] = []
+        if overlays_dir.is_dir():
+            for status_path in sorted(overlays_dir.glob("*/STATUS.yaml")):
+                try:
+                    doc = yaml.safe_load(status_path.read_text()) or {}
+                except yaml.YAMLError:
+                    continue
+                if doc.get("verify"):
+                    names.append(status_path.parent.name)
+        return json.dumps(names)
 
     @cached_property
     def helm_test_kubernetes_versions(self) -> str:

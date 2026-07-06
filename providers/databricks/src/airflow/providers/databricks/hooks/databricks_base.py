@@ -92,6 +92,15 @@ class DatabricksProxyConfigurationError(AirflowException):
     """Raised when Databricks connection proxy configuration is invalid."""
 
 
+def _describe_last_retry_error(retry_error: RetryError) -> str:
+    """Best-effort description of a RetryError last exception, some exceptions raise from __str__ when partially initialized."""
+    last_exc = retry_error.last_attempt.exception()
+    try:
+        return str(last_exc)
+    except Exception:
+        return repr(last_exc)
+
+
 class BaseDatabricksHook(BaseHook):
     """
     Base for interaction with Databricks.
@@ -325,8 +334,11 @@ class BaseDatabricksHook(BaseHook):
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -363,8 +375,11 @@ class BaseDatabricksHook(BaseHook):
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -1213,8 +1228,11 @@ class BaseDatabricksHook(BaseHook):
                     self.log.debug("Response text: %s", response.text)
                     response.raise_for_status()
                     return response.json()
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
                 msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
@@ -1277,8 +1295,11 @@ class BaseDatabricksHook(BaseHook):
                         self.log.debug("Response text: %s", response.text)
                         response.raise_for_status()
                         return await response.json()
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except aiohttp.ClientResponseError as err:
             raise DatabricksApiError(
                 f"Response: {err.message}, Status Code: {err.status}", http_status_code=err.status

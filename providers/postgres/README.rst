@@ -58,11 +58,12 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
 ``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
-``asyncpg``                                 ``>=0.30.0``
+``psycopg[binary]``                         ``>=3.2.9; python_version < "3.14"``
+``psycopg[binary]``                         ``>=3.3.3; python_version >= "3.14"``
 ==========================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -78,8 +79,6 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 ======================================================================================================================  ===================
@@ -91,11 +90,11 @@ Optional dependencies
 Extra                Dependencies
 ===================  ============================================================================================================================================================
 ``amazon``           ``apache-airflow-providers-amazon>=2.6.0``
+``asyncpg``          ``asyncpg>=0.30.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
 ``openlineage``      ``apache-airflow-providers-openlineage``
 ``pandas``           ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``polars``           ``polars>=1.26.0``
-``psycopg``          ``psycopg[binary]>=3.2.9; python_version < '3.14'``, ``psycopg[binary]>=3.3.3; python_version >= '3.14'``
 ``sqlalchemy``       ``sqlalchemy>=1.4.54``
 ===================  ============================================================================================================================================================
 

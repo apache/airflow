@@ -241,6 +241,7 @@ def _bulk_clear_runs(
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags pause")
 @providers_configuration_loaded
 def dag_pause(args) -> None:
     """Pauses a DAG."""
@@ -248,6 +249,7 @@ def dag_pause(args) -> None:
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags unpause")
 @providers_configuration_loaded
 def dag_unpause(args) -> None:
     """Unpauses a DAG."""
@@ -614,6 +616,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl dags get-details")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -637,6 +640,7 @@ def dag_details(args, *, session: Session = NEW_SESSION):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags list-import-errors")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
@@ -756,6 +760,7 @@ def dag_list_jobs(args, dag: DAG | None = None, *, session: Session = NEW_SESSIO
     )
 
 
+@deprecated_for_airflowctl("airflowctl dagrun list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded

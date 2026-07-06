@@ -168,18 +168,6 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.manager_stalls"
-    description: "Number of stalled ``DagFileProcessorManager``"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "dag_file_refresh_error"
-    description: "Number of failures loading any Dag files"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "scheduler.tasks.killed_externally"
     description: "Number of tasks killed externally. Metric with dag_id and task_id tagging."
     type: "counter"
@@ -710,12 +698,6 @@ metrics:
 
   - name: "dagrun.first_task_start_delay"
     description: "Milliseconds elapsed between dagrun queued_at and first task start_date"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "collect_db_dags"
-    description: "Milliseconds taken for fetching all Serialized Dags from DB"
     type: "timer"
     legacy_name: "-"
     name_variables: []

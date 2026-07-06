@@ -30,21 +30,49 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.cli.commands import asset_command, dag_command, pool_command
+from airflow.cli.commands import (
+    asset_command,
+    config_command,
+    connection_command,
+    dag_command,
+    pool_command,
+    provider_command,
+    variable_command,
+)
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
 MIGRATED_CLI_COMMANDS = [
+    (connection_command.connections_list, "airflowctl connections list"),
+    (connection_command.connections_add, "airflowctl connections create"),
+    (connection_command.connections_delete, "airflowctl connections delete"),
+    (connection_command.connections_import, "airflowctl connections import"),
+    (connection_command.connections_test, "airflowctl connections test"),
+    (connection_command.create_default_connections, "airflowctl connections create-defaults"),
     (dag_command.dag_trigger, "airflowctl dags trigger"),
     (dag_command.dag_delete, "airflowctl dags delete"),
+    (dag_command.dag_details, "airflowctl dags get-details"),
+    (dag_command.dag_list_import_errors, "airflowctl dags list-import-errors"),
+    (dag_command.dag_pause, "airflowctl dags pause"),
+    (dag_command.dag_unpause, "airflowctl dags unpause"),
+    (dag_command.dag_list_dag_runs, "airflowctl dagrun list"),
     (pool_command.pool_list, "airflowctl pools list"),
     (pool_command.pool_get, "airflowctl pools get"),
     (pool_command.pool_set, "airflowctl pools create"),
     (pool_command.pool_delete, "airflowctl pools delete"),
     (pool_command.pool_import, "airflowctl pools import"),
     (pool_command.pool_export, "airflowctl pools export"),
+    (variable_command.variables_list, "airflowctl variables list"),
+    (variable_command.variables_get, "airflowctl variables get"),
+    (variable_command.variables_set, "airflowctl variables create"),
+    (variable_command.variables_delete, "airflowctl variables delete"),
+    (variable_command.variables_import, "airflowctl variables import"),
     (asset_command.asset_materialize, "airflowctl assets materialize"),
     (asset_command.asset_list, "airflowctl assets list / airflowctl assets list-aliases"),
     (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-by-alias"),
+    (provider_command.provider_get, "airflowctl providers get"),
+    (provider_command.providers_list, "airflowctl providers list"),
+    (config_command.get_value, "airflowctl config get"),
+    (config_command.show_config, "airflowctl config list"),
 ]
 
 

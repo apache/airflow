@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
-# adopt — first-time install of apache-steward into an adopter repo
+# adopt — first-time install of apache-magpie into an adopter repo
 
-The default sub-action when the user says "adopt apache-steward".
+The default sub-action when the user says "adopt apache-magpie".
 
 There are two adoption shapes the skill recognises and routes
 between automatically:
@@ -72,7 +72,7 @@ between automatically:
 
    Detect it **structurally** — do *not* rely on the `origin`
    URL, which on a contributor's fork points at
-   `<user>/airflow-steward`, not `apache/`. The repo is the
+   `<user>/magpie`, not `apache/`. The repo is the
    framework checkout when `skills/setup/SKILL.md` exists at the
    repo root with `name: magpie-setup` in its frontmatter **and**
    `skills/list-skills/` is present.
@@ -317,7 +317,7 @@ logic for a *new* framework version.
 4. If the adopter **does** have local modifications,
    surface the diff and stop. The user either (a) confirms
    the local mods can be discarded, (b) upstreams them as a
-   PR to `apache/airflow-steward` first, or (c) defers the
+   PR to `apache/magpie` first, or (c) defers the
    bootstrap-skill refresh — in (c) the rest of this run
    continues against the in-flight (older) version with a
    warning.
@@ -463,7 +463,7 @@ structured-question tool, use a *multi-select* prompt for
 the three opt-in families (`security`, `pr-management`,
 `issue`) — the families are not mutually exclusive.
 Pre-select the **union** of (a) families the user named in
-their initial "adopt" request (e.g. *"adopt apache-steward
+their initial "adopt" request (e.g. *"adopt apache-magpie
 for PR triage"* → `pr-management`) and (b)
 `<signal-derived-families>` from Step 4b. Mention in the
 prompt body why each family is pre-ticked (named by the
@@ -502,10 +502,27 @@ idempotent — re-add them if they're missing.
 ```text
 /.apache-magpie/
 /.apache-magpie.local.lock
+/.apache-magpie-sources/
+/.apache-magpie.sources.local.lock
 /.claude/settings.local.json
+/.claude/hooks/agent-guard.py
+/.claude/hooks/guards.d/
 __pycache__/
 *.pyc
 ```
+
+The `/.apache-magpie-sources/` and
+`/.apache-magpie.sources.local.lock` lines keep the gitignored
+fetch of every [trusted external skill
+source](../../docs/skill-sources/README.md) and its per-machine
+fetch fingerprint out of the tree — the source counterpart of
+`/.apache-magpie/` + `/.apache-magpie.local.lock`. The committed
+per-source pins (`.apache-magpie.sources.lock`) are **not** ignored;
+they travel with the repo like `<committed-lock>`. These two lines
+are harmless when the adopter trusts no source (the paths simply
+never appear); [`skill-sources.md`](skill-sources.md) also adds
+them idempotently the first time a source is pinned on an older
+adoption.
 
 The `__pycache__/` and `*.pyc` lines (non-anchored — they match at
 any depth) keep the byte-compiled artefacts that framework skill
@@ -513,6 +530,24 @@ scripts emit when run from the adopter checkout (e.g.
 [`setup-status/scripts/collect_status.py`](../setup-status/scripts/collect_status.py))
 out of the tree. Most adopters already carry these from a stock
 Python `.gitignore`; the adopt flow adds them if missing.
+
+The `/.claude/hooks/agent-guard.py` and `/.claude/hooks/guards.d/`
+lines keep the deterministic `PreToolUse` guard **gitignored** —
+it is framework code synced from the snapshot
+([Step 12 pass 1](#step-12--post-install-sync--worktree-propagation--sandbox-allowlist--sanity-check)),
+not an adopter artefact, so it is regenerated on `/magpie-setup`
+rather than committed (the same rule that keeps the snapshot and
+the framework-skill symlinks out of git — the only committed
+framework artefact is `magpie-setup`). The committed
+`.claude/settings.json` still references it; the **wiring** is
+committed, the **script** is not. Because the script is gitignored,
+**no** worktree inherits it via git — every worktree is seeded from
+the main checkout by the post-checkout hook
+([Step 10](#step-10--worktree-aware-post-checkout-hook-fresh-only))
+or by [`worktree-init` Step 1d](worktree-init.md#step-1d--seed-the-worktrees-agent-guard-pretooluse-hook).
+An adopter who keeps their own non-framework guards under
+`.claude/hooks/guards.d/` and wants them tracked should commit them
+with `git add -f` (the directory is ignored by default).
 
 **Symlink entries — one uniform block per active target
 ([`agents.md`](agents.md)), no per-layout variation.** Every
@@ -623,28 +658,47 @@ confirm, then create them. Always-on entries are surfaced
 read-only — the prompt is "confirm this list" not "edit this
 list".
 
+## Step 8b — Wire up trusted external-source skills
+
+If `<project-config>/skill-sources.md` (the adopter trust list)
+exists and lists any source, run the
+[`skill-sources`](skill-sources.md) sub-action now as a content
+pass: fetch + verify each trusted source into
+`.apache-magpie-sources/<id>/`, write both source locks, and
+create the canonical + relay `magpie-<name>` symlinks for the
+skills each source `provides` — the same wiring Step 8 does for
+framework skills, just targeting the source snapshots. Nothing is
+fetched if the trust list is absent or empty (the common case);
+this step is then a no-op.
+
+Source skills are `magpie-`-prefixed and gitignored exactly like
+framework skills, so the `.gitignore` block from
+[Step 7](#step-7--gitignore-entries-fresh-only) already covers
+their symlinks; the `.apache-magpie-sources/` snapshot dir and
+`.apache-magpie.sources.local.lock` were added there too.
+
 ## Step 9 — Scaffold `.apache-magpie-overrides/` (FRESH only)
 
 Create `<repo-root>/.apache-magpie-overrides/` (directory)
 with a small `README.md` inside:
 
 ```markdown
-# apache-steward overrides
+# apache-magpie overrides
 
 Agent-readable instructions that override specific steps or
-behaviours of apache-steward framework skills, scoped to
+behaviours of apache-magpie framework skills, scoped to
 this adopter repo. Each override file is named after the
 framework skill it modifies (e.g. `pr-management-triage.md`
 overrides the `pr-management-triage` skill).
 
 The framework skills consult this directory at run-time
 before executing default behaviour. See
-[`docs/setup/agentic-overrides.md`](https://github.com/apache/airflow-steward/blob/main/docs/setup/agentic-overrides.md)
+[`docs/setup/agentic-overrides.md`](https://github.com/apache/magpie/blob/main/docs/setup/agentic-overrides.md)
 in the framework for the full contract.
 
 **Hard rule**: never modify the snapshot under
 `<repo-root>/.apache-magpie/`. Local mods go here.
-Framework changes go via PR to `apache/airflow-steward`.
+Framework changes go via PR to `apache/magpie`.
 ```
 
 This directory is **committed** (overrides ship with the
@@ -676,7 +730,7 @@ configuration* → *`user.md` resolution order*](../../AGENTS.md#usermd-resoluti
 Use this project-agnostic template:
 
 ```markdown
-# Per-user configuration for apache-steward
+# Per-user configuration for apache-magpie
 
 This file is committed in the adopter repo and holds preferences
 that vary per developer (GitHub handle, local clone paths, optional
@@ -686,10 +740,11 @@ setup; the skills skip any block that is missing or marked `TODO`.
 
 ## `role_flags`
 
-- `pmc_member: TODO` — set to `true` if you are a PMC member of the
-  adopting project. Used by `security-cve-allocate` to decide whether
-  you can submit the CVE allocation form directly or need to relay
-  the request to a PMC member.
+- `governance_member: TODO` — set to `true` if you are a member of the
+  adopting project's governing body (a PMC member at the ASF; whatever
+  the project's `governance.cve_allocation_gate` names elsewhere). Used
+  by `security-cve-allocate` to decide whether you can submit the CVE
+  allocation form directly or need to relay the request to a member.
 
 ## `environment`
 
@@ -781,11 +836,11 @@ When the agent harness offers a structured-question tool, ask the
 remaining unknowns in **one batch** rather than serially. The
 canonical batch is:
 
-1. **`role_flags.pmc_member`** — *single-select, default `No`*.
-   "Are you a PMC member of `<adopter>`?" Used by
-   `security-cve-allocate` to decide whether the user can submit
-   the CVE allocation form directly or needs to relay through a
-   PMC member.
+1. **`role_flags.governance_member`** — *single-select, default `No`*.
+   "Are you a member of `<adopter>`'s governing body (e.g. a PMC
+   member at the ASF)?" Used by `security-cve-allocate` to decide
+   whether the user can submit the CVE allocation form directly or
+   needs to relay through a member.
 2. **Auto-detected env paths confirmation** — *single-select,
    default "Use as detected"*. Only ask this if both
    `upstream_clone` and `upstream_fork_remote` were auto-detected
@@ -901,43 +956,91 @@ are handled — both are read-only and scoped.
 
 ## Step 10 — Worktree-aware post-checkout hook (FRESH only)
 
-Install `<repo-root>/.git/hooks/post-checkout` that chains into
-the sandbox-allowlist helper installed by
-`setup-isolated-setup-install`, so the new worktree's working
-directory is added to the worktree's own
-`.claude/settings.local.json`'s `sandbox.filesystem.allowRead` /
-`allowWrite` (defensive against
-[issue #197](https://github.com/apache/airflow-steward/issues/197)
-— see
-[`setup-isolated-setup-install/SKILL.md` → Step P](../setup-isolated-setup-install/SKILL.md#step-p--project-root-coverage-in-the-sandbox-allowlists)).
+Install `<repo-root>/.git/hooks/post-checkout` — a best-effort
+per-worktree reconciler that fires on `git checkout` and on
+`git worktree add`. It carries **two** responsibilities, each
+guarded independently so neither can gate the git operation:
+
+1. **Sandbox allowlist.** Chain into the sandbox-allowlist helper
+   installed by `setup-isolated-setup-install`, so the new
+   worktree's working directory is added to the worktree's own
+   `.claude/settings.local.json`'s `sandbox.filesystem.allowRead` /
+   `allowWrite` (defensive against
+   [issue #197](https://github.com/apache/magpie/issues/197)
+   — see
+   [`setup-isolated-setup-install/SKILL.md` → Step P](../setup-isolated-setup-install/SKILL.md#step-p--project-root-coverage-in-the-sandbox-allowlists)).
+
+2. **agent-guard seeding.** The committed `.claude/settings.json`
+   wires the deterministic `PreToolUse` guard
+   ([`tools/agent-guard`](../../tools/agent-guard/README.md)) at
+   `$CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py` — a
+   **per-worktree** path. The script + its `guards.d/` are
+   adopter-installed local files synced into the **main** checkout
+   by [Step 12 pass 1](#step-12--post-install-sync--worktree-propagation--sandbox-allowlist--sanity-check)
+   and **gitignored** ([Step 7](#step-7--gitignore-entries-fresh-only)).
+   Because they are gitignored, **no** worktree inherits them via
+   `git worktree add` — every freshly-created worktree starts
+   without the script and would run with the guard **silently
+   inactive**. The hook seeds them from the main checkout's
+   already-synced copy when — and only when — this worktree has
+   none, so the guard is live in every worktree from its first
+   checkout. It never overwrites a copy the worktree already
+   carries (which may hold worktree-local guards).
 
 The hook is a small shell script. Surface the exact content to
 the user before writing:
 
 ```bash
 #!/usr/bin/env bash
-# apache-steward post-checkout hook (installed by /magpie-setup adopt).
-# Add the current worktree's working dir to the worktree's own
-# .claude/settings.local.json sandbox allowlists (per issue #197).
-# Chains into the helper if installed by /magpie-setup-isolated-setup-install;
-# no-op when the helper is absent.
+# apache-magpie post-checkout hook (installed by /magpie-setup adopt).
+# Best-effort per-worktree reconciliation on checkout / `git worktree add`.
+# Every action is individually guarded and the hook always exits 0 — it
+# never gates the surrounding git operation.
 set -u
+
+# (a) Sandbox allowlist (issue #197): add the current worktree's working
+#     dir to the worktree's own .claude/settings.local.json. No-op when the
+#     helper from /magpie-setup-isolated-setup-install is absent.
 if [ -x "$HOME/.claude/scripts/sandbox-add-project-root.sh" ]; then
   "$HOME/.claude/scripts/sandbox-add-project-root.sh" || true
 fi
+
+# (b) agent-guard PreToolUse guard: .claude/settings.json resolves it at
+#     $CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py (per-worktree). Seed
+#     this worktree from the main checkout's already-synced copy when it has
+#     none — never overwrite a copy the worktree already carries.
+wt="$(git rev-parse --show-toplevel 2>/dev/null)" || wt=""
+main="$(dirname "$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd)")"
+if [ -n "$wt" ] && [ "$main" != "$wt" ] \
+   && [ -f "$main/.claude/hooks/agent-guard.py" ] \
+   && [ ! -f "$wt/.claude/hooks/agent-guard.py" ]; then
+  mkdir -p "$wt/.claude/hooks/guards.d"
+  cp "$main/.claude/hooks/agent-guard.py" "$wt/.claude/hooks/agent-guard.py" || true
+  [ -d "$main/.claude/hooks/guards.d" ] &&
+    cp "$main/.claude/hooks/guards.d/"*.py "$wt/.claude/hooks/guards.d/" 2>/dev/null || true
+fi
+
 exit 0
 ```
 
-The `|| true` guard keeps the hook from failing the surrounding
-git operation (`git checkout`, `git worktree add`) — the hook is
-best-effort reconciliation, not a gate.
+The `|| true` guards (and the trailing `exit 0`) keep the hook
+from failing the surrounding git operation (`git checkout`,
+`git worktree add`) — the hook is best-effort reconciliation, not
+a gate.
 
 If the operator has not yet run `/magpie-setup-isolated-setup-install`,
-the helper-script line is a no-op (the `-x` test fails). When
+the helper-script line (a) is a no-op (the `-x` test fails). When
 they later install the secure setup, no hook re-write is needed:
-the next `post-checkout` fires the helper automatically.
+the next `post-checkout` fires the helper automatically. Likewise
+(b) is a no-op when the main checkout has no agent-guard yet (the
+`-f "$main/.claude/hooks/agent-guard.py"` test fails) or when the
+worktree already carries its own copy.
 
-**Why no framework-skill symlink reconciliation here.** Earlier
+**Why agent-guard seeding is shell-safe but symlink
+reconciliation is not.** Seeding agent-guard is a plain
+`cp` of files that already exist in the main checkout — a pure
+shell operation with no dependency on the agent harness. Recreating
+the gitignored framework-skill symlinks is **not**: earlier
 template versions of this hook also called
 `/magpie-setup verify --auto-fix-symlinks` to recreate
 gitignored symlinks after a checkout. That line printed a spurious
@@ -972,10 +1075,10 @@ framework before they hit a "skill not found" error:
    the skill families they actually installed:
 
    ```markdown
-   ## Agent-assisted contribution (apache-steward)
+   ## Agent-assisted contribution (apache-magpie)
 
    This repo adopts the
-   [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+   [`apache/magpie`](https://github.com/apache/magpie)
    framework via a snapshot mechanism. The framework provides
    maintainer-facing skills (e.g. `pr-management-triage`,
    `pr-management-code-review`, `pr-management-stats`,
@@ -1007,7 +1110,7 @@ framework before they hit a "skill not found" error:
    in [`.apache-magpie-overrides/`](.apache-magpie-overrides/)
    (committed) — never edit the snapshot directly. Framework
    changes go via PR to
-   [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+   [`apache/magpie`](https://github.com/apache/magpie).
    ```
 
    Trim the skill-family list to what was actually picked in
@@ -1026,10 +1129,10 @@ framework before they hit a "skill not found" error:
    Suggested template:
 
    ```markdown
-   ## apache-steward framework
+   ## apache-magpie framework
 
    This repo adopts the
-   [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+   [`apache/magpie`](https://github.com/apache/magpie)
    framework via the snapshot mechanism. The framework
    provides the `pr-management-*` skills; they are gitignored
    symlinks into the `.apache-magpie/` snapshot directory.
@@ -1041,14 +1144,32 @@ framework before they hit a "skill not found" error:
    [`.apache-magpie.lock`](.apache-magpie.lock). The
    contributor-facing summary of the adoption + setup flow
    lives in the
-   [Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
+   [Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 
    Adopter-specific modifications to framework-skill
    workflows live in
    [`.apache-magpie-overrides/`](.apache-magpie-overrides/)
    — never edit the snapshot directly. Framework changes go
    via PR to
-   [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+   [`apache/magpie`](https://github.com/apache/magpie).
+   ```
+
+   **If the adopter installed the `pr-management-*` family**
+   (Step 5), append the following subsection to the
+   `AGENTS.md` block above, so the adopter's agent defaults to
+   the framework's review skill. Skip it entirely for adopters
+   who did not take that family.
+
+   ```markdown
+   ### Reviewing pull requests
+
+   With apache-magpie installed locally, use the
+   `magpie-pr-management-code-review` skill for PR code
+   review. It posts findings as **inline review comments**
+   anchored to `file:line`, presented **individually for
+   accept/skip** before anything is submitted — prefer it
+   over an ad-hoc review pass or a generic review command. A
+   body-only review is the explicit opt-out (`inline:off`).
    ```
 
    Do not create `AGENTS.md` if it does not already exist —
@@ -1170,7 +1291,7 @@ Four passes, in this order:
 
 3. **Add the adopter's project root to each worktree's
    project-local sandbox allowlists.** Defensive against
-   [issue #197](https://github.com/apache/airflow-steward/issues/197) —
+   [issue #197](https://github.com/apache/magpie/issues/197) —
    `sandbox.filesystem.allowRead: ["."]` does not in practice
    cover CWD, so reads under a freshly-cloned adopter repo
    fail under the sandbox until an explicit absolute path is
@@ -1246,7 +1367,8 @@ A summary of what was written:
 ✓ Locks:    .apache-magpie.lock (committed) + .apache-magpie.local.lock (gitignored)
 ✓ Symlinks: <list of created symlinks>
 ✓ Overrides scaffold: .apache-magpie-overrides/ (committed)
-✓ post-checkout hook installed
+✓ post-checkout hook installed (seeds sandbox allowlist + agent-guard per worktree)
+✓ agent-guard PreToolUse hook synced (.claude/hooks/agent-guard.py + guards.d/ — gitignored)
 ✓ <repo>/README.md updated with adoption note
 
 Committed (you'll see in `git status`):
@@ -1261,6 +1383,9 @@ Committed (you'll see in `git status`):
 Gitignored (do NOT commit):
   .apache-magpie/
   .apache-magpie.local.lock
+  .claude/settings.local.json   # per-machine, per-worktree sandbox allowlist (issue #197)
+  .claude/hooks/agent-guard.py  # framework code synced from the snapshot; seeded into each worktree
+  .claude/hooks/guards.d/       # bundled + skill-owned guards; re-collected on /magpie-setup
   __pycache__/ + *.pyc       # byte-compiled artefacts from skill scripts; added to .gitignore if missing
   .agents/skills/magpie-*   (except magpie-setup, committed above)  # canonical links into the snapshot: opt-in + always-on families
   .claude/skills/magpie-*   (except magpie-setup, committed above)  # relays → ../../.agents/skills/magpie-*

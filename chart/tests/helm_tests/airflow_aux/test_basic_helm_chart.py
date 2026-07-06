@@ -235,6 +235,9 @@ class TestBaseChartTest:
             "logs": {"persistence": {"enabled": True}},
             "dags": {"persistence": {"enabled": True}},
             "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+            "priorityClasses": [
+                {"name": "class1", "value": 10000},
+            ],
         }
 
         k8s_objects = render_chart(name=release_name, values=values)
@@ -303,6 +306,7 @@ class TestBaseChartTest:
             (f"{release_name}-airflow-api-server", "ServiceAccount", "api-server"),
             (f"{release_name}-api-secret-key", "Secret", "api-server"),
             (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
+            (f"{release_name}-class1", "PriorityClass", None),
         ]
 
         cleanup_kubernetes_executor_only_objects = {

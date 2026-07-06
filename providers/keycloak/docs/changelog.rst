@@ -38,15 +38,19 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix keycloak missing resource error check (#69028)``
 * ``Handle missing Keycloak resources as access denied (#68951)``
 
 Misc
 ~~~~
 
+* ``Parallelize per-dag auth checks in KeycloakAuthManager (#69107)``
 * ``Revert airflowctl dependency from airflow-core (#68856)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
 
 0.8.0
 .....

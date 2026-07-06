@@ -78,7 +78,6 @@ class TestTaskStateEndpoint:
 
     @pytest.fixture(autouse=True)
     def setup(self, dag_maker, session):
-        self.clear_db()
         _create_dag_run(dag_maker, session)
         self.dag_run = session.scalar(select(DagRun).where(DagRun.run_id == RUN_ID))
         self._session = session
