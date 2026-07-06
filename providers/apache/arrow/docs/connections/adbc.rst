@@ -20,4 +20,148 @@
 ADBC connection
 ===============
 
-The ADBC connection type enables connection to a ADBC data source.
+The ADBC connection type enables connection to any database that has an
+`Arrow Database Connectivity (ADBC) <https://arrow.apache.org/adbc/>`__ driver,
+such as PostgreSQL, SQLite, DuckDB, Snowflake, and Flight SQL servers.
+
+Default Connection ID
+---------------------
+
+``adbc_default``
+
+Configuring the Connection
+--------------------------
+
+Connection URL (Host field)
+    The database URI passed to the driver.  For drivers that use a standard
+    connection string (e.g. ``postgresql://user:pass@host:5432/db`` or
+    ``file::memory:``), put it here.  If the value contains ``::`` the hook
+    passes it through unchanged; otherwise the ``adbc://`` scheme prefix is
+    replaced with the dialect name.
+
+Login / Password
+    Convenience fields.  When set, Airflow builds a URI of the form
+    ``<dialect>://login:password@host/schema`` that is merged into
+    ``db_kwargs["uri"]``.  Driver-specific URIs in the Host field take
+    precedence.
+
+Extra (JSON)
+    A JSON object with the following recognised keys:
+
+    ``driver`` *(string)*
+        Python package name of the ADBC driver to load, e.g.
+        ``"adbc_driver_postgresql"`` or ``"adbc_driver_sqlite"``.
+        When omitted the hook derives the name from the dialect as
+        ``adbc_driver_<dialect>``.
+
+    ``entrypoint`` *(string, optional)*
+        Fully-qualified Python symbol used as the driver entrypoint, e.g.
+        ``"adbc_driver_sqlite.dbapi.connect"``.  Most drivers do not need
+        this; it is only required when the automatic entrypoint discovery
+        built into ``adbc_driver_manager`` cannot locate the function.
+
+    ``dialect`` *(string, optional)*
+        SQL dialect name used to build the URI scheme and derive the
+        default driver name.  Defaults to ``"default"``.
+
+    ``db_kwargs`` *(object, optional)*
+        Keyword arguments forwarded verbatim to the ADBC
+        ``AdbcDatabase`` constructor (database-level connection settings).
+        ``uri`` is always injected automatically from the Host field and
+        must not be repeated here.  Common keys:
+
+        .. list-table::
+           :header-rows: 1
+           :widths: 30 15 55
+
+           * - Key
+             - Type
+             - Description
+           * - ``username``
+             - string
+             - Database user name (alternative to encoding it in the URI).
+           * - ``password``
+             - string
+             - Database password (alternative to encoding it in the URI).
+           * - ``adbc.connection.autocommit``
+             - bool
+             - Enable autocommit at the database level (driver-dependent).
+           * - ``adbc.sqlite.query.batch_rows``
+             - int
+             - SQLite: number of rows fetched per Arrow batch.
+
+        All other keys are driver-specific.  Consult the documentation for
+        your ADBC driver for the full list.  See also the
+        `ADBC driver documentation <https://arrow.apache.org/adbc/current/driver/>`__.
+
+    ``conn_kwargs`` *(object, optional)*
+        Keyword arguments forwarded verbatim to the ADBC
+        ``AdbcConnection`` constructor (connection-level settings within the
+        already-open database).  Common keys defined by the ADBC
+        specification:
+
+        .. list-table::
+           :header-rows: 1
+           :widths: 30 15 55
+
+           * - Key
+             - Type
+             - Description
+           * - ``autocommit``
+             - bool
+             - Enable autocommit for this connection.
+           * - ``read_only``
+             - bool
+             - Open the connection in read-only mode.
+           * - ``current_catalog``
+             - string
+             - Default catalog for unqualified table names.
+           * - ``current_db_schema``
+             - string
+             - Default schema for unqualified table names.
+
+        All other keys are driver-specific.
+
+.. warning:: **Security — blast radius of db_kwargs / conn_kwargs**
+
+    Both ``db_kwargs`` and ``conn_kwargs`` are passed through to the ADBC
+    driver **without filtering**.  Any user or role that can edit this
+    connection in the Airflow UI or via the Connections API can therefore
+    supply arbitrary driver-level options.  Depending on the driver, this
+    may include options that:
+
+    * load extensions from arbitrary file-system paths (e.g. SQLite's
+      ``load_extension`` or DuckDB's extension loading);
+    * configure network endpoints or proxy addresses;
+    * change authentication parameters.
+
+    Restrict access to the Connections UI and API (Airflow RBAC ``Connections``
+    resource) to trusted operators only.  Do not expose connection-editing
+    permissions to untrusted Dag authors.
+
+    Similarly, the ``driver`` and ``entrypoint`` extras load shared libraries
+    or Python symbols by name.  Treat them with the same level of trust as
+    executable code.
+
+Examples
+--------
+
+SQLite in-memory database::
+
+    {
+      "driver": "adbc_driver_sqlite"
+    }
+
+PostgreSQL with extra driver options::
+
+    {
+      "driver": "adbc_driver_postgresql",
+      "dialect": "postgresql",
+      "db_kwargs": {
+        "adbc.postgresql.query.batch_rows": 1000
+      },
+      "conn_kwargs": {
+        "autocommit": true,
+        "read_only": false
+      }
+    }
