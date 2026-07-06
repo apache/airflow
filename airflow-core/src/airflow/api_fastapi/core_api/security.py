@@ -25,6 +25,7 @@ from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -193,6 +194,51 @@ def requires_access_dag(
                 details=DagDetails(id=dag_id, team_name=team_name),
                 user=user,
             )
+        )
+
+    return inner
+
+
+def requires_access_dag_from_file_token(
+    method: ResourceMethod,
+) -> Callable[[str, Request, BaseUser, Session], None]:
+    """
+    Authorize the caller against the Dags a signed ``file_token`` resolves to.
+
+    For endpoints keyed on a ``file_token`` rather than a ``dag_id`` (e.g. reparse). The token
+    is decoded to the file it points at, and the caller is authorized against exactly the Dags
+    defined in that file — never against a request parameter.
+    """
+
+    def inner(
+        file_token: str,
+        request: Request,
+        user: GetUserDep,
+        session: SessionDep,
+    ) -> None:
+        try:
+            payload = URLSafeSerializer(request.app.state.secret_key).loads(file_token)
+        except BadSignature:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_ids = list(
+            session.scalars(
+                select(DagModel.dag_id).where(
+                    DagModel.bundle_name == payload["bundle_name"],
+                    DagModel.relative_fileloc == payload["relative_fileloc"],
+                )
+            )
+        )
+        if not dag_ids:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+        requests: list[IsAuthorizedDagRequest] = [
+            {"method": method, "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id))}
+            for dag_id in dag_ids
+        ]
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(requests, user=user),
         )
 
     return inner
