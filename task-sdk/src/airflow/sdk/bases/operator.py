@@ -66,7 +66,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.exceptions import RemovedInAirflow4Warning, TaskDeferred
+from airflow.sdk.exceptions import RemovedInAirflow4Warning
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
@@ -1791,52 +1791,6 @@ class BaseAsyncOperator(BaseOperator):
                     )
                 )
             return loop.run_until_complete(self.aexecute(context))
-
-
-class DecoratedDeferredAsyncOperator(BaseAsyncOperator):
-    """
-    A decorator operator that wraps another deferred BaseOperator instance.
-
-    Implements the async aexecute() method while delegating all other behavior.
-    """
-
-    def __init__(self, *, operator: BaseOperator, task_deferred: TaskDeferred, **kwargs: Any):
-        super().__init__(task_id=operator.task_id, **kwargs)
-        self._operator = operator
-        self._task_deferred = task_deferred
-
-    async def aexecute(self, context):
-        from airflow.sdk.execution_time.callback_runner import create_executable_runner
-        from airflow.sdk.execution_time.context import context_get_outlet_events
-
-        while True:
-            event = await run_trigger(self._task_deferred.trigger)
-
-            self.log.debug("event: %s", event)
-
-            if not event:
-                return None
-
-            self.log.debug("next_method: %s", self._task_deferred.method_name)
-
-            if not self._task_deferred.method_name:
-                return None
-
-            try:
-                next_method = self._operator.next_callable(
-                    self._task_deferred.method_name,
-                    self._task_deferred.kwargs,
-                )
-                outlet_events = context_get_outlet_events(context)
-                runner = create_executable_runner(
-                    func=next_method,
-                    outlet_events=outlet_events,
-                    logger=self.log,
-                )
-                return runner.run(context, event.payload)
-            except TaskDeferred as task_deferred:
-                self._task_deferred = task_deferred
-                continue
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

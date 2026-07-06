@@ -32,7 +32,7 @@ except NameError:
     from exceptiongroup import BaseExceptionGroup
 
 from airflow.sdk import BaseXCom, TaskInstanceState, timezone
-from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
+from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -250,7 +250,6 @@ class IterableOperator(BaseOperator):
     ) -> XComIterable | None:
         exceptions: list[BaseException] = []
         reschedule_date = timezone.utcnow()
-        deferred_tasks: deque[IndexedTaskInstance] = deque()
         failed_tasks: deque[IndexedTaskInstance] = deque()
         do_xcom_push = True
 
@@ -272,19 +271,10 @@ class IterableOperator(BaseOperator):
                             continue
 
                         if isinstance(raised, TaskDeferred):
-                            operator = DecoratedDeferredAsyncOperator(
-                                operator=task.task, task_deferred=raised
+                            raise AirflowFailException(
+                                f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
+                                "Deferrable operators are not supported inside IterableOperator."
                             )
-                            deferred_tasks.append(
-                                self._create_mapped_task(
-                                    run_id=task.run_id,
-                                    index=task.index,
-                                    map_index=task.map_index,  # type: ignore[arg-type]
-                                    try_number=task.try_number,
-                                    operator=operator,
-                                )
-                            )
-                            continue
 
                         if isinstance(raised, AirflowRescheduleTaskInstanceException):
                             reschedule_date = max(reschedule_date, raised.reschedule_date)
@@ -312,13 +302,6 @@ class IterableOperator(BaseOperator):
                             exc_info=raised,
                         )
                         exceptions.append(raised)
-
-                    # Deferred tasks are re-fed as a new pass once the current batch completes,
-                    # because the event loop is restarted at the top of the outer while loop.
-                    if deferred_tasks:
-                        tasks = list(deferred_tasks)
-                        deferred_tasks.clear()
-                        continue
 
             if not failed_tasks:
                 if exceptions:
