@@ -159,10 +159,10 @@ def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict
     Validate the event a deferred task resumes with, returning it if well-formed.
 
     The event crosses the triggerer/worker boundary through the metadata DB, so a
-    resuming task can receive ``None`` or a status its handlers do not recognise
+    resuming task can receive ``None`` or a status its handlers do not recognize
     (version skew, a custom trigger). Both must fail loudly: the ``execute_complete``
     handlers raise on ``timeout``/``error`` and treat everything else as success, so
-    an unrecognised status would otherwise silently succeed.
+    an unrecognized status would otherwise silently succeed.
     """
     if event is None:
         raise AnthropicTriggerEventError("Trigger error: event is None")
