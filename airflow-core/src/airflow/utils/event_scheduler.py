@@ -51,8 +51,7 @@ class EventScheduler(scheduler, LoggingMixin):
                     action(*args, **kwargs)
                 except Exception as e:
                     self.log.exception(
-                        "Failed to run periodic action %s due to %s. "
-                        "Please investigate if this is persistent.",
+                        "Failed to run periodic action %s due to %s; will retry on the next cycle",
                         getattr(action, "__name__", action),
                         e,
                     )
