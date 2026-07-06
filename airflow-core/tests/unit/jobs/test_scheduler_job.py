@@ -972,7 +972,9 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.QUEUED
         self.job_runner.executor.callback_sink.send.assert_not_called()
-        mock_stats.incr.assert_not_called()
+        # Stale success from defer exit must not trigger a mismatch metric —
+        # only the standard processed-events counter should fire.
+        mock_stats.incr.assert_called_once_with("scheduler.executor_events.processed", count=1)
 
         # Without next_method, queued + stale success is still a mismatch (e.g. external kill).
         ti1.next_method = None
