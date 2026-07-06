@@ -857,6 +857,11 @@ class TestTIRunState:
         assert response.status_code == 409
         assert response.json() == {
             "detail": {
+                "type": "https://airflow.apache.org/errors/invalid-state",
+                "title": "Invalid Task Instance State",
+                "status": 409,
+                "detail": "TI was not in a state where it could be marked as running",
+                "instance": f"/execution/task-instances/{ti.id}/run",
                 "message": "TI was not in a state where it could be marked as running",
                 "previous_state": initial_ti_state,
                 "reason": "invalid_state",
@@ -2130,6 +2135,11 @@ class TestTIUpdateState:
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
         assert response.status_code == 409
         assert response.json()["detail"] == {
+            "type": "https://airflow.apache.org/errors/invalid-state",
+            "title": "Invalid Task Instance State",
+            "status": 409,
+            "detail": "TI was not in the running state so it cannot be updated",
+            "instance": f"/execution/task-instances/{ti.id}/state",
             "reason": "invalid_state",
             "message": "TI was not in the running state so it cannot be updated",
             "previous_state": State.SUCCESS,
@@ -2186,6 +2196,11 @@ class TestTIUpdateState:
         )
         assert response.status_code == 409
         assert response.json()["detail"] == {
+            "type": "https://airflow.apache.org/errors/invalid-state",
+            "title": "Invalid Task Instance State",
+            "status": 409,
+            "detail": "TI was not in the running state so it cannot be updated",
+            "instance": f"/execution/task-instances/{ti.id}/state",
             "reason": "invalid_state",
             "message": "TI was not in the running state so it cannot be updated",
             "previous_state": State.SUCCESS,

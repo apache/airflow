@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, Response, Security, status
+from fastapi import Body, HTTPException, Query, Request, Response, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -130,6 +130,7 @@ def ti_run(
     response: Response,
     session: SessionDep,
     dag_bag: DagBagDep,
+    request: Request,
     services=DepContainer,
     token: TIToken = CurrentTIToken,
 ) -> TIRunContext:
@@ -214,14 +215,14 @@ def ti_run(
             previous_state=previous_state,
         )
 
-        # TODO: Pass a RFC 9457 compliant error message in "detail" field
-        # https://datatracker.ietf.org/doc/html/rfc9457
-        # to provide more information about the error
-        # FastAPI will automatically convert this to a JSON response
-        # This might be added in FastAPI in https://github.com/fastapi/fastapi/issues/10370
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "https://airflow.apache.org/errors/invalid-state",
+                "title": "Invalid Task Instance State",
+                "status": status.HTTP_409_CONFLICT,
+                "detail": "TI was not in a state where it could be marked as running",
+                "instance": str(request.url.path),
                 "reason": "invalid_state",
                 "message": "TI was not in a state where it could be marked as running",
                 "previous_state": previous_state,
@@ -348,6 +349,7 @@ def ti_update_state(
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
     session: SessionDep,
     dag_bag: DagBagDep,
+    request: Request,
 ):
     """
     Update the state of a TaskInstance.
@@ -426,6 +428,11 @@ def ti_update_state(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "https://airflow.apache.org/errors/invalid-state",
+                "title": "Invalid Task Instance State",
+                "status": status.HTTP_409_CONFLICT,
+                "detail": "TI was not in the running state so it cannot be updated",
+                "instance": str(request.url.path),
                 "reason": "invalid_state",
                 "message": "TI was not in the running state so it cannot be updated",
                 "previous_state": previous_state,
