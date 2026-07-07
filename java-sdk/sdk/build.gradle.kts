@@ -187,14 +187,24 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
         val url = "${baseUrl.get()}/$version.json"
         logger.lifecycle("Refreshing Supervisor Schema with $url")
         file.parentFile.mkdirs()
-        URI(url).toURL().openStream().use { input ->
-            Files.copy(input, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
-        val downloaded = apiVersionOf(file)
-        if (downloaded != version) {
-            throw GradleException(
-                "Downloaded schema declares api_version='$downloaded' but expected '$version' ($url)",
-            )
+        val tempTarget = Files.createTempFile(file.parentFile.toPath(), "schema", ".json")
+        try {
+            val connection =
+                URI(url).toURL().openConnection().apply {
+                    // Timeout values are arbitrary.
+                    connectTimeout = 30_000
+                    readTimeout = 30_000
+                }
+            connection.getInputStream().use { input ->
+                Files.copy(input, tempTarget, StandardCopyOption.REPLACE_EXISTING)
+            }
+            val downloaded = apiVersionOf(tempTarget.toFile())
+            if (downloaded != version) {
+                throw GradleException("Schema declares api_version='$downloaded' but expected '$version' ($url)")
+            }
+            Files.move(tempTarget, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(tempTarget)
         }
     }
 }
