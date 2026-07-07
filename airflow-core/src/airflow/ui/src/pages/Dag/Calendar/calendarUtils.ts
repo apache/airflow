@@ -21,9 +21,10 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import tz from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
-import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
+import type { CalendarDeadlineResponse, CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import type {
+  DeadlineCounts,
   RunCounts,
   DailyCalendarData,
   HourlyCalendarData,
@@ -97,6 +98,31 @@ const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: s
   return hourlyDataMap;
 };
 
+export const buildDeadlineDateMap = (
+  deadlines: Array<CalendarDeadlineResponse>,
+  timezone: string,
+  granularity: CalendarGranularity,
+): Map<string, DeadlineCounts> => {
+  const map = new Map<string, DeadlineCounts>();
+
+  deadlines.forEach((deadline) => {
+    const key =
+      granularity === "daily"
+        ? dayjs(deadline.date).tz(timezone).format("YYYY-MM-DD")
+        : dayjs(deadline.date).tz(timezone).format("YYYY-MM-DDTHH");
+
+    const existing = map.get(key) ?? { missed: 0, pending: 0 };
+
+    if (deadline.missed) {
+      map.set(key, { ...existing, missed: existing.missed + deadline.count });
+    } else {
+      map.set(key, { ...existing, pending: existing.pending + deadline.count });
+    }
+  });
+
+  return map;
+};
+
 export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunCounts => {
   const counts: { [K in keyof RunCounts]: number } = {
     failed: 0,
@@ -119,11 +145,17 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
   return counts;
 };
 
+type DailyOptions = {
+  deadlineMap?: Map<string, DeadlineCounts>;
+  selectedYear: number;
+  timezone: string;
+};
+
 export const generateDailyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
-  selectedYear: number,
-  timezone: string,
+  options: DailyOptions,
 ): DailyCalendarData => {
+  const { deadlineMap, selectedYear, timezone } = options;
   const dailyDataMap = createDailyDataMap(data, timezone);
 
   const weeks = [];
@@ -140,8 +172,9 @@ export const generateDailyCalendarData = (
       const dateStr = currentDate.format("YYYY-MM-DD");
       const runs = dailyDataMap.get(dateStr) ?? [];
       const counts = calculateRunCounts(runs);
+      const deadlineCounts = deadlineMap?.get(dateStr);
 
-      week.push({ counts, date: dateStr, runs });
+      week.push({ counts, date: dateStr, deadlineCounts, runs });
       currentDate = currentDate.add(1, "day");
     }
     weeks.push(week);
@@ -151,6 +184,7 @@ export const generateDailyCalendarData = (
 };
 
 type HourlyOptions = {
+  deadlineMap?: Map<string, DeadlineCounts>;
   selectedMonth: number;
   selectedYear: number;
   timezone: string;
@@ -160,7 +194,7 @@ export const generateHourlyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
   options: HourlyOptions,
 ): HourlyCalendarData => {
-  const { selectedMonth, selectedYear, timezone } = options;
+  const { deadlineMap, selectedMonth, selectedYear, timezone } = options;
   const hourlyDataMap = createHourlyDataMap(data, timezone);
 
   const monthStart = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).startOf("month");
@@ -176,8 +210,9 @@ export const generateHourlyCalendarData = (
       const hourStr = currentDate.hour(hour).format("YYYY-MM-DDTHH");
       const runs = hourlyDataMap.get(hourStr) ?? [];
       const counts = calculateRunCounts(runs);
+      const deadlineCounts = deadlineMap?.get(hourStr);
 
-      dayHours.push({ counts, date: `${hourStr}:00:00`, hour, runs });
+      dayHours.push({ counts, date: `${hourStr}:00:00`, deadlineCounts, hour, runs });
     }
     monthData.push({ day: currentDate.format("YYYY-MM-DD"), hours: dayHours });
     currentDate = currentDate.add(1, "day");

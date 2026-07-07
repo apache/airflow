@@ -44,10 +44,14 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
     return undefined;
   }
 
-  const { counts, date } = cellData;
+  const { counts, date, deadlineCounts } = cellData;
 
   const relevantCount = viewMode === "failed" ? counts.failed : counts.total;
   const hasRuns = relevantCount > 0;
+
+  const missedDeadlines = deadlineCounts?.missed ?? 0;
+  const pendingDeadlines = deadlineCounts?.pending ?? 0;
+  const hasDeadlines = missedDeadlines > 0 || pendingDeadlines > 0;
 
   // In failed mode, only show failed runs; in total mode, show all non-zero states
   const states = Object.entries(counts)
@@ -70,28 +74,67 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
       state: translate(`common:states.${state}`),
     }));
 
-  return hasRuns ? (
+  return hasRuns || hasDeadlines ? (
     <VStack align="start" data-testid="calendar-tooltip" data-view-mode={viewMode} gap={2}>
       <Text fontSize="sm" fontWeight="medium">
         {date}
       </Text>
-      <VStack align="start" gap={1.5}>
-        {states.map(({ color, count, state }) => (
-          <HStack data-testid={`calendar-tooltip-state-${state.toLowerCase()}`} gap={3} key={state}>
-            <Box
-              bg={color}
-              border="1px solid"
-              borderColor="border.emphasized"
-              borderRadius={SQUARE_BORDER_RADIUS}
-              height={SQUARE_SIZE}
-              width={SQUARE_SIZE}
-            />
-            <Text fontSize="xs">
-              {count} {state}
-            </Text>
-          </HStack>
-        ))}
-      </VStack>
+      {hasRuns ? (
+        <VStack align="start" gap={1.5}>
+          {states.map(({ color, count, state }) => (
+            <HStack data-testid={`calendar-tooltip-state-${state.toLowerCase()}`} gap={3} key={state}>
+              <Box
+                bg={color}
+                border="1px solid"
+                borderColor="border.emphasized"
+                borderRadius={SQUARE_BORDER_RADIUS}
+                height={SQUARE_SIZE}
+                width={SQUARE_SIZE}
+              />
+              <Text fontSize="xs">
+                {count} {state}
+              </Text>
+            </HStack>
+          ))}
+        </VStack>
+      ) : null}
+      {hasDeadlines ? (
+        <VStack align="start" gap={1.5}>
+          <Text color="fg.muted" fontSize="xs" fontWeight="medium">
+            {translate("dag:calendar.deadlines")}
+          </Text>
+          {missedDeadlines > 0 && (
+            <HStack data-testid="calendar-tooltip-deadline-missed" gap={3}>
+              <Box
+                bg="red.500"
+                border="1px solid"
+                borderColor="border.emphasized"
+                borderRadius="50%"
+                height={SQUARE_SIZE}
+                width={SQUARE_SIZE}
+              />
+              <Text fontSize="xs">
+                {translate("dag:deadlineStatus.missedCount", { count: missedDeadlines })}
+              </Text>
+            </HStack>
+          )}
+          {pendingDeadlines > 0 && (
+            <HStack data-testid="calendar-tooltip-deadline-pending" gap={3}>
+              <Box
+                bg="orange.400"
+                border="1px solid"
+                borderColor="border.emphasized"
+                borderRadius="50%"
+                height={SQUARE_SIZE}
+                width={SQUARE_SIZE}
+              />
+              <Text fontSize="xs">
+                {translate("dag:deadlineStatus.upcomingCount", { count: pendingDeadlines })}
+              </Text>
+            </HStack>
+          )}
+        </VStack>
+      ) : null}
     </VStack>
   ) : (
     <Text fontSize="sm">

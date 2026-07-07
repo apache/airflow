@@ -66,6 +66,26 @@ export const CalendarCell = ({
   const isMixedState =
     typeof backgroundColor === "object" && "secondary" in backgroundColor && "primary" in backgroundColor;
 
+  const { deadlineCounts } = cellData ?? {};
+  const hasMissedDeadline = (deadlineCounts?.missed ?? 0) > 0;
+  const hasPendingDeadline = (deadlineCounts?.pending ?? 0) > 0;
+  const hasDeadline = hasMissedDeadline || hasPendingDeadline;
+  // Missed takes priority over pending for the dot color
+  const deadlineDotColor = hasMissedDeadline ? "red.500" : "orange.400";
+
+  const deadlineDot = hasDeadline ? (
+    <Box
+      bg={deadlineDotColor}
+      borderRadius="50%"
+      bottom="1px"
+      data-testid="deadline-dot"
+      height="4px"
+      position="absolute"
+      right="1px"
+      width="4px"
+    />
+  ) : undefined;
+
   const cellBox = isMixedState ? (
     <Box
       _hover={hasData ? { transform: "scale(1.1)" } : {}}
@@ -95,6 +115,7 @@ export const CalendarCell = ({
         position="absolute"
         width="100%"
       />
+      {deadlineDot}
     </Box>
   ) : (
     <Box
@@ -108,8 +129,11 @@ export const CalendarCell = ({
       data-view-mode={viewMode}
       height="14px"
       marginRight={computedMarginRight}
+      position="relative"
       width="14px"
-    />
+    >
+      {deadlineDot}
+    </Box>
   );
 
   if (!hasTooltip) {

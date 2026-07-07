@@ -25,6 +25,7 @@ import { PLANNED_COLOR } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
 
 type Props = {
+  readonly hasDeadlines?: boolean;
   readonly scale: CalendarScale;
   readonly vertical?: boolean;
   readonly viewMode: CalendarColorMode;
@@ -70,8 +71,8 @@ const LegendIcon = ({ color, cursor }: { readonly color: LegendColorType; readon
   return <Box bg={color} borderRadius="2px" boxShadow="sm" cursor={cursor} height="14px" width="14px" />;
 };
 
-export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => {
-  const { t: translate } = useTranslation(["dag", "common"]);
+export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, viewMode }: Props) => {
+  const { t: translate } = useTranslation("dag");
 
   const legendTitle =
     viewMode === "failed" ? translate("overview.buttons.failedRun_other") : translate("calendar.totalRuns");
@@ -174,6 +175,28 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
           </HStack>
         </HStack>
       </Box>
+
+      {Boolean(hasDeadlines) && (
+        <Box mt={4}>
+          <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+            {translate("calendar.deadlines")}
+          </Text>
+          <HStack gap={4} justify="center" wrap="wrap">
+            <HStack gap={2}>
+              <Box bg="orange.400" borderRadius="50%" boxShadow="sm" height="8px" width="8px" />
+              <Text color="fg.muted" fontSize="xs">
+                {translate("deadlineStatus.upcoming")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box bg="red.500" borderRadius="50%" boxShadow="sm" height="8px" width="8px" />
+              <Text color="fg.muted" fontSize="xs">
+                {translate("deadlineStatus.missed")}
+              </Text>
+            </HStack>
+          </HStack>
+        </Box>
+      )}
     </Box>
   );
 };
