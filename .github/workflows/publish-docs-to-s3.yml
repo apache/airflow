@@ -323,15 +323,34 @@ jobs:
           key: cache-docs-inventory-v1
         id: restore-docs-inventory-cache
       - name: "Building docs with --docs-only flag using ${{ inputs.ref }} reference breeze"
+        id: build-sphinx-docs
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
           FAIL_ON_INVENTORIES: ${{ inputs.ignore-missing-inventories != true && '--fail-on-missing-third-party-inventories' || '' }}
-        run: >
-          breeze build-docs ${INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
+        run: |
+          # The Java SDK docs are built with Dokka by the separate build-java-sdk-docs job;
+          # java-sdk is not a Sphinx package, so it must not be passed to breeze build-docs.
+          SPHINX_INCLUDE_DOCS=""
+          for package in ${INCLUDE_DOCS}; do
+            if [[ "${package}" != "java-sdk" ]]; then
+              SPHINX_INCLUDE_DOCS="${SPHINX_INCLUDE_DOCS} ${package}"
+            fi
+          done
+          if [[ -n "${INCLUDE_DOCS}" && -z "${SPHINX_INCLUDE_DOCS// /}" ]]; then
+            echo "Only java-sdk docs were requested - skipping the Sphinx docs build."
+            mkdir -p generated/_build/docs
+            echo "The Sphinx docs build was skipped: only java-sdk docs were requested." \
+              > generated/_build/docs/sphinx-build-skipped.txt
+            echo "sphinx-build-skipped=true" >> "${GITHUB_OUTPUT}"
+          else
+            breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
+          fi
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
-        if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
+        if: >-
+          steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
+          steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -415,8 +434,8 @@ jobs:
           # builds (include-docs == 'all') or when 'java-sdk' is explicitly listed.
           # When a specific list of packages is passed (e.g. a provider release
           # wave like "amazon cncf.kubernetes ..."), the Java SDK must NOT be added
-          # automatically — otherwise the publish step drags java-sdk into a
-          # providers-only publish and the S3 publish fails.
+          # automatically — a providers-only publish should not suddenly refresh the
+          # java-sdk docs as a side effect.
           if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" java-sdk "* ]]; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
             echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'java-sdk' — skipping Javadoc build."
@@ -519,10 +538,9 @@ jobs:
       - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
-          JAVA_SDK_DOCS: ${{ needs.build-java-sdk-docs.outputs.built == 'true' && 'java-sdk' || '' }}
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${INCLUDE_DOCS} ${JAVA_SDK_DOCS}
+          ${INCLUDE_DOCS}
       - name: Check disk space available
         run: df -H
       - name: "Update watermarks"
