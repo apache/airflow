@@ -121,6 +121,7 @@ auditable
 Auth
 auth
 authenticator
+Authentik
 Authlib
 authMechanism
 authorised
