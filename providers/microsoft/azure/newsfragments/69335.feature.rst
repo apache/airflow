@@ -1,0 +1,6 @@
+Added support for certificate-based authentication in the Microsoft Graph filesystem
+(``msgraph``/``sharepoint``/``onedrive``/``msgd`` schemes), matching the existing
+certificate auth support in ``KiotaRequestAdapterHook``. Set ``certificate_path`` or
+``certificate_data`` (and optionally the connection password as the certificate's
+private key password) in the connection extras to use a certificate instead of a
+client secret.
