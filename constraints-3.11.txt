@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-06T21:52:48.991314
+# This constraints file was automatically generated on 2026-07-07T14:56:24.728919
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -193,7 +193,7 @@ azure-mgmt-compute==38.1.0
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==15.0.0
 azure-mgmt-core==1.6.0
-azure-mgmt-cosmosdb==9.9.0
+azure-mgmt-cosmosdb==10.0.0
 azure-mgmt-datafactory==9.3.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
@@ -277,7 +277,7 @@ fastavro==1.12.2
 fastcore==1.13.9
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.29.4
+filelock==3.29.5
 flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
@@ -375,7 +375,7 @@ httpr==0.4.8
 httptools==0.8.0
 httpx2==2.5.0
 httpx==0.28.1
-huggingface_hub==1.21.0
+huggingface_hub==1.22.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -536,9 +536,9 @@ pyasn1_modules==0.4.2
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.3.0
+pydantic-ai-slim==2.4.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.3.0
+pydantic-graph==2.4.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -558,7 +558,7 @@ pyspnego==0.12.1
 python-arango==8.3.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.4.2
+python-discovery==1.4.3
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -570,7 +570,7 @@ python-telegram-bot==22.8
 python3-saml==1.16.0
 pytokens==0.4.1
 pytz==2026.2
-pyvespa==1.2.3
+pyvespa==1.2.4
 pywinrm==0.5.0
 pyzmq==27.1.0
 qdrant-client==1.18.0
@@ -649,7 +649,7 @@ tqdm==4.68.3
 traitlets==5.15.1
 trino==0.338.0
 truststore==0.10.4
-typer==0.25.1
+typer==0.26.8
 types-protobuf==7.34.1.20260518
 types-requests==2.33.0.20260518
 typing-inspect==0.9.0
@@ -684,7 +684,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.397.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
-ydb==3.29.6
+ydb==3.29.7
 zeep==4.3.3
 zenpy==2.0.57
 zipp==4.1.0
