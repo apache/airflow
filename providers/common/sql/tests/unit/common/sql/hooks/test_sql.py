@@ -392,30 +392,30 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_conn_success(self):
+    async def test_aget_conn_success(self):
         hook = mock_db_hook(DbApiHook)
         mock_db_conn = MagicMock()
         hook.connector = AsyncMock()
         hook.connector.connect.return_value = mock_db_conn
-        assert await hook.async_get_conn() is mock_db_conn
+        assert await hook.aget_conn() is mock_db_conn
         hook.connector.connect.assert_awaited_once()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_conn_raises_without_connector(self):
+    async def test_aget_conn_raises_without_connector(self):
         hook = mock_db_hook(DbApiHook)
         hook.connector = None
         with pytest.raises(RuntimeError, match="didn't have `self.connector` set"):
-            await hook.async_get_conn()
+            await hook.aget_conn()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_conn_caches_airflow_connection(self):
+    async def test_aget_conn_caches_airflow_connection(self):
         hook = mock_db_hook(DbApiHook)
         hook.connector = AsyncMock()
         hook.connector.connect.return_value = MagicMock()
-        await hook.async_get_conn()
-        await hook.async_get_conn()
+        await hook.aget_conn()
+        await hook.aget_conn()
         assert hook.connection_invocations == 1
 
     @pytest.mark.db_test
@@ -440,76 +440,76 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_create_connection_yields_conn(self):
+    async def test_acreate_connection_yields_conn(self):
         hook = mock_db_hook(DbApiHook)
         mock_conn = MagicMock()
         mock_conn.close = MagicMock()
-        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._async_create_autocommit_connection() as conn:
+        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._acreate_autocommit_connection() as conn:
                 assert conn is mock_conn
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_create_connection_calls_close(self):
+    async def test_acreate_connection_calls_close(self):
         hook = mock_db_hook(DbApiHook)
         mock_conn = MagicMock()
         mock_conn.close = MagicMock()
         del mock_conn.aclose
-        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._async_create_autocommit_connection():
+        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._acreate_autocommit_connection():
                 pass
         mock_conn.close.assert_called_once()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_create_connection_prefers_aclose(self):
+    async def test_acreate_connection_prefers_aclose(self):
         hook = mock_db_hook(DbApiHook)
         mock_conn = MagicMock()
         mock_conn.aclose = AsyncMock()
         mock_conn.close = MagicMock()
-        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._async_create_autocommit_connection():
+        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._acreate_autocommit_connection():
                 pass
         mock_conn.aclose.assert_awaited_once()
         mock_conn.close.assert_not_called()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_create_connection_sets_sync_autocommit(self):
+    async def test_acreate_connection_sets_sync_autocommit(self):
         hook = mock_db_hook(DbApiHook)
         hook.supports_autocommit = True
         mock_conn = MagicMock()
         mock_conn.close = MagicMock()
         del mock_conn.set_autocommit
-        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._async_create_autocommit_connection(autocommit=True):
+        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._acreate_autocommit_connection(autocommit=True):
                 pass
         assert mock_conn.autocommit is True
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_create_connection_sets_async_autocommit(self):
+    async def test_acreate_connection_sets_async_autocommit(self):
         hook = mock_db_hook(DbApiHook)
         hook.supports_autocommit = True
         mock_conn = MagicMock()
         mock_conn.close = MagicMock()
         mock_conn.set_autocommit = AsyncMock()
-        with patch.object(hook, "async_get_conn", AsyncMock(return_value=mock_conn)):
-            async with hook._async_create_autocommit_connection(autocommit=True):
+        with patch.object(hook, "aget_conn", AsyncMock(return_value=mock_conn)):
+            async with hook._acreate_autocommit_connection(autocommit=True):
                 pass
         mock_conn.set_autocommit.assert_awaited_once_with(True)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_cursor_raises_without_cursor_method(self):
+    async def test_aget_cursor_raises_without_cursor_method(self):
         hook = mock_db_hook(DbApiHook)
         with pytest.raises(AirflowNotFoundException, match="has no cursor\\(\\) method"):
-            async with hook._async_get_cursor(MagicMock(spec=[])):
+            async with hook._aget_cursor(MagicMock(spec=[])):
                 pass
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_cursor_uses_async_context_manager(self):
+    async def test_aget_cursor_uses_async_context_manager(self):
         hook = mock_db_hook(DbApiHook)
         mock_cur = MagicMock()
         cursor_cm = AsyncMock()
@@ -517,12 +517,12 @@ class TestDbApiHook:
         cursor_cm.__aexit__ = AsyncMock(return_value=False)
         conn = MagicMock()
         conn.cursor.return_value = cursor_cm
-        async with hook._async_get_cursor(conn) as cur:
+        async with hook._aget_cursor(conn) as cur:
             assert cur is mock_cur
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_cursor_awaits_cursor_then_uses_async_cm(self):
+    async def test_aget_cursor_awaits_cursor_then_uses_async_cm(self):
         hook = mock_db_hook(DbApiHook)
         mock_cur = MagicMock()
         cursor_cm = AsyncMock()
@@ -534,12 +534,12 @@ class TestDbApiHook:
 
         conn = MagicMock()
         conn.cursor = async_cursor
-        async with hook._async_get_cursor(conn) as cur:
+        async with hook._aget_cursor(conn) as cur:
             assert cur is mock_cur
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_cursor_yields_cursor_with_async_execute(self):
+    async def test_aget_cursor_yields_cursor_with_async_execute(self):
         hook = mock_db_hook(DbApiHook)
         mock_cur = MagicMock()
         mock_cur.execute = AsyncMock()
@@ -549,13 +549,13 @@ class TestDbApiHook:
         del mock_cur.aclose
         conn = MagicMock()
         conn.cursor.return_value = mock_cur
-        async with hook._async_get_cursor(conn) as cur:
+        async with hook._aget_cursor(conn) as cur:
             assert cur is mock_cur
         mock_cur.close.assert_called_once()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_get_cursor_raises_for_unsupported_type(self):
+    async def test_aget_cursor_raises_for_unsupported_type(self):
         hook = mock_db_hook(DbApiHook)
         mock_cur = MagicMock()
         mock_cur.execute = MagicMock()
@@ -564,53 +564,53 @@ class TestDbApiHook:
         conn = MagicMock()
         conn.cursor.return_value = mock_cur
         with pytest.raises(RuntimeError, match="Unsupported cursor type"):
-            async with hook._async_get_cursor(conn) as _:
+            async with hook._aget_cursor(conn) as _:
                 pass
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_run_command_no_params(self):
+    async def test_arun_command_no_params(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
         cur.rowcount = 0
-        await hook._async_run_command(cur, "SELECT 1", None)
+        await hook._arun_command(cur, "SELECT 1", None)
         cur.execute.assert_awaited_once_with("SELECT 1")
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_run_command_with_params(self):
+    async def test_arun_command_with_params(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
         cur.rowcount = 3
-        await hook._async_run_command(cur, "SELECT * FROM t WHERE id=%s", (42,))
+        await hook._arun_command(cur, "SELECT * FROM t WHERE id=%s", (42,))
         cur.execute.assert_awaited_once_with("SELECT * FROM t WHERE id=%s", (42,))
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_run_command_logs_rowcount(self):
+    async def test_arun_command_logs_rowcount(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
         cur.rowcount = 5
         mock_log = MagicMock()
         with patch.object(hook, "_log", mock_log):
-            await hook._async_run_command(cur, "DELETE FROM t", None)
+            await hook._arun_command(cur, "DELETE FROM t", None)
         mock_log.info.assert_any_call("Rows affected: %s", 5)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_async_run_command_skips_rowcount_when_negative(self):
+    async def test_arun_command_skips_rowcount_when_negative(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
         cur.rowcount = -1
         mock_log = MagicMock()
         with patch.object(hook, "_log", mock_log):
-            await hook._async_run_command(cur, "SELECT 1", None)
+            await hook._arun_command(cur, "SELECT 1", None)
         assert not any(call.args[0] == "Rows affected: %s" for call in mock_log.info.call_args_list)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @pytest.mark.parametrize("empty_sql", [[], "", "\n"])
-    async def test_run_async_empty_sql_raises(self, empty_sql):
+    async def test_arun_empty_sql_raises(self, empty_sql):
         hook = mock_db_hook(DbApiHook)
         mock_conn = MagicMock()
         mock_conn.autocommit = False
@@ -624,15 +624,15 @@ class TestDbApiHook:
             yield AsyncMock()
 
         with (
-            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
-            patch.object(hook, "_async_get_cursor", _cursor_cm),
+            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
+            patch.object(hook, "_aget_cursor", _cursor_cm),
         ):
             with pytest.raises(ValueError, match="List of SQL statements is empty"):
-                await hook.run_async(sql=empty_sql)
+                await hook.arun(sql=empty_sql)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_run_async_no_handler_returns_none(self):
+    async def test_arun_no_handler_returns_none(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
         cur.rowcount = 0
@@ -649,10 +649,10 @@ class TestDbApiHook:
             yield cur
 
         with (
-            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
-            patch.object(hook, "_async_get_cursor", _cursor_cm),
+            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
+            patch.object(hook, "_aget_cursor", _cursor_cm),
         ):
-            assert await hook.run_async(sql="INSERT INTO t VALUES (1)") is None
+            assert await hook.arun(sql="INSERT INTO t VALUES (1)") is None
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
@@ -769,7 +769,7 @@ class TestDbApiHook:
             ),
         ],
     )
-    async def test_run_async_query(
+    async def test_arun_query(
         self,
         return_last,
         split_statements,
@@ -795,10 +795,10 @@ class TestDbApiHook:
             yield cur
 
         with (
-            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
-            patch.object(hook, "_async_get_cursor", _cursor_cm),
+            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
+            patch.object(hook, "_aget_cursor", _cursor_cm),
         ):
-            results = await hook.run_async(
+            results = await hook.arun(
                 sql=sql,
                 handler=fetch_all_handler,
                 return_last=return_last,
@@ -811,7 +811,7 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_run_async_commits_on_success(self):
+    async def test_arun_commits_on_success(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
         cur.rowcount = 0
@@ -828,16 +828,16 @@ class TestDbApiHook:
             yield cur
 
         with (
-            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
-            patch.object(hook, "_async_get_cursor", _cursor_cm),
+            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
+            patch.object(hook, "_aget_cursor", _cursor_cm),
         ):
-            await hook.run_async(sql="INSERT INTO t VALUES (1)")
+            await hook.arun(sql="INSERT INTO t VALUES (1)")
 
         mock_conn.commit.assert_called_once()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_run_async_rollback_on_exception(self):
+    async def test_arun_rollback_on_exception(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
         cur.execute.side_effect = RuntimeError("DB error")
@@ -854,17 +854,17 @@ class TestDbApiHook:
             yield cur
 
         with (
-            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
-            patch.object(hook, "_async_get_cursor", _cursor_cm),
+            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
+            patch.object(hook, "_aget_cursor", _cursor_cm),
         ):
             with pytest.raises(RuntimeError, match="DB error"):
-                await hook.run_async(sql="SELECT fail")
+                await hook.arun(sql="SELECT fail")
 
         mock_conn.rollback.assert_called_once()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_run_async_awaits_async_handler(self):
+    async def test_arun_awaits_async_handler(self):
         hook = mock_db_hook(DbApiHook)
         rows = [(1, "a"), (2, "b")]
         cur = AsyncMock()
@@ -886,10 +886,10 @@ class TestDbApiHook:
             yield cur
 
         with (
-            patch.object(hook, "_async_create_autocommit_connection", _conn_cm),
-            patch.object(hook, "_async_get_cursor", _cursor_cm),
+            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
+            patch.object(hook, "_aget_cursor", _cursor_cm),
         ):
-            result = await hook.run_async(sql="SELECT 1", handler=async_handler)
+            result = await hook.arun(sql="SELECT 1", handler=async_handler)
 
         assert result == rows
 
