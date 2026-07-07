@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -235,3 +235,15 @@ class DagVersion(Base):
     def version(self) -> str:
         """A human-friendly representation of the version."""
         return f"{self.dag_id}-{self.version_number}"
+
+
+def _resolve_version_data(
+    dag_version: DagVersion | None, bundle_version: str | None
+) -> dict[str, Any] | None:
+    """Return a bundle version's ``version_data`` manifest, but only for pinned runs."""
+    # Expose version_data only when the run is pinned (bundle_version set) and a DagVersion is
+    # present, so the bundle initializes against the exact version the run used. Unpinned runs
+    # follow the latest bundle state, and legacy rows have no DagVersion.
+    if dag_version is not None and bundle_version is not None:
+        return dag_version.version_data
+    return None
