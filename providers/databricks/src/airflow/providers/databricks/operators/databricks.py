@@ -1586,6 +1586,10 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             try:
                 return int(max_retries)
             except ValueError:
+                self.log.warning(
+                    "Ignoring unparsable max_retries value %r; treating as no retry limit configured.",
+                    max_retries,
+                )
                 return None
         if not isinstance(max_retries, int):
             return None
