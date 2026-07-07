@@ -2663,7 +2663,8 @@ export const $CreateAssetEventsBody = {
             anyOf: [
                 {
                     type: 'string',
-                    maxLength: 250
+                    maxLength: 250,
+                    pattern: '\\S'
                 },
                 {
                     type: 'null'

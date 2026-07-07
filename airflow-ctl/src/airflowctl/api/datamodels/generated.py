@@ -432,7 +432,7 @@ class ConnectionTestResponse(BaseModel):
 
 
 class PartitionKey(RootModel[str]):
-    root: Annotated[str, Field(max_length=250, title="Partition Key")]
+    root: Annotated[str, Field(max_length=250, pattern="\\S", title="Partition Key")]
 
 
 class CreateAssetEventsBody(BaseModel):

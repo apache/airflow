@@ -1353,6 +1353,13 @@ class TestPostAssetEvents(TestAssets):
         response = test_client.post("/assets/events", json=event_payload)
         assert response.status_code == expected_status_code
 
+    def test_partition_key_preserves_surrounding_whitespace(self, test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        event_payload = {"asset_id": asset.id, "partition_key": "  2026-03-23  "}
+        response = test_client.post("/assets/events", json=event_payload)
+        assert response.status_code == 200
+        assert response.json()["partition_key"] == "  2026-03-23  "
+
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
