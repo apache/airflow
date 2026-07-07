@@ -297,7 +297,7 @@ class PostgresHook(DbApiHook):
         self.conn = self._create_connection(conn_args)
         return self.conn
 
-    async def async_get_conn(self) -> Any:
+    async def aget_conn(self) -> Any:
         """Establish an async connection to a postgres database."""
         if not USE_PSYCOPG3:
             raise NotImplementedError("Async connections for PostgresHook require psycopg3.")

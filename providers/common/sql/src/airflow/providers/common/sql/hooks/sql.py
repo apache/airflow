@@ -1185,7 +1185,7 @@ class DbApiHook(BaseHook):
             "raw_connection": db,
         }
 
-    async def async_get_conn(self) -> Any:
+    async def aget_conn(self) -> Any:
         if not hasattr(self, "_conn_lock"):
             self._conn_lock = asyncio.Lock()
         async with self._conn_lock:
@@ -1203,8 +1203,8 @@ class DbApiHook(BaseHook):
         return await sync_to_async(func)(*args, **kwargs)
 
     @asynccontextmanager
-    async def _async_create_autocommit_connection(self, autocommit: bool = False):
-        conn = await self.async_get_conn()
+    async def _acreate_autocommit_connection(self, autocommit: bool = False):
+        conn = await self.aget_conn()
         try:
             if self.supports_autocommit:
                 set_autocommit = getattr(conn, "set_autocommit", None)
@@ -1219,12 +1219,12 @@ class DbApiHook(BaseHook):
                 await self._call(close)
 
     @asynccontextmanager
-    async def _async_get_cursor(self, conn):
+    async def _aget_cursor(self, conn):
         cursor = getattr(conn, "cursor", None)
         if cursor is None:
             raise AirflowNotFoundException(
                 f"{type(conn).__name__} has no cursor() method. "
-                "Override _async_get_cursor in the DB-specific hook."
+                "Override _aget_cursor in the DB-specific hook."
             )
         cur_or_cm = cursor()
         if inspect.isawaitable(cur_or_cm):
@@ -1247,10 +1247,10 @@ class DbApiHook(BaseHook):
             return
         raise RuntimeError(
             f"Unsupported cursor type returned by {type(conn).__name__}. "
-            "Override _async_get_cursor in the DB-specific hook."
+            "Override _aget_cursor in the DB-specific hook."
         )
 
-    async def _async_run_command(self, cur, sql_statement, parameters):
+    async def _arun_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
         if self.log_sql:
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
@@ -1307,13 +1307,13 @@ class DbApiHook(BaseHook):
             raise ValueError("List of SQL statements is empty")
         _last_result = None
         _last_description = None
-        async with self._async_create_autocommit_connection(autocommit) as conn:
+        async with self._acreate_autocommit_connection(autocommit) as conn:
             try:
-                async with self._async_get_cursor(conn) as cur:
+                async with self._aget_cursor(conn) as cur:
                     results = []
                     for sql_statement in sql_list:
                         sql_to_run = await self._call(self._translate_sql, sql_statement)
-                        await self._async_run_command(cur, sql_to_run, parameters)
+                        await self._arun_command(cur, sql_to_run, parameters)
                         if handler is not None:
                             handled = handler(cur)
                             if inspect.isawaitable(handled):
