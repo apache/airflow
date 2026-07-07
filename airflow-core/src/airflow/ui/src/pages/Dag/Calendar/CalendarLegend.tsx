@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "src/components/ui";
 
+import { LegendIcon } from "./LegendIcon";
 import { PLANNED_COLOR } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
 
@@ -29,46 +30,6 @@ type Props = {
   readonly scale: CalendarScale;
   readonly vertical?: boolean;
   readonly viewMode: CalendarColorMode;
-};
-
-type LegendColorType =
-  | Record<string, string>
-  | string
-  | { primary: Record<string, string> | string; secondary: Record<string, string> | string };
-
-const LegendIcon = ({ color, cursor }: { readonly color: LegendColorType; readonly cursor?: string }) => {
-  const isMixedState = typeof color === "object" && "primary" in color && "secondary" in color;
-
-  if (isMixedState) {
-    return (
-      <Box
-        borderRadius="2px"
-        boxShadow="sm"
-        cursor={cursor}
-        height="14px"
-        overflow="hidden"
-        position="relative"
-        width="14px"
-      >
-        <Box
-          bg={color.secondary}
-          clipPath="polygon(0 100%, 100% 100%, 0 0)"
-          height="100%"
-          position="absolute"
-          width="100%"
-        />
-        <Box
-          bg={color.primary}
-          clipPath="polygon(100% 0, 100% 100%, 0 0)"
-          height="100%"
-          position="absolute"
-          width="100%"
-        />
-      </Box>
-    );
-  }
-
-  return <Box bg={color} borderRadius="2px" boxShadow="sm" cursor={cursor} height="14px" width="14px" />;
 };
 
 export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, viewMode }: Props) => {
