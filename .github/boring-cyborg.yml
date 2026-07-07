@@ -144,6 +144,9 @@ labelPRBasedOnFilePath:
   provider:docker:
     - providers/docker/**
 
+  provider:dq:
+    - providers/dq/**
+
   provider:edge:
     - providers/edge3/**
 
