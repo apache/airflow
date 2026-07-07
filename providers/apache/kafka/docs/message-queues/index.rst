@@ -80,8 +80,8 @@ For how to use the trigger, refer to the documentation of the
 The ``apply_function``
 ----------------------
 
-The ``apply_function`` is applied to every message polled from the Kafka topic(s). If it returns any data,
-the returned value is used as the payload of the ``TriggerEvent``. Otherwise the trigger continues polling.
+The ``apply_function`` is applied to every message polled from the Kafka topic(s). If it returns a truthy
+value, that value is used as the payload of the ``TriggerEvent``. Otherwise, the trigger keeps polling.
 It is required when using the Kafka queue provider, while the Kafka sensors also accept ``None``, in which
 case the raw message value (decoded as UTF-8) is used as the event payload.
 
