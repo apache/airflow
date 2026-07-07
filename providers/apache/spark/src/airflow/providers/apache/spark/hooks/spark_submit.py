@@ -1229,44 +1229,22 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                     )
                             else:
                                 consecutive_waiting = 0
-
-                phase = pod.status.phase or "Initializing"
-                self.log.info("Application status for %s (phase: %s)", app_id, phase)
-                if phase == "Succeeded":
-                    if pod.status.container_statuses:
-                        cs = pod.status.container_statuses[0]
-                        if cs.state and cs.state.terminated:
-                            t = cs.state.terminated
-                            self.log.info(
-                                "Container final status: exit_code=%s reason=%s started_at=%s finished_at=%s",
-                                t.exit_code,
-                                t.reason,
-                                t.started_at,
-                                t.finished_at,
-                            )
-                    terminal_phase = phase
-                    break
-                if phase == "Failed":
-                    container_state = ""
-                    if pod.status.container_statuses:
-                        cs = pod.status.container_statuses[0]
-                        if cs.state and cs.state.terminated:
-                            container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
-                    raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
-                if phase == "Pending":
-                    consecutive_pending += 1
-                    if consecutive_pending == waiting_or_pending_warn_threshold:
-                        self.log.warning(
-                            "Driver pod %s has been Pending for %d polls (~%ds); "
-                            "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
-                            pod_name,
-                            consecutive_pending,
-                            consecutive_pending * poll_interval,
-                        )
                 else:
                     phase = pod.status.phase or "Initializing"
                     self.log.info("Application status for %s (phase: %s)", app_id, phase)
                     if phase == "Succeeded":
+                        if pod.status.container_statuses:
+                            cs = pod.status.container_statuses[0]
+                            if cs.state and cs.state.terminated:
+                                t = cs.state.terminated
+                                self.log.info(
+                                    "Container final status: exit_code=%s reason=%s started_at=%s finished_at=%s",
+                                    t.exit_code,
+                                    t.reason,
+                                    t.started_at,
+                                    t.finished_at,
+                                )
+                        terminal_phase = phase
                         break
                     if phase == "Failed":
                         container_state = ""
