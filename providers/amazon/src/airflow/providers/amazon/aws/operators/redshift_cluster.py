@@ -867,9 +867,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         self.final_cluster_snapshot_identifier = final_cluster_snapshot_identifier
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
-        # Keep retrying while another operation is running on the cluster: a delete issued mid-transition
-        # (e.g. a pause/resize in progress) raises InvalidClusterStateFault. Retry until the cluster
-        # settles into a deletable state. 60 * 15s = ~15 min, long enough to outlast a cluster pause.
+        # Retry the delete while the cluster is mid-transition (InvalidClusterStateFault) until it
+        # settles into a deletable state.
         self._attempts = 60
         self._attempt_interval = 15
         self.deferrable = deferrable
@@ -877,9 +876,6 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
 
     def execute(self, context: Context):
         if self.deferrable:
-            # In deferrable mode we must not block the worker with the synchronous busy-retry loop.
-            # Attempt the delete once; if the cluster is mid-transition (InvalidClusterStateFault),
-            # hand off to the triggerer to wait for it to settle and then re-issue the delete.
             self._delete_or_defer_until_settled()
             return
 
