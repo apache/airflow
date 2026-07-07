@@ -358,20 +358,17 @@ jobs:
           retention-days: '2'
       - name: "Generate Execution API schema artifact"
         if: needs.build-info.outputs.publish-execution-api-schema == 'true'
-        env:
-          # Building the in-process app runs its lifespan, which constructs the
-          # JWT validator and requires a secret. The value is never used.
-          AIRFLOW__API_AUTH__JWT_SECRET: "schema-generation-not-a-real-secret"
         run: |
           mkdir -p schemas
-          uv run --frozen --project airflow-core -s \
-            scripts/ci/prek/generate_execution_api_schema.py > schemas/execution-api.json
+          breeze shell --quiet --backend=none \
+            "AIRFLOW__API_AUTH__JWT_SECRET=schema-generation-not-a-real-secret \
+             python scripts/ci/prek/generate_execution_api_schema.py > schemas/execution-api.json"
       - name: "Generate Supervisor schema artifact"
         if: needs.build-info.outputs.publish-supervisor-schema == 'true'
         run: |
           mkdir -p schemas
-          uv run --frozen --project task-sdk -s \
-            scripts/ci/prek/dump_supervisor_schemas.py > schemas/supervisor-schema.json
+          breeze shell --quiet --backend none \
+            "python scripts/ci/prek/dump_supervisor_schemas.py > schemas/supervisor-schema.json"
       - name: "Upload schema artifacts"
         if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
