@@ -198,6 +198,60 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_id=self.scheduler_job_id,
         )
 
+    def _coordinator_extra(self, queue: str | None) -> dict[str, Any] | None:
+        """
+        Return the ``extra`` mapping a coordinator declares for *queue*, if any.
+
+        Read from the coordinator's declarative ``[sdk]`` config without importing
+        or instantiating the coordinator. The coordinator manager only exists on
+        Airflow 3.3+; on older Task SDKs the import fails and we fall back to no
+        extra. A malformed ``[sdk] coordinators`` / ``queue_to_coordinator`` config
+        must not crash the scheduler on this first lookup either, so an invalid
+        config also falls back to no extra. The exception types are imported from
+        ``airflow.sdk`` so they match whatever Task SDK actually raised them.
+        """
+        if not queue:
+            return None
+        try:
+            from airflow.sdk.exceptions import AirflowConfigException
+            from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+        except ImportError:
+            return None
+        try:
+            return get_coordinator_manager().extra_for_queue(queue)
+        except (AirflowConfigException, ValueError):
+            self.log.warning(
+                "Ignoring coordinator config for queue %s: invalid [sdk] coordinator config",
+                queue,
+                exc_info=True,
+            )
+            return None
+
+    def _coordinator_pod_template_file(self, extra: dict[str, Any]) -> str | None:
+        """
+        Return the pod template declared in a coordinator's *extra* mapping, if any.
+
+        Lets a queue routed to a non-Python coordinator (via ``[sdk]
+        queue_to_coordinator``) launch its worker pod from a coordinator-specific
+        template — for example an image carrying the JVM for a Java coordinator.
+        """
+        return extra.get("pod_template_file")
+
+    def _coordinator_kube_image(self, extra: dict[str, Any]) -> str | None:
+        """
+        Return the worker base image declared in a coordinator's *extra* mapping, if any.
+
+        The base container image is never taken from a pod template; it comes
+        from ``kube_image`` (``worker_container_repository:worker_container_tag``)
+        or a per-task ``pod_override``. A coordinator may declare its own
+        ``worker_container_repository`` and ``worker_container_tag`` in ``extra``
+        (e.g. a JRE-bearing image for a Java coordinator); both are required to
+        compose an override, otherwise the executor default applies.
+        """
+        if (repo := extra.get("worker_container_repository")) and (tag := extra.get("worker_container_tag")):
+            return f"{repo}:{tag}"
+        return None
+
     def execute_async(
         self,
         key: TaskInstanceKey,
@@ -225,8 +279,34 @@ class KubernetesExecutor(BaseExecutor):
             pod_template_file = executor_config.get("pod_template_file", None)
         else:
             pod_template_file = None
+
+        coordinator_kube_image: str | None = None
+        if (coordinator_extra := self._coordinator_extra(queue)) is not None:
+            # A coordinator-level pod_template wins (e.g. a JVM image for JavaCoordinator)
+            coordinator_pod_template_file = self._coordinator_pod_template_file(coordinator_extra)
+            if coordinator_pod_template_file is not None:
+                self.log.debug(
+                    "Using coordinator-declared pod template %s for task %s in queue %s",
+                    coordinator_pod_template_file,
+                    key,
+                    queue,
+                )
+                pod_template_file = coordinator_pod_template_file
+
+            # The base image is not carried by a pod template, so a coordinator routes
+            # its worker base image separately (e.g. a JRE image for a Java queue).
+            if (coordinator_kube_image := self._coordinator_kube_image(coordinator_extra)) is not None:
+                self.log.debug(
+                    "Using coordinator-declared base image %s for task %s in queue %s",
+                    coordinator_kube_image,
+                    key,
+                    queue,
+                )
+
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
-        self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
+        self.task_queue.put(
+            KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
+        )
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
