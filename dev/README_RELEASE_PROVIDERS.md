@@ -104,8 +104,7 @@ PMC. Split of duties:
 | Step | Owner | Notes |
 |---|---|---|
 | [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions) | Delegate | Normal PR review/merge process, no PMC involvement needed. |
-| [Build Provider distributions for SVN apache upload](#build-provider-distributions-for-svn-apache-upload) | Delegate | Builds are reproducible; anyone can build the unsigned artifacts. |
-| [Build and sign](#build-and-sign-the-source-and-convenience-packages) + [commit to `dist/dev`](#commit-the-source-packages-to-apache-svn-repo) + [publish RC to PyPI](#publish-the-regular-distributions-to-pypi-release-candidates) | PMC | The three trust-sensitive steps are kept as **one contiguous PMC block** to avoid handing control back and forth: the PMC member re-builds reproducibly (or takes the Delegate's artifacts as-is), signs with their own key (already in the project's `KEYS` file), commits packages + signatures to `dist/dev`, and uploads the RC to the `apache-airflow-providers-*` PyPI namespace under the PMC's trusted publishing identity. The PMC then hands `files/packages.txt` (the PyPI URLs) back to the Delegate for the vote email. |
+| [Build](#build-provider-distributions-for-svn-apache-upload) + [sign](#build-and-sign-the-source-and-convenience-packages) + [commit to `dist/dev`](#commit-the-source-packages-to-apache-svn-repo) + [publish RC to PyPI](#publish-the-regular-distributions-to-pypi-release-candidates) | PMC | Kept as **one contiguous PMC block**: per [ASF release policy](https://www.apache.org/legal/release-policy.html#owned-controlled-hardware), a PMC member signing a release should build it themselves from source rather than sign artifacts someone else built, so they know what they're actually signing. The PMC member builds, signs with their own key (already in the project's `KEYS` file), commits packages + signatures to `dist/dev`, and uploads the RC to the `apache-airflow-providers-*` PyPI namespace under the PMC's trusted publishing identity. The PMC then hands `files/packages.txt` (the PyPI URLs) back to the Delegate for the vote email. |
 | [Push the RC tags](#push-the-rc-tags) | Delegate | Plain git tag push, no elevated access needed. |
 | [Prepare documentation in Staging](#prepare-documentation-in-staging) | Delegate | |
 | [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing) | Delegate | Delegate also tracks the issue, the vote thread, and related PRs throughout the release. |
@@ -126,7 +125,7 @@ remains the party accountable for the release under ASF policy.
 > [!NOTE]
 > Delegation is also a runway toward PMC membership. The first time a committer takes on the
 > Delegate role, the overseeing PMC member is encouraged to walk them through the reserved block
-> live — sharing their screen (or pairing) through the sign → `dist/dev` → PyPI-RC steps so the
+> live — sharing their screen (or pairing) through the build → sign → `dist/dev` → PyPI-RC steps so the
 > Delegate sees exactly how it is done. The aim is simply that these steps are familiar rather than
 > a surprise if and when the Delegate later becomes a PMC member and runs them for real.
 
@@ -500,6 +499,14 @@ breeze release-management prepare-provider-documentation --include-removed-provi
 
 ## Build Provider distributions for SVN apache upload
 
+> [!NOTE]
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this build step
+> begins the **PMC block**, together with signing, the `dist/dev` commit, and the PyPI RC upload.
+> Per [ASF release policy](https://www.apache.org/legal/release-policy.html#owned-controlled-hardware),
+> a PMC member should build the release themselves before signing it, rather than sign artifacts
+> built by someone else — otherwise they don't actually know what they're signing. So the PMC member
+> who signs also runs the build below, instead of the Delegate handing over pre-built artifacts.
+
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
 should keep the final version number without the rc suffix, even if they are rc1/rc2/... candidates.
 
@@ -557,11 +564,11 @@ key you want to use.
 ## Build and sign the source and convenience packages
 
 > [!NOTE]
-> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this signing step
-> begins the **PMC block** — the PMC member runs `sign.sh` with their own key (already in the
-> project's `KEYS` file), then stays on through the `dist/dev` commit and the PyPI RC upload without
-> handing control back. They can sign either the Delegate's built artifacts as-is or a local rebuild
-> (provider builds are reproducible). The preceding *build* step is the Delegate's.
+> Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this step
+> continues the **PMC block** started at [Build Provider distributions](#build-provider-distributions-for-svn-apache-upload)
+> — the same PMC member builds and signs with their own key (already in the project's `KEYS`
+> file), then stays on through the `dist/dev` commit and the PyPI RC upload without handing control
+> back.
 
 * Cleanup dist folder:
 
@@ -667,7 +674,7 @@ cd "$AIRFLOW_REPO_ROOT"
 
 > [!NOTE]
 > Under the [delegated process](#delegating-release-duties-to-a-non-pmc-committer) this is the end of
-> the **PMC block** (sign → `dist/dev` → PyPI RC) — all uploads to the `apache-airflow-providers-*`
+> the **PMC block** (build → sign → `dist/dev` → PyPI RC) — all uploads to the `apache-airflow-providers-*`
 > PyPI namespace, RC and final alike, go through the PMC's trusted publishing identity. When done,
 > the PMC member hands the generated `files/packages.txt` (the PyPI URLs) back to the Delegate, who
 > needs it for the vote email's completeness gate and body, and the Delegate resumes at [Push the RC
