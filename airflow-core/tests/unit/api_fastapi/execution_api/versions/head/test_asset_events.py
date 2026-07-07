@@ -536,7 +536,7 @@ class TestGetAssetEventByAssetPartitionKey:
 
     @pytest.fixture(autouse=True)
     def _enable_regexp_query_filters(self):
-        with conf_vars({("api", "enable_regexp_query_filters"): "True"}):
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
             yield
 
     @pytest.fixture
@@ -682,7 +682,7 @@ class TestGetAssetEventByAssetPartitionKey:
         assert "Invalid regular expression" in response.json()["detail"]
 
     def test_get_by_asset_with_pattern_disabled_returns_400(self, client):
-        with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
             response = client.get(
                 "/execution/asset-events/by-asset",
                 params={
@@ -762,7 +762,7 @@ class TestGetAssetEventByAssetAliasPartitionKey:
 
     @pytest.fixture(autouse=True)
     def _enable_regexp_query_filters(self):
-        with conf_vars({("api", "enable_regexp_query_filters"): "True"}):
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
             yield
 
     @pytest.fixture
@@ -839,7 +839,7 @@ class TestGetAssetEventByAssetAliasPartitionKey:
         assert "Invalid regular expression" in response.json()["detail"]
 
     def test_get_by_alias_with_pattern_disabled_returns_400(self, client):
-        with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
             response = client.get(
                 "/execution/asset-events/by-asset-alias",
                 params={"name": "partitioned_alias", "partition_key_regexp_pattern": "^us"},

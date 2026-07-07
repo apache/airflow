@@ -522,19 +522,19 @@ class _RegexParam(BaseParam[str]):
     Filter using database-level regex matching (regexp_match).
 
     The pattern is handed to the database's own regex engine (via SQLAlchemy's
-    ``regexp_match``), so this filter is gated behind the
-    ``[api] enable_regexp_query_filters`` setting to contain the ReDoS attack
-    surface: it cannot be instantiated with a value unless the setting is enabled.
+    ``regexp_match``), so this filter is gated behind the ``[api] regexp_query_timeout``
+    setting to contain the ReDoS attack surface: it cannot be instantiated with a value
+    unless a positive timeout is configured (which both enables the feature and bounds it).
     """
 
     def __init__(self, attribute: ColumnElement, value: str | None = None, skip_none: bool = True) -> None:
         super().__init__(value=value, skip_none=skip_none)
         self.attribute: ColumnElement = attribute
-        if value is not None and not conf.getboolean("api", "enable_regexp_query_filters"):
+        if value is not None and conf.getint("api", "regexp_query_timeout") <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Regexp query filters are disabled. "
-                "Set [api] enable_regexp_query_filters = True to use them.",
+                "Set [api] regexp_query_timeout to a positive number of seconds to enable them.",
             )
 
     def to_orm(self, select: Select) -> Select:

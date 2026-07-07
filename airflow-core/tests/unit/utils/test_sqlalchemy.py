@@ -391,23 +391,28 @@ class TestApplyRegexQueryTimeout:
         session.get_bind.return_value.dialect.name = dialect_name
         return session
 
-    def test_sets_statement_timeout_on_postgresql(self):
+    def test_sets_and_resets_statement_timeout_on_postgresql(self):
         session = self._mock_session("postgresql")
         with conf_vars({("api", "regexp_query_timeout"): "5"}):
-            apply_regex_query_timeout(session)
-        session.execute.assert_called_once()
-        stmt = session.execute.call_args.args[0]
-        # 5 seconds -> 5000 ms, passed as a bound parameter (no SQL injection).
-        assert stmt.compile().params == {"timeout": "5000"}
+            with apply_regex_query_timeout(session):
+                # Timeout is set on enter.
+                assert session.execute.call_count == 1
+                set_stmt = session.execute.call_args.args[0]
+                # 5 seconds -> 5000 ms, passed as a bound parameter (no SQL injection).
+                assert set_stmt.compile().params == {"timeout": "5000"}
+        # Reset on exit so the timeout does not leak to other statements in the transaction.
+        assert session.execute.call_count == 2
 
     def test_noop_on_non_postgresql(self):
         session = self._mock_session("mysql")
         with conf_vars({("api", "regexp_query_timeout"): "5"}):
-            apply_regex_query_timeout(session)
+            with apply_regex_query_timeout(session):
+                pass
         session.execute.assert_not_called()
 
     def test_noop_when_timeout_disabled(self):
         session = self._mock_session("postgresql")
         with conf_vars({("api", "regexp_query_timeout"): "0"}):
-            apply_regex_query_timeout(session)
+            with apply_regex_query_timeout(session):
+                pass
         session.execute.assert_not_called()

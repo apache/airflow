@@ -257,7 +257,7 @@ The accessor also supports chaining methods to filter events before fetching the
         for event in us_events:
             print(event.extra, event.partition_key)
 
-For an exact partition key match, use ``.partition_key(value)`` instead. Regexp filtering is opt-in and must be enabled with the ``[api] enable_regexp_query_filters`` setting; see the config for the security trade-off.
+For an exact partition key match, use ``.partition_key(value)`` instead. Regexp filtering is opt-in: it is enabled only by setting ``[api] regexp_query_timeout`` to a positive number of seconds, which also bounds the query runtime; see the config for the security trade-off.
 
 You can also filter events by their ``extra`` key-value pairs:
 
@@ -997,25 +997,24 @@ Two parameters are available:
     curl -G "http://<airflow-host>/api/v2/assets/events" \
       --data-urlencode "partition_key=us|2026-03-10"
 
-- ``partition_key_pattern`` for **regex filtering** — uses database-native regex
-  (PostgreSQL ``~`` operator, MySQL ``REGEXP``, SQLite ``re.match``):
+- ``partition_key_regexp_pattern`` for **regular-expression filtering**:
 
 .. code-block:: bash
 
     curl -G "http://<airflow-host>/api/v2/assets/events" \
-      --data-urlencode "partition_key_pattern=^us"
+      --data-urlencode "partition_key_regexp_pattern=^us"
 
-These parameters are mutually exclusive; providing both returns a 400 error.
+Both parameters can be combined; the conditions are applied with AND logic.
 
 .. note::
 
-    ``partition_key_pattern`` is evaluated by the database's own regular-expression engine, which
-    is a Regular expression Denial of Service (ReDoS) surface. For that reason it is **disabled by
-    default** and must be enabled with ``[api] enable_regexp_query_filters = True``. When enabled,
-    the query runs on PostgreSQL under a bounded ``statement_timeout`` controlled by
-    ``[api] regexp_query_timeout`` (seconds); MySQL bounds regex evaluation with its built-in
-    ``regexp_time_limit``. Prefer the exact-match ``partition_key`` (which uses the B-tree index and
-    is always enabled) whenever a full key is known.
+    ``partition_key_regexp_pattern`` is evaluated by the database's own regular-expression engine,
+    which is a Regular expression Denial of Service (ReDoS) surface. For that reason it is **disabled
+    by default**: it is enabled only by setting ``[api] regexp_query_timeout`` to a positive number
+    of seconds, which simultaneously bounds the query runtime (enforced as a ``statement_timeout`` on
+    PostgreSQL; MySQL bounds regex evaluation with its built-in ``regexp_time_limit``). Prefer the
+    exact-match ``partition_key`` (which uses the B-tree index and is always enabled) whenever a full
+    key is known.
 
 The same filters are available in the ``InletEventsAccessor``:
 
@@ -1024,8 +1023,8 @@ The same filters are available in the ``InletEventsAccessor``:
     # Exact match
     events = inlet_events[Asset("my_asset")].partition_key("us|2026-03-10").limit(1)
 
-    # Regex pattern
-    events = inlet_events[Asset("my_asset")].partition_key_pattern(r"^us\|2026-03-").limit(10)
+    # Regular-expression pattern
+    events = inlet_events[Asset("my_asset")].partition_key_regexp_pattern(r"^us\|2026-03-").limit(10)
 
 Fan-out mappers
 ~~~~~~~~~~~~~~~

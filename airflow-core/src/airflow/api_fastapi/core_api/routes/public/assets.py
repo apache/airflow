@@ -332,39 +332,38 @@ def get_asset_events(
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
-    if partition_key_regexp_pattern.value is not None:
-        # Bound the runtime of the user-supplied regex to guard against ReDoS.
-        apply_regex_query_timeout(session)
-
     base_statement = select(AssetEvent)
     if name_pattern.value or name_prefix_pattern.value:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
-    assets_event_select, total_entries = paginated_select(
-        statement=base_statement,
-        filters=[
-            asset_id,
-            source_dag_id,
-            source_task_id,
-            source_run_id,
-            source_map_index,
-            partition_key,
-            partition_key_regexp_pattern,
-            name_pattern,
-            name_prefix_pattern,
-            extra_filter,
-            timestamp_range,
-        ],
-        order_by=order_by,
-        offset=offset,
-        limit=limit,
-        session=session,
-    )
+    # Bound the runtime of the user-supplied regex to guard against ReDoS, scoped to the queries
+    # executed within this block (the count query in paginated_select and the fetch below).
+    with apply_regex_query_timeout(session):
+        assets_event_select, total_entries = paginated_select(
+            statement=base_statement,
+            filters=[
+                asset_id,
+                source_dag_id,
+                source_task_id,
+                source_run_id,
+                source_map_index,
+                partition_key,
+                partition_key_regexp_pattern,
+                name_pattern,
+                name_prefix_pattern,
+                extra_filter,
+                timestamp_range,
+            ],
+            order_by=order_by,
+            offset=offset,
+            limit=limit,
+            session=session,
+        )
 
-    assets_event_select = assets_event_select.options(
-        subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset)
-    )
-    assets_events = session.scalars(assets_event_select)
+        assets_event_select = assets_event_select.options(
+            subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset)
+        )
+        assets_events = session.scalars(assets_event_select).all()
 
     return AssetEventCollectionResponse(
         asset_events=assets_events,

@@ -60,7 +60,9 @@ def _get_asset_events_through_sql_clauses(
         asset_events_query = filter_.to_orm(asset_events_query)
     if limit:
         asset_events_query = asset_events_query.limit(limit)
-    asset_events = session.scalars(asset_events_query)
+    # Bound the runtime of any user-supplied regex filter to guard against ReDoS, scoped to this query.
+    with apply_regex_query_timeout(session):
+        asset_events = session.scalars(asset_events_query).all()
     return AssetEventsResponse.model_validate(
         {
             "asset_events": [
@@ -145,10 +147,6 @@ def get_asset_event_by_asset_name_uri(
     if extra_dict:
         where_clause = and_(where_clause, JsonContains(AssetEvent.extra, extra_dict))
 
-    if partition_key_regexp_pattern.value is not None:
-        # Bound the runtime of the user-supplied regex to guard against ReDoS.
-        apply_regex_query_timeout(session)
-
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.asset,
         where_clause=where_clause,
@@ -184,10 +182,6 @@ def get_asset_event_by_asset_alias(
     extra_dict = _parse_extra_params(extra)
     if extra_dict:
         where_clause = and_(where_clause, JsonContains(AssetEvent.extra, extra_dict))
-
-    if partition_key_regexp_pattern.value is not None:
-        # Bound the runtime of the user-supplied regex to guard against ReDoS.
-        apply_regex_query_timeout(session)
 
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.source_aliases,
