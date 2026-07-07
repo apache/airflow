@@ -100,7 +100,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations
+from airflowctl.api.operations import BaseOperations, _build_query_params
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -127,6 +127,20 @@ class HelloCollectionResponse(BaseModel):
 
 
 class TestBaseOperations:
+    def test_build_query_params_skips_none_and_serializes_datetime(self):
+        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.timezone.utc)
+
+        assert _build_query_params(
+            logical_date=logical_date,
+            state=None,
+            limit=10,
+            order_by="-id",
+        ) == {
+            "logical_date": logical_date.isoformat(),
+            "limit": 10,
+            "order_by": "-id",
+        }
+
     def test_server_connection_refused(self):
         client = make_api_client(base_url="http://localhost")
         with pytest.raises(
