@@ -460,6 +460,15 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         )
 
         location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
+        if not self.dataflow_job_id and self.dataflow_hook and self.dataflow_job_name:
+            fetched_job_id = self.dataflow_hook.fetch_job_id_by_name(
+                job_name=self.dataflow_job_name,
+                project_id=self.dataflow_config.project_id,
+                location=location,
+            )
+            if fetched_job_id and isinstance(fetched_job_id, str):
+                self.dataflow_job_id = fetched_job_id
+
         DataflowJobLink.persist(
             context=context,
             region=self.dataflow_config.location,
@@ -655,6 +664,14 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                 is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
             )
             if self.dataflow_job_name and self.dataflow_config.location:
+                if not self.dataflow_job_id and self.dataflow_hook:
+                    fetched_job_id = self.dataflow_hook.fetch_job_id_by_name(
+                        job_name=self.dataflow_job_name,
+                        project_id=self.dataflow_config.project_id,
+                        location=self.dataflow_config.location,
+                    )
+                    if fetched_job_id and isinstance(fetched_job_id, str):
+                        self.dataflow_job_id = fetched_job_id
                 DataflowJobLink.persist(
                     context=context,
                     region=self.dataflow_config.location,
@@ -823,6 +840,14 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                     variables=snake_case_pipeline_options,
                     process_line_callback=process_line_callback,
                 )
+                if not self.dataflow_job_id and dataflow_job_name and self.dataflow_config.location:
+                    fetched_job_id = self.dataflow_hook.fetch_job_id_by_name(
+                        job_name=dataflow_job_name,
+                        project_id=self.dataflow_config.project_id,
+                        location=self.dataflow_config.location,
+                    )
+                    if fetched_job_id and isinstance(fetched_job_id, str):
+                        self.dataflow_job_id = fetched_job_id
                 DataflowJobLink.persist(context=context)
                 if dataflow_job_name and self.dataflow_config.location:
                     self.dataflow_hook.wait_for_done(

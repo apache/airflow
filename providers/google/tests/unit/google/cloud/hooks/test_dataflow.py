@@ -342,6 +342,42 @@ class TestDataflowHook:
         )
         method_wait_for_done.assert_called_once_with()
 
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    def test_fetch_job_id_by_name(self, mock_conn, mock_dataflowjob):
+        controller = mock_dataflowjob.return_value
+        controller._fetch_jobs_by_prefix_name.return_value = [{"id": "TEST_JOB_ID_123"}]
+
+        res = self.dataflow_hook.fetch_job_id_by_name(
+            job_name="JOB_NAME",
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        controller._fetch_jobs_by_prefix_name.assert_called_once_with("JOB_NAME")
+        assert res == "TEST_JOB_ID_123"
+
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    def test_fetch_job_id_by_name_multiple_jobs(self, mock_conn, mock_dataflowjob):
+        controller = mock_dataflowjob.return_value
+        controller._fetch_jobs_by_prefix_name.return_value = [
+            {"id": "TEST_JOB_ID_123", "name": "JOB_NAME_1"},
+            {"id": "TEST_JOB_ID_456", "name": "JOB_NAME_2"},
+        ]
+
+        res = self.dataflow_hook.fetch_job_id_by_name(
+            job_name="JOB_NAME",
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        assert res is None
+
 
 @pytest.mark.db_test
 class TestDataflowTemplateHook:

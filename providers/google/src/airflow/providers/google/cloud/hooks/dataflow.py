@@ -1174,6 +1174,38 @@ class DataflowHook(GoogleBaseHook):
         return jobs_controller.fetch_job_by_id(job_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def fetch_job_id_by_name(
+        self,
+        job_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> str | None:
+        """
+        Fetch the job ID of the job with the specified name prefix.
+
+        :param job_name: Job name prefix to search for.
+        :param project_id: Optional, the Google Cloud project ID.
+        :param location: The location of the Dataflow job.
+        :return: the Job ID if exactly one job is found, otherwise None.
+        """
+        try:
+            jobs_controller = _DataflowJobsController(
+                dataflow=self.get_conn(),
+                project_number=project_id,
+                location=location,
+            )
+            jobs = jobs_controller._fetch_jobs_by_prefix_name(job_name)
+            if len(jobs) == 1:
+                return jobs[0]["id"]
+            if len(jobs) > 1:
+                self.log.warning("Multiple Dataflow jobs found matching prefix %s: %s", job_name, [j["name"] for j in jobs])
+            else:
+                self.log.info("No Dataflow jobs found matching prefix %s", job_name)
+        except Exception as e:
+            self.log.warning("Failed to fetch Dataflow job ID by name prefix %s: %s", job_name, e)
+        return None
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def fetch_job_metrics_by_id(
         self,
         job_id: str,
