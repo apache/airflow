@@ -54,7 +54,6 @@ class LocalKubernetesExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
-    supports_streaming_logs: bool = True
     # TODO: Remove this attribute once providers rely on Airflow >=3.0.0
     supports_pickling: bool = False
     supports_sentry: bool = False

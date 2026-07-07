@@ -2772,9 +2772,6 @@ class TestKubernetesExecutor:
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 
-    def test_supports_streaming_logs(self):
-        assert KubernetesExecutor.supports_streaming_logs is True
-
     def test_cli_commands_vended(self):
         assert KubernetesExecutor.get_cli_commands()
 

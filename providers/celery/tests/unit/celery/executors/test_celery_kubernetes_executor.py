@@ -49,9 +49,6 @@ class TestCeleryKubernetesExecutor:
     def test_serve_logs_default_value(self):
         assert not CeleryKubernetesExecutor.serve_logs
 
-    def test_supports_streaming_logs(self):
-        assert CeleryKubernetesExecutor.supports_streaming_logs
-
     def test_cli_commands_vended(self):
         assert CeleryKubernetesExecutor.get_cli_commands()
 

@@ -56,7 +56,6 @@ class CeleryKubernetesExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
-    supports_streaming_logs: bool = True
     # TODO: Remove this flag once providers depend on Airflow 3.0
     supports_pickling: bool = True
     supports_sentry: bool = False

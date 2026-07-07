@@ -48,9 +48,6 @@ class TestLocalKubernetesExecutor:
     def test_serve_logs_default_value(self):
         assert LocalKubernetesExecutor.serve_logs
 
-    def test_supports_streaming_logs(self):
-        assert LocalKubernetesExecutor.supports_streaming_logs
-
     def test_cli_commands_vended(self):
         assert LocalKubernetesExecutor.get_cli_commands()
 

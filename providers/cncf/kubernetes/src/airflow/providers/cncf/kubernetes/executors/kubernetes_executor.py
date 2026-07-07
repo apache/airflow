@@ -100,7 +100,6 @@ class KubernetesExecutor(BaseExecutor):
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
     supports_multi_team: bool = True
-    supports_streaming_logs: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
