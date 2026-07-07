@@ -100,6 +100,7 @@ OpenAI, Anthropic, or other pydantic-ai-supported connection:
     :maxdepth: 1
     :caption: Guides
 
+    Quick start <quickstart>
     Connection types <connections/pydantic_ai>
     MCP connection <connections/mcp>
     Hooks <hooks/index>
