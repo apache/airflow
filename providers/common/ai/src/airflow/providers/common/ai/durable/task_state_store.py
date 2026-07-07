@@ -27,7 +27,7 @@ needed.
 
 This module is imported only on Airflow >= 3.3 (see
 ``AgentOperator._build_durable_storage``); ``NEVER_EXPIRE`` does not exist on
-older cores.
+older airflow versions.
 """
 
 from __future__ import annotations

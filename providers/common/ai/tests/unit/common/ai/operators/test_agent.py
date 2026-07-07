@@ -31,11 +31,12 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.usage import UsageLimits
 
+from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -557,12 +558,15 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
         assert op.durable is False
 
-    @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", True)
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store backend requires Airflow >= 3.3")
     def test_build_durable_storage_uses_task_state_store_on_3_3(self):
         """On Airflow >= 3.3 the cache lives in the task state store -- no durable_cache_path needed."""
+        # Imported inside the test: this module runs on all cores, but both symbols
+        # (and ``NEVER_EXPIRE``, pulled in by ``task_state_store``) only exist on 3.3+.
         from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
+        from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
-        accessor = MagicMock()
+        accessor = MagicMock(spec=TaskStateStoreAccessor)
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
 
         storage = op._build_durable_storage({"task_state_store": accessor})
@@ -573,9 +577,8 @@ class TestAgentOperatorDurable:
     @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", False)
     def test_build_durable_storage_falls_back_to_object_storage_below_3_3(self):
         """On Airflow < 3.3 the cache falls back to the ObjectStorage backend."""
-        from airflow.providers.common.ai.durable.storage import DurableStorage
-
-        ti = MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        ti = MagicMock(spec=["dag_id", "task_id", "run_id", "map_index"])
+        ti.configure_mock(dag_id="d", task_id="t", run_id="r", map_index=-1)
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
 
         storage = op._build_durable_storage({"task_instance": ti})
