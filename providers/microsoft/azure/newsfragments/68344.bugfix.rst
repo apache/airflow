@@ -1,0 +1,1 @@
+Fix ADLS ``ObjectStoragePath`` connection parsing to pass ``account_name`` for Active Directory ``adls`` connections while preserving the existing ``account_url`` behavior for WASB, full-URL, and custom-endpoint connections
