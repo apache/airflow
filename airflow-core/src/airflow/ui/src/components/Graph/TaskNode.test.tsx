@@ -24,6 +24,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { TaskNode } from "./TaskNode";
+import { readableTextForFill } from "./nodeColors";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 vi.mock("src/context/groups", () => ({
@@ -67,7 +68,33 @@ describe("TaskNode operator colors", () => {
     );
   });
 
+  it("tints a leaf task when ui_color is a raw hex color", () => {
+    expect(renderHtml({ operator: "BashOperator", uiColor: "#e8b7e4" })).not.toBe(
+      renderHtml({ operator: "BashOperator" }),
+    );
+  });
+
   it("tints a group node when ui_color is a token (2.x parity: ui_color is the group fill)", () => {
     expect(renderHtml({ isGroup: true, uiColor: "blue.500" })).not.toBe(renderHtml({ isGroup: true }));
+  });
+
+  it("alternates the group fill shade by nesting depth so nested groups stay distinct", () => {
+    expect(renderHtml({ depth: 0, isGroup: true, isOpen: true, uiColor: "blue.500" })).not.toBe(
+      renderHtml({ depth: 1, isGroup: true, isOpen: true, uiColor: "blue.500" }),
+    );
+  });
+});
+
+describe("readableTextForFill", () => {
+  it.each([
+    { color: "#ffffff", expected: "black" },
+    { color: "#fff", expected: "black" },
+    { color: "#000000", expected: "gray.50" },
+    { color: "#e8b7e4", expected: "black" },
+    { color: "#1f77b4", expected: "gray.50" },
+    { color: "blue.500", expected: undefined },
+    { color: undefined, expected: undefined },
+  ])("returns $expected for a fill of $color", ({ color, expected }) => {
+    expect(readableTextForFill(color)).toBe(expected);
   });
 });

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, LinkOverlay, Text, useToken } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 
@@ -29,7 +29,13 @@ import { NodeWrapper } from "./NodeWrapper";
 import { SegmentedStateBar } from "./SegmentedStateBar";
 import { TaskLink } from "./TaskLink";
 import { opacityStyle } from "./graphTypes";
+import { readableTextForFill } from "./nodeColors";
 import type { CustomNodeProps } from "./reactflowUtils";
+
+// A colored group is softened toward the surface and alternates between these two shares of the custom
+// color by nesting depth, so open nested groups stay visually distinct (like the bg.muted/bg stripes).
+const GROUP_FILL_STRONG = 45;
+const GROUP_FILL_SOFT = 22;
 
 export const TaskNode = ({
   data: {
@@ -55,6 +61,9 @@ export const TaskNode = ({
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
   const { t: translate } = useTranslation("components");
   const { toggleGroupId } = useGroups();
+  // Resolve the fill through Chakra so any token (dotted like "blue.500" or bare like "bg") becomes a
+  // valid CSS color for the group color-mix; raw hex/CSS names pass through unchanged.
+  const [resolvedFill] = useToken("colors", [uiColor ?? "transparent"]);
   const onClick = () => {
     if (isGroup) {
       toggleGroupId(id);
@@ -86,6 +95,24 @@ export const TaskNode = ({
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
 
+  const hasCustomColor = uiColor ?? undefined;
+  // Custom colors can mess up the readability of the text, so we calculate a readable foreground color for the node based on the background color.
+  const readableFgColor = isGroup ? undefined : readableTextForFill(hasCustomColor);
+  // Alternate nested groups colors so nested groups are visually distinct and readable
+  const shouldAlternate = isOpen && depth !== undefined && depth % 2 === 0;
+
+  let nodeBg: string;
+
+  if (!isGroup) {
+    nodeBg = hasCustomColor ?? "bg";
+  } else if (hasCustomColor === undefined) {
+    nodeBg = shouldAlternate ? "bg.muted" : "bg";
+  } else {
+    const share = shouldAlternate ? GROUP_FILL_STRONG : GROUP_FILL_SOFT;
+
+    nodeBg = `color-mix(in srgb, ${resolvedFill} ${share}%, var(--chakra-colors-bg))`;
+  }
+
   return (
     <NodeWrapper>
       <Flex alignItems="center" cursor="default" flexDirection="column" {...opacityStyle(isFiltered)}>
@@ -98,14 +125,13 @@ export const TaskNode = ({
           tooltip={isGroup ? tooltip : undefined}
         >
           <Flex
-            // Custom operator/group fill (ui_color: hex or Chakra token), else alternate background
-            // color for nested open groups
-            bg={uiColor ?? (isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg")}
+            bg={nodeBg}
             borderColor={
               isSelected ? "blue.500" : taskInstance?.state ? `${taskInstance.state}.solid` : "border"
             }
             borderRadius={5}
             borderWidth={isSelected ? 4 : 2}
+            color={readableFgColor}
             direction="column"
             height={`${height + (isSelected ? 4 : 0)}px`}
             overflow="hidden"
@@ -129,7 +155,7 @@ export const TaskNode = ({
               </LinkOverlay>
             </HStack>
             <Text
-              color={uiFgcolor ?? "fg.muted"}
+              color={uiFgcolor ?? readableFgColor ?? "fg.muted"}
               fontSize="sm"
               overflow="hidden"
               textOverflow="ellipsis"
