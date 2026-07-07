@@ -2035,7 +2035,8 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name == "helm-chart":
         return chart_version()
 
-    if package_name in ("docker-stack", "apache-airflow-providers"):
+    if package_name in ("docker-stack", "apache-airflow-providers", "java-sdk"):
+        # Non-versioned packages; java-sdk is versioned but only via a staged stable.txt.
         return None
 
     if package_name.startswith("apache-airflow-providers-"):

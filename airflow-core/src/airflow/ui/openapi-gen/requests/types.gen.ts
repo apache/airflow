@@ -2272,6 +2272,16 @@ export type DAGRunLightResponse = {
 };
 
 /**
+ * Per-Dag counts of DagRuns grouped by state.
+ */
+export type DAGRunStateCountsResponse = {
+    dag_id: string;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -2333,6 +2343,14 @@ export type DAGWithLatestDagRunsResponse = {
      * Return file token.
      */
     readonly file_token: string;
+};
+
+/**
+ * Collection of per-Dag DagRun-state counts for the Dag list page.
+ */
+export type DAGsRunStateCountsCollectionResponse = {
+    dags: Array<DAGRunStateCountsResponse>;
+    state_count_limit: number;
 };
 
 /**
@@ -3482,6 +3500,12 @@ export type GetLatestRunInfoData = {
 };
 
 export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
+
+export type GetDagRunStateCountsUiData = {
+    dagIds: Array<(string)>;
+};
+
+export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -6334,6 +6358,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/run_state_counts': {
+        get: {
+            req: GetDagRunStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsRunStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */
