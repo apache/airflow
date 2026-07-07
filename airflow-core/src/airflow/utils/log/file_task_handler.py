@@ -398,7 +398,7 @@ def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
 
 def _is_logs_stream_like(log) -> bool:
     """Check if the logs are stream-like."""
-    return isinstance(log, (chain, GeneratorType))
+    return isinstance(log, (chain, islice, GeneratorType))
 
 
 def _get_compatible_log_stream(
