@@ -97,12 +97,17 @@ repos:
         require_serial: true
       - id: lint-json-schema
         name: Lint chart/values.schema.json
-        entry: ../scripts/ci/prek/lint_json_schema.py
+        entry: python ../scripts/ci/prek/lint_json_schema.py
         args:
           - --spec-file
           - values_schema.schema.json
           - values.schema.json
         language: python
+        additional_dependencies:
+          - jsonschema>=3.2.0,<5.0
+          - pyyaml>=6.0.3
+          - requests==2.32.3
+          - rich>=13.6.0
         pass_filenames: false
         files: ^values\.schema\.json$|^values_schema\.schema\.json$
         require_serial: true
@@ -113,13 +118,18 @@ repos:
         files: ^values\.schema\.json$
       - id: lint-json-schema
         name: Lint chart/values.yaml
-        entry: ../scripts/ci/prek/lint_json_schema.py
+        entry: python ../scripts/ci/prek/lint_json_schema.py
         args:
           - --enforce-defaults
           - --spec-file
           - values.schema.json
           - values.yaml
         language: python
+        additional_dependencies:
+          - jsonschema>=3.2.0,<5.0
+          - pyyaml>=6.0.3
+          - requests==2.32.3
+          - rich>=13.6.0
         pass_filenames: false
         files: ^values\.yaml$|^values\.schema\.json$
         require_serial: true

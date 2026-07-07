@@ -683,7 +683,7 @@ database:
         Check connection at the start of each connection pool checkout.
         Typically, this is a simple statement like "SELECT 1".
         See `SQLAlchemy Pooling: Disconnect Handling - Pessimistic
-        <https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic>`__
+        <https://docs.sqlalchemy.org/en/20/core/pooling.html#disconnect-handling-pessimistic>`__
         for more details.
       version_added: 2.3.0
       type: boolean

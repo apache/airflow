@@ -1,0 +1,493 @@
+2026-07-08T15:24:26.106059Z DEBUG prek: 0.4.8 (cccc61bef 2026-07-04)
+2026-07-08T15:24:26.106394Z DEBUG Args: ["C:\\Users\\Vishal\\.local\\bin\\prek.exe", "run", "lint-json-schema", "--all-files", "--refresh", "--log-file", "log3.txt"]
+2026-07-08T15:24:26.218742Z TRACE get_root: close time.busy=112ms time.idle=30.9µs
+2026-07-08T15:24:26.219639Z DEBUG Git root: C:\Users\Vishal\Code_File\Repo Folder\airflow
+2026-07-08T15:24:26.220364Z DEBUG Found workspace root at `C:\Users\Vishal\Code_File\Repo Folder\airflow`
+2026-07-08T15:24:26.220516Z TRACE Include selectors: `lint-json-schema`
+2026-07-08T15:24:26.220568Z TRACE Skip selectors: ``
+2026-07-08T15:24:26.220679Z DEBUG discover{root="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow" config=None refresh=true}: Performing fresh workspace discovery
+2026-07-08T15:24:26.225675Z TRACE discover{root="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow" config=None refresh=true}:list_submodules{git_root="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: close time.busy=167µs time.idle=4.20µs
+2026-07-08T15:24:26.249255Z DEBUG Loading project configuration path=.pre-commit-config.yaml
+2026-07-08T15:24:26.356824Z DEBUG Loading project configuration path=airflow-ctl-tests\.pre-commit-config.yaml
+2026-07-08T15:24:26.357972Z DEBUG Loading project configuration path=chart\.pre-commit-config.yaml
+2026-07-08T15:24:26.360384Z DEBUG Loading project configuration path=airflow-core\.pre-commit-config.yaml
+2026-07-08T15:24:26.360584Z DEBUG Loading project configuration path=docker-tests\.pre-commit-config.yaml
+2026-07-08T15:24:26.362519Z DEBUG Loading project configuration path=airflow-ctl\.pre-commit-config.yaml
+2026-07-08T15:24:26.362672Z DEBUG Loading project configuration path=kubernetes-tests\.pre-commit-config.yaml
+2026-07-08T15:24:26.369115Z DEBUG Loading project configuration path=task-sdk-integration-tests\.pre-commit-config.yaml
+2026-07-08T15:24:26.374603Z DEBUG Loading project configuration path=dev\.pre-commit-config.yaml
+2026-07-08T15:24:26.375045Z DEBUG Loading project configuration path=task-sdk\.pre-commit-config.yaml
+2026-07-08T15:24:26.396566Z DEBUG Loading project configuration path=airflow-e2e-tests\.pre-commit-config.yaml
+2026-07-08T15:24:26.403373Z DEBUG Loading project configuration path=dev\mypy\.pre-commit-config.yaml
+2026-07-08T15:24:26.409584Z DEBUG Loading project configuration path=shared\timezones\.pre-commit-config.yaml
+2026-07-08T15:24:26.426545Z DEBUG Loading project configuration path=shared\template_rendering\.pre-commit-config.yaml
+2026-07-08T15:24:26.433475Z DEBUG Loading project configuration path=go-sdk\.pre-commit-config.yaml
+2026-07-08T15:24:26.436423Z DEBUG Loading project configuration path=shared\state\.pre-commit-config.yaml
+2026-07-08T15:24:26.441275Z DEBUG Loading project configuration path=shared\serialization\.pre-commit-config.yaml
+2026-07-08T15:24:26.446693Z DEBUG Loading project configuration path=shared\secrets_masker\.pre-commit-config.yaml
+2026-07-08T15:24:26.454001Z DEBUG Loading project configuration path=shared\secrets_backend\.pre-commit-config.yaml
+2026-07-08T15:24:26.460013Z DEBUG Loading project configuration path=shared\providers_discovery\.pre-commit-config.yaml
+2026-07-08T15:24:26.470411Z DEBUG Loading project configuration path=shared\logging\.pre-commit-config.yaml
+2026-07-08T15:24:26.471361Z DEBUG Loading project configuration path=shared\plugins_manager\.pre-commit-config.yaml
+2026-07-08T15:24:26.477417Z DEBUG Loading project configuration path=shared\configuration\.pre-commit-config.yaml
+2026-07-08T15:24:26.477735Z DEBUG Loading project configuration path=shared\observability\.pre-commit-config.yaml
+2026-07-08T15:24:26.478050Z DEBUG Loading project configuration path=shared\dagnode\.pre-commit-config.yaml
+2026-07-08T15:24:26.478154Z DEBUG Loading project configuration path=scripts\.pre-commit-config.yaml
+2026-07-08T15:24:26.479701Z DEBUG Loading project configuration path=providers\.pre-commit-config.yaml
+2026-07-08T15:24:26.485192Z DEBUG Loading project configuration path=shared\listeners\.pre-commit-config.yaml
+2026-07-08T15:24:26.487523Z DEBUG Loading project configuration path=shared\module_loading\.pre-commit-config.yaml
+2026-07-08T15:24:26.589529Z DEBUG Loading project configuration path=providers\common\compat\.pre-commit-config.yaml
+2026-07-08T15:24:26.596521Z DEBUG Loading project configuration path=providers\fab\.pre-commit-config.yaml
+2026-07-08T15:24:26.621545Z DEBUG Loading project configuration path=providers\common\ai\.pre-commit-config.yaml
+2026-07-08T15:24:26.667949Z DEBUG Loading project configuration path=providers\edge3\.pre-commit-config.yaml
+2026-07-08T15:24:26.728609Z DEBUG Loading project configuration path=providers\keycloak\.pre-commit-config.yaml
+2026-07-08T15:24:26.751365Z DEBUG Loading project configuration path=providers\amazon\.pre-commit-config.yaml
+2026-07-08T15:24:26.992102Z TRACE discover{root="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow" config=None refresh=true}: close time.busy=771ms time.idle=4.30µs
+2026-07-08T15:24:26.993900Z TRACE Checking lock resource="store" path=C:\Users\Vishal\AppData\Local\prek\.lock
+2026-07-08T15:24:26.993971Z DEBUG Acquired lock resource="store"
+2026-07-08T15:24:27.009245Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-http-exception-import-from-fastapi
+2026-07-08T15:24:27.010041Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.010133Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-common-compat-sdk-imports-in-sync
+2026-07-08T15:24:27.010556Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-airflow-mypy
+2026-07-08T15:24:27.011239Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.011333Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-airflow-mypy-manual
+2026-07-08T15:24:27.012229Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.012317Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-http-exception-import-from-fastapi
+2026-07-08T15:24:27.013257Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.013322Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-openapi-spec-edge
+2026-07-08T15:24:27.013733Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.013781Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-http-exception-import-from-fastapi
+2026-07-08T15:24:27.014767Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.014845Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-migration-references-edge3
+2026-07-08T15:24:27.015385Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.015436Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-revision-heads-map-edge3
+2026-07-08T15:24:27.015888Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.015948Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-openapi-spec-fab
+2026-07-08T15:24:27.016327Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.016394Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-http-exception-import-from-fastapi
+2026-07-08T15:24:27.016780Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.016934Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-migration-references-fab
+2026-07-08T15:24:27.017277Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.017332Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-revision-heads-map-fab
+2026-07-08T15:24:27.017695Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.017833Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=prevent-deprecated-sqlalchemy-usage-fab
+2026-07-08T15:24:27.018784Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.018852Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-openapi-spec-keycloak
+2026-07-08T15:24:27.019628Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.019713Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-http-exception-import-from-fastapi
+2026-07-08T15:24:27.020358Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.020420Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-configuration
+2026-07-08T15:24:27.020869Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.020908Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-dagnode
+2026-07-08T15:24:27.021216Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.021247Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-listeners
+2026-07-08T15:24:27.021706Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.021747Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-logging
+2026-07-08T15:24:27.022253Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.022330Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-module_loading
+2026-07-08T15:24:27.022824Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.022908Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-observability
+2026-07-08T15:24:27.023802Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.023882Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-plugins_manager
+2026-07-08T15:24:27.027323Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.027414Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-providers_discovery
+2026-07-08T15:24:27.027909Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.027956Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-secrets_backend
+2026-07-08T15:24:27.028361Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.028397Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-secrets_masker
+2026-07-08T15:24:27.028875Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.028949Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-serialization
+2026-07-08T15:24:27.029678Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.029733Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-state
+2026-07-08T15:24:27.030213Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.030316Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-template_rendering
+2026-07-08T15:24:27.031242Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.031333Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-shared-timezones
+2026-07-08T15:24:27.031882Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.031943Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-taskinstance-tis-attrs
+2026-07-08T15:24:27.032709Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.032771Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-airflow-k8s-not-used
+2026-07-08T15:24:27.033288Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.033358Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-common-compat-used-for-openlineage
+2026-07-08T15:24:27.033789Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.033843Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-cncf-k8s-only-for-executors
+2026-07-08T15:24:27.034197Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.034261Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-extra-packages-references
+2026-07-08T15:24:27.034577Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.034626Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-only-new-session-with-provide-session
+2026-07-08T15:24:27.034890Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-base-operator-partial-arguments
+2026-07-08T15:24:27.035248Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.035282Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-decorated-operator-implements-custom-name
+2026-07-08T15:24:27.035495Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-tests-in-the-right-folders
+2026-07-08T15:24:27.035753Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.035787Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-json-schema
+2026-07-08T15:24:27.035800Z TRACE Skipping reading PEP 723 metadata for hook `lint-json-schema` because it already has `additional_dependencies`
+2026-07-08T15:24:27.035814Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-code-deprecations
+2026-07-08T15:24:27.036373Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.036422Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-http-exception-import-from-fastapi
+2026-07-08T15:24:27.036749Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.036778Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=create-missing-init-py-files-tests
+2026-07-08T15:24:27.037024Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.037053Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-tests-unittest-testcase
+2026-07-08T15:24:27.037313Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-airflow-core
+2026-07-08T15:24:27.037785Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.037824Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-openapi-spec
+2026-07-08T15:24:27.038293Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.038352Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-i18n-json
+2026-07-08T15:24:27.038644Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.038672Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-migration-references
+2026-07-08T15:24:27.038887Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.038909Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=migration-round-trip
+2026-07-08T15:24:27.039190Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.039281Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-default-configuration
+2026-07-08T15:24:27.039609Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.039670Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-security-doc-constants
+2026-07-08T15:24:27.039999Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.040049Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-sdk-imports
+2026-07-08T15:24:27.040299Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.040324Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-schema-defaults
+2026-07-08T15:24:27.040523Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.040606Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-airflow-ctl
+2026-07-08T15:24:27.040923Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.040951Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-airflowctl-help-images
+2026-07-08T15:24:27.041200Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.041228Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-airflowctl-command-coverage
+2026-07-08T15:24:27.041545Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.041646Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-airflowctl-help-texts
+2026-07-08T15:24:27.041975Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.042068Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-airflowctl-command-coverage
+2026-07-08T15:24:27.042370Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.042437Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-airflow-ctl-tests
+2026-07-08T15:24:27.042754Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.042842Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-airflow-e2e-tests
+2026-07-08T15:24:27.043231Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.043287Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.043541Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-chart-dependencies
+2026-07-08T15:24:27.043947Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.043996Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-helm-tests
+2026-07-08T15:24:27.044298Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.044340Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=pretty-format-json
+2026-07-08T15:24:27.044491Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-helm-chart
+2026-07-08T15:24:27.044744Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.044788Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=validate-chart-annotations
+2026-07-08T15:24:27.045308Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.045400Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=kubeconform
+2026-07-08T15:24:27.045675Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.045715Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=build-kustomize-overlays
+2026-07-08T15:24:27.045963Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.045986Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-json-schema
+2026-07-08T15:24:27.046392Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-vendored-in-k8s-json-schema
+2026-07-08T15:24:27.046795Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.046849Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-json-schema
+2026-07-08T15:24:27.047634Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-chart-schema
+2026-07-08T15:24:27.048361Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-dev
+2026-07-08T15:24:27.048993Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.049058Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-docker-tests
+2026-07-08T15:24:27.049500Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.049579Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.049866Z TRACE Skipping go.mod metadata extraction because language_version is already configured hook=go-mod-tidy
+2026-07-08T15:24:27.049896Z TRACE Skipping go.mod metadata extraction because language_version is already configured hook=imports
+2026-07-08T15:24:27.049920Z TRACE Skipping go.mod metadata extraction because language_version is already configured hook=gofmt
+2026-07-08T15:24:27.049968Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-kubernetes-tests
+2026-07-08T15:24:27.050583Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.050683Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-deferrable-default
+2026-07-08T15:24:27.051291Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.051380Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-trigger-serialize-init
+2026-07-08T15:24:27.051912Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.051968Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-providers-dependencies
+2026-07-08T15:24:27.052375Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.052418Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=validate-operators-init
+2026-07-08T15:24:27.052747Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.052774Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-providers-build-files
+2026-07-08T15:24:27.053040Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.053064Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-airflow-v-imports-in-tests
+2026-07-08T15:24:27.053331Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.053354Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-sql-dependency-common-data-structure
+2026-07-08T15:24:27.053607Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.053716Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-volumes-for-sources
+2026-07-08T15:24:27.053999Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.054038Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-get-lineage-collector-providers
+2026-07-08T15:24:27.054326Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.054348Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-aiobotocore-optional
+2026-07-08T15:24:27.054762Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.054788Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-providers-subpackages-init-file-exist
+2026-07-08T15:24:27.055123Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.055141Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-system-tests-tocs
+2026-07-08T15:24:27.055426Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.055450Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-provider-docs-valid
+2026-07-08T15:24:27.055745Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.055768Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-connection-doc-labels
+2026-07-08T15:24:27.056060Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.056089Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-providers
+2026-07-08T15:24:27.056434Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.056466Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-providers
+2026-07-08T15:24:27.056822Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.056852Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-provider-yaml-valid
+2026-07-08T15:24:27.057169Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.057189Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-cli-definition-imports
+2026-07-08T15:24:27.057581Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.057648Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-imports-in-providers
+2026-07-08T15:24:27.058021Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.058089Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-conf-import-in-providers
+2026-07-08T15:24:27.058537Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.058568Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=provider-version-compat
+2026-07-08T15:24:27.058908Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-scripts
+2026-07-08T15:24:27.059315Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.059343Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-core-imports
+2026-07-08T15:24:27.059654Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.059674Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-init-decorator-arguments
+2026-07-08T15:24:27.060031Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.060053Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-task-sdk
+2026-07-08T15:24:27.060474Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.060519Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-task-sdk-integration-tests
+2026-07-08T15:24:27.060784Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.060841Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.061064Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.061310Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.061432Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.061531Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.061627Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.061735Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.061833Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.062775Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.063010Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.063313Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=insert-license
+2026-07-08T15:24:27.063562Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-min-python-version
+2026-07-08T15:24:27.067191Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.067328Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-notice-year
+2026-07-08T15:24:27.068260Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.068342Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-notice-files
+2026-07-08T15:24:27.068839Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.068894Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-version-consistency
+2026-07-08T15:24:27.069347Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.069552Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-ci-workflows-in-sync
+2026-07-08T15:24:27.069884Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-java-sdk-version-in-sync
+2026-07-08T15:24:27.070251Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-partition-mapper-defaults-in-sync
+2026-07-08T15:24:27.070874Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.070944Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-window-in-sync
+2026-07-08T15:24:27.071448Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.071549Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=sync-uv-min-version-markers
+2026-07-08T15:24:27.072153Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.072230Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-distribution-gitignore
+2026-07-08T15:24:27.072697Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.072750Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=upgrade-important-versions
+2026-07-08T15:24:27.073620Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.073688Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=blacken-docs
+2026-07-08T15:24:27.073703Z TRACE Skipping reading PEP 723 metadata for hook `blacken-docs` because it already has `additional_dependencies`
+2026-07-08T15:24:27.073722Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-merge-conflict
+2026-07-08T15:24:27.073963Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=debug-statements
+2026-07-08T15:24:27.074245Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-builtin-literals
+2026-07-08T15:24:27.074455Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=detect-private-key
+2026-07-08T15:24:27.074743Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=end-of-file-fixer
+2026-07-08T15:24:27.075015Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mixed-line-ending
+2026-07-08T15:24:27.075196Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-executables-have-shebangs
+2026-07-08T15:24:27.075356Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-xml
+2026-07-08T15:24:27.075535Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=trailing-whitespace
+2026-07-08T15:24:27.075726Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=yamllint
+2026-07-08T15:24:27.075894Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=flynt
+2026-07-08T15:24:27.076113Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=codespell
+2026-07-08T15:24:27.076396Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=zizmor
+2026-07-08T15:24:27.076689Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-shared-distributions-structure
+2026-07-08T15:24:27.077280Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.077340Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-shared-distributions-usage
+2026-07-08T15:24:27.078094Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.078161Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-airflow-imports-in-shared
+2026-07-08T15:24:27.078605Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.078679Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-test-only-imports-in-src
+2026-07-08T15:24:27.079119Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.079311Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-secrets-search-path-sync
+2026-07-08T15:24:27.079741Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-registry-types-json-sync
+2026-07-08T15:24:27.080111Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=ruff
+2026-07-08T15:24:27.080138Z TRACE Skipping reading PEP 723 metadata for hook `ruff` because it already has `additional_dependencies`
+2026-07-08T15:24:27.080157Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=ruff-format
+2026-07-08T15:24:27.081870Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.082037Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=replace-bad-characters
+2026-07-08T15:24:27.082699Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.082771Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-dockerfile
+2026-07-08T15:24:27.083158Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-airflow-bug-report-template
+2026-07-08T15:24:27.083835Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.083895Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-local-yml-file
+2026-07-08T15:24:27.084706Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-extras-order
+2026-07-08T15:24:27.085131Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.085256Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-airflow-diagrams
+2026-07-08T15:24:27.085658Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.085699Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=prevent-deprecated-sqlalchemy-usage
+2026-07-08T15:24:27.086317Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.086481Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-supported-versions
+2026-07-08T15:24:27.086799Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.086862Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-api-permissions-doc
+2026-07-08T15:24:27.087105Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-revision-heads-map
+2026-07-08T15:24:27.087450Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.087480Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-version
+2026-07-08T15:24:27.087736Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.087820Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-template-context-variable-in-sync
+2026-07-08T15:24:27.088112Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.088157Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-example-dag-tags
+2026-07-08T15:24:27.088542Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.088673Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-apache-license-rat
+2026-07-08T15:24:27.088976Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-metrics-synced-with-registry
+2026-07-08T15:24:27.088990Z TRACE Skipping reading PEP 723 metadata for hook `check-metrics-synced-with-registry` because it already has `additional_dependencies`
+2026-07-08T15:24:27.089002Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-boring-cyborg-configuration
+2026-07-08T15:24:27.089375Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.089406Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-in-the-wild-to-be-sorted
+2026-07-08T15:24:27.089847Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.089878Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-installed-providers-to-be-sorted
+2026-07-08T15:24:27.090296Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-spelling-wordlist-to-be-sorted
+2026-07-08T15:24:27.090652Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-integrations-list-consistent
+2026-07-08T15:24:27.091246Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.091321Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=sync-translation-namespaces
+2026-07-08T15:24:27.091779Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-agent-skills
+2026-07-08T15:24:27.091817Z TRACE Skipping reading PEP 723 metadata for hook `generate-agent-skills` because it already has `additional_dependencies`
+2026-07-08T15:24:27.091834Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-pyproject-toml
+2026-07-08T15:24:27.092292Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.092323Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-excluded-provider-markers
+2026-07-08T15:24:27.092334Z TRACE Skipping reading PEP 723 metadata for hook `check-excluded-provider-markers` because it already has `additional_dependencies`
+2026-07-08T15:24:27.092347Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-reproducible-source-date-epoch
+2026-07-08T15:24:27.092657Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.092681Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-breeze-top-dependencies-limited
+2026-07-08T15:24:27.092945Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.092973Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-system-tests-present
+2026-07-08T15:24:27.093240Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.093262Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-pypi-readme
+2026-07-08T15:24:27.093481Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=sync-provider-readme
+2026-07-08T15:24:27.093746Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.093827Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-json-schema
+2026-07-08T15:24:27.094081Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.094125Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-json-schema
+2026-07-08T15:24:27.094449Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.094480Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=lint-json-schema
+2026-07-08T15:24:27.094742Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.094764Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-persist-credentials-disabled-in-github-workflows
+2026-07-08T15:24:27.095126Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.095145Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-docstring-param-types
+2026-07-08T15:24:27.095431Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.095453Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-inlined-dockerfile-scripts
+2026-07-08T15:24:27.095722Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-docker-gpg-keys
+2026-07-08T15:24:27.096007Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-changelog-has-no-duplicates
+2026-07-08T15:24:27.096277Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-no-conventional-commit-message
+2026-07-08T15:24:27.096628Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-changelog-format
+2026-07-08T15:24:27.096929Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-newsfragments-are-valid
+2026-07-08T15:24:27.097908Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=update-breeze-cmd-output
+2026-07-08T15:24:27.098838Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.098970Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-example-dags-urls
+2026-07-08T15:24:27.099336Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.099387Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-lazy-logging
+2026-07-08T15:24:27.099732Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.099848Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-no-new-airflow-exceptions
+2026-07-08T15:24:27.100285Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.100321Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-no-new-provide-session-positional
+2026-07-08T15:24:27.100735Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.100767Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-no-new-airflow-core-utils-modules
+2026-07-08T15:24:27.101122Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.101172Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=bandit
+2026-07-08T15:24:27.101188Z TRACE Skipping reading PEP 723 metadata for hook `bandit` because it already has `additional_dependencies`
+2026-07-08T15:24:27.101202Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-k8s-schemas-published
+2026-07-08T15:24:27.101562Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=mypy-devel-common
+2026-07-08T15:24:27.101978Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.102005Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-shared-mypy-hooks
+2026-07-08T15:24:27.102411Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.102462Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-migration-patterns
+2026-07-08T15:24:27.102485Z TRACE Skipping reading PEP 723 metadata for hook `check-migration-patterns` because it already has `additional_dependencies`
+2026-07-08T15:24:27.102508Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-template-fields-valid
+2026-07-08T15:24:27.102850Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.102877Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-execution-api-versions
+2026-07-08T15:24:27.103198Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.103224Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-supervisor-schemas-snapshot
+2026-07-08T15:24:27.103530Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.103554Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-supervisor-schemas-versions
+2026-07-08T15:24:27.103916Z TRACE `language_version` is ignored because `requires_python` is specified in the PEP 723 metadata
+2026-07-08T15:24:27.103942Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-tasksdk-datamodels
+2026-07-08T15:24:27.104149Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=generate-airflowctl-datamodels
+2026-07-08T15:24:27.104319Z TRACE Skipping pyproject.toml metadata extraction because language_version is already configured hook=check-contextmanager-class-decorators
+2026-07-08T15:24:27.104916Z TRACE Released lock path=C:\Users\Vishal\AppData\Local\prek\.lock
+2026-07-08T15:24:27.105941Z DEBUG Hooks going to run: ["lint-json-schema", "lint-json-schema", "lint-json-schema", "lint-json-schema", "lint-json-schema", "lint-json-schema"]
+2026-07-08T15:24:27.106114Z TRACE ls_files{cwd="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow" path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: Executing `cd C:\Users\Vishal\Code_File\Repo Folder\airflow && C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false ls-files -z -- C:\Users\Vishal\Code_File\Repo Folder\airflow`
+2026-07-08T15:24:27.238824Z TRACE ls_files{cwd="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow" path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: close time.busy=20.4ms time.idle=112ms
+2026-07-08T15:24:27.238990Z DEBUG All files in the workspace: 13394
+2026-07-08T15:24:27.245480Z TRACE Checking lock resource="store" path=C:\Users\Vishal\AppData\Local\prek\.lock
+2026-07-08T15:24:27.245588Z DEBUG Acquired lock resource="store"
+2026-07-08T15:24:27.246843Z  WARN Skipping invalid installed hook err=failed to read from file `C:\Users\Vishal\AppData\Local\prek\hooks\python-kknjjQnlNj9PsqO7822R\.prek-hook.json`: The system cannot find the file specified. (os error 2) path=C:\Users\Vishal\AppData\Local\prek\hooks\python-kknjjQnlNj9PsqO7822R
+2026-07-08T15:24:27.247630Z  WARN Skipping invalid installed hook err=failed to read from file `C:\Users\Vishal\AppData\Local\prek\hooks\python-NlnaVENfqw5aW7AO3pyH\.prek-hook.json`: The system cannot find the file specified. (os error 2) path=C:\Users\Vishal\AppData\Local\prek\hooks\python-NlnaVENfqw5aW7AO3pyH
+2026-07-08T15:24:27.248444Z  WARN Skipping invalid installed hook err=failed to read from file `C:\Users\Vishal\AppData\Local\prek\hooks\python-q8VpHdcL2M70wh8tVDfw\.prek-hook.json`: The system cannot find the file specified. (os error 2) path=C:\Users\Vishal\AppData\Local\prek\hooks\python-q8VpHdcL2M70wh8tVDfw
+2026-07-08T15:24:27.249135Z TRACE Executing `\\?\C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe -I -c import sys, json
+info = {
+    "version": ".".join(map(str, sys.version_info[:3])),
+    "base_exec_prefix": sys.base_exec_prefix,
+}
+print(json.dumps(info))
+`
+2026-07-08T15:24:27.457246Z TRACE Executing `\\?\C:\Users\Vishal\AppData\Local\prek\hooks\python-YmIszYF8bUHpBftyZU2A\Scripts\python.exe -I -c import sys, json
+info = {
+    "version": ".".join(map(str, sys.version_info[:3])),
+    "base_exec_prefix": sys.base_exec_prefix,
+}
+print(json.dumps(info))
+`
+2026-07-08T15:24:27.682478Z TRACE Released lock path=C:\Users\Vishal\AppData\Local\prek\.lock
+2026-07-08T15:24:27.770910Z TRACE Files for project `airflow-core` after filtered: 2913
+2026-07-08T15:24:27.770999Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\airflow-core"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow\airflow-core`
+2026-07-08T15:24:27.784111Z TRACE Files for project `chart` after filtered: 265
+2026-07-08T15:24:27.784331Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\chart"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow\chart`
+2026-07-08T15:24:27.942089Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\airflow-core"}: close time.busy=10.7ms time.idle=160ms
+2026-07-08T15:24:27.942196Z DEBUG Running priority group with priority 12: ["lint-json-schema"]
+2026-07-08T15:24:27.943223Z TRACE matching_filenames{hook="lint-json-schema"}: close time.busy=893µs time.idle=6.30µs
+2026-07-08T15:24:27.943317Z TRACE Files for hook `lint-json-schema` after filtering matched=true filenames=1
+2026-07-08T15:24:27.944657Z TRACE run{hook_id=lint-json-schema language=python}: Resolved command: C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe
+2026-07-08T15:24:27.944893Z TRACE run{hook_id=lint-json-schema language=python}: Running lint-json-schema total_files=1 concurrency=1
+2026-07-08T15:24:27.944981Z TRACE run{hook_id=lint-json-schema language=python}: Executing `cd C:\Users\Vishal\Code_File\Repo Folder\airflow\airflow-core && C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe ../scripts/ci/prek/lint_json_schema.py --spec-file src/airflow/config_templates/config.yml.schema.json`
+2026-07-08T15:24:27.971823Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\chart"}: close time.busy=12.8ms time.idle=175ms
+2026-07-08T15:24:27.971933Z DEBUG Running priority group with priority 8: ["lint-json-schema"]
+2026-07-08T15:24:27.972478Z TRACE Files for hook `lint-json-schema` after filtering matched=true filenames=0
+2026-07-08T15:24:27.973883Z TRACE run{hook_id=lint-json-schema language=python}: Resolved command: C:\Users\Vishal\AppData\Local\prek\hooks\python-YmIszYF8bUHpBftyZU2A\Scripts\python.exe
+2026-07-08T15:24:27.974114Z TRACE run{hook_id=lint-json-schema language=python}: Running lint-json-schema total_files=0 concurrency=1
+2026-07-08T15:24:27.974249Z TRACE run{hook_id=lint-json-schema language=python}: Executing `cd C:\Users\Vishal\Code_File\Repo Folder\airflow\chart && C:\Users\Vishal\AppData\Local\prek\hooks\python-YmIszYF8bUHpBftyZU2A\Scripts\python.exe ../scripts/ci/prek/lint_json_schema.py --spec-file values_schema.schema.json values.schema.json`
+2026-07-08T15:24:28.221812Z TRACE run{hook_id=lint-json-schema language=python}: close time.busy=18.6ms time.idle=231ms
+2026-07-08T15:24:28.221979Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\chart"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow\chart`
+2026-07-08T15:24:28.236964Z TRACE run{hook_id=lint-json-schema language=python}: close time.busy=28.5ms time.idle=265ms
+2026-07-08T15:24:28.237176Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\airflow-core"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow\airflow-core`
+2026-07-08T15:24:28.370782Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\chart"}: close time.busy=12.2ms time.idle=137ms
+2026-07-08T15:24:28.370932Z DEBUG Running priority group with priority 10: ["lint-json-schema"]
+2026-07-08T15:24:28.371045Z TRACE Files for hook `lint-json-schema` after filtering matched=true filenames=0
+2026-07-08T15:24:28.372080Z TRACE run{hook_id=lint-json-schema language=python}: Resolved command: C:\Users\Vishal\AppData\Local\prek\hooks\python-YmIszYF8bUHpBftyZU2A\Scripts\python.exe
+2026-07-08T15:24:28.372304Z TRACE run{hook_id=lint-json-schema language=python}: Running lint-json-schema total_files=0 concurrency=1
+2026-07-08T15:24:28.372408Z TRACE run{hook_id=lint-json-schema language=python}: Executing `cd C:\Users\Vishal\Code_File\Repo Folder\airflow\chart && C:\Users\Vishal\AppData\Local\prek\hooks\python-YmIszYF8bUHpBftyZU2A\Scripts\python.exe ../scripts/ci/prek/lint_json_schema.py --enforce-defaults --spec-file values.schema.json values.yaml`
+2026-07-08T15:24:28.406375Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\airflow-core"}: close time.busy=12.5ms time.idle=157ms
+2026-07-08T15:24:28.592947Z TRACE run{hook_id=lint-json-schema language=python}: close time.busy=18.0ms time.idle=204ms
+2026-07-08T15:24:28.593109Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\chart"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow\chart`
+2026-07-08T15:24:28.725705Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow\\chart"}: close time.busy=26.3ms time.idle=106ms
+2026-07-08T15:24:28.738849Z TRACE Files for project `.` after filtered: 13389
+2026-07-08T15:24:28.738945Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow`
+2026-07-08T15:24:29.029423Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: close time.busy=23.7ms time.idle=267ms
+2026-07-08T15:24:29.029498Z DEBUG Running priority group with priority 93: ["lint-json-schema"]
+2026-07-08T15:24:29.032323Z TRACE matching_filenames{hook="lint-json-schema"}: close time.busy=2.79ms time.idle=2.70µs
+2026-07-08T15:24:29.032386Z TRACE Files for hook `lint-json-schema` after filtering matched=true filenames=7
+2026-07-08T15:24:29.033310Z TRACE run{hook_id=lint-json-schema language=python}: Resolved command: C:\Users\Vishal\Code_File\Repo Folder\airflow\scripts\ci\prek\lint_json_schema.py
+2026-07-08T15:24:29.033451Z TRACE run{hook_id=lint-json-schema language=python}: Found shebang: ["python"]
+2026-07-08T15:24:29.033914Z TRACE run{hook_id=lint-json-schema language=python}: Resolved interpreter: C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe
+2026-07-08T15:24:29.033965Z TRACE run{hook_id=lint-json-schema language=python}: Running lint-json-schema total_files=7 concurrency=1
+2026-07-08T15:24:29.034031Z TRACE run{hook_id=lint-json-schema language=python}: Executing `cd C:\Users\Vishal\Code_File\Repo Folder\airflow && C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe C:\Users\Vishal\Code_File\Repo Folder\airflow\scripts\ci\prek\lint_json_schema.py --spec-file scripts/ci/prek/draft7_schema.json`
+2026-07-08T15:24:29.266198Z TRACE run{hook_id=lint-json-schema language=python}: close time.busy=27.0ms time.idle=207ms
+2026-07-08T15:24:29.266348Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow`
+2026-07-08T15:24:29.634795Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: close time.busy=11.1ms time.idle=357ms
+2026-07-08T15:24:29.634962Z DEBUG Running priority group with priority 94: ["lint-json-schema"]
+2026-07-08T15:24:29.636790Z TRACE matching_filenames{hook="lint-json-schema"}: close time.busy=1.79ms time.idle=2.70µs
+2026-07-08T15:24:29.636871Z TRACE Files for hook `lint-json-schema` after filtering matched=true filenames=1
+2026-07-08T15:24:29.637904Z TRACE run{hook_id=lint-json-schema language=python}: Resolved command: C:\Users\Vishal\Code_File\Repo Folder\airflow\scripts\ci\prek\lint_json_schema.py
+2026-07-08T15:24:29.638178Z TRACE run{hook_id=lint-json-schema language=python}: Found shebang: ["python"]
+2026-07-08T15:24:29.638987Z TRACE run{hook_id=lint-json-schema language=python}: Resolved interpreter: C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe
+2026-07-08T15:24:29.639080Z TRACE run{hook_id=lint-json-schema language=python}: Running lint-json-schema total_files=1 concurrency=1
+2026-07-08T15:24:29.639175Z TRACE run{hook_id=lint-json-schema language=python}: Executing `cd C:\Users\Vishal\Code_File\Repo Folder\airflow && C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe C:\Users\Vishal\Code_File\Repo Folder\airflow\scripts\ci\prek\lint_json_schema.py --spec-url https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.20.2-standalone/service-v1.json`
+2026-07-08T15:24:29.906819Z TRACE run{hook_id=lint-json-schema language=python}: close time.busy=25.0ms time.idle=245ms
+2026-07-08T15:24:29.906968Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow`
+2026-07-08T15:24:30.193190Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: close time.busy=13.2ms time.idle=273ms
+2026-07-08T15:24:30.193332Z DEBUG Running priority group with priority 95: ["lint-json-schema"]
+2026-07-08T15:24:30.208552Z TRACE matching_filenames{hook="lint-json-schema"}: close time.busy=15.2ms time.idle=2.90µs
+2026-07-08T15:24:30.208631Z TRACE Files for hook `lint-json-schema` after filtering matched=true filenames=51
+2026-07-08T15:24:30.209525Z TRACE run{hook_id=lint-json-schema language=python}: Resolved command: C:\Users\Vishal\Code_File\Repo Folder\airflow\scripts\ci\prek\lint_json_schema.py
+2026-07-08T15:24:30.209716Z TRACE run{hook_id=lint-json-schema language=python}: Found shebang: ["python"]
+2026-07-08T15:24:30.210532Z TRACE run{hook_id=lint-json-schema language=python}: Resolved interpreter: C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe
+2026-07-08T15:24:30.210614Z TRACE run{hook_id=lint-json-schema language=python}: Running lint-json-schema total_files=51 concurrency=1
+2026-07-08T15:24:30.210728Z TRACE run{hook_id=lint-json-schema language=python}: Executing `cd C:\Users\Vishal\Code_File\Repo Folder\airflow && C:\Users\Vishal\AppData\Local\prek\hooks\python-ft2aqmi5x0ysUHu87oVj\Scripts\python.exe C:\Users\Vishal\Code_File\Repo Folder\airflow\scripts\ci\prek\lint_json_schema.py --spec-url https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json`
+2026-07-08T15:24:30.462460Z TRACE run{hook_id=lint-json-schema language=python}: close time.busy=28.5ms time.idle=225ms
+2026-07-08T15:24:30.462617Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: Executing `C:\Program Files\Git\cmd\git.exe -c core.useBuiltinFSMonitor=false diff --no-ext-diff --no-textconv --ignore-submodules -- C:\Users\Vishal\Code_File\Repo Folder\airflow`
+2026-07-08T15:24:30.775257Z TRACE get_diff{path="C:\\Users\\Vishal\\Code_File\\Repo Folder\\airflow"}: close time.busy=15.5ms time.idle=297ms

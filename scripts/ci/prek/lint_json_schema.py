@@ -71,7 +71,7 @@ def fetch_and_cache(url: str, output_filename: str):
     cache_metadata: dict[str, str] = {}
     if os.path.exists(cache_metadata_filepath):
         try:
-            with open(cache_metadata_filepath) as cache_file:
+            with open(cache_metadata_filepath, encoding="utf-8") as cache_file:
                 cache_metadata = json.load(cache_file)
         except json.JSONDecodeError:
             os.remove(cache_metadata_filepath)
@@ -94,7 +94,7 @@ def fetch_and_cache(url: str, output_filename: str):
     etag = res.headers.get("etag", None)
     if etag:
         cache_metadata[cache_key] = etag
-        with open(cache_metadata_filepath, "w") as cache_file:
+        with open(cache_metadata_filepath, "w", encoding="utf-8") as cache_file:
             json.dump(cache_metadata, cache_file)
 
     return cache_filepath
@@ -107,10 +107,10 @@ class _ValidatorError(Exception):
 def load_file(file_path: str):
     """Loads a file using a serializer which guesses based on the file extension"""
     if file_path.lower().endswith(".json"):
-        with open(file_path) as input_file:
+        with open(file_path, encoding="utf-8") as input_file:
             return json.load(input_file)
     elif file_path.lower().endswith((".yaml", ".yml")):
-        with open(file_path) as input_file:
+        with open(file_path, encoding="utf-8") as input_file:
             return yaml.safe_load(input_file)
     raise _ValidatorError("Unknown file format. Supported extension: '.yaml', '.json'")
 
@@ -160,7 +160,7 @@ def _load_spec(spec_file: str | None, spec_url: str | None):
         spec_file = fetch_and_cache(url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url))
     if not spec_file:
         raise ValueError(f"The {spec_file} was None and {spec_url} did not lead to any file loading.")
-    with open(spec_file) as schema_file:
+    with open(spec_file, encoding="utf-8") as schema_file:
         schema = json.loads(schema_file.read())
     return schema
 

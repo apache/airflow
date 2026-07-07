@@ -134,11 +134,16 @@ repos:
         require_serial: true
       - id: lint-json-schema
         name: Lint config_templates/config.yml
-        entry: ../scripts/ci/prek/lint_json_schema.py
+        entry: python ../scripts/ci/prek/lint_json_schema.py
         args:
           - --spec-file
           - src/airflow/config_templates/config.yml.schema.json
         language: python
+        additional_dependencies:
+          - jsonschema>=3.2.0,<5.0
+          - pyyaml>=6.0.3
+          - requests==2.32.3
+          - rich>=13.6.0
         pass_filenames: true
         files: ^src/airflow/config_templates/config\.yml$
         require_serial: true

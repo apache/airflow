@@ -20,7 +20,7 @@
 Set up a Database Backend
 =========================
 
-Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/20/>`__.
+Airflow was built to interact with its metadata using `SQLAlchemy <https://docs.sqlalchemy.org/en/20/>`__.
 
 The document below describes the database engine configurations, the necessary changes to their configuration to be used with Airflow, as well as changes to the Airflow configurations to connect to these databases.
 
@@ -184,9 +184,8 @@ in the Postgres documentation to learn more.
 
 .. warning::
 
-   On SQLAlchemy 1.4+, use ``postgresql://`` as the connection string schema in ``sql_alchemy_conn``.
-   In earlier versions of SQLAlchemy it was possible to use ``postgres://``, but doing so in
-   SQLAlchemy 1.4+ results in:
+   Use ``postgresql://`` (or ``postgresql+<driver>://``) as the connection string schema in ``sql_alchemy_conn``.
+   SQLAlchemy does not support the ``postgres://`` scheme, and attempting to use it results in:
 
    .. code-block::
 
