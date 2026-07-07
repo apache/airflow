@@ -916,12 +916,11 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
 
     def _delete_or_defer_until_settled(self) -> None:
         """
-        Issue the delete once (deferrable mode); defer to wait out a busy cluster if needed.
+        Issue the delete once (deferrable mode), then defer.
 
-        If the delete is accepted, defer to :class:`RedshiftDeleteClusterTrigger` to wait for the
-        deletion to finish. If the cluster is mid-transition (``InvalidClusterStateFault``), defer to
-        :class:`RedshiftClusterSettledTrigger`, which fires once the cluster leaves every transitional
-        lifecycle; the ``_retry_delete_when_settled`` callback then re-issues the delete.
+        If accepted, defer to :class:`RedshiftDeleteClusterTrigger` to await deletion. If the cluster is
+        busy (``InvalidClusterStateFault``), defer to :class:`RedshiftClusterSettledTrigger`; the
+        ``_retry_delete_when_settled`` callback re-issues the delete once it settles.
         """
         try:
             self.hook.delete_cluster(

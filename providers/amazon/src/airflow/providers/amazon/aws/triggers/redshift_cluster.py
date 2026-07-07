@@ -353,10 +353,7 @@ class RedshiftClusterSettledTrigger(AwsBaseWaiterTrigger):
     flight (e.g. a pause or resize). Because a busy cluster can settle into *different* terminal states
     depending on the in-flight operation (a ``pausing`` cluster becomes ``paused``; a ``resizing`` cluster
     becomes ``available``), this trigger uses the custom ``cluster_deletable`` waiter, which has one
-    ``success`` acceptor per deletable ``ClusterStatus`` value. Any transitional state (``pausing``,
-    ``resizing``, ``resuming``, ``modifying``, ...) implicitly retries. A missing cluster
-    (``ClusterNotFound``) is treated as success since there is nothing left to wait on. The operator then
-    re-issues the delete.
+    ``success`` acceptor per deletable ``ClusterStatus`` value rather than a single target state.
 
     :param cluster_identifier: unique identifier of a cluster
     :param waiter_delay: The amount of time in seconds to wait between attempts.
