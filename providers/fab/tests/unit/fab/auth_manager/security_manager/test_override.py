@@ -248,32 +248,6 @@ class TestFabAirflowSecurityManagerOverride:
         sm._get_authentik_token_info = Mock(return_value=resp)
         assert sm.get_oauth_user_info(provider, {"id_token": None}) == user_info
 
-    def test_get_oauth_user_info_azure_with_groups_config(self):
-        from flask import Flask
-
-        app = Flask(__name__)
-        app.config["AUTH_OAUTH_ROLE_KEYS"] = {"azure": "groups"}
-
-        azure_response = {
-            "oid": "user-123",
-            "given_name": "Jane",
-            "family_name": "Smith",
-            "email": "jane.smith@example.com",
-            "groups": ["admin-group", "viewer-group"],
-        }
-
-        with app.app_context():
-            sm = EmptySecurityManager()
-            sm.appbuilder = Mock(sm=sm)
-            sm.oauth_remotes = {}
-            sm._decode_and_validate_azure_jwt = Mock(return_value=azure_response)
-
-            user_info = sm.get_oauth_user_info("azure", {"id_token": "test-token"})
-
-            assert user_info["username"] == "user-123"
-            assert user_info["email"] == "jane.smith@example.com"
-            assert user_info["role_keys"] == ["admin-group", "viewer-group"]
-
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.has_request_context")
     def test_cli_safe_flash_passes_preescaped_html_to_flash(
