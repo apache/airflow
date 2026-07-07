@@ -247,3 +247,50 @@ class TestFabAirflowSecurityManagerOverride:
         sm._decode_and_validate_azure_jwt = Mock(return_value=resp)
         sm._get_authentik_token_info = Mock(return_value=resp)
         assert sm.get_oauth_user_info(provider, {"id_token": None}) == user_info
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.has_request_context")
+    def test_cli_safe_flash_passes_preescaped_html_to_flash(
+        self,
+        mock_has_request_context,
+        mock_flash,
+    ):
+        """_cli_safe_flash does not escape; callers must escape user input before calling it.
+
+        Callers use escape(user.username) before embedding in the message string.
+        This test verifies that pre-escaped content reaches flash() intact as Markup.
+        """
+        mock_has_request_context.return_value = True
+
+        raw_username = "<script>alert('xss')</script>"
+        # Simulate what call sites do: escape(user.username) before calling _cli_safe_flash
+        safe_username = "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;"
+
+        EmptySecurityManager._cli_safe_flash(
+            f"User {safe_username} already exists",
+            "warning",
+        )
+
+        flash_arg = mock_flash.call_args[0][0]
+
+        # The raw, unescaped tag must not appear - escaping at call site prevents XSS
+        assert raw_username not in str(flash_arg)
+        # The pre-escaped content is preserved intact by the Markup wrapping
+        assert safe_username in str(flash_arg)
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.has_request_context")
+    def test_cli_safe_flash_formats_cli_output(
+        self,
+        mock_has_request_context,
+        mock_log,
+    ):
+        """Outside a web context, _cli_safe_flash converts HTML tags to terminal-safe text."""
+        mock_has_request_context.return_value = False
+
+        EmptySecurityManager._cli_safe_flash(
+            "Hello<br><b>World</b>",
+            "warning",
+        )
+
+        mock_log.warning.assert_called_once_with("Hello\n*World*")
