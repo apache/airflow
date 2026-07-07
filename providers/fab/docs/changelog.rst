@@ -20,6 +20,13 @@
 Changelog
 ---------
 
+.. note::
+    The Azure AD OAuth provider in the FAB auth manager now verifies the ``id_token``
+    signature by default: ``verify_signature`` now defaults to ``True`` (previously
+    ``False``), consistent with the Authentik provider. Deployments that intentionally
+    relied on skipping signature verification must set ``verify_signature: False``
+    explicitly in the Azure provider ``client_kwargs`` to keep the previous behaviour.
+
 3.7.2
 .....
 

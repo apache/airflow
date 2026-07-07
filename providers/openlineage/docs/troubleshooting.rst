@@ -43,6 +43,22 @@ as well as the `task_success_overtime <https://airflow.apache.org/docs/apache-ai
 configuration in Airflow config.
 
 
+Scheduler CPU or memory growing steadily while OpenLineage is enabled
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In provider versions that submit bound adapter methods to the DAG-run event process pool, each pool worker
+built a new OpenLineage client — including a new transport set — for every DAG-run state change, and the
+clients were never closed. With transports that start background worker threads (e.g. the ``datadog``
+transport), each DAG-run event leaked one thread inside the scheduler, so scheduler CPU and memory climbed
+steadily over hours and recovered only on a scheduler restart.
+
+**Possible Solution**
+
+Upgrade to a provider version that reuses a single per-process adapter in the pool workers. If you cannot
+upgrade yet, prefer a transport that does not start background worker threads (e.g. plain ``http``) for the
+affected destination, or restart the scheduler to reclaim the leaked threads as a stopgap.
+
+
 Missing lineage from EmptyOperators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
