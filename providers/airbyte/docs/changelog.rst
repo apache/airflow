@@ -27,11 +27,8 @@ Changelog
 ---------
 
 
-6.0.0
-.....
-
-Breaking changes
-~~~~~~~~~~~~~~~~
+Transitive dependency changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
   This release upgrades the provider's ``airbyte-api`` dependency to the ``1.x`` series and switches
