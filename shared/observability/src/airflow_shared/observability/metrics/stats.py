@@ -48,7 +48,8 @@ def _reset_backend_after_fork() -> None:
     _backend = None
 
 
-os.register_at_fork(after_in_child=_reset_backend_after_fork)
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_reset_backend_after_fork)
 
 
 def normalize_name_for_stats(name: str, log_warning: bool = True) -> str:
