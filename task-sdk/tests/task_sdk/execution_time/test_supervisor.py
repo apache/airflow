@@ -49,6 +49,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
+from structlog.typing import FilteringBoundLogger
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
@@ -3822,8 +3823,6 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
 def test_process_log_messages_closed_logger_is_skipped():
     """A logger whose file handle is closed is skipped; other loggers still receive messages
     and the generator continues processing subsequent lines."""
-    from structlog.typing import FilteringBoundLogger
-
     closed_logger = mock.Mock(spec=FilteringBoundLogger)
     closed_logger.log.side_effect = ValueError("write to closed file")
 
@@ -3848,8 +3847,6 @@ def test_process_log_messages_closed_logger_is_skipped():
 
 def test_process_log_messages_unexpected_value_error_is_reraised():
     """A ValueError unrelated to a closed file handle must propagate, not be silently swallowed."""
-    from structlog.typing import FilteringBoundLogger
-
     buggy_logger = mock.Mock(spec=FilteringBoundLogger)
     buggy_logger.log.side_effect = ValueError("unexpected formatting bug")
 

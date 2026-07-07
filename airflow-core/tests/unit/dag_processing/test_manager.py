@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import re
+import selectors
 import shutil
 import signal
 import textwrap
@@ -1161,7 +1162,6 @@ class TestDagFileProcessorManager:
 
         This is the exact ordering that caused the original crash: stale socket events
         were delivered after logger_filehandle.close(), causing ValueError in structlog.
-        See: https://github.com/apache/airflow/issues/64959
         """
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
@@ -1199,7 +1199,6 @@ class TestDagFileProcessorManager:
         """Sockets must be removed from the selector BEFORE the log handle is closed.
 
         Same ordering requirement as terminate_orphan_processes.
-        See: https://github.com/apache/airflow/issues/64959
         """
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         start_time = time.monotonic() - manager.processor_timeout - 1
@@ -1235,12 +1234,9 @@ class TestDagFileProcessorManager:
     def test_stale_socket_after_kill_does_not_deliver_to_closed_log_handle(self):
         """After a processor is killed, its sockets must not remain in the shared selector.
 
-        Regression test for https://github.com/apache/airflow/issues/64959:
-        stale socket events from a killed processor were being delivered to a closed
-        BytesLogger, raising ValueError and crashing the entire DagProcessorJob.
+        Stale socket events from a killed processor must not reach a closed
+        BytesLogger and crash the DagProcessorJob.
         """
-        import selectors
-
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
 
