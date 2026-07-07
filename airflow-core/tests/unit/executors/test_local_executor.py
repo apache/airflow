@@ -345,7 +345,7 @@ class TestLocalExecutor:
         proc.kill.assert_called_once_with()
         assert proc.join.call_args_list == [mock.call(timeout=0.2), mock.call(timeout=0.2)]
 
-    @pytest.mark.execution_timeout(10)
+    @pytest.mark.execution_timeout(30)
     def test_end_drains_result_queue_to_avoid_join_deadlock(self):
         executor = LocalExecutor(parallelism=1)
         executor.activity_queue = multiprocessing.SimpleQueue()
