@@ -127,7 +127,7 @@ class PostgresHook(DbApiHook):
         reference to a specific postgres database.
     :param options: Optional. Specifies command-line options to send to the server
         at connection start. For example, setting this to ``-c search_path=myschema``
-        sets the session's value of the ``search_path`` to ``myschema``.
+        sets the session's value of the ``search_path`` to ``myschema``.z
     :param enable_log_db_messages: Optional. If enabled logs database messages sent to the client
         during the session. To avoid a memory leak psycopg2 only saves the last 50 messages.
         For details, see: `PostgreSQL logging configuration parameters

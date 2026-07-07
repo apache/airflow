@@ -69,7 +69,7 @@ class TestSQLExecuteQueryTrigger:
 
     def _make_mock_hook(self):
         mock_hook = mock.MagicMock(spec=DbApiHook)
-        mock_hook.run_async = mock.AsyncMock()
+        mock_hook.arun = mock.AsyncMock()
         return mock_hook
 
     def test_serialize(self):
@@ -96,14 +96,14 @@ class TestSQLExecuteQueryTrigger:
         rows = [("val1",), ("val2",)]
         descriptions = [(("col1", 23, None, None, None, None, None),)]
         mock_hook = self._make_mock_hook()
-        mock_hook.run_async.return_value = rows
+        mock_hook.arun.return_value = rows
         mock_hook.descriptions = descriptions
         trigger = self._make_trigger(fetch_results=True)
         with mock.patch.object(trigger, "get_hook", new=mock.AsyncMock(return_value=mock_hook)):
             events = run_trigger(trigger)
 
         # The built-in fetch handler is used; no user handler runs in the triggerer.
-        assert mock_hook.run_async.await_args.kwargs["handler"] is fetch_all_handler
+        assert mock_hook.arun.await_args.kwargs["handler"] is fetch_all_handler
         assert len(events) == 1
         assert events[0].payload == {
             "status": "success",
@@ -117,7 +117,7 @@ class TestSQLExecuteQueryTrigger:
         with mock.patch.object(trigger, "get_hook", new=mock.AsyncMock(return_value=mock_hook)):
             events = run_trigger(trigger)
 
-        assert mock_hook.run_async.await_args.kwargs["handler"] is None
+        assert mock_hook.arun.await_args.kwargs["handler"] is None
         assert len(events) == 1
         assert events[0].payload == {"status": "success"}
 
@@ -134,7 +134,7 @@ class TestSQLExecuteQueryTrigger:
 
     def test_run_yields_error_event_on_exception(self):
         mock_hook = self._make_mock_hook()
-        mock_hook.run_async.side_effect = Exception("DB error")
+        mock_hook.arun.side_effect = Exception("DB error")
         trigger = self._make_trigger(fetch_results=True)
         with mock.patch.object(trigger, "get_hook", new=mock.AsyncMock(return_value=mock_hook)):
             events = run_trigger(trigger)

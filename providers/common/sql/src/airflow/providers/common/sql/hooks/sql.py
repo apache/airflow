@@ -1263,7 +1263,7 @@ class DbApiHook(BaseHook):
             self.log.info("Rows affected: %s", cur.rowcount)
 
     @overload
-    async def run_async(
+    async def arun(
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
@@ -1274,7 +1274,7 @@ class DbApiHook(BaseHook):
     ) -> None: ...
 
     @overload
-    async def run_async(
+    async def arun(
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
@@ -1284,7 +1284,7 @@ class DbApiHook(BaseHook):
         return_last: bool = ...,
     ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
 
-    async def run_async(
+    async def arun(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,

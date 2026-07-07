@@ -188,7 +188,7 @@ class DbApiHook(BaseHook):
     def get_db_log_messages(self, conn) -> None: ...
     async def async_get_conn(self) -> Any: ...
     @overload
-    async def run_async(
+    async def arun(
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
@@ -198,7 +198,7 @@ class DbApiHook(BaseHook):
         return_last: bool = ...,
     ) -> None: ...
     @overload
-    async def run_async(
+    async def arun(
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
