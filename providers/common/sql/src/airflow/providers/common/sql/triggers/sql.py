@@ -190,7 +190,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             )
         return safe
 
-    async def get_hook(self) -> DbApiHook:
+    async def aget_hook(self) -> DbApiHook:
         """
         Return DbApiHook.
 
@@ -208,7 +208,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
-            hook = await self.get_hook()
+            hook = await self.aget_hook()
 
             self.log.info("Extracting data from %s", self.conn_id)
             self.log.info("Executing: \n %s", self.sql)
