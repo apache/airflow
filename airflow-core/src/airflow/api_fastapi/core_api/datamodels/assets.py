@@ -202,9 +202,7 @@ class CreateAssetEventsBody(StrictBaseModel):
     asset_id: int
     # pattern (not strip_whitespace) so the value isn't mutated — must stay byte-identical to what
     # `_validate_outlet_event_partition_keys` in the Execution API accepts for the same raw input.
-    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)] | None = Field(
-        default=None
-    )
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)] | None = None
     extra: dict = Field(default_factory=dict)
     access_control: AssetEventAccessControl | None = None
 
