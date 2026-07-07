@@ -1068,6 +1068,29 @@ exit 0
         assert exc.value.trigger.execution_dates == [DEFAULT_DATE]
 
     @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable_respects_poke_interval(self, dag_maker):
+        context = {"execution_date": DEFAULT_DATE}
+        with dag_maker() as dag:
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                poke_interval=15.0,
+            )
+            dr = dag.create_dagrun(
+                run_id="abcrhroceuh",
+                run_type=DagRunType.MANUAL,
+                state=None,
+            )
+            context.update(dag_run=dr, logical_date=DEFAULT_DATE)
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=context)
+        assert isinstance(exc.value.trigger, WorkflowTrigger)
+        assert exc.value.trigger.poke_interval == 15.0
+
+    @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_deferrable_timeout_only(self, dag_maker):
         """Test that deferrable mode uses timeout parameter when only timeout is set."""
         context = {"execution_date": DEFAULT_DATE}
@@ -1444,6 +1467,23 @@ class TestExternalTaskSensorV3:
         assert exc.value.trigger.external_dag_id == "test_dag_parent"
         assert exc.value.trigger.external_task_ids == ["test_task"]
         assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
+
+    @pytest.mark.execution_timeout(10)
+    def test_external_task_sensor_deferrable_respects_poke_interval(self, dag_maker):
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                poke_interval=15.0,
+            )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=self.context)
+
+        assert isinstance(exc.value.trigger, WorkflowTrigger)
+        assert exc.value.trigger.poke_interval == 15.0
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_only_dag_id(self, dag_maker):

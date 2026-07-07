@@ -191,10 +191,20 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
-        poll_interval: float = 2.0,
+        poll_interval: float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
+        if poll_interval is None:
+            if "poke_interval" in kwargs:
+                poke_interval = kwargs["poke_interval"]
+                if isinstance(poke_interval, datetime.timedelta):
+                    poll_interval = poke_interval.total_seconds()
+                else:
+                    poll_interval = float(poke_interval)
+            else:
+                poll_interval = 2.0
+
         super().__init__(**kwargs)
 
         self.allowed_states: list[str] = (
