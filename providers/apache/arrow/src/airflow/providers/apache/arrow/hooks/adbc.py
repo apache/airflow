@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import contextlib
-import importlib_resources
 import pathlib
 import re
 import sys
@@ -27,6 +26,7 @@ from contextlib import closing
 from functools import cached_property
 from typing import Any
 
+import importlib_resources
 from adbc_driver_manager.dbapi import Connection, connect
 from more_itertools import chunked
 from pyarrow import RecordBatch, Schema, array, schema
