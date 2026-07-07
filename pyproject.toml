@@ -221,6 +221,9 @@ apache-airflow = "airflow.__main__:main"
 "docker" = [
     "apache-airflow-providers-docker>=3.14.1"
 ]
+"dq" = [
+    "apache-airflow-providers-dq>=0.1.0"
+]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
 ]
@@ -454,6 +457,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
+    "apache-airflow-providers-dq>=0.1.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.5.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
@@ -1172,6 +1176,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/discord/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/src",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/dq/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/dq/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/src",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/src",
@@ -1476,6 +1482,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-dq = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1628,6 +1635,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-dq = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1791,6 +1799,7 @@ apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
+apache-airflow-providers-dq = { workspace = true }
 apache-airflow-providers-edge3 = { workspace = true }
 apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
@@ -1932,6 +1941,7 @@ members = [
     "providers/dingding",
     "providers/discord",
     "providers/docker",
+    "providers/dq",
     "providers/edge3",
     "providers/elasticsearch",
     "providers/exasol",

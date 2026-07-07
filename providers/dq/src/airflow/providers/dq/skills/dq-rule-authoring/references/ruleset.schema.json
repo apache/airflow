@@ -1,0 +1,241 @@
+{
+  "$defs": {
+    "Condition": {
+      "additionalProperties": false,
+      "description": "Pass/fail condition evaluated against a rule's observed value.\n\nUses the same grammar as the ``common.sql`` check operators: ``equal_to``,\n``greater_than``, ``less_than``, ``geq_to``, ``leq_to``, plus a percentage\n``tolerance`` that widens ``equal_to`` into a range.",
+      "properties": {
+        "equal_to": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Equal To"
+        },
+        "greater_than": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Greater Than"
+        },
+        "less_than": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Less Than"
+        },
+        "geq_to": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Geq To"
+        },
+        "leq_to": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Leq To"
+        },
+        "tolerance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tolerance"
+        }
+      },
+      "title": "Condition",
+      "type": "object"
+    },
+    "DQRule": {
+      "additionalProperties": false,
+      "description": "A single, named data quality rule.\n\n:param name: Rule name, unique within its ruleset.\n:param check: One of the built-in checks (see ``CHECK_SPECS``) or ``custom_sql``. Built-in\n    checks are plain ANSI SQL and are not guaranteed to work against every ``DbApiHook``;\n    see \"Supported checks and databases\" in the provider docs. Use ``custom_sql`` if a\n    built-in check doesn't fit your database's dialect.\n:param condition: Pass condition for the observed value (``Condition`` or its dict form).\n    Optional only for checks whose ``CheckSpec.default_condition`` is set; every current\n    built-in check requires one explicitly.\n:param column: Target column; required for column-level built-in checks.\n:param sql: SQL statement returning a single scalar; required for ``custom_sql``.\n    May reference the target table as ``{table}``.\n:param severity: ``error`` (fails the task by default) or ``warn`` (recorded only).\n:param partition_clause: Extra predicate ANDed into the check's WHERE clause.\n:param previous_name: Set when renaming a rule, to keep its history continuous.\n:param description: Human-readable description shown in results and the UI. When omitted,\n    the provider generates a short default description from the rule and condition.\n\nInvalid input raises pydantic's own :class:`~pydantic.ValidationError`.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "check": {
+          "description": "One of the built-in checks, or custom_sql.",
+          "title": "Check",
+          "type": "string"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Condition"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Condition"
+        },
+        "column": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Column"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sql"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "error"
+        },
+        "partition_clause": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Clause"
+        },
+        "previous_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Name"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable description shown in results and the UI. When omitted, the provider generates a short default description from the rule and condition.",
+          "title": "Description"
+        },
+        "dimension": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Dimension"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Data quality dimension recorded for this rule's results. Defaults to the check's catalog dimension (validity for custom_sql) when not set explicitly."
+        }
+      },
+      "required": [
+        "name",
+        "check"
+      ],
+      "title": "DQRule",
+      "type": "object"
+    },
+    "Dimension": {
+      "description": "Data quality dimension assigned to a rule result.",
+      "enum": [
+        "completeness",
+        "uniqueness",
+        "validity",
+        "freshness",
+        "volume",
+        "consistency"
+      ],
+      "title": "Dimension",
+      "type": "string"
+    },
+    "Severity": {
+      "description": "Severity used to decide whether a failing rule fails the task.",
+      "enum": [
+        "warn",
+        "error"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A named collection of rules, typically attached to one table or asset.",
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "rules": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DQRule"
+      },
+      "title": "Rules",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "title": "RuleSet",
+  "type": "object"
+}
