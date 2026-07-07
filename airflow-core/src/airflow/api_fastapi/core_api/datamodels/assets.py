@@ -191,7 +191,7 @@ class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 
     asset_id: int
-    partition_key: str | None = None
+    partition_key: str | None = Field(default=None, max_length=ID_LEN)
     extra: dict = Field(default_factory=dict)
     access_control: AssetEventAccessControl | None = None
 
