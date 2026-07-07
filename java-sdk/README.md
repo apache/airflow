@@ -143,7 +143,7 @@ exact source being voted on.
 
 ```bash
 git tag -s java-sdk/1.0.0-beta1-rc1 -m "Java SDK 1.0.0-beta1 RC 1"
-git push origin java-sdk/1.0.0-beta1-rc1
+git push upstream java-sdk/1.0.0-beta1-rc1
 ```
 
 ### Verify the POM locally
@@ -318,7 +318,7 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
    ```bash
    git tag -s java-sdk/1.0.0-beta1 <voted-commit-hash> -m "Apache Airflow Java SDK 1.0.0-beta1"
-   git push origin java-sdk/1.0.0-beta1
+   git push upstream java-sdk/1.0.0-beta1
    ```
 
    Keep the RC tag for traceability.
