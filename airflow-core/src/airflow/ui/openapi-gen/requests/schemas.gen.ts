@@ -2662,7 +2662,8 @@ export const $CreateAssetEventsBody = {
         partition_key: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    maxLength: 250
                 },
                 {
                     type: 'null'

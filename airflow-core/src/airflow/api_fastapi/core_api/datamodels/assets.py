@@ -202,8 +202,6 @@ class CreateAssetEventsBody(StrictBaseModel):
             return v
         if not v.strip():
             raise ValueError("partition_key must not be empty or whitespace-only.")
-        if len(v) > ID_LEN:
-            raise ValueError(f"partition_key must be at most {ID_LEN} characters; got {len(v)}.")
         return v
 
     @field_validator("extra", mode="after")
