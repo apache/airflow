@@ -3864,6 +3864,9 @@ common-messaging = [
 google = [
     { name = "apache-airflow-providers-google" },
 ]
+msk = [
+    { name = "aws-msk-iam-sasl-signer-python" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -3887,10 +3890,11 @@ requires-dist = [
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
+    { name = "aws-msk-iam-sasl-signer-python", marker = "extra == 'msk'", specifier = ">=1.0.1" },
     { name = "confluent-kafka", marker = "python_full_version < '3.14'", specifier = ">=2.6.0" },
     { name = "confluent-kafka", marker = "python_full_version >= '3.14'", specifier = ">=2.13.2" },
 ]
-provides-extras = ["google", "common-messaging"]
+provides-extras = ["google", "msk", "common-messaging"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -9576,6 +9580,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/36/98/7d93f30d029643c0275dbc0bd6d5a6f670661ee6c9a94d93af7ab4887600/authlib-1.7.2.tar.gz", hash = "sha256:2cea25fefcd4e7173bdf1372c0afc265c8034b23a8cd5dcb6a9164b826c64231", size = 176511, upload-time = "2026-05-06T08:10:23.116Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/95/adcb68e20c34162e9135f370d6e31737719c2b6f94bc953fe7ed1f10fe21/authlib-1.7.2-py2.py3-none-any.whl", hash = "sha256:3e1faedc9d87e7d56a164eca3ccb6ace0d61b94abe83e92242f8dc8bba9b4a9f", size = 259548, upload-time = "2026-05-06T08:10:21.436Z" },
+]
+
+[[package]]
+name = "aws-msk-iam-sasl-signer-python"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "boto3" },
+    { name = "botocore" },
+    { name = "click" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/38/8b/9af0a7def4ba357afadc89c06019d3735944cb3d6065a455f41580ba7fd6/aws_msk_iam_sasl_signer_python-1.0.2.tar.gz", hash = "sha256:3432d88a7c6db4887ceb1130ebaed0113bfda48b79ea811537add5f1d25fa13f", size = 24034, upload-time = "2025-03-05T20:49:48.582Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/06/43/f3ffd79fc4941b8d610530d81e1f600cfa1b8651affc25cb929fd0f2f2c9/aws_msk_iam_sasl_signer_python-1.0.2-py2.py3-none-any.whl", hash = "sha256:310eb2db9ca0ff55ed06a24212739b87533e7f1cf6f34e43aabbd97a3b21290e", size = 13279, upload-time = "2025-03-05T20:49:46.611Z" },
 ]
 
 [[package]]

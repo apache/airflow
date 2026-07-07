@@ -76,6 +76,11 @@
       "upstream": "上游"
     }
   },
+  "runStateCounts": {
+    "label": "執行狀態",
+    "loading": "正在載入執行狀態數量",
+    "tooltip": "{{state}}：{{formattedCount}} — 點選以篩選執行"
+  },
   "search": {
     "advanced": "進階搜尋",
     "clear": "清除搜尋",
