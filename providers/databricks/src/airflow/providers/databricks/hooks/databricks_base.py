@@ -84,6 +84,11 @@ DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH = "/var/run/secrets/kubernetes.io/service
 DEFAULT_K8S_NAMESPACE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 K8S_CA_CERT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
+# AWS IAM OIDC token federation (STS Outbound Identity Federation)
+# https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam
+DEFAULT_AWS_JWT_AUDIENCE = "databricks"
+DEFAULT_AWS_WEB_IDENTITY_TOKEN_DURATION = 300
+
 # RFC 8693 token exchange data template
 TOKEN_EXCHANGE_DATA = {
     "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
@@ -137,6 +142,10 @@ class BaseDatabricksHook(BaseHook):
         "service_principal_oauth",
         "federated_k8s",
         "federated_token_provider",
+        "federated_aws",
+        "aws_conn_id",
+        "aws_jwt_audience",
+        "aws_web_identity_token_duration",
         "k8s_token_path",
         "k8s_namespace_path",
         "k8s_projected_volume_token_path",
@@ -917,13 +926,17 @@ class BaseDatabricksHook(BaseHook):
         """
         Resolve the OIDC JWT to exchange for a Databricks token (RFC 8693 ``subject_token``).
 
-        Two subject-token sources are supported:
+        Three subject-token sources are supported:
 
         * ``federated_token_provider`` -- a dotted path to a ``Callable[[], str]`` that returns
           the JWT. The token is obtained in-process and never written to disk, so a control
           plane can vend a short-lived, per-workload identity token for the exchange. ``client_id``
           is optional here: supply it in the extra for a service principal federation policy, or
           omit it for an account-wide federation policy.
+        * AWS IAM (``federated_aws``) -- mint an AWS-signed OIDC JWT via AWS STS
+          ``GetWebIdentityToken``, configured entirely from the connection extra
+          (``aws_conn_id``/``aws_jwt_audience``/``aws_web_identity_token_duration``). ``client_id`` is
+          optional, as with a supplied provider.
         * Kubernetes service account (default) -- read from the pod. ``client_id`` is required
           because Kubernetes service account tokens cannot carry custom claims, so only
           service-principal-level federation is possible; it is validated before the token is read.
@@ -936,6 +949,8 @@ class BaseDatabricksHook(BaseHook):
             return self._resolve_supplied_subject_token(provider), self.databricks_conn.extra_dejson.get(
                 "client_id"
             )
+        if self._is_aws_federation():
+            return self._get_aws_subject_token(), self.databricks_conn.extra_dejson.get("client_id")
         client_id = self._get_required_client_id()
         return self._get_k8s_jwt_token(), client_id
 
@@ -948,8 +963,56 @@ class BaseDatabricksHook(BaseHook):
             loop = asyncio.get_running_loop()
             subject_token = await loop.run_in_executor(None, self._resolve_supplied_subject_token, provider)
             return subject_token, self.databricks_conn.extra_dejson.get("client_id")
+        if self._is_aws_federation():
+            loop = asyncio.get_running_loop()
+            subject_token = await loop.run_in_executor(None, self._get_aws_subject_token)
+            return subject_token, self.databricks_conn.extra_dejson.get("client_id")
         client_id = self._get_required_client_id()
         return await self._a_get_k8s_jwt_token(), client_id
+
+    def _is_aws_federation(self) -> bool:
+        """Return whether the connection is configured for AWS IAM OIDC token federation."""
+        return self.databricks_conn.login == "federated_aws" or self.databricks_conn.extra_dejson.get(
+            "federated_aws", False
+        )
+
+    def _get_aws_subject_token(self) -> str:
+        """
+        Mint an AWS-signed OIDC JWT for the exchange via AWS STS ``GetWebIdentityToken``.
+
+        Reads ``aws_conn_id``/``aws_jwt_audience``/``aws_web_identity_token_duration`` from the connection
+        extra. The minted JWT's ``sub`` claim is the caller's IAM role ARN, matching the Databricks
+        federation policy. See https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam.
+        """
+        try:
+            from airflow.providers.amazon.aws.hooks.sts import StsHook
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'apache-airflow-providers-amazon' package (>=9.22.0) is required for AWS OIDC "
+                "token federation. Install it with: pip install 'apache-airflow-providers-amazon>=9.22.0'"
+            ) from e
+
+        extra = self.databricks_conn.extra_dejson
+        aws_conn_id = extra.get("aws_conn_id", "aws_default")
+        audience = extra.get("aws_jwt_audience", DEFAULT_AWS_JWT_AUDIENCE)
+        duration_seconds = int(
+            extra.get("aws_web_identity_token_duration", DEFAULT_AWS_WEB_IDENTITY_TOKEN_DURATION)
+        )
+
+        sts_client = StsHook(aws_conn_id=aws_conn_id).get_conn()
+        if not hasattr(sts_client, "get_web_identity_token"):
+            raise AirflowOptionalProviderFeatureException(
+                "The installed AWS SDK does not support 'sts:GetWebIdentityToken'. AWS IAM outbound "
+                "identity federation requires boto3>=1.41.0 / botocore>=1.41.0 "
+                "(apache-airflow-providers-amazon>=9.22.0)."
+            )
+
+        response = sts_client.get_web_identity_token(
+            Audience=[audience],
+            SigningAlgorithm="RS256",
+            DurationSeconds=duration_seconds,
+        )
+        return response["WebIdentityToken"]
 
     def _resolve_supplied_subject_token(self, provider: str) -> str:
         """
@@ -1172,6 +1235,9 @@ class BaseDatabricksHook(BaseHook):
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
             return self._get_federated_databricks_token(self._get_oidc_token_service_url())
+        if self._is_aws_federation():
+            self.log.debug("Using AWS IAM OIDC token federation.")
+            return self._get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -1211,6 +1277,9 @@ class BaseDatabricksHook(BaseHook):
             "federated_k8s", False
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
+            return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
+        if self._is_aws_federation():
+            self.log.debug("Using AWS IAM OIDC token federation.")
             return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
