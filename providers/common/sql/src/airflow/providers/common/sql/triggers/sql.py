@@ -198,7 +198,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         """
         connection = await sync_to_async(BaseHook.get_connection)(self.conn_id)
         hook = await sync_to_async(connection.get_hook)()
-        if not isinstance(hook, DbApiHook) or not hasattr(hook, "run_async"):
+        if not isinstance(hook, DbApiHook) or not hasattr(hook, "arun"):
             raise AirflowException(
                 f"You are trying to use the SqlExecuteQueryOperator in deferrable mode with {hook.__class__.__name__},"
                 f" but its provider does not support this. Please set deferrable=False"
@@ -216,7 +216,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             if self.fetch_results:
                 # Fetch the raw rows with the built-in handler and return them with the cursor
                 # descriptions; the operator applies any user handler on the worker.
-                results = await hook.run_async(
+                results = await hook.arun(
                     sql=self.sql,
                     autocommit=self.autocommit,
                     parameters=self.parameters,
@@ -236,7 +236,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 )
 
             else:
-                await hook.run_async(
+                await hook.arun(
                     sql=self.sql,
                     autocommit=self.autocommit,
                     parameters=self.parameters,
