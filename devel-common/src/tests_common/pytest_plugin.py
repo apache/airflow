@@ -1856,13 +1856,27 @@ def get_test_dag():
 
 
 @pytest.fixture
-def create_log_template(request):
-    from airflow import settings
-    from airflow.models.tasklog import LogTemplate
+def create_log_template(request, monkeypatch):
+    """Configure log templates the way the core under test resolves them.
 
-    session = settings.Session()
+    Airflow 3.4.0 dropped the ``LogTemplate`` model and reads the filename
+    template from live config; older cores pin the templates per DagRun via the
+    ``log_template`` table. Always sets the filename-template config env var,
+    and additionally seeds the table when the model exists, so the same test
+    works against any supported core. ``elasticsearch_id`` only feeds the
+    table row: on 3.4.0+ the ES/OS handlers no longer read a per-run log ID
+    template, so there is nothing to configure for it.
+    """
+    from airflow import settings
 
     def _create_log_template(filename_template, elasticsearch_id=""):
+        monkeypatch.setenv("AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE", filename_template)
+        try:
+            from airflow.models.tasklog import LogTemplate  # removed in Airflow 3.4.0
+        except ImportError:
+            return
+
+        session = settings.Session()
         log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
         session.add(log_template)
         session.commit()

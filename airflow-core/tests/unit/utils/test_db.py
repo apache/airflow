@@ -100,7 +100,6 @@ class TestDb:
         mock_upgradedb = mocker.patch("airflow.utils.db.upgradedb")
         mock_create_from_orm = mocker.patch("airflow.utils.db._create_db_from_orm")
         mocker.patch("airflow.utils.db.add_default_pool_if_not_exists")
-        mocker.patch("airflow.utils.db.synchronize_log_template")
 
         initdb(session=session, use_migration_files=True)
 

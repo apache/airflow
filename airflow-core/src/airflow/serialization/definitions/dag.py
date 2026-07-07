@@ -48,7 +48,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.models.tasklog import LogTemplate
 from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
@@ -1425,9 +1424,7 @@ def _create_orm_dagrun(
         partition_date=partition_date,
         note=note,
     )
-    # Load defaults into the following two fields to ensure result can be serialized detached
-    max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))
-    run.log_template_id = int(max_log_template_id) if max_log_template_id is not None else 0
+    # Load default into the following field to ensure result can be serialized detached
     run.created_dag_version = dag_version
     run.consumed_asset_events = []
     session.add(run)

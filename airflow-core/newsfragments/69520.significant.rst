@@ -1,0 +1,54 @@
+Drop the ``LogTemplate`` DB model
+
+Airflow tracked historical values of ``[logging] log_filename_template`` and
+``[elasticsearch] log_id_template`` in a ``log_template`` table so a ``DagRun``'s
+logs stayed retrievable after either config value changed. This model has been
+removed: the Elasticsearch/OpenSearch task handlers reached into the metadata
+database directly to read it, which conflicts with the Airflow 3 execution
+model where workers/handlers should not query the metadata DB directly, and it
+otherwise only existed to duplicate two strings already available from config.
+
+**What changed:**
+
+- The ``LogTemplate`` model, the ``log_template`` table, and ``DagRun.log_template_id``
+  are gone.
+- ``DagRun.get_log_template()`` has been removed.
+- Log filename and log ID templates are now read directly from
+  ``[logging] log_filename_template`` and ``[elasticsearch] log_id_template`` at
+  render time, instead of being pinned to the value in effect when the ``DagRun``
+  was created.
+
+**Behaviour changes:**
+
+- Changing ``log_filename_template`` or ``log_id_template`` now applies
+  immediately and retroactively to *all* ``DagRun``s, including ones created
+  before the change. There is no more per-run historical pinning: if you change
+  either setting, logs written under the previous template are no longer
+  reachable through the new one.
+
+**Migration:**
+
+- A database migration drops the ``log_template`` table and the
+  ``dag_run.log_template_id`` column. No user action is required.
+- Any custom log handler or plugin calling ``DagRun.get_log_template()`` or
+  importing ``airflow.models.tasklog.LogTemplate`` must be updated to read
+  ``[logging] log_filename_template`` / ``[elasticsearch] log_id_template``
+  from config instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * Remove any usage of ``DagRun.get_log_template()`` or
+    ``airflow.models.tasklog.LogTemplate`` in custom log handlers/plugins;
+    read ``[logging] log_filename_template`` / ``[elasticsearch] log_id_template``
+    from config instead.

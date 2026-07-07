@@ -9,7 +9,7 @@ airflow-core/src/airflow/jobs/base_job_runner.py::1
 airflow-core/src/airflow/jobs/job.py::1
 airflow-core/src/airflow/models/connection.py::4
 airflow-core/src/airflow/models/crypto.py::1
-airflow-core/src/airflow/models/dagrun.py::2
+airflow-core/src/airflow/models/dagrun.py::1
 airflow-core/src/airflow/models/pool.py::2
 airflow-core/src/airflow/secrets/local_filesystem.py::4
 airflow-core/src/airflow/serialization/definitions/dag.py::1

@@ -115,7 +115,7 @@ class TestTaskInstancesLog:
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
     @pytest.fixture
-    def configure_loggers(self, tmp_path, create_log_template):
+    def configure_loggers(self, tmp_path):
         self.log_dir = tmp_path
 
         # TASK_ID

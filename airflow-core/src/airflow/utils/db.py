@@ -48,7 +48,6 @@ from sqlalchemy import (
     func,
     inspect,
     literal,
-    or_,
     select,
     text,
 )
@@ -117,7 +116,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "436dc127462c",
+    "3.4.0": "4f6723e37686",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -864,9 +863,8 @@ def initdb(*, session: Session = NEW_SESSION, use_migration_files: bool = False)
             _create_db_from_orm(session=session)
 
     external_db_manager.initdb(session, use_migration_files=use_migration_files)
-    # Add default pool & sync log_template
+    # Add default pool
     add_default_pool_if_not_exists(session=session)
-    synchronize_log_template(session=session)
 
 
 def _get_alembic_config():
@@ -1002,82 +1000,6 @@ def check_and_run_migrations():
             version,
         )
         sys.exit(1)
-
-
-@provide_session
-def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
-    """
-    Synchronize log template configs with table.
-
-    This checks if the last row fully matches the current config values, and
-    insert a new row if not.
-    """
-    # NOTE: SELECT queries in this function are INTENTIONALLY written with the
-    # SQL builder style, not the ORM query API. This avoids configuring the ORM
-    # unless we need to insert something, speeding up CLI in general.
-
-    from airflow.models.tasklog import LogTemplate
-
-    metadata = reflect_tables([LogTemplate], session)
-    log_template_table: Table | None = metadata.tables.get(LogTemplate.__tablename__)
-
-    if log_template_table is None:
-        log.info("Log template table does not exist (added in 2.3.0); skipping log template sync.")
-        return
-
-    filename = conf.get("logging", "log_filename_template")
-    elasticsearch_id = conf.get("elasticsearch", "log_id_template")
-
-    stored = session.execute(
-        select(
-            log_template_table.c.filename,
-            log_template_table.c.elasticsearch_id,
-        )
-        .order_by(log_template_table.c.id.desc())
-        .limit(1)
-    ).first()
-
-    # If we have an empty table, and the default values exist, we will seed the
-    # table with values from pre 2.3.0, so old logs will still be retrievable.
-    if not stored:
-        is_default_log_id = elasticsearch_id == conf.get_default_value("elasticsearch", "log_id_template")
-        is_default_filename = filename == conf.get_default_value("logging", "log_filename_template")
-        if is_default_log_id and is_default_filename:
-            session.add(
-                LogTemplate(
-                    filename="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
-                    elasticsearch_id="{dag_id}-{task_id}-{logical_date}-{try_number}",
-                )
-            )
-
-    # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
-    # place exists!
-    pre_upgrade_filename = conf.upgraded_values.get(("logging", "log_filename_template"), filename)
-    pre_upgrade_elasticsearch_id = conf.upgraded_values.get(
-        ("elasticsearch", "log_id_template"), elasticsearch_id
-    )
-    if pre_upgrade_filename != filename or pre_upgrade_elasticsearch_id != elasticsearch_id:
-        # The previous non-upgraded value likely won't be the _latest_ value (as after we've recorded the
-        # recorded the upgraded value it will be second-to-newest), so we'll have to just search which is okay
-        # as this is a table with a tiny number of rows
-        row = session.execute(
-            select(log_template_table.c.id)
-            .where(
-                or_(
-                    log_template_table.c.filename == pre_upgrade_filename,
-                    log_template_table.c.elasticsearch_id == pre_upgrade_elasticsearch_id,
-                )
-            )
-            .order_by(log_template_table.c.id.desc())
-            .limit(1)
-        ).first()
-        if not row:
-            session.add(
-                LogTemplate(filename=pre_upgrade_filename, elasticsearch_id=pre_upgrade_elasticsearch_id)
-            )
-
-    if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
-        session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
 def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
@@ -1217,7 +1139,6 @@ def _run_upgradedb(
             external_db_manager.upgradedb(work_session, use_migration_files=use_migration_files)
 
         add_default_pool_if_not_exists(session=work_session)
-        synchronize_log_template(session=work_session)
 
 
 @provide_session

@@ -68,6 +68,9 @@ if AIRFLOW_V_3_2_PLUS:
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
+# Compatibility: cores before Airflow 3.4.0 pin the log ID template per DagRun
+# in the (since removed) LogTemplate model; keep honoring it while such cores
+# are supported. On 3.4.0+ the attribute is gone and this is always False.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
@@ -515,7 +518,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
-                log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+                log_id_template = dag_run.get_log_template(  # type: ignore[attr-defined]
+                    session=session
+                ).elasticsearch_id
 
         if self.json_format:
             data_interval_start = self._clean_date(dag_run.data_interval_start)

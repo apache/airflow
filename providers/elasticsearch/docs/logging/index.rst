@@ -342,14 +342,8 @@ To enable it, ``airflow.cfg`` must be configured as in the example below. Note t
 Changes to ``[elasticsearch] log_id_template``
 ''''''''''''''''''''''''''''''''''''''''''''''
 
-If you ever need to make changes to ``[elasticsearch] log_id_template``, Airflow 2.3.0+ is able to keep track of
-old values so your existing task runs logs can still be fetched. Once you are on Airflow 2.3.0+, in general, you
-can just change ``log_id_template`` at will and Airflow will keep track of the changes.
-
-However, when you are upgrading to 2.3.0+, Airflow may not be able to properly save your previous ``log_id_template``.
-If after upgrading you find your task logs are no longer accessible, try adding a row in the ``log_template`` table with ``id=0``
-containing your previous ``log_id_template``. For example, if you used the defaults in 2.2.5:
-
-.. code-block:: sql
-
-    INSERT INTO log_template (id, filename, elasticsearch_id, created_at) VALUES (0, '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', '{dag_id}-{task_id}-{execution_date}-{try_number}', NOW());
+``[elasticsearch] log_id_template`` is read directly from the live configuration whenever a log ID
+is rendered. Airflow no longer tracks historical values of this setting in the metadata database
+(the ``log_template`` table was removed), so changing it applies immediately and retroactively to
+how *all* task logs, past and future, are located. If you change ``log_id_template``, older logs
+written under a previous template will no longer be reachable through the new one.

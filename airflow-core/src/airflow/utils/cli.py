@@ -105,11 +105,10 @@ def action_cli(func=None, check_db=True):
                 # Check and run migrations if necessary
                 if check_db:
                     from airflow.configuration import conf
-                    from airflow.utils.db import check_and_run_migrations, synchronize_log_template
+                    from airflow.utils.db import check_and_run_migrations
 
                     if conf.getboolean("database", "check_migrations"):
                         check_and_run_migrations()
-                    synchronize_log_template()
                     # Set server context so validation logic (e.g. DagBundlesManager) runs correctly
                     original_ctx = os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
                     try:

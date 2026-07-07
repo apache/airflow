@@ -88,7 +88,12 @@ def conf_vars(overrides):
             original_env_vars[env] = os.environ.pop(env)
 
         for i, conf in enumerate(configs):
-            originals[i][(section, key)] = conf.get(section, key) if conf.has_option(section, key) else None
+            # Snapshot the raw stored form: restoring the interpolated form via
+            # conf.set() fails for values with a literal % (e.g. Jinja {% %} in
+            # the log_filename_template default).
+            originals[i][(section, key)] = (
+                conf.get(section, key, raw=True) if conf.has_option(section, key) else None
+            )
             if value is not None:
                 if not conf.has_section(section):
                     conf.add_section(section)

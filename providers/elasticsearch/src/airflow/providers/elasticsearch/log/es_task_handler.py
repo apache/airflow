@@ -43,7 +43,6 @@ from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
@@ -78,11 +77,6 @@ else:
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
-
-# Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
-# LogTemplate model to record the log ID template used. If this function does
-# not exist, the task handler should use the log_id_template attribute instead.
-USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
 

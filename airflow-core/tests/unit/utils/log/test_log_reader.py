@@ -28,7 +28,6 @@ import pytest
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models.tasklog import LogTemplate
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -102,26 +101,21 @@ class TestLogView:
 
     @pytest.fixture(autouse=True)
     def prepare_db(self, create_task_instance):
-        session = settings.Session()
-        log_template = LogTemplate(filename=self.FILENAME_TEMPLATE, elasticsearch_id="")
-        session.add(log_template)
-        session.commit()
-        ti = create_task_instance(
-            dag_id=self.DAG_ID,
-            task_id=self.TASK_ID,
-            start_date=self.DEFAULT_DATE,
-            run_type=DagRunType.SCHEDULED,
-            logical_date=self.DEFAULT_DATE,
-            state=TaskInstanceState.RUNNING,
-        )
-        ti.try_number = 3
-        ti.hostname = "localhost"
-        self.ti = ti
-        yield
+        with conf_vars({("logging", "log_filename_template"): self.FILENAME_TEMPLATE}):
+            ti = create_task_instance(
+                dag_id=self.DAG_ID,
+                task_id=self.TASK_ID,
+                start_date=self.DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                logical_date=self.DEFAULT_DATE,
+                state=TaskInstanceState.RUNNING,
+            )
+            ti.try_number = 3
+            ti.hostname = "localhost"
+            self.ti = ti
+            yield
         clear_db_runs()
         clear_db_dags()
-        session.delete(log_template)
-        session.commit()
 
     def test_test_read_log_chunks_should_read_one_try(self):
         task_log_reader = TaskLogReader()

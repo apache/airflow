@@ -75,7 +75,6 @@ def import_all_models():
     import airflow.models.serialized_dag
     import airflow.models.task_state_store
     import airflow.models.taskinstancehistory
-    import airflow.models.tasklog
     import airflow.models.team
     import airflow.models.xcom
 

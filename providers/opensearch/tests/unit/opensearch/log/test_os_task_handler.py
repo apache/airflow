@@ -152,6 +152,11 @@ class TestOpensearchTaskHandler:
     LOGICAL_DATE = datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1"
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{OpensearchTaskHandler._clean_date(LOGICAL_DATE)}-1"
+    LOG_ID_TEMPLATE = (
+        "{dag_id}-{task_id}-{logical_date}-{try_number}"
+        if AIRFLOW_V_3_0_PLUS
+        else "{dag_id}-{task_id}-{execution_date}-{try_number}"
+    )
     FILENAME_TEMPLATE = "{try_number}.log"
 
     @pytest.fixture(autouse=True)
@@ -187,6 +192,9 @@ class TestOpensearchTaskHandler:
             json_fields=self.json_fields,
             host_field=self.host_field,
             offset_field=self.offset_field,
+            # On cores without per-run pinning (3.4.0+) the handler falls back
+            # to this template; older cores read it from the seeded DB row.
+            log_id_template=self.LOG_ID_TEMPLATE,
         )
 
     @pytest.fixture
