@@ -74,7 +74,7 @@ class AdbcHook(DbApiHook):
         - Handles dialect-specific connection URIs and driver entrypoints.
         - Integrates with Airflow's connection system (conn_id, extras, etc.).
         - Provides custom placeholder replacement for parameterized SQL queries.
-        - Supports both native Arrow binding and DBAPI executemany for inserts.
+        - Supports both native Arrow binding and DBAPI ``executemany`` for inserts.
         - Exposes configuration via connection extras: driver, entrypoint, db_kwargs, conn_kwargs, dialect.
 
     Connection Extras:

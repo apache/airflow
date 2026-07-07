@@ -46,7 +46,7 @@ Login / Password
     precedence.
 
 Extra (JSON)
-    A JSON object with the following recognised keys:
+    A JSON object with the following recognized keys:
 
     ``driver`` *(string)*
         Python package name of the ADBC driver to load, e.g.
