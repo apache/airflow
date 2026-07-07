@@ -500,6 +500,18 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: extra
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+            (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
+          title: Extra
+        description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+          (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
       - name: timestamp_gte
         in: query
         required: false

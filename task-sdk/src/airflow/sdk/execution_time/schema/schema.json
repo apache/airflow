@@ -1870,6 +1870,21 @@
           "default": null,
           "title": "Partition Key Pattern"
         },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
         "type": {
           "const": "GetAssetEventByAsset",
           "default": "GetAssetEventByAsset",
@@ -1956,6 +1971,21 @@
           ],
           "default": null,
           "title": "Partition Key Pattern"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
         },
         "type": {
           "const": "GetAssetEventByAssetAlias",

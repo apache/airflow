@@ -259,7 +259,25 @@ The accessor also supports chaining methods to filter events before fetching the
 
 For an exact partition key match (no regex), use ``.partition_key(value)`` instead. The two are mutually exclusive; setting one clears the other.
 
-Other chaining methods include ``.after(timestamp)``, ``.before(timestamp)``, ``.ascending()``, and ``.limit(n)``.
+You can also filter events by their ``extra`` key-value pairs:
+
+.. code-block:: python
+
+    @task(inlets=[regional_sales])
+    def process_high_priority(*, inlet_events):
+        events = inlet_events[regional_sales].extra("region", "us").extra("env", "prod")
+        for event in events:
+            print(event.extra)
+
+The ``.extra(key, value)`` method can be chained multiple times; all conditions are combined with AND logic. Other chaining methods include ``.after(timestamp)``, ``.before(timestamp)``, ``.ascending()``, and ``.limit(n)``.
+
+The REST API also supports filtering asset events by extra key-value pairs using the ``extra`` query parameter (repeat for multiple conditions):
+
+.. code-block:: bash
+
+    curl "http://<airflow-host>/api/v2/assets/events?extra=region%3Dus&extra=env%3Dprod"
+
+Each ``extra`` value uses ``key=value`` format. Multiple entries are combined with AND logic.
 
 Dependency between ``@asset``, ``@task``, and classic operators
 ---------------------------------------------------------------

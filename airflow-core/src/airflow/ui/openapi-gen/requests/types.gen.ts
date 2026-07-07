@@ -2183,6 +2183,23 @@ export type BaseNodeResponse = {
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
 
 /**
+ * Response model for calendar deadline aggregation results.
+ */
+export type CalendarDeadlineCollectionResponse = {
+    total_entries: number;
+    deadlines: Array<CalendarDeadlineResponse>;
+};
+
+/**
+ * Represents aggregated deadline counts for a specific calendar time bucket.
+ */
+export type CalendarDeadlineResponse = {
+    date: string;
+    missed: boolean;
+    count: number;
+};
+
+/**
  * Response model for calendar time range results.
  */
 export type CalendarTimeRangeCollectionResponse = {
@@ -2272,6 +2289,16 @@ export type DAGRunLightResponse = {
 };
 
 /**
+ * Per-Dag counts of DagRuns grouped by state.
+ */
+export type DAGRunStateCountsResponse = {
+    dag_id: string;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -2333,6 +2360,14 @@ export type DAGWithLatestDagRunsResponse = {
      * Return file token.
      */
     readonly file_token: string;
+};
+
+/**
+ * Collection of per-Dag DagRun-state counts for the Dag list page.
+ */
+export type DAGsRunStateCountsCollectionResponse = {
+    dags: Array<DAGRunStateCountsResponse>;
+    state_count_limit: number;
 };
 
 /**
@@ -2816,6 +2851,10 @@ export type GetAssetAliasResponse = unknown;
 
 export type GetAssetEventsData = {
     assetId?: number | null;
+    /**
+     * Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
+     */
+    extra?: Array<(string)>;
     limit?: number;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -3487,6 +3526,12 @@ export type GetLatestRunInfoData = {
 };
 
 export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
+
+export type GetDagRunStateCountsUiData = {
+    dagIds: Array<(string)>;
+};
+
+export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -4677,6 +4722,17 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type GetCalendarDeadlinesData = {
+    dagId: string;
+    deadlineTimeGt?: string | null;
+    deadlineTimeGte?: string | null;
+    deadlineTimeLt?: string | null;
+    deadlineTimeLte?: string | null;
+    granularity?: 'hourly' | 'daily';
+};
+
+export type GetCalendarDeadlinesResponse = CalendarDeadlineCollectionResponse;
 
 export type ListTeamsData = {
     limit?: number;
@@ -6339,6 +6395,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/run_state_counts': {
+        get: {
+            req: GetDagRunStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsRunStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */
@@ -8510,6 +8581,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/calendar/{dag_id}/deadlines': {
+        get: {
+            req: GetCalendarDeadlinesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CalendarDeadlineCollectionResponse;
                 /**
                  * Validation Error
                  */

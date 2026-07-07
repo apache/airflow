@@ -32,7 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.asset_event import (
 )
 from airflow.configuration import conf
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
-from airflow.utils.sqlalchemy import apply_regex_query_timeout
+from airflow.utils.sqlalchemy import JsonContains, apply_regex_query_timeout
 
 router = APIRouter(
     responses={
@@ -110,6 +110,23 @@ def _validate_partition_key_params(partition_key: str | None, partition_key_patt
         )
 
 
+def _parse_extra_params(extra: list[str] | None) -> dict[str, str]:
+    """Parse repeated ``key=value`` query params into a dict."""
+    result: dict[str, str] = {}
+    for item in extra or []:
+        if "=" not in item:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "reason": "Invalid parameter",
+                    "message": f"Invalid extra parameter format: {item!r}. Expected 'key=value'.",
+                },
+            )
+        k, v = item.split("=", 1)
+        result[k] = v
+    return result
+
+
 @router.get("/by-asset")
 def get_asset_event_by_asset_name_uri(
     name: Annotated[str | None, Query(description="The name of the Asset")],
@@ -129,6 +146,12 @@ def get_asset_event_by_asset_name_uri(
             description="Partition key regex filter. Uses database-native regex "
             "(PostgreSQL ~ operator, MySQL REGEXP, SQLite re.match). "
             "Note: on SQLite, matching is anchored at the start of the string."
+        ),
+    ] = None,
+    extra: Annotated[
+        list[str] | None,
+        Query(
+            description="Filter by extra JSON key-value pairs. Format: key=value. Repeat for AND logic.",
         ),
     ] = None,
 ) -> AssetEventsResponse:
@@ -151,6 +174,9 @@ def get_asset_event_by_asset_name_uri(
         where_clause = and_(where_clause, AssetEvent.timestamp >= after)
     if before:
         where_clause = and_(where_clause, AssetEvent.timestamp <= before)
+    extra_dict = _parse_extra_params(extra)
+    if extra_dict:
+        where_clause = and_(where_clause, JsonContains(AssetEvent.extra, extra_dict))
 
     _validate_partition_key_params(partition_key, partition_key_pattern)
     if partition_key is not None:
@@ -188,12 +214,21 @@ def get_asset_event_by_asset_alias(
             "Note: on SQLite, matching is anchored at the start of the string."
         ),
     ] = None,
+    extra: Annotated[
+        list[str] | None,
+        Query(
+            description="Filter by extra JSON key-value pairs. Format: key=value. Repeat for AND logic.",
+        ),
+    ] = None,
 ) -> AssetEventsResponse:
     where_clause = AssetAliasModel.name == name
     if after:
         where_clause = and_(where_clause, AssetEvent.timestamp >= after)
     if before:
         where_clause = and_(where_clause, AssetEvent.timestamp <= before)
+    extra_dict = _parse_extra_params(extra)
+    if extra_dict:
+        where_clause = and_(where_clause, JsonContains(AssetEvent.extra, extra_dict))
 
     _validate_partition_key_params(partition_key, partition_key_pattern)
     if partition_key is not None:

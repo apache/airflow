@@ -9,3 +9,7 @@
 
 # Binary files should be left untouched
 *.jar           binary
+
+# Keep the Gradle wrapper jar out of source releases.
+# See: https://issues.apache.org/jira/browse/LEGAL-570
+gradle/wrapper/gradle-wrapper.jar export-ignore

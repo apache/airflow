@@ -860,6 +860,7 @@ class AssetEventOperations:
         limit: int | None = None,
         partition_key: str | None = None,
         partition_key_pattern: str | None = None,
+        extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
         if partition_key is not None and partition_key_pattern is not None:
@@ -876,13 +877,18 @@ class AssetEventOperations:
             common_params["partition_key"] = partition_key
         if partition_key_pattern is not None:
             common_params["partition_key_pattern"] = partition_key_pattern
+        extra_params: list[tuple[str, str]] = []
+        if extra:
+            extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]
         if name or uri:
             resp = self.client.get(
-                "asset-events/by-asset", params={"name": name, "uri": uri, **common_params}
+                "asset-events/by-asset",
+                params=[*{"name": name, "uri": uri, **common_params}.items(), *extra_params],
             )
         elif alias_name:
             resp = self.client.get(
-                "asset-events/by-asset-alias", params={"name": alias_name, **common_params}
+                "asset-events/by-asset-alias",
+                params=[*{"name": alias_name, **common_params}.items(), *extra_params],
             )
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")

@@ -195,6 +195,23 @@
   },
   "pendingDagRun_one": "{{count}} Pending Dag Run",
   "pendingDagRun_other": "{{count}} Pending Dag Runs",
+  "presetFilters": {
+    "deleteTitle": "Delete preset filter",
+    "deleteWarning": "Preset filters are stored in this browser only.",
+    "duplicate": "The preset filter \"{{name}}\" already saves this exact setup.",
+    "empty": "No preset filters yet",
+    "info": {
+      "default": "Pin a preset filter as the default and it is applied automatically when you land on this page with no filters applied.",
+      "save": "Save the current filters and sorting as a named preset filter, then switch back to it anytime.",
+      "storage": "Preset filters are stored in this browser."
+    },
+    "namePlaceholder": "Preset filter name",
+    "nothingToSave": "Nothing to save. Apply filters or sorting to save a preset filter.",
+    "save": "Save",
+    "setDefault": "Set as default",
+    "title": "Preset Filters",
+    "unsetDefault": "Unset default"
+  },
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
