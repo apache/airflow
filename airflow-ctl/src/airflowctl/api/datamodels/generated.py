@@ -1993,6 +1993,7 @@ class PluginResponse(BaseModel):
     """
 
     name: Annotated[str, Field(title="Name")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
     macros: Annotated[list[str], Field(title="Macros")]
     flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
     fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]

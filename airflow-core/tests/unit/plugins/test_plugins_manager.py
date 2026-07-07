@@ -433,3 +433,68 @@ class TestWindowPluginRegistration:
 
         assert qualname(MyCustomWindow) in registered
         assert registered[qualname(MyCustomWindow)] is MyCustomWindow
+
+
+class TestPluginTeamName:
+    """``team_name`` exposure through ``get_plugin_info`` (attribute default is covered
+    by the shared plugins_manager tests)."""
+
+    def test_get_plugin_info_includes_team_name(self):
+        from airflow import plugins_manager
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_plugin"
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "team_a"
+
+        with mock_plugin_manager(plugins=[GlobalPlugin(), TeamPlugin()]):
+            info_by_name = {info["name"]: info for info in plugins_manager.get_plugin_info()}
+
+        assert info_by_name["global_plugin"]["team_name"] is None
+        assert info_by_name["team_plugin"]["team_name"] == "team_a"
+
+
+class TestValidatePluginTeams:
+    """``validate_plugin_teams`` startup validation."""
+
+    def test_no_op_when_multi_team_disabled(self):
+        from airflow import plugins_manager
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "nonexistent_team"
+
+        # multi_team defaults to False; validation must not touch the database or raise.
+        with mock_plugin_manager(plugins=[TeamPlugin()]):
+            plugins_manager.validate_plugin_teams()
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.models.team.Team.get_all_team_names", return_value={"team_a"})
+    def test_passes_for_global_and_known_team_plugins(self, mock_get_all_team_names):
+        from airflow import plugins_manager
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_plugin"
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "team_a"
+
+        with mock_plugin_manager(plugins=[GlobalPlugin(), TeamPlugin()]):
+            plugins_manager.validate_plugin_teams()
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.models.team.Team.get_all_team_names", return_value={"team_a"})
+    def test_raises_for_unknown_team(self, mock_get_all_team_names):
+        from airflow import plugins_manager
+        from airflow.exceptions import AirflowConfigException
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "unknown_team"
+
+        with mock_plugin_manager(plugins=[TeamPlugin()]):
+            with pytest.raises(AirflowConfigException, match="team_plugin.*unknown_team"):
+                plugins_manager.validate_plugin_teams()
