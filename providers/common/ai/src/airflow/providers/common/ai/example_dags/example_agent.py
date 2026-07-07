@@ -313,7 +313,8 @@ example_agent_session()
 def example_agent_dynamic_system_prompt():
     @task
     def classify(ticket: str) -> dict:
-        return {"priority": "high", "category": "shipping"}
+        category = "shipping" if "order" in ticket.lower() else "other"
+        return {"priority": "high", "category": category}
 
     @task.agent(
         llm_conn_id="pydanticai_default",
@@ -327,7 +328,8 @@ def example_agent_dynamic_system_prompt():
     )
     def draft_reply(ticket: str, triage: dict) -> str:
         # `triage` creates the task dependency; its content also flows into
-        # system_prompt via Jinja above.
+        # system_prompt via Jinja above. The returned string is the *prompt*
+        # sent to the agent -- the drafted reply is this task's XCom output.
         return f"Draft a reply for: {ticket}"
 
     ticket = "Where is my order? It still hasn't shipped."
