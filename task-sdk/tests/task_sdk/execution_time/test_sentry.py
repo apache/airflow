@@ -202,7 +202,7 @@ class TestSentryHook:
             mock.call(
                 integrations=[],
                 default_integrations=False,
-                before_send="task_sdk.execution_time.test_sentry.before_send",
+                before_send=import_string("task_sdk.execution_time.test_sentry.before_send"),
             ),
         ]
 
@@ -216,7 +216,7 @@ class TestSentryHook:
             mock.call(
                 integrations=[import_string("task_sdk.execution_time.test_sentry.CustomIntegration")()],
                 default_integrations=False,
-                before_send="task_sdk.execution_time.test_sentry.before_send",
+                before_send=import_string("task_sdk.execution_time.test_sentry.before_send"),
             ),
         ]
 
@@ -265,7 +265,7 @@ class TestSentryHook:
             mock.call(
                 integrations=[],
                 default_integrations=False,
-                transport="task_sdk.execution_time.test_sentry.CustomTransport",
+                transport=import_string("task_sdk.execution_time.test_sentry.CustomTransport"),
             ),
         ]
 
