@@ -339,6 +339,30 @@ class TestCommandFactory:
 
         assert parsed_conf == {"my-key": "my-value"}
 
+    def test_json_dict_type_returns_dict_input_unchanged(self):
+        """A dict input is returned as-is without re-parsing."""
+        value = {"my-key": "my-value"}
+
+        assert json_dict_type(value) is value
+
+    def test_json_dict_type_parses_json_object(self):
+        """A JSON object string is parsed into a dict."""
+        assert json_dict_type('{"my-key": "my-value"}') == {"my-key": "my-value"}
+
+    def test_json_dict_type_rejects_invalid_json(self):
+        """Invalid JSON raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid JSON object"):
+            json_dict_type("{not valid json}")
+
+    @pytest.mark.parametrize(
+        "value",
+        ["[]", '"string"', "123", "true", "null"],
+    )
+    def test_json_dict_type_rejects_non_object_json(self, value):
+        """Valid JSON that is not an object raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
+            json_dict_type(value)
+
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
 
