@@ -29,7 +29,7 @@ description: |
 state: ready
 lifecycle: incubation
 source-date-epoch: 1751587200
-build-system: hatchling
+build-system: flit_core
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
