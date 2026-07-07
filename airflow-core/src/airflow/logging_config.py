@@ -133,9 +133,14 @@ def _warn_if_missing_remote_task_log(logging_class_path: str) -> None:
     :param logging_class_path: the resolved ``[logging] logging_config_class``
         dotted path (already defaulted to :data:`DEFAULT_LOGGING_CONFIG_PATH`).
     """
-    user_defined = bool(logging_class_path) and logging_class_path != DEFAULT_LOGGING_CONFIG_PATH
+    # An empty path is not a meaningful override -- ``_get_logging_config()`` treats it the
+    # same as unset and falls back to ``DEFAULT_LOGGING_CONFIG_PATH``, so it must not be
+    # treated as a user-defined logging config class here either.
+    has_user_defined_logging_config_class = (
+        bool(logging_class_path) and logging_class_path != DEFAULT_LOGGING_CONFIG_PATH
+    )
     remote_logging_enabled = conf.getboolean("logging", "remote_logging", fallback=False)
-    if not (user_defined and remote_logging_enabled):
+    if not (has_user_defined_logging_config_class and remote_logging_enabled):
         return
     if _ActiveLoggingConfig.remote_task_log is not None:
         return
