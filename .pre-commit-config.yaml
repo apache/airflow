@@ -21,7 +21,7 @@ minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
-  golang: 1.24.0
+  golang: 1.25.0
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -295,6 +295,21 @@ repos:
           ^scripts/docker/install_os_dependencies\.sh$|
           ^Dockerfile$|
           ^Dockerfile\.ci$
+        pass_filenames: false
+        require_serial: true
+      - id: check-go-version-in-sync
+        name: Check Go toolchain version is consistent across build files
+        entry: ./scripts/ci/prek/check_go_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^go-sdk/go\.mod$|
+          ^kubernetes-tests/lang_sdk/go_example/go\.mod$|
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$|
+          ^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$|
+          ^go-sdk/\.pre-commit-config\.yaml$|
+          ^\.pre-commit-config\.yaml$
         pass_filenames: false
         require_serial: true
       - id: check-partition-mapper-defaults-in-sync
@@ -671,6 +686,17 @@ repos:
         entry: ./scripts/ci/prek/supported_versions.py
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
+        pass_filenames: false
+      - id: generate-api-permissions-doc
+        name: Generate REST API permission reference documentation
+        entry: ./scripts/ci/prek/extract_permissions.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^airflow-core/docs/security/api_permissions_ref\.rst$
         pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date

@@ -2474,7 +2474,9 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         )
 
         try:
-            self.log.info("Executing: %s'", self.configuration)
+            self.log.info("Executing: %s", self.configuration)
+            if self.sql:
+                self.log.info("SQL query:\n%s", self.sql)
             # Create a job
             if self.job_id is None:
                 raise ValueError("job_id cannot be None")
