@@ -36,7 +36,7 @@ plugins {
 }
 
 val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
-val schemaInput = layout.projectDirectory.file("schema/schema.json").asFile
+val schemaInput = layout.projectDirectory.file("schema/schema.json")
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
 val discriminatorDir = layout.buildDirectory.dir("generated-resources/main/src/main/kotlin")
@@ -213,13 +213,13 @@ val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
     description = "Ensure the bundled Supervisor Schema is up-to-date with the Gradle property."
     schemaVersion = airflowSupervisorSchemaVersion
     baseUrl = schemaBaseUrl
-    schemaFile = layout.projectDirectory.file("schema/schema.json")
+    schemaFile = schemaInput
 }
 
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
     dependsOn(syncSupervisorSchema)
     description = "Generate Discriminator to wire type strings to model classes"
-    schemaFile = layout.file(provider { schemaInput })
+    schemaFile = schemaInput
     modelPackage = jsonSchemaPackage
     targetDirectory = discriminatorDir
 }
@@ -227,7 +227,7 @@ tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
 tasks.register<GeneratePointersTask>("generatePointers") {
     dependsOn(syncSupervisorSchema)
     description = "Generate pointer files for jsonSchema2Pojo"
-    schemaFile = layout.file(provider { schemaInput })
+    schemaFile = schemaInput
     targetDirectory = pointersDir
 }
 
