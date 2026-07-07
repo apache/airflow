@@ -324,7 +324,7 @@ def get_asset_events(
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
     partition_key: QueryAssetEventPartitionKeyFilter,
-    partition_key_pattern: QueryAssetEventPartitionKeyRegex,
+    partition_key_regexp_pattern: QueryAssetEventPartitionKeyRegex,
     name_pattern: QueryAssetNamePatternSearch,
     name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     extra_filter: QueryAssetEventExtraFilter,
@@ -332,14 +332,8 @@ def get_asset_events(
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
-    if partition_key.value is not None and partition_key_pattern.value is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="partition_key and partition_key_pattern are mutually exclusive.",
-        )
-
-    if partition_key_pattern.value is not None:
-        # Bound the runtime of the user-supplied regex to guard against ReDoS (PostgreSQL only).
+    if partition_key_regexp_pattern.value is not None:
+        # Bound the runtime of the user-supplied regex to guard against ReDoS.
         apply_regex_query_timeout(session)
 
     base_statement = select(AssetEvent)
@@ -355,7 +349,7 @@ def get_asset_events(
             source_run_id,
             source_map_index,
             partition_key,
-            partition_key_pattern,
+            partition_key_regexp_pattern,
             name_pattern,
             name_prefix_pattern,
             extra_filter,

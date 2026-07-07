@@ -1775,7 +1775,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 ascending=msg.ascending,
                 limit=msg.limit,
                 partition_key=msg.partition_key,
-                partition_key_pattern=msg.partition_key_pattern,
+                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
                 extra=msg.extra,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
@@ -1789,7 +1789,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 ascending=msg.ascending,
                 limit=msg.limit,
                 partition_key=msg.partition_key,
-                partition_key_pattern=msg.partition_key_pattern,
+                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
                 extra=msg.extra,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)

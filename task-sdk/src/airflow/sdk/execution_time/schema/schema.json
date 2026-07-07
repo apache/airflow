@@ -1858,7 +1858,7 @@
           "default": null,
           "title": "Partition Key"
         },
-        "partition_key_pattern": {
+        "partition_key_regexp_pattern": {
           "anyOf": [
             {
               "type": "string"
@@ -1868,7 +1868,7 @@
             }
           ],
           "default": null,
-          "title": "Partition Key Pattern"
+          "title": "Partition Key Regexp Pattern"
         },
         "extra": {
           "anyOf": [
@@ -1960,7 +1960,7 @@
           "default": null,
           "title": "Partition Key"
         },
-        "partition_key_pattern": {
+        "partition_key_regexp_pattern": {
           "anyOf": [
             {
               "type": "string"
@@ -1970,7 +1970,7 @@
             }
           ],
           "default": null,
-          "title": "Partition Key Pattern"
+          "title": "Partition Key Regexp Pattern"
         },
         "extra": {
           "anyOf": [

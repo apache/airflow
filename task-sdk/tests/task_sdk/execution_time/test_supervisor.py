@@ -1941,7 +1941,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -1987,7 +1987,7 @@ REQUEST_TEST_CASES = [
                 "limit": 5,
                 "ascending": False,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2026,7 +2026,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2072,7 +2072,7 @@ REQUEST_TEST_CASES = [
                 "limit": 5,
                 "ascending": False,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2111,7 +2111,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2157,7 +2157,7 @@ REQUEST_TEST_CASES = [
                 "limit": 5,
                 "ascending": False,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2195,7 +2195,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2239,7 +2239,7 @@ REQUEST_TEST_CASES = [
                 "limit": 5,
                 "ascending": False,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2282,7 +2282,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": "us|2024-01-15",
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2325,7 +2325,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": {"region": "us"},
             },
             response=AssetEventsResult(
@@ -2366,7 +2366,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": "eu|2024-03",
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2407,7 +2407,7 @@ REQUEST_TEST_CASES = [
                 "limit": None,
                 "ascending": True,
                 "partition_key": None,
-                "partition_key_pattern": None,
+                "partition_key_regexp_pattern": None,
                 "extra": {"env": "prod"},
             },
             response=AssetEventsResult(

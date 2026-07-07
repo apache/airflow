@@ -2873,9 +2873,9 @@ export type GetAssetEventsData = {
     orderBy?: Array<(string)>;
     partitionKey?: string | null;
     /**
-     * Regex filter. Uses database-native regex (PostgreSQL ~ operator, MySQL REGEXP, SQLite re.match). Note: on SQLite, matching is anchored at the start of the string.
+     * Filter results by matching this regular expression against the field value.
      */
-    partitionKeyPattern?: string | null;
+    partitionKeyRegexpPattern?: string | null;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;

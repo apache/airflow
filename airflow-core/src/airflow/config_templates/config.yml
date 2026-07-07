@@ -1637,18 +1637,16 @@ api:
       default: "True"
     enable_regexp_query_filters:
       description: |
-        Whether to enable regular-expression based query filters in the API. Currently this
-        controls the ``partition_key_pattern`` filter on ``GET /assets/events`` and on the
+        Whether to enable regular-expression based query filters in the API. When enabled, it
+        allows additional filtering features that require database-side regexp matching, such as
+        the ``partition_key_regexp_pattern`` filter on ``GET /assets/events`` and on the
         Execution API asset-event endpoints.
 
-        Disabled by default for security reasons. When enabled, a user-supplied regular
-        expression is passed to the database's own regex engine, which is a Regular expression
-        Denial of Service (ReDoS) vector: a crafted pattern can force the engine into
-        pathological backtracking and consume database backend CPU. Only enable this if you
-        accept that trade-off, and keep ``regexp_query_timeout`` set to a sensible value.
-
-        Exact-match ``partition_key`` filtering is always available and is not affected by this
-        setting.
+        Disabled by default for security reasons: a user-supplied regular expression is passed to
+        the database's own regex engine, which is a Regular expression Denial of Service (ReDoS)
+        vector: a crafted pattern can force the engine into pathological backtracking and consume
+        database backend CPU. Only enable this if you accept that trade-off, and keep
+        ``regexp_query_timeout`` set to a sensible value.
       version_added: 3.4.0
       type: boolean
       example: ~

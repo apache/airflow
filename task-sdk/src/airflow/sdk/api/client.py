@@ -859,12 +859,10 @@ class AssetEventOperations:
         ascending: bool = True,
         limit: int | None = None,
         partition_key: str | None = None,
-        partition_key_pattern: str | None = None,
+        partition_key_regexp_pattern: str | None = None,
         extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
-        if partition_key is not None and partition_key_pattern is not None:
-            raise ValueError("partition_key and partition_key_pattern are mutually exclusive")
         common_params: dict[str, Any] = {}
         if after:
             common_params["after"] = after.isoformat()
@@ -875,8 +873,8 @@ class AssetEventOperations:
             common_params["limit"] = limit
         if partition_key is not None:
             common_params["partition_key"] = partition_key
-        if partition_key_pattern is not None:
-            common_params["partition_key_pattern"] = partition_key_pattern
+        if partition_key_regexp_pattern is not None:
+            common_params["partition_key_regexp_pattern"] = partition_key_regexp_pattern
         extra_params: list[tuple[str, str]] = []
         if extra:
             extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]

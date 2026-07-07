@@ -441,20 +441,18 @@ paths:
           - type: string
           - type: 'null'
           title: Partition Key
-      - name: partition_key_pattern
+      - name: partition_key_regexp_pattern
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Regex filter. Uses database-native regex (PostgreSQL ~ operator,
-            MySQL REGEXP, SQLite re.match). Note: on SQLite, matching is anchored
-            at the start of the string.'
-          title: Partition Key Pattern
-        description: 'Regex filter. Uses database-native regex (PostgreSQL ~ operator,
-          MySQL REGEXP, SQLite re.match). Note: on SQLite, matching is anchored at
-          the start of the string.'
+          description: Filter results by matching this regular expression against
+            the field value.
+          title: Partition Key Regexp Pattern
+        description: Filter results by matching this regular expression against the
+          field value.
       - name: name_pattern
         in: query
         required: false

@@ -521,15 +521,21 @@ class _RegexParam(BaseParam[str]):
     """
     Filter using database-level regex matching (regexp_match).
 
-    SQLAlchemy's ``regexp_match`` is supported on PostgreSQL (``~`` operator),
-    MySQL/MariaDB (``REGEXP``), and SQLite (via Python ``re.match``).
-    Note: SQLite uses ``re.match`` semantics (anchored at the start of the
-    string), while PostgreSQL uses ``re.search`` (matches anywhere).
+    The pattern is handed to the database's own regex engine (via SQLAlchemy's
+    ``regexp_match``), so this filter is gated behind the
+    ``[api] enable_regexp_query_filters`` setting to contain the ReDoS attack
+    surface: it cannot be instantiated with a value unless the setting is enabled.
     """
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
-        super().__init__(skip_none=skip_none)
+    def __init__(self, attribute: ColumnElement, value: str | None = None, skip_none: bool = True) -> None:
+        super().__init__(value=value, skip_none=skip_none)
         self.attribute: ColumnElement = attribute
+        if value is not None and not conf.getboolean("api", "enable_regexp_query_filters"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Regexp query filters are disabled. "
+                "Set [api] enable_regexp_query_filters = True to use them.",
+            )
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -541,30 +547,7 @@ class _RegexParam(BaseParam[str]):
         raise NotImplementedError("Use regex_param_factory instead, depends is not implemented.")
 
 
-def _validate_regex_pattern(value: str | None) -> str | None:
-    """Validate that the regex pattern is enabled and syntactically correct."""
-    if value is None:
-        return value
-    if not conf.getboolean("api", "enable_regexp_query_filters"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Regex query filters are disabled. Set [api] enable_regexp_query_filters = True to use them.",
-        )
-    try:
-        re.compile(value)
-    except re.error as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid regular expression: {e}",
-        )
-    return value
-
-
-_DEFAULT_REGEX_DESCRIPTION = (
-    "Regex filter. Uses database-native regex "
-    "(PostgreSQL ~ operator, MySQL REGEXP, SQLite re.match). "
-    "Note: on SQLite, matching is anchored at the start of the string."
-)
+_DEFAULT_REGEX_DESCRIPTION = "Filter results by matching this regular expression against the field value."
 
 
 def regex_param_factory(
@@ -576,8 +559,15 @@ def regex_param_factory(
     def depends_regex(
         value: str | None = Query(alias=pattern_name, default=None, description=description),
     ) -> _RegexParam:
-        _validate_regex_pattern(value)
-        return _RegexParam(attribute, skip_none).set_value(value)
+        if value is not None:
+            try:
+                re.compile(value)
+            except re.error as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid regular expression: {e}",
+                )
+        return _RegexParam(attribute, value, skip_none)
 
     return depends_regex
 
@@ -1710,7 +1700,7 @@ QueryAssetEventPartitionKeyFilter = Annotated[
     Depends(filter_param_factory(AssetEvent.partition_key, str | None, filter_name="partition_key")),
 ]
 QueryAssetEventPartitionKeyRegex = Annotated[
-    _RegexParam, Depends(regex_param_factory(AssetEvent.partition_key, "partition_key_pattern"))
+    _RegexParam, Depends(regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern"))
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)

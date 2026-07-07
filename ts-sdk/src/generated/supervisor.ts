@@ -364,7 +364,10 @@ export type Before = string | null;
 export type Limit = number | null;
 export type Ascending = boolean;
 export type PartitionKey5 = string | null;
-export type PartitionKeyPattern = string | null;
+export type PartitionKeyRegexpPattern = string | null;
+export type Extra7 = {
+  [k: string]: string;
+} | null;
 export type Type29 = "GetAssetEventByAsset";
 export type AliasName = string;
 export type After1 = string | null;
@@ -372,7 +375,10 @@ export type Before1 = string | null;
 export type Limit1 = number | null;
 export type Ascending1 = boolean;
 export type PartitionKey6 = string | null;
-export type PartitionKeyPattern1 = string | null;
+export type PartitionKeyRegexpPattern1 = string | null;
+export type Extra8 = {
+  [k: string]: string;
+} | null;
 export type Type30 = "GetAssetEventByAssetAlias";
 export type Name11 = string;
 export type Key6 = string;
@@ -1210,7 +1216,8 @@ export interface GetAssetEventByAsset {
   limit?: Limit;
   ascending?: Ascending;
   partition_key?: PartitionKey5;
-  partition_key_pattern?: PartitionKeyPattern;
+  partition_key_regexp_pattern?: PartitionKeyRegexpPattern;
+  extra?: Extra7;
   type?: Type29;
 }
 /**
@@ -1224,7 +1231,8 @@ export interface GetAssetEventByAssetAlias {
   limit?: Limit1;
   ascending?: Ascending1;
   partition_key?: PartitionKey6;
-  partition_key_pattern?: PartitionKeyPattern1;
+  partition_key_regexp_pattern?: PartitionKeyRegexpPattern1;
+  extra?: Extra8;
   type?: Type30;
 }
 /**

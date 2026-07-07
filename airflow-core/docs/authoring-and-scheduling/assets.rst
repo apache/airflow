@@ -247,17 +247,17 @@ Inlet asset events can be read with the ``inlet_events`` accessor in the executi
 
 Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given asset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
 
-The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events matching a specific partition key pattern (using database-native regex):
+The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events matching a specific partition key regular expression:
 
 .. code-block:: python
 
     @task(inlets=[regional_sales])
     def process_us_sales(*, inlet_events):
-        us_events = inlet_events[regional_sales].partition_key_pattern(r"^us\|")
+        us_events = inlet_events[regional_sales].partition_key_regexp_pattern(r"^us\|")
         for event in us_events:
             print(event.extra, event.partition_key)
 
-For an exact partition key match (no regex), use ``.partition_key(value)`` instead. The two are mutually exclusive; setting one clears the other.
+For an exact partition key match, use ``.partition_key(value)`` instead. Regexp filtering is opt-in and must be enabled with the ``[api] enable_regexp_query_filters`` setting; see the config for the security trade-off.
 
 You can also filter events by their ``extra`` key-value pairs:
 

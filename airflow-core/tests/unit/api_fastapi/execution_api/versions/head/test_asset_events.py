@@ -526,7 +526,7 @@ class TestGetAssetEventByAssetAlias:
 
 
 class TestGetAssetEventByAssetPartitionKey:
-    """Tests for partition_key_pattern regex filter on execution API.
+    """Tests for partition_key_regexp_pattern regex filter on execution API.
 
     Patterns are written to work consistently across PostgreSQL (~),
     MySQL (REGEXP), and SQLite (re.match). They are not necessarily
@@ -576,7 +576,7 @@ class TestGetAssetEventByAssetPartitionKey:
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key_pattern": "^2024-01-01$",
+                "partition_key_regexp_pattern": "^2024-01-01$",
             },
         )
         assert response.status_code == 200
@@ -591,7 +591,7 @@ class TestGetAssetEventByAssetPartitionKey:
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key_pattern": "^2024-01-",
+                "partition_key_regexp_pattern": "^2024-01-",
             },
         )
         assert response.status_code == 200
@@ -605,7 +605,7 @@ class TestGetAssetEventByAssetPartitionKey:
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key_pattern": r"^(us|eu)\|2024-01-.*",
+                "partition_key_regexp_pattern": r"^(us|eu)\|2024-01-.*",
             },
         )
         assert response.status_code == 200
@@ -621,7 +621,7 @@ class TestGetAssetEventByAssetPartitionKey:
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key_pattern": r".*\|2024-01-01$",
+                "partition_key_regexp_pattern": r".*\|2024-01-01$",
             },
         )
         assert response.status_code == 200
@@ -637,7 +637,7 @@ class TestGetAssetEventByAssetPartitionKey:
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key_pattern": "^2025-",
+                "partition_key_regexp_pattern": "^2025-",
             },
         )
         assert response.status_code == 200
@@ -659,7 +659,7 @@ class TestGetAssetEventByAssetPartitionKey:
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key_pattern": "^2024-01-",
+                "partition_key_regexp_pattern": "^2024-01-",
                 "after": "2021-01-01T12:00:00Z",
             },
         )
@@ -675,11 +675,11 @@ class TestGetAssetEventByAssetPartitionKey:
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key_pattern": "[invalid(regex",
+                "partition_key_regexp_pattern": "[invalid(regex",
             },
         )
         assert response.status_code == 400
-        assert "Invalid regex" in response.json()["detail"]["reason"]
+        assert "Invalid regular expression" in response.json()["detail"]
 
     def test_get_by_asset_with_pattern_disabled_returns_400(self, client):
         with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
@@ -688,11 +688,11 @@ class TestGetAssetEventByAssetPartitionKey:
                 params={
                     "name": "test_get_asset_by_name",
                     "uri": None,
-                    "partition_key_pattern": "^2021-",
+                    "partition_key_regexp_pattern": "^2021-",
                 },
             )
         assert response.status_code == 400
-        assert "disabled" in response.json()["detail"]["message"]
+        assert "disabled" in response.json()["detail"]
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_events")
     def test_get_by_asset_exact_partition_key(self, client):
@@ -738,22 +738,23 @@ class TestGetAssetEventByAssetPartitionKey:
         assert len(response.json()["asset_events"]) == 0
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_events")
-    def test_get_by_asset_mutual_exclusion_partition_key_and_pattern(self, client):
+    def test_get_by_asset_partition_key_and_pattern_combined(self, client):
+        # Both filters are allowed and combine with AND: a disjoint pair yields no results.
         response = client.get(
             "/execution/asset-events/by-asset",
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
                 "partition_key": "2024-01-01",
-                "partition_key_pattern": "^2024-",
+                "partition_key_regexp_pattern": "^2025-",
             },
         )
-        assert response.status_code == 400
-        assert "Mutually exclusive" in response.json()["detail"]["reason"]
+        assert response.status_code == 200
+        assert len(response.json()["asset_events"]) == 0
 
 
 class TestGetAssetEventByAssetAliasPartitionKey:
-    """Tests for partition_key_pattern regex filter on by-asset-alias endpoint.
+    """Tests for partition_key_regexp_pattern regex filter on by-asset-alias endpoint.
 
     All patterns use ^-anchored regex so they work consistently across
     PostgreSQL (~), MySQL (REGEXP), and SQLite (re.match).
@@ -803,7 +804,7 @@ class TestGetAssetEventByAssetAliasPartitionKey:
     def test_get_by_alias_with_partition_key_region(self, client):
         response = client.get(
             "/execution/asset-events/by-asset-alias",
-            params={"name": "partitioned_alias", "partition_key_pattern": r"^us\|.*"},
+            params={"name": "partitioned_alias", "partition_key_regexp_pattern": r"^us\|.*"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -814,7 +815,7 @@ class TestGetAssetEventByAssetAliasPartitionKey:
     def test_get_by_alias_with_partition_key_all_regions(self, client):
         response = client.get(
             "/execution/asset-events/by-asset-alias",
-            params={"name": "partitioned_alias", "partition_key_pattern": r".*\|2024-01-01$"},
+            params={"name": "partitioned_alias", "partition_key_regexp_pattern": r".*\|2024-01-01$"},
         )
         assert response.status_code == 200
         assert len(response.json()["asset_events"]) == 2
@@ -832,25 +833,25 @@ class TestGetAssetEventByAssetAliasPartitionKey:
     def test_get_by_alias_with_invalid_regex_returns_400(self, client):
         response = client.get(
             "/execution/asset-events/by-asset-alias",
-            params={"name": "partitioned_alias", "partition_key_pattern": "[invalid(regex"},
+            params={"name": "partitioned_alias", "partition_key_regexp_pattern": "[invalid(regex"},
         )
         assert response.status_code == 400
-        assert "Invalid regex" in response.json()["detail"]["reason"]
+        assert "Invalid regular expression" in response.json()["detail"]
 
     def test_get_by_alias_with_pattern_disabled_returns_400(self, client):
         with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
             response = client.get(
                 "/execution/asset-events/by-asset-alias",
-                params={"name": "partitioned_alias", "partition_key_pattern": "^us"},
+                params={"name": "partitioned_alias", "partition_key_regexp_pattern": "^us"},
             )
         assert response.status_code == 400
-        assert "disabled" in response.json()["detail"]["message"]
+        assert "disabled" in response.json()["detail"]
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_alias_events")
     def test_get_by_alias_with_exact_partition_key_regex(self, client):
         response = client.get(
             "/execution/asset-events/by-asset-alias",
-            params={"name": "partitioned_alias", "partition_key_pattern": r"^us\|2024-01-01$"},
+            params={"name": "partitioned_alias", "partition_key_regexp_pattern": r"^us\|2024-01-01$"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -878,17 +879,20 @@ class TestGetAssetEventByAssetAliasPartitionKey:
         assert len(response.json()["asset_events"]) == 0
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_alias_events")
-    def test_get_by_alias_mutual_exclusion_partition_key_and_pattern(self, client):
+    def test_get_by_alias_partition_key_and_pattern_combined(self, client):
+        # Both filters are allowed and combine with AND.
         response = client.get(
             "/execution/asset-events/by-asset-alias",
             params={
                 "name": "partitioned_alias",
                 "partition_key": "us|2024-01-01",
-                "partition_key_pattern": r"^us\|",
+                "partition_key_regexp_pattern": r"^us\|",
             },
         )
-        assert response.status_code == 400
-        assert "Mutually exclusive" in response.json()["detail"]["reason"]
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["asset_events"]) == 1
+        assert data["asset_events"][0]["partition_key"] == "us|2024-01-01"
 
 
 class TestGetAssetEventByAssetExtraFilter:

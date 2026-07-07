@@ -121,7 +121,7 @@ export class AssetService {
      * @param data.sourceRunId
      * @param data.sourceMapIndex
      * @param data.partitionKey
-     * @param data.partitionKeyPattern Regex filter. Uses database-native regex (PostgreSQL ~ operator, MySQL REGEXP, SQLite re.match). Note: on SQLite, matching is anchored at the start of the string.
+     * @param data.partitionKeyRegexpPattern Filter results by matching this regular expression against the field value.
      * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
@@ -148,7 +148,7 @@ export class AssetService {
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
                 partition_key: data.partitionKey,
-                partition_key_pattern: data.partitionKeyPattern,
+                partition_key_regexp_pattern: data.partitionKeyRegexpPattern,
                 name_pattern: data.namePattern,
                 name_prefix_pattern: data.namePrefixPattern,
                 extra: data.extra,
