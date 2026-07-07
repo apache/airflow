@@ -665,7 +665,7 @@ class TestFileTaskLogHandler:
         assert actual == os.fspath(tmp_path / expected)
 
     @skip_if_force_lowest_dependencies_marker
-    def test_read_remote_logs_with_real_s3_remote_log_io(self, create_task_instance, session):
+    def test_read_remote_logs_with_real_s3_remote_log_io(self, monkeypatch, create_task_instance, session):
         """Test _read_remote_logs method using real S3RemoteLogIO with mock AWS"""
         import tempfile
 
@@ -721,7 +721,9 @@ class TestFileTaskLogHandler:
 
                     import airflow.logging_config
 
-                    airflow.logging_config._ActiveLoggingConfig.remote_task_log = s3_remote_log_io
+                    monkeypatch.setattr(
+                        airflow.logging_config._ActiveLoggingConfig, "remote_task_log", s3_remote_log_io
+                    )
 
                     sources, logs = fth._read_remote_logs(ti, try_number=1)
 
