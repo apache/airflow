@@ -17,6 +17,11 @@
  * under the License.
  */
 
+import java.io.File
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
 val airflowSupervisorSchemaVersion: String by project
 
 plugins {
@@ -30,8 +35,8 @@ plugins {
     kotlin("plugin.serialization") version "2.3.0"
 }
 
-// TODO: Use a hosted file instead.
-val schemaInput = rootProject.file("../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
+val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
+val schemaInput = layout.projectDirectory.file("schema/schema.json").asFile
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
 val discriminatorDir = layout.buildDirectory.dir("generated-resources/main/src/main/kotlin")
@@ -150,7 +155,59 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
     }
 }
 
+abstract class SyncSupervisorSchemaTask : DefaultTask() {
+    @get:Input
+    abstract val schemaVersion: Property<String>
+
+    @get:Input
+    abstract val baseUrl: Property<String>
+
+    @get:Internal
+    abstract val schemaFile: RegularFileProperty
+
+    private fun apiVersionOf(file: File): String =
+        if (file.exists()) {
+            com.fasterxml.jackson.databind
+                .ObjectMapper()
+                .readTree(file)
+                .path("api_version")
+                .asText()
+        } else {
+            ""
+        }
+
+    @TaskAction
+    fun sync() {
+        val file = schemaFile.get().asFile
+        val version = schemaVersion.get()
+        if (apiVersionOf(file) == version) {
+            logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
+            return
+        }
+        val url = "${baseUrl.get()}/$version.json"
+        logger.lifecycle("Refreshing Supervisor Schema with $url")
+        file.parentFile.mkdirs()
+        URI(url).toURL().openStream().use { input ->
+            Files.copy(input, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+        val downloaded = apiVersionOf(file)
+        if (downloaded != version) {
+            throw GradleException(
+                "Downloaded schema declares api_version='$downloaded' but expected '$version' ($url)",
+            )
+        }
+    }
+}
+
+val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
+    description = "Ensure the bundled Supervisor Schema is up-to-date with the Gradle property."
+    schemaVersion = airflowSupervisorSchemaVersion
+    baseUrl = schemaBaseUrl
+    schemaFile = layout.projectDirectory.file("schema/schema.json")
+}
+
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
+    dependsOn(syncSupervisorSchema)
     description = "Generate Discriminator to wire type strings to model classes"
     schemaFile = layout.file(provider { schemaInput })
     modelPackage = jsonSchemaPackage
@@ -158,6 +215,7 @@ tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
 }
 
 tasks.register<GeneratePointersTask>("generatePointers") {
+    dependsOn(syncSupervisorSchema)
     description = "Generate pointer files for jsonSchema2Pojo"
     schemaFile = layout.file(provider { schemaInput })
     targetDirectory = pointersDir
