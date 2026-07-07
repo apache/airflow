@@ -1,1 +1,1 @@
-Speed up dynamic task mapping expansion by persisting newly-created mapped task instances in a single batched ``INSERT`` and priming their ``dag_run`` relationship, removing two per-index N+1 query patterns that made a wide fan-out a one-time scheduler stall scaling linearly with map width.
+Speed up scheduling of dynamically mapped tasks by reducing number of queries.
