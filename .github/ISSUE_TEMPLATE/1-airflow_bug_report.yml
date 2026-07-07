@@ -153,6 +153,7 @@ body:
         - dingding
         - discord
         - docker
+        - dq
         - edge3
         - elasticsearch
         - exasol
