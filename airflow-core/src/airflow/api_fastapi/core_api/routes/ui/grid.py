@@ -291,7 +291,12 @@ def get_grid_runs(
         .correlate(DagRun)
         .label("has_missed_deadline")
     )
-    has_note_subq = exists().where(DagRunNote.dag_run_id == DagRun.id).correlate(DagRun).label("has_note")
+    has_note_subq = (
+        exists()
+        .where(DagRunNote.dag_run_id == DagRun.id, DagRunNote.content.isnot(None))
+        .correlate(DagRun)
+        .label("has_note")
+    )
     base_query = (
         select(DagRun, has_missed_deadline, has_note_subq)
         .where(DagRun.dag_id == dag_id)
