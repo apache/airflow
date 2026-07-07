@@ -175,7 +175,6 @@ class BaseExecutor(LoggingMixin):
     # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``)
     # to bound hook execution. Executors that opt in must run on POSIX systems.
     supports_connection_test: bool = False
-    supports_streaming_logs: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
@@ -565,8 +564,8 @@ class BaseExecutor(LoggingMixin):
         """
         Return a streaming response for task logs.
 
-        Executors that implement this method must also set the ``supports_streaming_logs`` class
-        attribute to ``True``.
+        Executors that don't implement this method raise ``NotImplementedError``; callers should
+        catch that and fall back to :meth:`get_task_log`.
 
         :param ti: A TaskInstance object
         :param try_number: current try_number to read log from

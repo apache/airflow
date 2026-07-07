@@ -237,10 +237,9 @@ class TestFileTaskHandlerExecutorLogs:
         return ti
 
     def test_running_task_prefers_streaming_executor_logs(self):
-        """Use executor streaming logs when the executor advertises streaming support."""
+        """Use executor streaming logs when the executor implements streaming."""
         handler = FileTaskHandler(base_log_folder="")
         executor = MagicMock()
-        executor.supports_streaming_logs = True
         executor.get_streaming_task_log.return_value = (
             ["streaming source"],
             [convert_list_to_stream(["streaming log"])],
@@ -269,10 +268,10 @@ class TestFileTaskHandlerExecutorLogs:
         assert metadata == {"end_of_log": False, "log_pos": 1}
 
     def test_running_task_falls_back_to_legacy_executor_logs(self):
-        """Use legacy executor logs when streaming support is not advertised."""
+        """Use legacy executor logs when the executor doesn't implement streaming."""
         handler = FileTaskHandler(base_log_folder="")
         executor = MagicMock()
-        executor.supports_streaming_logs = False
+        executor.get_streaming_task_log.side_effect = NotImplementedError
         executor.get_task_log.return_value = (["legacy source"], ["legacy log"])
         handler.executor_instances = {"LegacyExecutor": executor}
         ti = self._running_ti("LegacyExecutor")
@@ -285,7 +284,7 @@ class TestFileTaskHandlerExecutorLogs:
         ):
             logs, metadata = handler._read(ti=ti, try_number=1)
 
-        executor.get_streaming_task_log.assert_not_called()
+        executor.get_streaming_task_log.assert_called_once_with(ti, 1)
         executor.get_task_log.assert_called_once_with(ti, 1)
         read_from_logs_server.assert_not_called()
         assert extract_events(logs, skip_source_info=False) == [

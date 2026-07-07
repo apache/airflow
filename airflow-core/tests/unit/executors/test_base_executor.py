@@ -67,10 +67,6 @@ def test_supports_multi_team_default_value():
     assert not BaseExecutor.supports_multi_team
 
 
-def test_supports_streaming_logs_default_value():
-    assert not BaseExecutor.supports_streaming_logs
-
-
 def test_invalid_slotspool():
     with pytest.raises(ValueError, match="parallelism is set to 0 or lower"):
         BaseExecutor(0)
