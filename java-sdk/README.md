@@ -257,6 +257,14 @@ apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.asc
 apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.sha512
 ```
 
+*NOTE:* The source archive deliberately omits `gradle/wrapper/gradle-wrapper.jar`
+since ASF source releases must not contain compiled code (see [LEGAL-570]). To
+build an *extracted* source package, use a locally installed Gradle instead:
+either run `gradle build`, or use `gradle wrapper` once to regenerate the jar
+and then `./gradlew build`.
+
+[LEGAL-570]: https://issues.apache.org/jira/browse/LEGAL-570
+
 Copy the three files into your checkout of the ASF dist *dev* repo and commit
 them with Subversion. If you don't already have the repo checked out, replace
 `<dist-dev-checkout>` with wherever you want it and `<path-to>` with this
