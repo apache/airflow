@@ -27,7 +27,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs
 
-from google.api_core.exceptions import Conflict
+from google.api_core.exceptions import Conflict, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.routine import Routine
@@ -71,6 +71,25 @@ except ImportError:
 
     def is_arg_set(value):  # type: ignore[misc,no-redef]
         return value is not NOTSET
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
+
+        external_id_key: str = "bigquery_job_id"
+
+        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = durable
+
+        def execute_resumable(self, context):
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
 
 
 if TYPE_CHECKING:
@@ -2260,7 +2279,9 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         return OperatorLineage(outputs=[output_dataset])
 
 
-class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
+class BigQueryInsertJobOperator(
+    ResumableJobMixin, GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin
+):
     """
     Execute a BigQuery job.
 
@@ -2313,6 +2334,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
+    :param durable: When ``True`` (the default), the submitted BigQuery job id is persisted to task
+        state before polling begins. A worker crash on retry reconnects to the existing job instead of
+        submitting a duplicate, this works regardless of ``force_rerun``, since the persisted id is
+        read back directly rather than recomputed. Set to ``False`` to always submit fresh on retry.
+        Requires Airflow 3.3+; no-op on earlier versions.
     """
 
     template_fields: Sequence[str] = (
@@ -2329,6 +2355,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
     operator_extra_links = (BigQueryTableLink(), BigQueryJobDetailLink())
+    external_id_key = "bigquery_job_id"
 
     def __init__(
         self,
@@ -2351,6 +2378,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         self.configuration = configuration
         self.location = location
         self.job_id = job_id
+        # self.job_id is reassigned to the actual submitted/fetched job's id as execution
+        # proceeds (see _persist_job_links); this keeps the user's original input around so
+        # submit_job always computes ids from it, not from a job id set by an earlier
+        # get_job_status call in the same attempt (e.g. on a durable terminal_resubmit).
+        self._configured_job_id = job_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.force_rerun = force_rerun
@@ -2422,6 +2454,55 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         if job.state != "DONE":
             raise AirflowException(f"Job failed with state: {job.state}")
 
+    def _persist_job_links(self, job: BigQueryJob | UnknownJob, context: Any) -> None:
+        job_types = {
+            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            ExtractJob._JOB_TYPE: ["sourceTable"],
+            QueryJob._JOB_TYPE: ["destinationTable"],
+        }
+
+        if self.project_id:
+            for job_type, tables_prop in job_types.items():
+                job_configuration = job.to_api_repr()["configuration"]
+                if job_type in job_configuration:
+                    for table_prop in tables_prop:
+                        if table_prop in job_configuration[job_type]:
+                            table = job_configuration[job_type][table_prop]
+                            persist_kwargs = {
+                                "context": context,
+                                "project_id": self.project_id,
+                                "table_id": table,
+                            }
+                            if not isinstance(table, str):
+                                persist_kwargs["table_id"] = table["tableId"]
+                                persist_kwargs["dataset_id"] = table["datasetId"]
+                                persist_kwargs["project_id"] = table["projectId"]
+                            BigQueryTableLink.persist(**persist_kwargs)
+
+        self.job_id = job.job_id
+        if self.project_id:
+            job_id_path = convert_job_id(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
+            warnings.warn(
+                "BigQueryInsertJobOperator's `job_id_path` XCom is deprecated and will be removed in a "
+                "future provider release. Use the operator return value or BigQuery job extra link instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+
+        persist_kwargs = {
+            "context": context,
+            "project_id": self.project_id,
+            "location": self.location,
+            "job_id": self.job_id,
+        }
+        BigQueryJobDetailLink.persist(**persist_kwargs)
+
     def _submit_new_job_on_retry(
         self,
         context: Any,
@@ -2442,6 +2523,35 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         return job
 
     def execute(self, context: Any):
+        if not self.deferrable:
+            return self.execute_resumable(context)
+
+        # submit_job's logic doesn't depend on deferrable at all, so it's reused here rather
+        # than duplicated -- unlike the other resumable ports, where the deferrable branch
+        # diverges from the synchronous one much earlier.
+        self.job_id = self.submit_job(context)
+        job = self._job
+
+        if job.running():
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BigQueryInsertJobTrigger(
+                    conn_id=self.gcp_conn_id,
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location or self.hook.location,
+                    poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                    cancel_on_kill=self.cancel_on_kill,
+                ),
+                method_name="execute_complete",
+            )
+        self.log.info("Current state of job %s is %s", job.job_id, job.state)
+        self._handle_job_error(job)
+        return self.job_id
+
+    def submit_job(self, context: Any) -> str:
+        """Submit the job (or reattach per today's Conflict/reattach_states/429 rules) and return its id."""
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2459,11 +2569,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         # To maintain backward compatibility, the try_number is appended to the job name
         # only starting from the 2nd attempt.
         ti_try_number = None
-        if self.job_id is None and context["ti"].try_number > 2:
+        if self._configured_job_id is None and context["ti"].try_number > 2:
             ti_try_number = context["ti"].try_number - 1
 
         self.job_id = hook.generate_job_id(
-            job_id=self.job_id,
+            job_id=self._configured_job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
             logical_date=None,
@@ -2516,77 +2626,51 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                 # We are reattaching to a job
                 self.log.info("Reattaching to existing Job in state %s", job.state)
 
-        job_types = {
-            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
-            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
-            ExtractJob._JOB_TYPE: ["sourceTable"],
-            QueryJob._JOB_TYPE: ["destinationTable"],
-        }
+        self._job = job
+        self._persist_job_links(job, context)
+        return job.job_id
 
-        if self.project_id:
-            for job_type, tables_prop in job_types.items():
-                job_configuration = job.to_api_repr()["configuration"]
-                if job_type in job_configuration:
-                    for table_prop in tables_prop:
-                        if table_prop in job_configuration[job_type]:
-                            table = job_configuration[job_type][table_prop]
-                            persist_kwargs = {
-                                "context": context,
-                                "project_id": self.project_id,
-                                "table_id": table,
-                            }
-                            if not isinstance(table, str):
-                                persist_kwargs["table_id"] = table["tableId"]
-                                persist_kwargs["dataset_id"] = table["datasetId"]
-                                persist_kwargs["project_id"] = table["projectId"]
-                            BigQueryTableLink.persist(**persist_kwargs)
-
-        self.job_id = job.job_id
-        if self.project_id:
-            job_id_path = convert_job_id(
-                job_id=self.job_id,
-                project_id=self.project_id,
-                location=self.location,
+    def get_job_status(self, external_id: str, context: Any) -> str:
+        """Query the raw job status; a missing job degrades to a not_found sentinel."""
+        # On reconnect/already-succeeded, submit_job never runs, so hook/project_id normally
+        # resolved there must be resolved here too.
+        if self.hook is None:
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
             )
-            warnings.warn(
-                "BigQueryInsertJobOperator's `job_id_path` XCom is deprecated and will be removed in a "
-                "future provider release. Use the operator return value or BigQuery job extra link instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+        if self.project_id is None:
+            self.project_id = self.hook.project_id
 
-        persist_kwargs = {
-            "context": context,
-            "project_id": self.project_id,
-            "location": self.location,
-            "job_id": self.job_id,
-        }
-        BigQueryJobDetailLink.persist(**persist_kwargs)
+        try:
+            job = self.hook.get_job(project_id=self.project_id, location=self.location, job_id=external_id)
+        except NotFound:
+            return "not_found"
+        # Reuse the same link bookkeeping as submit_job: this is the only place a job object is
+        # obtained when reconnecting to (or finding already-succeeded) a previously stored id.
+        self._job = job
+        self._persist_job_links(job, context)
+        if job.state != "DONE":
+            return job.state
+        return "error" if job.error_result else "success"
 
-        # Wait for the job to complete
-        if not self.deferrable:
-            job.result(timeout=self.result_timeout, retry=self.result_retry)
-            self._handle_job_error(job)
-            return self.job_id
+    def is_job_active(self, status: str) -> bool:
+        return status not in ("success", "error", "not_found")
 
-        if job.running():
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BigQueryInsertJobTrigger(
-                    conn_id=self.gcp_conn_id,
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location or hook.location,
-                    poll_interval=self.poll_interval,
-                    impersonation_chain=self.impersonation_chain,
-                    cancel_on_kill=self.cancel_on_kill,
-                ),
-                method_name="execute_complete",
-            )
-        self.log.info("Current state of job %s is %s", job.job_id, job.state)
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == "success"
+
+    def poll_until_complete(self, external_id: str, context: Any) -> str:
+        # self._job is set by whichever of submit_job / get_job_status last obtained it,
+        # never fetched again here, since neither of those calls skip setting it.
+        # On reconnect, the mixin returns this value directly without calling
+        # get_job_result -- so the job id must be returned here too.
+        job = self._job
+        job.result(timeout=self.result_timeout, retry=self.result_retry)
         self._handle_job_error(job)
-        return self.job_id
+        return external_id
+
+    def get_job_result(self, external_id: str, context: Any) -> str:
+        return external_id
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """
