@@ -80,24 +80,28 @@ class ConfiguredSentry(NoopSentry):
                 log.exception("Invalid executor Sentry integration", import_path=executor_integration)
 
         sentry_config_opts: dict[str, Any] = conf.getsection("sentry") or {}
-        if sentry_config_opts:
-            sentry_config_opts.pop("sentry_on")
-            old_way_dsn = sentry_config_opts.pop("sentry_dsn", None)
-            new_way_dsn = sentry_config_opts.pop("dsn", None)
-            # supported backward compatibility with old way dsn option
-            dsn = old_way_dsn or new_way_dsn
+        sentry_config_opts.pop("sentry_on", None)
+        old_way_dsn = sentry_config_opts.pop("sentry_dsn", None)
+        new_way_dsn = sentry_config_opts.pop("dsn", None)
+        # supported backward compatibility with old way dsn option
+        dsn = old_way_dsn or new_way_dsn
 
-            if unsupported_options := self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts):
-                log.warning(
-                    "There are unsupported options in [sentry] section",
-                    options=unsupported_options,
-                )
+        # Resolve before_send and transport to callables if configured
+        if before_send := conf.getimport("sentry", "before_send", fallback=None):
+            sentry_config_opts["before_send"] = before_send
         else:
-            dsn = None
-            if before_send := conf.getimport("sentry", "before_send", fallback=None):
-                sentry_config_opts["before_send"] = before_send
-            if transport := conf.getimport("sentry", "transport", fallback=None):
-                sentry_config_opts["transport"] = transport
+            sentry_config_opts.pop("before_send", None)
+
+        if transport := conf.getimport("sentry", "transport", fallback=None):
+            sentry_config_opts["transport"] = transport
+        else:
+            sentry_config_opts.pop("transport", None)
+
+        if unsupported_options := self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts):
+            log.warning(
+                "There are unsupported options in [sentry] section",
+                options=unsupported_options,
+            )
 
         if dsn:
             sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
