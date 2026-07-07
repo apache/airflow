@@ -99,7 +99,7 @@ class TestSQLExecuteQueryTrigger:
         mock_hook.arun.return_value = rows
         mock_hook.descriptions = descriptions
         trigger = self._make_trigger(fetch_results=True)
-        with mock.patch.object(trigger, "get_hook", new=mock.AsyncMock(return_value=mock_hook)):
+        with mock.patch.object(trigger, "aget_hook", new=mock.AsyncMock(return_value=mock_hook)):
             events = run_trigger(trigger)
 
         # The built-in fetch handler is used; no user handler runs in the triggerer.
@@ -114,7 +114,7 @@ class TestSQLExecuteQueryTrigger:
     def test_run_without_fetch_results_returns_no_results(self):
         mock_hook = self._make_mock_hook()
         trigger = self._make_trigger(fetch_results=False)
-        with mock.patch.object(trigger, "get_hook", new=mock.AsyncMock(return_value=mock_hook)):
+        with mock.patch.object(trigger, "aget_hook", new=mock.AsyncMock(return_value=mock_hook)):
             events = run_trigger(trigger)
 
         assert mock_hook.arun.await_args.kwargs["handler"] is None
@@ -136,7 +136,7 @@ class TestSQLExecuteQueryTrigger:
         mock_hook = self._make_mock_hook()
         mock_hook.arun.side_effect = Exception("DB error")
         trigger = self._make_trigger(fetch_results=True)
-        with mock.patch.object(trigger, "get_hook", new=mock.AsyncMock(return_value=mock_hook)):
+        with mock.patch.object(trigger, "aget_hook", new=mock.AsyncMock(return_value=mock_hook)):
             events = run_trigger(trigger)
 
         assert len(events) == 1
