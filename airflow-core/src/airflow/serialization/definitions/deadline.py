@@ -320,8 +320,6 @@ class SerializedReferenceModels:
         def deserialize_reference(cls, reference_data: dict):
             from airflow.serialization.helpers import find_registered_custom_deadline_reference
 
-            # A reference with no importable ``__class_path`` gets a clear error instead of an
-            # opaque ``KeyError`` (the deadline-creation isolation logs this and skips the alert).
             class_path = reference_data.get("__class_path")
             if not class_path:
                 raise ValueError(
