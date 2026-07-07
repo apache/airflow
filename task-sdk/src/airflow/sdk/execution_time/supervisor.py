@@ -2482,7 +2482,7 @@ def supervise_task(
 
     try:
         coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
-    except:
+    except Exception:
         log.exception(
             "Failed to initialize coordinator for task",
             dag_id=ti.dag_id,
