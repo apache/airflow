@@ -211,6 +211,18 @@ path is ``airflow.sdk.observability``:
 
 .. note::
 
+    Tag support depends on the backend. The classic StatsD protocol has no concept of tags.
+
+    * **OpenTelemetry** (``otel_on``) sends tags as native attributes.
+    * **StatsD** (``statsd_on``) drops the ``tags`` mapping by default. To turn tags into labels,
+      enable a tagged wire format, either ``statsd_influxdb_enabled = True`` (InfluxDB
+      ``name,key=value``) or ``statsd_datadog_enabled = True`` (DogStatsD ``|#key:value``). The
+      Prometheus ``statsd_exporter`` reads the tags from either format and turns them into labels.
+      These flags only change how tags are written on the wire. You can also embed the values in the
+      metric name and map those name segments back to labels with ``statsd_exporter`` mapping rules.
+
+.. note::
+
     These metrics are silently dropped unless a backend is enabled (see `Setup - StatsD`_
     or `Setup - OpenTelemetry`_).
 
