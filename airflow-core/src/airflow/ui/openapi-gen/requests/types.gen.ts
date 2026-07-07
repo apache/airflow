@@ -2274,6 +2274,20 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * Task-instance state counts for a Dag's latest run.
+ *
+ * ``state_counts`` only carries states present in the run; task instances without a
+ * state yet are keyed as ``no_status``.
+ */
+export type DAGLatestRunTaskInstanceStateCountsResponse = {
+    dag_id: string;
+    run_id: string;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunLightResponse = {
@@ -2360,6 +2374,13 @@ export type DAGWithLatestDagRunsResponse = {
      * Return file token.
      */
     readonly file_token: string;
+};
+
+/**
+ * Collection of per-Dag latest-run task-instance state counts for the Dag list page.
+ */
+export type DAGsLatestRunTaskInstanceStateCountsCollectionResponse = {
+    dags: Array<DAGLatestRunTaskInstanceStateCountsResponse>;
 };
 
 /**
@@ -3531,6 +3552,12 @@ export type GetDagRunStateCountsUiData = {
 };
 
 export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
+
+export type GetLatestRunTaskInstanceStateCountsUiData = {
+    dagIds: Array<(string)>;
+};
+
+export type GetLatestRunTaskInstanceStateCountsUiResponse = DAGsLatestRunTaskInstanceStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -6409,6 +6436,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGsRunStateCountsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/latest_run_task_instance_state_counts': {
+        get: {
+            req: GetLatestRunTaskInstanceStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsLatestRunTaskInstanceStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */

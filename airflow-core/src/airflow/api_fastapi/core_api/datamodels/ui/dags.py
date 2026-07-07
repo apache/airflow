@@ -48,6 +48,25 @@ class DAGRunStateCountsResponse(BaseModel):
     state_counts: dict[DagRunState, int]
 
 
+class DAGLatestRunTaskInstanceStateCountsResponse(BaseModel):
+    """
+    Task-instance state counts for a Dag's latest run.
+
+    ``state_counts`` only carries states present in the run; task instances without a
+    state yet are keyed as ``no_status``.
+    """
+
+    dag_id: str
+    run_id: str
+    state_counts: dict[str, int]
+
+
+class DAGsLatestRunTaskInstanceStateCountsCollectionResponse(BaseModel):
+    """Collection of per-Dag latest-run task-instance state counts for the Dag list page."""
+
+    dags: list[DAGLatestRunTaskInstanceStateCountsResponse]
+
+
 class DAGsRunStateCountsCollectionResponse(BaseModel):
     """Collection of per-Dag DagRun-state counts for the Dag list page."""
 

@@ -724,6 +724,19 @@ export const ensureUseDagServiceGetDagRunStateCountsUiData = (queryClient: Query
   dagIds: string[];
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) });
 /**
+* Get Latest Run Task Instance State Counts
+* Return task-instance state counts for each Dag's latest run, for the Dag list page.
+*
+* Dags without any run are omitted from the response.
+* @param data The data for the request.
+* @param data.dagIds
+* @returns DAGsLatestRunTaskInstanceStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagServiceGetLatestRunTaskInstanceStateCountsUiData = (queryClient: QueryClient, { dagIds }: {
+  dagIds: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetLatestRunTaskInstanceStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getLatestRunTaskInstanceStateCountsUi({ dagIds }) });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId

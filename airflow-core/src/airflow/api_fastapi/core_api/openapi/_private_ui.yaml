@@ -640,6 +640,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/latest_run_task_instance_state_counts:
+    get:
+      tags:
+      - DAG
+      summary: Get Latest Run Task Instance State Counts
+      description: 'Return task-instance state counts for each Dag''s latest run,
+        for the Dag list page.
+
+
+        Dags without any run are omitted from the response.'
+      operationId: get_latest_run_task_instance_state_counts_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 100
+          title: Dag Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGsLatestRunTaskInstanceStateCountsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dependencies:
     get:
       tags:
@@ -2366,6 +2404,32 @@ components:
         that
 
         the API server/Web UI can use this data to render connection form UI.'
+    DAGLatestRunTaskInstanceStateCountsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        state_counts:
+          additionalProperties:
+            type: integer
+          type: object
+          title: State Counts
+      type: object
+      required:
+      - dag_id
+      - run_id
+      - state_counts
+      title: DAGLatestRunTaskInstanceStateCountsResponse
+      description: 'Task-instance state counts for a Dag''s latest run.
+
+
+        ``state_counts`` only carries states present in the run; task instances without
+        a
+
+        state yet are keyed as ``no_status``.'
     DAGRunLightResponse:
       properties:
         id:
@@ -2677,6 +2741,19 @@ components:
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
+    DAGsLatestRunTaskInstanceStateCountsCollectionResponse:
+      properties:
+        dags:
+          items:
+            $ref: '#/components/schemas/DAGLatestRunTaskInstanceStateCountsResponse'
+          type: array
+          title: Dags
+      type: object
+      required:
+      - dags
+      title: DAGsLatestRunTaskInstanceStateCountsCollectionResponse
+      description: Collection of per-Dag latest-run task-instance state counts for
+        the Dag list page.
     DAGsRunStateCountsCollectionResponse:
       properties:
         dags:
