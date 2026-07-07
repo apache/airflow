@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any
 from opentelemetry import trace
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -142,7 +141,7 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.taskinstance import TaskInstance, _add_and_prime_mapped_ti
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
         from airflow.serialization.definitions.mappedoperator import (
             SerializedMappedOperator,
@@ -267,25 +266,11 @@ class TaskMap(TaskInstanceDependencies):
                 dag_version_id=dag_version_id,
             )
             task.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti, dag_run=dr)
-            # Attach the TI to the session (cheap -- no SELECT, unlike merge()) before
-            # refresh_from_task re-invokes the mutation hook, so a cluster policy that
-            # routes off the attached session sees an attached instance, as it did when
-            # the hook ran on the post-merge instance. Because we never merge(), .task is
-            # preserved and the returned TIs stay identity-mapped.
-            session.add(ti)
-            ti.context_carrier = new_task_run_carrier(dr.context_carrier)
-            ti.refresh_from_task(task, dag_run=dr)
-            # Prime the dag_run relationship so the downstream per-TI ti.get_dagrun()
-            # during dependency evaluation (e.g. NotPreviouslySkippedDep) is a cache hit
-            # instead of an N+1 SELECT. dr is the correct DagRun for these TIs (same
-            # run_id, single DagRun per run); set_committed_value marks the relationship
-            # loaded without dirtying the instance, so it does not affect the flush.
-            set_committed_value(ti, "dag_run", dr)
+            _add_and_prime_mapped_ti(
+                ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)
+            )
             new_tis.append(ti)
         if new_tis:
-            # Persist all newly-created mapped TIs in a single batched INSERT instead of
-            # a per-index session.merge() (which fired an N+1 SELECT per index).
             session.flush()
         all_expanded_tis.extend(new_tis)
 

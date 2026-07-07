@@ -58,7 +58,6 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
-from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
@@ -79,7 +78,7 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -2017,7 +2016,6 @@ class DagRun(Base, LoggingMixin):
         """
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
-        from airflow.settings import task_instance_mutation_hook
 
         try:
             total_length = get_mapped_ti_count(task, self.run_id, session=session)
@@ -2055,23 +2053,9 @@ class DagRun(Base, LoggingMixin):
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti, dag_run=self)
-            # Attach the TI to the session (cheap -- no SELECT, unlike merge()) before
-            # refresh_from_task re-invokes the mutation hook, so a cluster policy that
-            # routes off the attached session sees an attached instance, as it did when
-            # the hook ran on the post-merge instance. Because we never merge(), .task is
-            # preserved and the returned TIs stay identity-mapped.
-            session.add(ti)
-            ti.refresh_from_task(task, dag_run=self)
-            # Prime the dag_run relationship (self IS the DagRun) so the downstream
-            # per-TI ti.get_dagrun() during dependency evaluation is a cache hit instead
-            # of an N+1 SELECT. set_committed_value marks the relationship loaded without
-            # dirtying the instance, so it does not affect the flush.
-            set_committed_value(ti, "dag_run", self)
+            _add_and_prime_mapped_ti(ti, task, self, session=session)
             new_tis.append(ti)
         if new_tis:
-            # Persist all newly-created mapped TIs in a single batched INSERT instead of
-            # a per-index session.merge() + per-index flush (which fired an N+1 SELECT per index).
             session.flush()
         yield from new_tis
 
