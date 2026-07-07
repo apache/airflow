@@ -50,7 +50,16 @@ if (!project.hasProperty("mavenUrl")) {
 }
 
 val sourceReleaseDir = layout.buildDirectory.dir("distributions")
-val sourceReleaseTarball = sourceReleaseDir.map { it.file("apache-airflow-java-sdk-$version-src.tar.gz") }
+
+// Derive the version from the tag, so the tarball's name matches its contents.
+val sourceReleaseVersion =
+    providers.gradleProperty("gitRef").map {
+        it.substringAfterLast('/').replace(Regex("-rc\\d+$"), "")
+    }
+val sourceReleaseTarball =
+    sourceReleaseDir.zip(sourceReleaseVersion) { dir, version ->
+        dir.file("apache-airflow-java-sdk-$version-src.tar.gz")
+    }
 
 val sourceTarball by tasks.registering(Exec::class) {
     group = "release"
@@ -59,34 +68,38 @@ val sourceTarball by tasks.registering(Exec::class) {
     workingDir = rootDir
 
     // Capture early to keep compatibility to the Gradle configuration cache.
-    val gitRef = providers.gradleProperty("gitRef").getOrNull()
-    val archiveVersion = version.toString()
-    val tarball = sourceReleaseTarball.get().asFile
+    val gitRef = providers.gradleProperty("gitRef")
+    val archiveVersion = sourceReleaseVersion
+    val tarball = sourceReleaseTarball
 
     argumentProviders.add(
         CommandLineArgumentProvider {
-            if (gitRef == null) throw GradleException("sourceRelease requires -PgitRef=<tag>")
             listOf(
                 "archive",
                 "--format=tar.gz",
-                "--prefix=apache-airflow-java-sdk-$archiveVersion/",
-                "-o", tarball.absolutePath,
-                gitRef,
+                "--prefix=apache-airflow-java-sdk-${archiveVersion.get()}/",
+                "-o", tarball.get().asFile.absolutePath,
+                gitRef.get(),
             )
         },
     )
 
-    doFirst { tarball.parentFile.mkdirs() }
+    doFirst { tarball.get().asFile.parentFile.mkdirs() }
 }
 
 val signSourceTarball by tasks.registering(Exec::class) {
     group = "release"
     description = "Creates the detached OpenPGP signature (.asc) for the source tarball."
-    dependsOn(sourceTarball)
+    executable = "gpg"
     workingDir = rootDir
-    commandLine(
-        "gpg", "--armor", "--yes", "--detach-sign",
-        sourceReleaseTarball.get().asFile.absolutePath,
+    dependsOn(sourceTarball)
+
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val tarball = sourceReleaseTarball
+    argumentProviders.add(
+        CommandLineArgumentProvider {
+            listOf("--armor", "--yes", "--detach-sign", tarball.get().asFile.absolutePath)
+        },
     )
 }
 
@@ -96,11 +109,11 @@ val checksumSourceTarball by tasks.registering {
     dependsOn(sourceTarball)
 
     // Capture early to keep compatibility to the Gradle configuration cache.
-    val tarball = sourceReleaseTarball.get().asFile
-
+    val tarball = sourceReleaseTarball
     doLast {
+        val file = tarball.get().asFile
         val digest = java.security.MessageDigest.getInstance("SHA-512")
-        tarball.inputStream().use { input ->
+        file.inputStream().use { input ->
             val buffer = ByteArray(8192)
             while (true) {
                 val read = input.read(buffer)
@@ -109,7 +122,7 @@ val checksumSourceTarball by tasks.registering {
             }
         }
         val hex = digest.digest().joinToString("") { "%02x".format(it) }
-        tarball.resolveSibling("${tarball.name}.sha512").writeText("$hex  ${tarball.name}\n")
+        file.resolveSibling("${file.name}.sha512").writeText("$hex  ${file.name}\n")
     }
 }
 
