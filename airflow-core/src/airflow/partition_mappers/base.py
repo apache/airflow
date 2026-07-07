@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 
+from airflow.partition_mappers.rerun_policy import RerunPolicy
 from airflow.partition_mappers.wait_policy import WaitForAll, WaitPolicy
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class PartitionMapper(ABC):
     """
 
     is_rollup: ClassVar[bool] = False
+    rerun_policy: RerunPolicy = RerunPolicy.HOLD
 
     max_downstream_keys: int | None = None
 
@@ -158,6 +160,11 @@ class RollupMapper(PartitionMapper):
     ``wait_policy`` that decides when the downstream Dag run fires given
     the expected window and the upstream keys that have actually arrived.
     The default policy waits for every expected upstream key.
+
+    ``rerun_policy`` decides what happens when an upstream partition that the
+    fired window already consumed is cleared and re-run; see :class:`RerunPolicy`.
+    The default :attr:`RerunPolicy.HOLD` waits for the whole window to
+    re-materialize (the historical behavior).
     """
 
     is_rollup: ClassVar[bool] = True
@@ -168,6 +175,7 @@ class RollupMapper(PartitionMapper):
         upstream_mapper: PartitionMapper,
         window: Window,
         wait_policy: WaitPolicy | None = None,
+        rerun_policy: RerunPolicy = RerunPolicy.HOLD,
         max_downstream_keys: int | None = None,
     ) -> None:
         if upstream_mapper.expected_decoded_type is not window.expected_decoded_type:
@@ -184,6 +192,7 @@ class RollupMapper(PartitionMapper):
         self.upstream_mapper = upstream_mapper
         self.window = window
         self.wait_policy = wait_policy
+        self.rerun_policy = rerun_policy
 
     def to_downstream(self, key: str) -> str | Iterable[str]:
         return self.upstream_mapper.to_downstream(key)
@@ -216,6 +225,7 @@ class RollupMapper(PartitionMapper):
             "upstream_mapper": encode_partition_mapper(self.upstream_mapper),
             "window": encode_window(self.window),
             "wait_policy": encode_wait_policy(self.wait_policy),
+            "rerun_policy": self.rerun_policy.value,
         }
         if self.max_downstream_keys is not None:
             data["max_downstream_keys"] = self.max_downstream_keys
@@ -233,6 +243,7 @@ class RollupMapper(PartitionMapper):
             upstream_mapper=decode_partition_mapper(data["upstream_mapper"]),
             window=decode_window(data["window"]),
             wait_policy=decode_wait_policy(data["wait_policy"]),
+            rerun_policy=RerunPolicy(data.get("rerun_policy", RerunPolicy.HOLD)),
             max_downstream_keys=data.get("max_downstream_keys"),
         )
 

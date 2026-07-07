@@ -932,6 +932,11 @@ class AssetPartitionDagRun(Base):
     # legacy rows that pre-date the column; they are treated as stale on the
     # next scheduler tick.
     rollup_fingerprint: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The RerunPolicy that governs how the scheduler fires this provisional run.
+    # ``RerunPolicy.REFRESH`` fires immediately, skipping the wait policy.
+    # Everything else (first materialization, non-rollup, explicit HOLD) is ``"hold"``
+    # and goes through normal evaluation.
+    rerun_policy: Mapped[str] = mapped_column(String(20), nullable=False, server_default="hold")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False

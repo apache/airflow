@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 import attrs
 
+from airflow.sdk.definitions.partition_mappers.rerun_policy import RerunPolicy
 from airflow.sdk.definitions.partition_mappers.wait_policy import WaitForAll, WaitPolicy
 
 if TYPE_CHECKING:
@@ -45,6 +46,7 @@ class PartitionMapper:
     #: identity ``str`` but the window needs a different type (e.g. ``datetime``).
     #: Temporal mappers override to ``datetime``.
     expected_decoded_type: ClassVar[type] = str
+    rerun_policy = RerunPolicy.HOLD
 
     max_downstream_keys: int | None = attrs.field(
         default=None, kw_only=True, validator=_validate_max_downstream_keys
@@ -67,6 +69,12 @@ class RollupMapper(PartitionMapper):
     ``MinimumCount(n)`` fires once at least ``n`` keys have arrived when
     ``n`` is positive, or once at most ``-n`` keys are still missing when
     ``n`` is negative.
+
+    The ``rerun_policy`` is a :class:`RerunPolicy` that decides what happens when
+    an upstream partition is cleared and re-run after the downstream window has
+    already fired. The default ``RerunPolicy.HOLD`` waits for the whole window to
+    re-materialize (the historical behavior); ``RerunPolicy.REFRESH`` re-fires
+    immediately with the corrected data.
     """
 
     is_rollup: ClassVar[bool] = True
@@ -74,6 +82,7 @@ class RollupMapper(PartitionMapper):
     upstream_mapper: PartitionMapper = attrs.field(kw_only=True)
     window: Window = attrs.field(kw_only=True)
     wait_policy: WaitPolicy = attrs.field(factory=WaitForAll, kw_only=True)
+    rerun_policy: RerunPolicy = attrs.field(default=RerunPolicy.HOLD, kw_only=True, converter=RerunPolicy)
 
     def __attrs_post_init__(self) -> None:
         # Mirrors the core-side ``RollupMapper.__init__`` check so user code

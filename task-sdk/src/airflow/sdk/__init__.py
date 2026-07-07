@@ -73,6 +73,7 @@ __all__ = [
     "PokeReturnValue",
     "ProductMapper",
     "QuarterWindow",
+    "RerunPolicy",
     "ResumableJobMixin",
     "RetryAction",
     "RetryDecision",
@@ -165,6 +166,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
+    from airflow.sdk.definitions.partition_mappers.rerun_policy import RerunPolicy
     from airflow.sdk.definitions.partition_mappers.temporal import (
         FanOutMapper,
         StartOfDayMapper,
@@ -280,6 +282,7 @@ __lazy_imports: dict[str, str] = {
     "RetryDecision": ".definitions.retry_policy",
     "RetryPolicy": ".definitions.retry_policy",
     "RetryRule": ".definitions.retry_policy",
+    "RerunPolicy": ".definitions.partition_mappers.rerun_policy",
     "RollupMapper": ".definitions.partition_mappers.base",
     "SecretCache": ".execution_time.cache",
     "SegmentWindow": ".definitions.partition_mappers.window",

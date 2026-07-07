@@ -24,6 +24,7 @@ import pytest
 from airflow.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.partition_mappers.identity import IdentityMapper
+from airflow.partition_mappers.rerun_policy import RerunPolicy
 from airflow.partition_mappers.temporal import StartOfDayMapper
 from airflow.partition_mappers.window import DayWindow, SegmentWindow
 from airflow.serialization.decoders import decode_partition_mapper
@@ -270,3 +271,66 @@ class TestRollupMapperMaxDownstreamKeys:
         mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
         encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
         assert "max_downstream_keys" not in encoded_var
+
+
+class TestRollupMapperRerunPolicy:
+    @pytest.mark.parametrize("policy", list(RerunPolicy))
+    def test_encode_decode_roundtrip(self, policy):
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow(), rerun_policy=policy)
+        encoded = encode_partition_mapper(mapper)
+        assert encoded[Encoding.VAR]["rerun_policy"] == policy.value
+        assert decode_partition_mapper(encoded).rerun_policy is policy
+
+    def test_default_is_hold_in_encoded_payload(self):
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        assert encode_partition_mapper(mapper)[Encoding.VAR]["rerun_policy"] == "hold"
+
+    def test_missing_key_decodes_to_hold(self):
+        """A Dag serialized before rerun_policy existed has no key; it must default to HOLD (pre-feature behavior)."""
+        encoded = encode_partition_mapper(
+            RollupMapper(
+                upstream_mapper=StartOfDayMapper(), window=DayWindow(), rerun_policy=RerunPolicy.REFRESH
+            )
+        )
+        del encoded[Encoding.VAR]["rerun_policy"]
+        assert decode_partition_mapper(encoded).rerun_policy is RerunPolicy.HOLD
+
+    def test_non_rollup_mapper_reports_hold(self):
+        """A non-rollup mapper reports the neutral HOLD, so the manager reads mapper.rerun_policy without a rollup check."""
+        assert IdentityMapper().rerun_policy is RerunPolicy.HOLD
+
+    @pytest.mark.parametrize(
+        "make_mapper",
+        [
+            pytest.param(lambda **kw: IdentityMapper(**kw), id="identity"),
+            pytest.param(lambda **kw: StartOfDayMapper(**kw), id="temporal"),
+        ],
+    )
+    def test_only_rollup_accepts_rerun_policy_kwarg(self, make_mapper):
+        """``rerun_policy`` is a constructor arg only on RollupMapper; other mappers reject it."""
+        # RollupMapper accepts it ...
+        assert (
+            RollupMapper(
+                upstream_mapper=StartOfDayMapper(), window=DayWindow(), rerun_policy=RerunPolicy.REFRESH
+            ).rerun_policy
+            is RerunPolicy.REFRESH
+        )
+        # ... while a non-rollup mapper has no such parameter.
+        with pytest.raises(TypeError, match="rerun_policy"):
+            make_mapper(rerun_policy=RerunPolicy.REFRESH)
+
+
+class TestRerunPolicyMethods:
+    """The scheduler/manager ask the enum directly, so the behavior must live on it."""
+
+    @pytest.mark.parametrize(
+        ("policy", "fires", "drops"),
+        [
+            (RerunPolicy.REFRESH, True, False),
+            (RerunPolicy.HOLD, False, False),
+            (RerunPolicy.IGNORE, False, True),
+        ],
+    )
+    def test_behavior(self, policy, fires, drops):
+        assert policy.fires_immediately is fires
+        assert policy.drops_event is drops

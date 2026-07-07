@@ -336,6 +336,16 @@ repos:
           ^task-sdk/src/airflow/sdk/definitions/partition_mappers/window\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-rerun-policy-in-sync
+        name: Check RerunPolicy definitions stay in sync (core/SDK)
+        entry: ./scripts/ci/prek/check_rerun_policy_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/rerun_policy\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/rerun_policy\.py$
+        pass_filenames: false
+        require_serial: true
       - id: sync-uv-min-version-markers
         name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
         entry: ./scripts/ci/prek/sync_uv_min_version_markers.py

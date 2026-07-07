@@ -110,6 +110,7 @@ from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
 from airflow.partition_mappers.base import is_rollup
+from airflow.partition_mappers.rerun_policy import RerunPolicy
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
@@ -2293,23 +2294,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             source_key_by_asset = source_key_by_asset_per_apdr[apdr.id]
             timetable = dag.timetable
-            statuses: dict[SerializedAssetUniqueKey, bool] = {}
-            for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
-                key = SerializedAssetUniqueKey(name=name, uri=uri)
-                if timetable.partitioned:
-                    statuses[key] = self._resolve_asset_partition_status(
-                        session=session,
-                        asset_id=asset_id,
-                        name=name,
-                        uri=uri,
-                        apdr=apdr,
-                        timetable=timetable,
-                        actual_by_asset=source_key_by_asset,
-                    )
-                else:
-                    statuses[key] = True
-            if not evaluator.run(timetable.asset_condition, statuses=statuses):
-                continue
+            contributing_assets = asset_info_per_apdr[apdr.id]
+            if RerunPolicy(apdr.rerun_policy).fires_immediately:
+                # A REFRESH-stamped APDR supersedes an already-fired window: the
+                # rest of the window is still materialized, so fire immediately
+                # with the re-arrived events rather than re-satisfying the wait
+                # policy. Still require at least one active contributing asset.
+                if not contributing_assets:
+                    continue
+            else:
+                statuses: dict[SerializedAssetUniqueKey, bool] = {}
+                for asset_id, (name, uri) in contributing_assets.items():
+                    key = SerializedAssetUniqueKey(name=name, uri=uri)
+                    if timetable.partitioned:
+                        statuses[key] = self._resolve_asset_partition_status(
+                            session=session,
+                            asset_id=asset_id,
+                            name=name,
+                            uri=uri,
+                            apdr=apdr,
+                            timetable=timetable,
+                            actual_by_asset=source_key_by_asset,
+                        )
+                    else:
+                        statuses[key] = True
+                if not evaluator.run(timetable.asset_condition, statuses=statuses):
+                    continue
 
             partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()

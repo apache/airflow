@@ -533,6 +533,7 @@ class _Serializer:
             "upstream_mapper": encode_partition_mapper(partition_mapper.upstream_mapper),
             "window": encode_window(partition_mapper.window),
             "wait_policy": encode_wait_policy(partition_mapper.wait_policy),
+            "rerun_policy": partition_mapper.rerun_policy.value,
         }
         if partition_mapper.max_downstream_keys is not None:
             data["max_downstream_keys"] = partition_mapper.max_downstream_keys
