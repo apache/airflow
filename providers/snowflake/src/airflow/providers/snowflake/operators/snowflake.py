@@ -55,6 +55,8 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -526,19 +528,19 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
             "running": statement_running_status,
         }
 
-    def submit_job(self, context: Context) -> list[str]:
+    def submit_job(self, context: Context) -> JsonValue:
         """Submit the SQL for execution and return the resulting statement handles."""
         self.log.info("Executing: %s", self.sql)
         self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
         )
         self.log.info("List of query ids %s", self.query_ids)
-        return self.query_ids
+        return cast("JsonValue", self.query_ids)
 
-    def get_job_status(self, external_id: list[str], context: Context) -> str:
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         """Aggregate the status of every handle into a single verdict for the mixin."""
         statuses = []
-        for query_id in external_id:
+        for query_id in cast("list[str]", external_id):
             try:
                 statuses.append(self._hook.get_sql_api_query_status(query_id)["status"])
             except requests.exceptions.HTTPError as e:
@@ -557,8 +559,8 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
     def is_job_succeeded(self, status: str) -> bool:
         return status == "success"
 
-    def poll_until_complete(self, external_id: list[str], context: Context) -> None:
-        self.query_ids = external_id
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.query_ids = cast("list[str]", external_id)
         while True:
             statement_status = self.poll_on_queries()
             if statement_status["error"]:
@@ -574,8 +576,8 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self._hook.check_query_output(self.query_ids)
         self._poll_until_complete_ran = True
 
-    def get_job_result(self, external_id: list[str], context: Context) -> None:
-        self.query_ids = external_id
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self.query_ids = cast("list[str]", external_id)
         if getattr(self, "_poll_until_complete_ran", False):
             return
         # The already-succeeded retry path skips submit_job and poll_until_complete entirely,
