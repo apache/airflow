@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'SSHRemoteJobOperator' orphaning the remote job on cancellation (#68644)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Rerun flaky SSHRemoteJobOperator kill test on process-group races (#69384)``
+
 5.0.3
 .....
 

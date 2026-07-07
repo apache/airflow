@@ -25,10 +25,14 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 import structlog
-import yaml
 
+from airflow.sdk.coordinators._bundle_metadata import (
+    ResolvedBundle,
+    convert_roots,
+    extract_supervisor_schema_version,
+    parse_metadata_mapping,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -43,45 +47,19 @@ BUNDLE_FILENAME = "bundle.mjs"
 METADATA_FILENAME = "airflow-metadata.yaml"
 
 
-def _validate_schema_version(instance, _, value) -> str:
-    return get_schema_version_migrator().resolve_version(str(value))
-
-
-@attrs.define
-class _NodeBundle:
-    path: pathlib.Path
-    schema_version: str = attrs.field(validator=_validate_schema_version)
-
-
 def _read_bundle_metadata(metadata_path: pathlib.Path) -> dict[str, Any]:
     if not metadata_path.is_file():
         raise ValueError(f"missing {METADATA_FILENAME}")
 
     try:
-        with metadata_path.open(encoding="utf-8") as metadata_file:
-            data = yaml.safe_load(metadata_file)
+        content = metadata_path.read_text(encoding="utf-8")
     except OSError as exc:
         raise ValueError(f"cannot read {METADATA_FILENAME}: {exc}") from exc
-    except yaml.YAMLError as exc:
-        raise ValueError(f"cannot parse {METADATA_FILENAME}: {exc}") from exc
 
-    if not isinstance(data, dict):
-        raise ValueError(f"{METADATA_FILENAME} must contain a mapping")
-    return data
+    return parse_metadata_mapping(content, source=METADATA_FILENAME)
 
 
-def _supervisor_schema_version(metadata: dict[str, Any]) -> str:
-    sdk = metadata.get("sdk")
-    if not isinstance(sdk, dict):
-        raise ValueError("missing sdk metadata mapping")
-
-    value = sdk.get("supervisor_schema_version")
-    if not isinstance(value, str) or not value:
-        raise ValueError("missing or invalid sdk.supervisor_schema_version")
-    return value
-
-
-def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
+def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> ResolvedBundle:
     """
     Locate the ``.mjs`` entry point in *bundles_root*.
 
@@ -101,9 +79,9 @@ def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
         try:
             metadata = _read_bundle_metadata(root / METADATA_FILENAME)
             log.debug("Selected TypeScript bundle", path=candidate, root=root)
-            return _NodeBundle(
+            return ResolvedBundle(
                 path=candidate,
-                schema_version=_supervisor_schema_version(metadata),
+                schema_version=extract_supervisor_schema_version(metadata),
             )
         except (TypeError, ValueError) as exc:
             log.debug(
@@ -121,16 +99,6 @@ def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
             f"Cannot find usable TypeScript bundle in {searched}: matching bundles were rejected ({details})"
         )
     raise FileNotFoundError(f"Cannot find {BUNDLE_FILENAME} in {searched}")
-
-
-def _convert_bundles_root(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
 
 
 @attrs.define(kw_only=True)
@@ -163,7 +131,7 @@ class NodeCoordinator(SubprocessCoordinator):
 
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
-        converter=_convert_bundles_root,
+        converter=convert_roots,
         validator=attrs.validators.min_len(1),
     )
 

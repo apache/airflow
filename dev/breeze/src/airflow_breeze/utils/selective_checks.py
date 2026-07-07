@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
+    JAVA_SDK_VERSION,
     KIND_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
@@ -478,6 +479,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-core/src/airflow/observability/.*",
             r"^shared/observability/src/airflow_shared/observability/.*",
             r"^airflow-core/src/airflow/utils/span_status\.py$",
+            # The otel integration tests assert the exact span hierarchy that
+            # task_runner emits, so changes to either must exercise the integration.
+            r"^airflow-core/tests/integration/otel/.*",
+            r"^task-sdk/src/airflow/sdk/execution_time/task_runner\.py$",
         ],
         FileGroupForCi.CELERY_FILES: [
             # Core executor sources - redis is celery's broker/result backend, so the
@@ -691,6 +696,7 @@ class SelectiveChecks:
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
     default_helm_version = HELM_VERSION
+    java_sdk_version = JAVA_SDK_VERSION
 
     @cached_property
     def latest_versions_only(self) -> bool:

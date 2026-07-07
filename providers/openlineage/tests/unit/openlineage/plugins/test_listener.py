@@ -92,15 +92,23 @@ def direct_submit_call(self, callable, *args, **kwargs):
 
     Bypasses the ``ProcessPoolExecutor`` so tests can assert against mocked
     adapter methods without hitting pickling of ``unittest.mock.Mock``.
-    When the submitted callable is ``_emit_manual_state_change_event``, skip
-    its ``Stats.gauge`` side effect (which would try to ``Serde.to_json`` a
-    ``MagicMock`` return value) and invoke the adapter method directly.
+    The module-level pool wrappers pass adapter method *names* and resolve them
+    on the per-process adapter; here we resolve them on this listener's adapter
+    instead, so assertions against mocked adapter methods keep working. For
+    ``_emit_manual_state_change_event`` this also skips its ``Stats.gauge``
+    side effect (which would try to ``Serde.to_json`` a ``MagicMock`` return).
     """
-    from airflow.providers.openlineage.plugins.listener import _emit_manual_state_change_event
+    from airflow.providers.openlineage.plugins.listener import (
+        _emit_manual_state_change_event,
+        _run_adapter_method,
+    )
 
     if callable is _emit_manual_state_change_event:
-        adapter_method, _stats_key, *_ = args
-        return adapter_method(**kwargs)
+        adapter_method_name, _stats_key, *_ = args
+        return getattr(self.adapter, adapter_method_name)(**kwargs)
+    if callable is _run_adapter_method:
+        adapter_method_name, *rest = args
+        return getattr(self.adapter, adapter_method_name)(*rest, **kwargs)
     return callable(*args, **kwargs)
 
 
@@ -121,6 +129,34 @@ class MockExecutor:
 
     def shutdown(self, *args, **kwargs):
         print("Shutting down")
+
+
+def _probe_process_adapter():
+    """Return (pid, adapter id) from inside a pool worker; module-level so it is picklable."""
+    import os
+
+    from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+    return os.getpid(), id(_get_process_adapter())
+
+
+class TestProcessAdapterReuse:
+    def test_process_adapter_reused_across_pool_submissions(self):
+        """
+        A pool worker must reuse one adapter (hence one client/transport set) across events.
+
+        Regression test: submitting bound adapter methods pickled a fresh adapter per event,
+        making the worker build a new OpenLineageClient (and transport worker threads that are
+        never closed) for every DAG-run state change, leaking threads in the scheduler.
+        """
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(max_workers=1) as pool:
+            pid_first, adapter_id_first = pool.submit(_probe_process_adapter).result(timeout=60)
+            pid_second, adapter_id_second = pool.submit(_probe_process_adapter).result(timeout=60)
+
+        assert pid_first == pid_second
+        assert adapter_id_first == adapter_id_second
 
 
 class TestExecutorInitializer:
