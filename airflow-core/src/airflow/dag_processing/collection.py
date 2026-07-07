@@ -178,6 +178,81 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
     )
 
 
+_LATEST_RUN_LOAD_ONLY = (
+    DagRun.dag_id,
+    DagRun.logical_date,
+    DagRun.run_after,
+    DagRun.data_interval_start,
+    DagRun.data_interval_end,
+    DagRun.partition_key,
+    DagRun.partition_date,
+)
+
+
+def _get_latest_runs_stmt_batch(dag_ids: Collection[str]) -> Select:
+    """
+    Batch equivalent of :func:`_get_latest_runs_stmt` for several Dags in one query.
+
+    Row selection matches the single-dag statement per dag: the run(s) whose logical_date
+    equals the dag's max logical_date among automated runs; a dag whose automated runs all
+    lack a logical_date matches nothing, like the single-dag statement.
+    """
+    max_logical_dates = (
+        select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
+        .where(
+            DagRun.dag_id.in_(dag_ids),
+            DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
+        )
+        .group_by(DagRun.dag_id)
+        .subquery()
+    )
+    return (
+        select(DagRun)
+        .join(
+            max_logical_dates,
+            (DagRun.dag_id == max_logical_dates.c.dag_id)
+            & (DagRun.logical_date == max_logical_dates.c.max_logical_date),
+        )
+        .options(load_only(*_LATEST_RUN_LOAD_ONLY))
+    )
+
+
+def _get_latest_runs_stmt_partitioned_batch(dag_ids: Collection[str]) -> Select:
+    """
+    Batch equivalent of :func:`_get_latest_runs_stmt_partitioned` for several Dags in one query.
+
+    Row selection matches the single-dag statement per dag: the top run ordered by
+    (partition_date IS NULL, partition_date DESC, run_after DESC) among automated runs
+    with a partition_key.
+    """
+    ranked = (
+        select(
+            DagRun.id,
+            func.row_number()
+            .over(
+                partition_by=DagRun.dag_id,
+                order_by=(
+                    DagRun.partition_date.is_(None),
+                    DagRun.partition_date.desc(),
+                    DagRun.run_after.desc(),
+                ),
+            )
+            .label("rank"),
+        )
+        .where(
+            DagRun.dag_id.in_(dag_ids),
+            DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
+            DagRun.partition_key.is_not(None),
+        )
+        .subquery()
+    )
+    return (
+        select(DagRun)
+        .where(DagRun.id.in_(select(ranked.c.id).where(ranked.c.rank == 1)))
+        .options(load_only(*_LATEST_RUN_LOAD_ONLY))
+    )
+
+
 class _RunInfo(NamedTuple):
     latest_run: DagRun | None
     num_active_runs: int
@@ -214,6 +289,55 @@ class _RunInfo(NamedTuple):
             session=session,
         )
         return cls(latest_run, active_run_counts.get(dag.dag_id, 0))
+
+    @classmethod
+    def calculate_many(cls, dags: dict[str, LazyDeserializedDAG], *, session: Session) -> dict[str, Self]:
+        """
+        Query the run info for all given Dags with a constant number of queries.
+
+        Dag-factory files can yield tens to hundreds of Dags from a single parse batch;
+        resolving each one individually issues two queries per Dag. This resolves the
+        whole batch with one latest-run query per timetable kind plus one active-run
+        count query. A batch with a single schedulable Dag — the common one-Dag-per-file
+        case — delegates to :meth:`calculate` and issues exactly the same queries as
+        resolving that Dag individually.
+        """
+        run_infos: dict[str, Self] = {dag_id: cls(None, 0) for dag_id in dags}
+        schedulable = {dag_id: dag for dag_id, dag in dags.items() if dag.timetable.can_be_scheduled}
+        if not schedulable:
+            return run_infos
+        if len(schedulable) == 1:
+            ((dag_id, dag),) = schedulable.items()
+            run_infos[dag_id] = cls.calculate(dag, session=session)
+            return run_infos
+
+        partitioned_ids = [d.dag_id for d in schedulable.values() if d.timetable.partitioned]
+        plain_ids = [d.dag_id for d in schedulable.values() if not d.timetable.partitioned]
+
+        latest_runs: dict[str, DagRun] = {}
+        for dag_ids, single_stmt, batch_stmt in (
+            (plain_ids, _get_latest_runs_stmt, _get_latest_runs_stmt_batch),
+            (partitioned_ids, _get_latest_runs_stmt_partitioned, _get_latest_runs_stmt_partitioned_batch),
+        ):
+            if not dag_ids:
+                continue
+            if len(dag_ids) == 1:
+                if run := session.scalar(single_stmt(dag_ids[0])):
+                    latest_runs[run.dag_id] = run
+            else:
+                for run in session.scalars(batch_stmt(dag_ids)):
+                    # The single-dag statement returns an arbitrary row on a logical_date
+                    # tie; keeping the first row per dag matches that.
+                    latest_runs.setdefault(run.dag_id, run)
+
+        active_run_counts = DagRun.active_runs_of_dags(
+            dag_ids=list(schedulable),
+            exclude_backfill=True,
+            session=session,
+        )
+        for dag_id in schedulable:
+            run_infos[dag_id] = cls(latest_runs.get(dag_id), active_run_counts.get(dag_id, 0))
+        return run_infos
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -578,8 +702,9 @@ class DagModelOperation(NamedTuple):
         session: Session,
     ) -> None:
         # we exclude backfill from active run counts since their concurrency is separate
+        run_infos = _RunInfo.calculate_many(self.dags, session=session)
         for dag_id, dm in sorted(orm_dags.items()):
-            run_info = _RunInfo.calculate(dag=self.dags[dag_id], session=session)
+            run_info = run_infos[dag_id]
             dag = self.dags[dag_id]
             dm.fileloc = dag.fileloc
             dm.relative_fileloc = dag.relative_fileloc
