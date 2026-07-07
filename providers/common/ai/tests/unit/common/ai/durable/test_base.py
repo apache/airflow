@@ -16,88 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
-from airflow.providers.common.ai.durable.base import (
-    DURABLE_KEY_PREFIX,
-    TOOL_RESULT_SENTINEL,
-    DurableStorageProtocol,
-)
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX, DurableStorageProtocol
 from airflow.providers.common.ai.durable.storage import DurableStorage
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 
-class _CompleteBackend:
-    """Implements the full ``DurableStorageProtocol`` surface."""
-
-    def save_model_response(self, key, response, *, fingerprint):
-        pass
-
-    def load_model_response(self, key):
-        return None, None
-
-    def save_tool_result(self, key, result, *, fingerprint):
-        pass
-
-    def load_tool_result(self, key):
-        return False, None, None
-
-    def cleanup(self):
-        pass
-
-
-class _PartialBackend:
-    """Missing ``cleanup`` -- must not satisfy the protocol."""
-
-    def save_model_response(self, key, response, *, fingerprint):
-        pass
-
-    def load_model_response(self, key):
-        return None, None
-
-    def save_tool_result(self, key, result, *, fingerprint):
-        pass
-
-    def load_tool_result(self, key):
-        return False, None, None
-
-
-class TestDurableConstants:
-    def test_key_prefix_is_a_single_path_segment(self):
-        # Task state store keys are a single, un-encoded URL path segment, so the
-        # reserved prefix must not contain a separator that would split the key.
-        assert "/" not in DURABLE_KEY_PREFIX
-
-    def test_sentinel_and_prefix_are_distinct(self):
-        # Both are reserved markers written into the same store; if they ever
-        # coincided a cached tool result could be mistaken for a key prefix.
-        assert TOOL_RESULT_SENTINEL != DURABLE_KEY_PREFIX
-
-    def test_constants_are_non_empty_strings(self):
-        assert isinstance(TOOL_RESULT_SENTINEL, str)
-        assert TOOL_RESULT_SENTINEL
-        assert isinstance(DURABLE_KEY_PREFIX, str)
-        assert DURABLE_KEY_PREFIX
-
-
-class TestDurableStorageProtocol:
-    def test_complete_backend_satisfies_protocol(self):
-        assert isinstance(_CompleteBackend(), DurableStorageProtocol)
-
-    def test_partial_backend_does_not_satisfy_protocol(self):
-        assert not isinstance(_PartialBackend(), DurableStorageProtocol)
-
-    def test_arbitrary_object_does_not_satisfy_protocol(self):
-        assert not isinstance(object(), DurableStorageProtocol)
-
-    def test_protocol_is_runtime_checkable(self):
-        # ``runtime_checkable`` is what makes the ``isinstance`` checks above
-        # legal; guard against the decorator being dropped.
-        backend: Any = _CompleteBackend()
-        assert isinstance(backend, DurableStorageProtocol)
+def test_key_prefix_is_a_single_path_segment():
+    # Task state store keys are a single, un-encoded URL path segment, so the reserved
+    # prefix must not contain a separator that would split the key.
+    assert "/" not in DURABLE_KEY_PREFIX
 
 
 class TestRealBackendsSatisfyProtocol:

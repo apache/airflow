@@ -20,7 +20,9 @@ Task-state-store-backed durable storage for pydantic-ai agent step caching.
 Available on Airflow >= 3.3, where the AIP-103 task state store provides a
 per-task-instance key/value store that survives retries within a run and is
 cleared when the run is removed. Each cached step is written under its own key
-(``model_step_{N}`` / ``tool_step_{N}``); the store handles persistence and,
+(``model_step_{N}`` / ``tool_step_{N}``, each prefixed with the reserved
+``DURABLE_KEY_PREFIX`` so it cannot collide with user keys in the shared
+key namespace); the store handles persistence and,
 when ``[workers] state_store_backend`` is configured, transparently offloads
 large values to external storage. No ``[common.ai] durable_cache_path`` is
 needed.
@@ -32,7 +34,6 @@ older airflow versions.
 
 from __future__ import annotations
 
-import contextlib
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -75,15 +76,25 @@ class TaskStateStoreDurableStorage:
         self._keys: set[str] = set()
 
     def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> None:
-        """Serialize and store a ModelResponse with the request fingerprint that produced it."""
-        self._store.set(
-            key,
-            {
-                "fingerprint": fingerprint,
-                "data": ModelMessagesTypeAdapter.dump_python([response], mode="json"),
-            },
-            retention=NEVER_EXPIRE,
-        )
+        """
+        Serialize and store a ModelResponse with the request fingerprint that produced it.
+
+        Best-effort: the save runs *after* the live model call already succeeded, so a
+        failed write (e.g. a value over the backend's size limit) must not fail the step.
+        It is skipped with a warning and simply re-runs live on the next retry.
+        """
+        try:
+            self._store.set(
+                key,
+                {
+                    "fingerprint": fingerprint,
+                    "data": ModelMessagesTypeAdapter.dump_python([response], mode="json"),
+                },
+                retention=NEVER_EXPIRE,
+            )
+        except Exception:
+            log.warning("Durable: skipping cache for model response", key=key, exc_info=True)
+            return
         self._keys.add(key)
 
     def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]:
@@ -117,9 +128,13 @@ class TaskStateStoreDurableStorage:
         retry.
         """
         try:
-            # Probe serializability before writing: a non-serializable result
-            # must skip only this entry, not surface as an opaque comms error.
-            json.dumps(result)
+            # The store validates against pydantic ``JsonValue``, which is stricter than
+            # ``json.dumps``: it rejects tuples and non-string dict keys. Round-trip through
+            # JSON to coerce those (tuple -> list, non-str keys -> str) -- matching the < 3.3
+            # ObjectStorage backend -- so a common ``return (result, meta)`` is cached rather
+            # than crashing the step. Non-serializable results (e.g. BinaryContent from MCP
+            # tools) are skipped with a warning.
+            normalized = json.loads(json.dumps(result))
         except (TypeError, ValueError):
             log.warning(
                 "Durable: skipping cache for non-serializable tool result",
@@ -127,11 +142,18 @@ class TaskStateStoreDurableStorage:
                 type=type(result).__name__,
             )
             return
-        self._store.set(
-            key,
-            {TOOL_RESULT_SENTINEL: True, "value": result, "fingerprint": fingerprint},
-            retention=NEVER_EXPIRE,
-        )
+        try:
+            # Best-effort like the model-response save: a write that fails after the tool
+            # already ran (e.g. an oversize value) must not fail the step -- skip and re-run
+            # live on retry rather than surface an opaque comms error.
+            self._store.set(
+                key,
+                {TOOL_RESULT_SENTINEL: True, "value": normalized, "fingerprint": fingerprint},
+                retention=NEVER_EXPIRE,
+            )
+        except Exception:
+            log.warning("Durable: skipping cache for tool result", key=key, exc_info=True)
+            return
         self._keys.add(key)
 
     def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]:
@@ -154,7 +176,10 @@ class TaskStateStoreDurableStorage:
             # Runs only after the task has already succeeded, so it must never raise
             # (that would fail a succeeded task). A key left behind by a failed delete
             # is reclaimed by the DAG-run cascade -- hence the deliberately broad catch.
-            with contextlib.suppress(Exception):
+            # Log it so an offloaded value orphaned in external storage is at least visible.
+            try:
                 self._store.delete(key)
+            except Exception:
+                log.warning("Durable: failed to delete cache key on cleanup", key=key, exc_info=True)
         self._keys.clear()
         log.debug("Durable cache cleaned up")

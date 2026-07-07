@@ -28,6 +28,7 @@ if not AIRFLOW_V_3_3_PLUS:
     # ``importorskip`` on the module is not enough -- gate on the version instead.
     pytest.skip("task state store needs Airflow >= 3.3", allow_module_level=True)
 
+from pydantic import JsonValue, TypeAdapter
 from pydantic_ai.messages import (
     ModelMessagesTypeAdapter,
     ModelResponse,
@@ -38,6 +39,9 @@ from pydantic_ai.usage import RequestUsage
 from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL
 from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
+
+# The real accessor validates the value against pydantic ``JsonValue`` before persisting.
+_JSON_VALUE = TypeAdapter(JsonValue)
 
 
 class FakeTaskStateStore:
@@ -52,8 +56,12 @@ class FakeTaskStateStore:
         return self.store.get(key, default)
 
     def set(self, key, value, *, retention=None):
-        # Mirror the real accessor, which serializes to JSON and persists in a
-        # Text column -- so the round-trip is exercised, not a by-reference stash.
+        # Mirror the real accessor: reject ``None`` and reject values that are not valid
+        # ``JsonValue`` (tuples, non-string dict keys), then persist the JSON round-trip
+        # -- so tests see the same rejections and Text-column round-trip as production.
+        if value is None:
+            raise ValueError("Cannot set value as None")
+        _JSON_VALUE.validate_python(value)
         self.store[key] = json.loads(json.dumps(value))
         self.set_retentions[key] = retention
 
@@ -180,6 +188,26 @@ class TestSaveLoadToolResult:
         storage.save_tool_result("tool_step_0", circular, fingerprint="fp")  # must not raise
 
         assert "tool_step_0" not in accessor.store
+
+    def test_tuple_result_is_normalized_and_cached(self, storage):
+        """A tuple result (a common ``return (value, meta)``) is coerced to a list and cached.
+
+        The store validates against ``JsonValue`` and rejects tuples, so an un-normalized
+        write would fail a tool step that already succeeded -- normalization keeps it durable.
+        """
+        storage.save_tool_result("tool_step_0", (1, 2, 3), fingerprint="fp")  # must not raise
+
+        found, value, _ = storage.load_tool_result("tool_step_0")
+        assert found is True
+        assert value == [1, 2, 3]
+
+    def test_non_string_keyed_dict_result_is_normalized_and_cached(self, storage):
+        """A dict with non-string keys (e.g. ``DataFrame.to_dict()``) is coerced to string keys."""
+        storage.save_tool_result("tool_step_0", {1: "a", 2: "b"}, fingerprint="fp")  # must not raise
+
+        found, value, _ = storage.load_tool_result("tool_step_0")
+        assert found is True
+        assert value == {"1": "a", "2": "b"}
 
 
 class TestCleanup:
