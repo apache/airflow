@@ -102,28 +102,32 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.28.2``
 ``adbc-driver-manager``                  ``>=1.7.0``
 ``importlib-resources``                  ``>=1.3``
+``more-itertools``                       ``>=9.0.0``
 ``pyarrow``                              ``>=16.1.0; python_version < "3.13"``
 ``pyarrow``                              ``>=18.0.0; python_version >= "3.13"``
 =======================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional dependencies
+---------------------
 
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-arrow[common.sql]
+    pip install apache-airflow-providers-apache-arrow[sqlite]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==============  =====================================================================================================================================================================
+Extra           Dependencies
+==============  =====================================================================================================================================================================
+``sqlite``      ``adbc-driver-sqlite>=1.7.0``
+``snowflake``   ``adbc-driver-snowflake>=1.7.0``
+``bigquery``    ``adbc-driver-bigquery>=1.7.0``
+``flightsql``   ``adbc-driver-flightsql>=1.7.0``
+``postgresql``  ``adbc-driver-postgresql>=1.7.0``
+``all``         ``adbc-driver-sqlite>=1.7.0``, ``adbc-driver-snowflake>=1.7.0``, ``adbc-driver-bigquery>=1.7.0``, ``adbc-driver-flightsql>=1.7.0``, ``adbc-driver-postgresql>=1.7.0``
+==============  =====================================================================================================================================================================
 
 Downloading official packages
 -----------------------------

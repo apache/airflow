@@ -53,7 +53,7 @@ Requirements
 PIP package                              Version required
 =======================================  ======================================
 ``apache-airflow``                       ``>=2.11.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow-providers-common-sql``  ``>=1.28.2``
 ``adbc-driver-manager``                  ``>=1.7.0``
 ``importlib-resources``                  ``>=1.3``
 ``more-itertools``                       ``>=9.0.0``
