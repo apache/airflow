@@ -761,16 +761,22 @@ class TestPartitionsClear:
         assert "--date must be in the form 'a~b'" in str(excinfo.value.code)
 
     @pytest.mark.parametrize(
-        "cli_args",
+        ("cli_args", "expected_message"),
         [
-            ["--start-date", "2026-01-03", "--end-date", "2026-01-01"],
-            ["--date", "2026-01-03~2026-01-01"],
+            (
+                ["--start-date", "2026-01-03", "--end-date", "2026-01-01"],
+                "--start-date must be on or before --end-date.",
+            ),
+            (
+                ["--date", "2026-01-03~2026-01-01"],
+                "--date: the start of the range ('2026-01-03') must be on or before the end ('2026-01-01').",
+            ),
         ],
     )
-    def test_inverted_date_window_is_rejected(self, parser, cli_args):
+    def test_inverted_date_window_is_rejected(self, parser, cli_args, expected_message):
         with pytest.raises(SystemExit) as excinfo:
             partition_command.clear(parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, *cli_args]))
-        assert excinfo.value.code == "--start-date must be on or before --end-date."
+        assert excinfo.value.code == expected_message
 
     def test_equal_start_and_end_date_is_accepted(self, parser, capsys):
         partition_command.clear(

@@ -54,7 +54,9 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
             "(--start-date/--end-date or --date)."
         )
 
-    if args.date is not None:
+    from_date_flag = args.date is not None
+
+    if from_date_flag:
         if has_start or has_end:
             raise SystemExit("--date cannot be combined with --start-date / --end-date.")
         raw = args.date
@@ -69,6 +71,11 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
         has_start = has_end = True
 
     if has_start and has_end and args.start_date > args.end_date:
+        if from_date_flag:
+            raise SystemExit(
+                f"--date: the start of the range ({parts[0].strip()!r}) must be on or before "
+                f"the end ({parts[1].strip()!r})."
+            )
         raise SystemExit("--start-date must be on or before --end-date.")
 
     has_date_window = has_start or has_end
