@@ -1,18 +1,10 @@
-Custom graph colors return, using Chakra palette tokens
+Custom graph colors return via ``ui_color`` and ``ui_fgcolor``
 
 The ``ui_color`` and ``ui_fgcolor`` attributes on operators and TaskGroups color the graph view
-again (the node fill from ``ui_color`` and the operator label from ``ui_fgcolor``), as they did in
+again -- the node fill from ``ui_color`` and the operator label from ``ui_fgcolor``, as they did in
 Airflow 2. They were silently ignored since Airflow 3.0.
 
-**What changed:**
-
-- The value must now be a Chakra palette token such as ``blue.500`` (including tokens added through
-  custom UI theming). Tokens resolve through theme-controlled CSS variables, so the color stays
-  legible in both light and dark mode.
-- Legacy values that cannot adapt to the theme (raw hex like ``#fff``, CSS names like
-  ``CornflowerBlue``, or a bare family like ``blue``) are ignored by the graph.
-- Setting a non-token ``ui_color``/``ui_fgcolor`` on a user-authored operator or TaskGroup emits a
-  warning at Dag parse time. Built-in operators and providers do not warn.
-
-The node border keeps reflecting the task-instance run state; the custom color is applied to the
-fill and label only.
+The value can be a raw color (a hex code like ``#e8b7e4`` or a CSS name) or a Chakra palette token
+such as ``blue.500`` (including tokens added through custom UI theming); a token resolves through a
+theme-controlled CSS variable. The node border keeps reflecting the task-instance run state; the
+custom color is applied to the fill and label only.

@@ -23,7 +23,6 @@ from collections.abc import Callable
 from functools import cache
 from operator import methodcaller
 
-from airflow._shared.dagnode.ui_color import is_chakra_color_token
 from airflow.configuration import conf
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, is_mapped
@@ -39,16 +38,9 @@ def get_task_group_children_getter() -> Callable:
 
 
 def _ui_colors(node) -> dict[str, str]:
-    """
-    Return the node's ``ui_color``/``ui_fgcolor`` keys, keeping only valid Chakra color tokens.
-
-    Legacy values (raw hex, CSS names, the unset defaults) are dropped so the graph only ever
-    receives colors the UI can resolve against the theme.
-    """
+    """Return the node's ``ui_color``/``ui_fgcolor`` values (hex or Chakra token) for the graph."""
     return {
-        key: value
-        for key in ("ui_color", "ui_fgcolor")
-        if is_chakra_color_token(value := getattr(node, key, None))
+        key: value for key in ("ui_color", "ui_fgcolor") if (value := getattr(node, key, None)) is not None
     }
 
 

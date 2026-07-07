@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-import warnings
-
 import pendulum
 import pytest
 
@@ -1119,25 +1117,3 @@ def test_topological_sort_padded_reverse_chain_uses_pass_numbering(monkeypatch):
 
     assert called["value"]
     _assert_valid_topological_order(dag.task_group, order)
-
-
-class TestTaskGroupUiColor:
-    @pytest.mark.parametrize(
-        ("kwargs", "expected_fields"),
-        [
-            pytest.param({"ui_color": "red"}, ["ui_color"], id="non-token-color"),
-            pytest.param({"ui_fgcolor": "#000000"}, ["ui_fgcolor"], id="non-token-fgcolor"),
-            pytest.param({"ui_color": "teal.400", "ui_fgcolor": "gray.900"}, [], id="valid-tokens"),
-            pytest.param({}, [], id="defaults"),
-        ],
-    )
-    def test_warns_on_non_token_colors(self, kwargs, expected_fields):
-        with DAG("d", schedule=None, start_date=DEFAULT_DATE):
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                TaskGroup("group", **kwargs)
-
-        messages = [str(w.message) for w in caught if "Chakra color token" in str(w.message)]
-        assert len(messages) == len(expected_fields)
-        for field in expected_fields:
-            assert any(f"TaskGroup {field}" in message for message in messages)
