@@ -106,6 +106,13 @@ class TestObjectStorageResultsBackend:
         assert payload["run"]["task_id"] == "dq"
         assert payload["result"]["rule_uid"] == "rule-1"
 
+    def test_write_run_does_not_store_global_rule_index(self, backend):
+        backend.write_run(make_run(), [make_result()])
+
+        path = backend.root / "rules" / "by_rule" / "rule_uid=rule-1"
+
+        assert not path.exists()
+
     def test_rule_history_is_newest_first(self, backend):
         backend.write_run(
             make_run(run_uid="run1", started_at="2026-07-01T06:00:00+00:00"),

@@ -25,11 +25,8 @@ Each DQ check writes a keyed JSON document plus read indexes optimized for the U
     runs/by_task_instance/dag_id=<dag>/task_id=<task>/<safe_run_id>__<map_index>.json
         Latest result for a task-instance page. Last write wins across retries.
 
-    rules/by_rule/rule_uid=<uid>/<started_at>__<run_uid>.json
-        One rule result plus run context: ``{"run": ..., "result": ...}``.
-
     rules/by_task_rule/dag_id=<dag>/task_id=<task>/rule_uid=<uid>/<started_at>__<run_uid>.json
-        Same payload, scoped for task-level rule history views.
+        One rule result plus run context: ``{"run": ..., "result": ...}``.
 
 The duplicate files are intentional read indexes: DQ tasks write once, while the UI reads
 many times. Keeping these indexes avoids scanning all task runs for common UI views.
@@ -155,12 +152,6 @@ class ObjectStorageResultsBackend:
         compact_ts = self._get_safe_key(timestamp)
         for result in results:
             payload = {"run": run_context, "result": result.to_dict()}
-            self._write_rule_index(
-                self.root / "rules" / "by_rule" / f"rule_uid={result.rule_uid}",
-                compact_ts,
-                run.run_uid,
-                payload,
-            )
             self._write_rule_index(
                 self.root
                 / "rules"
