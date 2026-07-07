@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.gradle.process.CommandLineArgumentProvider
+
 plugins {
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
@@ -53,22 +55,28 @@ val sourceReleaseTarball = sourceReleaseDir.map { it.file("apache-airflow-java-s
 val sourceTarball by tasks.registering(Exec::class) {
     group = "release"
     description = "Assembles the source tarball from committed java-sdk sources."
+    executable = "git"
     workingDir = rootDir
-    doFirst {
-        val ref =
-            providers.gradleProperty("gitRef").orNull ?: throw GradleException(
-                "sourceRelease requires -PgitRef=<tag>, " +
-                    "e.g. -PgitRef=java-sdk/1.0.0-beta1-rc1",
+
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val gitRef = providers.gradleProperty("gitRef").getOrNull()
+    val archiveVersion = version.toString()
+    val tarball = sourceReleaseTarball.get().asFile
+
+    argumentProviders.add(
+        CommandLineArgumentProvider {
+            if (gitRef == null) throw GradleException("sourceRelease requires -PgitRef=<tag>")
+            listOf(
+                "archive",
+                "--format=tar.gz",
+                "--prefix=apache-airflow-java-sdk-$archiveVersion/",
+                "-o", tarball.absolutePath,
+                gitRef,
             )
-        sourceReleaseDir.get().asFile.mkdirs()
-        commandLine(
-            "git", "archive",
-            "--format=tar.gz",
-            "--prefix=apache-airflow-java-sdk-$version/",
-            "-o", sourceReleaseTarball.get().asFile.absolutePath,
-            "$ref:java-sdk",
-        )
-    }
+        },
+    )
+
+    doFirst { tarball.parentFile.mkdirs() }
 }
 
 val signSourceTarball by tasks.registering(Exec::class) {
@@ -86,8 +94,11 @@ val checksumSourceTarball by tasks.registering {
     group = "release"
     description = "Writes the SHA-512 checksum (.sha512) for the source tarball."
     dependsOn(sourceTarball)
+
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val tarball = sourceReleaseTarball.get().asFile
+
     doLast {
-        val tarball = sourceReleaseTarball.get().asFile
         val digest = java.security.MessageDigest.getInstance("SHA-512")
         tarball.inputStream().use { input ->
             val buffer = ByteArray(8192)
