@@ -449,6 +449,7 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
 delim
 deliverability
 deltalake
