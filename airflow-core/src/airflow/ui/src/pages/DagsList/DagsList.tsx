@@ -40,18 +40,27 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
+import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import { DagCard } from "./DagCard";
+import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
 import { useTagFilter } from "./useTagFilter";
 
+type RunStateCountsContext = {
+  readonly countsByDag: Record<string, Record<string, number> | undefined>;
+  readonly isLoading: boolean;
+  readonly stateCountLimit: number | undefined;
+};
+
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
+  runStateContext: RunStateCountsContext,
 ): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
   {
     accessorKey: "is_paused",
@@ -122,6 +131,20 @@ const createColumns = (
     header: () => translate("dagDetails.latestRun"),
   },
   {
+    accessorKey: "run_state_counts",
+    cell: ({ row: { original } }) => (
+      <DagRunStateCounts
+        compact
+        counts={runStateContext.countsByDag[original.dag_id]}
+        dagId={original.dag_id}
+        isLoading={runStateContext.isLoading}
+        stateCountLimit={runStateContext.stateCountLimit}
+      />
+    ),
+    enableSorting: false,
+    header: () => translate("dags:runStateCounts.label"),
+  },
+  {
     accessorKey: "tags",
     cell: ({
       row: {
@@ -179,12 +202,19 @@ const {
   PAUSED,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
-  card: ({ row }) => <DagCard dag={row} />,
+const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
+  card: ({ row }) => (
+    <DagCard
+      dag={row}
+      runStateCounts={runStateContext.countsByDag[row.dag_id]}
+      runStateCountsLoading={runStateContext.isLoading}
+      stateCountLimit={runStateContext.stateCountLimit}
+    />
+  ),
   meta: {
-    customSkeleton: <Skeleton height="120px" width="100%" />,
+    customSkeleton: <Skeleton height="140px" width="100%" />,
   },
-};
+});
 
 export const DagsList = () => {
   const { t: translate } = useTranslation();
@@ -211,8 +241,6 @@ export const DagsList = () => {
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
-
-  const columns = createColumns(translate);
 
   const handleSearchChange = (value: string) => {
     setTableURLState({
@@ -268,6 +296,21 @@ export const DagsList = () => {
     tagsMatchMode: selectedMatchMode,
   });
 
+  const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
+    dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
+    dags: data?.dags,
+  });
+  const runStateContext: RunStateCountsContext = {
+    countsByDag: Object.fromEntries(
+      (runStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry.state_counts]),
+    ),
+    isLoading: runStateCountsLoading,
+    stateCountLimit: runStateCountsData?.state_count_limit,
+  };
+
+  const columns = createColumns(translate, runStateContext);
+  const cardDef = createCardDef(runStateContext);
+
   const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
     setTableURLState({
       pagination,
@@ -297,9 +340,11 @@ export const DagsList = () => {
             </Heading>
             <DagImportErrors iconOnly />
           </HStack>
-          {display === "card" ? (
-            <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-          ) : undefined}
+          <HStack>
+            {display === "card" ? (
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+            ) : undefined}
+          </HStack>
         </HStack>
       </VStack>
       <Box pb={8}>

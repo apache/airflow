@@ -724,6 +724,14 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 # CI runs from Docker Hub anonymous-pull rate limits, which intermittently
 # turn the scheduled K8s test job red. Auto-bumped by
 # scripts/ci/prek/upgrade_important_versions.py.
+#
+# Scope: ONLY images referenced by the regular K8S system tests under
+# kubernetes-tests/tests/kubernetes_tests/ (the suite `breeze k8s tests`
+# runs against the deployed chart). Images that appear in a kustomize
+# overlay under chart/kustomize-overlays/<name>/ must NOT be added here:
+# `breeze k8s smoke-test-overlay` auto-discovers them from the rendered
+# manifest; add to this list only if the image is also useful to the non-overlay
+# K8S tests.
 K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
     "alpine:3.24.1",  # xcom_sidecar default in providers/cncf/kubernetes
     "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
@@ -2486,7 +2494,7 @@ LANG_SDK_GO_BUNDLE_NAME = "lang_sdk_combined"
 LANG_SDK_JAVA_EXAMPLE_PATH = LANG_SDK_PATH / "java_example"
 # Build the artifacts inside ephemeral toolchain containers so the host needs
 # neither Go nor a JDK installed (mirrors the airflow-e2e-tests conftest).
-LANG_SDK_GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.24-alpine")
+LANG_SDK_GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
 LANG_SDK_JAVA_BUILDER_IMAGE = "eclipse-temurin:17-jdk"
 LANG_SDK_MAVEN_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "m2"
 # The Java queue needs a JRE the JavaCoordinator can exec; the Go queue runs on
@@ -2501,123 +2509,153 @@ LANG_SDK_AWS_CONN_URI = (
 )
 
 
-def _lang_sdk_build_go_bundle(staging: Path, output: Output | None) -> None:
-    """Build the Go bundle into ``staging/go-artifacts`` in an ephemeral Go toolchain container.
+def _lang_sdk_build_go_bundle(staging: Path, output: Output | None, *, native: bool = False) -> None:
+    """Build the Go bundle into ``staging/go-artifacts`` and copy the result into the staging dir.
 
-    The container means the host needs no Go install; the build writes into a gitignored dir under
-    the repo (with persistent caches) and the result is copied into the staging dir.
+    By default the build runs in an ephemeral Go toolchain container so the host needs no Go install,
+    writing its caches into a gitignored dir under the repo. In ``native`` mode (used in CI, where the
+    host already has a cached Go toolchain via ``actions/setup-go``) it invokes the host ``go`` directly,
+    skipping the container image pull and reusing the runner's module/build cache.
     """
     go_dir = staging / "go-artifacts"
     go_dir.mkdir(parents=True, exist_ok=True)
+    output_bin = LANG_SDK_GO_EXAMPLE_PATH / "bin" / LANG_SDK_GO_BUNDLE_NAME
 
-    uid_gid = f"{os.getuid()}:{os.getgid()}"
-    go_example_ctr = f"/repo/{LANG_SDK_GO_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
-
-    # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
-    # USER/HOME must be set because the SDK calls user.Current() at init; with
-    # cgo disabled Go's pure-Go resolver reads those env vars and panics if
-    # either is empty. HOME points at a writable, gitignored dir under go_example
-    # so the Go build and module caches persist between runs. The package built is
+    # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker. The package built is
     # the current dir (".") because go_example is its own module.
-    get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
-    run_command(
-        [
+    if native:
+        get_console(output=output).print("[info]Building Go bundle with the host Go toolchain")
+        run_command(
+            ["go", "tool", "airflow-go-pack", "--output", str(output_bin), "."],
+            cwd=LANG_SDK_GO_EXAMPLE_PATH,
+            env={**os.environ, "CGO_ENABLED": "0"},
+            output=output,
+            check=True,
+        )
+    else:
+        uid_gid = f"{os.getuid()}:{os.getgid()}"
+        go_example_ctr = f"/repo/{LANG_SDK_GO_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
+        # USER/HOME must be set because the SDK calls user.Current() at init; with cgo disabled Go's
+        # pure-Go resolver reads those env vars and panics if either is empty. HOME points at a
+        # writable, gitignored dir under go_example so the caches persist between runs on a dev host.
+        get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
+        run_command(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "--user",
+                uid_gid,
+                "-e",
+                f"HOME={go_example_ctr}/.home",
+                "-e",
+                "USER=airflow",
+                "-e",
+                "CGO_ENABLED=0",
+                "-v",
+                f"{AIRFLOW_ROOT_PATH}:/repo",
+                "-w",
+                go_example_ctr,
+                LANG_SDK_GO_BUILDER_IMAGE,
+                "go",
+                "tool",
+                "airflow-go-pack",
+                "--output",
+                f"{go_example_ctr}/bin/{LANG_SDK_GO_BUNDLE_NAME}",
+                ".",
+            ],
+            output=output,
+            check=True,
+        )
+    shutil.copy(output_bin, go_dir / LANG_SDK_GO_BUNDLE_NAME)
+
+
+def _lang_sdk_build_java_jar(staging: Path, output: Output | None, *, native: bool = False) -> None:
+    """Publish the Java SDK to mavenLocal then build the java_example jar into ``staging/java-artifacts``.
+
+    By default the build runs in an ephemeral JDK container so the host needs no JDK, persisting the
+    Gradle distribution/dependency and Maven caches via mounted dirs. In ``native`` mode (used in CI,
+    where the host already has a cached JDK + Gradle cache via ``actions/setup-java``) it invokes the
+    host ``./gradlew`` directly, skipping the container image pull and reusing the runner's ``~/.gradle``
+    cache. ``java_example`` resolves the SDK from ``mavenLocal()``, so the SDK is published first, then
+    the bundle is built with java-sdk's gradle wrapper pointed at the example project (``-p``).
+    """
+    java_dir = staging / "java-artifacts"
+    java_dir.mkdir(parents=True, exist_ok=True)
+    java_sdk_path = AIRFLOW_ROOT_PATH / "java-sdk"
+
+    if native:
+        get_console(output=output).print(
+            "[info]Publishing Java SDK artifacts to local Maven repository with the host Gradle toolchain"
+        )
+        run_command(
+            ["./gradlew", "publishToMavenLocal", "-PskipSigning=true", "--no-daemon", "--console=plain"],
+            cwd=java_sdk_path,
+            output=output,
+            check=True,
+        )
+        get_console(output=output).print("[info]Building Java jar with the host Gradle toolchain")
+        run_command(
+            ["./gradlew", "-p", str(LANG_SDK_JAVA_EXAMPLE_PATH), "bundle", "--no-daemon", "--console=plain"],
+            cwd=java_sdk_path,
+            output=output,
+            check=True,
+        )
+    else:
+        uid_gid = f"{os.getuid()}:{os.getgid()}"
+        java_example_ctr = f"/repo/{LANG_SDK_JAVA_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
+        # --user keeps build outputs owned by the host user; HOME is set explicitly because that UID has
+        # no /etc/passwd entry; GRADLE_USER_HOME and the mounted ~/.m2 persist the Gradle distribution and
+        # dependency caches between runs on a dev host.
+        LANG_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+        java_docker_prefix = [
             "docker",
             "run",
             "--rm",
             "--user",
             uid_gid,
             "-e",
-            f"HOME={go_example_ctr}/.home",
+            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
             "-e",
-            "USER=airflow",
-            "-e",
-            "CGO_ENABLED=0",
+            "HOME=/workspace-home",
+            "-v",
+            f"{LANG_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            go_example_ctr,
-            LANG_SDK_GO_BUILDER_IMAGE,
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            f"{go_example_ctr}/bin/{LANG_SDK_GO_BUNDLE_NAME}",
-            ".",
-        ],
-        output=output,
-        check=True,
-    )
-    shutil.copy(LANG_SDK_GO_EXAMPLE_PATH / "bin" / LANG_SDK_GO_BUNDLE_NAME, go_dir / LANG_SDK_GO_BUNDLE_NAME)
-
-
-def _lang_sdk_build_java_jar(staging: Path, output: Output | None) -> None:
-    """Publish the Java SDK to mavenLocal then build the java_example jar into ``staging/java-artifacts``.
-
-    Runs in an ephemeral JDK container so the host needs no JDK; the Gradle distribution, dependency
-    and Maven caches persist between runs via the mounted dirs.
-    """
-    java_dir = staging / "java-artifacts"
-    java_dir.mkdir(parents=True, exist_ok=True)
-
-    uid_gid = f"{os.getuid()}:{os.getgid()}"
-    java_example_ctr = f"/repo/{LANG_SDK_JAVA_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
-
-    # java_example resolves the SDK plugin and libraries from mavenLocal(), so
-    # publish them first, then build the bundle with java-sdk's gradle wrapper
-    # pointed at the moved project (-p). --user keeps build outputs owned by the
-    # host user; HOME is set explicitly because that UID has no /etc/passwd entry;
-    # GRADLE_USER_HOME and the mounted ~/.m2 persist the Gradle distribution and
-    # dependency caches between runs.
-    LANG_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
-    java_docker_prefix = [
-        "docker",
-        "run",
-        "--rm",
-        "--user",
-        uid_gid,
-        "-e",
-        "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
-        "-e",
-        "HOME=/workspace-home",
-        "-v",
-        f"{LANG_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
-        "-v",
-        f"{AIRFLOW_ROOT_PATH}:/repo",
-    ]
-    get_console(output=output).print("[info]Publishing Java SDK artifacts to local Maven repository")
-    run_command(
-        [
-            *java_docker_prefix,
-            "-w",
-            "/repo/java-sdk",
-            LANG_SDK_JAVA_BUILDER_IMAGE,
-            "./gradlew",
-            "publishToMavenLocal",
-            "-PskipSigning=true",
-            "--no-daemon",
-            "--console=plain",
-        ],
-        output=output,
-        check=True,
-    )
-    get_console(output=output).print(f"[info]Building Java jar in {LANG_SDK_JAVA_BUILDER_IMAGE}")
-    run_command(
-        [
-            *java_docker_prefix,
-            "-w",
-            "/repo/java-sdk",
-            LANG_SDK_JAVA_BUILDER_IMAGE,
-            "./gradlew",
-            "-p",
-            java_example_ctr,
-            "bundle",
-            "--no-daemon",
-            "--console=plain",
-        ],
-        output=output,
-        check=True,
-    )
+        ]
+        get_console(output=output).print("[info]Publishing Java SDK artifacts to local Maven repository")
+        run_command(
+            [
+                *java_docker_prefix,
+                "-w",
+                "/repo/java-sdk",
+                LANG_SDK_JAVA_BUILDER_IMAGE,
+                "./gradlew",
+                "publishToMavenLocal",
+                "-PskipSigning=true",
+                "--no-daemon",
+                "--console=plain",
+            ],
+            output=output,
+            check=True,
+        )
+        get_console(output=output).print(f"[info]Building Java jar in {LANG_SDK_JAVA_BUILDER_IMAGE}")
+        run_command(
+            [
+                *java_docker_prefix,
+                "-w",
+                "/repo/java-sdk",
+                LANG_SDK_JAVA_BUILDER_IMAGE,
+                "./gradlew",
+                "-p",
+                java_example_ctr,
+                "bundle",
+                "--no-daemon",
+                "--console=plain",
+            ],
+            output=output,
+            check=True,
+        )
     jars = list((LANG_SDK_JAVA_EXAMPLE_PATH / "build" / "bundle").glob("*.jar"))
     if not jars:
         get_console(output=output).print("[error]No jar produced by the Java bundle build")
@@ -2810,6 +2848,12 @@ def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Outpu
             get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version),
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
+            # Layer the lang-SDK values on top of the already-deployed release rather than
+            # re-rendering from chart defaults. Without this, helm discards the base deploy's
+            # --set overrides (notably config.core.auth_manager=SimpleAuthManager on Python 3.13),
+            # reverting the api-server to the chart-default FabAuthManager so it never writes
+            # simple_auth_manager_passwords.json.generated and the API-login tests error out.
+            "--reuse-values",
             "--set",
             f"defaultAirflowRepository={image}",
             "--set",
@@ -2887,11 +2931,14 @@ def _setup_lang_sdk_test(
         # The worker-image build below produces this fixed tag; resolve it up-front so the config
         # rendering (which needs the tag, not the build result) does not depend on the parallel run.
         java_image = LANG_SDK_JAVA_WORKER_IMAGE
+    # In CI the Go/Java toolchains are provisioned + cached on the host (actions/setup-go, setup-java),
+    # so building the artifacts natively skips the toolchain-image pulls and reuses the runner caches.
+    native = os.environ.get("LANG_SDK_NATIVE_TOOLCHAIN", "").lower() == "true"
     with tempfile.TemporaryDirectory(prefix="lang_sdk_artifacts_") as tmp:
         staging = Path(tmp)
         steps: list[tuple[str, Callable[[Output | None], Any]]] = [
-            ("Build Go bundle", lambda o: _lang_sdk_build_go_bundle(staging, o)),
-            ("Build Java jar", lambda o: _lang_sdk_build_java_jar(staging, o)),
+            ("Build Go bundle", lambda o: _lang_sdk_build_go_bundle(staging, o, native=native)),
+            ("Build Java jar", lambda o: _lang_sdk_build_java_jar(staging, o, native=native)),
             ("Deploy localstack", lambda o: _lang_sdk_deploy_localstack(python, kubernetes_version, o)),
         ]
         if build_java_image:

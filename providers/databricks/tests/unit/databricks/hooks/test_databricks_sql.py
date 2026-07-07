@@ -31,7 +31,7 @@ from databricks.sql.types import Row
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.databricks.hooks.databricks_sql import (
     DatabricksSqlHook,
     _format_query_tag_value,
@@ -375,6 +375,23 @@ def test_query(
     for index, cur in enumerate(cursors):
         cur.execute.assert_has_calls([mock.call(cursor_calls[index])])
     cur.close.assert_called()
+
+
+def test_make_common_data_structure_none_result():
+    assert DatabricksSqlHook()._make_common_data_structure(None) is None
+
+
+def test_query_with_fetch_one_handler_on_empty_result(mock_get_conn, mock_get_requests):
+    conn = mock.MagicMock()
+    cur = mock.MagicMock(rowcount=0, description=get_cursor_descriptions(["id"]))
+    cur.fetchone.return_value = None
+    conn.cursor.return_value = cur
+    mock_get_conn.side_effect = [conn]
+
+    databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    result = databricks_hook.run(sql="select * from test.test", handler=fetch_one_handler)
+
+    assert result is None
 
 
 @pytest.mark.parametrize(
