@@ -2086,6 +2086,27 @@ export const useCalendarServiceGetCalendarSuspense = <TData = Common.CalendarSer
   partitionDateLte?: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }, queryKey), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }) as TData, ...options });
 /**
+* Get Calendar Deadlines
+* Get aggregated deadline counts for a Dag, bucketed by deadline_time and missed status.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.granularity
+* @param data.deadlineTimeGte
+* @param data.deadlineTimeGt
+* @param data.deadlineTimeLte
+* @param data.deadlineTimeLt
+* @returns CalendarDeadlineCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useCalendarServiceGetCalendarDeadlinesSuspense = <TData = Common.CalendarServiceGetCalendarDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }: {
+  dagId: string;
+  deadlineTimeGt?: string;
+  deadlineTimeGte?: string;
+  deadlineTimeLt?: string;
+  deadlineTimeLte?: string;
+  granularity?: "hourly" | "daily";
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseCalendarServiceGetCalendarDeadlinesKeyFn({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }, queryKey), queryFn: () => CalendarService.getCalendarDeadlines({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }) as TData, ...options });
+/**
 * List Teams
 * @param data The data for the request.
 * @param data.limit
