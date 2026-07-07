@@ -3556,6 +3556,20 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
         assert "Providers[ibm.mq]" in amd_output
 
 
+def test_run_kubernetes_tests_forced_by_label():
+    """`area:kubernetes-tests` forces the Kubernetes tests job without pulling in
+    the full test matrix, unlike `full tests needed`."""
+    checks = SelectiveChecks(
+        files=("INTHEWILD.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+        pr_labels=("area:kubernetes-tests",),
+    )
+    assert checks.run_kubernetes_tests is True
+    assert checks.full_tests_needed is False
+
+
 def test_filter_platform_excluded_test_types_handles_all_shapes():
     """Direct unit check of the in-place filter for the three Providers[...] shapes."""
     checks = SelectiveChecks(
