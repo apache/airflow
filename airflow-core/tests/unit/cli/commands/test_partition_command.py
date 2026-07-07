@@ -800,6 +800,102 @@ class TestPartitionsClear:
             "Cleared partition fields on 1 DagRun(s).\n"
         )
 
+    def test_offset_aware_window_false_rejection_is_accepted(self, parser, dag_maker):
+        """Absolute-instant order disagrees with Asia/Taipei-localized wall-clock order.
+
+        --start-date 2026-01-01T00:00:00+00:00 (instant Jan1 00:00Z) is *after* the
+        instant of --end-date 2026-01-01T01:00:00+10:00 (Dec31 15:00Z), so a raw
+        instant comparison would wrongly flag this as an inverted window. Once each
+        bound's wall-clock reading is localized to the Dag's Asia/Taipei timetable
+        timezone (matching downstream ``apply_partition_date_window``), the window
+        becomes [Dec31 16:00Z, Dec31 17:00Z) -- lower before upper, valid -- and the
+        run seeded inside it must be cleared.
+        """
+        dag_id = "dag_taipei_offset_false_rejection"
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=datetime(2025, 1, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id="in_window_run",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2025, 12, 31, 16, 30, 0, tzinfo=pendulum.UTC),
+            partition_key="in-window",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    dag_id,
+                    "--start-date",
+                    "2026-01-01T00:00:00+00:00",
+                    "--end-date",
+                    "2026-01-01T01:00:00+10:00",
+                ]
+            )
+        )
+
+        run = _get_run("in_window_run")
+        assert run.partition_key is None
+        assert run.partition_date is None
+
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_offset_aware_window_false_acceptance_is_rejected(self, parser, dag_maker):
+        """Absolute-instant order disagrees with Asia/Taipei-localized wall-clock order.
+
+        --start-date 2026-01-01T05:00:00+00:00 (instant Jan1 05:00Z) is *before* the
+        instant of --end-date 2026-01-01T04:00:00-10:00 (Jan1 14:00Z), so a raw
+        instant comparison would wrongly accept this window. Once each bound's
+        wall-clock reading is localized to the Dag's Asia/Taipei timetable timezone,
+        the window is [Dec31 21:00Z, Dec31 20:00Z) -- lower after upper, inverted --
+        and clear() must reject it with the same message as the UTC-only case.
+        """
+        dag_id = "dag_taipei_offset_false_acceptance"
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=datetime(2025, 1, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.sync_dagbag_to_db()
+
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(
+                parser.parse_args(
+                    [
+                        "partitions",
+                        "clear",
+                        "--dag-id",
+                        dag_id,
+                        "--start-date",
+                        "2026-01-01T05:00:00+00:00",
+                        "--end-date",
+                        "2026-01-01T04:00:00-10:00",
+                    ]
+                )
+            )
+        assert excinfo.value.code == "--start-date must be on or before --end-date."
+
+        clear_db_runs()
+        clear_db_dags()
+
     def test_date_range_syntax_mutually_exclusive_with_start_end(self, parser):
         with pytest.raises(SystemExit) as excinfo:
             partition_command.clear(

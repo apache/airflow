@@ -70,16 +70,22 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
             raise SystemExit("--date sides must be parseable as a date or datetime.")
         has_start = has_end = True
 
-    if has_start and has_end and args.start_date > args.end_date:
-        if from_date_flag:
-            raise SystemExit(
-                f"--date: the start of the range ({parts[0].strip()!r}) must be on or before "
-                f"the end ({parts[1].strip()!r})."
-            )
-        raise SystemExit("--start-date must be on or before --end-date.")
-
     has_date_window = has_start or has_end
-    dag = get_db_dag(bundle_names=None, dag_id=args.dag_id) if has_date_window else None
+    if has_date_window:
+        dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
+        if has_start and has_end:
+            lower = dag.timetable.localize_partition_datetime(args.start_date)
+            upper = dag.timetable.localize_partition_datetime(args.end_date)
+            if lower > upper:
+                if from_date_flag:
+                    raise SystemExit(
+                        f"--date: the start of the range ({parts[0].strip()!r}) must be on or before "
+                        f"the end ({parts[1].strip()!r})."
+                    )
+                raise SystemExit("--start-date must be on or before --end-date.")
+    else:
+        dag = None
+
     clear_tis = bool(args.clear_task_instances)
 
     processed_any = False
