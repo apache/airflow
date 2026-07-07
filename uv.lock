@@ -5228,7 +5228,7 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
-    { name = "pyexasol", specifier = ">=0.26.0,<2" },
+    { name = "pyexasol", specifier = ">=0.26.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
 provides-extras = ["sqlalchemy"]
@@ -19549,17 +19549,16 @@ wheels = [
 
 [[package]]
 name = "pyexasol"
-version = "1.3.0"
+version = "2.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "packaging" },
-    { name = "rsa" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a3/f4/be269ba104e7ff469f9b27ab136479932591506fdb79a17081281880af53/pyexasol-1.3.0.tar.gz", hash = "sha256:44e5be7245b92343634b0b66a81b62be2fb4b1ca485d4e0f86c0583d5a2cf6b5", size = 60189, upload-time = "2025-11-17T15:01:59.614Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/80/98a3fc207191080a58f0f49e5fd7dbada4c5f7d71e2d7e8e7c3f86032e9d/pyexasol-2.2.2.tar.gz", hash = "sha256:fb97a1579f4cc159cff04eabdb05fab1a376624abe2a45d339e7e735b7b3d83f", size = 61760, upload-time = "2026-06-24T06:20:13.308Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/4b/67204f07f804e65059c8d42b481583efc9edb7f5f4aecb3fddbd183f0c9b/pyexasol-1.3.0-py3-none-any.whl", hash = "sha256:0bb076346dcb33b36031a2633d6e7b9982f8411b95e770ad8017801ee438a689", size = 71906, upload-time = "2025-11-17T15:01:58.205Z" },
+    { url = "https://files.pythonhosted.org/packages/45/76/bbac7c97bdd37345c0961f608a4aa1bd62d0f73f501c1d61b3e1137a0698/pyexasol-2.2.2-py3-none-any.whl", hash = "sha256:ed694df2f4e424f1c4a8427c638d35541a7b7289c89825d038a3bdc99dbcf717", size = 73446, upload-time = "2026-06-24T06:20:14.394Z" },
 ]
 
 [[package]]

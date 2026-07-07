@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import closing
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import pyexasol
 from deprecated import deprecated
@@ -68,20 +68,19 @@ class ExasolHook(DbApiHook):
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
     def get_conn(self) -> ExaConnection:
-        conn = self.get_connection(self.get_conn_id())
+        connection = self.get_connection(self.get_conn_id())
         conn_args = {
-            "dsn": f"{conn.host}:{conn.port}",
-            "user": conn.login,
-            "password": conn.password,
-            "schema": self.schema or conn.schema,
+            "dsn": f"{connection.host}:{connection.port}",
+            "user": connection.login,
+            "password": connection.password,
+            "schema": self.schema or connection.schema,
         }
-        # check for parameters in conn.extra
-        for arg_name, arg_val in conn.extra_dejson.items():
+        # check for parameters in connection.extra
+        for arg_name, arg_val in connection.extra_dejson.items():
             if arg_name in ["compression", "encryption", "json_lib", "client_name"]:
                 conn_args[arg_name] = arg_val
 
-        conn = pyexasol.connect(**conn_args)
-        return conn
+        return pyexasol.connect(**conn_args)
 
     @property
     def sqlalchemy_scheme(self) -> str:
@@ -145,7 +144,7 @@ class ExasolHook(DbApiHook):
         ``pyexasol.ExaConnection.export_to_pandas``.
         """
         with closing(self.get_conn()) as conn:
-            df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
+            df = conn.export_to_pandas(sql, query_params=cast(Any, parameters), **kwargs)
             return df
 
     @deprecated(
@@ -188,7 +187,7 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with closing(self.get_conn()) as conn, closing(conn.execute(cast(Any, sql), cast(Any, parameters))) as cur:
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -205,7 +204,7 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with closing(self.get_conn()) as conn, closing(conn.execute(cast(Any, sql), cast(Any, parameters))) as cur:
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -334,7 +333,7 @@ class ExasolHook(DbApiHook):
             results = []
             for sql_statement in sql_list:
                 self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                with closing(conn.execute(sql_statement, parameters)) as exa_statement:
+                with closing(conn.execute(sql_statement, cast(Any, parameters))) as exa_statement:
                     if handler is not None:
                         result = self._make_common_data_structure(handler(exa_statement))
 
