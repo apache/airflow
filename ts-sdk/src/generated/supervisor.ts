@@ -363,12 +363,16 @@ export type After = string | null;
 export type Before = string | null;
 export type Limit = number | null;
 export type Ascending = boolean;
+export type PartitionKey5 = string | null;
+export type PartitionKeyPattern = string | null;
 export type Type29 = "GetAssetEventByAsset";
 export type AliasName = string;
 export type After1 = string | null;
 export type Before1 = string | null;
 export type Limit1 = number | null;
 export type Ascending1 = boolean;
+export type PartitionKey6 = string | null;
+export type PartitionKeyPattern1 = string | null;
 export type Type30 = "GetAssetEventByAssetAlias";
 export type Name11 = string;
 export type Key6 = string;
@@ -574,7 +578,7 @@ export type Conf2 = {
   [k: string]: unknown;
 } | null;
 export type ResetDagRun = boolean | null;
-export type PartitionKey5 = string | null;
+export type PartitionKey7 = string | null;
 export type Note2 = string | null;
 export type DagId22 = string;
 export type DagRunId = string;
@@ -1205,6 +1209,8 @@ export interface GetAssetEventByAsset {
   before?: Before;
   limit?: Limit;
   ascending?: Ascending;
+  partition_key?: PartitionKey5;
+  partition_key_pattern?: PartitionKeyPattern;
   type?: Type29;
 }
 /**
@@ -1217,6 +1223,8 @@ export interface GetAssetEventByAssetAlias {
   before?: Before1;
   limit?: Limit1;
   ascending?: Ascending1;
+  partition_key?: PartitionKey6;
+  partition_key_pattern?: PartitionKeyPattern1;
   type?: Type30;
 }
 /**
@@ -1783,7 +1791,7 @@ export interface TriggerDagRun {
   run_after?: RunAfter2;
   conf?: Conf2;
   reset_dag_run?: ResetDagRun;
-  partition_key?: PartitionKey5;
+  partition_key?: PartitionKey7;
   note?: Note2;
   dag_id: DagId22;
   run_id: DagRunId;

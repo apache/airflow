@@ -759,6 +759,11 @@ class TestGetAssetEventByAssetAliasPartitionKey:
     PostgreSQL (~), MySQL (REGEXP), and SQLite (re.match).
     """
 
+    @pytest.fixture(autouse=True)
+    def _enable_regexp_query_filters(self):
+        with conf_vars({("api", "enable_regexp_query_filters"): "True"}):
+            yield
+
     @pytest.fixture
     def test_partitioned_alias_events(self, session, test_asset):
         def make_timestamp(day):
@@ -831,6 +836,15 @@ class TestGetAssetEventByAssetAliasPartitionKey:
         )
         assert response.status_code == 400
         assert "Invalid regex" in response.json()["detail"]["reason"]
+
+    def test_get_by_alias_with_pattern_disabled_returns_400(self, client):
+        with conf_vars({("api", "enable_regexp_query_filters"): "False"}):
+            response = client.get(
+                "/execution/asset-events/by-asset-alias",
+                params={"name": "partitioned_alias", "partition_key_pattern": "^us"},
+            )
+        assert response.status_code == 400
+        assert "disabled" in response.json()["detail"]["message"]
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_alias_events")
     def test_get_by_alias_with_exact_partition_key_regex(self, client):
