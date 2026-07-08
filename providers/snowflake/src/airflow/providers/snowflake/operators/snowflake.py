@@ -561,14 +561,16 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         self.query_ids = cast("list[str]", external_id)
+        # Push before polling, not after, so the handles are recorded even if a statement
+        # errors below.
+        if self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key="query_ids", value=self.query_ids)
         while True:
             statement_status = self.poll_on_queries()
             if statement_status["error"]:
                 raise RuntimeError(str(statement_status["error"]))
             if not statement_status["running"]:
                 break
-        if self.do_xcom_push and context is not None:
-            context["ti"].xcom_push(key="query_ids", value=self.query_ids)
         # On reconnect, the mixin calls poll_until_complete alone -- get_job_result is never
         # invoked in that case -- so the output must be fetched here too, not left to
         # get_job_result. Fresh submit calls both; the flag stops get_job_result from

@@ -702,6 +702,24 @@ class TestSnowflakeSqlApiOperator:
             assert mock_sleep.call_count == 1
         mock_check_query_output.assert_not_called()
 
+    def test_poll_until_complete_pushes_query_ids_to_xcom_even_on_failure(
+        self, mock_get_sql_api_query_status
+    ):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=True,
+        )
+        mock_get_sql_api_query_status.side_effect = [{"status": "error"}]
+        context = create_context(operator)
+
+        with pytest.raises(RuntimeError):
+            operator.poll_until_complete(["uuid1"], context)
+
+        context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
+
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_cancels_queries(self, mock_cancel_queries):
         """Test that on_kill cancels running queries."""
