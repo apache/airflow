@@ -2921,7 +2921,37 @@ class TestTIPutRTIF:
         random_id = uuid6.uuid7()
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
-        assert response.json()["detail"] == "Not Found"
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task Instance not found",
+        }
+
+    def test_ti_put_rtif_archived_ti_returns_410(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_put_rtif_archived",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+        old_ti_id = ti.id
+
+        # Archive the current try to TIH and assign a new UUID, mirroring prepare_db_for_next_try().
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+
+        assert session.get(TaskInstance, old_ti_id) is None
+        assert session.get(TaskInstanceHistory, old_ti_id) is not None
+
+        response = client.put(
+            f"/execution/task-instances/{old_ti_id}/rtif",
+            json={"field1": "rendered_value1"},
+        )
+
+        assert response.status_code == 410
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+        }
 
 
 class TestPreviousDagRun:
