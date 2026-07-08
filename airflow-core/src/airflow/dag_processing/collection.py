@@ -194,20 +194,20 @@ class _RunInfo(NamedTuple):
             return cls(None, 0)
 
         if dag.timetable.partitioned:
-            log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
+            log.debug("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
+            log.debug("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
-            log.info(
+            log.debug(
                 "got latest run",
                 dag_id=dag.dag_id,
                 logical_date=str(latest_run.logical_date),
                 partition_key=latest_run.partition_key,
             )
         else:
-            log.info("no latest run found", dag_id=dag.dag_id)
+            log.debug("no latest run found", dag_id=dag.dag_id)
         active_run_counts = DagRun.active_runs_of_dags(
             dag_ids=[dag.dag_id],
             exclude_backfill=True,
