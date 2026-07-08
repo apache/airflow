@@ -136,7 +136,6 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused is False:
         b.is_paused = True
-    session.commit()
     return b
 
 
