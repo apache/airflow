@@ -145,12 +145,13 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-apache-kafka[google]
 
 
-====================  ====================================================
-Extra                 Dependencies
-====================  ====================================================
-``google``            ``apache-airflow-providers-google``
-``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  ====================================================
+========================  =============================================================
+Extra                     Dependencies
+========================  =============================================================
+``google``                ``apache-airflow-providers-google``
+``aws``                   ``apache-airflow-providers-amazon>=8.11.0``
+``common.messaging``      ``apache-airflow-providers-common-messaging>=2.0.0``
+========================  =============================================================
 
 Downloading official packages
 -----------------------------

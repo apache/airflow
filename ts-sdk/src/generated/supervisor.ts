@@ -363,13 +363,17 @@ export type After = string | null;
 export type Before = string | null;
 export type Limit = number | null;
 export type Ascending = boolean;
-export type Type29 = "GetAssetEventByAsset";
+export type Extra7 = {
+  [k: string]: string;
+} | null;
 export type AliasName = string;
 export type After1 = string | null;
 export type Before1 = string | null;
 export type Limit1 = number | null;
 export type Ascending1 = boolean;
-export type Type30 = "GetAssetEventByAssetAlias";
+export type Extra8 = {
+  [k: string]: string;
+} | null;
 export type Name11 = string;
 export type Key6 = string;
 export type Type31 = "GetAssetStateStoreByName";
@@ -1205,7 +1209,7 @@ export interface GetAssetEventByAsset {
   before?: Before;
   limit?: Limit;
   ascending?: Ascending;
-  type?: Type29;
+  extra?: Extra7;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1217,7 +1221,7 @@ export interface GetAssetEventByAssetAlias {
   before?: Before1;
   limit?: Limit1;
   ascending?: Ascending1;
-  type?: Type30;
+  extra?: Extra8;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
