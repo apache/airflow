@@ -29,9 +29,10 @@ import pytest
 from sqlalchemy import func, select, update
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _best_bundle_for_fileloc
+from airflow.dag_processing.bundles.manager import DagBundlesManager, _guess_best_bundle_for_fileloc
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.session import create_session
@@ -563,28 +564,32 @@ def _add_dag(session, dag_id: str, bundle_name: str) -> DagModel:
     return dag
 
 
-class TestBestBundleForFileloc:
-    """Tests for ``_best_bundle_for_fileloc`` path matching."""
+class TestGuessBestBundleForFileloc:
+    """Tests for ``_guess_best_bundle_for_fileloc`` path matching."""
 
-    def test_returns_relative_path_for_match(self) -> None:
-        assert _best_bundle_for_fileloc("/dags/team_x/dag.py", {"team-x": Path("/dags/team_x")}) == (
-            "team-x",
-            "dag.py",
-        )
-
-    def test_returns_none_for_no_match(self) -> None:
-        assert _best_bundle_for_fileloc("/elsewhere/dag.py", {"team-x": Path("/dags/team_x")}) is None
-
-    def test_returns_none_for_empty_paths(self) -> None:
-        assert _best_bundle_for_fileloc("/dags/dag.py", {}) is None
-
-    def test_normalises_redundant_separators_and_dots(self) -> None:
-        # ``Path`` itself collapses ``//`` and ``.`` segments on construction,
-        # so the helper matches without any explicit normalization.
-        assert _best_bundle_for_fileloc("/dags//team_x/./dag.py", {"team-x": Path("/dags/team_x")}) == (
-            "team-x",
-            "dag.py",
-        )
+    @pytest.mark.parametrize(
+        ("fileloc", "bundle_paths", "expected"),
+        [
+            pytest.param(
+                "/dags/team_x/dag.py",
+                {"team-x": Path("/dags/team_x")},
+                ("team-x", "dag.py"),
+                id="match",
+            ),
+            pytest.param("/elsewhere/dag.py", {"team-x": Path("/dags/team_x")}, None, id="no_match"),
+            pytest.param("/dags/dag.py", {}, None, id="empty_paths"),
+            pytest.param(
+                # ``Path`` itself collapses ``//`` and ``.`` segments on construction,
+                # so the helper matches without any explicit normalization.
+                "/dags//team_x/./dag.py",
+                {"team-x": Path("/dags/team_x")},
+                ("team-x", "dag.py"),
+                id="redundant_separators_and_dots",
+            ),
+        ],
+    )
+    def test_guess_best_bundle_for_fileloc(self, fileloc, bundle_paths, expected) -> None:
+        assert _guess_best_bundle_for_fileloc(fileloc, bundle_paths) == expected
 
 
 @pytest.mark.db_test
@@ -702,8 +707,6 @@ class TestReassignDagsWithUnconfiguredBundles:
         stale, and scheduler/executor paths prefer DagVersion.bundle_name
         when building task workloads.
         """
-        from airflow.models.dag_version import DagVersion
-
         active = DagBundleModel(name="active")
         active.active = True
         removed = DagBundleModel(name="removed-bundle")
@@ -1458,10 +1461,10 @@ class TestRaceSafety:
         session.flush()
         session.commit()
 
-        # Drive the race: before _best_bundle_for_fileloc returns (which
+        # Drive the race: before _guess_best_bundle_for_fileloc returns (which
         # sits between the chunk SELECT and the per-row UPDATE), simulate a
         # concurrent parser that has already committed the real values.
-        original = bundles_manager_mod._best_bundle_for_fileloc
+        original = bundles_manager_mod._guess_best_bundle_for_fileloc
 
         def _racey_match(fileloc, active_bundle_paths):
             with create_session() as racer:
@@ -1475,7 +1478,7 @@ class TestRaceSafety:
                 )
             return original(fileloc, active_bundle_paths)
 
-        monkeypatch.setattr(bundles_manager_mod, "_best_bundle_for_fileloc", _racey_match)
+        monkeypatch.setattr(bundles_manager_mod, "_guess_best_bundle_for_fileloc", _racey_match)
 
         with patch.dict(
             os.environ,
