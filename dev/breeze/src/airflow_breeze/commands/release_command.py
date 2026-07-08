@@ -343,10 +343,27 @@ def upload_to_pypi(version, task_sdk_version=None):
         )
 
 
+def get_constraints_branch_for_version(version: str) -> str:
+    major, minor = version.split(".")[:2]
+    return f"constraints-{major}-{minor}"
+
+
 def retag_constraints(release_candidate, version):
-    if confirm_action(f"Retag constraints for {release_candidate} as {version}?"):
+    # By default the final ``constraints-<version>`` tag is created from the RC constraints tag.
+    # If the constraints were refreshed after the last RC (e.g. to pick up newly released
+    # providers - see dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md) the tip of the
+    # ``constraints-X-Y`` branch is newer than the RC tag and should be tagged instead.
+    constraints_branch = get_constraints_branch_for_version(version)
+    source_ref = f"constraints-{release_candidate}"
+    if confirm_action(
+        f"Base the final constraints on the latest '{constraints_branch}' branch tip instead of the "
+        f"'{source_ref}' tag? Choose yes if you refreshed constraints after {release_candidate}."
+    ):
+        run_command(["git", "fetch", "origin", constraints_branch], check=True)
+        source_ref = f"origin/{constraints_branch}"
+    if confirm_action(f"Retag constraints from {source_ref} as {version}?"):
         run_command(
-            ["git", "checkout", f"constraints-{release_candidate}"],
+            ["git", "checkout", source_ref],
             check=True,
         )
         run_command(

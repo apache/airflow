@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``d2f4e1b3c5a7`` (head) | ``9ff64e1c35d3`` | ``3.3.0``         | Add partition_date to asset_partition_dag_run.               |
+| ``5a5d3253e946`` (head) | ``d2f4e1b3c5a7`` | ``3.4.0``         | Add GIN index on asset_event.extra for PostgreSQL.           |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``d2f4e1b3c5a7``        | ``9ff64e1c35d3`` | ``3.3.0``         | Add partition_date to asset_partition_dag_run.               |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``9ff64e1c35d3``        | ``dd5f3a8e2b91`` | ``3.3.0``         | Add indexes on dag_run.created_dag_version_id and            |
 |                         |                  |                   | task_instance.dag_version_id.                                |

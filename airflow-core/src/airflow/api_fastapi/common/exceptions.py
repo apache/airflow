@@ -26,6 +26,7 @@ from typing import Generic, TypeVar
 from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import DatabaseError, DataError, IntegrityError
 
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.utils.strings import get_random_string
@@ -137,7 +138,7 @@ class DataErrorHandler(_DatabaseErrorHandler[DataError]):
     range, or the wrong type for its column), so it is a client error, not a 500.
     """
 
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = HTTP_422_UNPROCESSABLE_CONTENT
     reason = "Value rejected by database"
 
     def __init__(self):

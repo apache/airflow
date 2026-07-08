@@ -719,6 +719,30 @@ class TestSerializedDagModel:
         assert "fileloc" in test_data["dag"]
         assert test_data["dag"]["fileloc"] == "/different/path/to/dag.py"
 
+    def test_hash_method_removes_bundle_name_and_remains_consistent(self):
+        """Test that the hash method removes bundle_name before hashing."""
+        test_data = {
+            "__version": 1,
+            "dag": {
+                "bundle_name": "bundle_a",
+                "dag_id": "test_dag",
+                "tasks": {
+                    "task1": {"task_id": "task1"},
+                },
+            },
+        }
+
+        hash_with_bundle_name = SDM.hash(test_data)
+
+        test_data["dag"]["bundle_name"] = "bundle_b"
+
+        hash_with_different_bundle_name = SDM.hash(test_data)
+
+        assert hash_with_bundle_name == hash_with_different_bundle_name
+
+        # Verify original data is not mutated by hash()
+        assert test_data["dag"]["bundle_name"] == "bundle_b"
+
     def test_hash_method_consistent_with_dict_ordering_in_template_fields(self, dag_maker):
         from airflow.sdk.bases.operator import BaseOperator
 

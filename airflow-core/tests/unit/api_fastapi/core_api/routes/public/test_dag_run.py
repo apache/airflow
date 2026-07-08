@@ -45,7 +45,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, Param, result, task
 from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
-from airflow.timetables.simple import PartitionAtRuntime, PartitionedAssetTimetable
+from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
@@ -56,7 +56,6 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
-    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
@@ -141,7 +140,6 @@ def setup(request, dag_maker, *, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
     clear_db_assets()
@@ -667,6 +665,40 @@ class TestGetDagRuns:
             params={"cursor": "this-is-not-valid", "order_by": "id"},
         )
         assert response.status_code == 400
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
+        """Cursor pagination sorted by a nullable column must not silently drop rows.
+
+        With a NULL in the sort column, the keyset predicate and the ORDER BY can disagree
+        on NULL placement and drop every row on one side of the NULL/non-NULL boundary.
+        """
+        # Null out one run's start_date so the NULL/non-NULL boundary is crossed mid-walk.
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        run.start_date = None
+        session.commit()
+
+        full = test_client.get("/dags/~/dagRuns", params={"limit": 100})
+        assert full.status_code == 200, full.json()
+        full_ids = {(r["dag_id"], r["dag_run_id"]) for r in full.json()["dag_runs"]}
+        assert len(full_ids) == 4
+
+        collected: list[tuple[str, str]] = []
+        cursor_token: str | None = ""
+        for _ in range(20):
+            resp = test_client.get(
+                "/dags/~/dagRuns",
+                params={"limit": 1, "order_by": "start_date", "cursor": cursor_token},
+            )
+            assert resp.status_code == 200, resp.json()
+            body = resp.json()
+            collected.extend((r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"])
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        assert len(collected) == len(set(collected)), "cursor pages overlapped"
+        assert set(collected) == full_ids, "cursor pagination dropped rows across the NULL boundary"
 
     @pytest.mark.parametrize(
         ("dag_id", "query_params", "expected_dag_id_list"),
@@ -1442,6 +1474,13 @@ class TestPatchDagRun:
             ),
             (
                 DAG1_ID,
+                DAG1_RUN1_ID,
+                {"note": ""},
+                {"state": DagRunState.SUCCESS, "note": None},
+                None,
+            ),
+            (
+                DAG1_ID,
                 DAG1_RUN2_ID,
                 {"note": "new note", "state": DagRunState.FAILED},
                 {"state": DagRunState.FAILED, "note": "new note"},
@@ -1619,8 +1658,8 @@ class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
-        # Use PartitionAtRuntime for partitioned cases so the partition_key gate does not reject the key.
-        source_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        # Use PartitionedAtRuntime for partitioned cases so the partition_key gate does not reject the key.
+        source_schedule = PartitionedAtRuntime() if partition_key is not None else timedelta(days=1)
         with dag_maker(
             dag_id="source_dag", start_date=START_DATE1, schedule=source_schedule, session=session
         ):
@@ -1639,7 +1678,7 @@ class TestGetDagRunAssetTriggerEvents:
         )
         session.add(event)
 
-        trigger_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        trigger_schedule = PartitionedAtRuntime() if partition_key is not None else timedelta(days=1)
         with dag_maker(
             dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=trigger_schedule, session=session
         ):
@@ -1650,7 +1689,7 @@ class TestGetDagRunAssetTriggerEvents:
             "partition_key": partition_key,
         }
         if partition_key is not None:
-            # PartitionAtRuntime is a null-timetable with no scheduled runs; supply logical_date=None
+            # PartitionedAtRuntime is a null-timetable with no scheduled runs; supply logical_date=None
             # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
             create_dagrun_kwargs["logical_date"] = None
         dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
@@ -1758,11 +1797,16 @@ class TestClearDagRun:
         ("body", "expected_note"),
         [
             ({"dry_run": False, "note": "cleared by test"}, "cleared by test"),
-            ({"dry_run": False, "note": ""}, ""),
+            ({"dry_run": False, "note": ""}, None),
             ({"dry_run": False, "note": None}, "test_note"),
             ({"dry_run": False}, "test_note"),
         ],
-        ids=["set-new-note", "set-empty-note", "explicit-null-leaves-existing", "omit-leaves-existing"],
+        ids=[
+            "set-new-note",
+            "empty-note-removes-existing",
+            "explicit-null-leaves-existing",
+            "omit-leaves-existing",
+        ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_applies_note(self, test_client, session, body, expected_note):
@@ -3503,18 +3547,18 @@ class TestTriggerDagRun:
         assert response.status_code == 200
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_should_respond_200_when_partition_key_given_for_partition_at_runtime_dag(
+    def test_should_respond_200_when_partition_key_given_for_partitioned_at_runtime_dag(
         self, dag_maker, test_client, session
     ):
-        """partition_key on a PartitionAtRuntime Dag must also be accepted (deferred validation).
+        """partition_key on a PartitionedAtRuntime Dag must also be accepted (deferred validation).
 
         partitioned_at_runtime=True means the Dag accepts runtime-discovered partition keys, so
         the REST layer must not reject it even though timetable.partitioned is False.
         """
-        runtime_dag_id = "test_partition_at_runtime_dag_trigger"
+        runtime_dag_id = "test_partitioned_at_runtime_dag_trigger"
         with dag_maker(
             dag_id=runtime_dag_id,
-            schedule=PartitionAtRuntime(),
+            schedule=PartitionedAtRuntime(),
             start_date=START_DATE1,
             session=session,
             serialized=True,
@@ -3638,14 +3682,14 @@ class TestTriggerDagRun:
         assert response.status_code == 400
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_trigger_partition_at_runtime_dag_leaves_partition_date_none(
+    def test_trigger_partitioned_at_runtime_dag_leaves_partition_date_none(
         self, dag_maker, test_client, session
     ):
-        """PartitionAtRuntime Dag with an arbitrary key must produce partition_date=None."""
-        runtime_dag_id = "test_trigger_partition_at_runtime_none_date"
+        """PartitionedAtRuntime Dag with an arbitrary key must produce partition_date=None."""
+        runtime_dag_id = "test_trigger_partitioned_at_runtime_none_date"
         with dag_maker(
             dag_id=runtime_dag_id,
-            schedule=PartitionAtRuntime(),
+            schedule=PartitionedAtRuntime(),
             start_date=START_DATE1,
             session=session,
             serialized=True,

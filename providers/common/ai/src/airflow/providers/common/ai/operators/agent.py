@@ -301,7 +301,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
-    def _build_agent(self) -> Agent[None, Any]:
+    def _build_agent(self) -> Agent[object, Any]:
         """Build and return a pydantic-ai Agent from the operator's config."""
         extra_kwargs = dict(self.agent_params)
         if self.toolsets:

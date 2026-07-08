@@ -62,13 +62,14 @@ from airflow.dag_processing.processor import (
     _execute_email_callbacks,
     _execute_task_callbacks,
     _parse_file,
+    _parse_file_entrypoint,
     _pre_import_airflow_modules,
 )
 from airflow.models import DagRun
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
-from airflow.sdk.execution_time import comms
+from airflow.sdk.execution_time import comms, supervisor
 from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetTaskStates,
@@ -93,6 +94,19 @@ if TYPE_CHECKING:
     from kgb import SpyAgency
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.fixture(autouse=True)
+def _force_bare_fork(monkeypatch):
+    """
+    Keep the parsing child on a bare ``os.fork`` on every platform.
+
+    On macOS the DAG processor forks+execs a clean interpreter for fork-safety
+    (see ``DagFileProcessorProcess.start``).  Forcing bare fork keeps local macOS
+    runs aligned with Linux/CI behavior.
+    """
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: False)
+
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -466,6 +480,36 @@ class TestDagFileProcessor:
             _pre_import_airflow_modules("test.py", logger)
 
         assert logger.warning.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ("platform_uses_exec", "target", "expected_use_exec"),
+    [
+        (True, _parse_file_entrypoint, True),
+        (False, _parse_file_entrypoint, False),
+        (True, lambda: None, False),
+    ],
+)
+def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec, target, expected_use_exec):
+    """start() forks+execs only for the real parse entry point on fork-unsafe platforms."""
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: platform_uses_exec)
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+    mocker.patch("airflow.dag_processing.processor._pre_import_airflow_modules")
+
+    DagFileProcessorProcess.start(
+        path="some_dag.py",
+        bundle_path=pathlib.Path("/tmp/bundle"),
+        bundle_name="testing",
+        dag_file_rel_path="some_dag.py",
+        callbacks=[],
+        client=MagicMock(spec=Client),
+        target=target,
+        logger=MagicMock(),
+    )
+
+    assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
