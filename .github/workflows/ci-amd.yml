@@ -37,6 +37,10 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-test
       - v[0-9]+-[0-9]+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
     types: [opened, reopened, synchronize, ready_for_review]
   push:
     # Post-merge pushes to release-prep / providers branches run on both
@@ -47,6 +51,8 @@ on:  # yamllint disable-line rule:truthy
     branches:
       - v[0-9]+-[0-9]+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - airflow-ctl/v[0-9]+-[0-9]+-test
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
