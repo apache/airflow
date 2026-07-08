@@ -19,6 +19,46 @@
 ``apache-airflow-providers-common-ai``
 ##################################################
 
+When to use this provider
+--------------------------
+
+``common.ai`` is the vendor-neutral way to put LLM and agent steps in a Dag. It is built on
+`pydantic-ai <https://ai.pydantic.dev/>`__, so the model vendor (OpenAI, Anthropic, Google,
+Bedrock, …) is picked by the connection ``llm_conn_id`` points at — switching providers later
+is a connection change, not a Dag rewrite. The AI step is orchestrated by Airflow: the model
+calls, the agent loop, and any tools all run in the Airflow worker, where they get retries,
+logging, and observability like any other task.
+
+Use it when a Dag needs:
+
+* **Generation, classification, summarization, or structured extraction** —
+  :doc:`LLMOperator and @task.llm <operators/llm>`, with Pydantic-typed output pushed to XCom.
+* **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
+* **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
+  in the worker, calling Airflow-defined toolsets (SQL, hooks, MCP servers), with optional
+  human-in-the-loop review and durable step replay.
+* **Document pipelines** — loading, file analysis, embeddings, and retrieval for RAG
+  (see :doc:`operators/index`).
+
+Use a vendor's own provider instead when the Dag needs that vendor's **native API surface** —
+a service the vendor runs for you, which no vendor-neutral operator wraps:
+
+* :doc:`apache-airflow-providers-openai:index` — the Embeddings, Responses, and Batch APIs.
+* :doc:`apache-airflow-providers-anthropic:index` — the Claude Message Batches API, and
+  Managed Agents sessions where the agent loop runs on Anthropic's infrastructure rather
+  than in the Airflow worker.
+
+As a rule of thumb: if Airflow should *run* the AI step (and the model should stay
+swappable), use ``common.ai``; if the Dag *submits work to* a vendor-managed service and
+waits for the result, use that vendor's provider.
+
+For example, this ``LLMOperator`` call is unchanged whether ``llm_conn_id`` points at an
+OpenAI, Anthropic, or other pydantic-ai-supported connection:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
+    :language: python
+    :start-after: [START howto_operator_llm_basic]
+    :end-before: [END howto_operator_llm_basic]
 
 .. toctree::
     :hidden:
