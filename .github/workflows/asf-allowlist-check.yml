@@ -14,45 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 ---
-name: Registry Tests
-on:  # yamllint disable-line rule:truthy
+name: "ASF Allowlist Check"
+"on":
   pull_request:
-    branches: [main]
-    paths:
-      - 'dev/registry/**'
-      - 'registry/**'
-      - 'providers/*/provider.yaml'
-      - 'providers/*/*/provider.yaml'
-      - '.github/workflows/registry-tests.yml'
+    paths: [".github/**"]
   push:
-    branches: [main]
-    paths:
-      - 'dev/registry/**'
-
+    branches: ['chart/v[0-9]+-[0-9]x+-test']
+    paths: [".github/**"]
 permissions:
   contents: read
-
-concurrency:
-  group: registry-tests-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  registry-tests:
-    name: "Registry extraction tests"
+  asf-allowlist-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
-
-      - name: "Install uv"
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
-        with:
-          python-version: "3.12"
-
-      - name: "Run registry extraction tests"
-        run: cd dev/registry && uv run --group dev pytest tests/ -v
+      - uses: apache/infrastructure-actions/allowlist-check@4e9c961f587f72b170874b6f5cd4ac15f7f26eb8  # main
