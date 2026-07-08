@@ -48,6 +48,10 @@ There are several ways to connect to Databricks using Airflow.
    i.e. automatically fetch JWT tokens from Kubernetes Service Account via projected volume path or TokenRequest API and exchange them for Databricks OAuth tokens.
    This is the recommended method when Airflow runs in Kubernetes. This method requires no secrets to be stored in the connection and eliminates the need
    for token management (no rotation, expiration handling, or credential storage).
+7. Using `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation>`_ with a supplied token provider,
+   i.e. a caller-provided callable returns a short-lived OIDC JWT that is exchanged for a Databricks OAuth token. Unlike the Kubernetes method,
+   the subject token is obtained in-process (never read from disk) and can come from any federation-trusted OIDC issuer, so it is not tied to
+   Kubernetes and supports both account-wide and service-principal federation policies. Like the Kubernetes method, no long-lived secret is stored in the connection.
 
 Default Connection IDs
 ----------------------
@@ -130,6 +134,43 @@ Extra (optional)
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
     * ``azure_managed_identity_client_id``: optional client ID of the user-assigned managed identity. This parameter is only required if you're using a user-assigned managed identity. If not specified, the hook will attempt to authenticate using a system-assigned managed identity.
+
+    The following parameter enables *OIDC token federation with a supplied token provider* (an alternative to
+    the Kubernetes method below that works in any environment, not only Kubernetes):
+
+    * ``federated_token_provider``: dotted path to a ``Callable[[], str]`` that returns an OIDC JWT (the RFC 8693
+      ``subject_token``). The hook imports and calls it in-process to obtain the token, then exchanges it for a
+      Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_;
+      the subject token is never written to disk. It may come from any OIDC issuer trusted by a Databricks
+      `federation policy <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy>`_. ``client_id`` is
+      optional here: supply it for a service principal federation policy, or omit it for an account-wide federation
+      policy. When both ``federated_token_provider`` and ``federated_k8s`` are set, the supplied provider takes precedence.
+      Like the other extra-based methods, it is only used when no higher-precedence credential (a PAT in the ``Password``
+      field, ``token``, Azure credentials, or ``service_principal_oauth``) is set on the connection.
+
+      Because the dotted path is imported and executed in the process running the hook, point it only at trusted code.
+      The connection ``extra`` is an operator/admin surface, consistent with how other providers resolve callables from configuration.
+
+      .. code-block:: json
+
+          {
+            "federated_token_provider": "my_package.identity.get_oidc_token"
+          }
+
+      The callable takes no arguments and returns the OIDC JWT as a string. Obtain the token however your
+      environment provides it (for example, request it from your identity provider or a control-plane token
+      endpoint); the returned value is the ``subject_token`` that Databricks exchanges for an OAuth token:
+
+      .. code-block:: python
+
+          # my_package/identity.py
+          import requests
+
+
+          def get_oidc_token() -> str:
+              resp = requests.get("https://id.example.com/oidc/token", timeout=10)
+              resp.raise_for_status()
+              return resp.json()["token"]
 
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 

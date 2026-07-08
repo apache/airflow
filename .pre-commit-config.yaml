@@ -270,7 +270,6 @@ repos:
         language: node
         files: >
           (?x)
-          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
           ^ts-sdk/src/generated/supervisor\.ts$|
           ^ts-sdk/scripts/generate-supervisor\.mjs$
         additional_dependencies: ['pnpm@10.28.1']
