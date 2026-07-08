@@ -35,7 +35,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import DataError, NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
@@ -290,9 +290,7 @@ def ti_run(
 
         xcom_keys = list(session.scalars(xcom_query))
     task_reschedule_count = (
-        session.scalar(
-            select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
-        )
+        session.scalar(select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id))
         or 0
     )
 

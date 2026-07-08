@@ -36,6 +36,7 @@ from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
@@ -45,8 +46,6 @@ from airflow.api_fastapi.auth.tokens import (
     get_signing_args,
 )
 from airflow.api_fastapi.common.exceptions import ERROR_HANDLERS
-
-from sqlalchemy.exc import SQLAlchemyError
 
 if TYPE_CHECKING:
     import httpx
