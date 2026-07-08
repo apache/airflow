@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Quick start <quickstart>
     Connection types <connections>
     Operators <operators/anthropic>
 
