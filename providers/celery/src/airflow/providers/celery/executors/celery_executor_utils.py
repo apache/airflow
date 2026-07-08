@@ -240,7 +240,10 @@ def execute_workload(input: str) -> None:
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     try:
-        BaseExecutor.run_workload(workload)
+        BaseExecutor.run_workload(
+            workload,
+            subprocess_logs_to_stdout=conf.getboolean("celery", "task_logs_to_stdout", fallback=False),
+        )
     except Exception as e:
         from airflow.sdk.exceptions import TaskAlreadyRunningError
 
@@ -285,6 +288,7 @@ def _execute_workload_pre_3_3(input: str) -> None:
                 token=workload.token,
                 server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
+                subprocess_logs_to_stdout=conf.getboolean("celery", "task_logs_to_stdout", fallback=False),
             )
         else:
             raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
