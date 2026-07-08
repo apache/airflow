@@ -62,7 +62,10 @@ def triggerer_run(
     set_component_mp_start_method("triggerer")
     with _serve_logs(skip_serve_logs):
         triggerer_job_runner = TriggererJobRunner(
-            job=Job(heartrate=triggerer_heartrate), capacity=capacity, queues=queues, team_name=team_name
+            job=Job(heartrate=triggerer_heartrate, team_name=team_name),
+            capacity=capacity,
+            queues=queues,
+            team_name=team_name,
         )
         run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
 
