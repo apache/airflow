@@ -1121,6 +1121,91 @@ def test_execute_workload_runs_execute_task_before_airflow_3_3():
     assert mock_supervise.call_args.kwargs["log_path"] == "test.log"
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
+@pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="pre-3.3 compatibility path only applies before Airflow 3.3")
+@pytest.mark.parametrize(
+    ("config_value", "expected"),
+    [("True", True), ("False", False)],
+)
+def test_execute_workload_forwards_task_logs_to_stdout_before_airflow_3_3(config_value, expected):
+    """The [celery] task_logs_to_stdout config is passed to supervise on Airflow 3.0-3.2."""
+    from airflow.executors import workloads
+
+    workload = workloads.ExecuteTask(
+        ti=workloads.TaskInstance(
+            id="00000000-0000-0000-0000-000000000001",
+            dag_version_id="00000000-0000-0000-0000-000000000002",
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+    mock_current_task = mock.MagicMock()
+    mock_current_task.request.id = "test-celery-task-id"
+    mock_app = mock.MagicMock()
+    mock_app.current_task = mock_current_task
+
+    with (
+        conf_vars({("celery", "task_logs_to_stdout"): config_value}),
+        mock.patch.object(celery_executor_utils, "app", mock_app),
+        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+    ):
+        celery_executor_utils.execute_workload.__wrapped__(workload.model_dump_json())
+
+    assert mock_supervise.call_args.kwargs["subprocess_logs_to_stdout"] is expected
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="3.3+ path uses BaseExecutor.run_workload")
+@pytest.mark.parametrize(
+    ("config_value", "expected"),
+    [("True", True), ("False", False)],
+)
+def test_execute_workload_forwards_task_logs_to_stdout_on_airflow_3_3_plus(config_value, expected):
+    """The [celery] task_logs_to_stdout config is passed to run_workload on Airflow 3.3+."""
+    from airflow.executors import workloads
+
+    workload = workloads.ExecuteTask(
+        ti=workloads.TaskInstance(
+            id="00000000-0000-0000-0000-000000000001",
+            dag_version_id="00000000-0000-0000-0000-000000000002",
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+    mock_current_task = mock.MagicMock()
+    mock_current_task.request.id = "test-celery-task-id"
+    mock_app = mock.MagicMock()
+    mock_app.current_task = mock_current_task
+
+    with (
+        conf_vars({("celery", "task_logs_to_stdout"): config_value}),
+        mock.patch.object(celery_executor_utils, "app", mock_app),
+        mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
+    ):
+        celery_executor_utils.execute_workload.__wrapped__(workload.model_dump_json())
+
+    assert mock_run_workload.call_args.kwargs["subprocess_logs_to_stdout"] is expected
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="3.3+ path uses BaseExecutor.run_workload")
 def test_execute_workload_runs_base_executor_workload_on_airflow_3_3_plus():
     """execute_workload routes serialized ExecuteTask payloads to BaseExecutor on Airflow 3.3+."""
