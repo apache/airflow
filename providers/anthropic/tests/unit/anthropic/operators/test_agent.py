@@ -21,7 +21,11 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.anthropic.exceptions import AnthropicAgentSessionError, AnthropicAgentSessionTimeout
+from airflow.providers.anthropic.exceptions import (
+    AnthropicAgentSessionError,
+    AnthropicAgentSessionTimeout,
+    AnthropicTriggerEventError,
+)
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
 from airflow.providers.anthropic.operators.agent import AnthropicAgentSessionOperator
 from airflow.providers.anthropic.triggers.agent import AnthropicAgentSessionTrigger
@@ -201,10 +205,21 @@ class TestExecuteComplete:
             op.execute_complete({}, {"status": "timeout", "session_id": "s", "message": "slow"})
         hook.archive_session.assert_called_once_with("s")
 
-    def test_none_event_raises(self):
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param(
+                {"status": "rescheduling", "session_id": "s"},
+                "Unexpected trigger event status",
+                id="unknown-status",
+            ),
+        ],
+    )
+    def test_invalid_event_raises(self, event, match):
         op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env", message="hi")
-        with pytest.raises(AnthropicAgentSessionError, match="without an event"):
-            op.execute_complete({}, None)
+        with pytest.raises(AnthropicTriggerEventError, match=match):
+            op.execute_complete({}, event)
 
 
 class TestOnKill:

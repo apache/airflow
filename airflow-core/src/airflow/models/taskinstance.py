@@ -106,7 +106,6 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -599,9 +598,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     )
     _rendered_map_index: Mapped[str | None] = mapped_column("rendered_map_index", String(250), nullable=True)
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 

@@ -79,7 +79,7 @@ apache-airflow-providers-elasticsearch package
 `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 
-Release: 6.7.0
+Release: 6.8.0
 
 Provider package
 ----------------
@@ -108,11 +108,28 @@ PIP package                                 Version required
 ``elasticsearch``                           ``<10,>=8.10``
 ==========================================  ==================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-elasticsearch[polars]
+
+
+==========  ==================
+Extra       Dependencies
+==========  ==================
+``polars``  ``polars>=1.26.0``
+==========  ==================
+
 Downloading official packages
 -----------------------------
 
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-elasticsearch 6.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.7.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-elasticsearch 6.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.7.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-elasticsearch 6.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.8.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-elasticsearch 6.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_elasticsearch-6.8.0-py3-none-any.whl.sha512>`__)
