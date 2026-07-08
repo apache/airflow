@@ -705,7 +705,11 @@ class DagFileProcessorManager(LoggingMixin):
         Override to source the bundle from an API.
         """
         try:
-            bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
+            bundle = DagBundlesManager().get_bundle(
+                name=request.bundle_name,
+                version=request.bundle_version,
+                version_data=request.version_data,
+            )
         except ValueError:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None

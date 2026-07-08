@@ -137,6 +137,30 @@ Dependent package                                                               
 `apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_                  ``vertica``
 ======================================================================================================================  ===================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-hive[amazon]
+
+
+===================  =============================================================================================
+Extra                Dependencies
+===================  =============================================================================================
+``amazon``           ``apache-airflow-providers-amazon``
+``microsoft.mssql``  ``apache-airflow-providers-microsoft-mssql``
+``mysql``            ``apache-airflow-providers-mysql``
+``presto``           ``apache-airflow-providers-presto``
+``samba``            ``apache-airflow-providers-samba``
+``sqlalchemy``       ``sqlalchemy>=1.4.54``
+``vertica``          ``apache-airflow-providers-vertica``
+``GSSAPI``           ``winkerberos>=0.7.0; sys_platform == "win32"``, ``kerberos>=1.3.0; sys_platform != "win32"``
+===================  =============================================================================================
+
 Downloading official packages
 -----------------------------
 

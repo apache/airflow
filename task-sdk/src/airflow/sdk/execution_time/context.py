@@ -975,7 +975,14 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
 
         :raises ValueError: If any key is empty/whitespace-only or longer than
             ``_PARTITION_KEY_MAX_LENGTH`` characters.
+        :raises TypeError: If this accessor is for an asset alias, since partition
+            keys are only attached to concrete asset events, not alias events.
         """
+        if isinstance(self.key, AssetAliasUniqueKey):
+            raise TypeError(
+                "add_partitions() is not supported on asset alias outlet events; "
+                "partition keys can only be attached to a concrete asset."
+            )
         if isinstance(keys, str):
             keys = [keys]
         for key in keys:
@@ -1079,6 +1086,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _extra: dict[str, str]
     _asset_name: str | None
     _asset_uri: str | None
     _alias_name: str | None
@@ -1093,6 +1101,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._extra: dict[str, str] = {}
 
     def after(self, after: str) -> Self:
         self._after = after
@@ -1114,6 +1123,11 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def extra(self, key: str, value: str) -> Self:
+        self._extra[key] = value
+        self._reset_cache()
+        return self
+
     @functools.cached_property
     def _asset_events(self) -> list[AssetEventResult]:
         from airflow.sdk.execution_time.comms import (
@@ -1129,6 +1143,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "extra": self._extra or None,
         }
 
         msg: ToSupervisor

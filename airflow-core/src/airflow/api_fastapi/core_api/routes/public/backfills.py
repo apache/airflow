@@ -56,6 +56,7 @@ from airflow.models.backfill import (
     InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
+    NoBackfillRunsToCreate,
     _create_backfill,
     _do_dry_run,
 )
@@ -135,7 +136,6 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused is False:
         b.is_paused = True
-    session.commit()
     return b
 
 
@@ -276,6 +276,7 @@ def create_backfill(
         InvalidBackfillDate,
         InvalidBackfillDateRange,
         InvalidBackfillConf,
+        NoBackfillRunsToCreate,
     ) as e:
         raise RequestValidationError(str(e))
 

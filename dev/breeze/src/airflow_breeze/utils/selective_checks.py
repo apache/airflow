@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
+    JAVA_SDK_VERSION,
     KIND_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
@@ -91,6 +92,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
+AREA_KUBERNETES_TESTS_LABEL = "area:kubernetes-tests"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -119,6 +121,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
+    TS_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -435,6 +438,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.JAVA_SDK_FILES: [
             r"^java-sdk/",
         ],
+        FileGroupForCi.TS_SDK_FILES: [
+            r"^ts-sdk/",
+        ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
             r"^airflow-core/src/airflow/models/assets/",
@@ -695,6 +701,7 @@ class SelectiveChecks:
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
     default_helm_version = HELM_VERSION
+    java_sdk_version = JAVA_SDK_VERSION
 
     @cached_property
     def latest_versions_only(self) -> bool:
@@ -1073,6 +1080,12 @@ class SelectiveChecks:
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
+        if AREA_KUBERNETES_TESTS_LABEL in self._pr_labels:
+            console_print(
+                "[warning]Running Kubernetes tests because "
+                f"label '{AREA_KUBERNETES_TESTS_LABEL}' is in {self._pr_labels}[/]"
+            )
+            return True
         return self._should_be_run(FileGroupForCi.KUBERNETES_FILES)
 
     @cached_property
@@ -1610,6 +1623,11 @@ class SelectiveChecks:
             # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that (intermittently failing) download.
             prek_hooks_to_skip.add("ktlint")
+        if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
+            # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
+            # ts-sdk types is the ts-sdk follow-up PR's job, not the schema author's.
+            prek_hooks_to_skip.add("check-ts-sdk-supervisor-schema")
         if not (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES

@@ -502,12 +502,27 @@ idempotent — re-add them if they're missing.
 ```text
 /.apache-magpie/
 /.apache-magpie.local.lock
+/.apache-magpie-sources/
+/.apache-magpie.sources.local.lock
 /.claude/settings.local.json
 /.claude/hooks/agent-guard.py
 /.claude/hooks/guards.d/
 __pycache__/
 *.pyc
 ```
+
+The `/.apache-magpie-sources/` and
+`/.apache-magpie.sources.local.lock` lines keep the gitignored
+fetch of every [trusted external skill
+source](../../docs/skill-sources/README.md) and its per-machine
+fetch fingerprint out of the tree — the source counterpart of
+`/.apache-magpie/` + `/.apache-magpie.local.lock`. The committed
+per-source pins (`.apache-magpie.sources.lock`) are **not** ignored;
+they travel with the repo like `<committed-lock>`. These two lines
+are harmless when the adopter trusts no source (the paths simply
+never appear); [`skill-sources.md`](skill-sources.md) also adds
+them idempotently the first time a source is pinned on an older
+adoption.
 
 The `__pycache__/` and `*.pyc` lines (non-anchored — they match at
 any depth) keep the byte-compiled artefacts that framework skill
@@ -642,6 +657,25 @@ Show the symlinks the skill is about to create, grouped by
 confirm, then create them. Always-on entries are surfaced
 read-only — the prompt is "confirm this list" not "edit this
 list".
+
+## Step 8b — Wire up trusted external-source skills
+
+If `<project-config>/skill-sources.md` (the adopter trust list)
+exists and lists any source, run the
+[`skill-sources`](skill-sources.md) sub-action now as a content
+pass: fetch + verify each trusted source into
+`.apache-magpie-sources/<id>/`, write both source locks, and
+create the canonical + relay `magpie-<name>` symlinks for the
+skills each source `provides` — the same wiring Step 8 does for
+framework skills, just targeting the source snapshots. Nothing is
+fetched if the trust list is absent or empty (the common case);
+this step is then a no-op.
+
+Source skills are `magpie-`-prefixed and gitignored exactly like
+framework skills, so the `.gitignore` block from
+[Step 7](#step-7--gitignore-entries-fresh-only) already covers
+their symlinks; the `.apache-magpie-sources/` snapshot dir and
+`.apache-magpie.sources.local.lock` were added there too.
 
 ## Step 9 — Scaffold `.apache-magpie-overrides/` (FRESH only)
 
