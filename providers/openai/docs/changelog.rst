@@ -37,6 +37,21 @@ explicitly, or install the SDK extra directly:
 
     pip install 'openai[datalib]'
 
+.. Bug fix
+
+``OpenAIBatchTrigger`` now measures its polling timeout with
+:func:`time.monotonic` instead of :func:`time.time`, so a batch task's
+timeout is no longer affected by wall-clock adjustments (NTP corrections,
+DST, VM pause/resume) that happen while the trigger is deferred.
+
+To make that possible the trigger's preferred constructor argument changed
+from ``end_time`` (an absolute wall-clock deadline) to ``timeout`` (a
+duration in seconds). ``OpenAITriggerBatchOperator`` has been updated to
+pass ``timeout``. ``OpenAIBatchTrigger`` still accepts the legacy
+``end_time`` argument so that triggers serialized by the previous version
+of the operator continue to run after an upgrade; direct users of the
+trigger should switch to ``timeout``.
+
 1.8.0
 .....
 
