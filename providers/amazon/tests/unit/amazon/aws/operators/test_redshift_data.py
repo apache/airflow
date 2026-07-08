@@ -278,6 +278,23 @@ class TestRedshiftDataOperator:
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_on_kill_respects_cancel_on_kill_false(self, mock_conn):
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": SESSION_ID}
+        operator = RedshiftDataOperator(
+            aws_conn_id=CONN_ID,
+            task_id=TASK_ID,
+            cluster_identifier="cluster_identifier",
+            sql=SQL,
+            database=DATABASE,
+            wait_for_completion=False,
+            cancel_on_kill=False,
+        )
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        operator.execute({"ti": mock_ti})
+        operator.on_kill()
+        mock_conn.cancel_statement.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_return_sql_result(self, mock_conn):
         expected_result = [{"Result": True}]
         cluster_identifier = "cluster_identifier"
@@ -382,6 +399,7 @@ class TestRedshiftDataOperator:
             deferrable_operator.execute({"ti": mock_ti})
 
         assert isinstance(exc.value.trigger, RedshiftDataTrigger)
+        assert exc.value.trigger.cancel_on_kill is True
 
     def test_execute_complete_failure(self, deferrable_operator):
         """Tests that an AirflowException is raised in case of error event"""
