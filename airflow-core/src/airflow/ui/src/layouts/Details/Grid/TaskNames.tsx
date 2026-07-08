@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { memo } from "react";
+
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import type { MouseEvent } from "react";
@@ -39,156 +41,222 @@ type Props = {
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
-export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
-  const { t: translate } = useTranslation("dag");
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
-  const { toggleGroupId } = useGroups();
-  const { dagId = "", groupId, taskId } = useParams();
-  const [searchParams] = useSearchParams();
+const TaskNamesInner = memo(
+  ({
+    dagId,
+    groupId,
+    hoveredTaskId,
+    itemsToRender,
+    nodes,
+    onRowClick,
+    search,
+    setHoveredTaskId,
+    taskId,
+    toggleGroupId,
+  }: Omit<Props, "virtualItems"> & {
+    readonly dagId: string;
+    readonly groupId?: string;
+    readonly hoveredTaskId?: string;
+    readonly itemsToRender: Array<VirtualItem>;
+    readonly search: string;
+    readonly setHoveredTaskId: (taskId: string | undefined) => void;
+    readonly taskId?: string;
+    readonly toggleGroupId: (groupId: string) => void;
+  }) => {
+    const { t: translate } = useTranslation("dag");
 
-  const handleMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-    const { nodeId } = event.currentTarget.dataset;
+    const handleMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+      const { nodeId } = event.currentTarget.dataset;
 
-    if (nodeId !== undefined) {
-      setHoveredTaskId(nodeId);
-    }
-  };
+      if (nodeId !== undefined) {
+        setHoveredTaskId(nodeId);
+      }
+    };
 
-  const handleMouseLeave = () => setHoveredTaskId(undefined);
+    const handleMouseLeave = () => setHoveredTaskId(undefined);
 
-  const handleToggleGroup = (event: MouseEvent<HTMLSpanElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const groupNodeId = event.currentTarget.dataset.groupId;
+    const handleToggleGroup = (event: MouseEvent<HTMLSpanElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const groupNodeId = event.currentTarget.dataset.groupId;
 
-    if (groupNodeId !== undefined) {
-      toggleGroupId(groupNodeId);
-    }
-  };
+      if (groupNodeId !== undefined) {
+        toggleGroupId(groupNodeId);
+      }
+    };
 
-  const onClick = (event: MouseEvent<HTMLSpanElement>) => {
-    const groupNodeId = event.currentTarget.dataset.groupId;
+    const onClick = (event: MouseEvent<HTMLSpanElement>) => {
+      const groupNodeId = event.currentTarget.dataset.groupId;
 
-    if (groupNodeId === undefined || groupNodeId === "") {
-      return;
-    }
+      if (groupNodeId === undefined || groupNodeId === "") {
+        return;
+      }
 
-    const id = groupNodeId;
-    const isViewingSameGroup = typeof groupId === "string" && groupId === id;
+      const id = groupNodeId;
+      const isViewingSameGroup = typeof groupId === "string" && groupId === id;
 
-    if (isViewingSameGroup) {
-      toggleGroupId(id);
-    }
-    onRowClick?.();
-  };
+      if (isViewingSameGroup) {
+        toggleGroupId(id);
+      }
+      onRowClick?.();
+    };
 
-  const search = searchParams.toString();
+    return (
+      <>
+        {itemsToRender.map((virtualItem) => {
+          const node = nodes[virtualItem.index];
 
-  // If virtualItems is provided, use virtualization; otherwise render all items
-  const itemsToRender =
-    virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
+          if (!node) {
+            return undefined;
+          }
 
-  return (
-    <>
-      {itemsToRender.map((virtualItem) => {
-        const node = nodes[virtualItem.index];
+          const isSelected = node.id === taskId || node.id === groupId;
+          const isHovered = hoveredTaskId === node.id;
 
-        if (!node) {
-          return undefined;
-        }
-
-        const isSelected = node.id === taskId || node.id === groupId;
-        const isHovered = hoveredTaskId === node.id;
-
-        return (
-          <Box
-            bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
-            borderBottomWidth={1}
-            borderColor={node.isGroup ? "border.emphasized" : "border"}
-            borderTopWidth={virtualItem.index === 0 ? 1 : 0}
-            cursor="pointer"
-            data-node-id={node.id}
-            data-testid={`task-${node.id.replaceAll(".", "-")}`}
-            height={`${ROW_HEIGHT}px`}
-            id={`task-${node.id.replaceAll(".", "-")}`}
-            key={node.id}
-            left={0}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            position="absolute"
-            right={0}
-            top={0}
-            transform={`translateY(${virtualItem.start}px)`}
-            transition="background-color 0.2s"
-          >
-            {node.isGroup ? (
-              <Link asChild data-testid={node.id} display="block" width="100%">
-                <RouterLink
-                  data-group-id={node.id}
-                  onClick={onClick}
-                  replace
-                  style={{ outline: "none" }}
-                  to={{
-                    pathname: `/dags/${dagId}/tasks/group/${node.id}`,
-                    search,
-                  }}
-                >
-                  <Flex alignItems="center" width="100%">
+          return (
+            <Box
+              bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+              borderBottomWidth={1}
+              borderColor={node.isGroup ? "border.emphasized" : "border"}
+              borderTopWidth={virtualItem.index === 0 ? 1 : 0}
+              cursor="pointer"
+              data-node-id={node.id}
+              data-testid={`task-${node.id.replaceAll(".", "-")}`}
+              height={`${ROW_HEIGHT}px`}
+              id={`task-${node.id.replaceAll(".", "-")}`}
+              key={node.id}
+              left={0}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              position="absolute"
+              right={0}
+              top={0}
+              transform={`translateY(${virtualItem.start}px)`}
+              transition="background-color 0.2s"
+            >
+              {node.isGroup ? (
+                <Link asChild data-testid={node.id} display="block" width="100%">
+                  <RouterLink
+                    data-group-id={node.id}
+                    onClick={onClick}
+                    replace
+                    style={{ outline: "none" }}
+                    to={{
+                      pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+                      search,
+                    }}
+                  >
+                    <Flex alignItems="center" width="100%">
+                      <TaskName
+                        fontSize="sm"
+                        fontWeight="normal"
+                        isGroup={true}
+                        isMapped={Boolean(node.is_mapped)}
+                        label={node.label}
+                        paddingLeft={indent(node.depth)}
+                        setupTeardownType={node.setup_teardown_type}
+                      />
+                      <chakra.span
+                        _focus={{ outline: "none" }}
+                        alignItems="center"
+                        aria-label={translate("grid.buttons.toggleGroup")}
+                        cursor="pointer"
+                        data-group-id={node.id}
+                        display="inline-flex"
+                        ml={1}
+                        onClick={handleToggleGroup}
+                        px={1}
+                      >
+                        <FiChevronUp
+                          size={16}
+                          style={{
+                            transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
+                            transition: "transform 0.5s",
+                          }}
+                        />
+                      </chakra.span>
+                    </Flex>
+                  </RouterLink>
+                </Link>
+              ) : (
+                <Link asChild data-testid={node.id} display="inline">
+                  <RouterLink
+                    onClick={onRowClick}
+                    replace
+                    to={{
+                      pathname: `/dags/${dagId}/tasks/${node.id}`,
+                      search,
+                    }}
+                  >
                     <TaskName
                       fontSize="sm"
                       fontWeight="normal"
-                      isGroup={true}
                       isMapped={Boolean(node.is_mapped)}
                       label={node.label}
                       paddingLeft={indent(node.depth)}
                       setupTeardownType={node.setup_teardown_type}
                     />
-                    <chakra.span
-                      _focus={{ outline: "none" }}
-                      alignItems="center"
-                      aria-label={translate("grid.buttons.toggleGroup")}
-                      cursor="pointer"
-                      data-group-id={node.id}
-                      display="inline-flex"
-                      ml={1}
-                      onClick={handleToggleGroup}
-                      px={1}
-                    >
-                      <FiChevronUp
-                        size={16}
-                        style={{
-                          transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
-                          transition: "transform 0.5s",
-                        }}
-                      />
-                    </chakra.span>
-                  </Flex>
-                </RouterLink>
-              </Link>
-            ) : (
-              <Link asChild data-testid={node.id} display="inline">
-                <RouterLink
-                  onClick={onRowClick}
-                  replace
-                  to={{
-                    pathname: `/dags/${dagId}/tasks/${node.id}`,
-                    search,
-                  }}
-                >
-                  <TaskName
-                    fontSize="sm"
-                    fontWeight="normal"
-                    isMapped={Boolean(node.is_mapped)}
-                    label={node.label}
-                    paddingLeft={indent(node.depth)}
-                    setupTeardownType={node.setup_teardown_type}
-                  />
-                </RouterLink>
-              </Link>
-            )}
-          </Box>
-        );
-      })}
-    </>
+                  </RouterLink>
+                </Link>
+              )}
+            </Box>
+          );
+        })}
+      </>
+    );
+  },
+  (prevProps, nextProps) => {
+    if (
+      prevProps.dagId !== nextProps.dagId ||
+      prevProps.groupId !== nextProps.groupId ||
+      prevProps.hoveredTaskId !== nextProps.hoveredTaskId ||
+      prevProps.search !== nextProps.search ||
+      prevProps.taskId !== nextProps.taskId ||
+      prevProps.nodes.length !== nextProps.nodes.length
+    ) {
+      return false;
+    }
+
+    if (prevProps.itemsToRender.length !== nextProps.itemsToRender.length) {
+      return false;
+    }
+
+    for (let i = 0; i < prevProps.itemsToRender.length; i++) {
+      if (
+        prevProps.itemsToRender[i].index !== nextProps.itemsToRender[i].index ||
+        prevProps.itemsToRender[i].start !== nextProps.itemsToRender[i].start
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  },
+);
+
+export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
+  const { hoveredTaskId, setHoveredTaskId } = useHover();
+  const { toggleGroupId } = useGroups();
+  const { dagId = "", groupId, taskId } = useParams();
+  const [searchParams] = useSearchParams();
+
+  const search = searchParams.toString();
+
+  const itemsToRender =
+    virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
+
+  return (
+    <TaskNamesInner
+      dagId={dagId}
+      groupId={groupId}
+      hoveredTaskId={hoveredTaskId}
+      itemsToRender={itemsToRender}
+      nodes={nodes}
+      onRowClick={onRowClick}
+      search={search}
+      setHoveredTaskId={setHoveredTaskId}
+      taskId={taskId}
+      toggleGroupId={toggleGroupId}
+    />
   );
 };

@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { memo } from "react";
+
 import { Badge, Box, Flex } from "@chakra-ui/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
-import { useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 const NOTE_GRADIENT =
@@ -33,24 +34,27 @@ type Props = {
   readonly hasNote?: boolean;
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
+  readonly isHovered?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
   readonly onClick?: () => void;
   readonly runId: string;
+  readonly setHoveredTaskId: (taskId: string | undefined) => void;
   readonly taskId: string;
 };
 
-export const GridTI = ({
+export const GridTI = memo(({
   dagId,
   hasNote = false,
   instance,
   isGroup,
+  isHovered = false,
   isMapped,
   onClick,
   runId,
+  setHoveredTaskId,
   taskId,
 }: Props) => {
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const location = useLocation();
 
@@ -76,7 +80,6 @@ export const GridTI = ({
 
   // Determine background: selected takes priority over hovered
   const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
-  const isHovered = hoveredTaskId === taskId;
 
   return (
     <Flex
@@ -131,4 +134,4 @@ export const GridTI = ({
       </TaskInstanceTooltip>
     </Flex>
   );
-};
+});

@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { memo } from "react";
+
 import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -39,15 +41,23 @@ type Props = {
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
 };
 
-export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
-  const { dagId = "", runId } = useParams();
-  const [searchParams] = useSearchParams();
-  const { hoveredRunId, setHoveredRunId } = useHover();
-
-  const isSelected = runId === run.run_id;
-  const isHovered = hoveredRunId === run.run_id;
-  const search = searchParams.toString();
-
+const BarInner = memo(({
+  dagId,
+  isHovered,
+  isSelected,
+  max,
+  onClick,
+  run,
+  search,
+  setHoveredRunId,
+  showVersionIndicatorMode,
+}: Props & {
+  readonly dagId: string;
+  readonly isHovered: boolean;
+  readonly isSelected: boolean;
+  readonly search: string;
+  readonly setHoveredRunId: (runId: string | undefined) => void;
+}) => {
   const handleMouseEnter = () => setHoveredRunId(run.run_id);
   const handleMouseLeave = () => setHoveredRunId(undefined);
 
@@ -99,5 +109,29 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
         </GridButton>
       </Flex>
     </Box>
+  );
+});
+
+export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
+  const { dagId = "", runId } = useParams();
+  const [searchParams] = useSearchParams();
+  const { hoveredRunId, setHoveredRunId } = useHover();
+
+  const isSelected = runId === run.run_id;
+  const isHovered = hoveredRunId === run.run_id;
+  const search = searchParams.toString();
+
+  return (
+    <BarInner
+      dagId={dagId}
+      isHovered={isHovered}
+      isSelected={isSelected}
+      max={max}
+      onClick={onClick}
+      run={run}
+      search={search}
+      setHoveredRunId={setHoveredRunId}
+      showVersionIndicatorMode={showVersionIndicatorMode}
+    />
   );
 };
