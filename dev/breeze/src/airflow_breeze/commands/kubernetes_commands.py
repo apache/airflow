@@ -2810,6 +2810,12 @@ def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Outpu
             get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version),
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
+            # Layer the lang-SDK values on top of the already-deployed release rather than
+            # re-rendering from chart defaults. Without this, helm discards the base deploy's
+            # --set overrides (notably config.core.auth_manager=SimpleAuthManager on Python 3.13),
+            # reverting the api-server to the chart-default FabAuthManager so it never writes
+            # simple_auth_manager_passwords.json.generated and the API-login tests error out.
+            "--reuse-values",
             "--set",
             f"defaultAirflowRepository={image}",
             "--set",
