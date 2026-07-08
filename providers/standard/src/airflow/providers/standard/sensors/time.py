@@ -64,6 +64,16 @@ class TimeSensor(BaseSensorOperator):
     ) -> None:
         super().__init__(**kwargs)
 
+        if start_from_trigger:
+            raise ValueError(
+                "TimeSensor does not support start_from_trigger=True: the target "
+                "datetime is computed from the current wall-clock time at DAG-parse "
+                "time, not from the DagRun's data_interval_end/run_after, so baking "
+                "it into the serialized trigger arguments causes the DAG version to "
+                "change on every parse. Use deferrable=True without start_from_trigger, "
+                "or use DateTimeSensor with a templated target_time instead."
+            )
+
         # Create a "date-aware" timestamp that will be used as the "target_datetime". This is a requirement
         # of the DateTimeTrigger
 
@@ -77,13 +87,8 @@ class TimeSensor(BaseSensorOperator):
         # Now that the dag's timezone has made the datetime timezone aware, we need to convert to UTC
         self.target_datetime = timezone.convert_to_utc(aware_time)
         self.deferrable = deferrable
-        self.start_from_trigger = start_from_trigger
+        self.start_from_trigger = False
         self.end_from_trigger = end_from_trigger
-
-        if self.start_from_trigger:
-            self.start_trigger_args.trigger_kwargs = dict(
-                moment=self.target_datetime, end_from_trigger=self.end_from_trigger
-            )
 
     def execute(self, context: Context) -> None:
         if self.deferrable:
