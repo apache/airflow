@@ -229,11 +229,14 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Retrieve a connection from Vault as a serialized string.
 
         Returns the ``conn_uri`` value verbatim when present, otherwise serializes
-        the secret dict to JSON.  The base-class ``get_connection`` deserializes the
-        returned string using the Connection class that the framework injected for the
-        current execution context (ORM Connection on the server, SDK Connection in
+        the secret dict to JSON.  On Airflow 3.2+, the base-class ``get_connection``
+        deserializes the returned string using the Connection class that the framework
+        injects per execution context (ORM Connection on the server, SDK Connection in
         workers), which avoids triggering SQLAlchemy mapper initialization in
-        task-execution subprocesses such as PythonVirtualenvOperator.
+        task-execution subprocesses such as PythonVirtualenvOperator.  On the older
+        releases this provider still supports (2.11 / 3.0 / 3.1) there is no such
+        injection: the base ``deserialize_connection`` imports the ORM ``Connection``
+        directly, so the mapper-initialization avoidance does not apply there.
 
         :param conn_id: connection id
         :param team_name: Team name associated to the task trying to access the connection (if any)

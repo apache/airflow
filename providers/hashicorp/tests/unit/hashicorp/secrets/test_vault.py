@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
@@ -83,8 +84,6 @@ class TestVaultSecrets:
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_value(self, mock_hvac):
-        import json
-
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_client.secrets.kv.v2.read_secret_version.return_value = {
@@ -198,8 +197,6 @@ class TestVaultSecrets:
                 for path in exp_paths
             ]
         )
-        import json
-
         assert value is not None
         assert json.loads(value)["conn_type"] == "postgresql"
 
@@ -241,8 +238,6 @@ class TestVaultSecrets:
             "url": "http://127.0.0.1:8200",
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
-
-        import json
 
         test_client = VaultBackend(**kwargs)
         value = test_client.get_conn_value(conn_id="airflow/test_postgres")
@@ -619,8 +614,6 @@ class TestVaultSecrets:
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_jwt_auth_type_field_based(self, mock_hvac):
-        import json
-
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_client.secrets.kv.v2.read_secret_version.return_value = {
@@ -791,8 +784,6 @@ class TestVaultSecrets:
             version=None,
             raise_on_deleted_version=True,
         )
-
-        import json
 
         assert value is not None
         parsed = json.loads(value)
