@@ -2311,6 +2311,45 @@ def length_prefixed_frame_reader(
     return cb, on_close
 
 
+def _format_exception_dict(exc_dict: list[dict[str, Any]] | Any) -> str | Any:
+    """
+    Format a structlog exception dictionary back into a pretty stack trace.
+    If the input is not a list of dicts, it is returned as-is.
+    """
+    if not isinstance(exc_dict, list):
+        return exc_dict
+
+    formatted_exceptions = []
+
+    for i, exc in enumerate(exc_dict):
+        if not isinstance(exc, dict):
+            return exc_dict  # Fallback if structure isn't what we expect
+
+        exc_type = exc.get("exc_type", "Exception")
+        exc_value = exc.get("exc_value", "")
+        frames = exc.get("frames", [])
+
+        lines = []
+        if i > 0:
+            if exc.get("is_cause"):
+                lines.append("\nThe above exception was the direct cause of the following exception:\n")
+            elif exc.get("is_context"):
+                lines.append("\nDuring handling of the above exception, another exception occurred:\n")
+
+        lines.append("Traceback (most recent call last):")
+        for frame in frames:
+            lines.append(
+                f'  File "{frame.get("filename", "")}", line {frame.get("lineno", "")}, in {frame.get("name", "")}'
+            )
+            if "line" in frame and frame["line"]:
+                lines.append(f'    {frame["line"]}')
+
+        lines.append(f"{exc_type}: {exc_value}")
+        formatted_exceptions.append("\n".join(lines))
+
+    return "\n".join(formatted_exceptions)
+
+
 def process_log_messages_from_subprocess(
     loggers: tuple[FilteringBoundLogger, ...],
 ) -> Generator[None, bytes | bytearray, None]:
@@ -2344,8 +2383,7 @@ def process_log_messages_from_subprocess(
             event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
 
         if exc := event.pop("exception", None):
-            # TODO: convert the dict back to a pretty stack trace
-            event["error_detail"] = exc
+            event["error_detail"] = _format_exception_dict(exc)
 
         if level := NAME_TO_LEVEL.get(event.pop("level")):
             msg = event.pop("event", None)
