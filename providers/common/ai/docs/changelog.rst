@@ -25,6 +25,30 @@
 Changelog
 ---------
 
+0.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'env_provider' and 'Extra.env' support to MCP stdio transport (#69225)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace deprecated 'pydantic-ai' MCP classes with 'MCPToolset' in 'common.ai' (#69006)``
+
+Misc
+~~~~
+
+* ``Migrate common.ai provider to pydantic-ai 2.x and remove the <2 cap (#69358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``[main] Upgrade important CI environment (#68933)``
+
 0.5.0
 .....
 

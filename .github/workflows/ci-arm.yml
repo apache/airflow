@@ -92,6 +92,7 @@ jobs:
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       individual-providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-strings-in-json }}
+      java-sdk-version: ${{ steps.selective-checks.outputs.java-sdk-version }}
       kubernetes-combos: ${{ steps.selective-checks.outputs.kubernetes-combos }}
       kubernetes-combos-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-combos-list-as-string }}
@@ -925,6 +926,9 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       kubernetes-combos: ${{ needs.build-info.outputs.kubernetes-combos }}
+      java-sdk-version: ${{ needs.build-info.outputs.java-sdk-version }}
+      lang-sdk-kubernetes-combo: >-
+        ${{ needs.build-info.outputs.default-python-version }}-${{ needs.build-info.outputs.default-kubernetes-version }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.run-helm-tests == 'true')
