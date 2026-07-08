@@ -857,9 +857,13 @@ class TestTIRunState:
         assert response.status_code == 409
         assert response.json() == {
             "detail": {
-                "message": "TI was not in a state where it could be marked as running",
-                "previous_state": initial_ti_state,
+                "type": "https://datatracker.ietf.org/doc/html/rfc9457#section-3.1",
+                "title": "Invalid Task Instance State",
+                "status": 409,
+                "detail": "TI was not in a state where it could be marked as running",
+                "instance": f"/execution/task-instances/{ti.id}/run",
                 "reason": "invalid_state",
+                "previous_state": initial_ti_state,
             }
         }
 
