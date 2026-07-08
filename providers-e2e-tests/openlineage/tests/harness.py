@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Drive all OpenLineage DAGs in the deployed stack and collect their final run state.
+Drive all OpenLineage Dags in the deployed stack and collect their final run state.
 
 Adapted from the OpenLineage dags-dashboard ``trigger_dag.py`` integration harness: it talks to a
 local Airflow REST API v2 (rather than an Astro deployment), authenticates with a SimpleAuthManager
 bearer token, and reports through logs only. The actual OpenLineage event validation happens inside
-each DAG's terminal ``OpenLineageTestOperator`` task, so a run that ends ``success`` means its
+each Dag's terminal ``OpenLineageTestOperator`` task, so a run that ends ``success`` means its
 emitted events matched the expected templates.
 """
 
@@ -38,23 +38,23 @@ from urllib3.util.retry import Retry
 
 WARMUP_DAG_ID = "openlineage_warmup_dag"
 TRIGGER_DELAY_SECONDS = 2
-# Shared wall-clock budget for one _trigger_and_wait() call, covering every DAG triggered in that
-# batch — bounds total polling time regardless of how many DAGs are involved
+# Shared wall-clock budget for one _trigger_and_wait() call, covering every Dag triggered in that
+# batch — bounds total polling time regardless of how many Dags are involved
 BATCH_TIMEOUT_SECONDS = 360  # 6 min, each dagrun timeout is set to 5 minutes
 
-# DAGs that take longer to complete — trigger these first so they run while the rest are triggered.
+# Dags that take longer to complete — trigger these first so they run while the rest are triggered.
 LONG_RUNNING_DAG_IDS = ("openlineage_defer_simple_dag",)
 
-# Child DAGs spawned by TriggerDagRunOperator carry this marker; they must not be triggered or
+# Child Dags spawned by TriggerDagRunOperator carry this marker; they must not be triggered or
 # state-checked directly (their parent triggers them).
 NO_TRIGGER_MARKER = "__notrigger"
 
 
 def discover_expected_dag_ids(dags_folder: Path) -> set[str]:
     """
-    Top-level ``DAG_ID = "..."`` declarations across the prepared example DAGs.
+    Top-level ``DAG_ID = "..."`` declarations across the prepared example Dags.
 
-    Used as a coverage check: every expected DAG must actually load in the deployment (a missing one
+    Used as a coverage check: every expected Dag must actually load in the deployment (a missing one
     signals an import/parse failure rather than a test failure).
     """
     pattern = re.compile(r'^DAG_ID\s*=\s*["\'](?P<dag_id>[^"\']+)["\']')
@@ -84,7 +84,7 @@ def _session_with_retries() -> requests.Session:
 
 
 class OpenLineageE2ERunner:
-    """Triggers all OpenLineage DAGs against a running deployment and collects their final states."""
+    """Triggers all OpenLineage Dags against a running deployment and collects their final states."""
 
     def __init__(self, api_base_url: str, headers: dict[str, str]):
         self.api_url = f"{api_base_url}/api/v2"
@@ -122,24 +122,24 @@ class OpenLineageE2ERunner:
         return {ti["task_id"]: ti["state"] for ti in response.json()["task_instances"]}
 
     def wait_for_dags_loaded(self, timeout: int = 60, poll_interval: int = 3) -> list[str]:
-        """Poll until the dag-processor has parsed the DAGs (the warmup DAG is the readiness marker)."""
+        """Poll until the dag-processor has parsed the Dags (the warmup Dag is the readiness marker)."""
         deadline = time.monotonic() + timeout
         dag_ids: list[str] = []
         while time.monotonic() < deadline:
             dag_ids = self.list_dags()
             if WARMUP_DAG_ID in dag_ids:
-                console.print(f"[green]DAGs loaded ({len(dag_ids)} found)")
+                console.print(f"[green]Dags loaded ({len(dag_ids)} found)")
                 return dag_ids
-            console.print(f"[yellow]Waiting for DAGs to load (have {len(dag_ids)})...")
+            console.print(f"[yellow]Waiting for Dags to load (have {len(dag_ids)})...")
             time.sleep(poll_interval)
-        raise RuntimeError(f"DAGs did not load within {timeout}s (warmup DAG missing; have {dag_ids}).")
+        raise RuntimeError(f"Dags did not load within {timeout}s (warmup Dag missing; have {dag_ids}).")
 
     def unpause_dag(self, dag_id: str) -> None:
         response = self.session.patch(
             f"{self.api_url}/dags/{dag_id}", headers=self.headers, json={"is_paused": False}
         )
         if response.status_code != 200:
-            console.print(f"[red]Failed to unpause DAG `{dag_id}`: {response.text}")
+            console.print(f"[red]Failed to unpause Dag `{dag_id}`: {response.text}")
 
     def trigger_dag_run(self, dag_id: str, run_id: str) -> bool:
         now = dt.datetime.now(tz=dt.timezone.utc).isoformat()
@@ -148,7 +148,7 @@ class OpenLineageE2ERunner:
             f"{self.api_url}/dags/{dag_id}/dagRuns", headers=self.headers, json=payload
         )
         if response.status_code not in (200, 201):
-            console.print(f"[red]Failed to trigger DAG `{dag_id}`: {response.text}")
+            console.print(f"[red]Failed to trigger Dag `{dag_id}`: {response.text}")
             return False
         return True
 
@@ -163,7 +163,7 @@ class OpenLineageE2ERunner:
             if state not in ("running", "queued"):
                 break
             time.sleep(5)
-        console.print(f"[blue]DAG `{dag_id}` finished in state: {state}")
+        console.print(f"[blue]Dag `{dag_id}` finished in state: {state}")
         return state
 
     def clear_airflow_variables(self) -> None:
@@ -174,14 +174,14 @@ class OpenLineageE2ERunner:
             self.session.delete(f"{self.api_url}/variables/{key}", headers=self.headers)
 
     def warmup(self, dag_ids: list[str]) -> None:
-        """Unpause all DAGs and run the warmup DAG so the worker is confirmed ready."""
+        """Unpause all Dags and run the warmup Dag so the worker is confirmed ready."""
         if WARMUP_DAG_ID not in dag_ids:
-            raise KeyError(f"Warmup DAG `{WARMUP_DAG_ID}` not found in deployment.")
+            raise KeyError(f"Warmup Dag `{WARMUP_DAG_ID}` not found in deployment.")
         for dag_id in dag_ids:
             self.unpause_dag(dag_id)
             time.sleep(TRIGGER_DELAY_SECONDS)
         if not self.trigger_dag_run(WARMUP_DAG_ID, self.run_id):
-            raise RuntimeError(f"Failed to trigger warmup DAG `{WARMUP_DAG_ID}`")
+            raise RuntimeError(f"Failed to trigger warmup Dag `{WARMUP_DAG_ID}`")
         self.wait_for_dag_run_to_complete(WARMUP_DAG_ID, self.run_id)
 
     def _trigger_and_wait(
@@ -209,14 +209,14 @@ class OpenLineageE2ERunner:
         return statuses
 
     def run(self, expected_dag_ids: set[str]) -> dict[str, str]:
-        """Run the full cycle and return ``{dag_id: final_state}`` for every triggered DAG."""
+        """Run the full cycle and return ``{dag_id: final_state}`` for every triggered Dag."""
         self.wait_for_airflow_api()
         dag_ids = self.wait_for_dags_loaded()
         if not dag_ids:
-            raise ValueError("No DAGs found in the deployment.")
+            raise ValueError("No Dags found in the deployment.")
 
         self.warmup(dag_ids)
-        # Auto-runs of cron/timetable DAGs may have started while unpaused — clear their events so
+        # Auto-runs of cron/timetable Dags may have started while unpaused — clear their events so
         # the test runs start from a clean slate.
         time.sleep(10)
         self.clear_airflow_variables()
@@ -230,13 +230,13 @@ class OpenLineageE2ERunner:
         failed = [dag_id for dag_id, state in statuses.items() if state != "success"]
         if failed:
             self.retried_dag_ids = set(failed)
-            console.print(f"[yellow]Retrying {len(failed)} failed DAG(s) once: {failed}")
+            console.print(f"[yellow]Retrying {len(failed)} failed Dag(s) once: {failed}")
             retry_statuses = self._trigger_and_wait(failed, self.retry_run_id)
             self.clear_airflow_variables()
             recovered = sorted(dag_id for dag_id, state in retry_statuses.items() if state == "success")
             if recovered:
                 # The retry counts as a pass, but surface it so first-run flakiness is not hidden.
-                console.print(f"[yellow]⚠ DAGs that passed only on retry (flaky first run): {recovered}")
+                console.print(f"[yellow]⚠ Dags that passed only on retry (flaky first run): {recovered}")
             statuses.update(retry_statuses)
 
         for dag_id in expected_dag_ids:

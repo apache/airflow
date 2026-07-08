@@ -924,6 +924,8 @@ def task_sdk_integration_tests(
 
 
 def _available_e2e_providers() -> list[str]:
+    if not PROVIDERS_E2E_TESTS_ROOT_PATH.exists():
+        return []
     return sorted(
         d.name
         for d in PROVIDERS_E2E_TESTS_ROOT_PATH.iterdir()
@@ -967,6 +969,7 @@ def _build_providers_e2e_compat_image(provider: str, airflow_version: str, pytho
             "wheel",
             "--skip-tag-check",
             "--include-not-ready-providers",
+            "--clean-dist",
         ],
         check=True,
         cwd=AIRFLOW_ROOT_PATH,
@@ -975,10 +978,8 @@ def _build_providers_e2e_compat_image(provider: str, airflow_version: str, pytho
     if provider_dist.exists():
         shutil.rmtree(provider_dist)
     provider_dist.mkdir(parents=True)
-    for provider_id in required_providers:
-        wheel_prefix = f"apache_airflow_providers_{provider_id.replace('.', '_')}-"
-        for wheel in (AIRFLOW_ROOT_PATH / "dist").glob(f"{wheel_prefix}*.whl"):
-            shutil.copy2(wheel, provider_dist / wheel.name)
+    for wheel in (AIRFLOW_ROOT_PATH / "dist").glob("*.whl"):  # With --clean-dist above we can copy all
+        shutil.copy2(wheel, provider_dist / wheel.name)
 
     base_image = f"apache/airflow:{airflow_version}-python{python}"
     image_name = f"{provider}-e2e/airflow:{airflow_version}-python{python}"

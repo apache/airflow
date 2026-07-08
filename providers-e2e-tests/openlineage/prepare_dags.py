@@ -81,8 +81,13 @@ def prepare_dags() -> Path:
         raise FileNotFoundError(f"OpenLineage system tests not found at {SYSTEM_TESTS_SOURCE}")
 
     if DAGS_DEST.exists():
-        shutil.rmtree(DAGS_DEST)
-    DAGS_DEST.mkdir(parents=True)
+        for child in DAGS_DEST.iterdir():
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    else:
+        DAGS_DEST.mkdir(parents=True)
 
     # Copy the whole `system` package so `system.openlineage.{operator,transport,expected_events}`
     # imports resolve from the dags folder.

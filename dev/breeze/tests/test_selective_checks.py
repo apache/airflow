@@ -1491,7 +1491,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run OpenLineage e2e tests for common provider change",
         ),
         pytest.param(
-            ("providers-e2e-tests/openlineage/tests/openlineage_e2e_tests/test_openlineage_e2e.py",),
+            ("providers-e2e-tests/openlineage/tests/harness.py",),
             {
                 "run-providers-e2e-tests-openlineage": "true",
                 "prod-image-build": "true",
