@@ -2415,6 +2415,36 @@ class TestBigQueryInsertJobOperatorDurable:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_configured_job_id_uses_rendered_template_not_raw_jinja(self, mock_hook):
+        """
+        Test to validate that _configured_job_id must be snapshotted after template
+        rendering. job_id is a template field, rendering happens between __init__ and
+        execute(), so capturing it in __init__ would feed the raw, unrendered Jinja
+        string into generate_job_id instead of the rendered value.
+        """
+        op = self._make_operator(job_id="report_{{ ds_nodash }}", force_rerun=False)
+        op.job_id = "report_20260101"  # simulate template rendering having already run
+        mock_hook.return_value.generate_job_id.return_value = "report_20260101"
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id="report_20260101", error_result=False
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+
+        op.execute(self._context(task_store))
+
+        mock_hook.return_value.generate_job_id.assert_called_once_with(
+            job_id="report_20260101",
+            dag_id=op.dag_id,
+            task_id=op.task_id,
+            logical_date=None,
+            configuration=op.configuration,
+            run_after=mock_hook.return_value.get_run_after_or_logical_date.return_value,
+            force_rerun=False,
+            try_number=None,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_resubmits_when_stored_job_not_found(self, mock_hook):
         op = self._make_operator()
         mock_hook.return_value.get_job.side_effect = NotFound("gone")

@@ -2378,10 +2378,9 @@ class BigQueryInsertJobOperator(
         self.configuration = configuration
         self.location = location
         self.job_id = job_id
-        # self.job_id is reassigned to the actual submitted/fetched job's id as execution
-        # proceeds (see _persist_job_links); this keeps the user's original input around so
-        # submit_job always computes ids from it, not from a job id set by an earlier
-        # get_job_status call in the same attempt (e.g. on a durable terminal_resubmit).
+        # Re-snapshotted post-render in execute(), self.job_id gets overwritten with the
+        # submitted/fetched job's id as execution proceeds, so submit_job needs this to
+        # keep computing ids from the users original input.
         self._configured_job_id = job_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -2523,6 +2522,8 @@ class BigQueryInsertJobOperator(
         return job
 
     def execute(self, context: Any):
+        # job_id is a template field and __init__ ran before rendering, so re-snapshot now.
+        self._configured_job_id = self.job_id
         if not self.deferrable:
             return self.execute_resumable(context)
 
