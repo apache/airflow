@@ -55,7 +55,8 @@ The :class:`~airflow.providers.openai.operators.openai.OpenAIResponseOperator`
 generates a model response with the OpenAI Responses API and returns the
 response's aggregated output text:
 
-.. exampleinclude:: /../src/airflow/example_dags/example_response.py
+
+.. exampleinclude:: /../../openai/src/airflow/providers/openai/example_dags/example_response.py
     :language: python
     :start-after: [START quickstart_batch]
     :end-before: [END quickstart_batch]
@@ -71,4 +72,4 @@ Where to go next
   and the Responses/Conversations ``OpenAIHook`` methods for use inside
   ``@task`` functions.
 - :ref:`howto/connection:openai` — the full connection reference, including
-  workload identity authentication.
+  workload identity authentica17tion.
