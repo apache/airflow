@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-07T14:57:48.711603
+# This constraints file was automatically generated on 2026-07-08T13:39:09.492865
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -74,7 +74,7 @@ aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.1.2
 aiosqlite==0.21.0
-airbyte-api==0.53.0
+airbyte-api==1.0.1
 akeyless==5.0.28
 alembic==1.18.5
 alibabacloud-adb20211201==3.7.0
@@ -249,7 +249,6 @@ croniter==6.2.3
 cryptography==48.0.1
 curlify==3.0.0
 databricks-sql-connector==2.0.2
-dataclasses-json==0.6.7
 datadog==0.52.2
 db-dtypes==1.7.0
 debugpy==1.8.21
@@ -271,10 +270,10 @@ entrypoints==0.4
 eventlet==0.41.0
 executing==2.2.1
 facebook_business==25.0.2
-fastapi-cli==0.0.27
+fastapi-cli==0.0.28
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.13.9
+fastcore==1.14.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.5
@@ -406,7 +405,6 @@ joblib==1.5.3
 joserfc==1.7.2
 jpype1==1.7.1
 jsonpath-ng==1.8.0
-jsonpath-python==1.1.6
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
 jupyter_client==8.9.1
@@ -431,7 +429,7 @@ lxml==6.1.1
 lz4==4.4.5
 markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
-marshmallow==3.26.2
+marshmallow==4.3.0
 matplotlib-inline==0.2.2
 mdit-py-plugins==0.6.1
 mdurl==0.1.2
@@ -536,9 +534,9 @@ pyasn1_modules==0.4.2
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.4.0
+pydantic-ai-slim==2.5.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.4.0
+pydantic-graph==2.5.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -598,7 +596,7 @@ s3transfer==0.17.1
 sagemaker_studio==1.0.26
 scikit-learn==1.9.0
 scipy==1.17.1
-scramp==1.4.10
+scramp==1.4.11
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
@@ -652,7 +650,6 @@ truststore==0.10.4
 typer==0.26.8
 types-protobuf==7.34.1.20260518
 types-requests==2.33.0.20260518
-typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.16.0
 tzdata==2026.2
@@ -663,7 +660,7 @@ uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
 uv==0.11.26
-uvicorn==0.49.0
+uvicorn==0.50.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0

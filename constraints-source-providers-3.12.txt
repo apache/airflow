@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-07T14:53:21.308699
+# This constraints file was automatically generated on 2026-07-08T13:34:44.206030
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -59,7 +59,7 @@ aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.1.2
 aiosqlite==0.21.0
-airbyte-api==0.53.0
+airbyte-api==1.0.1
 akeyless==5.0.28
 alabaster==1.0.0
 alembic==1.18.5
@@ -362,7 +362,6 @@ joserfc==1.7.1
 jpype1==1.7.1
 jsonpatch==1.33
 jsonpath-ng==1.8.0
-jsonpath-python==1.1.6
 jsonpointer==3.1.1
 jsonschema-path==0.5.0
 jsonschema-specifications==2025.9.1
