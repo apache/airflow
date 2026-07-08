@@ -13296,6 +13296,8 @@ components:
         partition_key:
           anyOf:
           - type: string
+            maxLength: 250
+            pattern: \S
           - type: 'null'
           title: Partition Key
         extra:
