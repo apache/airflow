@@ -108,8 +108,8 @@ PIP package                                 Version required
 ``tenacity``                                ``>=8.3.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -125,8 +125,26 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 ======================================================================================================================  ===================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-spark[cncf.kubernetes]
+
+
+===================  ===================================================
+Extra                Dependencies
+===================  ===================================================
+``cncf.kubernetes``  ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
+``openlineage``      ``apache-airflow-providers-openlineage``
+``pyspark``          ``pyspark>=4.0.0``
+===================  ===================================================
 
 Downloading official packages
 -----------------------------

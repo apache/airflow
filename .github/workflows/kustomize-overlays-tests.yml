@@ -1,0 +1,142 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Kustomize overlays smoke tests
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
+      overlays:
+        description: >-
+          Stringified JSON array of kustomize-overlay names to smoke-test.
+          Computed by SelectiveChecks.kustomize_overlay_names from the
+          filesystem: any chart/kustomize-overlays/<name>/STATUS.yaml with
+          a `verify:` block is included. Adding a new overlay therefore
+          requires no edit to this workflow. The callers in
+          .github/workflows/ci-amd.yml and ci-arm.yml gate this whole
+          workflow on the list being non-empty.
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  smoke-test-overlay:
+    timeout-minutes: 40
+    name: "Overlay smoke test: ${{ matrix.overlay }}"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        overlay: ${{ fromJSON(inputs.overlays) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          image-type: "prod"
+          python: "${{ inputs.default-python-version }}"
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+      # The chain below mirrors what `breeze k8s run-complete-tests` does
+      # for the regular K8s system tests. We can't reuse run-complete-tests
+      # directly because it also runs the full kubernetes-tests suite and
+      # tears the cluster down afterwards. The order matters:
+      #   1. setup-env  -> downloads kubectl/kind/helm into .venv/bin
+      #   2. create-cluster
+      #   3. configure-cluster  -> creates the test PV/PVC + node-port Svc
+      #                            the chart consumes; deploy-airflow won't
+      #                            come up without these.
+      #   4. build-k8s-image  -> bakes the kubernetes-variant tag
+      #                          (prod/python<X>-kubernetes) on top of the
+      #                          base PROD image that prepare_breeze_and_image
+      #                          just restored. upload-k8s-image and the
+      #                          chart both reference the -kubernetes tag,
+      #                          so this step is required even though
+      #                          prepare_breeze_and_image already loaded the
+      #                          base image into the host docker daemon.
+      #                          --no-copy-local-sources matches the CI
+      #                          convention (sources come from the base
+      #                          image, not the workspace).
+      #   5. upload-k8s-image  -> loads the now-built kubernetes-variant
+      #                           image into every kind node, so kubelet
+      #                           can resolve the chart's image reference
+      #                           without hitting ghcr (which is private).
+      #   6. deploy-airflow
+      #   7. smoke-test-overlay  -> renders the overlay, auto-preloads the
+      #                             overlay's own images into the kind
+      #                             nodes (no per-overlay images list
+      #                             needed - discovery walks the rendered
+      #                             manifest), applies, walks the
+      #                             STATUS.yaml verify: block with
+      #                             fail-fast on ImagePullBackOff /
+      #                             CrashLoopBackOff, runs the optional
+      #                             per-overlay pytest module, cleans up.
+      #   8. delete-cluster  -> always(), even on failure.
+      - name: "Setup k8s/helm environment"
+        run: breeze k8s setup-env
+      - name: "Create kind cluster"
+        run: breeze k8s create-cluster
+      - name: "Configure kind cluster (test PV/PVC + node-port svc)"
+        run: breeze k8s configure-cluster
+      - name: "Build kubernetes-variant image on top of the restored PROD image"
+        run: breeze k8s build-k8s-image --no-copy-local-sources
+      - name: "Upload kubernetes-variant image to kind nodes"
+        run: breeze k8s upload-k8s-image
+      - name: "Deploy Airflow chart"
+        run: breeze k8s deploy-airflow --executor CeleryExecutor
+      - name: "Smoke-test overlay: ${{ matrix.overlay }}"
+        env:
+          OVERLAY_NAME: "${{ matrix.overlay }}"
+        run: breeze k8s smoke-test-overlay "${OVERLAY_NAME}" --executor CeleryExecutor
+      - name: "Dump cluster state on failure"
+        if: failure()
+        run: |
+          kubectl get all -A || true
+          kubectl describe pods -A || true
+      - name: "Delete kind cluster"
+        if: always()
+        run: breeze k8s delete-cluster --all

@@ -570,6 +570,7 @@ class BundleInfo(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     version: Annotated[str | None, Field(title="Version")] = None
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
 
 
 class TerminalTIState(str, Enum):
@@ -725,6 +726,7 @@ class AssetEventDagRunReference(BaseModel):
     source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
     source_aliases: Annotated[list[AssetAliasReferenceAssetEventDagRun], Field(title="Source Aliases")]
     timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class AssetEventResponse(BaseModel):

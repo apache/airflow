@@ -27,9 +27,8 @@ import signal
 import socket
 import subprocess
 import sys
-import threading
 import time
-from contextlib import nullcontext, suppress
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
@@ -262,52 +261,6 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
-
-    def test_on_kill_hook_called_when_supervisor_receives_sigterm(
-        self,
-        test_dags_dir,
-        captured_logs,
-        client_with_ti_start,
-    ):
-        """SIGTERM to the supervisor process is forwarded to the task subprocess."""
-        ti = TaskInstance(
-            id=uuid7(),
-            task_id="signal_task",
-            dag_id="signal_forward_test",
-            run_id="r",
-            try_number=1,
-            dag_version_id=uuid7(),
-            queue="default",
-        )
-        bundle_info = BundleInfo(name="my-bundle", version=None)
-
-        supervisor_pid = os.getpid()
-
-        def _kill_children():
-            for child in psutil.Process(supervisor_pid).children(recursive=True):
-                with suppress(psutil.NoSuchProcess):
-                    child.kill()
-
-        watchdog = threading.Timer(20.0, _kill_children)
-        watchdog.daemon = True
-        watchdog.start()
-
-        try:
-            with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
-                supervise_task(
-                    ti=ti,
-                    dag_rel_path="signal_forward_test.py",
-                    token="",
-                    dry_run=True,
-                    client=client_with_ti_start,
-                    bundle_info=bundle_info,
-                )
-        finally:
-            watchdog.cancel()
-
-        stdout_events = [entry["event"] for entry in captured_logs if entry.get("logger") == "task.stdout"]
-        assert "EXECUTE_STARTED" in stdout_events
-        assert "ON_KILL_CALLED_VIA_SIGNAL_FORWARDING" in stdout_events
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -1987,6 +1940,7 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2030,6 +1984,7 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2066,6 +2021,7 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2109,6 +2065,7 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2145,6 +2102,7 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2188,6 +2146,7 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2223,6 +2182,7 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2264,6 +2224,7 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2277,6 +2238,86 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_asset_alias_with_filters",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name="test",
+            extra={"region": "us"},
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "extra": {"region": "us"},
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ],
+            ),
+        ),
+        test_id="get_asset_events_with_extra_filter",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(
+            alias_name="test_alias",
+            extra={"env": "prod"},
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "alias_name": "test_alias",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "extra": {"env": "prod"},
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_alias_with_extra_filter",
     ),
     RequestTestCase(
         message=ValidateInletsAndOutlets(ti_id=TI_ID),
@@ -3138,6 +3179,45 @@ class TestHandleRequest:
             "message": str(error),
             "detail": error.response.json(),
         }
+
+    @pytest.mark.parametrize(
+        ("status_code", "expects_error"),
+        [
+            pytest.param(410, False, id="410_gone_is_swallowed"),
+            pytest.param(404, True, id="404_not_found_propagates"),
+        ],
+    )
+    def test_set_rendered_fields_swallows_410_but_propagates_404(
+        self, watched_subprocess, mocker, status_code, expects_error
+    ):
+        """A stale-id RTIF overwrite (410) is skipped silently; a bogus-id (404) still propagates as an error."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        error = ServerResponseError(
+            message="boom",
+            request=httpx.Request("PUT", "http://test"),
+            response=httpx.Response(status_code, json={"detail": "boom"}),
+        )
+        watched_subprocess.client.task_instances.set_rtif = mocker.Mock(side_effect=error)
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        msg = SetRenderedFields(rendered_fields={"field1": "v1"})
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+
+        assert frame.id == req_frame.id
+        if expects_error:
+            assert frame.error is not None
+            assert frame.error["error"] == "API_SERVER_ERROR"
+            assert frame.error["detail"]["status_code"] == status_code
+        else:
+            assert frame.error is None
 
     def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
         """A transient network error must not crash the IPC generator.
@@ -4057,15 +4137,38 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         in_process_api_server.cache_clear()
 
 
+class TestResolveChildTarget:
+    """Test rehydrating the exec'd child's entry point from _AIRFLOW_CHILD_TARGET."""
+
+    def test_empty_defaults_to_subprocess_main(self):
+        assert supervisor._resolve_child_target("") is supervisor._subprocess_main
+
+    def test_module_level_function(self):
+        resolved = supervisor._resolve_child_target("airflow.sdk.execution_time.supervisor:_subprocess_main")
+        assert resolved is supervisor._subprocess_main
+
+    def test_classmethod_entry_point(self):
+        """A ``module:ClassName.method`` target rehydrates the bound classmethod (e.g. the triggerer's)."""
+        resolved = supervisor._resolve_child_target(
+            "airflow.sdk.execution_time.supervisor:WatchedSubprocess.start"
+        )
+        assert resolved == supervisor.WatchedSubprocess.start
+        assert callable(resolved)
+
+    def test_start_rejects_non_importable_target_under_exec(self):
+        """A closure/lambda target can't be named for the exec'd child, so start() fails fast."""
+        with pytest.raises(ValueError, match="top-level importable target"):
+            supervisor.WatchedSubprocess.start(target=lambda: None, use_exec=True)
+
+
 @pytest.mark.usefixtures("disable_capturing")
 class TestChildExecMain:
     """Test the macOS fork+exec child entry point."""
 
-    def test_uses_fds_012_and_requests_log_channel(self, monkeypatch):
-        """_child_exec_main wraps FDs 0/1/2 as sockets, passes log_fd=0, sets _AIRFLOW_FORK_EXEC."""
+    def test_uses_fds_0123_and_inherits_log_channel(self, monkeypatch):
+        """_child_exec_main wraps FDs 0/1/2 as sockets and passes log_fd=3 (inherited log channel)."""
         # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
-        # parent before exec).  It passes log_fd=0 to _fork_main (structured
-        # logging is requested later via ResendLoggingFD).
+        # parent before exec) and the structured log channel inherited on FD 3.
         req_a, req_b = socket.socketpair()
         out_a, out_b = socket.socketpair()
         err_a, err_b = socket.socketpair()
@@ -4074,6 +4177,9 @@ class TestChildExecMain:
         saved_0 = os.dup(0)
         saved_1 = os.dup(1)
         saved_2 = os.dup(2)
+
+        # The parent names the entry point to run via this env var.
+        monkeypatch.setenv("_AIRFLOW_CHILD_TARGET", "airflow.sdk.execution_time.supervisor:_subprocess_main")
 
         try:
             os.dup2(req_a.fileno(), 0)
@@ -4101,11 +4207,10 @@ class TestChildExecMain:
             assert captured["requests_fd"] == 0
             assert captured["stdout_fd"] == 1
             assert captured["stderr_fd"] == 2
-            assert captured["log_fd"] == 0
+            assert captured["log_fd"] == 3
             assert captured["target"] is supervisor._subprocess_main
-            # _child_exec_main sets this so the task runner knows to request
-            # the log channel via ResendLoggingFD.
-            assert os.environ.pop("_AIRFLOW_FORK_EXEC") == "1"
+            # The env var is consumed (popped) so it does not leak to grandchildren.
+            assert "_AIRFLOW_CHILD_TARGET" not in os.environ
         finally:
             # Restore original FDs.
             os.dup2(saved_0, 0)

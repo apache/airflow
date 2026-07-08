@@ -977,7 +977,14 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
 
         :raises ValueError: If any key is empty/whitespace-only or longer than
             ``_PARTITION_KEY_MAX_LENGTH`` characters.
+        :raises TypeError: If this accessor is for an asset alias, since partition
+            keys are only attached to concrete asset events, not alias events.
         """
+        if isinstance(self.key, AssetAliasUniqueKey):
+            raise TypeError(
+                "add_partitions() is not supported on asset alias outlet events; "
+                "partition keys can only be attached to a concrete asset."
+            )
         if isinstance(keys, str):
             keys = [keys]
         for key in keys:
@@ -1081,6 +1088,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _extra: dict[str, str]
     _asset_name: str | None
     _asset_uri: str | None
     _alias_name: str | None
@@ -1095,6 +1103,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._extra: dict[str, str] = {}
 
     def after(self, after: str) -> Self:
         self._after = after
@@ -1116,6 +1125,11 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def extra(self, key: str, value: str) -> Self:
+        self._extra[key] = value
+        self._reset_cache()
+        return self
+
     @functools.cached_property
     def _asset_events(self) -> list[AssetEventResult]:
         from airflow.sdk.execution_time.comms import (
@@ -1131,6 +1145,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "extra": self._extra or None,
         }
 
         msg: ToSupervisor
@@ -1412,46 +1427,3 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
-
-
-def build_context_from_dag_run(dag_run, deadline: dict | None = None) -> dict:
-    """
-    Build a standard callback Context dict from a DagRun-like object.
-
-    Accepts any object with logical_date, run_id, data_interval_start, data_interval_end
-    attributes (e.g. DRDataModel from the execution API or DagRunResult from comms).
-
-    Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
-    Task-specific fields are absent since callbacks are not tied to a task.
-
-    :param deadline: Optional ``{"id": ..., "deadline_time": ...}`` dict exposed as
-        ``context["deadline"]`` (for templates such as ``{{ deadline.deadline_time }}``).
-        Assembled here so the executor and triggerer callback paths produce identical context.
-    """
-    from airflow.sdk.timezone import coerce_datetime
-
-    context: dict = {"dag_run": dag_run}
-
-    if logical_date := coerce_datetime(dag_run.logical_date):
-        ds = logical_date.strftime("%Y-%m-%d")
-        ts = logical_date.isoformat()
-        context.update(
-            {
-                "logical_date": logical_date,
-                "run_id": dag_run.run_id,
-                "ds": ds,
-                "ds_nodash": ds.replace("-", ""),
-                "ts": ts,
-                "ts_nodash": logical_date.strftime("%Y%m%dT%H%M%S"),
-                "ts_nodash_with_tz": ts.replace("-", "").replace(":", ""),
-                "data_interval_start": coerce_datetime(dag_run.data_interval_start),
-                "data_interval_end": coerce_datetime(dag_run.data_interval_end),
-            }
-        )
-    else:
-        context["run_id"] = dag_run.run_id
-
-    if deadline:
-        context["deadline"] = deadline
-
-    return context

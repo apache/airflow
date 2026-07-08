@@ -23,6 +23,7 @@ from airflow_breeze.utils.run_utils import (
     change_directory_permission,
     change_file_permission,
     check_if_buildx_plugin_installed,
+    run_command,
 )
 
 
@@ -44,6 +45,16 @@ def test_change_directory_permission(tmp_path):
     assert not (mode & stat.S_IWOTH)
     assert mode & stat.S_IXGRP
     assert mode & stat.S_IXOTH
+
+
+@mock.patch("airflow_breeze.utils.run_utils.subprocess.run")
+def test_run_command_dry_run_quiet_does_not_execute(mock_subprocess_run):
+    result = run_command(["echo", "hello"], dry_run_override=True, quiet=True)
+
+    mock_subprocess_run.assert_not_called()
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert result.stderr == ""
 
 
 @mock.patch("airflow_breeze.utils.run_utils.run_command")

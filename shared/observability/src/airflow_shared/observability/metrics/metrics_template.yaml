@@ -168,18 +168,6 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.manager_stalls"
-    description: "Number of stalled ``DagFileProcessorManager``"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "dag_file_refresh_error"
-    description: "Number of failures loading any Dag files"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "scheduler.tasks.killed_externally"
     description: "Number of tasks killed externally. Metric with dag_id and task_id tagging."
     type: "counter"
@@ -194,6 +182,33 @@ metrics:
 
   - name: "scheduler.orphaned_tasks.adopted"
     description: "Number of Orphaned tasks adopted by the Scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.loop_exceptions"
+    description: "Number of times the scheduler loop exited with an unhandled exception.
+    Metric with exception_class tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.processed"
+    description: "Number of executor events processed per ``process_executor_events`` call."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.failed"
+    description: "Number of times ``process_executor_events`` raised an exception.
+    Metric with exception_class tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.zombies.detected"
+    description: "Number of zombie task instances detected by the Scheduler.
+    Metric with reason tagging (``heartbeat_timeout``)."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -321,18 +336,6 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "deadline_alerts.deadline_creation_failed"
-    description: "Number of deadline alerts that could not be created because reference evaluation raised"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "deadline_alerts.callback_orphaned_dagrun_deleted"
-    description: "Number of orphaned deadline callbacks deleted because their Dag run no longer exists"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "ol.emit.failed"
     description: "Number of failed OpenLineage event emit attempts"
     type: "counter"
@@ -438,6 +441,12 @@ metrics:
 
   - name: "scheduler.tasks.starving"
     description: "Number of tasks that cannot be scheduled because of no open slot in pool"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.batch_size"
+    description: "Number of executor events in the batch processed per ``process_executor_events`` call."
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -722,12 +731,6 @@ metrics:
 
   - name: "dagrun.first_task_start_delay"
     description: "Milliseconds elapsed between dagrun queued_at and first task start_date"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "collect_db_dags"
-    description: "Milliseconds taken for fetching all Serialized Dags from DB"
     type: "timer"
     legacy_name: "-"
     name_variables: []

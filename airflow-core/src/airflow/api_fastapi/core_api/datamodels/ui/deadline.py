@@ -19,10 +19,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
-from pydantic import AliasPath, Field, field_validator
+from pydantic import AliasPath, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -53,41 +52,8 @@ class DeadlineAlertResponse(BaseModel):
     id: UUID
     name: str | None = None
     reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
-    interval: float | None = Field(
-        default=None,
-        description=(
-            "Interval in seconds between the reference time and the deadline. "
-            "Null for a dynamic interval (e.g. a VariableInterval) whose value is "
-            "only resolved at scheduler evaluation time."
-        ),
-    )
+    interval: float = Field(description="Interval in seconds between deadline evaluations.")
     created_at: datetime
-
-    @field_validator("interval", mode="before")
-    @classmethod
-    def coerce_interval_to_seconds(cls, value: Any) -> float | None:
-        """
-        Coerce the stored ``interval`` into seconds.
-
-        ``DeadlineAlert.interval`` is a JSON column holding the Airflow-serialized form
-        of the SDK interval, not a plain number. A fixed ``timedelta`` serializes to
-        ``{"__classname__": "datetime.timedelta", "__data__": <seconds>}`` and a dynamic
-        ``VariableInterval`` to ``{"__classname__": ".../VariableInterval", "__data__": {...}}``.
-        Without this coercion Pydantic cannot turn that dict into ``float`` and the
-        ``/ui/dags/{dag_id}/deadlineAlerts`` endpoint raises a 500, which breaks the
-        run-page deadline status badge. Return the seconds for a fixed interval, or
-        ``None`` for a dynamic one (resolved later by the scheduler).
-        """
-        if value is None or isinstance(value, (int, float)):
-            return value
-        if isinstance(value, dict):
-            data = value.get("__data__")
-            # Fixed timedelta: __data__ is the total seconds as a number.
-            if isinstance(data, (int, float)):
-                return float(data)
-            # Dynamic interval (e.g. VariableInterval): no fixed seconds to report.
-            return None
-        return None
 
 
 class DeadlineAlertCollectionResponse(BaseModel):

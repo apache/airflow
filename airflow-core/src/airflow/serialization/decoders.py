@@ -148,16 +148,7 @@ def decode_deadline_reference(reference_data: dict):
     """Decode a previously serialized deadline reference."""
     ref_name = reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
 
-    # ``__class_path`` is stamped by the encoder only for custom (non-builtin) references and is
-    # the authoritative discriminator. It must take precedence over the ``reference_type`` name:
-    # a user's custom reference may share a class name with a builtin (e.g. ``FixedDatetimeDeadline``),
-    # and routing by name alone would silently decode it as the builtin class — dropping the custom
-    # evaluation logic (or raising a spurious KeyError on builtin-only fields).
-    if "__class_path" in reference_data:
-        reference_class: type[SerializedReferenceModels.SerializedBaseDeadlineReference] = (
-            SerializedReferenceModels.SerializedCustomReference
-        )
-    elif ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
+    if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
         reference_class = SerializedReferenceModels.get_reference_class(ref_name)
     else:
         reference_class = SerializedReferenceModels.SerializedCustomReference

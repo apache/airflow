@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, Session, joinedload, mapped_column, relationship, selectinload
+from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
@@ -35,7 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.enums import stringify_encoding_keys as _stringify_encoding_keys
+from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -158,7 +158,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(_stringify_encoding_keys(kwargs))
+        serialized_kwargs = serialize(stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -212,8 +212,7 @@ class Trigger(Base):
             .options(
                 selectinload(cls.task_instance)
                 .joinedload(TaskInstance.trigger)
-                .joinedload(Trigger.triggerer_job),
-                joinedload(cls.callback),
+                .joinedload(Trigger.triggerer_job)
             )
         )
         return {obj.id: obj for obj in session.scalars(stmt)}
@@ -287,7 +286,11 @@ class Trigger(Base):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
-        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
+        trigger = session.scalars(
+            select(cls)
+            .where(cls.id == trigger_id)
+            .options(selectinload(cls.asset_watchers).selectinload(AssetWatcherModel.asset))
+        ).one_or_none()
         if trigger is None:
             # Already deleted for some reason
             return
@@ -334,32 +337,6 @@ class Trigger(Base):
             # Finally, mark it as scheduled so it gets re-queued
             task_instance.state = TaskInstanceState.SCHEDULED
             task_instance.scheduled_dttm = timezone.utcnow()
-
-        # A deadline callback trigger has a ``callback`` row instead of a deferred TaskInstance.
-        # ``submit_event`` terminalises that row (``trigger.callback.handle_event``) on the success
-        # path, but the failure path historically only handled TaskInstances — so a CallbackTrigger
-        # that failed to inflate/run (landing in ``failed_triggers`` → here) left its Callback stuck
-        # in QUEUED/RUNNING forever (a zombie: never SUCCESS/FAILED, re-warned, never reaped, since
-        # callback rows terminalise ONLY via an event, never via submit_failure's TI path). Emit a
-        # terminal FAILED event so the callback is marked FAILED — mirroring ``submit_event`` and the
-        # FAILED-event the triggerer's BaseException handler emits. ``handle_event`` is terminal-
-        # absorbing, so this is a no-op if the callback already reached a terminal state.
-        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
-        if trigger is not None and trigger.callback is not None:
-            from airflow.triggers.base import TriggerEvent
-            from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
-            from airflow.utils.state import CallbackState
-
-            if isinstance(exc, BaseException):
-                body = "".join(format_exception(type(exc), exc, exc.__traceback__))
-            elif exc:
-                body = "".join(exc) if isinstance(exc, list) else str(exc)
-            else:
-                body = "Trigger failed before sending any event"
-            trigger.callback.handle_event(
-                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.FAILED, PAYLOAD_BODY_KEY: body}),
-                session,
-            )
 
     @classmethod
     @provide_session
@@ -593,12 +570,31 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
+            from airflow.models.dag_version import _resolve_version_data
+
+            # Derive bundle identity from the TI's dag_version (falling back to dag_run/dag_model
+            # for legacy/unpinned runs), mirroring the other callback sites so bundle_version and
+            # version_data always describe the same version.
+            bundle_name = (
+                task_instance.dag_version.bundle_name
+                if task_instance.dag_version
+                else task_instance.dag_model.bundle_name
+            )
+            bundle_version = (
+                task_instance.dag_version.bundle_version
+                if task_instance.dag_version and task_instance.dag_run.bundle_version is not None
+                else task_instance.dag_run.bundle_version
+            )
+            version_data = _resolve_version_data(
+                task_instance.dag_version, task_instance.dag_run.bundle_version
+            )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
                 task_callback_type=event.task_instance_state,
-                bundle_name=task_instance.dag_model.bundle_name,
-                bundle_version=task_instance.dag_run.bundle_version,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
             )
             log.info("Sending callback: %s", request)
             try:

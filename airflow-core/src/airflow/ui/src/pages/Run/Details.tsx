@@ -145,6 +145,14 @@ export const Details = () => {
             <Time datetime={dagRun.data_interval_end} />
           </Table.Cell>
         </Table.Row>
+        {dagRun.partition_date !== null && (
+          <Table.Row>
+            <Table.Cell>{translate("dagRun.partitionDate")}</Table.Cell>
+            <Table.Cell>
+              <Time datetime={dagRun.partition_date} />
+            </Table.Cell>
+          </Table.Row>
+        )}
         <Table.Row>
           <Table.Cell>{translate("dagRun.triggeredBy")}</Table.Cell>
           <Table.Cell>{dagRun.triggered_by}</Table.Cell>

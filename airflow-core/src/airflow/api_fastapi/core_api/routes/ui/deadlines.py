@@ -165,16 +165,8 @@ def get_dag_deadline_alerts(
     order_by: Annotated[
         SortParam,
         Depends(
-            # NOTE: ``interval`` is intentionally NOT a sortable key. ``DeadlineAlert.interval`` is a
-            # JSON column holding the Airflow-serialized interval — a dict such as
-            # ``{"__classname__": "datetime.timedelta", "__data__": 300.0}`` for a fixed interval, or a
-            # structurally different dict for a ``VariableInterval``. Ordering by it at the DB level
-            # sorts by the JSON text/structure, not the duration, so the result is arbitrary and
-            # misleading (e.g. a dynamic VariableInterval sorts before/after fixed intervals by shape,
-            # and "300" vs "3600" compare lexicographically). Meaningful sorting would need a computed
-            # seconds column. Allow only columns that sort correctly.
             SortParam(
-                ["id", "created_at", "name"],
+                ["id", "created_at", "name", "interval"],
                 DeadlineAlert,
             ).dynamic_depends(default="created_at")
         ),

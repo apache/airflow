@@ -71,6 +71,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow._shared.logging.remote import StreamingLogResponse
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -559,6 +560,19 @@ class BaseExecutor(LoggingMixin):
         """
         return [], []
 
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        """
+        Return a streaming response for task logs.
+
+        Executors that don't implement this method raise ``NotImplementedError``; callers should
+        catch that and fall back to :meth:`get_task_log`.
+
+        :param ti: A TaskInstance object
+        :param try_number: current try_number to read log from
+        :return: StreamingLogResponse
+        """
+        raise NotImplementedError
+
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
         raise NotImplementedError
@@ -719,10 +733,6 @@ class BaseExecutor(LoggingMixin):
                 callback_path=workload.callback.data.get("path", ""),
                 callback_kwargs=workload.callback.data.get("kwargs", {}),
                 dag_rel_path=workload.dag_rel_path,
-                dag_id=workload.callback.data.get("dag_id"),
-                run_id=workload.callback.data.get("run_id"),
-                deadline_id=workload.callback.data.get("deadline_id"),
-                deadline_time=workload.callback.data.get("deadline_time"),
                 log_path=workload.log_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
