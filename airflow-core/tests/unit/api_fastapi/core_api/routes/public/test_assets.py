@@ -1093,7 +1093,7 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
             yield
 
     @provide_session
-    def _create_partition_key_test_data(self, session=None):
+    def _create_partition_key_test_data(self, *, session=None):
         _create_assets(session=session)
         events = [
             AssetEvent(
@@ -1165,9 +1165,8 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
             ("^nonexistent", 0),
         ],
     )
-    @provide_session
     def test_partition_key_regexp_pattern_filtering(
-        self, test_client, partition_key_regexp_pattern, expected_count, session
+        self, test_client, partition_key_regexp_pattern, expected_count
     ):
         self._create_partition_key_test_data()
         response = test_client.get(
@@ -1185,67 +1184,57 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
             ({"partition_key_regexp_pattern": ".*\\|2024-01-01$", "source_dag_id": "other"}, 0),
         ],
     )
-    @provide_session
-    def test_partition_key_regexp_pattern_combined_filters(
-        self, test_client, params, expected_count, session
-    ):
+    def test_partition_key_regexp_pattern_combined_filters(self, test_client, params, expected_count):
         self._create_partition_key_test_data()
         response = test_client.get("/assets/events", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_count
 
-    @provide_session
-    def test_partition_key_regexp_pattern_invalid_regex_returns_400(self, test_client, session):
+    def test_partition_key_regexp_pattern_invalid_regex_returns_400(self, test_client):
         response = test_client.get(
             "/assets/events", params={"partition_key_regexp_pattern": "[invalid(regex"}
         )
         assert response.status_code == 400
         assert "Invalid regular expression" in response.json()["detail"]
 
-    def test_partition_key_regexp_pattern_disabled_returns_400(self, test_client, session):
+    def test_partition_key_regexp_pattern_disabled_returns_400(self, test_client):
         with conf_vars({("api", "regexp_query_timeout"): "0"}):
             response = test_client.get("/assets/events", params={"partition_key_regexp_pattern": "^2024-"})
         assert response.status_code == 400
         assert "disabled" in response.json()["detail"]
 
-    @provide_session
-    def test_exact_match_works_when_regex_disabled(self, test_client, session):
+    def test_exact_match_works_when_regex_disabled(self, test_client):
         self._create_partition_key_test_data()
         with conf_vars({("api", "regexp_query_timeout"): "0"}):
             response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
         assert response.status_code == 200
         assert response.json()["total_entries"] == 1
 
-    @provide_session
-    def test_partition_key_exact_match_via_regex(self, test_client, session):
+    def test_partition_key_exact_match_via_regex(self, test_client):
         self._create_partition_key_test_data()
         response = test_client.get("/assets/events", params={"partition_key_regexp_pattern": "^2024-01-01$"})
         assert response.status_code == 200
         assert response.json()["total_entries"] == 1
 
-    @provide_session
-    def test_partition_key_exact_match(self, test_client, session):
+    def test_partition_key_exact_match(self, test_client):
         self._create_partition_key_test_data()
         response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
         assert response.status_code == 200
         assert response.json()["total_entries"] == 1
 
-    @provide_session
-    def test_partition_key_exact_match_composite(self, test_client, session):
+    def test_partition_key_exact_match_composite(self, test_client):
         self._create_partition_key_test_data()
         response = test_client.get("/assets/events", params={"partition_key": "us|2024-01-01"})
         assert response.status_code == 200
         assert response.json()["total_entries"] == 1
 
-    @provide_session
-    def test_partition_key_exact_match_no_match(self, test_client, session):
+    def test_partition_key_exact_match_no_match(self, test_client):
         self._create_partition_key_test_data()
         response = test_client.get("/assets/events", params={"partition_key": "nonexistent"})
         assert response.status_code == 200
         assert response.json()["total_entries"] == 0
 
-    @provide_session
-    def test_partition_key_and_pattern_combined(self, test_client, session):
+    def test_partition_key_and_pattern_combined(self, test_client):
         # Both filters are allowed and combine with AND: a disjoint pair yields no results.
         self._create_partition_key_test_data()
         response = test_client.get(
