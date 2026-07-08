@@ -1656,21 +1656,21 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
         ),
         pytest.param(
             ("task-sdk/src/airflow/sdk/execution_time/schema/schema.json",),
-            False,
-            id="runs when the supervisor schema changes",
+            True,
+            id="skipped when only the supervisor schema changes",
         ),
         pytest.param(
             ("SECURITY.md",),
             True,
-            id="skipped when neither ts-sdk nor the supervisor schema changes",
+            id="skipped when no ts-sdk files change",
         ),
     ],
 )
 def test_check_ts_sdk_supervisor_schema_hook_only_runs_for_relevant_changes(
     files: tuple[str, ...], hook_skipped: bool
 ):
-    # This hook regenerates and diffs ts-sdk/src/generated/supervisor.ts, so it is only
-    # meaningful when ts-sdk or the source wire schema changed.
+    # This hook regenerates and diffs ts-sdk/src/generated/supervisor.ts. Only ts-sdk changes
+    # trigger it; regenerating after a wire-schema bump is the ts-sdk follow-up PR's job.
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
