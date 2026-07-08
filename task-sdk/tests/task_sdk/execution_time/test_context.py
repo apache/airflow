@@ -536,6 +536,14 @@ class TestOutletEventAccessorPartitionKeys:
             accessor.add_partitions(["us", ""])
         assert accessor.partition_keys == set()
 
+    def test_add_partitions_rejects_asset_alias_accessor(self):
+        alias_accessor = OutletEventAccessor(
+            key=AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias"))
+        )
+        with pytest.raises(TypeError, match="not supported on asset alias"):
+            alias_accessor.add_partitions("us")
+        assert alias_accessor.partition_keys == set()
+
 
 class TestTriggeringAssetEventsAccessor:
     @pytest.fixture(autouse=True)
