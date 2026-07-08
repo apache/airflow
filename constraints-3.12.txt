@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-08T13:39:09.492865
+# This constraints file was automatically generated on 2026-07-08T20:28:29.105017
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -170,7 +170,7 @@ apache-airflow-providers-yandex==4.5.0
 apache-airflow-providers-ydb==2.5.3
 apache-airflow-providers-zendesk==4.12.0
 apispec==6.10.0
-apprise==1.11.0
+apprise==1.12.0
 argcomplete==3.7.0
 arrow==1.4.0
 asana==5.2.5
@@ -602,7 +602,7 @@ segment-analytics-python==2.3.6
 sendgrid==6.12.5
 sentry-sdk==2.64.0
 setproctitle==1.3.7
-setuptools==82.0.1
+setuptools==83.0.0
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
