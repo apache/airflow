@@ -90,7 +90,6 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
@@ -264,9 +263,6 @@ class DagRun(Base, LoggingMixin):
     # Span context carrier, used for context propagation.
     context_carrier: Mapped[dict[str, Any] | None] = mapped_column(
         MutableDict.as_mutable(ExtendedJSON), nullable=True
-    )
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
     created_dag_version_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
