@@ -20,15 +20,23 @@
 Quick start
 ===========
 
-Go from zero to a running LLM task in three steps: install the provider,
-configure a connection, and write a Dag.
+This guide installs the provider, configures a connection, and runs a first
+LLM task.
+
+Before you start: this assumes a working :doc:`apache-airflow:installation/index`
+(Airflow 3.0+) already exists, you have an API key for the LLM provider you
+plan to use, and step 3 below makes a real, billed API call to that provider.
 
 1. Install
 ----------
 
+Install the provider together with the extra for the model SDK you plan to
+use — ``openai`` here, or ``anthropic``, ``google``, ``bedrock`` for the
+others:
+
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai
+    pip install "apache-airflow-providers-common-ai[openai]"
 
 2. Configure the connection
 ----------------------------
@@ -39,11 +47,13 @@ format and the API key goes in the password field. See :ref:`howto/connection:py
 for the full reference, including providers that
 don't need an API key (Bedrock, Vertex AI).
 
-The quickest way to set one up is an environment variable:
+The quickest way to set one up is an environment variable. Replace
+``openai:gpt-5.3`` with a model you have access to and ``sk-...`` with your
+actual API key:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": "{\"model\": \"openai:gpt-5.3\"}"}'
+    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5.3"}}'
 
 Or add it through the Airflow UI (``Admin > Connections``) or the CLI (``airflow connections add``).
 
