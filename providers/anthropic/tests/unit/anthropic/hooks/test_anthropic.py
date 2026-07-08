@@ -467,6 +467,34 @@ class TestAnthropicHookFeatures:
         hook.create_batch(reqs)
         client.messages.batches.create.assert_called_once_with(requests=reqs)
 
+    def test_create_batch_defaults_missing_model_from_conn(self):
+        hook, client = self._hook_with_client(extra={"model": "claude-sonnet-4-6"})
+        hook.create_batch([{"custom_id": "a", "params": {"max_tokens": 1, "messages": []}}])
+        sent = client.messages.batches.create.call_args.kwargs["requests"]
+        assert sent[0]["params"]["model"] == "claude-sonnet-4-6"
+
+    def test_create_batch_preserves_explicit_request_model(self):
+        hook, client = self._hook_with_client(extra={"model": "claude-sonnet-4-6"})
+        hook.create_batch(
+            [{"custom_id": "a", "params": {"model": "claude-haiku-4-5", "max_tokens": 1, "messages": []}}]
+        )
+        sent = client.messages.batches.create.call_args.kwargs["requests"]
+        assert sent[0]["params"]["model"] == "claude-haiku-4-5"
+
+    def test_create_batch_model_arg_overrides_conn_default(self):
+        hook, client = self._hook_with_client(extra={"model": "claude-sonnet-4-6"})
+        hook.create_batch(
+            [{"custom_id": "a", "params": {"max_tokens": 1, "messages": []}}], model="claude-opus-4-8"
+        )
+        sent = client.messages.batches.create.call_args.kwargs["requests"]
+        assert sent[0]["params"]["model"] == "claude-opus-4-8"
+
+    def test_create_batch_does_not_mutate_caller_requests(self):
+        hook, _ = self._hook_with_client(extra={"model": "claude-sonnet-4-6"})
+        original = [{"custom_id": "a", "params": {"max_tokens": 1, "messages": []}}]
+        hook.create_batch(original)
+        assert "model" not in original[0]["params"]
+
     def test_get_and_cancel_batch(self):
         hook, client = self._hook_with_client()
         hook.get_batch("batch_1")
