@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
 
+from airflow.providers.common.compat.hook import get_async_hook
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
@@ -89,8 +90,6 @@ class SQLGenericTransferTrigger(BaseTrigger):
         return hook
 
     async def _get_records(self) -> Any:
-        from asgiref.sync import sync_to_async
-
         hook = self.get_hook()
 
         if AIRFLOW_V_3_2_PLUS:
@@ -196,8 +195,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
         :return: DbApiHook for this connection
         """
-        connection = await sync_to_async(BaseHook.get_connection)(self.conn_id)
-        hook = await sync_to_async(connection.get_hook)()
+        hook = await get_async_hook(self.conn_id)
         if not isinstance(hook, DbApiHook) or not hasattr(hook, "arun"):
             raise AirflowException(
                 f"You are trying to use the SqlExecuteQueryOperator in deferrable mode with {hook.__class__.__name__},"

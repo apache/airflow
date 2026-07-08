@@ -54,6 +54,7 @@ except ImportError:
 
 
 from airflow.exceptions import AirflowNotFoundException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -1190,7 +1191,7 @@ class DbApiHook(BaseHook):
             self._conn_lock = asyncio.Lock()
         async with self._conn_lock:
             if not self._connection:
-                self._connection = await sync_to_async(self.get_connection)(self.get_conn_id())
+                self._connection = await get_async_connection(self.conn_id)
             db = self._connection
             if self.connector is None:
                 raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
