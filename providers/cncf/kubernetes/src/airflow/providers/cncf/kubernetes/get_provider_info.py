@@ -108,6 +108,10 @@ def get_provider_info():
                         "label": "XCom sidecar resources (JSON format)",
                         "schema": {"type": ["string", "null"]},
                     },
+                    "xcom_sidecar_container_security_context": {
+                        "label": "XCom sidecar security context (JSON format)",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"]

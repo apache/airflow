@@ -97,7 +97,6 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/triggers/test_kubernetes_pod.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_xcom_sidecar.py",
             "providers/common/sql/tests/unit/common/sql/datafusion/test_base.py",
             "providers/common/sql/tests/unit/common/sql/datafusion/test_exceptions.py",
             "providers/common/ai/tests/unit/common/ai/test_exceptions.py",
