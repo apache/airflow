@@ -484,7 +484,7 @@ config:
           (for example a misconfigured image that can never be pulled) will be requeued forever,
           and with the default ``delete_worker_pods_on_failure = False`` the failed pods are not
           cleaned up, so they accumulate.
-        version_added: 10.19.0
+        version_added: 10.20.0
         type: integer
         example: ~
         default: "1"
@@ -498,7 +498,7 @@ config:
           ``running`` to the database, which is most likely an Airflow-specific startup error
           rather than a transient infrastructure event. Set to an empty value to requeue these
           cases as well.
-        version_added: 10.19.0
+        version_added: 10.20.0
         type: string
         example: ~
         default: "Error"
