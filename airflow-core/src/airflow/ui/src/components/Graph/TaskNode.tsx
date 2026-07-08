@@ -95,17 +95,17 @@ export const TaskNode = ({
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
 
-  const hasCustomColor = uiColor ?? undefined;
   // Custom colors can mess up the readability of the text, so we calculate a readable foreground color for the node based on the background color.
-  const readableFgColor = isGroup ? undefined : readableTextForFill(hasCustomColor);
+  // Pass the resolved color so Chakra tokens are measured by their hex rather than skipped.
+  const readableFgColor = isGroup ? undefined : readableTextForFill(resolvedFill);
   // Alternate nested groups colors so nested groups are visually distinct and readable
   const shouldAlternate = isOpen && depth !== undefined && depth % 2 === 0;
 
   let nodeBg: string;
 
   if (!isGroup) {
-    nodeBg = hasCustomColor ?? "bg";
-  } else if (hasCustomColor === undefined) {
+    nodeBg = uiColor ?? "bg";
+  } else if (uiColor === undefined) {
     nodeBg = shouldAlternate ? "bg.muted" : "bg";
   } else {
     const share = shouldAlternate ? GROUP_FILL_STRONG : GROUP_FILL_SOFT;
