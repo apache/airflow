@@ -419,14 +419,14 @@ manager, before sending the vote — should run against the source package in
    ```bash
    cd apache-airflow-java-sdk-<VERSION>
    gradle wrapper \
-       --gradle-version <GRADLE-VERSION> \
+       --gradle-distribution-url <GRADLE-DISTRIBUTION-URL> \
        --gradle-distribution-sha256-sum <GRADLE-DISTRIBUTION-SHA>
    ./gradlew build
    ```
 
-   Use the values for `<GRADLE-VERSION>` and `<GRADLE-DISTRIBUTION-SHA>` from
-   `distributionUrl` and `distributionSha256Sum` in the bundled
-   `gradle/wrapper/gradle-wrapper.properties`.
+   Use values from `distributionUrl` and `distributionSha256Sum` in the bundled
+   `gradle/wrapper/gradle-wrapper.properties` to fill in
+   `<GRADLE-DISTRIBUTION-URL>` and `<GRADLE-DISTRIBUTION-SHA>`.
 
 6. **Staged-binary smoke test.** Resolve the staged Nexus artifacts from a
    throwaway project to confirm they're actually consumable, following the
