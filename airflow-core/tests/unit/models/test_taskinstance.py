@@ -3300,7 +3300,7 @@ class TestMappedTaskInstanceReceiveValue:
         returned instances are usable: they keep their ``.task`` (no merge() that drops
         it), are attached to the session, and have ``dag_run`` primed so a later
         ``ti.get_dagrun()`` -- as dependency evaluation makes per index -- is a cache hit
-        rather than an N+1 SELECT.
+        rather than an N+1 SELECT. Also pins the expansion call's query count.
         """
         from sqlalchemy import event
         from sqlalchemy.orm.base import NO_VALUE
@@ -3326,7 +3326,12 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        # Pins the query count so a regression back to per-index session.merge() -- which
+        # would issue a merge-load + reload SELECT per index -- fails this test, not just
+        # a slower one. Measured at 7 for this fixture; margin allows for minor backend
+        # differences while staying far below what a per-index merge() would cost.
+        with assert_queries_count(7, margin=2):
+            mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
 
         # Correct count + contiguous indexes 0..N-1.
         assert len(mapped_tis) == width
@@ -3379,7 +3384,8 @@ class TestMappedTaskInstanceReceiveValue:
 
         Simulates a mid-run length grow: expand once at a narrow width, then re-run the
         revise path after the upstream XCom has grown, and assert the additional indexes
-        are created contiguously without losing any existing ones.
+        are created contiguously without losing any existing ones. Also pins the revise
+        call's query count.
         """
         from airflow.models.xcom import XComModel
 
@@ -3426,11 +3432,16 @@ class TestMappedTaskInstanceReceiveValue:
         task_map.keys = None
         session.flush()
 
-        new_tis = list(
-            dag_run._revise_map_indexes_if_mapped(
-                show_task, dag_version_id=mapped_tis[0].dag_version_id, session=session
+        # Pins the query count so a regression back to per-index session.merge() -- which
+        # would issue a merge-load + reload SELECT per index -- fails this test. Measured
+        # at 3 for this fixture (2 new indexes); margin allows for minor backend
+        # differences while staying below what a per-index merge() would cost.
+        with assert_queries_count(3, margin=1):
+            new_tis = list(
+                dag_run._revise_map_indexes_if_mapped(
+                    show_task, dag_version_id=mapped_tis[0].dag_version_id, session=session
+                )
             )
-        )
         # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
         assert sorted(ti.map_index for ti in new_tis) == [3, 4]
         for ti in new_tis:
