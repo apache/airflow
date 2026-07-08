@@ -17,7 +17,7 @@
 """
 Asset-level data quality declarations.
 
-Quality configuration lives inside ``Asset.extra`` under the ``airflow.dq`` key, so it is
+Quality configuration lives inside ``Asset.extra`` under the ``airflow.dataquality`` key, so it is
 serialized with the Dag and needs no Airflow core changes. The rules travel with the asset
 definition instead of being scattered across the Dags that check it.
 """
@@ -39,8 +39,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DQ_EXTRA_KEY = "airflow.dq"
-DQ_RESULT_EXTRA_KEY = "airflow.dq.result"
+DQ_EXTRA_KEY = "airflow.dataquality"
+DQ_RESULT_EXTRA_KEY = "airflow.dataquality.result"
 
 
 def asset_quality(
@@ -83,7 +83,7 @@ def asset_quality(
 
 
 def get_asset_quality_config(asset: Asset) -> dict[str, Any] | None:
-    """Return the raw ``airflow.dq`` config attached to an asset, if any."""
+    """Return the raw ``airflow.dataquality`` config attached to an asset, if any."""
     config = asset.extra.get(DQ_EXTRA_KEY)
     if not isinstance(config, dict):
         return None
@@ -145,7 +145,7 @@ def require_quality(
     Gate a Dag run on the data quality score attached to one of its triggering asset events.
 
     Reads the summary a :class:`~airflow.providers.dataquality.operators.dq_check.DQCheckOperator`
-    attaches to ``asset``'s outlet event, under ``asset_event.extra["airflow.dq.result"]``
+    attaches to ``asset``'s outlet event, under ``asset_event.extra["airflow.dataquality.result"]``
     (see :func:`asset_quality`), and short-circuits the run — skipping every downstream task
     — when that summary is missing or its score is below ``min_score``. Call it inside a Dag
     scheduled by ``asset``::

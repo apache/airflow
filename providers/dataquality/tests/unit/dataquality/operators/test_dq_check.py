@@ -246,4 +246,4 @@ class TestDQCheckOperatorExecute:
         outlet_events = context["outlet_events"]
         outlet_events.__getitem__.assert_called_with(asset)
         extra = outlet_events.__getitem__.return_value.extra
-        extra.__setitem__.assert_called_once_with("airflow.dq.result", summary)
+        extra.__setitem__.assert_called_once_with("airflow.dataquality.result", summary)
