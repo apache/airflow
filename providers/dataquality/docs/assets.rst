@@ -28,7 +28,7 @@ Attaching a ruleset to an asset
 ----------------------------------
 
 :func:`~airflow.providers.dataquality.assets.asset_quality` stores ruleset, connection, and table
-configuration inside ``Asset.extra`` under the ``airflow.dq`` key, so it is serialized with the
+configuration inside ``Asset.extra`` under the ``airflow.dataquality`` key, so it is serialized with the
 Dag and needs no Airflow core changes:
 
 .. exampleinclude:: /../src/airflow/providers/dataquality/example_dags/example_dq_require_quality.py
