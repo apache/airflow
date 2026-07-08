@@ -298,6 +298,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             https://cloud.google.com/dataflow/docs/templates/executing-templates
 
     :param deferrable: Run operator in the deferrable mode.
+    :param cancel_on_kill: If True (default), cancel the Dataflow job when the task is killed,
+        both while the operator is running and, for a deferred task, while it waits in the
+        triggerer.
     """
 
     template_fields: Sequence[str] = (
@@ -334,11 +337,13 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         append_job_name: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         expected_terminal_state: str | None = None,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
         self.template = template
+        self.cancel_on_kill = cancel_on_kill
         self.job_name = job_name
         self.options = options or {}
         self.dataflow_default_options = dataflow_default_options or {}
@@ -437,6 +442,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
+                cancel_on_kill=self.cancel_on_kill,
             ),
             method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
         )
@@ -453,7 +459,10 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         return job_id
 
     def on_kill(self) -> None:
+        """Cancel the running job; a kill of a deferred task cancels through the trigger instead."""
         self.log.info("On kill.")
+        if not self.cancel_on_kill:
+            return
         if self.job is not None:
             self.log.info("Cancelling job %s", self.job_name)
             self.hook.cancel_job(
@@ -525,6 +534,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
+    :param cancel_on_kill: If True (default), cancel the Dataflow job when the task is killed,
+        both while the operator is running and, for a deferred task, while it waits in the
+        triggerer.
     :param expected_terminal_state: The expected final status of the operator on which the corresponding
         Airflow task succeeds. When not specified, it will be determined by the hook.
     :param append_job_name: True if unique suffix has to be appended to job name.
@@ -550,11 +562,13 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         append_job_name: bool = True,
         expected_terminal_state: str | None = None,
         poll_sleep: int = 10,
+        cancel_on_kill: bool = True,
         *args,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.body = body
+        self.cancel_on_kill = cancel_on_kill
         self.location = location
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -633,6 +647,8 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
+                drain_pipeline=self.drain_pipeline,
+                cancel_on_kill=self.cancel_on_kill,
             ),
             method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
         )
@@ -658,7 +674,10 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         return job
 
     def on_kill(self) -> None:
+        """Cancel the running job; a kill of a deferred task cancels through the trigger instead."""
         self.log.info("On kill.")
+        if not self.cancel_on_kill:
+            return
         if self.job is not None:
             self.hook.cancel_job(
                 job_id=self.job.get("id"),
@@ -693,6 +712,9 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         or in the deferrable mode. Defaults to False.
         For more info see: https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :param deferrable: Optional. Run operator in the deferrable mode.
+    :param cancel_on_kill: If True (default), cancel the Dataflow job when the task is killed,
+        both while the operator is running and, for a deferred task, while it waits in the
+        triggerer.
     :param expected_terminal_state: Optional. The expected terminal state of the Dataflow job at which the
         operator task is set to succeed. Defaults to 'JOB_STATE_DONE' for the batch jobs and 'JOB_STATE_RUNNING'
         for the streaming jobs.
@@ -748,10 +770,12 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         jinja_variables: dict[str, str] | None = None,
         options: dict[str, Any] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.job_name = job_name
+        self.cancel_on_kill = cancel_on_kill
         self.yaml_pipeline_file = yaml_pipeline_file
         self.region = region
         self.project_id = project_id
@@ -793,6 +817,8 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
                     cancel_timeout=self.cancel_timeout,
                     expected_terminal_state=self.expected_terminal_state,
                     impersonation_chain=self.impersonation_chain,
+                    drain_pipeline=self.drain_pipeline,
+                    cancel_on_kill=self.cancel_on_kill,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
@@ -818,10 +844,13 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         """
         Cancel the dataflow job if a task instance gets killed.
 
-        This method will not be called if a task instance is killed in a deferred
-        state.
+        This method is not called for a task instance killed in a deferred state;
+        in that case the trigger cancels the job instead, honoring cancel_on_kill
+        and drain_pipeline.
         """
         self.log.info("On kill called.")
+        if not self.cancel_on_kill:
+            return
         if self.job_id:
             self.hook.cancel_job(
                 job_id=self.job_id,
