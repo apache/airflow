@@ -257,11 +257,36 @@ apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.asc
 apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.sha512
 ```
 
-*NOTE:* The source archive deliberately omits `gradle/wrapper/gradle-wrapper.jar`
-since ASF source releases must not contain compiled code (see [LEGAL-570]). To
-build an *extracted* source package, use a locally installed Gradle instead:
-either run `gradle build`, or use `gradle wrapper` once to regenerate the jar
-and then `./gradlew build`.
+*NOTE:* The source archive deliberately omits the **entire Gradle wrapper**, not
+just `gradle/wrapper/gradle-wrapper.jar` (compiled code, see [LEGAL-570]) but
+also `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.properties`.
+The wrapper remains tracked in git as usual; only the `git archive` output used
+by `sourceRelease` excludes it (see `.gitattributes`). This means an extracted
+source package has no wrapper at all, and no `gradle-wrapper.properties` to pin
+the Gradle version or auto-verify the distribution checksum. There are two ways
+to build from an extracted source package:
+
+* **(a) Build with a locally installed Gradle:**
+
+  ```bash
+  gradle build
+  ```
+
+* **(b) Regenerate the wrapper, then build with it.** Since
+  `gradle-wrapper.properties` is excluded too, pass the version and checksum
+  explicitly instead of relying on a committed properties file:
+
+  ```bash
+  gradle wrapper --gradle-version 8.14.4 \
+    --gradle-distribution-sha256-sum f1771298a70f6db5a29daf62378c4e18a17fc33c9ba6b14362e0cdf40610380d
+  ./gradlew build
+  ```
+
+  The version and checksum above are the ones this project currently pins;
+  confirm them against `gradle/wrapper/gradle-wrapper.properties` at the
+  signed git tag being verified (e.g. `java-sdk/1.0.0-beta1-rc1`) — the
+  wrapper is still checked into git and present at any tag, only the
+  *source-release tarball* excludes it.
 
 [LEGAL-570]: https://issues.apache.org/jira/browse/LEGAL-570
 
@@ -291,7 +316,144 @@ is the source-package URL you link in the vote.
 
 Send a `[VOTE]` email to `dev@airflow.apache.org` linking the git tag and
 commit, the source package in `dist/dev`, the closed Nexus staging repository,
-and the `KEYS` file.
+and the `KEYS` file. See "Vote email template" below for the exact fields to
+fill in, and "Verifying a release" for what to ask reviewers to check.
+
+### Vote email template
+
+Past vote emails have shipped with unfilled placeholders or an incomplete
+artifact list, so treat this template as the source of truth and diff your
+draft against it before sending.
+
+```text
+Subject: [VOTE] Release Apache Airflow Java SDK 1.0.0-beta1 based on rc<N>
+
+Hey all,
+
+I have prepared the Apache Airflow Java SDK 1.0.0-beta1 rc<N>.
+
+Changes since rc<N-1>:
+<one-line summary per fix, or "N/A — first RC" if this is rc1>
+
+Consider this a formal vote on whether to release these packages as
+Apache Airflow Java SDK 1.0.0-beta1.
+
+The vote will be open for at least 72 hours (until <YYYY-MM-DD HH:MM UTC>) or
+until the necessary number of votes is reached.
+
+https://www.apache.org/legal/release-policy.html#release-approval
+
+Airflow Java SDK Package:
+https://dist.apache.org/repos/dist/dev/airflow/java-sdk/1.0.0-beta1-rc<N>/
+
+git tag / commit:
+https://github.com/apache/airflow/releases/tag/java-sdk/1.0.0-beta1-rc<N>
+(commit <full-commit-sha>)
+
+KEYS file:
+https://downloads.apache.org/airflow/KEYS
+
+Staging Nexus repository (convenience binaries — 8 artifacts + plugin marker):
+https://repository.apache.org/content/repositories/orgapacheairflow-<NNNN>/org/apache/airflow/
+  - airflow-sdk
+  - airflow-sdk-jul
+  - airflow-sdk-log4j2
+  - airflow-sdk-slf4j
+  - airflow-sdk-jpl
+  - airflow-sdk-processor
+  - airflow-sdk-bom
+  - airflow-sdk-gradle-plugin
+  - org.apache.airflow.sdk.gradle.plugin (Gradle plugin marker artifact)
+
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
+
+Only PMC members' votes are binding, but everyone is encouraged to test the
+release and vote.
+
+Thanks,
+<your name>
+```
+
+Pre-send checklist:
+
+* Every staged artifact above resolves in the Nexus staging repository — cross
+  check against the *Verify the upload* step, not just this list from memory.
+* `Changes since rc<N-1>` and the vote deadline are filled in (not "N/A" unless
+  this really is rc1, and not left blank).
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** —
+  any match means a template placeholder (`<N>`, `<NNNN>`, `<YYYY-MM-DD ...>`,
+  etc.) was left unfilled.
+
+### Verifying a release
+
+Anyone on `dev@airflow.apache.org` can (and should) independently verify a
+candidate before voting. Below is the checklist a reviewer — or the release
+manager, before sending the vote — should run against the source package in
+`dist/dev`.
+
+1. **Checksum.** Confirm the published SHA-512 matches the downloaded tarball:
+
+   ```bash
+   sha512sum -c apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.sha512
+   ```
+
+2. **Signature.** Import the `KEYS` file and verify the GPG signature:
+
+   ```bash
+   curl -O https://downloads.apache.org/airflow/KEYS
+   gpg --import KEYS
+   gpg --verify apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.asc \
+       apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz
+   ```
+
+3. **Diff against the git tag.** Extract the tarball and compare it with a
+   clean checkout of the tag it claims to be built from — they should be
+   identical apart from the excluded Gradle wrapper files. Note the extracted
+   top-level directory is named after the `--prefix` used by the `sourceRelease`
+   task, `apache-airflow-java-sdk-<version>` — it does **not** carry the `-src`
+   suffix that only appears in the tarball's own filename:
+
+   ```bash
+   tar xzf apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz
+   git clone --branch java-sdk/1.0.0-beta1-rc1 \
+     https://github.com/apache/airflow.git tag-checkout
+   diff -rq apache-airflow-java-sdk-1.0.0-beta1/ tag-checkout/java-sdk/ \
+     | grep -v -E 'gradlew|gradle/wrapper'
+   ```
+
+   Any remaining diff output is unexpected and should block the vote.
+
+4. **No binary files.** ASF source releases must not contain compiled code.
+   Scan for anything that isn't text (the only expected binaries — the
+   wrapper jar — must not appear, since it's excluded):
+
+   ```bash
+   find apache-airflow-java-sdk-1.0.0-beta1/ -type f \
+     -exec sh -c 'file "$1" | grep -qv text && echo "$1"' _ {} \;
+   ```
+
+   This should print nothing.
+
+5. **Build from source.** With a locally installed Gradle (see the *Upload the
+   source package* section above for the two build paths available without
+   the wrapper):
+
+   ```bash
+   cd apache-airflow-java-sdk-1.0.0-beta1/
+   gradle build
+   ```
+
+6. **Staged-binary smoke test.** Resolve the staged Nexus artifacts from a
+   throwaway project to confirm they're actually consumable, following the
+   same pattern as the "Dry-run against a local repository" step: point a
+   `repositories {}` block at the staging repository URL, declare a dependency
+   on `org.apache.airflow:airflow-sdk-bom:1.0.0-beta1`, and confirm the
+   transitive artifacts (including `airflow-sdk-jpl`) resolve and the example
+   bundle builds against them.
 
 ### After a successful vote
 

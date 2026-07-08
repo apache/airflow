@@ -10,6 +10,11 @@
 # Binary files should be left untouched
 *.jar           binary
 
-# Keep the Gradle wrapper jar out of source releases.
-# See: https://issues.apache.org/jira/browse/LEGAL-570
-gradle/wrapper/gradle-wrapper.jar export-ignore
+# Keep the Gradle wrapper out of source releases (the jar is compiled code,
+# see https://issues.apache.org/jira/browse/LEGAL-570; the wrapper scripts and
+# gradle-wrapper.properties are excluded too so the source-release tarball
+# carries no Gradle wrapper at all). The wrapper stays tracked in git; this
+# only affects `git archive` / the `sourceRelease` task output.
+/gradlew export-ignore
+/gradlew.bat export-ignore
+/gradle/wrapper export-ignore
