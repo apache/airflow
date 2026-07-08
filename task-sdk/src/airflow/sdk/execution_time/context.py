@@ -977,7 +977,14 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
 
         :raises ValueError: If any key is empty/whitespace-only or longer than
             ``_PARTITION_KEY_MAX_LENGTH`` characters.
+        :raises TypeError: If this accessor is for an asset alias, since partition
+            keys are only attached to concrete asset events, not alias events.
         """
+        if isinstance(self.key, AssetAliasUniqueKey):
+            raise TypeError(
+                "add_partitions() is not supported on asset alias outlet events; "
+                "partition keys can only be attached to a concrete asset."
+            )
         if isinstance(keys, str):
             keys = [keys]
         for key in keys:
