@@ -196,6 +196,7 @@ jobs:
     timeout-minutes: 80
     name: "Build PROD ${{ inputs.build-type }} image ${{ matrix.python-version }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     needs:
       - build-prod-packages
     env:

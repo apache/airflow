@@ -56,8 +56,34 @@ permissions:
   packages: read
 
 jobs:
+  release-environment:
+    name: "Release Environment"
+    runs-on: ubuntu-latest
+    environment: release
+    if: >
+      github.event_name == 'workflow_call' ||
+      contains(fromJSON('[
+        "ashb",
+        "bugraoz93",
+        "eladkal",
+        "ephraimbuddy",
+        "jedcunningham",
+        "jscheffl",
+        "kaxil",
+        "pierrejeambrun",
+        "shahar1",
+        "potiuk",
+        "uranusjr",
+        "utkarsharma2",
+        "vincbeck"
+        ]'), github.event.sender.login)
+    steps:
+      - name: "Wait for approval"
+        run: echo "Approved"
+
   build-ci-image:
     name: "Build CI image"
+    needs: [release-environment]
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
       contents: read
@@ -98,6 +124,7 @@ jobs:
     name: "Build & Publish Registry"
     needs: [build-ci-image]
     runs-on: ubuntu-latest
+    environment: release
     env:
       SCARF_ANALYTICS: "false"
       DO_NOT_TRACK: "1"

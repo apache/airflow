@@ -109,6 +109,7 @@ jobs:
     timeout-minutes: 110
     name: "Build CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}

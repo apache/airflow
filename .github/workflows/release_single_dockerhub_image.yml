@@ -60,6 +60,7 @@ jobs:
     # yamllint disable rule:line-length
     name: "Build: ${{ inputs.airflowVersion }}, ${{ inputs.pythonVersion }}, ${{ matrix.platform }}"
     runs-on: ${{ (matrix.platform == 'linux/amd64') && fromJSON(inputs.amdRunners) || fromJSON(inputs.armRunners) }}
+    environment: release
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -160,6 +161,7 @@ jobs:
     name: "Merge: ${{ inputs.airflowVersion }}, ${{ inputs.pythonVersion }}"
     runs-on: ["ubuntu-22.04"]
     needs: [build-images]
+    environment: release
     env:
       AIRFLOW_VERSION: ${{ inputs.airflowVersion }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.pythonVersion }}

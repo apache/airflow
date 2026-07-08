@@ -42,8 +42,33 @@ permissions:
   packages: read
 
 jobs:
+  release-environment:
+    name: "Release Environment"
+    runs-on: ubuntu-latest
+    environment: release
+    if: >
+      contains(fromJSON('[
+        "ashb",
+        "bugraoz93",
+        "eladkal",
+        "ephraimbuddy",
+        "jedcunningham",
+        "jscheffl",
+        "kaxil",
+        "pierrejeambrun",
+        "shahar1",
+        "potiuk",
+        "uranusjr",
+        "utkarsharma2",
+        "vincbeck"
+        ]'), github.event.sender.login)
+    steps:
+      - name: "Wait for approval"
+        run: echo "Approved"
+
   build-ci-image:
     name: "Build CI image"
+    needs: [release-environment]
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
       contents: read
@@ -115,8 +140,9 @@ jobs:
             >> "${GITHUB_OUTPUT}"
 
   backfill:
-    needs: [prepare, build-ci-image]
+    needs: [build-ci-image, prepare]
     runs-on: ubuntu-latest
+    environment: release
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -282,7 +308,8 @@ jobs:
   publish-versions:
     needs: [prepare, backfill]
     runs-on: ubuntu-latest
-    name: "Publish versions.json"
+    environment: release
+    name: "Publish version metadata"
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0

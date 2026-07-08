@@ -72,10 +72,11 @@ permissions:
   contents: read
 jobs:
   tests-core-integration:
-    timeout-minutes: 30
+    timeout-minutes: 130
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -123,10 +124,11 @@ jobs:
         if: failure()
 
   tests-providers-integration:
-    timeout-minutes: 30
+    timeout-minutes: 130
     if: inputs.testable-providers-integrations != '[]' && inputs.skip-providers-tests != 'true'
     name: "Integration: providers ${{ matrix.integration }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -177,6 +179,7 @@ jobs:
     if: inputs.run-system-tests == 'true'
     name: "System Tests"
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}

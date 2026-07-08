@@ -142,6 +142,7 @@ jobs:
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
       ${{ matrix.python-version}}:${{ matrix.test-types.description }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     strategy:
       fail-fast: false
       max-parallel: 20

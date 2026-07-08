@@ -28,6 +28,7 @@ jobs:
   verify-release-calendar:
     name: "Verify release calendar"
     runs-on: ["ubuntu-22.04"]
+    environment: ci
     timeout-minutes: 10
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

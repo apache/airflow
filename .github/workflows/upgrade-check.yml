@@ -34,7 +34,6 @@ permissions:
   pull-requests: write
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   TARGET_BRANCH: ${{ inputs.target-branch }}
 jobs:
   createupgrade-check:
@@ -42,6 +41,9 @@ jobs:
     name: >-
       [${{ inputs.target-branch }}] Upgrade checks and PR
     runs-on: ["ubuntu-22.04"]
+    environment: ci
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     steps:
       - name: >-
           [${{ inputs.target-branch }}] Cleanup repo

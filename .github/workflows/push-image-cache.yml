@@ -80,6 +80,7 @@ jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     permissions:
       contents: read
       packages: write
@@ -150,6 +151,7 @@ jobs:
   push-prod-image-cache:
     name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
     runs-on: ${{ fromJSON(inputs.runners) }}
+    environment: ci
     permissions:
       contents: read
       packages: write

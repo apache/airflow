@@ -227,6 +227,7 @@ jobs:
   notify-on-failure:
     name: "Notify on failure"
     runs-on: ["ubuntu-22.04"]
+    environment: ci
     needs: [build-info, build-ci-images, generate-constraints, update-constraints]
     if: failure()
     env:
