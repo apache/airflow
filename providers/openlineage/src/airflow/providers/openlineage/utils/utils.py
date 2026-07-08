@@ -24,7 +24,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import attrs
 from openlineage.client.facet_v2 import (
@@ -989,8 +989,6 @@ class DagRunInfo(InfoJsonEncodable):
         "deadlines": lambda dagrun: DagRunInfo.deadlines(dagrun),
     }
 
-    _team_name_cache: ClassVar[dict[str, str | None]] = {}
-
     @classmethod
     def duration(cls, dagrun: DagRun) -> float | None:
         if not getattr(dagrun, "end_date", None) or not isinstance(dagrun.end_date, datetime.datetime):
@@ -1045,7 +1043,7 @@ class DagRunInfo(InfoJsonEncodable):
 
     @classmethod
     def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
-        """Extract deg version info for given key, sourced from DagRun (on scheduler)."""
+        """Extract DAG version info for given key, sourced from DagRun (on scheduler)."""
         # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
         dag_versions = safe_getattr(dagrun, "dag_versions", [])
         if not dag_versions:
@@ -1071,10 +1069,7 @@ class DagRunInfo(InfoJsonEncodable):
         if not isinstance(bundle_name, str):
             return None
 
-        if bundle_name not in cls._team_name_cache:
-            cls._team_name_cache[bundle_name] = DagBundleModel.get_team_name(bundle_name)
-
-        return cls._team_name_cache[bundle_name]
+        return DagBundleModel.get_team_name(bundle_name)
 
 
 class TaskInstanceInfo(InfoJsonEncodable):

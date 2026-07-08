@@ -341,7 +341,6 @@ def test_dag_run_team_name(
     mock_getboolean,
     mock_get_team_name,
 ):
-    DagRunInfo._team_name_cache.clear()
 
     dagrun_mock = MagicMock(DagRun)
     dagrun_mock.dag_versions = [
@@ -356,31 +355,31 @@ def test_dag_run_team_name(
     mock_get_team_name.return_value = "team_a"
 
     assert DagRunInfo.team_name(dagrun_mock) == "team_a"
-    assert DagRunInfo.team_name(dagrun_mock) == "team_a"
 
     mock_get_team_name.assert_called_once_with("bundle_name")
 
 
-@pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
-def test_dag_run_team_name_no_bundle():
+@patch("airflow.providers.openlineage.utils.utils.DagBundleModel.get_team_name")
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name_no_bundle(mock_getboolean, mock_get_team_name):
     dagrun_mock = MagicMock(DagRun)
     del dagrun_mock.dag_versions
 
     assert DagRunInfo.team_name(dagrun_mock) is None
 
+    mock_get_team_name.assert_not_called()
 
-@pytest.mark.db_test
+
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
 @patch("airflow.providers.openlineage.utils.utils.DagBundleModel.get_team_name")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=False)
 def test_dag_run_team_name_multi_team_disabled(mock_getboolean, mock_get_team_name):
 
-    DagRunInfo._team_name_cache.clear()
-
     dagrun_mock = MagicMock(DagRun)
 
     assert DagRunInfo.team_name(dagrun_mock) is None
+
     mock_get_team_name.assert_not_called()
 
 
