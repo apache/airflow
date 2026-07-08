@@ -53,3 +53,25 @@ configure<SpotlessExtension> {
         endWithNewline()
     }
 }
+
+// ASF release policy requires every distributed artifact (including convenience
+// binaries such as the main, sources, javadoc, and test-fixtures jars) to carry
+// LICENSE/NOTICE. `rootProject` is used rather than a bare `rootDir`/`projectDir`
+// because this precompiled script plugin is applied per-subproject: an unqualified
+// reference would resolve relative to whichever subproject applies the plugin,
+// not the multi-project root where LICENSE/NOTICE actually live.
+tasks.withType<Jar>().configureEach {
+    metaInf {
+        from(rootProject.layout.projectDirectory.file("LICENSE"))
+        from(rootProject.layout.projectDirectory.file("NOTICE"))
+    }
+}
+
+// Byte-reproducible archives: strip wall-clock timestamps, fix entry ordering,
+// and pin permission bits so two builds from the same sources are bit-identical.
+tasks.withType<AbstractArchiveTask>().configureEach {
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    dirPermissions { unix("755") }
+    filePermissions { unix("644") }
+}
