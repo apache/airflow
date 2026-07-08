@@ -36,7 +36,7 @@ class _ActiveLoggingConfig:
     """Private class to hold active logging config variables."""
 
     logging_config_loaded: bool = False
-    remote_task_log: RemoteLogIO | None
+    remote_task_log: RemoteLogIO | None = None
     default_remote_conn_id: str | None = None
 
     @classmethod
@@ -211,6 +211,8 @@ def configure_logging():
 
     # Runs after dictConfig so deprecated handler self-registration (ES/OS) has
     # had its chance to populate _ActiveLoggingConfig.remote_task_log.
+    # The trailing `or DEFAULT_LOGGING_CONFIG_PATH` also covers an explicit
+    # `logging_config_class = ""`, which conf.get() would otherwise return as-is.
     logging_class_path = (
         conf.get("logging", "logging_config_class", fallback=DEFAULT_LOGGING_CONFIG_PATH)
         or DEFAULT_LOGGING_CONFIG_PATH
