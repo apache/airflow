@@ -41,7 +41,7 @@ from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreD
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
 
 # The real accessor validates the value against pydantic ``JsonValue`` before persisting.
-_JSON_VALUE = TypeAdapter(JsonValue)
+_JSON_VALUE: TypeAdapter[JsonValue] = TypeAdapter(JsonValue)
 
 
 class FakeTaskStateStore:
