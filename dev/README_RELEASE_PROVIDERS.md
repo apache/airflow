@@ -1017,7 +1017,7 @@ to verify that all expected files are present in SVN. This command will produce 
 may help with verifying installation of the packages.
 
 Once you have cloned/updated the SVN repository, copy the PyPi URLs shared
-in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/files
+in the email to a file called `packages.txt` in the `$AIRFLOW_REPO_ROOT/files`
 directory (git-ignored, so it won't be accidentally committed).
 
 ```shell script
