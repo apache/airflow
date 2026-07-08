@@ -18,6 +18,7 @@
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { Tooltip } from "src/components/ui";
 
@@ -140,17 +141,21 @@ export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, 
       {Boolean(hasDeadlines) && (
         <Box mt={4}>
           <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
-            {translate("calendar.deadlines")}
+            {translate("overview.deadlines.title")}
           </Text>
           <HStack gap={4} justify="center" wrap="wrap">
             <HStack gap={2}>
-              <Box bg="orange.400" borderRadius="50%" boxShadow="sm" height="8px" width="8px" />
+              <Box color="info.fg" fontSize="sm" lineHeight={1}>
+                <FiClock />
+              </Box>
               <Text color="fg.muted" fontSize="xs">
                 {translate("deadlineStatus.upcoming")}
               </Text>
             </HStack>
             <HStack gap={2}>
-              <Box bg="red.500" borderRadius="50%" boxShadow="sm" height="8px" width="8px" />
+              <Box color="error.fg" fontSize="sm" lineHeight={1}>
+                <FiAlertTriangle />
+              </Box>
               <Text color="fg.muted" fontSize="xs">
                 {translate("deadlineStatus.missed")}
               </Text>

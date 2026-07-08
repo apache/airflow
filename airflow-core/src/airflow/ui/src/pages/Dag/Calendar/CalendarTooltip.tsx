@@ -18,6 +18,7 @@
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
@@ -101,18 +102,13 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
       {hasDeadlines ? (
         <VStack align="start" gap={1.5}>
           <Text color="fg.muted" fontSize="xs" fontWeight="medium">
-            {translate("dag:calendar.deadlines")}
+            {translate("dag:overview.deadlines.title")}
           </Text>
           {missedDeadlines > 0 && (
             <HStack data-testid="calendar-tooltip-deadline-missed" gap={3}>
-              <Box
-                bg="red.500"
-                border="1px solid"
-                borderColor="border.emphasized"
-                borderRadius="50%"
-                height={SQUARE_SIZE}
-                width={SQUARE_SIZE}
-              />
+              <Box color="error.fg" fontSize="16px" lineHeight={1}>
+                <FiAlertTriangle />
+              </Box>
               <Text fontSize="xs">
                 {translate("dag:deadlineStatus.missedCount", { count: missedDeadlines })}
               </Text>
@@ -120,14 +116,9 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
           )}
           {pendingDeadlines > 0 && (
             <HStack data-testid="calendar-tooltip-deadline-pending" gap={3}>
-              <Box
-                bg="orange.400"
-                border="1px solid"
-                borderColor="border.emphasized"
-                borderRadius="50%"
-                height={SQUARE_SIZE}
-                width={SQUARE_SIZE}
-              />
+              <Box color="info.fg" fontSize="16px" lineHeight={1}>
+                <FiClock />
+              </Box>
               <Text fontSize="xs">
                 {translate("dag:deadlineStatus.upcomingCount", { count: pendingDeadlines })}
               </Text>

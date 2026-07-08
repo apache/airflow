@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { BasicTooltip } from "src/components/BasicTooltip";
 
@@ -70,20 +71,21 @@ export const CalendarCell = ({
   const hasMissedDeadline = (deadlineCounts?.missed ?? 0) > 0;
   const hasPendingDeadline = (deadlineCounts?.pending ?? 0) > 0;
   const hasDeadline = hasMissedDeadline || hasPendingDeadline;
-  // Missed takes priority over pending for the dot color
-  const deadlineDotColor = hasMissedDeadline ? "red.500" : "orange.400";
+  const DeadlineIcon = hasMissedDeadline ? FiAlertTriangle : FiClock;
 
-  const deadlineDot = hasDeadline ? (
+  const deadlineIndicator = hasDeadline ? (
     <Box
-      bg={deadlineDotColor}
-      borderRadius="50%"
-      bottom="1px"
-      data-testid="deadline-dot"
-      height="4px"
+      bottom="0"
+      color="colorPalette.fg"
+      colorPalette={hasMissedDeadline ? "red" : "blue"}
+      data-testid="deadline-indicator"
+      fontSize="8px"
+      lineHeight={1}
       position="absolute"
-      right="1px"
-      width="4px"
-    />
+      right="0"
+    >
+      <DeadlineIcon />
+    </Box>
   ) : undefined;
 
   const cellBox = isMixedState ? (
@@ -115,7 +117,7 @@ export const CalendarCell = ({
         position="absolute"
         width="100%"
       />
-      {deadlineDot}
+      {deadlineIndicator}
     </Box>
   ) : (
     <Box
@@ -132,7 +134,7 @@ export const CalendarCell = ({
       position="relative"
       width="14px"
     >
-      {deadlineDot}
+      {deadlineIndicator}
     </Box>
   );
 

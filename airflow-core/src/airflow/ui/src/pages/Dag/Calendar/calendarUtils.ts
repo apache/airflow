@@ -22,6 +22,7 @@ import tz from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
 import type { CalendarDeadlineResponse, CalendarTimeRangeResponse } from "openapi/requests/types.gen";
+import { DATE_FORMAT } from "src/utils/datetimeUtils";
 
 import type {
   DeadlineCounts,
@@ -37,6 +38,8 @@ import type {
 dayjs.extend(isSameOrBefore);
 dayjs.extend(utc);
 dayjs.extend(tz);
+
+const HOURLY_KEY_FORMAT = `${DATE_FORMAT}THH`;
 
 // Calendar color constants
 export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
@@ -68,7 +71,7 @@ const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: st
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const dateStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DD");
+    const dateStr = dayjs(run.date).tz(timezone).format(DATE_FORMAT);
     const dailyRuns = dailyDataMap.get(dateStr);
 
     if (dailyRuns) {
@@ -85,7 +88,7 @@ const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: s
   const hourlyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const hourStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DDTHH");
+    const hourStr = dayjs(run.date).tz(timezone).format(HOURLY_KEY_FORMAT);
     const hourlyRuns = hourlyDataMap.get(hourStr);
 
     if (hourlyRuns) {
@@ -108,8 +111,8 @@ export const buildDeadlineDateMap = (
   deadlines.forEach((deadline) => {
     const key =
       granularity === "daily"
-        ? dayjs(deadline.date).tz(timezone).format("YYYY-MM-DD")
-        : dayjs(deadline.date).tz(timezone).format("YYYY-MM-DDTHH");
+        ? dayjs(deadline.date).tz(timezone).format(DATE_FORMAT)
+        : dayjs(deadline.date).tz(timezone).format(HOURLY_KEY_FORMAT);
 
     const existing = map.get(key) ?? { missed: 0, pending: 0 };
 

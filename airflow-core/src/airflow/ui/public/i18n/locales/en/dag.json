@@ -7,7 +7,6 @@
   },
   "calendar": {
     "daily": "Daily",
-    "deadlines": "Deadlines",
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
