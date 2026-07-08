@@ -52,7 +52,7 @@ _example_dag_bundle_name = "example_dags"
 _REASSIGN_BATCH_SIZE = 1000
 
 
-def _best_bundle_for_fileloc(
+def _guess_best_bundle_for_fileloc(
     fileloc: str, descending_bundle_paths: dict[str, Path]
 ) -> tuple[str, str] | None:
     """
@@ -521,7 +521,9 @@ class DagBundlesManager(LoggingMixin):
             # reassign (match != current bundle).
             chunk_updates: list[tuple[str, str | None, str, str]] = []
             for row in chunk:
-                match = _best_bundle_for_fileloc(row.fileloc, active_bundle_paths) if row.fileloc else None
+                match = (
+                    _guess_best_bundle_for_fileloc(row.fileloc, active_bundle_paths) if row.fileloc else None
+                )
                 if match is None:
                     total_skipped += 1
                     continue
@@ -593,7 +595,7 @@ class DagBundlesManager(LoggingMixin):
         violation if used as a reassignment target.
 
         The returned dict is ``{name: path}`` ordered by path length descending
-        so the most specific bundle wins in ``_best_bundle_for_fileloc``.
+        so the most specific bundle wins in ``_guess_best_bundle_for_fileloc``.
         """
         active_db_names = set(
             session.scalars(select(DagBundleModel.name).where(DagBundleModel.active.is_(True)))
