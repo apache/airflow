@@ -25,6 +25,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicAgentSessionTimeout,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicTriggerEventError,
 )
 from airflow.providers.anthropic.hooks.anthropic import (
     DEFAULT_MODEL,
@@ -33,6 +34,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
     BatchStatus,
     SessionStatus,
     evaluate_session_state,
+    validate_execute_complete_event,
 )
 
 pytest.importorskip("anthropic")
@@ -74,6 +76,33 @@ class TestSessionStatus:
     )
     def test_is_terminal(self, status, expected):
         assert SessionStatus.is_terminal(status) is expected
+
+
+class TestValidateTriggerEvent:
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param({}, "Unexpected trigger event status None", id="missing-status"),
+            pytest.param(
+                {"status": "ended", "batch_id": "b"}, "Unexpected trigger event status", id="unknown-status"
+            ),
+        ],
+    )
+    def test_invalid_event_raises(self, event, match):
+        with pytest.raises(AnthropicTriggerEventError, match=match):
+            validate_execute_complete_event(event)
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param({"status": "success", "batch_id": "b"}, id="success"),
+            pytest.param({"status": "error", "batch_id": "b", "message": "boom"}, id="error"),
+            pytest.param({"status": "timeout", "batch_id": "b", "message": "slow"}, id="timeout"),
+        ],
+    )
+    def test_valid_event_is_returned(self, event):
+        assert validate_execute_complete_event(event) is event
 
 
 def _session(status, outcome_results=None):
@@ -184,6 +213,40 @@ class TestDefaultModel:
         hook, client = _make_hook(extra={"model": "claude-sonnet-4-6"})
         hook.create_agent(name="a")
         assert client.beta.agents.create.call_args.kwargs["model"] == "claude-sonnet-4-6"
+
+    @pytest.mark.parametrize(
+        "model",
+        [None, "my-anthropic.model"],  # bare default id and a substring that is not a real prefix
+    )
+    def test_bedrock_rejects_invalid_model_id(self, model):
+        extra = {"platform": "bedrock", **({"model": model} if model else {})}
+        hook, client = _make_hook(extra=extra)
+        with pytest.raises(AnthropicError, match="not a valid Amazon Bedrock model id"):
+            hook.create_message([{"role": "user", "content": "hi"}])
+        client.messages.create.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("platform", "model", "expected"),
+        [
+            (
+                "bedrock",
+                "anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ),
+            ("bedrock", "global.anthropic.claude-opus-4-6-v1", "global.anthropic.claude-opus-4-6-v1"),
+            (
+                "bedrock",
+                "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ),
+            ("vertex", None, DEFAULT_MODEL),  # non-Bedrock platforms skip the guard
+        ],
+    )
+    def test_accepts_valid_model_id(self, platform, model, expected):
+        extra = {"platform": platform, **({"model": model} if model else {})}
+        hook, client = _make_hook(extra=extra)
+        hook.create_message([{"role": "user", "content": "hi"}])
+        assert client.messages.create.call_args.kwargs["model"] == expected
 
 
 class TestManagedAgentsHook:

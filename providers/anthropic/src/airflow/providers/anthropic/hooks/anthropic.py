@@ -38,6 +38,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicBatchJobError,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicTriggerEventError,
 )
 from airflow.providers.common.compat.sdk import AirflowSkipException, BaseHook
 
@@ -147,6 +148,29 @@ def evaluate_session_state(
             return True, f"Outcome not satisfied for session {session.id}: {evaluation.result}.", False
     # idle but no terminal outcome verdict yet (e.g. the run has not started)
     return False, None, False
+
+
+#: Statuses the provider's triggers emit in their terminal event.
+TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "timeout"})
+
+
+def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Validate the event a deferred task resumes with, returning it if well-formed.
+
+    The event crosses the triggerer/worker boundary through the metadata DB, so a
+    resuming task can receive ``None`` or a status its handlers do not recognize
+    (version skew, a custom trigger). Both must fail loudly: the ``execute_complete``
+    handlers raise on ``timeout``/``error`` and treat everything else as success, so
+    an unrecognized status would otherwise silently succeed.
+    """
+    if event is None:
+        raise AnthropicTriggerEventError("Trigger error: event is None")
+    if event.get("status") not in TRIGGER_EVENT_STATUSES:
+        raise AnthropicTriggerEventError(
+            f"Unexpected trigger event status {event.get('status')!r}: {event!r}"
+        )
+    return event
 
 
 def evaluate_batch_counts(
@@ -297,6 +321,20 @@ class AnthropicHook(BaseHook):
             kwargs["scope"] = wif["scope"]
         return WorkloadIdentityCredentials(**kwargs)
 
+    def _resolve_model(self, model: str | None) -> str:
+        """Resolve the effective model id; Bedrock rejects a bare id, so require its prefix."""
+        resolved = model or self.default_model
+        # Valid Bedrock ids either start with the ``anthropic.`` provider prefix or carry a
+        # region/profile prefix as a dotted component (e.g. ``us.anthropic.``, ``global.anthropic.``).
+        is_bedrock_model_id = resolved.startswith("anthropic.") or ".anthropic." in resolved
+        if self.platform == "bedrock" and not is_bedrock_model_id:
+            raise AnthropicError(
+                f"Model {resolved!r} is not a valid Amazon Bedrock model id. Bedrock ids carry a "
+                "provider/region prefix (e.g. 'global.anthropic.claude-opus-4-6-v1'); set one via "
+                "the 'model' argument or the connection's extra['model']."
+            )
+        return resolved
+
     def _require_first_party(self, feature: str) -> None:
         if self.platform not in FIRST_PARTY_PLATFORMS:
             raise AnthropicError(
@@ -348,7 +386,7 @@ class AnthropicHook(BaseHook):
         :param system: Optional system prompt.
         """
         params: dict[str, Any] = {
-            "model": model or self.default_model,
+            "model": self._resolve_model(model),
             "max_tokens": max_tokens,
             "messages": messages,
             **kwargs,

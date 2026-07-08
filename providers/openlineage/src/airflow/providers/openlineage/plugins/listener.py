@@ -113,15 +113,42 @@ def _executor_initializer():
         log.debug("Exception details:", exc_info=True)
 
 
-def _emit_manual_state_change_event(adapter_method, stats_key, **kwargs):
+@cache
+def _get_process_adapter() -> OpenLineageAdapter:
     """
-    Emit an OL event via the given adapter method and record its serialized size.
+    Return the per-process ``OpenLineageAdapter`` used inside pool worker processes.
+
+    Each ``ProcessPoolExecutor`` worker keeps exactly one adapter — and therefore one
+    ``OpenLineageClient`` with one set of transports — for its whole lifetime.
+    """
+    return OpenLineageAdapter()
+
+
+def _run_adapter_method(method_name: str, /, *args, **kwargs):
+    """
+    Run the named ``OpenLineageAdapter`` method on the per-process adapter.
+
+    Module-level so it is picklable across the ProcessPoolExecutor boundary. Bound adapter
+    methods must not be submitted to the pool directly: pickling them serializes the whole
+    adapter, so the worker unpickles a fresh adapter per event and builds a new
+    ``OpenLineageClient`` (with new transports) on every emit. Transports that start
+    background worker threads (e.g. the ``datadog`` transport, which always starts an async
+    HTTP worker thread) are never closed, so this leaks one thread per event and steadily
+    consumes scheduler CPU and memory until restart.
+    """
+    return getattr(_get_process_adapter(), method_name)(*args, **kwargs)
+
+
+def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **kwargs):
+    """
+    Emit an OL event via the named adapter method and record its serialized size.
 
     Module-level so it is picklable across the ProcessPoolExecutor boundary used by
     `_on_task_instance_manual_state_change` for scheduler-side "task state changed
-    externally" emissions.
+    externally" emissions. The method is resolved on the per-process adapter so the
+    pool worker reuses one client across events (see ``_run_adapter_method``).
     """
-    event = adapter_method(**kwargs)
+    event = getattr(_get_process_adapter(), adapter_method_name)(**kwargs)
     Stats.gauge(stats_key, len(Serde.to_json(event).encode("utf-8")))
     return event
 
@@ -782,10 +809,10 @@ class OpenLineageListener:
                 return
 
             if ti_state == TaskInstanceState.FAILED:
-                adapter_method = self.adapter.fail_task
+                adapter_method_name = "fail_task"
                 event_type = RunState.FAIL.value.lower()
             elif ti_state in (TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED):
-                adapter_method = self.adapter.complete_task
+                adapter_method_name = "complete_task"
                 event_type = RunState.COMPLETE.value.lower()
             else:
                 raise ValueError(f"Unsupported ti_state: `{ti_state}`.")
@@ -867,7 +894,7 @@ class OpenLineageListener:
             operator_name = (ti.operator or "unknown").lower()
             self.submit_callable(
                 _emit_manual_state_change_event,
-                adapter_method,
+                adapter_method_name,
                 f"ol.event.size.{event_type}.{operator_name}",
                 **adapter_kwargs,
             )
@@ -979,7 +1006,8 @@ class OpenLineageListener:
             doc, doc_type = get_dag_documentation(dag_run.dag)
 
             self.submit_callable(
-                self.adapter.dag_started,
+                _run_adapter_method,
+                "dag_started",
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 logical_date=date,
@@ -1031,7 +1059,8 @@ class OpenLineageListener:
             doc, doc_type = get_dag_documentation(dag_run.dag)
 
             self.submit_callable(
-                self.adapter.dag_success,
+                _run_adapter_method,
+                "dag_success",
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
@@ -1082,7 +1111,8 @@ class OpenLineageListener:
             doc, doc_type = get_dag_documentation(dag_run.dag)
 
             self.submit_callable(
-                self.adapter.dag_failed,
+                _run_adapter_method,
+                "dag_failed",
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
