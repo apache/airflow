@@ -245,6 +245,29 @@ ever need the min-Airflow-bump case (`v`), that one is still a `needs_llm`
 judgement: a sub-agent should flag it when a PR bumps the provider's minimum
 Airflow version.
 
+The classifier picks the *code*; it does not write the entry text or decide
+visibility. Two things stay on you at write-time (Phase 4b), whatever code a
+commit carries:
+
+- **Rewrite the subject — never copy it verbatim.** Follow the
+  [entry wording rules](#entry-wording-rules--every-entry-must-read-well-for-users).
+- **Move non-user-facing commits to the hidden block.** A `Bump …` the
+  classifier returned as `misc` is *not* automatically a visible entry:
+  CI-environment / workflow-only changes (`[main] Upgrade important CI
+  environment`, `.github/**`), JavaScript build/dev tooling bumps for a bundled
+  UI (`vite`, `prettier`, `stylelint`, `eslint`, `webpack-*`, `terser-*`,
+  `@types/*`), and release-tooling bookkeeping (`Prepare providers release …`,
+  `Update providers metadata …`) belong under the `.. Below changes are
+  excluded …` marker.
+
+  > [!CAUTION]
+  > Don't hide a bump just because its title mentions CI or a "dependabot
+  > warning". A bump of a **runtime** dependency pin in the provider's
+  > `pyproject.toml` is **user-facing** — even when the motivation was a CI
+  > failure, a CVE, or a security advisory (common for `fab` / `edge3`). The
+  > trigger doesn't matter; whether the bumped package ships to users does.
+  > Keep those visible, with the version spelled out.
+
 #### Classify the `needs_llm` commits — batched per provider, not one agent per PR
 
 Only the commits the classifier returned as `needs_llm` still need a sub-agent.
@@ -475,9 +498,99 @@ Rules:
 - The `.. Below changes are excluded ...` block at the end is required even
   if empty. Lines under it use the indented `   * ``...``` form (three-space
   indent, double backticks).
-- Subjects must be the original commit subject with backticks replaced by
-  single quotes (matches `message_without_backticks`). Don't paraphrase.
 - Always keep the `(#NNNN)` PR suffix.
+- Replace backticks in the text with single quotes (matches
+  `message_without_backticks`).
+
+##### Entry wording rules — every entry must read well for users
+
+The commit subject is a **starting point, not the final entry**. The changelog
+is read by users deciding whether to upgrade, so each visible entry must be a
+self-contained, informative statement. Rewrite the subject (don't blindly copy
+it) so that it satisfies all of the following — these mirror the project's
+PR-title rules in the root `AGENTS.md`/`CLAUDE.md`:
+
+> [!IMPORTANT]
+> **Accuracy outranks polish — never invent behaviour.** Every rewrite must be
+> grounded in the diff and PR body you already read while classifying. Only add
+> a specific you can confirm from the source; a rough-but-accurate entry that
+> stays close to the original is *better* than a polished one that adds detail
+> the change doesn't support — the rough one is easy to spot and fix during a
+> busy release, the confident-but-wrong one is not. When a subject is vague and
+> the diff doesn't let you sharpen it with confidence, keep it close to the
+> original (cleaned up only for capitalization, mood, and prefixes) rather than
+> guessing. These rules copy-edit an entry; they never license adding facts.
+
+- **Start with a capital letter.** `fix the ftp tls` → `Fix the FTPS data channel ...`.
+- **Use the imperative mood** (`Add`, `Fix`, `Bump`, `Remove`, `Rename`, ...),
+  never gerunds (`Renaming` → `Rename`) or past tense (`Added` → `Add`).
+- **Never use a Conventional-Commit / scope prefix.** Strip `fix:`, `feat:`,
+  `chore:`, `docs:`, `refactor:`, `build:`, `ci:`, `test:`, and the scoped
+  `fix(...):` / `docs(...):` forms. `refactor: Added X` → `Add X`;
+  `docs: explain Y` → `Explain Y`; `fix(test_wasb.py): ...` → describe the
+  actual fix (see below). Area tags the project already uses (`UI:`, `API:`,
+  `Helm:`, `[AIP-NN]`) are fine to keep when they convey something.
+- **Be specific and informative — never vague, and never invented.** A reader
+  must learn *what* changed, but every specific must come from the diff you read,
+  not a guess. `Add missing template_fields to FooOperator` → name them straight
+  from the diff: `Add 'a', 'b' and 'c' to FooOperator template_fields`. `fix the
+  ftp tls` → say what was wrong and what now works *if the diff shows it*; if it
+  doesn't, keep the entry close to the original rather than inventing the detail.
+- **Spell out dependency bumps with the version**, and never mention tooling
+  like dependabot (users don't care). `Bump aiohttp regarding dependabot
+  warning` → `Bump aiohttp>=3.14.0` (read the constraint from the provider's
+  `pyproject.toml`). For a dependabot **group** bump (`Bump the <group> group
+  ... with N updates`), list the bumped packages when there are only a few; if
+  there are many and they are build/dev tooling, treat the whole thing as
+  not-user-facing (hide it — see below).
+- **Never mention test files or internal test helpers** in a visible entry. If
+  a PR's user-relevant change is in `src/`, describe that and drop the test
+  reference; if the PR is *only* tests, it is not user-facing (hide it).
+- **Don't @-mention people or link reviewers** — describe the change, not who
+  asked for it.
+- **Note Airflow-core compatibility when the provider change exists only to
+  track a core feature/version.** A provider PR that adds a menu item / shim
+  for a new core capability should say so:
+  `Add Browse > Deadlines menu item for compatibility with Airflow 3.3.0`.
+
+##### What is *not* user-facing → move it to the hidden (excluded) block
+
+Beyond the `skip` classification, the following are **not user-facing** and
+must live under the `.. Below changes are excluded ...` marker, even if the
+commit touched `src/`:
+
+- CI-environment / workflow-only changes (`[main] Upgrade important CI
+  environment`, `.github/**` edits).
+- Release-tooling bookkeeping commits (`Prepare providers release ...`,
+  `Update providers metadata ...`) — internal, never a visible entry.
+- JavaScript **build/dev tooling** bumps for a provider's bundled UI — bundlers,
+  linters, type stubs and test libs (`vite`, `prettier`, `stylelint`, `eslint`,
+  `webpack-*`, `terser-*`, `@types/*`). These do not ship to users.
+- Comment-only / docstring-only changes to source with no behaviour change.
+- Internal renames or refactors that don't change any public symbol, parameter,
+  return type, or stored-data schema (e.g. renaming a test helper, aligning
+  internal terminology with core).
+
+A bump that changes a **shipped runtime dependency** is the opposite — it stays
+visible (with the version) no matter why it was made. A CI failure, a
+dependabot alert, or a CVE/security advisory is just the *trigger*; if the
+package reaches users (e.g. a `fab` / `edge3` runtime pin), the bump is
+user-facing.
+
+When in doubt whether a dependency is user-facing: a **runtime** Python
+dependency in `pyproject.toml` is user-facing (keep, with the version); a
+**dev/build-only** JS or Python tool is not (hide).
+
+> [!IMPORTANT]
+> If, after moving all non-user-facing entries to the hidden block, a provider
+> has **no visible entries left**, it must **not** be released — it is doc-only.
+> Revert its version bump (restore the previous version and `source-date-epoch`
+> in `provider.yaml`, drop the new `changelog.rst` section, restore the
+> regenerated build files), write the latest provider-touching commit hash into
+> `providers/<provider-path>/docs/.latest-doc-only-change.txt`, and re-run the
+> `--reapply-templates-only` step so `uv.lock` and
+> `generated/provider_dependencies.json.sha256sum` are regenerated for the
+> reverted version. See Phase 4a's doc-only handling.
 
 #### 4c. Regenerate templates with breeze
 
