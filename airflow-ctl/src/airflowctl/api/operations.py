@@ -204,11 +204,15 @@ class BaseOperations:
             if callable(value):
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
-    def execute_list(self, *, path, data_model, offset=0, limit=50, params=None):
+    def execute_list(self, *, path, data_model, offset=0, limit=3, params=None):
+        print("limit", limit, "offset", offset)
+        limit = params.pop("limit", limit)
+        offset = params.pop("offset", offset)
         if limit <= 0:
             raise ValueError(f"limit must be a positive integer, got {limit}")
 
-        shared_params = {"limit": limit, **(params or {})}
+        shared_params = {"limit": limit, "offset": offset, **(params or {})}
+        print("shared_params", shared_params)
 
         def safe_validate(content: bytes) -> BaseModel:
             try:
@@ -217,10 +221,15 @@ class BaseOperations:
                 raw = fill_missing_fields(json.loads(content), data_model)
                 return data_model.model_validate(raw)  # type: ignore[union-attr]
 
+        print("execute_list params", params)
         self.response = self.client.get(path, params=shared_params)
         first_pass = safe_validate(self.response.content)
-        total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+        # total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+        # print("total_entries",total_entries)
+        total_entries = 12
+        print("totoal_entries ", total_entries, "limit", limit)
         if total_entries < limit:
+            print("first pass limit", limit, "total_entries", total_entries)
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
@@ -228,8 +237,10 @@ class BaseOperations:
                 found_key = key
                 break
         entry_list = getattr(first_pass, found_key)
+        print("check total_entries", total_entries)
         offset = offset + limit
         while offset < total_entries:
+            print("limit", limit, "offset", offset)
             self.response = self.client.get(path, params={**shared_params, "offset": offset})
             entry = safe_validate(self.response.content)
             offset = offset + limit
