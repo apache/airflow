@@ -313,7 +313,14 @@ class ImapHook(BaseHook):
                 file_path = f"{base}_{counter}{ext}"
                 counter += 1
 
-        with open(file_path, "wb") as file:
+        # O_NOFOLLOW closes the check-then-open race: if a symlink is planted at
+        # file_path after the _is_symlink check but before this write, the open
+        # fails instead of following it. The flag is absent on some platforms
+        # (e.g. Windows), where it degrades to a no-op.
+        def opener(path: str, flags: int) -> int:
+            return os.open(path, flags | getattr(os, "O_NOFOLLOW", 0))
+
+        with open(file_path, "wb", opener=opener) as file:
             file.write(payload)
 
     def _is_symlink(self, name: str, local_output_directory: str) -> bool:
