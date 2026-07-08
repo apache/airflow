@@ -179,6 +179,53 @@ def _make_trigger_span(
     return tracer.start_as_current_span(span_name, attributes=attributes, context=parent_context)
 
 
+def _format_exception_dict(exc: list[dict] | dict | str | Any) -> str | Any:
+    """Format a structlog exception dict (or list of dicts) into a traceback string."""
+    if isinstance(exc, str):
+        return exc
+
+    if isinstance(exc, dict):
+        exc = [exc]
+
+    if not isinstance(exc, list):
+        return exc
+
+    lines = []
+    for i, e in enumerate(exc):
+        if not isinstance(e, dict):
+            continue
+
+        if i > 0:
+            if e.get("is_cause"):
+                lines.append("\nThe above exception was the direct cause of the following exception:\n")
+            elif e.get("is_context"):
+                lines.append("\nDuring handling of the above exception, another exception occurred:\n")
+            else:
+                lines.append("\n")
+
+        lines.append("Traceback (most recent call last):")
+        for frame in e.get("frames", []):
+            filename = frame.get("filename", "")
+            lineno = frame.get("lineno", "")
+            name = frame.get("name", "")
+            line = frame.get("line", "")
+            lines.append(f'  File "{filename}", line {lineno}, in {name}')
+            if line:
+                lines.append(f"    {line}")
+
+        exc_type = e.get("exc_type", "")
+        exc_value = e.get("exc_value", "")
+        if exc_type and exc_value:
+            lines.append(f"{exc_type}: {exc_value}")
+        elif exc_type:
+            lines.append(exc_type)
+
+    if not lines:
+        return exc
+
+    return "\n".join(lines)
+
+
 __all__ = [
     "TriggerRunner",
     "TriggerRunnerSupervisor",
@@ -1041,8 +1088,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 log = fallback_log
 
             if exc := event.pop("exception", None):
-                # TODO: convert the dict back to a pretty stack trace
-                event["error_detail"] = exc
+                event["error_detail"] = _format_exception_dict(exc)
             if lvl_name := NAME_TO_LEVEL.get(event.pop("level")):
                 log.log(lvl_name, event.pop("event", None), **event)
 
