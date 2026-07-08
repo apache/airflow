@@ -54,4 +54,4 @@ def quickstart_batch():
 
 
 quickstart_batch()
-# [end quickstart_batch]
+# [END quickstart_batch]
