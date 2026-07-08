@@ -265,10 +265,9 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-ts-sdk-supervisor-schema
-        name: Check TypeScript SDK supervisor schema is up to date (manual)
+        name: Check TypeScript SDK supervisor schema is up to date
         entry: ./ts-sdk/scripts/ci/prek/check_supervisor_schema.py
         language: node
-        stages: ['manual']
         files: >
           (?x)
           ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|

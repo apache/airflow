@@ -480,6 +480,10 @@ when some files are not changed. Those are the rules implemented:
   * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
     wrapper, which downloads the Gradle distribution, so we avoid that download on PRs that do
     not touch `java-sdk/`)
+  * if neither `ts-sdk/` nor the supervisor wire schema
+    (`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`) changed -
+    `check-ts-sdk-supervisor-schema` check is skipped (it regenerates and diffs the ts-sdk
+    generated file, which is only meaningful when one of those changed)
   * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
     `check-provider-yaml-valid` check is skipped
 
