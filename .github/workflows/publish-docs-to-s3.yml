@@ -198,7 +198,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout current version first to clean-up stuff"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           path: current-version
@@ -215,7 +215,7 @@ jobs:
       # This will take longer as we need to rebuild CI image and it will not use cache
       # but it will build the CI image from the version of Airflow that is used to check out things
       - name: "Checkout ${{ inputs.ref }} "
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -259,7 +259,7 @@ jobs:
           -t ghcr.io/apache/airflow/main/ci/python3.9:latest --target main .
           -f Dockerfile.ci --platform linux/amd64
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -272,7 +272,7 @@ jobs:
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
         with:
           path: ./generated/_inventory_cache/
@@ -293,7 +293,7 @@ jobs:
             exit 1
           fi
       - name: "Upload build docs"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: airflow-docs
           path: /mnt/_build
@@ -325,7 +325,7 @@ jobs:
         # but it will build the CI image from the version of Airflow that is used to check out things
         # We also fetch the whole history to be able to prepare SBOM files
       - name: "Checkout current version with all history for SBOM"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -397,7 +397,7 @@ jobs:
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        uses: aws-actions/configure-aws-credentials@254c19bd240aabef8777f48595e9d2d7b972184b  # v6.2.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

@@ -149,11 +149,11 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -226,7 +226,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Install uv"
@@ -843,12 +843,12 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417  # v6.3.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version: 1.24
           cache-dependency-path: go-sdk/go.sum
@@ -947,7 +947,7 @@ jobs:
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Get failing jobs"
@@ -980,7 +980,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "slack-state-tests-${{ github.ref_name }}"
           path: ./slack-state/
@@ -988,7 +988,7 @@ jobs:
           overwrite: true
       - name: "Notify Slack (new/changed failures)"
         if: steps.notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1004,7 +1004,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1020,7 +1020,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (all tests passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1060,7 +1060,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Free up disk space"
@@ -1081,7 +1081,7 @@ jobs:
             --pattern "**/warnings-*.txt" \
             --output ./files
       - name: "Upload artifact for summarized warnings"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "test-summarized-warnings"
           path: ./files/warn-summary-*.txt
