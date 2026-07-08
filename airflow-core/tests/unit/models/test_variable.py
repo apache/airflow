@@ -339,6 +339,20 @@ class TestVariable:
         Variable.set(key=key, value=value, team_name=testing_team.name, session=session)
         assert Variable.delete(key=key, session=session) == 0
 
+    @pytest.mark.parametrize("bad_key", [None, "", 123])
+    def test_variable_set_rejects_invalid_key(self, bad_key, session):
+        with pytest.raises(ValueError, match="Variable key must be a non-empty string"):
+            Variable.set(key=bad_key, value="value", session=session)
+
+    @pytest.mark.parametrize("bad_key", [None, "", 123])
+    def test_variable_get_rejects_invalid_key(self, bad_key):
+        with pytest.raises(ValueError, match="Variable key must be a non-empty string"):
+            Variable.get(bad_key)
+
+    def test_variable_setdefault_rejects_invalid_key(self, session):
+        with pytest.raises(ValueError, match="Variable key must be a non-empty string"):
+            Variable.setdefault(key=None, default="value")
+
     def test_masking_from_db(self, session):
         """Test secrets are masked when loaded directly from the DB"""
         # Normally people will use `Variable.get`, but just in case, catch direct DB access too
