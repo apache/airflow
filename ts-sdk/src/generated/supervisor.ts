@@ -258,6 +258,12 @@ export type Name9 = string;
 export type Kind1 = "literal";
 export type FromDefault = boolean;
 export type MultiTeam = boolean;
+/**
+ * @minItems 2
+ * @maxItems 2
+ */
+export type SkippedRange = [string, string];
+export type TypeDagSkippedIntervalsCallbackRequest = "DagSkippedIntervalsCallbackRequest";
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
 export type BundleName3 = string;
@@ -268,7 +274,12 @@ export type VersionData3 = {
 export type Msg2 = string | null;
 export type EmailType = "failure" | "retry";
 export type Type14 = "EmailRequest";
-export type CallbackRequests = (DagCallbackRequest | TaskCallbackRequest | EmailRequest)[];
+export type CallbackRequests = (
+  | DagCallbackRequest
+  | DagSkippedIntervalsCallbackRequest
+  | TaskCallbackRequest
+  | EmailRequest
+)[];
 export type Type15 = "DagFileParseRequest";
 export type Fileloc = string;
 export type LastLoaded = string | null;
@@ -894,6 +905,22 @@ export interface DagCallbackRequest {
   context_from_server?: DagRunContext | null;
   is_failure_callback?: IsFailureCallback;
   type?: Type12;
+}
+/**
+ * Store skipped intervals callback data for execution by the Dag processor.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "DagSkippedIntervalsCallbackRequest".
+ */
+export interface DagSkippedIntervalsCallbackRequest {
+  filepath: Filepath1;
+  bundle_name: BundleName2;
+  bundle_version: BundleVersion1;
+  version_data?: VersionData2;
+  msg?: Msg1;
+  dag_id: DagId4;
+  skipped_range: SkippedRange;
+  type?: TypeDagSkippedIntervalsCallbackRequest;
 }
 /**
  * Class to pass context info from the server to build a Execution context object.
