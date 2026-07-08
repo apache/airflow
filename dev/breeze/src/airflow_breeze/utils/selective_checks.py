@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
+    JAVA_SDK_VERSION,
     KIND_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
@@ -681,6 +682,7 @@ class SelectiveChecks:
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
     default_helm_version = HELM_VERSION
+    java_sdk_version = JAVA_SDK_VERSION
 
     @cached_property
     def latest_versions_only(self) -> bool:

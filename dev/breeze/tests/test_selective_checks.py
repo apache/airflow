@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    JAVA_SDK_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
@@ -1641,6 +1642,18 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
     )
     skipped_hooks = get_outputs_from_stderr(str(stderr))["skip-prek-hooks"].split(",")
     assert ("ktlint" in skipped_hooks) is ktlint_skipped
+
+
+def test_java_sdk_version_is_emitted_as_output():
+    # The lang-SDK k8s job reads this to pick the JDK for the native Java build via actions/setup-java.
+    stderr = SelectiveChecks(
+        files=("README.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=tuple(),
+        default_branch="main",
+    )
+    assert get_outputs_from_stderr(str(stderr))["java-sdk-version"] == JAVA_SDK_VERSION
 
 
 @pytest.mark.skipif(
