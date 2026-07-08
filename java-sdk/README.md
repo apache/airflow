@@ -419,7 +419,7 @@ manager, before sending the vote — should run against the source package in
 
    ```bash
    tar xzf apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz
-   git clone --branch java-sdk/1.0.0-beta1-rc1 \
+   git clone --branch java-sdk/1.0.0-beta1-rc<N> \
      https://github.com/apache/airflow.git tag-checkout
    diff -rq apache-airflow-java-sdk-1.0.0-beta1/ tag-checkout/java-sdk/ \
      | grep -v -E 'gradlew|gradle/wrapper'
