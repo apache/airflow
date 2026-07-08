@@ -1,1 +1,0 @@
-Speed up scheduling of dynamically mapped tasks by reducing number of queries.
