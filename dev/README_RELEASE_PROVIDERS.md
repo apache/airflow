@@ -1012,9 +1012,11 @@ cd asf-dist/dev/airflow
 export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
 
-Optionally you can use the `breeze release-management check-release-files` command
-to verify that all expected files are present in SVN. This command will produce a `Dockerfile.pmc` which
-may help with verifying installation of the packages.
+Verify that all expected files are present in SVN. You can do this manually by inspecting the
+directory listing against the file counts described above, but the recommended way is to run the
+`breeze release-management check-release-files` command below, which checks completeness for you
+(it is the same gate the release manager runs before sending the vote email). As a bonus it produces
+a `Dockerfile.pmc` which helps with verifying installation of the packages.
 
 Once you have cloned/updated the SVN repository, copy the PyPi URLs shared
 in the email to a file called `packages.txt` in the `$AIRFLOW_REPO_ROOT/files`
@@ -1048,7 +1050,7 @@ it means that the build has a verified provenance.
 
 How to verify it:
 
-1) Change directory where your airflow sources are checked out
+1) Change directory to where your airflow sources are checked out:
 
 ```shell
 cd "$AIRFLOW_REPO_ROOT"
@@ -1057,7 +1059,6 @@ cd "$AIRFLOW_REPO_ROOT"
 2) Check out the ``providers/YYYY-MM-DD`` tag:
 
 ```shell
-cd "$AIRFLOW_REPO_ROOT"
 git fetch upstream --tags
 git checkout providers/${RELEASE_DATE}
 ```
