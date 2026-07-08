@@ -93,7 +93,12 @@ class TestTimeoutK8sApiClient:
         ("kwargs", "expected_timeout"),
         [
             pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            # Generated kubernetes client methods always pass _request_timeout=None explicitly,
+            # so setdefault() is a no-op. The fix must coerce None to the default timeout.
+            pytest.param({"_request_timeout": None}, API_TIMEOUT, id="explicit-none-timeout"),
             pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            # Log-streaming path passes a (connection, read) tuple; it must not be clobbered.
+            pytest.param({"_request_timeout": (1800, 300)}, (1800, 300), id="explicit-tuple-preserved"),
             pytest.param(
                 {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
                 API_TIMEOUT,
@@ -127,7 +132,12 @@ class TestTimeoutAsyncK8sApiClient:
         ("kwargs", "expected_timeout"),
         [
             pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            # Generated kubernetes_asyncio client methods always pass _request_timeout=None explicitly,
+            # so setdefault() is a no-op. The fix must coerce None to the default timeout.
+            pytest.param({"_request_timeout": None}, API_TIMEOUT, id="explicit-none-timeout"),
             pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            # Log-streaming path passes a (connection, read) tuple; it must not be clobbered.
+            pytest.param({"_request_timeout": (1800, 300)}, (1800, 300), id="explicit-tuple-preserved"),
             pytest.param(
                 {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
                 API_TIMEOUT,
