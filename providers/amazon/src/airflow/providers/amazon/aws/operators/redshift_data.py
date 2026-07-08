@@ -61,6 +61,9 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     :param session_id: the session identifier of the query
     :param session_keep_alive_seconds: duration in seconds to keep the session alive after the query
         finishes. The maximum time a session can keep alive is 24 hours
+    :param cancel_on_kill: If True (default), cancel the running Redshift statement when the task is
+        killed. This applies both while the operator is running and, for a deferred task, while it
+        waits in the triggerer.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -104,6 +107,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         session_id: str | None = None,
         session_keep_alive_seconds: int | None = None,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -125,6 +129,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.deferrable = deferrable
         self.session_id = session_id
         self.session_keep_alive_seconds = session_keep_alive_seconds
+        self.cancel_on_kill = cancel_on_kill
         if self.deferrable and not self.wait_for_completion:
             self.log.warning(
                 "deferrable=True and wait_for_completion=False are set; deferrable will be "
@@ -175,6 +180,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
                         region_name=self.region_name,
                         verify=self.verify,
                         botocore_config=self.botocore_config,
+                        cancel_on_kill=self.cancel_on_kill,
                     ),
                     method_name="execute_complete",
                 )
@@ -229,6 +235,8 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query."""
+        if not self.cancel_on_kill:
+            return
         if hasattr(self, "statement_id"):
             self.log.info("Received a kill signal.")
             self.log.info("Stopping Query with statementId - %s", self.statement_id)
