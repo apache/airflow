@@ -45,7 +45,10 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow._shared.observability.traces import OverrideableRandomIdGenerator
+from airflow._shared.observability.traces import (
+    PARENT_TRACE_CONTEXT_KEY,
+    OverrideableRandomIdGenerator,
+)
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -4440,6 +4443,128 @@ class TestDagRunTracing:
         ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
         span_ctx = trace.get_current_span(ctx).get_span_context()
         assert span_ctx.trace_flags.sampled is flag
+
+    _EXTERNAL_TRACE_ID = "11111111111111111111111111111111"
+    _EXTERNAL_SPAN_ID = "2222222222222222"
+
+    @pytest.mark.parametrize(
+        ("conf", "expected_trace_id"),
+        [
+            pytest.param(
+                {PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+                _EXTERNAL_TRACE_ID,
+                id="traceparent-string",
+            ),
+            pytest.param(
+                {
+                    PARENT_TRACE_CONTEXT_KEY: {
+                        "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"
+                    }
+                },
+                _EXTERNAL_TRACE_ID,
+                id="carrier-dict",
+            ),
+            pytest.param({PARENT_TRACE_CONTEXT_KEY: "not-a-traceparent"}, None, id="malformed"),
+            pytest.param({PARENT_TRACE_CONTEXT_KEY: 123}, None, id="non-str"),
+            pytest.param({PARENT_TRACE_CONTEXT_KEY: {"nope": "x"}}, None, id="dict-without-traceparent"),
+            pytest.param({}, None, id="empty-conf"),
+            pytest.param(None, None, id="no-conf"),
+            pytest.param({"other": "x"}, None, id="unrelated-key"),
+        ],
+    )
+    def test_parent_trace_context(self, conf, expected_trace_id):
+        """Only a valid W3C traceparent (string or carrier dict) yields a parent context; else None."""
+        from airflow.models.dagrun import parent_trace_context
+
+        ctx = parent_trace_context(conf)
+        if expected_trace_id is None:
+            assert ctx is None
+        else:
+            span_ctx = otel_trace.get_current_span(ctx).get_span_context()
+            assert span_ctx.is_valid
+            assert format(span_ctx.trace_id, "032x") == expected_trace_id
+
+    def test_parent_trace_context_carrier_dict_preserves_tracestate(self):
+        """A carrier dict may also carry tracestate, which is extracted alongside traceparent."""
+        from airflow.models.dagrun import parent_trace_context
+
+        conf = {
+            PARENT_TRACE_CONTEXT_KEY: {
+                "traceparent": f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01",
+                "tracestate": "foo=bar",
+            }
+        }
+        span_ctx = otel_trace.get_current_span(parent_trace_context(conf)).get_span_context()
+        assert span_ctx.trace_state.get("foo") == "bar"
+
+    def test_context_carrier_embeds_external_parent_from_conf(self, dag_maker):
+        """A run with airflow/parent_trace_context rides the external trace_id."""
+        with dag_maker("test_tracing_embed_conf"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(
+            conf={PARENT_TRACE_CONTEXT_KEY: f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01"}
+        )
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        span_ctx = otel_trace.get_current_span(ctx).get_span_context()
+        assert format(span_ctx.trace_id, "032x") == self._EXTERNAL_TRACE_ID
+
+    def test_context_carrier_is_root_without_parent_conf(self, dag_maker):
+        """A run with no parent conf mints its own root trace, not the external one."""
+        with dag_maker("test_tracing_root_default"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        span_ctx = otel_trace.get_current_span(ctx).get_span_context()
+        assert format(span_ctx.trace_id, "032x") != self._EXTERNAL_TRACE_ID
+
+    def test_emit_dagrun_span_nests_under_external_parent(self, dag_maker, session):
+        """With the parent conf key set, the dag_run span is a child of the external span."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker("test_tracing_embed_emit", session=session) as dag:
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.dag = dag
+        dr.conf = {PARENT_TRACE_CONTEXT_KEY: f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01"}
+        # Carrier already rides the external trace with its own child span id, sampled.
+        dr.context_carrier = {"traceparent": f"00-{self._EXTERNAL_TRACE_ID}-3333333333333333-01"}
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr._emit_dagrun_span(state=DagRunState.SUCCESS)
+
+        spans = in_mem_exporter.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+        assert span.context.trace_id == int(self._EXTERNAL_TRACE_ID, 16)
+        assert span.context.span_id == int("3333333333333333", 16)
+        assert span.parent is not None
+        assert span.parent.trace_id == int(self._EXTERNAL_TRACE_ID, 16)
+        assert span.parent.span_id == int(self._EXTERNAL_SPAN_ID, 16)
+
+    def test_emit_dagrun_span_is_root_by_default(self, dag_maker, session):
+        """Without the parent conf key, the dag_run span is a root span (no parent)."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker("test_tracing_root_emit", session=session) as dag:
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.dag = dag
+        dr.context_carrier = {"traceparent": f"00-{self._EXTERNAL_TRACE_ID}-3333333333333333-01"}
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr._emit_dagrun_span(state=DagRunState.SUCCESS)
+
+        spans = in_mem_exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].parent is None
 
 
 class TestDagRunStatsTagsTeamName:

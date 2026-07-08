@@ -87,6 +87,35 @@ Custom spans created this way are automatically nested as children of the Airflo
 task span when tracing is enabled. When tracing is disabled, the no-op tracer provided by
 the OpenTelemetry API is used, so tasks run without any overhead.
 
+Per-run trace controls (run conf)
+---------------------------------
+
+A few reserved keys in a Dag run's ``conf`` let you control tracing for that individual run.
+They are read when the run is created (and when it is cleared), so set them when you trigger the
+run — from the UI/API "Trigger with config" dialog, the ``airflow dags trigger --conf`` CLI, or
+``TriggerDagRunOperator(conf=...)``.
+
+``airflow/trace_sampled``
+    Force the head-sampling decision for this run. ``true`` always traces the run and ``false``
+    never does, regardless of the configured sampler; omit the key to let the sampler decide.
+    Only an explicit boolean is honored.
+
+``airflow/task_span_detail_level``
+    Integer detail level controlling how many spans task execution emits for this run.
+
+``airflow/parent_trace_context``
+    Embed this run in an **external** trace instead of it being a root trace. Supply a W3C
+    ``traceparent`` string (optionally a mapping with ``traceparent`` and ``tracestate``) captured
+    from the system that triggered the run — an upstream orchestrator, event pipeline, CI job, or
+    another Airflow deployment. The whole run (the ``dag_run`` span and all task/worker spans) then
+    lives inside that trace, and parent-based samplers inherit the external sampling decision. When
+    the key is absent the run is a root trace, which is the default. A missing or malformed value is
+    ignored (the run stays a root) rather than failing run creation.
+
+    .. code-block:: json
+
+        {"airflow/parent_trace_context": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+
 Enable Https
 -----------------
 

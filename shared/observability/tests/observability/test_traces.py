@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from opentelemetry import trace
+from opentelemetry import context, trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import (
     ALWAYS_OFF,
@@ -41,6 +41,23 @@ from airflow_shared.observability.traces import (
 def _carrier_is_sampled(carrier: dict[str, str]) -> bool:
     ctx = TraceContextTextMapPropagator().extract(carrier)
     return trace.get_current_span(ctx).get_span_context().trace_flags.sampled
+
+
+def _carrier_span_context(carrier: dict[str, str]):
+    ctx = TraceContextTextMapPropagator().extract(carrier)
+    return trace.get_current_span(ctx).get_span_context()
+
+
+def _parent_context(trace_id, span_id=0x1122334455667788, sampled=True, trace_state=None):
+    """A remote parent context standing in for an external trace."""
+    span_ctx = SpanContext(
+        trace_id=trace_id,
+        span_id=span_id,
+        is_remote=True,
+        trace_flags=TraceFlags(TraceFlags.SAMPLED if sampled else 0),
+        trace_state=trace_state or TraceState(),
+    )
+    return trace.set_span_in_context(NonRecordingSpan(span_ctx))
 
 
 class TestBuildTraceStateEntries:
@@ -248,6 +265,62 @@ class TestNewDagrunTraceCarrierSampling:
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 2
         assert _carrier_is_sampled(carrier) is True
+
+
+class TestNewDagrunTraceCarrierParentContext:
+    """parent_context embeds the run in an external trace instead of a fresh root."""
+
+    @pytest.fixture
+    def with_sampler(self, monkeypatch):
+        def _install(sampler):
+            provider = TracerProvider(sampler=sampler)
+            monkeypatch.setattr(
+                "airflow_shared.observability.traces.trace.get_tracer_provider",
+                lambda: provider,
+            )
+
+        return _install
+
+    def test_embeds_in_parent_trace_with_own_span(self):
+        parent = _parent_context(trace_id=0xABC123, span_id=0xDEF456)
+        span_ctx = _carrier_span_context(new_dagrun_trace_carrier(parent_context=parent))
+        assert span_ctx.trace_id == 0xABC123  # rides the external trace
+        assert span_ctx.span_id != 0xDEF456  # but is its own child span
+
+    def test_without_parent_context_mints_fresh_root(self):
+        parent = _parent_context(trace_id=0xABC123)
+        embedded = _carrier_span_context(new_dagrun_trace_carrier(parent_context=parent))
+        root = _carrier_span_context(new_dagrun_trace_carrier())
+        assert root.trace_id != embedded.trace_id
+
+    def test_empty_context_treated_as_no_parent(self):
+        # An empty Context carries an invalid span -> root trace, not an embed.
+        span_ctx = _carrier_span_context(new_dagrun_trace_carrier(parent_context=context.Context()))
+        assert span_ctx.is_valid
+
+    def test_parent_based_sampler_inherits_sampled_parent(self, with_sampler):
+        # Root decision is OFF, but a sampled parent should flip it to sampled.
+        with_sampler(ParentBased(root=ALWAYS_OFF))
+        parent = _parent_context(trace_id=0xAAA, sampled=True)
+        assert _carrier_is_sampled(new_dagrun_trace_carrier(parent_context=parent)) is True
+
+    def test_parent_based_sampler_inherits_unsampled_parent(self, with_sampler):
+        # Root decision is ON, but an unsampled parent should flip it to not-sampled.
+        with_sampler(ParentBased(root=ALWAYS_ON))
+        parent = _parent_context(trace_id=0xAAA, sampled=False)
+        assert _carrier_is_sampled(new_dagrun_trace_carrier(parent_context=parent)) is False
+
+    def test_force_sampled_overrides_parent(self, with_sampler):
+        with_sampler(ParentBased(root=ALWAYS_ON))
+        parent = _parent_context(trace_id=0xAAA, sampled=True)
+        carrier = new_dagrun_trace_carrier(parent_context=parent, force_sampled=False)
+        assert _carrier_is_sampled(carrier) is False
+
+    def test_embedding_preserves_parent_trace_state_when_forced(self):
+        # With force_sampled the sampler is skipped, so the external tracestate is the source.
+        parent = _parent_context(trace_id=0xAAA, trace_state=TraceState([("foo", "bar")]))
+        carrier = new_dagrun_trace_carrier(parent_context=parent, force_sampled=True)
+        assert _carrier_span_context(carrier).trace_state.get("foo") == "bar"
 
 
 class TestGetTaskSpanDetailLevel:
