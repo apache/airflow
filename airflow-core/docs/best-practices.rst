@@ -83,7 +83,7 @@ Communication
 --------------
 
 Airflow executes tasks of a Dag on different servers in case you are using :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>` or :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
-Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
+Therefore, you should not store any file or config in the local filesystem as the downstream task is likely to run on a different server without access to it — for example, a task that downloads the data file that the downstream task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in Dag.
 
@@ -815,7 +815,7 @@ Self-Checks
 ------------
 
 You can also implement checks in a Dag to make sure the tasks are producing the results as expected.
-As an example, if you have a task that pushes data to S3, you can implement a check in the next task. For example, the check could
+As an example, if you have a task that pushes data to S3, you can implement a check in the downstream task. For example, the check could
 make sure that the partition is created in S3 and perform some simple checks to determine if the data is correct.
 
 
