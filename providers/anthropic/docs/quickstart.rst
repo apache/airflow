@@ -58,7 +58,7 @@ Or add it through the Airflow UI (``Admin > Connections``) or the CLI (``airflow
 A task retry resubmits a **new** batch, so set ``retries=0``:
 
 
-.. exampleinclude:: /../../antropic/src/airflow/providers/anthropic/example_dags/example_batch.py
+.. exampleinclude:: /../../anthropic/src/airflow/providers/anthropic/example_dags/example_batch.py
     :language: python
     :start-after: [START quickstart_batch]
     :end-before: [END quickstart_batch]
