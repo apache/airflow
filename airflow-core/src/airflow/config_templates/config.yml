@@ -3050,6 +3050,15 @@ kerberos:
       type: boolean
       example: ~
       default: "True"
+    include_renewal_lifetime:
+      description: |
+        Whether to include the renewable lifetime option (`-r`) in the `kinit` command.
+        This is enabled by default for MIT Kerberos, but can be disabled (set to False)
+        if using a Kerberos implementation that doesn't support this flag, such as `Heimdal`.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "True"
 sensors:
   description: ~
   options:

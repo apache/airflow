@@ -285,7 +285,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.21"
+AIRFLOW_UV_VERSION = "0.11.25"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
@@ -2035,7 +2035,8 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name == "helm-chart":
         return chart_version()
 
-    if package_name in ("docker-stack", "apache-airflow-providers"):
+    if package_name in ("docker-stack", "apache-airflow-providers", "java-sdk"):
+        # Non-versioned packages; java-sdk is versioned but only via a staged stable.txt.
         return None
 
     if package_name.startswith("apache-airflow-providers-"):
@@ -2876,7 +2877,11 @@ def generate_issue_content_providers(
             all_prs.update(prs)
             provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
-        github_token = retrieve_github_token(github_token)
+        github_token = retrieve_github_token(
+            github_token,
+            description="airflow-generate-provider-release-issue",
+            scopes="repo:status",
+        )
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
@@ -3486,7 +3491,14 @@ def generate_airflowctl_changelog(
     verbose = get_verbose()
 
     prs = _get_airflowctl_prs(verbose, previous_release, current_release, excluded_pr_list)
-    github_token = retrieve_github_token(github_token) or ""
+    github_token = (
+        retrieve_github_token(
+            github_token,
+            description="airflow-generate-airflowctl-changelog",
+            scopes="repo:status",
+        )
+        or ""
+    )
 
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
@@ -4664,7 +4676,14 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
-    github_token = retrieve_github_token(github_token) or ""
+    github_token = (
+        retrieve_github_token(
+            github_token,
+            description="airflow-generate-release-issue",
+            scopes="repo:status",
+        )
+        or ""
+    )
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}

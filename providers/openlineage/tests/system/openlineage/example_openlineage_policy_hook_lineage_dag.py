@@ -32,12 +32,13 @@ from airflow import DAG
 from airflow.providers.openlineage.api.emission_policy import extend_global_openlineage_emission_policy
 from airflow.providers.standard.operators.python import PythonOperator
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 
 def _register_hook_lineage():
-    from airflow.lineage.hook import get_hook_lineage_collector
+    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
     collector = get_hook_lineage_collector()
     collector.add_input_asset(context=None, uri="file://host1/in1.txt")
@@ -47,7 +48,7 @@ def _register_hook_lineage():
 
 
 def _register_sql_hook_lineage():
-    from airflow.lineage.hook import get_hook_lineage_collector
+    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
     from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 
     collector = get_hook_lineage_collector()
@@ -61,6 +62,7 @@ def _register_sql_hook_lineage():
 DAG_ID = "openlineage_policy_hook_lineage_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,
