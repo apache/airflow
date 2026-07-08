@@ -20,10 +20,10 @@ from __future__ import annotations
 import time
 from typing import Any, TypeVar
 
+import httpx
 from airbyte_api import AirbyteAPI
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, SchemeClientCredentials, Security
-from requests import Session
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -110,8 +110,19 @@ class AirbyteHook(BaseHook):
         client = None
         if self.conn["proxies"]:
             self.log.debug("Creating client proxy...")
-            client = Session()
-            client.proxies = self.conn["proxies"]
+            proxies = self.conn["proxies"]
+            mounts = {}
+            if isinstance(proxies, dict):
+                for scheme, proxy_url in proxies.items():
+                    # httpx mount keys require a "://" suffix
+                    key = scheme if "://" in scheme else f"{scheme}://"
+                    mounts[key] = httpx.HTTPTransport(proxy=proxy_url)
+            else:
+                mounts = {
+                    "http://": httpx.HTTPTransport(proxy=proxies),
+                    "https://": httpx.HTTPTransport(proxy=proxies),
+                }
+            client = httpx.Client(mounts=mounts)
 
         return AirbyteAPI(
             server_url=self.conn["host"],
