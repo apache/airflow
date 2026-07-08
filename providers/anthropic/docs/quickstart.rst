@@ -57,44 +57,11 @@ Or add it through the Airflow UI (``Admin > Connections``) or the CLI (``airflow
 ``messages.create`` requests — and waits for it to reach a terminal status.
 A task retry resubmits a **new** batch, so set ``retries=0``:
 
-.. code-block:: python
+.. exampleinclude:: /../src/airflow/example_dags/example_batch.py
+    :language: python
+    :start-after: [START quickstart_batch]
+    :end-before: [END quickstart_batch]
 
-    from airflow.sdk import dag
-    from airflow.providers.anthropic.operators.batch import AnthropicBatchOperator
-
-
-    @dag(tags=["example"])
-    def quickstart_batch():
-        AnthropicBatchOperator(
-            task_id="submit_batch",
-            requests=[
-                {
-                    "custom_id": "summary-1",
-                    "params": {
-                        "model": "claude-opus-4-8",
-                        "max_tokens": 1024,
-                        "messages": [
-                            {"role": "user", "content": "Summarize the plot of Hamlet in two sentences."}
-                        ],
-                    },
-                },
-                {
-                    "custom_id": "summary-2",
-                    "params": {
-                        "model": "claude-opus-4-8",
-                        "max_tokens": 1024,
-                        "messages": [
-                            {"role": "user", "content": "Summarize the plot of Macbeth in two sentences."}
-                        ],
-                    },
-                },
-            ],
-            wait_for_completion=True,
-            retries=0,
-        )
-
-
-    quickstart_batch()
 
 Run it like any other Dag (``airflow dags test quickstart_batch``). The task
 pushes the batch ID to XCom under key ``batch_id`` as soon as it submits, and
