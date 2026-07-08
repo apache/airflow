@@ -63,23 +63,10 @@ Or add it through the Airflow UI (``Admin > Connections``) or the CLI (``airflow
 The ``@task.llm`` decorator turns a function that returns a prompt string into
 a task that sends that prompt to the LLM and returns its response:
 
-.. code-block:: python
-
-    from airflow.sdk import dag, task
-
-
-    @dag(tags=["example"])
-    def quickstart_llm():
-        @task.llm(llm_conn_id="pydanticai_default", system_prompt="Summarize concisely.")
-        def summarize(text: str):
-            return f"Summarize this article: {text}"
-
-        summarize(
-            "Apache Airflow is a platform for programmatically authoring, scheduling, and monitoring workflows."
-        )
-
-
-    quickstart_llm()
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_quickstart.py
+    :language: python
+    :start-after: [START howto_quickstart_llm]
+    :end-before: [END howto_quickstart_llm]
 
 Run it like any other Dag (``airflow dags test quickstart_llm``) and the
 ``summarize`` task pushes the LLM's response to XCom.
