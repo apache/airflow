@@ -3167,6 +3167,10 @@
         "6.1.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-11T22:00:08Z"
+        },
+        "6.2.0": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-03T15:48:09Z"
         }
     },
     "apache.tinkerpop": {
@@ -3915,6 +3919,10 @@
         "3.20.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-05-23T12:35:14Z"
+        },
+        "3.21.0": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-03T15:48:09Z"
         }
     },
     "clickhousedb": {
@@ -4461,6 +4469,10 @@
         "10.18.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-11T22:00:11Z"
+        },
+        "10.19.0": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-04T18:17:53Z"
         }
     },
     "cohere": {
@@ -4797,6 +4809,10 @@
         "1.7.3": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-07T10:04:18Z"
+        },
+        "1.8.0": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-04T18:17:53Z"
         }
     },
     "common.messaging": {
@@ -7073,6 +7089,10 @@
         "3.7.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-22T21:14:32Z"
+        },
+        "3.7.1": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-03T15:48:09Z"
         }
     },
     "facebook": {
@@ -7971,6 +7991,10 @@
         "22.2.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-22T21:14:32Z"
+        },
+        "22.2.1": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-03T15:48:09Z"
         }
     },
     "grpc": {
@@ -9273,6 +9297,10 @@
         "0.8.0": {
             "associated_airflow_version": "3.2.2",
             "date_released": "2026-06-22T21:14:32Z"
+        },
+        "0.8.1": {
+            "associated_airflow_version": "3.2.2",
+            "date_released": "2026-07-04T18:17:53Z"
         }
     },
     "microsoft.azure": {

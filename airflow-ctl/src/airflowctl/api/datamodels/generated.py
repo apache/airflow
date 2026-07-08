@@ -431,6 +431,10 @@ class ConnectionTestResponse(BaseModel):
     message: Annotated[str, Field(title="Message")]
 
 
+class PartitionKey(RootModel[str]):
+    root: Annotated[str, Field(max_length=250, pattern="\\S", title="Partition Key")]
+
+
 class CreateAssetEventsBody(BaseModel):
     """
     Create asset events request.
@@ -440,7 +444,7 @@ class CreateAssetEventsBody(BaseModel):
         extra="forbid",
     )
     asset_id: Annotated[int, Field(title="Asset Id")]
-    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_key: Annotated[PartitionKey | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     access_control: AssetEventAccessControl | None = None
 
@@ -1764,7 +1768,7 @@ class DAGResponse(BaseModel):
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
-    fileloc: Annotated[str, Field(title="Fileloc")]
+    fileloc: Annotated[str | None, Field(title="Fileloc")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
@@ -2557,7 +2561,7 @@ class DAGDetailsResponse(BaseModel):
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
-    fileloc: Annotated[str, Field(title="Fileloc")]
+    fileloc: Annotated[str | None, Field(title="Fileloc")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None

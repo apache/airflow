@@ -97,7 +97,7 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion
+from airflow.models.dag_version import DagVersion, _resolve_version_data
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -1254,12 +1254,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return conf.getboolean("traces", "otel_on")
 
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
-        return SchedulerJobRunner.process_executor_events(
-            executor=executor,
-            job_id=self.job.id,
-            scheduler_dag_bag=self.scheduler_dag_bag,
-            session=session,
-        )
+        try:
+            return SchedulerJobRunner.process_executor_events(
+                executor=executor,
+                job_id=self.job.id,
+                scheduler_dag_bag=self.scheduler_dag_bag,
+                session=session,
+            )
+        except Exception as exc:
+            stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
+            raise
+
+    @staticmethod
+    def _emit_executor_events_batch_metrics(num_events: int) -> None:
+        stats.gauge("scheduler.executor_events.batch_size", num_events)
+        stats.incr("scheduler.executor_events.processed", num_events)
 
     @classmethod
     def process_executor_events(
@@ -1297,6 +1306,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
+        num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceKey] = []
         callback_keys_with_events: list[CallbackKey] = []
 
@@ -1358,11 +1368,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Return if no finished tasks
         if not tis_with_right_state:
+            cls._emit_executor_events_batch_metrics(num_events)
             return len(event_buffer)
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         if filter_for_tis is None:
+            cls._emit_executor_events_batch_metrics(num_events)
             return len(event_buffer)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
@@ -1439,6 +1451,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # or the TI is queued by another job. Either ways we should not fail it.
             # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1453,9 +1467,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled (next_method set) before we saw the
-                    # executor success from the defer exit for the same try_number.
-                    ti.state == TaskInstanceState.SCHEDULED
+                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
+                    # before we saw the executor success from the defer exit for the same try_number.
+                    ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
                     and state == TaskInstanceState.SUCCESS
                     and ti.next_method is not None
                 )
@@ -1512,6 +1526,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
+                    _version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1519,6 +1534,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_bundle_name,
                         bundle_version=_bundle_version,
+                        version_data=_version_data,
                         ti=ti,
                         msg=msg,
                         task_callback_type=(
@@ -1561,6 +1577,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _email_bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
+                    _email_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1568,6 +1585,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_email_bundle_name,
                         bundle_version=_email_bundle_version,
+                        version_data=_email_version_data,
                         ti=ti,
                         msg=msg,
                         email_type="retry" if ti.is_eligible_to_retry() else "failure",
@@ -1584,6 +1602,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
+        cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)
 
     def _execute(self) -> int | None:
@@ -1619,7 +1638,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if settings.Session is not None:
                 settings.Session.remove()
-        except Exception:
+        except Exception as exc:
+            stats.incr("scheduler.loop_exceptions", tags={"exception_class": type(exc).__name__})
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
@@ -2587,6 +2607,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
+            # A first asset-triggered run has no previous run to floor the event window. With
+            # catchup off, floor it at when the Dag started scheduling on its assets so the
+            # backlog is skipped; with catchup on, only date.min applies and the backlog replays.
+            event_window_floor: list[Any] = [cte.c.previous_dag_run_run_after]
+            if not dag.catchup:
+                event_window_floor.append(
+                    select(func.min(DagScheduleAssetReference.created_at))
+                    .where(DagScheduleAssetReference.dag_id == dag.dag_id)
+                    .scalar_subquery()
+                )
+            event_window_floor.append(date.min)
+
             asset_events = list(
                 session.scalars(
                     select(AssetEvent)
@@ -2604,7 +2636,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         ),
                         AssetEvent.timestamp <= triggered_date,
-                        AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
@@ -3068,6 +3100,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
+                    _stuck_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
                     # inside a loop.  If backfilling fails we simply skip the callback.
@@ -3076,6 +3109,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             filepath=ti.dag_model.relative_fileloc or "",
                             bundle_name=_stuck_bundle_name,
                             bundle_version=_stuck_bundle_version,
+                            version_data=_stuck_version_data,
                             ti=ti,
                             msg=msg,
                             context_from_server=TIRunContext(
@@ -3333,7 +3367,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
                     stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
-
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
                         self.log.info(
@@ -3481,6 +3514,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if task_instances_without_heartbeats := self._find_task_instances_without_heartbeats(
                 session=session
             ):
+                stats.incr(
+                    "scheduler.zombies.detected",
+                    len(task_instances_without_heartbeats),
+                    tags={"reason": "heartbeat_timeout"},
+                )
                 self._purge_task_instances_without_heartbeats(
                     task_instances_without_heartbeats, session=session
                 )
@@ -3539,6 +3577,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if ti.dag_version and ti.dag_run.bundle_version is not None
                 else ti.dag_run.bundle_version
             )
+            _hb_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
                 continue
@@ -3546,6 +3585,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 filepath=ti.dag_model.relative_fileloc or "",
                 bundle_name=_hb_bundle_name,
                 bundle_version=_hb_bundle_version,
+                version_data=_hb_version_data,
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
                 context_from_server=TIRunContext(
