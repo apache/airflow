@@ -58,8 +58,8 @@ response's aggregated output text:
 
 .. exampleinclude:: /../../openai/src/airflow/providers/openai/example_dags/example_response.py
     :language: python
-    :start-after: [START quickstart_batch]
-    :end-before: [END quickstart_batch]
+    :start-after: [START quickstart_response]
+    :end-before: [END quickstart_response]
 
 Run it like any other Dag (``airflow dags test quickstart_openai``) and the
 ``generate_response`` task pushes the aggregated output text to XCom.
@@ -72,4 +72,4 @@ Where to go next
   and the Responses/Conversations ``OpenAIHook`` methods for use inside
   ``@task`` functions.
 - :ref:`howto/connection:openai` — the full connection reference, including
-  workload identity authentica17tion.
+  workload identity authentication.
