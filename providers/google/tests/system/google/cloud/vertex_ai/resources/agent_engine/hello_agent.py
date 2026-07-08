@@ -25,7 +25,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
 
-class InvocationHandler(BaseHTTPRequestHandler):
+class _InvocationHandler(BaseHTTPRequestHandler):
+    """Serve health checks and query requests for the Agent Engine system test."""
+
     def do_GET(self) -> None:
         self._send_json(200, {"ok": True})
 
@@ -50,4 +52,4 @@ class InvocationHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8080"))
-    HTTPServer(("0.0.0.0", port), InvocationHandler).serve_forever()
+    HTTPServer(("0.0.0.0", port), _InvocationHandler).serve_forever()
