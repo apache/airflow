@@ -117,22 +117,23 @@ Every release therefore requires a PMC vote before it is published; only
 Edit `gradle.properties` and set the version for this release:
 
 ```properties
-projectVersion=1.0.0
+projectVersion=<VERSION>
 ```
 
 Commit the change and push it to the release branch.
 
 Use a Maven-compatible version string, as defined by the
-[Maven version order specification](https://maven.apache.org/pom.html#Version_Order_Specification).
-For example, version 1 beta 1 is `1.0.0-beta1`, and the eventual
-general-availability release is `1.0.0`.
+[Maven version order specification]. For example, version 1 beta 1 is
+`1.0.0-beta1`, and the eventual version 1 release is `1.0.0`.
+
+[Maven version order specification]: https://maven.apache.org/pom.html#Version_Order_Specification
 
 *NOTE:* Editing `gradle.properties` as above is the standard procedure. You can
 alternatively override the version for a single command without editing the
-file, by passing `-PprojectVersion=1.0.0-beta1` to any Gradle invocation. This
+file, by passing `-PprojectVersion=<VERSION>` to any Gradle invocation. This
 is handy for one-off or pre-release builds. Either way, `main` should stay on a
-`-SNAPSHOT` version between releases: a snapshot sorts after `1.0.0-beta1` and
-before the `1.0.0` GA, so no extra bump is needed after a beta.
+`-SNAPSHOT` version between releases: a snapshot sorts after `<VERSION>` and
+before the GA, so no extra bump is needed after a beta.
 
 ### Tag the release candidate
 
@@ -142,8 +143,8 @@ suffix). Push the tag before sending the vote so reviewers can check out the
 exact source being voted on.
 
 ```bash
-git tag -s java-sdk/1.0.0-beta1-rc1 -m "Java SDK 1.0.0-beta1 RC 1"
-git push upstream java-sdk/1.0.0-beta1-rc1
+git tag -s java-sdk/<VERSION>-rc<N> -m "Java SDK <VERSION> RC <N>"
+git push upstream java-sdk/<VERSION>-rc<N>
 ```
 
 ### Verify the POM locally
@@ -246,22 +247,23 @@ signature and checksum in one step:
 
 ```bash
 # Signing uses your local gpg keyring, so have your key/passphrase ready.
-./gradlew sourceRelease -PgitRef=java-sdk/1.0.0-beta1-rc1
+./gradlew sourceRelease -PgitRef=java-sdk/<VERSION>-rc<N>
 ```
 
 This writes three files to `build/distributions/`:
 
 ```
-apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz
-apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.asc
-apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz.sha512
+apache-airflow-java-sdk-<VERSION>-src.tar.gz
+apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc
+apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
 ```
 
-*NOTE:* The source archive deliberately omits `gradle/wrapper/gradle-wrapper.jar`
-since ASF source releases must not contain compiled code (see [LEGAL-570]). To
-build an *extracted* source package, use a locally installed Gradle instead:
-either run `gradle build`, or use `gradle wrapper` once to regenerate the jar
-and then `./gradlew build`.
+**NOTE:** The source archive omits the Gradle wrapper scripts (`gradlew`,
+`gradlew.bat`) and `gradle/wrapper/gradle-wrapper.jar` since ASF source releases
+must not contain compiled code (see [LEGAL-570]), and the scripts are not useful
+without the jar. The `gradle/wrapper/gradle-wrapper.properties` file is kept so
+the archive pins the Gradle version and distribution checksum for verification
+when the wrapper is regenerated.
 
 [LEGAL-570]: https://issues.apache.org/jira/browse/LEGAL-570
 
@@ -275,23 +277,164 @@ project's location:
 svn checkout https://dist.apache.org/repos/dist/dev/airflow <dist-dev-checkout>
 
 cd <dist-dev-checkout>
-mkdir -p java-sdk/1.0.0-beta1-rc1
-cp <path-to>/java-sdk/build/distributions/apache-airflow-java-sdk-1.0.0-beta1-src.tar.gz* \
-   java-sdk/1.0.0-beta1-rc1/
+mkdir -p java-sdk/<VERSION>-rc<N>
+cp <path-to>/java-sdk/build/distributions/apache-airflow-java-sdk-<VERSION>-src.tar.gz* \
+   java-sdk/<VERSION>-rc<N>/
 
-svn add --parents java-sdk/1.0.0-beta1-rc1
-svn commit -m "Add Apache Airflow Java SDK 1.0.0-beta1-rc1 source release candidate"
+svn add --parents java-sdk/<VERSION>-rc<N>
+svn commit -m "Add Apache Airflow Java SDK <VERSION>-rc<N> source release candidate"
 ```
 
 The commit publishes them under
-`https://dist.apache.org/repos/dist/dev/airflow/java-sdk/1.0.0-beta1-rc1/`, which
+`https://dist.apache.org/repos/dist/dev/airflow/java-sdk/<VERSION>-rc<N>/`, which
 is the source-package URL you link in the vote.
 
 ### Call the vote
 
 Send a `[VOTE]` email to `dev@airflow.apache.org` linking the git tag and
 commit, the source package in `dist/dev`, the closed Nexus staging repository,
-and the `KEYS` file.
+and the `KEYS` file. See "Vote email template" below for the exact fields to
+fill in, and "Verifying a release" for what to ask reviewers to check.
+
+### Vote email template
+
+```text
+Subject: [VOTE] Release Apache Airflow Java SDK <VERSION> based on <VERSION>-rc<N>
+
+Hi,
+
+I would like to call a vote to release Apache Airflow Java SDK <VERSION>, based
+on release candidate <VERSION>-rc<N>.
+
+Changes since <the last release>: <a one-line description>
+
+The release candidate contains the following Maven artifacts, all under group id org.apache.airflow:
+
+- Main SDK API
+    - airflow-sdk
+    - airflow-sdk-processor
+- Logger helpers
+    - airflow-sdk-jpl
+    - airflow-sdk-jul
+    - airflow-sdk-log4j2
+    - airflow-sdk-slf4j
+- Gradle plugin and the marker artifact
+    - airflow-sdk-gradle-plugin
+    - org.apache.airflow.sdk.gradle.plugin
+- BOM
+    - airflow-sdk-bom
+
+Git information:
+
+- Tag: java-sdk/<VERSION>-rc<N>
+- Commit: <full-commit-sha>
+- https://github.com/apache/airflow/releases/tag/java-sdk%2F<VERSION>-rc<N>
+
+Source release, signatures and checksums:
+https://dist.apache.org/repos/dist/dev/airflow/java-sdk/<VERSION>-rc<N>/
+
+Convenience binaries (staged in the ASF Nexus repository):
+https://repository.apache.org/content/repositories/orgapacheairflow-<NNNN>/
+
+KEYS file (public keys used to sign the release):
+https://downloads.apache.org/airflow/KEYS
+
+Please review and vote. The vote will remain open for at least 72 hours, until <YYYY-MM-DD HH:MM UTC>, or until the necessary number of binding votes is reached.
+
+[ ] +1 Release this package as Apache Airflow Java SDK <VERSION>
+[ ] +0 No opinion
+[ ] -1 Do not release, because ...
+
+Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
+
+The verification process can be found in the main repository:
+https://github.com/apache/airflow/tree/java-sdk/<VERSION>-rc<N>/java-sdk#verifying-a-release
+
+For more details on ASF release verification, see: https://www.apache.org/info/verification.html
+
+Best,
+<your name>
+```
+
+Pre-send checklist:
+
+* Every staged artifact above resolves in the Nexus staging repository. Cross
+  check against the BOM, not just this list from memory.
+* `Changes since rc<N-1>` and the vote deadline are filled in.
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** —
+  any match means a template placeholder (`<N>`, `<NNNN>`, `<YYYY-MM-DD ...>`,
+  etc.) was left unfilled.
+
+### Verifying a release
+
+Anyone on `dev@airflow.apache.org` can (and should) independently verify a
+candidate before voting. Below is the checklist a reviewer — or the release
+manager, before sending the vote — should run against the source package in
+`dist/dev`.
+
+1. **Checksum.** Confirm the published SHA-512 matches the downloaded tarball:
+
+   ```bash
+   sha512sum -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
+   ```
+
+2. **Signature.** Import the `KEYS` file and verify the GPG signature:
+
+   ```bash
+   curl -O https://downloads.apache.org/airflow/KEYS
+   gpg --import KEYS
+   gpg --verify apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
+       apache-airflow-java-sdk-<VERSION>-src.tar.gz
+   ```
+
+3. **Diff against the git tag.** Extract the tarball and compare it with a
+   clean checkout of the tag it claims to be built from. They should be
+   identical except `gradlew`, `gradlew.bat`, and `gradle-wrapper.jar`. The
+   extracted top-level directory should be `apache-airflow-java-sdk-<version>`
+   without the `-src` suffix that only appears in the tarball's own filename:
+
+   ```bash
+   tar xzf apache-airflow-java-sdk-<VERSION>-src.tar.gz
+   git clone --branch java-sdk/<VERSION>-rc<N> \
+     https://github.com/apache/airflow.git tag-checkout
+   diff -rq apache-airflow-java-sdk-<VERSION>/ tag-checkout/java-sdk/ \
+     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar)$'
+   ```
+
+   Any remaining diff output is unexpected and should block the vote.
+
+4. **No binary files.** ASF source releases must not contain compiled code.
+   Scan for anything that isn't text:
+
+   ```bash
+   find apache-airflow-java-sdk-<VERSION>/ -type f \
+     -exec sh -c 'file "$1" | grep -qv text && echo "$1"' _ {} \;
+   ```
+
+   This should print nothing.
+
+5. **Build from source.** Regenerate the Gradle wrapper from a locally installed
+   Gradle (see the *Upload the source package* section above):
+
+   ```bash
+   cd apache-airflow-java-sdk-<VERSION>
+   gradle wrapper \
+       --gradle-version <GRADLE-VERSION> \
+       --gradle-distribution-sha256-sum <GRADLE-DISTRIBUTION-SHA>
+   ./gradlew build
+   ```
+
+   Use the values for `<GRADLE-VERSION>` and `<GRADLE-DISTRIBUTION-SHA>` from
+   `distributionUrl` and `distributionSha256Sum` in the bundled
+   `gradle/wrapper/gradle-wrapper.properties`.
+
+6. **Staged-binary smoke test.** Resolve the staged Nexus artifacts from a
+   throwaway project to confirm they're actually consumable, following the
+   same pattern as the "Dry-run against a local repository" step: point a
+   `repositories {}` block at the staging repository URL, declare a dependency
+   on `org.apache.airflow:airflow-sdk-bom:<VERSION>`, and confirm the
+   transitive artifacts (including `airflow-sdk-jpl`) resolve and the example
+   bundle builds against them.
 
 ### After a successful vote
 
@@ -309,16 +452,16 @@ Reply with a `[RESULT][VOTE]` tally, then:
 2. **Move** the source package from `dist/dev` to `dist/release`:
 
    ```bash
-   svn mv https://dist.apache.org/repos/dist/dev/airflow/java-sdk/1.0.0-beta1-rc1 \
-          https://dist.apache.org/repos/dist/release/airflow/java-sdk/1.0.0-beta1 \
-          -m "Release Apache Airflow Java SDK 1.0.0-beta1"
+   svn mv https://dist.apache.org/repos/dist/dev/airflow/java-sdk/<VERSION>-rc<N> \
+          https://dist.apache.org/repos/dist/release/airflow/java-sdk/<VERSION> \
+          -m "Release Apache Airflow Java SDK <VERSION>"
    ```
 
 3. **Tag** the final version on the same commit that was voted:
 
    ```bash
-   git tag -s java-sdk/1.0.0-beta1 <voted-commit-hash> -m "Apache Airflow Java SDK 1.0.0-beta1"
-   git push upstream java-sdk/1.0.0-beta1
+   git tag -s java-sdk/<VERSION> <voted-commit-hash> -m "Apache Airflow Java SDK <VERSION>"
+   git push upstream java-sdk/<VERSION>
    ```
 
    Keep the RC tag for traceability.
@@ -330,7 +473,7 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
 Close the vote, **drop** the staging repository in Nexus, remove the `dist/dev`
 candidate, fix the issue, and cut the next RC (`...-rc2`). The released version
-stays the same (e.g. `1.0.0-beta1`); only the RC counter in the tag increments.
+stays the same (e.g. `<VERSION>`); only the RC counter in the tag increments.
 
 ## Contributing
 
