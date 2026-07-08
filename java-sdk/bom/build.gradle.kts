@@ -28,6 +28,7 @@ val airflowSupervisorSchemaVersion: String by project
 dependencies {
     constraints {
         api("org.apache.airflow:airflow-sdk:$projectVersion")
+        api("org.apache.airflow:airflow-sdk-jpl:$projectVersion")
         api("org.apache.airflow:airflow-sdk-jul:$projectVersion")
         api("org.apache.airflow:airflow-sdk-log4j2:$projectVersion")
         api("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
