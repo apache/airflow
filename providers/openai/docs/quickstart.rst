@@ -55,22 +55,10 @@ The :class:`~airflow.providers.openai.operators.openai.OpenAIResponseOperator`
 generates a model response with the OpenAI Responses API and returns the
 response's aggregated output text:
 
-.. code-block:: python
-
-    from airflow.providers.common.compat.sdk import dag
-    from airflow.providers.openai.operators.openai import OpenAIResponseOperator
-
-
-    @dag(tags=["example"])
-    def quickstart_openai():
-        OpenAIResponseOperator(
-            task_id="generate_response",
-            conn_id="openai_default",
-            input_text="Write a one-sentence summary of Apache Airflow.",
-        )
-
-
-    quickstart_openai()
+.. exampleinclude:: /../src/airflow/example_dags/example_response.py
+    :language: python
+    :start-after: [START quickstart_batch]
+    :end-before: [END quickstart_batch]
 
 Run it like any other Dag (``airflow dags test quickstart_openai``) and the
 ``generate_response`` task pushes the aggregated output text to XCom.
