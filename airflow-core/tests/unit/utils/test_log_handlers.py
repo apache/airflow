@@ -504,6 +504,31 @@ class TestFileTaskLogHandler:
         assert extract_events(log_handler_output_stream) == ["line 3"]
         assert metadata == {"end_of_log": True, "log_pos": 3}
 
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
+    def test_read_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
+        """The public `read()` wrapper must accept the `islice` stream `_read()` returns for log_pos reads."""
+        mock_read_local.return_value = (
+            ["the messages"],
+            [convert_list_to_stream(["line 1", "line 2", "line 3"])],
+        )
+        local_log_file_read = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+        )
+        fth = FileTaskHandler("")
+
+        log_handler_output_stream, metadata = fth.read(
+            local_log_file_read,
+            try_number=1,
+            metadata={"log_pos": 2},
+        )
+
+        # Should resume from the third line only.
+        assert extract_events(log_handler_output_stream) == ["line 3"]
+        assert metadata == {"end_of_log": True, "log_pos": 3}
+
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
         path1 = tmp_path / "hello1.log"
@@ -1178,6 +1203,20 @@ def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
             ),
             True,
             id="chain_log_stream",
+        ),
+        pytest.param(
+            itertools.islice(
+                convert_list_to_stream(
+                    [
+                        "2022-11-16T00:05:54.278000-08:00",
+                        "2022-11-16T00:05:54.457000-08:00",
+                    ]
+                ),
+                1,
+                None,
+            ),
+            True,
+            id="islice_log_stream",
         ),
         pytest.param(
             [
