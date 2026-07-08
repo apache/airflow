@@ -214,12 +214,6 @@ def _add_and_prime_mapped_ti(
     """
     Attach a newly-created mapped TI to the session and prime its ``dag_run`` cache.
 
-    Used by mapped-task expansion (``TaskMap.expand_mapped_task``,
-    ``DagRun._revise_map_indexes_if_mapped``) to persist a brand-new mapped TI without
-    the per-row SELECT that ``session.merge()`` would issue, and to prime ``dag_run`` so
-    a later ``ti.get_dagrun()`` during dependency evaluation is a cache hit rather than
-    another per-TI SELECT.
-
     :meta private:
     """
     task_instance_mutation_hook(ti, dag_run=dag_run)
