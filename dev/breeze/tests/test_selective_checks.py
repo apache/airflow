@@ -1201,7 +1201,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
-                "prod-image-build": "false",
+                # common providers feed OpenLineage e2e tests, which need the PROD image.
+                "prod-image-build": "true",
+                "run-providers-e2e-tests-openlineage": "true",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
@@ -1471,6 +1473,38 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "true",
             },
             id="Run go e2e tests when ExecutableCoordinator changes",
+        ),
+        pytest.param(
+            ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests for openlineage provider change",
+        ),
+        pytest.param(
+            ("providers/common/compat/src/airflow/providers/common/compat/sdk.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests for common provider change",
+        ),
+        pytest.param(
+            ("providers-e2e-tests/openlineage/tests/harness.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests when the e2e harness changes",
+        ),
+        pytest.param(
+            ("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
+            {
+                "run-providers-e2e-tests-openlineage": "false",
+                "prod-image-build": "false",
+            },
+            id="Do not run OpenLineage e2e tests for unrelated provider change",
         ),
         (
             pytest.param(
@@ -3554,6 +3588,33 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
         amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
         assert amd_output is not None
         assert "Providers[ibm.mq]" in amd_output
+
+
+def test_run_kubernetes_tests_forced_by_label():
+    """`area:kubernetes-tests` forces the Kubernetes tests job without pulling in
+    the full test matrix, unlike `full tests needed`."""
+    checks = SelectiveChecks(
+        files=("INTHEWILD.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+        pr_labels=("area:kubernetes-tests",),
+    )
+    assert checks.run_kubernetes_tests is True
+    assert checks.full_tests_needed is False
+
+
+def test_run_kubernetes_tests_forced_by_label_with_no_changed_files():
+    """The label still forces the Kubernetes tests job even when no files changed."""
+    checks = SelectiveChecks(
+        files=(),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+        pr_labels=("area:kubernetes-tests",),
+    )
+    assert checks.run_kubernetes_tests is True
+    assert checks.full_tests_needed is False
 
 
 def test_filter_platform_excluded_test_types_handles_all_shapes():

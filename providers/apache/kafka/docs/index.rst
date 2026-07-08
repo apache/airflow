@@ -149,6 +149,7 @@ Install them when installing from PyPI. For example:
 Extra                 Dependencies
 ====================  ====================================================
 ``google``            ``apache-airflow-providers-google``
+``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ====================  ====================================================
 

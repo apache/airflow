@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from enum import Enum
-
-
-class SpanStatus(str, Enum):
-    """All possible statuses for a span."""
-
-    NOT_STARTED = "not_started"
-    ACTIVE = "active"
-    ENDED = "ended"
-    SHOULD_END = "should_end"
-    NEEDS_CONTINUANCE = "needs_continuance"
-
-    def __str__(self) -> str:
-        return self.value

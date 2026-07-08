@@ -195,6 +195,23 @@
   },
   "pendingDagRun_one": "대기 중인 Dag 실행 {{count}}개",
   "pendingDagRun_other": "대기 중인 Dag 실행 {{count}}개",
+  "presetFilters": {
+    "deleteTitle": "프리셋 필터 삭제",
+    "deleteWarning": "프리셋 필터는 이 브라우저에만 저장됩니다.",
+    "duplicate": "프리셋 필터 \"{{name}}\"에 이미 동일한 설정이 저장되어 있습니다.",
+    "empty": "아직 프리셋 필터가 없습니다",
+    "info": {
+      "default": "프리셋 필터를 기본값으로 고정하면, 필터가 적용되지 않은 상태로 이 페이지에 들어올 때 자동으로 적용됩니다.",
+      "save": "현재 필터와 정렬을 이름 붙인 프리셋 필터로 저장하고, 언제든 다시 전환할 수 있습니다.",
+      "storage": "프리셋 필터는 이 브라우저에 저장됩니다."
+    },
+    "namePlaceholder": "프리셋 필터 이름",
+    "nothingToSave": "저장할 내용이 없습니다. 필터나 정렬을 적용하면 프리셋 필터로 저장할 수 있습니다.",
+    "save": "저장",
+    "setDefault": "기본값으로 설정",
+    "title": "프리셋 필터",
+    "unsetDefault": "기본값 해제"
+  },
   "reset": "초기화",
   "runId": "실행 ID",
   "runTypes": {
