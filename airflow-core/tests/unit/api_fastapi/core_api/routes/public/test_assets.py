@@ -37,6 +37,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.base import ID_LEN
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
@@ -1335,6 +1336,29 @@ class TestPostAssetEvents(TestAssets):
         response = test_client.post("/assets/events", json=event_invalid_payload)
 
         assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_status_code"),
+        [
+            pytest.param("", 422, id="empty"),
+            pytest.param("   ", 422, id="whitespace_only"),
+            pytest.param("a" * (ID_LEN + 1), 422, id="too_long"),
+            pytest.param("2026-03-23", 200, id="valid"),
+            pytest.param(None, 200, id="none"),
+        ],
+    )
+    def test_partition_key_validation(self, test_client, session, partition_key, expected_status_code):
+        (asset,) = self.create_assets(num=1, session=session)
+        event_payload = {"asset_id": asset.id, "partition_key": partition_key}
+        response = test_client.post("/assets/events", json=event_payload)
+        assert response.status_code == expected_status_code
+
+    def test_partition_key_preserves_surrounding_whitespace(self, test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        event_payload = {"asset_id": asset.id, "partition_key": "  2026-03-23  "}
+        response = test_client.post("/assets/events", json=event_payload)
+        assert response.status_code == 200
+        assert response.json()["partition_key"] == "  2026-03-23  "
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
