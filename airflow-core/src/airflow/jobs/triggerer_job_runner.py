@@ -213,6 +213,8 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             raise ValueError(f"Capacity number {capacity!r} is invalid")
         self.queues = queues
         self.team_name = team_name
+        if job.team_name is None:
+            job.team_name = team_name
         # Set up only when _execute() starts the subprocess; keep it defined so that
         # signal handlers (or other code) firing before startup don't hit AttributeError.
         self.trigger_runner: TriggerRunnerSupervisor | None = None
