@@ -57,7 +57,8 @@ Or add it through the Airflow UI (``Admin > Connections``) or the CLI (``airflow
 ``messages.create`` requests — and waits for it to reach a terminal status.
 A task retry resubmits a **new** batch, so set ``retries=0``:
 
-.. exampleinclude:: /../src/airflow/example_dags/example_batch.py
+
+.. exampleinclude:: /../../antropic/src/airflow/providers/anthropic/example_dags/example_batch.py
     :language: python
     :start-after: [START quickstart_batch]
     :end-before: [END quickstart_batch]
