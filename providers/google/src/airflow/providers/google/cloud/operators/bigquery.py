@@ -95,6 +95,7 @@ except ImportError:
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
+    from pydantic import JsonValue
 
     from airflow.providers.common.compat.sdk import Context
 
@@ -2378,9 +2379,6 @@ class BigQueryInsertJobOperator(
         self.configuration = configuration
         self.location = location
         self.job_id = job_id
-        # Re-snapshotted post-render in execute(), self.job_id gets overwritten with the
-        # submitted/fetched job's id as execution proceeds, so submit_job needs this to
-        # keep computing ids from the users original input.
         self._configured_job_id = job_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -2522,14 +2520,11 @@ class BigQueryInsertJobOperator(
         return job
 
     def execute(self, context: Any):
-        # job_id is a template field and __init__ ran before rendering, so re-snapshot now.
         self._configured_job_id = self.job_id
         if not self.deferrable:
-            return self.execute_resumable(context)
+            self.execute_resumable(context)
+            return self.job_id
 
-        # submit_job's logic doesn't depend on deferrable at all, so it's reused here rather
-        # than duplicated -- unlike the other resumable ports, where the deferrable branch
-        # diverges from the synchronous one much earlier.
         self.job_id = self.submit_job(context)
         job = self._job
 
@@ -2540,7 +2535,7 @@ class BigQueryInsertJobOperator(
                     conn_id=self.gcp_conn_id,
                     job_id=self.job_id,
                     project_id=self.project_id,
-                    location=self.location or self.hook.location,
+                    location=self.location or self.hook.location,  # type: ignore[union-attr]
                     poll_interval=self.poll_interval,
                     impersonation_chain=self.impersonation_chain,
                     cancel_on_kill=self.cancel_on_kill,
@@ -2631,8 +2626,9 @@ class BigQueryInsertJobOperator(
         self._persist_job_links(job, context)
         return job.job_id
 
-    def get_job_status(self, external_id: str, context: Any) -> str:
+    def get_job_status(self, external_id: JsonValue, context: Any) -> str:
         """Query the raw job status; a missing job degrades to a not_found sentinel."""
+        job_id = str(external_id)
         # On reconnect/already-succeeded, submit_job never runs, so hook/project_id normally
         # resolved there must be resolved here too.
         if self.hook is None:
@@ -2643,7 +2639,7 @@ class BigQueryInsertJobOperator(
             self.project_id = self.hook.project_id
 
         try:
-            job = self.hook.get_job(project_id=self.project_id, location=self.location, job_id=external_id)
+            job = self.hook.get_job(project_id=self.project_id, location=self.location, job_id=job_id)
         except NotFound:
             return "not_found"
         # Reuse the same link bookkeeping as submit_job: this is the only place a job object is
@@ -2660,18 +2656,15 @@ class BigQueryInsertJobOperator(
     def is_job_succeeded(self, status: str) -> bool:
         return status == "success"
 
-    def poll_until_complete(self, external_id: str, context: Any) -> str:
+    def poll_until_complete(self, external_id: JsonValue, context: Any) -> None:
         # self._job is set by whichever of submit_job / get_job_status last obtained it,
         # never fetched again here, since neither of those calls skip setting it.
-        # On reconnect, the mixin returns this value directly without calling
-        # get_job_result -- so the job id must be returned here too.
         job = self._job
         job.result(timeout=self.result_timeout, retry=self.result_retry)
         self._handle_job_error(job)
-        return external_id
 
-    def get_job_result(self, external_id: str, context: Any) -> str:
-        return external_id
+    def get_job_result(self, external_id: JsonValue, context: Any) -> None:
+        return None
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """
