@@ -120,6 +120,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
+    TS_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -435,6 +436,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.JAVA_SDK_FILES: [
             r"^java-sdk/",
+        ],
+        FileGroupForCi.TS_SDK_FILES: [
+            r"^ts-sdk/",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1612,6 +1616,11 @@ class SelectiveChecks:
             # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that (intermittently failing) download.
             prek_hooks_to_skip.add("ktlint")
+        if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
+            # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
+            # ts-sdk types is the ts-sdk follow-up PR's job, not the schema author's.
+            prek_hooks_to_skip.add("check-ts-sdk-supervisor-schema")
         if not (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
