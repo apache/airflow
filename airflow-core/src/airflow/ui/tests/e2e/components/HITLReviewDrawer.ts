@@ -25,8 +25,8 @@ export class HITLReviewDrawer {
     this.root = page.getByRole("dialog", { name: "Required Actions" });
   }
 
-  public async expectOpenWith(dagId: string): Promise<void> {
+  public async expectOpenWith(expectedText: string): Promise<void> {
     await expect(this.root).toBeVisible();
-    await expect(this.root).toContainText(dagId);
+    await expect(this.root).toContainText(expectedText);
   }
 }

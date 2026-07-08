@@ -34,6 +34,7 @@ from airflow.api_fastapi.common.exceptions import (
     _DatabaseDialect,
     _UniqueConstraintErrorHandler,
 )
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.models import DagRun, Pool, Variable
@@ -453,7 +454,7 @@ class TestDataErrorHandler:
         exc = self._make_data_error(orig_msg)
         with pytest.raises(HTTPException) as exc_info:
             self.handler.exception_handler(Mock(), exc)
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert exc_info.value.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         assert exc_info.value.detail == {
             "reason": "Value rejected by database",
             "statement": "hidden",
@@ -472,7 +473,7 @@ class TestDataErrorHandler:
         exc = self._make_data_error(orig_msg)
         with pytest.raises(HTTPException) as exc_info:
             self.handler.exception_handler(Mock(), exc)
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert exc_info.value.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         detail = exc_info.value.detail
         assert isinstance(detail, dict)
         assert detail["reason"] == "Value rejected by database"
@@ -491,7 +492,7 @@ class TestDataErrorHandler:
             raise self._make_data_error("(1406, \"Data too long for column 'conf' at row 1\")")
 
         response = TestClient(app, raise_server_exceptions=False).post("/test")
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         detail = response.json()["detail"]
         assert detail["reason"] == "Value rejected by database"
         assert detail["statement"] == "hidden"
@@ -512,6 +513,7 @@ class TestDagErrorHandler:
             "ValueError",
         ],
     )
+    @conf_vars({("api", "expose_stacktrace"): "True"})
     def test_handle_deserialization_error(self, cause: Exception) -> None:
         deserialization_error = DeserializationError("test_dag_id")
         deserialization_error.__cause__ = cause
@@ -524,6 +526,26 @@ class TestDagErrorHandler:
         with pytest.raises(HTTPException, match=re.escape(expected_exception.detail)):
             DagErrorHandler().exception_handler(Mock(), deserialization_error)
 
+    @conf_vars({("api", "expose_stacktrace"): "False"})
+    def test_handle_deserialization_error_without_stacktrace(self) -> None:
+        deserialization_error = DeserializationError("secret_dag_id")
+        deserialization_error.__cause__ = RuntimeError("internal credential leak xyz")
+
+        with patch("airflow.api_fastapi.common.exceptions.log") as mock_log:
+            with pytest.raises(HTTPException) as exc_info:
+                DagErrorHandler().exception_handler(Mock(), deserialization_error)
+
+        detail = exc_info.value.detail
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        # Raw exception text is withheld when expose_stacktrace is off ...
+        assert str(deserialization_error) not in detail
+        assert "internal credential leak xyz" not in detail
+        # ... and the caller gets an id to correlate with the server-side log.
+        assert "look for ID" in detail
+        # The error is still logged server-side, so detail is not silently lost.
+        mock_log.error.assert_called_once()
+
+    @conf_vars({("api", "expose_stacktrace"): "True"})
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.need_serialized_dag
     def test_handle_real_dag_deserialization_error(self, session: Session, dag_maker: DagMaker) -> None:

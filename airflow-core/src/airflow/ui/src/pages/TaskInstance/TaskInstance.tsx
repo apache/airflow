@@ -89,21 +89,20 @@ export const TaskInstance = () => {
   const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
-  let newTabs = tabs;
-
-  if (taskInstance && taskInstance.map_index > -1) {
-    newTabs = [
-      ...tabs.slice(0, 1),
-      {
-        icon: <MdOutlineTask />,
-        label: translate("tabs.mappedTaskInstances_other", {
-          count: Number(taskCount),
-        }),
-        value: "task_instances",
-      },
-      ...tabs.slice(1),
-    ];
-  }
+  const newTabs =
+    taskInstance && taskInstance.map_index > -1
+      ? [
+          ...tabs.slice(0, 1),
+          {
+            icon: <MdOutlineTask />,
+            label: translate("tabs.mappedTaskInstances_other", {
+              count: Number(taskCount),
+            }),
+            value: "task_instances",
+          },
+          ...tabs.slice(1),
+        ]
+      : tabs;
 
   const { tabs: requiredActionTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
     autoRedirect: true,

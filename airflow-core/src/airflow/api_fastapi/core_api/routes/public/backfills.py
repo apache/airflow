@@ -25,6 +25,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -42,7 +43,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_backfill
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
 from airflow.models import DagRun
@@ -56,6 +56,7 @@ from airflow.models.backfill import (
     InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
+    NoBackfillRunsToCreate,
     _create_backfill,
     _do_dry_run,
 )
@@ -135,7 +136,6 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused is False:
         b.is_paused = True
-    session.commit()
     return b
 
 
@@ -276,6 +276,7 @@ def create_backfill(
         InvalidBackfillDate,
         InvalidBackfillDateRange,
         InvalidBackfillConf,
+        NoBackfillRunsToCreate,
     ) as e:
         raise RequestValidationError(str(e))
 

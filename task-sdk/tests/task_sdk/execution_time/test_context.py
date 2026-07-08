@@ -536,6 +536,14 @@ class TestOutletEventAccessorPartitionKeys:
             accessor.add_partitions(["us", ""])
         assert accessor.partition_keys == set()
 
+    def test_add_partitions_rejects_asset_alias_accessor(self):
+        alias_accessor = OutletEventAccessor(
+            key=AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias"))
+        )
+        with pytest.raises(TypeError, match="not supported on asset alias"):
+            alias_accessor.add_partitions("us")
+        assert alias_accessor.partition_keys == set()
+
 
 class TestTriggeringAssetEventsAccessor:
     @pytest.fixture(autouse=True)
@@ -659,6 +667,24 @@ class TestTriggeringAssetEventsAccessor:
         assert accessor[Asset.ref(uri=uri)] == expected
         assert mock_supervisor_comms.send.mock_calls == [mock.call(GetAssetByUri(uri=uri))]
         assert _AssetRefResolutionMixin._asset_ref_cache
+
+    def test_partition_key_exposed(self):
+        """A consumed asset event's partition key is reachable via triggering_asset_events."""
+        event = {
+            "asset": {"name": "1", "uri": "1", "extra": {}},
+            "extra": {},
+            "source_task_id": "t1",
+            "source_dag_id": "d1",
+            "source_run_id": "r1",
+            "source_map_index": -1,
+            "source_aliases": [],
+            "timestamp": "2025-01-01T00:00:12Z",
+            "partition_key": "2024-01-15",
+        }
+        accessor = TriggeringAssetEventsAccessor.build(
+            [AssetEventDagRunReferenceResult.model_validate(event)]
+        )
+        assert [e.partition_key for e in accessor[Asset("1")]] == ["2024-01-15"]
 
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
         events = accessor[Asset("2")]
@@ -884,6 +910,51 @@ class TestInletEventAccessor:
         )
         assert calls[5][0][0] == GetAssetEventByAsset(
             name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
+        )
+
+    def test__get_item__with_extra_filters(self, sample_inlet_evnets_accessor, mock_supervisor_comms):
+        asset_event_resp = AssetEventResult(
+            id=1,
+            created_dagruns=[],
+            timestamp=timezone.utcnow(),
+            asset=AssetResponse(name="test_uri", uri="test_uri", group="asset"),
+        )
+        events_result = AssetEventsResult(asset_events=[asset_event_resp])
+        mock_supervisor_comms.send.side_effect = [events_result] * 3
+
+        list(sample_inlet_evnets_accessor[TEST_ASSET].extra("region", "us"))
+        list(sample_inlet_evnets_accessor[TEST_ASSET].extra("region", "us").extra("env", "prod"))
+        list(sample_inlet_evnets_accessor[TEST_ASSET].extra("region", "us").extra("env", "prod").limit(5))
+
+        assert mock_supervisor_comms.send.call_count == 3
+
+        calls = mock_supervisor_comms.send.call_args_list
+        assert calls[0][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after=None,
+            before=None,
+            limit=None,
+            ascending=True,
+            extra={"region": "us"},
+        )
+        assert calls[1][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after=None,
+            before=None,
+            limit=None,
+            ascending=True,
+            extra={"region": "us", "env": "prod"},
+        )
+        assert calls[2][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
+            after=None,
+            before=None,
+            limit=5,
+            ascending=True,
+            extra={"region": "us", "env": "prod"},
         )
 
     @pytest.mark.parametrize(
@@ -1278,23 +1349,12 @@ class TestTaskStateStoreAccessor:
             DeleteTaskStateStore(ti_id=self.TI_ID, key="job_id")
         )
 
-    def test_clear_default_sends_all_map_indices_false(self, mock_supervisor_comms):
+    def test_clear_sends_comms_message(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
 
-        mock_supervisor_comms.send.assert_called_once_with(
-            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=False)
-        )
-
-    def test_clear_all_map_indices_sends_flag_true(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-
-        TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear(all_map_indices=True)
-
-        mock_supervisor_comms.send.assert_called_once_with(
-            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=True)
-        )
+        mock_supervisor_comms.send.assert_called_once_with(ClearTaskStateStore(ti_id=self.TI_ID))
 
     def test_set_datetime_raises_validation_error(self, mock_supervisor_comms):
         """datetime is not JSON-serializable; callers must use .isoformat() first."""
@@ -1788,9 +1848,7 @@ class TestTaskStateStoreAccessorWithCustomBackend:
 
         assert "job_id" not in backend._actual_key_value_store
         assert "checkpoint" not in backend._actual_key_value_store
-        mock_supervisor_comms.send.assert_any_call(
-            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=False)
-        )
+        mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=self.TI_ID))
 
 
 class TestAssetStateStoreAccessorWithCustomBackend:

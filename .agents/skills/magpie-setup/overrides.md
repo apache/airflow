@@ -74,7 +74,7 @@ Use the canonical scaffold below.
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
-<!-- apache-steward agentic override
+<!-- apache-magpie agentic override
      Framework skill:    <framework-skill>
      Pinned to snapshot: see ../.apache-magpie.lock for the SHA
                           this override was authored against.
@@ -113,7 +113,7 @@ remind the user:
    `<repo-root>/.apache-magpie/`. Local mods go in this
    override file.
 2. **If the override is widely useful, upstream it.** Open a
-   PR against `apache/airflow-steward` implementing the change
+   PR against `apache/magpie` implementing the change
    in the framework skill itself. The framework will then
    apply the change on every adopter's next
    `/magpie-setup upgrade`, and this adopter's override

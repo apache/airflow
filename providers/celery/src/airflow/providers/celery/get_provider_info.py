@@ -75,6 +75,20 @@ def get_provider_info():
                         "example": None,
                         "default": "16",
                     },
+                    "mp_start_method": {
+                        "description": "The ``multiprocessing`` start method the ``airflow celery worker`` process uses for the\nstandard-library ``multiprocessing`` helpers it starts: the log server (``serve_logs``),\nthe stale-bundle-cleanup process, and the optional ``[secrets] use_cache`` manager. Must\nbe one of the values returned by ``multiprocessing.get_all_start_methods()`` on your\nplatform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the default) it\nfalls back to ``[core] mp_start_method`` and then to the platform default.\n\nPython 3.14 changed the Unix default from ``fork`` to ``forkserver``. ``forkserver`` and\n``spawn`` re-import Airflow in each helper and start extra forkserver/resource-tracker\nprocesses, which increases the worker's resident memory; set this to ``fork`` to restore\nthe pre-3.14 behaviour. This setting governs the standard-library ``multiprocessing``\nhelpers only: Celery's ``prefork`` pool is driven by ``billiard`` (a separate fork of\n``multiprocessing``) and always uses ``fork``, so it is unaffected either way.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "fork",
+                        "default": None,
+                    },
+                    "mp_forkserver_preload": {
+                        "description": "Comma-separated list of modules the ``forkserver`` process should import up front, so the\nworker's ``multiprocessing`` helpers inherit them copy-on-write instead of re-importing\nthem. Only used when the effective ``mp_start_method`` is ``forkserver``. Falls back to\n``[core] mp_forkserver_preload`` when unset.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "airflow",
+                        "default": None,
+                    },
                     "worker_autoscale": {
                         "description": "The maximum and minimum number of pool processes that will be used to dynamically resize\nthe pool based on load.Enable autoscaling by providing max_concurrency,min_concurrency\nwith the ``airflow celery worker`` command (always keep minimum processes,\nbut grow to maximum if necessary).\nPick these numbers based on resources on worker box and the nature of the task.\nIf autoscale option is available, worker_concurrency will be ignored.\nhttps://docs.celeryq.dev/en/latest/reference/celery.bin.worker.html#cmdoption-celery-worker-autoscale\n",
                         "version_added": None,
@@ -96,6 +110,13 @@ def get_provider_info():
                         "example": None,
                         "default": "true",
                     },
+                    "json_logs": {
+                        "description": "Emit Celery worker stdout in JSON format. When set, this takes precedence over\nthe global ``[logging] json_logs`` setting, allowing the worker to use a\ndifferent format than the rest of the deployment. When unset (the default),\nthe value falls back to ``[logging] json_logs``, which itself defaults to\n``False``.\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": None,
+                    },
                     "broker_url": {
                         "description": "The Celery broker URL. Celery supports multiple broker types. See:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview\n",
                         "version_added": None,
@@ -109,7 +130,7 @@ def get_provider_info():
                         "version_added": None,
                         "type": "string",
                         "sensitive": True,
-                        "example": "db+postgresql://postgres:airflow@postgres/airflow",
+                        "example": "db+postgresql+psycopg2://postgres:airflow@postgres/airflow",
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {

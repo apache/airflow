@@ -22,7 +22,7 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn, cast
 from uuid import UUID
 
 import attrs
@@ -544,6 +544,16 @@ def _emit_task_span(ti, state):
         return
     dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
 
+    # Skip if the run was head-sampled out, so every span in the run agrees with the
+    # carrier's decision. A parent-based sampler would already drop this child span,
+    # but the explicit check also covers non-parent-based samplers (which ignore the
+    # parent and would re-sample it in) and short-circuits before building the span.
+    # An invalid/empty carrier (legacy/NULL) recorded no decision, so it falls through
+    # and still emits — preserving prior behavior.
+    dr_span_context = trace.get_current_span(context=dr_ctx).get_span_context()
+    if dr_span_context.is_valid and not dr_span_context.trace_flags.sampled:
+        return
+
     ti_ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
     ti_span = trace.get_current_span(context=ti_ctx)
     span_context = ti_span.get_span_context()
@@ -633,14 +643,22 @@ def _create_ti_state_update_query_and_update_state(
             if ti is not None:
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
+            retry_delay_override = ti_patch_payload.retry_delay_seconds
+            retry_reason = ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None
             if ti is not None:
+                # Snapshot the finished try onto the TI *before* archiving so record_ti()
+                # copies the values into task_instance_history (it reads attrs off the
+                # ti object and cannot see the live-row UPDATE built below).
+                ti.retry_delay_override = retry_delay_override
+                ti.retry_reason = retry_reason
+                ti.end_date = ti_patch_payload.end_date
+                ti.set_duration()
+                if "rendered_map_index" in ti_patch_payload.model_fields_set:
+                    ti._rendered_map_index = ti_patch_payload.rendered_map_index
                 ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
-            query = query.values(
-                retry_delay_override=ti_patch_payload.retry_delay_seconds,
-                retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
-            )
+            query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
                 TI.register_asset_changes_in_db(
@@ -842,6 +860,29 @@ def ti_skip_downstream(
     log.info("Downstream tasks skipped", tasks_skipped=getattr(result, "rowcount", 0))
 
 
+def _raise_ti_not_in_live_table(task_instance_id: UUID, session: SessionDep) -> NoReturn:
+    """Raise 410 Gone if the missing TI id was archived to history, else 404 Not Found."""
+    if session.scalar(
+        select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
+    ):
+        log.error("TaskInstance not in live table but archived in history", ti_id=str(task_instance_id))
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+            },
+        )
+    log.error("Task Instance not found", ti_id=str(task_instance_id))
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            "reason": "not_found",
+            "message": "Task Instance not found",
+        },
+    )
+
+
 @ti_id_router.put(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -902,29 +943,7 @@ def ti_heartbeat(
         # Check if the TI exists in the Task Instance History table.
         # If it does, it was likely cleared while running, so return 410 Gone
         # instead of 404 Not Found to give the client a more specific signal.
-        tih_exists = session.scalar(
-            select(func.count(TIH.task_instance_id)).where(TIH.task_instance_id == task_instance_id)
-        )
-        if tih_exists:
-            log.error(
-                "TaskInstance was previously cleared and archived in history, heartbeat skipped",
-                ti_id=str(task_instance_id),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={
-                    "reason": "not_found",
-                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
-                },
-            )
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
-        )
+        _raise_ti_not_in_live_table(task_instance_id, session)
 
     if hostname != ti_payload.hostname or pid != ti_payload.pid:
         log.warning(
@@ -972,6 +991,10 @@ def ti_heartbeat(
         [
             (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
             (
+                status.HTTP_410_GONE,
+                "Task Instance not found in the TI table but exists in the Task Instance History table",
+            ),
+            (
                 HTTP_422_UNPROCESSABLE_CONTENT,
                 "Invalid payload for the setting rendered task instance fields",
             ),
@@ -989,10 +1012,8 @@ def ti_put_rtif(
 
     task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance:
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
+        # On retry/clear, the server regenerates the TI id. Return 410 for the stale id.
+        _raise_ti_not_in_live_table(task_instance_id, session)
     task_instance.update_rtif(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 

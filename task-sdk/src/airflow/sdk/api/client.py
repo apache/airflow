@@ -581,8 +581,6 @@ class XComOperations:
         include_prior_dates: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
-        # TODO: check if we need to use map_index as params in the uri
-        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
@@ -622,8 +620,6 @@ class XComOperations:
         mapped_length: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
-        # TODO: check if we need to use map_index as params in the uri
-        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params: dict[str, Any] = {}
         if dag_result:
             params["dag_result"] = dag_result
@@ -743,10 +739,9 @@ class TaskStateStoreOperations:
         self.client.delete(f"store/ti/{ti_id}/{key}")
         return OKResponse(ok=True)
 
-    def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
+    def clear(self, ti_id: uuid.UUID) -> OKResponse:
         """Clear all task store keys for a task instance via the API server."""
-        params = {"all_map_indices": "true"} if all_map_indices else {}
-        self.client.delete(f"store/ti/{ti_id}", params=params)
+        self.client.delete(f"store/ti/{ti_id}")
         return OKResponse(ok=True)
 
 
@@ -863,6 +858,7 @@ class AssetEventOperations:
         before: datetime | None = None,
         ascending: bool = True,
         limit: int | None = None,
+        extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
         common_params: dict[str, Any] = {}
@@ -871,15 +867,20 @@ class AssetEventOperations:
         if before:
             common_params["before"] = before.isoformat()
         common_params["ascending"] = ascending
-        if limit:
+        if limit is not None:
             common_params["limit"] = limit
+        extra_params: list[tuple[str, str]] = []
+        if extra:
+            extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]
         if name or uri:
             resp = self.client.get(
-                "asset-events/by-asset", params={"name": name, "uri": uri, **common_params}
+                "asset-events/by-asset",
+                params=[*{"name": name, "uri": uri, **common_params}.items(), *extra_params],
             )
         elif alias_name:
             resp = self.client.get(
-                "asset-events/by-asset-alias", params={"name": alias_name, **common_params}
+                "asset-events/by-asset-alias",
+                params=[*{"name": alias_name, **common_params}.items(), *extra_params],
             )
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")

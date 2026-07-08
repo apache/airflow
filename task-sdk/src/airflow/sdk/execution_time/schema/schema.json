@@ -434,6 +434,19 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         }
       },
       "required": [
@@ -486,11 +499,6 @@
           "format": "uuid",
           "title": "Ti Id",
           "type": "string"
-        },
-        "all_map_indices": {
-          "default": false,
-          "title": "All Map Indices",
-          "type": "boolean"
         },
         "type": {
           "const": "ClearTaskStateStore",
@@ -744,6 +752,19 @@
             }
           ],
           "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         },
         "msg": {
           "anyOf": [
@@ -1277,6 +1298,19 @@
           "default": null,
           "title": "Partition Key"
         },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
         "note": {
           "anyOf": [
             {
@@ -1630,6 +1664,19 @@
           ],
           "title": "Bundle Version"
         },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
         "msg": {
           "anyOf": [
             {
@@ -1825,6 +1872,21 @@
           "title": "Ascending",
           "type": "boolean"
         },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
         "type": {
           "const": "GetAssetEventByAsset",
           "default": "GetAssetEventByAsset",
@@ -1887,6 +1949,21 @@
           "default": true,
           "title": "Ascending",
           "type": "boolean"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
         },
         "type": {
           "const": "GetAssetEventByAssetAlias",
@@ -3838,6 +3915,19 @@
           ],
           "title": "Bundle Version"
         },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
         "msg": {
           "anyOf": [
             {
@@ -4494,6 +4584,18 @@
           "format": "date-time",
           "title": "Timestamp",
           "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
         }
       },
       "required": [
@@ -4639,6 +4741,19 @@
             }
           ],
           "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
         },
         "note": {
           "anyOf": [

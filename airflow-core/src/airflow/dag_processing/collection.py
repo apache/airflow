@@ -194,20 +194,20 @@ class _RunInfo(NamedTuple):
             return cls(None, 0)
 
         if dag.timetable.partitioned:
-            log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
+            log.debug("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
+            log.debug("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
-            log.info(
+            log.debug(
                 "got latest run",
                 dag_id=dag.dag_id,
                 logical_date=str(latest_run.logical_date),
                 partition_key=latest_run.partition_key,
             )
         else:
-            log.info("no latest run found", dag_id=dag.dag_id)
+            log.debug("no latest run found", dag_id=dag.dag_id)
         active_run_counts = DagRun.active_runs_of_dags(
             dag_ids=[dag.dag_id],
             exclude_backfill=True,
@@ -644,9 +644,9 @@ class DagModelOperation(NamedTuple):
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version
 
-            last_automated_run: DagRun | None = run_info.latest_run
+            reference_run: DagRun | None = run_info.latest_run
             dm.exceeds_max_non_backfill = run_info.num_active_runs >= dm.max_active_runs
-            dm.calculate_dagrun_date_fields(dag, last_automated_run=last_automated_run)
+            dm.calculate_dagrun_date_fields(dag, reference_run=reference_run)
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
                 dm.schedule_asset_alias_references = []

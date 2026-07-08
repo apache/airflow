@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -79,13 +80,16 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 		return env, nil
 	}
 
-	resp, err := c.comm.Communicate(ctx, GetVariableMsg{Key: key}.toMap())
+	resp, err := c.comm.Communicate(
+		ctx,
+		genmodels.GetVariable{Key: key},
+	)
 	if err != nil {
 		return "", translateApiError(err, errCodeVariableNotFound, sdk.VariableNotFound, key)
 	}
 
-	result, err := decodeVariableResult(resp)
-	if err != nil {
+	var result genmodels.VariableResult
+	if err := decodeBody(resp, &result); err != nil {
 		return "", fmt.Errorf("decoding variable result: %w", err)
 	}
 
@@ -135,35 +139,39 @@ func (c *CoordinatorClient) GetConnection(
 	ctx context.Context,
 	connID string,
 ) (sdk.Connection, error) {
-	resp, err := c.comm.Communicate(ctx, GetConnectionMsg{ConnID: connID}.toMap())
+	resp, err := c.comm.Communicate(
+		ctx,
+		genmodels.GetConnection{ConnID: connID},
+	)
 	if err != nil {
 		return sdk.Connection{}, translateApiError(
 			err, errCodeConnectionNotFound, sdk.ConnectionNotFound, connID,
 		)
 	}
 
-	result, err := decodeConnectionResult(resp)
-	if err != nil {
+	var result genmodels.ConnectionResult
+	if err := decodeBody(resp, &result); err != nil {
 		return sdk.Connection{}, fmt.Errorf("decoding connection result: %w", err)
 	}
 
 	conn := sdk.Connection{
 		ID:   result.ConnID,
 		Type: result.ConnType,
-		Host: result.Host,
-		Port: result.Port,
-		Path: result.Schema,
+		Host: ifaceString(result.Host),
+		Port: ifaceInt(result.Port, 0),
+		Path: ifaceString(result.Schema),
 	}
 
-	// Pass the *string straight through so an explicitly empty credential
-	// (distinct from "no credential set") survives the coordinator hop and
-	// reaches sdk.Connection's URI-building code the same way it does in the
-	// HTTP-backed SDK.
-	conn.Login = result.Login
-	conn.Password = result.Password
-	if result.Extra != "" {
+	// Preserve the null-vs-empty distinction on credentials so an explicitly
+	// empty credential (distinct from "no credential set") survives the
+	// coordinator hop and reaches sdk.Connection's URI-building code the same
+	// way it does in the HTTP-backed SDK. The supervisor schema types these as
+	// nullable strings, decoded here from the generated `any` fields.
+	conn.Login = ifaceStringPtr(result.Login)
+	conn.Password = ifaceStringPtr(result.Password)
+	if extra := ifaceString(result.Extra); extra != "" {
 		conn.Extra = map[string]any{}
-		if err := json.Unmarshal([]byte(result.Extra), &conn.Extra); err != nil {
+		if err := json.Unmarshal([]byte(extra), &conn.Extra); err != nil {
 			return conn, fmt.Errorf("parsing connection extra: %w", err)
 		}
 	}
@@ -186,23 +194,26 @@ func (c *CoordinatorClient) GetXCom(
 	key string,
 	_ any,
 ) (any, error) {
-	msg := GetXComMsg{
+	msg := genmodels.GetXCom{
 		Key:    key,
 		DagID:  dagId,
 		TaskID: taskId,
 		RunID:  runId,
 	}
-	if mapIndex != nil {
-		msg.MapIndex = mapIndex
-	}
+	// Assign the pointer, not the dereferenced int: map_index is a nullable
+	// interface{} field and msgpack's omitempty treats an interface{} holding
+	// int(0) as empty, dropping an explicit map_index 0 so the supervisor would
+	// read mapped index 0 as unmapped. A *int in the interface encodes its pointee
+	// (0 included), and a nil pointer is still omitted.
+	msg.MapIndex = mapIndex
 
-	resp, err := c.comm.Communicate(ctx, msg.toMap())
+	resp, err := c.comm.Communicate(ctx, msg)
 	if err != nil {
 		return nil, translateApiError(err, errCodeXComNotFound, sdk.XComNotFound, key)
 	}
 
-	result, err := decodeXComResult(resp)
-	if err != nil {
+	var result genmodels.XComResult
+	if err := decodeBody(resp, &result); err != nil {
 		return nil, fmt.Errorf("decoding xcom result: %w", err)
 	}
 
@@ -216,17 +227,21 @@ func (c *CoordinatorClient) PushXCom(
 	key string,
 	value any,
 ) error {
-	msg := SetXComMsg{
+	msg := genmodels.SetXCom{
 		Key:    key,
 		Value:  value,
 		DagID:  ti.DagId,
 		TaskID: ti.TaskId,
 		RunID:  ti.RunId,
 	}
+	// map_index mirrors Python's SetXCom.map_index (int | None): -1 is the
+	// unmapped sentinel, omitted from the payload rather than sent. Assign the
+	// pointer, not the dereferenced int, so an explicit index 0 survives omitempty
+	// (see GetXCom).
 	if ti.MapIndex != nil && *ti.MapIndex != -1 {
 		msg.MapIndex = ti.MapIndex
 	}
 
-	_, err := c.comm.Communicate(ctx, msg.toMap())
+	_, err := c.comm.Communicate(ctx, msg)
 	return err
 }

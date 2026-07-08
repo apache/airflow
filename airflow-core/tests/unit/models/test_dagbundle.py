@@ -58,3 +58,20 @@ class TestDagBundleModel:
 
     def test_get_team_name_unknown_bundle(self, session: Session):
         assert DagBundleModel.get_team_name("does_not_exist", session=session) is None
+
+    def test_get_team_names(self, testing_team: Team, session: Session):
+        mapped = DagBundleModel(name="mapped_bundle")
+        mapped.teams.append(testing_team)
+        unmapped = DagBundleModel(name="unmapped_bundle")
+        session.add_all([mapped, unmapped])
+        session.flush()
+
+        result = DagBundleModel.get_team_names(
+            ["mapped_bundle", "unmapped_bundle", "does_not_exist"], session=session
+        )
+
+        # Only bundles actually mapped to a team are returned; callers treat absent keys as None.
+        assert result == {"mapped_bundle": "testing"}
+
+    def test_get_team_names_empty(self, session: Session):
+        assert DagBundleModel.get_team_names([], session=session) == {}

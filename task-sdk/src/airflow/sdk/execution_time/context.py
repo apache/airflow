@@ -52,7 +52,7 @@ from airflow.sdk.exceptions import (
     AirflowSecretsBackendAccessDenied,
     ErrorType,
 )
-from airflow.sdk.log import mask_secret
+from airflow.sdk.log import amask_secret, mask_secret
 
 if TYPE_CHECKING:
     from pydantic.types import JsonValue
@@ -160,6 +160,14 @@ def _mask_connection_secrets(conn: Connection) -> None:
         mask_secret(conn.extra)
 
 
+async def _amask_connection_secrets(conn: Connection) -> None:
+    """Async version: mask sensitive connection fields from logs."""
+    if conn.password:
+        await amask_secret(conn.password)
+    if conn.extra:
+        await amask_secret(conn.extra)
+
+
 def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
     from airflow.sdk.definitions.variable import Variable
 
@@ -226,7 +234,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
     if preset is not None and conn_id in preset:
         conn = preset[conn_id]
-        _mask_connection_secrets(conn)
+        await _amask_connection_secrets(conn)
         return conn
 
     from asgiref.sync import sync_to_async
@@ -239,7 +247,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
-        _mask_connection_secrets(conn)
+        await _amask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:
         pass  # continue to backends
@@ -261,7 +269,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
             if conn:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
-                _mask_connection_secrets(conn)
+                await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -628,23 +636,17 @@ class TaskStateStoreAccessor:
         if backend is not None:
             backend.delete(self._scope, key)
 
-    def clear(self, all_map_indices: bool = False) -> None:
-        """
-        Delete all keys for this task instance.
-
-        Pass ``all_map_indices=True`` to wipe state across every mapped
-        instance of the task (fleet-wide reset). Defaults to clearing only
-        this task instance's own state.
-        """
+    def clear(self) -> None:
+        """Delete all keys for this task instance."""
         from airflow.sdk.execution_time.comms import ClearTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id, all_map_indices=all_map_indices))
+        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id))
         backend = _get_worker_state_store_backend()
         if backend is not None:
-            backend.clear(self._scope, all_map_indices=all_map_indices)
+            backend.clear(self._scope)
 
     def _clear_backend_only(self) -> None:
         """
@@ -975,7 +977,14 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
 
         :raises ValueError: If any key is empty/whitespace-only or longer than
             ``_PARTITION_KEY_MAX_LENGTH`` characters.
+        :raises TypeError: If this accessor is for an asset alias, since partition
+            keys are only attached to concrete asset events, not alias events.
         """
+        if isinstance(self.key, AssetAliasUniqueKey):
+            raise TypeError(
+                "add_partitions() is not supported on asset alias outlet events; "
+                "partition keys can only be attached to a concrete asset."
+            )
         if isinstance(keys, str):
             keys = [keys]
         for key in keys:
@@ -1079,6 +1088,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _extra: dict[str, str]
     _asset_name: str | None
     _asset_uri: str | None
     _alias_name: str | None
@@ -1093,6 +1103,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._extra: dict[str, str] = {}
 
     def after(self, after: str) -> Self:
         self._after = after
@@ -1114,6 +1125,11 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def extra(self, key: str, value: str) -> Self:
+        self._extra[key] = value
+        self._reset_cache()
+        return self
+
     @functools.cached_property
     def _asset_events(self) -> list[AssetEventResult]:
         from airflow.sdk.execution_time.comms import (
@@ -1129,6 +1145,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "extra": self._extra or None,
         }
 
         msg: ToSupervisor
