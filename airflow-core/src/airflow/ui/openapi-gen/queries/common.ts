@@ -45,7 +45,7 @@ export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, name
   offset?: number;
   orderBy?: string[];
   partitionKey?: string;
-  partitionKeyPattern?: string;
+  partitionKeyRegexpPattern?: string;
   sourceDagId?: string;
   sourceMapIndex?: number;
   sourceRunId?: string;
