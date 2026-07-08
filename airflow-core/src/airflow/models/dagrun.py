@@ -2005,7 +2005,7 @@ class DagRun(Base, LoggingMixin):
 
     def _revise_map_indexes_if_mapped(
         self, task: Operator, *, dag_version_id: UUID | None, session: Session
-    ) -> Iterator[TI]:
+    ) -> list[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
 
@@ -2020,9 +2020,9 @@ class DagRun(Base, LoggingMixin):
         try:
             total_length = get_mapped_ti_count(task, self.run_id, session=session)
         except NotMapped:
-            return  # Not a mapped task, don't need to do anything.
+            return []  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:
-            return  # Upstreams not ready, don't need to revise this yet.
+            return []  # Upstreams not ready, don't need to revise this yet.
 
         query = session.scalars(
             select(TI.map_index).where(
@@ -2057,7 +2057,7 @@ class DagRun(Base, LoggingMixin):
             new_tis.append(ti)
         if new_tis:
             session.flush()
-        yield from new_tis
+        return new_tis
 
     @classmethod
     @provide_session
