@@ -64,11 +64,11 @@ services:
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/databricks/src
       - ../../../empty:/opt/airflow/providers/datadog/src
+      - ../../../empty:/opt/airflow/providers/dataquality/src
       - ../../../empty:/opt/airflow/providers/dbt/cloud/src
       - ../../../empty:/opt/airflow/providers/dingding/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/docker/src
-      - ../../../empty:/opt/airflow/providers/dq/src
       - ../../../empty:/opt/airflow/providers/edge3/src
       - ../../../empty:/opt/airflow/providers/elasticsearch/src
       - ../../../empty:/opt/airflow/providers/exasol/src

@@ -149,11 +149,11 @@ body:
         - common-sql
         - databricks
         - datadog
+        - dataquality
         - dbt-cloud
         - dingding
         - discord
         - docker
-        - dq
         - edge3
         - elasticsearch
         - exasol
