@@ -623,6 +623,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 |----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
 | all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
 | allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| area:kubernetes-tests            | run-kubernetes-tests             | If set, the Kubernetes tests job is run regardless of changed files (does not force the full test matrix). |
 | canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
 | default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |
