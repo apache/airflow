@@ -19,6 +19,8 @@
 ``apache-airflow-providers-common-ai``
 ##################################################
 
+The ``common.ai`` provider is the vendor-neutral way to put LLM and agent steps in a Dag.
+
 When to use this provider
 --------------------------
 
@@ -42,14 +44,14 @@ When to use this provider
      - The vendor's own provider
      - e.g. :doc:`apache-airflow-providers-anthropic:index`
 
-``common.ai`` is the vendor-neutral way to put LLM and agent steps in a Dag. It is built on
-`pydantic-ai <https://ai.pydantic.dev/>`__, so the model vendor (OpenAI, Anthropic, Google,
-Bedrock, …) is picked by the connection ``llm_conn_id`` points at — switching providers later
-is a connection change, not a Dag rewrite. Existing LangChain tools aren't locked out either:
-with the ``langchain`` extra installed, they can be wrapped in ``LangChainToolset`` and
-dropped straight into a common.ai agent (see :doc:`toolsets`). The AI step is orchestrated
-by Airflow: the model calls, the agent loop, and any tools all run in the Airflow worker,
-where they get retries, logging, and observability like any other task.
+``common.ai`` is built on `pydantic-ai <https://ai.pydantic.dev/>`__, so the model vendor
+(OpenAI, Anthropic, Google, Bedrock, …) is picked by the connection ``llm_conn_id`` points
+at — switching providers later is a connection change, not a Dag rewrite. Existing LangChain
+tools aren't locked out either: with the ``langchain`` extra installed, they can be wrapped
+in ``LangChainToolset`` and dropped straight into a common.ai agent (see :doc:`toolsets`).
+The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools all
+run in the Airflow worker, where they get retries, logging, and observability like any other
+task.
 
 Use it when a Dag needs:
 
