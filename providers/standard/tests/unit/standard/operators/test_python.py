@@ -2492,6 +2492,7 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
 
     @staticmethod
     def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
+        kwargs["python_version"] = python_version
         if "do_not_use_caching" in kwargs:
             kwargs.pop("do_not_use_caching")
         else:
