@@ -748,7 +748,7 @@ class SFTPHook(SSHHook):
         """
         Perform a synchronous SFTP transfer operation (GET, PUT, or DELETE).
 
-        Centralises transfer logic so both the operator and the trigger
+        Centralizes transfer logic so both the operator and the trigger
         can delegate to the hook, in line with the DRY principle.
 
         :param operation: The SFTP operation - put, get, or delete.
