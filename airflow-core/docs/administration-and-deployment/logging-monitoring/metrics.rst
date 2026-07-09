@@ -202,12 +202,22 @@ path is ``airflow.sdk.observability``:
     with stats.timer("my_service.batch"):
         ...
 
+.. versionadded:: 3.3.0
+    Calling the module-level ``stats`` functions (``stats.incr()``, ``stats.gauge()``,
+    and so on) requires Airflow 3.3.0 or newer. On earlier versions, use the ``Stats``
+    class instead: ``from airflow.sdk.observability.stats import Stats``, then
+    ``Stats.incr(...)``.
+
 ``incr``, ``decr``, ``gauge``, ``timing`` and ``timer`` also accept an optional
 ``tags`` mapping for dimensional metrics on backends that support them:
 
 .. code-block:: python
 
     stats.incr("my_service.requests", tags={"endpoint": "checkout"})
+
+``incr`` and ``decr`` also accept ``count`` and ``rate``, and ``gauge`` accepts
+``rate`` and ``delta``, following the `StatsD data types
+<https://statsd.readthedocs.io/en/stable/types.html#data-types>`__.
 
 .. note::
 
@@ -223,13 +233,21 @@ path is ``airflow.sdk.observability``:
 
 .. note::
 
+    Metric names must be 250 characters or fewer and may only contain the characters
+    ``a-z``, ``A-Z``, ``0-9``, ``_``, ``.``, ``-`` and ``/``. An invalid name is logged
+    and the metric is not emitted.
+
+.. note::
+
     These metrics are silently dropped unless a backend is enabled (see `Setup - StatsD`_
     or `Setup - OpenTelemetry`_).
 
 .. note::
 
     If your custom metrics do not appear, check ``[metrics] metrics_allow_list`` and
-    ``[metrics] metrics_block_list`` (see `Allow/Block Lists`_).
+    ``[metrics] metrics_block_list`` (see `Allow/Block Lists`_). When
+    ``metrics_allow_list`` is set, only metrics matching it are emitted, so a custom
+    metric that is not listed is silently dropped.
 
 
 Other Configuration Options
