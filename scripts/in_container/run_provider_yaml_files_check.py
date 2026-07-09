@@ -520,7 +520,12 @@ def _get_widget_keys(hook_class_name: str) -> set[str] | None:
     except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
         return None
 
-    # Only check if the hook itself (not a base class) defines get_connection_form_widgets.
+    # Only validate hooks that override get_connection_form_widgets() in their own __dict__,
+    # because that method is the source-of-truth for what conn-fields should be declared.
+    # Hooks that inherit it without overriding have no provider-specific widget definition
+    # to diff against, so the check is intentionally skipped for them.  As of writing this
+    # includes HttpHook, the common/ai hooks, and AzureComputeHook — any provider whose hook
+    # falls into this category will NOT be validated here, even if it declares conn-fields.
     if "get_connection_form_widgets" not in hook_class.__dict__:
         return None
 
