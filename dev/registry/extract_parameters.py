@@ -88,6 +88,7 @@ class Module:
     category: str
     provider_id: str
     provider_name: str
+    supports_durable_execution: bool
 
 
 def get_category(integration_name: str) -> str:
@@ -410,13 +411,14 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
+    resumable_mixin: type | None = None,
     inventory: dict[str, str] | None = None,
     version: str = "",
 ) -> list[dict]:
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with all 11 Module fields.
+    and returns metadata for each discovered class with all 12 Module fields.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
@@ -465,7 +467,7 @@ def discover_classes_from_provider(
         category: str = "",
         transfer_desc: str | None = None,
     ) -> dict:
-        """Build a full module entry dict with all 11 fields."""
+        """Build a full module entry dict with all 12 fields."""
         module_name = module_path.split(".")[-1]
         docstring = _get_first_docstring_line(cls_or_obj)
         short_desc = docstring or transfer_desc or f"{integration} {module_type}".strip()
@@ -482,6 +484,7 @@ def discover_classes_from_provider(
             "category": category or get_category(integration),
             "provider_id": provider_id,
             "provider_name": provider_name,
+            "supports_durable_execution": is_durable_capable(cls_or_obj, resumable_mixin),
         }
 
     discovered: list[dict] = []
@@ -923,6 +926,8 @@ def _main_discover(
     base_classes = load_base_classes()
     print(f"Loaded {len(base_classes)} base classes: {', '.join(sorted(base_classes))}")
 
+    resumable_mixin = load_resumable_job_mixin()
+
     # Load all provider.yaml data and map provider_id -> yaml dict / path
     provider_yamls_by_id: dict[str, dict] = {}
     provider_paths_by_id: dict[str, Path] = {}
@@ -957,6 +962,7 @@ def _main_discover(
         discovered = discover_classes_from_provider(
             yaml_path,
             base_classes,
+            resumable_mixin,
             inventory=inventories.get(pid),
             version=version,
         )

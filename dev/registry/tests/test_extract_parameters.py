@@ -25,6 +25,7 @@ import types
 from unittest.mock import patch
 
 import pytest
+import yaml
 from extract_parameters import (
     Module,
     _get_source_line,
@@ -245,7 +246,7 @@ class TestIsDurableCapable:
 # Module dataclass
 # ---------------------------------------------------------------------------
 class TestModuleDataclass:
-    def test_has_all_11_fields(self):
+    def test_has_all_12_fields(self):
         m = Module(
             id="amazon-s3-S3Hook",
             name="S3Hook",
@@ -258,6 +259,7 @@ class TestModuleDataclass:
             category="amazon-s3",
             provider_id="amazon",
             provider_name="Amazon",
+            supports_durable_execution=False,
         )
         assert m.id == "amazon-s3-S3Hook"
         assert m.provider_name == "Amazon"
@@ -672,6 +674,85 @@ class TestSensorNotClassifiedAsOperator:
         assert len(result) == 1
         assert result[0]["type"] == "sensor"
         assert result[0]["name"] == "MySensor"
+
+
+# ---------------------------------------------------------------------------
+# TestDiscoverClassesFromProvider: supports_durable_execution wiring
+# ---------------------------------------------------------------------------
+class TestDiscoverClassesFromProviderDurableExecution:
+    def test_marks_durable_capable_and_plain_operators(self, tmp_path):
+        class ResumableOperator(FullyImplementedResumableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        class PlainProviderOperator(PlainOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {
+                "ResumableOperator": ResumableOperator,
+                "PlainProviderOperator": PlainProviderOperator,
+            },
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(
+                yaml_path, base_classes={}, resumable_mixin=FakeResumableJobMixin
+            )
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["ResumableOperator"]["supports_durable_execution"] is True
+        assert by_name["PlainProviderOperator"]["supports_durable_execution"] is False
+
+    def test_defaults_to_false_when_mixin_unavailable(self, tmp_path):
+        class ResumableOperator(FullyImplementedResumableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {"ResumableOperator": ResumableOperator},
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(yaml_path, base_classes={})
+
+        assert result[0]["supports_durable_execution"] is False
 
 
 # ---------------------------------------------------------------------------
