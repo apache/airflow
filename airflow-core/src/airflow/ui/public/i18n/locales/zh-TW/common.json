@@ -195,6 +195,23 @@
   },
   "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
   "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
+  "presetFilters": {
+    "deleteTitle": "刪除預設篩選條件",
+    "deleteWarning": "預設篩選條件僅儲存在此瀏覽器中。",
+    "duplicate": "預設篩選條件「{{name}}」已儲存完全相同的設定。",
+    "empty": "尚無預設篩選條件",
+    "info": {
+      "default": "將預設篩選條件釘選為預設值後，當您在未套用任何篩選的情況下進入此頁面時，系統會自動套用該篩選條件。",
+      "save": "將目前的篩選與排序儲存為具名的預設篩選條件，之後可隨時切換回來。",
+      "storage": "預設篩選條件儲存在此瀏覽器中。"
+    },
+    "namePlaceholder": "預設篩選條件名稱",
+    "nothingToSave": "沒有可儲存的內容。套用篩選或排序後即可儲存為預設篩選條件。",
+    "save": "儲存",
+    "setDefault": "設為預設",
+    "title": "預設篩選條件",
+    "unsetDefault": "取消預設"
+  },
   "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {
