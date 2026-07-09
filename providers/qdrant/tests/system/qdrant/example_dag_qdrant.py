@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator
+from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator, QdrantSearchOperator
 
 with DAG(
     "example_qdrant_ingest",
@@ -32,7 +32,7 @@ with DAG(
     ids: list[str | int] = [32, 21, "b626f6a9-b14d-4af9-b7c3-43d8deb719a6"]
     payload = [{"meta": "data"}, {"meta": "data_2"}, {"meta": "data_3", "extra": "data"}]
 
-    QdrantIngestOperator(
+    ingest = QdrantIngestOperator(
         task_id="qdrant_ingest",
         collection_name="test_collection",
         vectors=vectors,
@@ -41,6 +41,18 @@ with DAG(
         batch_size=1,
     )
     # [END howto_operator_qdrant_ingest]
+
+    # [START howto_operator_qdrant_search]
+    search = QdrantSearchOperator(
+        task_id="qdrant_search",
+        collection_name="test_collection",
+        query=[0.5, 0.5, 0.5, 0.5],
+        limit=3,
+        with_payload=True,
+    )
+    # [END howto_operator_qdrant_search]
+
+    ingest >> search
 
 
 from tests_common.test_utils.system_tests import get_test_run
