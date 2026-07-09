@@ -730,6 +730,7 @@ class TestSchedulerJob:
             ti=mock.ANY,
             bundle_name="dag_maker",
             bundle_version=None,
+            version_data=None,
             msg=f"Executor {executor} reported that the task instance "
             f"<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued] ti_id={ti1.id}> "
             "finished with state failed, but the task instance's state attribute is queued. "
