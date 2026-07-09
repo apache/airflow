@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ======================================
 ``aiofiles``                                ``>=23.2.0``
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-ssh``            ``>=5.0.5``
+``apache-airflow-providers-ssh``            ``>=4.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``paramiko``                                ``>=4.0.0,<5.0.0``
 ``asyncssh``                                ``>=2.12.0; python_version < "3.14"``
