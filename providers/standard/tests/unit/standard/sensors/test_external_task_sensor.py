@@ -23,6 +23,7 @@ import re
 from datetime import time, timedelta
 from unittest import mock
 
+import pendulum
 import pytest
 from sqlalchemy import select
 
@@ -490,6 +491,13 @@ class TestExternalTaskSensorV2:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
+
+    def test_external_dag_sensor_log_uses_configured_timezone(self, monkeypatch):
+        monkeypatch.setattr(settings, "TIMEZONE", pendulum.timezone("Asia/Seoul"))
+
+        dttm_filter = [pendulum.datetime(2026, 7, 6, 21, tz="UTC")]
+
+        assert ExternalTaskSensor._serialize_dttm_filter_for_log(dttm_filter) == "2026-07-07T06:00:00+09:00"
 
     def test_external_dag_sensor_soft_fail_as_skipped(self, dag_maker, session):
         with dag_maker("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once"):
