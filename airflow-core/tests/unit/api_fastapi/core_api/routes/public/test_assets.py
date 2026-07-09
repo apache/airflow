@@ -577,6 +577,14 @@ class TestGetAssets(TestAssets):
                     "wasb://some_asset_bucket_/key",
                 },
             ),
+            # Exact-match ``uri`` filter: only the asset whose full URI matches is returned.
+            ({"uri": "s3://folder/key"}, {"s3://folder/key"}),
+            ({"uri": "gcp://bucket/key"}, {"gcp://bucket/key"}),
+            # Repeated ``uri`` params match any of the given URIs.
+            ({"uri": ["s3://folder/key", "gcp://bucket/key"]}, {"s3://folder/key", "gcp://bucket/key"}),
+            # A substring of an existing URI must NOT match (unlike uri_pattern).
+            ({"uri": "s3://folder"}, set()),
+            ({"uri": "does-not-exist://key"}, set()),
         ],
     )
     @provide_session

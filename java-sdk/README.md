@@ -389,16 +389,17 @@ manager, before sending the vote — should run against the source package in
 
 3. **Diff against the git tag.** Extract the tarball and compare it with a
    clean checkout of the tag it claims to be built from. They should be
-   identical except `gradlew`, `gradlew.bat`, and `gradle-wrapper.jar`. The
-   extracted top-level directory should be `apache-airflow-java-sdk-<version>`
-   without the `-src` suffix that only appears in the tarball's own filename:
+   identical except for the files kept out of the source release via
+   `.gitattributes` `export-ignore`. The extracted top-level directory should be
+   `apache-airflow-java-sdk-<version>` without the `-src` suffix that only
+   appears in the tarball's own filename:
 
    ```bash
    tar xzf apache-airflow-java-sdk-<VERSION>-src.tar.gz
    git clone --branch java-sdk/<VERSION>-rc<N> \
      https://github.com/apache/airflow.git tag-checkout
    diff -rq apache-airflow-java-sdk-<VERSION>/ tag-checkout/java-sdk/ \
-     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar)$'
+     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|scripts)$'
    ```
 
    Any remaining diff output is unexpected and should block the vote.
@@ -408,7 +409,7 @@ manager, before sending the vote — should run against the source package in
 
    ```bash
    find apache-airflow-java-sdk-<VERSION>/ -type f \
-     -exec sh -c 'file "$1" | grep -qv text && echo "$1"' _ {} \;
+     -exec sh -c 'file -b "$1" | grep -qviE "text|json|xml|empty" && echo "$1"' _ {} \;
    ```
 
    This should print nothing.
@@ -466,7 +467,24 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
    Keep the RC tag for traceability.
 
-4. Update the download page and wait ~1 hour after promoting so Central has
+4. **Publish** a GitHub release. Attach the **voted, signed** source artifacts.
+   From the directory holding the three signed files (e.g. `dist/release`):
+
+   ```bash
+   gh release create java-sdk/<VERSION> \
+     --repo apache/airflow \
+     --title "Apache Airflow Java SDK <VERSION>" \
+     --notes "See the Java SDK README for the features in this release." \
+     --verify-tag \
+     --prerelease \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
+   ```
+
+   Drop the `--prerelease` flag is this is not a prerelease.
+
+5. Update the download page and wait ~1 hour after promoting so Central has
    synced. Send the `[ANNOUNCE]` email.
 
 ### If the vote fails
