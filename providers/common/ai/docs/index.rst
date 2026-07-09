@@ -26,7 +26,7 @@ When to use this provider
    :header-rows: 1
    :widths: 40 30 30
 
-   * - You need
+   * - Use case
      - Use
      - Package
    * - Portable generation, classification, extraction, branching, or a
