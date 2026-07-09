@@ -151,6 +151,8 @@ class TestLangSdkFetchUpstreamSdkSources:
             mock.Mock(stdout="deadbeef\n"),  # git rev-parse
             mock.Mock(),  # git archive
             mock.Mock(),  # tar -xf
+            mock.Mock(stdout=b""),  # git show gradlew
+            mock.Mock(stdout=b""),  # git show gradlew.bat
             mock.Mock(stdout=b""),  # git show gradle-wrapper.jar
         ]
 
@@ -167,6 +169,8 @@ class TestLangSdkFetchUpstreamSdkSources:
             mock.Mock(stdout="deadbeef\n"),  # git rev-parse
             mock.Mock(),  # git archive
             mock.Mock(),  # tar -xf
+            mock.Mock(stdout=b""),  # git show gradlew
+            mock.Mock(stdout=b""),  # git show gradlew.bat
             mock.Mock(stdout=b""),  # git show gradle-wrapper.jar
         ]
 
@@ -189,6 +193,8 @@ class TestLangSdkFetchUpstreamSdkSources:
             mock.Mock(stdout="deadbeef\n"),
             mock.Mock(),
             mock.Mock(),
+            mock.Mock(stdout=b""),
+            mock.Mock(stdout=b""),
             mock.Mock(stdout=b""),
         ]
 
@@ -218,6 +224,8 @@ class TestLangSdkFetchUpstreamSdkSources:
             mock.Mock(),
             mock.Mock(),
             mock.Mock(stdout=b""),
+            mock.Mock(stdout=b""),
+            mock.Mock(stdout=b""),
         ]
 
         _lang_sdk_fetch_upstream_sdk_sources(staging, None)
@@ -227,23 +235,33 @@ class TestLangSdkFetchUpstreamSdkSources:
         assert task_sdk_link.resolve() == (repo_root / "task-sdk").resolve()
 
     @mock.patch.object(kubernetes_commands, "run_command")
-    def test_restores_gradle_wrapper_jar_dropped_by_export_ignore(self, mock_run, tmp_path):
-        # export-ignore (ASF LEGAL-570) drops the jar from `git archive`; ./gradlew needs it restored.
+    def test_restores_gradle_wrapper_files_dropped_by_export_ignore(self, mock_run, tmp_path):
+        # export-ignore (ASF LEGAL-570) drops gradlew, gradlew.bat, and the wrapper jar from
+        # `git archive`; the build invokes ./gradlew from the extraction, so all must be restored.
         mock_run.side_effect = [
             mock.Mock(stdout="upstream\n"),
             mock.Mock(),
             mock.Mock(stdout="deadbeef\n"),
             mock.Mock(),
             mock.Mock(),
+            mock.Mock(stdout=b"fake-gradlew"),
+            mock.Mock(stdout=b"fake-gradlew-bat"),
             mock.Mock(stdout=b"fake-jar-bytes"),
         ]
 
         _, java_sdk = _lang_sdk_fetch_upstream_sdk_sources(tmp_path, None)
 
-        wrapper_jar = java_sdk / "gradle" / "wrapper" / "gradle-wrapper.jar"
-        assert wrapper_jar.read_bytes() == b"fake-jar-bytes"
-        show_cmd = mock_run.call_args_list[5].args[0]
-        assert show_cmd == ["git", "show", "deadbeef:java-sdk/gradle/wrapper/gradle-wrapper.jar"]
+        gradlew = java_sdk / "gradlew"
+        assert gradlew.read_bytes() == b"fake-gradlew"
+        assert gradlew.stat().st_mode & 0o111, "gradlew must be executable"
+        assert (java_sdk / "gradlew.bat").read_bytes() == b"fake-gradlew-bat"
+        assert (java_sdk / "gradle" / "wrapper" / "gradle-wrapper.jar").read_bytes() == b"fake-jar-bytes"
+        show_cmds = [call.args[0] for call in mock_run.call_args_list[5:8]]
+        assert show_cmds == [
+            ["git", "show", "deadbeef:java-sdk/gradlew"],
+            ["git", "show", "deadbeef:java-sdk/gradlew.bat"],
+            ["git", "show", "deadbeef:java-sdk/gradle/wrapper/gradle-wrapper.jar"],
+        ]
 
 
 class TestSetupLangSdkTestNativeSelection:

@@ -2523,7 +2523,8 @@ def _lang_sdk_fetch_upstream_sdk_sources(staging: Path, output: Output | None) -
 
     The real, local task-sdk is symlinked alongside the extraction because java-sdk's
     ``sdk/build.gradle.kts`` reads a sibling ``../task-sdk/.../schema.json``. The gradle wrapper
-    jar is ``export-ignore`` (ASF LEGAL-570) so ``git archive`` drops it; ``git show`` restores it.
+    scripts and jar are ``export-ignore`` (ASF LEGAL-570) so ``git archive`` drops them;
+    ``git show`` restores them, re-marking ``gradlew`` executable.
     """
     remotes = run_command(
         ["git", "remote"], cwd=AIRFLOW_ROOT_PATH, output=output, capture_output=True, text=True, check=True
@@ -2557,17 +2558,23 @@ def _lang_sdk_fetch_upstream_sdk_sources(staging: Path, output: Output | None) -
         check=True,
     )
     run_command(["tar", "-xf", str(archive_path), "-C", str(extracted)], output=output, check=True)
-    wrapper_jar = extracted / "java-sdk" / "gradle" / "wrapper" / "gradle-wrapper.jar"
-    wrapper_jar.parent.mkdir(parents=True, exist_ok=True)
-    wrapper_jar.write_bytes(
-        run_command(
-            ["git", "show", f"{sha}:java-sdk/gradle/wrapper/gradle-wrapper.jar"],
-            cwd=AIRFLOW_ROOT_PATH,
-            output=output,
-            capture_output=True,
-            check=True,
-        ).stdout
-    )
+    for rel_path, mode in (
+        ("java-sdk/gradlew", 0o755),
+        ("java-sdk/gradlew.bat", 0o644),
+        ("java-sdk/gradle/wrapper/gradle-wrapper.jar", 0o644),
+    ):
+        restored = extracted / rel_path
+        restored.parent.mkdir(parents=True, exist_ok=True)
+        restored.write_bytes(
+            run_command(
+                ["git", "show", f"{sha}:{rel_path}"],
+                cwd=AIRFLOW_ROOT_PATH,
+                output=output,
+                capture_output=True,
+                check=True,
+            ).stdout
+        )
+        restored.chmod(mode)
     (extracted / "task-sdk").symlink_to(AIRFLOW_ROOT_PATH / "task-sdk")
     return extracted / "go-sdk", extracted / "java-sdk"
 
