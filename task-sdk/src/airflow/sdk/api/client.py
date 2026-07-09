@@ -461,7 +461,7 @@ class ConnectionOperations:
     def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
         try:
-            resp = self.client.get(f"connections/{conn_id}")
+            resp = self.client.get(f"connections/{quote(conn_id, safe='')}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
