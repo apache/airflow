@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -694,7 +693,7 @@ class TestSFTPOperatorDeferrable:
         )
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context={})
-        assert isinstance(exc.value.trigger, SFTPTrigger)
+        assert isinstance(exc.value.trigger, SFTPOperationTrigger)
         assert exc.value.method_name == "execute_complete"
 
     def test_sftp_operator_execute_complete_success(self):
@@ -726,100 +725,8 @@ class TestSFTPOperatorDeferrable:
             operator.execute_complete(context={}, event=event)
 
 
-class TestSFTPTrigger:
-    """Tests for SFTPTrigger."""
-
-    def test_serialize_roundtrip(self):
-        """Test that serialize() produces correct output for reconstruction."""
-        trigger = SFTPTrigger(
-            ssh_conn_id="ssh_default",
-            local_filepath="/tmp/test.txt",
-            remote_filepath="/remote/test.txt",
-            operation="put",
-            confirm=True,
-            create_intermediate_dirs=False,
-            remote_host=None,
-            concurrency=1,
-            prefetch=True,
-        )
-        classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPTrigger"
-        assert kwargs["ssh_conn_id"] == "ssh_default"
-        assert kwargs["local_filepath"] == "/tmp/test.txt"
-        assert kwargs["remote_filepath"] == "/remote/test.txt"
-        assert kwargs["operation"] == "put"
-        assert kwargs["confirm"] is True
-        assert kwargs["remote_host"] is None
-        assert kwargs["concurrency"] == 1
-        assert kwargs["prefetch"] is True
-
-    def test_run_success(self):
-        """Test run() yields TriggerEvent with status success."""
-        import asyncio
-        from unittest.mock import patch
-
-        trigger = SFTPTrigger(
-            ssh_conn_id="ssh_default",
-            local_filepath="/tmp/test.txt",
-            remote_filepath="/remote/test.txt",
-            operation="put",
-        )
-        with patch.object(trigger, "_do_transfer", return_value=None):
-            events = []
-
-            async def collect():
-                async for event in trigger.run():
-                    events.append(event)
-
-            asyncio.run(collect())
-        assert len(events) == 1
-        assert events[0].payload["status"] == "success"
-
-    def test_run_error(self):
-        """Test run() yields TriggerEvent with status error on exception."""
-        import asyncio
-        from unittest.mock import patch
-
-        trigger = SFTPTrigger(
-            ssh_conn_id="ssh_default",
-            local_filepath="/tmp/test.txt",
-            remote_filepath="/remote/test.txt",
-            operation="put",
-        )
-        with patch.object(trigger, "_do_transfer", side_effect=Exception("Connection failed")):
-            events = []
-
-            async def collect():
-                async for event in trigger.run():
-                    events.append(event)
-
-            asyncio.run(collect())
-        assert len(events) == 1
-        assert events[0].payload["status"] == "error"
-        assert "Connection failed" in events[0].payload["message"]
-
-
-class TestSFTPOperatorDeferrable:
-    """Tests for SFTPOperator deferrable mode."""
-
-    def test_sftp_operator_defers_when_deferrable_true(self):
-        """Test that SFTPOperator defers when deferrable=True."""
-        operator = SFTPOperator(
-            task_id="test_sftp_defer",
-            ssh_conn_id="ssh_default",
-            local_filepath="/tmp/test.txt",
-            remote_filepath="/remote/test.txt",
-            operation="put",
-            deferrable=True,
-        )
-        with pytest.raises(TaskDeferred) as exc:
-            operator.execute(context={})
-        assert isinstance(exc.value.trigger, SFTPOperationTrigger)
-        assert exc.value.method_name == "execute_complete"
-
-
-class TestSFTPTrigger:
-    """Tests for SFTPTrigger."""
+class TestSFTPOperationTrigger:
+    """Tests for SFTPOperationTrigger."""
 
     def test_serialize_roundtrip(self):
         """Test that serialize() produces correct output for reconstruction."""
@@ -855,7 +762,7 @@ class TestSFTPTrigger:
             remote_filepath="/remote/test.txt",
             operation="put",
         )
-        with mock.patch.object(trigger, "_do_transfer", return_value=None):
+        with mock.patch("airflow.providers.sftp.triggers.sftp.SFTPHookAsync.transfer", return_value=None):
             events = []
 
             async def collect():
@@ -876,7 +783,10 @@ class TestSFTPTrigger:
             remote_filepath="/remote/test.txt",
             operation="put",
         )
-        with mock.patch.object(trigger, "_do_transfer", side_effect=Exception("Connection failed")):
+        with mock.patch(
+            "airflow.providers.sftp.triggers.sftp.SFTPHookAsync.transfer",
+            side_effect=Exception("Connection failed"),
+        ):
             events = []
 
             async def collect():

@@ -203,7 +203,9 @@ class SFTPOperationTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Run the file transfer asynchronously and yield a TriggerEvent when done."""
         try:
-            hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id)
+            if self.ssh_conn_id is None:
+    raise ValueError("ssh_conn_id must be set for SFTPTrigger")
+hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id)
             await hook.transfer(
                 operation=self.operation,
                 local_filepath=self.local_filepath,
