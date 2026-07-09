@@ -1512,6 +1512,8 @@ class TestTIUpdateState:
                 state=State.RUNNING,
                 session=session,
             )
+            # simulate a task that started 1 hour ago
+            ti.start_date = timezone.datetime(2024, 11, 22) - timedelta(hours=1)
             session.commit()
 
             instant = timezone.datetime(2024, 11, 22)
@@ -1536,6 +1538,7 @@ class TestTIUpdateState:
                     },
                 },
                 "trigger_timeout": "P1D",  # 1 day
+                "execution_timeout": "PT2H", # 2 hours
                 "queue": "default" if queues_enabled else None,
                 "classpath": "my-classpath",
                 "next_method": "execute_callback",
@@ -1585,8 +1588,11 @@ class TestTIUpdateState:
                 },
                 "bar": "abc",
             }
+            # execution_timeout_date = start_date + 2 hours = 2024-11-22 - 1hr + 2hrs = 2024-11-22 01:00:00
+            # trigger_timeout = instant + 1 day = 2024-11-23 00:00:00
+            # min is execution_timeout_date
             assert tis[0].trigger_timeout == timezone.make_aware(
-                datetime(2024, 11, 23), timezone=timezone.utc
+                datetime(2024, 11, 22, 1, 0, 0), timezone=timezone.utc
             )
 
             t = session.scalars(select(Trigger)).all()

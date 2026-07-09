@@ -1476,6 +1476,7 @@ def _defer_task(
         classpath=classpath,
         trigger_kwargs=trigger_kwargs,
         trigger_timeout=defer.timeout,
+        execution_timeout=ti.task.execution_timeout,
         queue=queue,
         next_method=defer.method_name,
         next_kwargs=next_kwargs,
@@ -2070,6 +2071,7 @@ def _run_execute_callable(
     context: Context,
     execute: Callable[..., Any] | functools.partial[Any],
     task: BaseOperator,
+    ti: RuntimeTaskInstance,
 ) -> Any:
     """
     Run the task's execute callable, applying the execution timeout if one is set.
@@ -2084,9 +2086,15 @@ def _run_execute_callable(
     ctx.run(ExecutorSafeguard.tracker.set, task)
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
+        from airflow.utils.timezone import utcnow
 
-        # TODO: handle timeout in case of deferral
         timeout_seconds = task.execution_timeout.total_seconds()
+        
+        # If the task resumes from deferral, subtract the time already spent
+        if ti.start_date:
+            time_passed = (utcnow() - ti.start_date).total_seconds()
+            timeout_seconds -= time_passed
+
         try:
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
@@ -2140,7 +2148,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
+    result = _run_execute_callable(context, execute, task, ti)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
