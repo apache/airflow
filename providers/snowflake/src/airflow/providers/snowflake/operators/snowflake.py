@@ -561,6 +561,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         self.query_ids = cast("list[str]", external_id)
+        # On reconnect, execute_query (the only thing that normally populates this) never ran
+        # on this hook instance -- sync it so OpenLineage's get_openlineage_database_specific_lineage,
+        # which reads hook.query_ids (not the operator's), doesn't silently produce no lineage.
+        self._hook.query_ids = self.query_ids
         # Push before polling, not after, so the handles are recorded even if a statement
         # errors below.
         if self.do_xcom_push and context is not None:
@@ -580,6 +584,9 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> None:
         self.query_ids = cast("list[str]", external_id)
+        # Same reconnect-hook gap as poll_until_complete -- see the comment there. This path
+        # hits it too, since the already-succeeded case never calls poll_until_complete either.
+        self._hook.query_ids = self.query_ids
         if getattr(self, "_poll_until_complete_ran", False):
             return
         # The already-succeeded retry path skips submit_job and poll_until_complete entirely,

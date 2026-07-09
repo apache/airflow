@@ -800,6 +800,9 @@ class TestSnowflakeSqlApiOperatorDurable:
 
         mock_execute_query.assert_not_called()
         task_store.set.assert_not_called()
+        # execute_query never ran on this hook instance, so nothing else would populate this --
+        # OpenLineage's get_openlineage_database_specific_lineage reads hook.query_ids directly.
+        assert operator._hook.query_ids == ["uuid1"]
 
     def test_partial_progress_reconnect_waits_only_on_running_handle(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -822,6 +825,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         mock_execute_query.assert_not_called()
         task_store.set.assert_not_called()
         mock_check_query_output.assert_called_once_with(["uuid1", "uuid2"])
+        assert operator._hook.query_ids == ["uuid1", "uuid2"]
 
     def test_already_succeeded_returns_result_without_polling(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -837,6 +841,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         mock_check_query_output.assert_called_once_with(["uuid1"])
         # Only the get_job_status check ran; poll_on_queries must never have been entered.
         assert mock_get_sql_api_query_status.call_count == 1
+        assert operator._hook.query_ids == ["uuid1"]
 
     def test_resubmits_when_stored_query_in_terminal_error(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
