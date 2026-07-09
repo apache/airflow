@@ -261,8 +261,6 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| dataquality         | ``pip install 'apache-airflow[dataquality]'``       | Data Quality hooks and operators                    |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | dbt-cloud           | ``pip install 'apache-airflow[dbt-cloud]'``         | dbt Cloud hooks and operators                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | dingding            | ``pip install 'apache-airflow[dingding]'``          | Dingding hooks and sensors                          |

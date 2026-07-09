@@ -24,6 +24,47 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-common-dataquality",
-        "name": "Common Data Quality",
-        "description": "Common Data Quality Provider\n",
+        "name": "Data Quality",
+        "description": "``Data Quality Provider``\n\nDeclarative data quality rules with durable, per-rule execution history.\nChecks run through ``common.sql`` DB-API hooks; results are persisted to a\nconfigurable results store (object storage or local files) so task, run,\nand rule-level quality can be inspected over time.\n",
+        "integrations": [
+            {
+                "integration-name": "Data Quality",
+                "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-dataquality/",
+                "how-to-guide": ["/docs/apache-airflow-providers-common-dataquality/operators.rst"],
+                "tags": ["software"],
+            }
+        ],
+        "operators": [
+            {
+                "integration-name": "Data Quality",
+                "python-modules": ["airflow.providers.common.dataquality.operators.dq_check"],
+            }
+        ],
+        "task-decorators": [
+            {
+                "class-name": "airflow.providers.common.dataquality.decorators.dq_check.dq_check_task",
+                "name": "dq_check",
+            }
+        ],
+        "config": {
+            "common.dataquality": {
+                "description": "Configuration for the Data Quality provider results store.\n",
+                "options": {
+                    "results_path": {
+                        "description": "Any fsspec-compatible URL understood by ``ObjectStoragePath`` where data quality\nresults are persisted, e.g. ``s3://bucket/airflow-dq`` or ``file:///opt/airflow/dq``.\nWhen unset, checks still run but no history is persisted.\n",
+                        "version_added": "0.1.0",
+                        "type": "string",
+                        "example": "s3://data-platform/airflow-dq",
+                        "default": None,
+                    },
+                    "results_conn_id": {
+                        "description": "Optional Airflow connection used to access ``results_path``.\n",
+                        "version_added": "0.1.0",
+                        "type": "string",
+                        "example": "aws_default",
+                        "default": None,
+                    },
+                },
+            }
+        },
     }
