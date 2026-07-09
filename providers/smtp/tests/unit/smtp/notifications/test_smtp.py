@@ -175,6 +175,8 @@ class TestSmtpNotifier:
     def test_notifier_with_nondefault_connection_extra(
         self, mock_smtphook_hook, create_dag_without_db, mock_task_instance
     ):
+        """When the connection extra defines `from_email` (and no config `[email] from_email` is set),
+        the connection's from_email is used, including template rendering."""
         # TODO: we can use create_runtime_ti fixture in place of mock_task_instance once provider has minimum AF to Airflow 3.0+
         ti = mock_task_instance(
             dag_id=TEST_DAG_ID,
@@ -213,7 +215,7 @@ class TestSmtpNotifier:
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_from_email_falls_back_to_config(self, mock_smtphook_hook, create_dag_without_db):
-        """When from_email is unset and the connection defines none, `[email] from_email` config is used."""
+        """When config [email] from_email is set and the SMTP connection extra `from_email` is NOT set, `[email] from_email` config is used."""
         mock_smtphook_hook.return_value.__enter__.return_value.from_email = None
         mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
         mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
