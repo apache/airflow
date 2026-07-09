@@ -23,6 +23,29 @@ production-shaped pipeline. Each section explains the architecture -- how the Da
 why, and how the pieces are wired together -- rather than the mechanics of a single operator,
 which the linked guides already cover. Read the full source for the runnable Dag.
 
+LlamaIndex RAG shapes
+-----------------------
+
+`example_llamaindex_rag.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_rag.py>`__
+walks the same load -> embed -> retrieve -> answer pattern through three shapes, from simplest to
+production-shaped:
+
+- ``example_llamaindex_rag_pipeline`` (``schedule=None``) -- everything in one Dag:
+  ``DocumentLoaderOperator`` parses local files, ``LlamaIndexEmbeddingOperator`` chunks and
+  persists the index, ``LlamaIndexRetrievalOperator`` retrieves for a fixed question, and an
+  ``LLMOperator`` synthesizes the answer.
+- ``example_llamaindex_index_pdf`` / ``example_llamaindex_query`` -- the load/embed step moved
+  into its own weekly Dag (``schedule="@weekly"``) so the index stays fresh as PDFs arrive, while
+  a second Dag (``schedule=None``, triggered with a ``question`` param) retrieves and answers on
+  demand against the persisted index -- the same index/query split the SEC 10-K pipelines below
+  use, without their multi-company retrieval fan-out.
+- ``example_llamaindex_multi_source`` -- two ``DocumentLoaderOperator`` calls tag documents from
+  different sources via ``metadata_fields`` before merging and embedding them into one index, for
+  filtered retrieval downstream.
+
+See :doc:`operators/document_loader`, :doc:`operators/llamaindex_embedding`, and
+:doc:`operators/llamaindex_retrieval` for how the individual operators work.
+
 SEC 10-K financial analysis
 ----------------------------
 
