@@ -103,6 +103,16 @@ describe("registry", () => {
     },
   );
 
+  it.each([
+    ["dagId", { dagId: "d".repeat(251), taskId: "my_task" }],
+    ["taskId", { dagId: "example_dag", taskId: "t".repeat(251) }],
+  ])("rejects a %s longer than 250 characters", (name, registration) => {
+    const registry = new TaskRegistry();
+    expect(() => registry.register(registration, async () => undefined)).toThrowError(
+      new RegExp(`${name} must be less than 250 characters, not 251`),
+    );
+  });
+
   it("accepts a Unicode dagId that Python's word-character rule allows", () => {
     const registry = new TaskRegistry();
     const handler = async () => undefined;
