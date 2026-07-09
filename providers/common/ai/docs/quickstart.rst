@@ -30,13 +30,14 @@ plan to use, and step 3 below makes a real, billed API call to that provider.
 1. Install
 ----------
 
-Install the provider together with the extra for the model SDK you plan to
-use — ``openai`` here, or ``anthropic``, ``google``, ``bedrock`` for the
-others:
+Install the provider together with the extra matching the model SDK you plan
+to use — ``openai``, ``anthropic``, ``google``, or ``bedrock`` (see
+:doc:`index` for the full list of available extras). Replace ``<extra>``
+below with the one you need:
 
 .. code-block:: bash
 
-    pip install "apache-airflow-providers-common-ai[openai]"
+    pip install "apache-airflow-providers-common-ai[<extra>]"
 
 2. Configure the connection
 ----------------------------
