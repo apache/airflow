@@ -141,6 +141,18 @@ class TestAnthropicBatchOperatorExecute:
         hook.cancel_batch.assert_called_once_with("batch_1")
 
     @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
+    def test_execute_forwards_model_to_hook(self, mock_hook_prop):
+        hook = mock.MagicMock(spec=AnthropicHook)
+        hook.create_batch.return_value.id = "batch_1"
+        mock_hook_prop.return_value = hook
+
+        op = AnthropicBatchOperator(
+            task_id="t", requests=REQUESTS, model="claude-haiku-4-5", wait_for_completion=False
+        )
+        op.execute(_context())
+        hook.create_batch.assert_called_once_with(REQUESTS, model="claude-haiku-4-5")
+
+    @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
     def test_empty_requests_raises_before_any_api_call(self, mock_hook_prop):
         hook = mock.MagicMock(spec=AnthropicHook)
         mock_hook_prop.return_value = hook

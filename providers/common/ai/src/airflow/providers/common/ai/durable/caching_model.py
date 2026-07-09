@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from pydantic_ai.models.wrapper import WrapperModel
 
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request
 
 log = structlog.get_logger(logger_name="task")
@@ -33,8 +34,8 @@ if TYPE_CHECKING:
     from pydantic_ai.models import ModelRequestParameters
     from pydantic_ai.settings import ModelSettings
 
+    from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-    from airflow.providers.common.ai.durable.storage import DurableStorage
 
 
 @dataclass(init=False)
@@ -51,14 +52,14 @@ class CachingModel(WrapperModel):
     discarded and the step re-runs live.
     """
 
-    storage: DurableStorage = field(repr=False)
+    storage: DurableStorageProtocol = field(repr=False)
     counter: DurableStepCounter = field(repr=False)
 
     def __init__(
         self,
         wrapped: Any,
         *,
-        storage: DurableStorage,
+        storage: DurableStorageProtocol,
         counter: DurableStepCounter,
     ) -> None:
         super().__init__(wrapped)
@@ -72,7 +73,7 @@ class CachingModel(WrapperModel):
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
         step = self.counter.next_step()
-        key = f"model_step_{step}"
+        key = f"{DURABLE_KEY_PREFIX}model_step_{step}"
         # Fingerprint the *prepared* request, not the raw arguments. Concrete
         # models call ``prepare_request()`` at the start of ``request()`` to merge
         # their model-level ``settings`` and apply profile-specific transforms
