@@ -75,14 +75,17 @@ export const CalendarCell = ({
 
   const deadlineIndicator = hasDeadline ? (
     <Box
-      bottom="0"
-      color="colorPalette.fg"
-      colorPalette={hasMissedDeadline ? "red" : "blue"}
+      alignItems="center"
       data-testid="deadline-indicator"
-      fontSize="8px"
+      display="flex"
+      fontSize="10px"
+      height="100%"
+      justifyContent="center"
+      left="0"
       lineHeight={1}
       position="absolute"
-      right="0"
+      top="0"
+      width="100%"
     >
       <DeadlineIcon />
     </Box>
