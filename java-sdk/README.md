@@ -389,16 +389,17 @@ manager, before sending the vote — should run against the source package in
 
 3. **Diff against the git tag.** Extract the tarball and compare it with a
    clean checkout of the tag it claims to be built from. They should be
-   identical except `gradlew`, `gradlew.bat`, and `gradle-wrapper.jar`. The
-   extracted top-level directory should be `apache-airflow-java-sdk-<version>`
-   without the `-src` suffix that only appears in the tarball's own filename:
+   identical except for the files kept out of the source release via
+   `.gitattributes` `export-ignore`. The extracted top-level directory should be
+   `apache-airflow-java-sdk-<version>` without the `-src` suffix that only
+   appears in the tarball's own filename:
 
    ```bash
    tar xzf apache-airflow-java-sdk-<VERSION>-src.tar.gz
    git clone --branch java-sdk/<VERSION>-rc<N> \
      https://github.com/apache/airflow.git tag-checkout
    diff -rq apache-airflow-java-sdk-<VERSION>/ tag-checkout/java-sdk/ \
-     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar)$'
+     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|\.editorconfig|scripts)$'
    ```
 
    Any remaining diff output is unexpected and should block the vote.
