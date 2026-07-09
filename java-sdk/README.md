@@ -408,7 +408,7 @@ manager, before sending the vote — should run against the source package in
 
    ```bash
    find apache-airflow-java-sdk-<VERSION>/ -type f \
-     -exec sh -c 'file "$1" | grep -qv text && echo "$1"' _ {} \;
+     -exec sh -c 'file -b "$1" | grep -qviE "text|json|xml|empty" && echo "$1"' _ {} \;
    ```
 
    This should print nothing.
