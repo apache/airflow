@@ -27,6 +27,26 @@ Changelog
 ---------
 
 
+Transitive dependency changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+  This release upgrades the provider's ``airbyte-api`` dependency to the ``1.x`` series and switches
+  the underlying HTTP client from ``requests`` to ``httpx``.
+
+  No changes are required for typical Dag authors: the ``AirbyteHook``, ``AirbyteTriggerSyncOperator``,
+  and ``AirbyteJobSensor`` public interfaces are unchanged, and the Airbyte connection configuration
+  (including the ``proxies`` extra) keeps the same format.
+
+  Action is required only if your environment relies on the provider's transitive dependencies:
+
+  * ``airbyte-api`` is now ``>=1.0.0,<2.0`` (previously ``>=0.52.0,<1.0.0``). The ``1.x`` SDK is built
+    on Pydantic models, so any code importing ``airbyte_api`` directly must pass request objects as
+    keyword arguments (e.g. ``GetJobRequest(job_id=...)``) and handle its stricter response validation.
+  * ``requests`` is no longer installed by this provider. If your code relied on it being pulled in
+    transitively, declare ``requests`` as an explicit dependency of your own project.
+
+
 5.5.2
 .....
 
