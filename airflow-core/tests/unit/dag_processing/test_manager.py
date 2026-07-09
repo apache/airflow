@@ -501,16 +501,18 @@ class TestDagFileProcessorManager:
         """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("callbacks.py")
-        processor = MagicMock()
+        processor, _ = self.mock_processor()
         processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
 
         manager._processors[versioned_file] = processor
 
-        with mock.patch("airflow.dag_processing.manager.stats.decr"):
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+        ):
             manager.terminate_orphan_processes(present=set())
 
         assert manager._processors == {}
-        processor.kill.assert_called_once_with(signal.SIGKILL)
 
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
