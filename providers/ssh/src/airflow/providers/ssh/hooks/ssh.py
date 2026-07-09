@@ -51,6 +51,14 @@ except ImportError:
 CMD_TIMEOUT = 10
 
 _HostKeyConstructor = type[paramiko.RSAKey] | type[paramiko.ECDSAKey] | type[paramiko.Ed25519Key]
+_SUPPORTED_HOST_KEY_TYPES = (
+    "ssh-rsa",
+    "ssh-ecdsa",
+    "ecdsa-sha2-nistp256",
+    "ecdsa-sha2-nistp384",
+    "ecdsa-sha2-nistp521",
+    "ssh-ed25519",
+)
 
 
 class SSHHook(BaseHook):
@@ -99,6 +107,7 @@ class SSHHook(BaseHook):
 
     _host_key_mappings: dict[str, _HostKeyConstructor] = {
         "ssh-rsa": paramiko.RSAKey,
+        "ssh-ecdsa": paramiko.ECDSAKey,
         "ecdsa-sha2-nistp256": paramiko.ECDSAKey,
         "ecdsa-sha2-nistp384": paramiko.ECDSAKey,
         "ecdsa-sha2-nistp521": paramiko.ECDSAKey,
@@ -230,22 +239,25 @@ class SSHHook(BaseHook):
                     self.ciphers = extra_options.get("ciphers")
 
                 if host_key is not None:
-                    if " " in host_key:
-                        key_type, host_key = host_key.split(None)[:2]
+                    host_key = host_key.strip()
+                    host_key_parts = host_key.split(None, 1)
+                    key_constructor: _HostKeyConstructor = paramiko.RSAKey
+                    if len(host_key_parts) == 2:
+                        key_type, host_key = host_key_parts
                         if key_type == "ssh-dss":
                             raise ValueError(
                                 "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
                                 "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
                             )
-                        key_constructor = self._host_key_mappings.get(key_type)
-                        if key_constructor is None:
+                        key_constructor_for_type = self._host_key_mappings.get(key_type)
+                        if key_constructor_for_type is None:
                             raise ValueError(
                                 f"Unsupported SSH host key algorithm {key_type!r}. "
-                                "Supported types are: ssh-rsa, ecdsa-sha2-nistp256, "
-                                "ecdsa-sha2-nistp384, ecdsa-sha2-nistp521, ssh-ed25519."
+                                f"Supported types are: {', '.join(_SUPPORTED_HOST_KEY_TYPES)}."
                             )
-                    else:
-                        key_constructor = paramiko.RSAKey
+                        key_constructor = key_constructor_for_type
+                    elif host_key in self._host_key_mappings or host_key == "ssh-dss":
+                        raise ValueError(f"SSH host key {host_key!r} is missing key data.")
                     decoded_host_key = decodebytes(host_key.encode("utf-8"))
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
@@ -613,6 +625,13 @@ class SSHHookAsync(BaseHook):
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
             self.known_hosts = "none"
         elif host_key is not None:
+            host_key = host_key.strip()
+            host_key_parts = host_key.split(None, 1)
+            if host_key_parts and host_key_parts[0] == "ssh-dss":
+                raise ValueError(
+                    "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
+                    "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
+                )
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self):
