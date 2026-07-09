@@ -105,7 +105,9 @@ fi
 )
 echo "    OK"
 
-echo "==> 6. LICENSE and NOTICE present in every built jar"
+echo "==> 6. LICENSE and NOTICE present in every published jar"
+repo="$work/maven-repo"
+( cd "$extracted" && ./gradlew --no-daemon publish -PmavenUrl="file://$repo" -PskipSigning=true )
 missing=0
 while IFS= read -r jar; do
   for entry in META-INF/LICENSE META-INF/NOTICE; do
@@ -114,7 +116,7 @@ while IFS= read -r jar; do
       missing=1
     fi
   done
-done < <(find "$extracted" -path '*/build/libs/*.jar')
+done < <(find "$repo" -name '*.jar')
 [ "$missing" -eq 0 ] || exit 1
 echo "    OK"
 
