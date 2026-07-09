@@ -78,6 +78,14 @@ def test_get_task_log():
     assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 
+def test_get_streaming_task_log_not_implemented():
+    executor = BaseExecutor()
+    ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
+
+    with pytest.raises(NotImplementedError):
+        executor.get_streaming_task_log(ti=ti, try_number=1)
+
+
 def test_serve_logs_default_value():
     assert not BaseExecutor.serve_logs
 

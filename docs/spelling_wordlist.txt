@@ -121,6 +121,7 @@ auditable
 Auth
 auth
 authenticator
+Authentik
 Authlib
 authMechanism
 authorised
@@ -1015,6 +1016,7 @@ Logstash
 logstash
 longblob
 lookups
+loopback
 lshift
 lte
 lxml

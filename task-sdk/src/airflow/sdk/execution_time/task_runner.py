@@ -2476,6 +2476,15 @@ def main():
             ):
                 state, _, error = run(ti, context, log)
                 context["exception"] = error
+                # run() funnels every failure path into `error` rather than
+                # re-raising, so the worker span never sees the exception via
+                # propagation. Mark it here, where the worker span is in scope
+                # regardless of trace detail level.
+                if error is not None:
+                    span.record_exception(error)
+                    span.set_status(
+                        Status(StatusCode.ERROR, description=f"Exception: {type(error).__name__}")
+                    )
                 finalize(ti, state, context, log, error)
                 # If run() couldn't deliver a FAILED / UP_FOR_RETRY terminal
                 # state to the supervisor, fail closed now — finalize() has

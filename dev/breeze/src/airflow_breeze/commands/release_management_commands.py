@@ -285,11 +285,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.25"
+AIRFLOW_UV_VERSION = "0.11.26"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.5"
+PREK_VERSION = "0.4.6"
 HATCH_VERSION = "1.17.0"
 PYYAML_VERSION = "6.0.3"
 
@@ -2035,7 +2035,8 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name == "helm-chart":
         return chart_version()
 
-    if package_name in ("docker-stack", "apache-airflow-providers"):
+    if package_name in ("docker-stack", "apache-airflow-providers", "java-sdk"):
+        # Non-versioned packages; java-sdk is versioned but only via a staged stable.txt.
         return None
 
     if package_name.startswith("apache-airflow-providers-"):

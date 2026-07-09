@@ -38,6 +38,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicBatchJobError,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicTriggerEventError,
 )
 from airflow.providers.common.compat.sdk import AirflowSkipException, BaseHook
 
@@ -147,6 +148,29 @@ def evaluate_session_state(
             return True, f"Outcome not satisfied for session {session.id}: {evaluation.result}.", False
     # idle but no terminal outcome verdict yet (e.g. the run has not started)
     return False, None, False
+
+
+#: Statuses the provider's triggers emit in their terminal event.
+TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "timeout"})
+
+
+def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Validate the event a deferred task resumes with, returning it if well-formed.
+
+    The event crosses the triggerer/worker boundary through the metadata DB, so a
+    resuming task can receive ``None`` or a status its handlers do not recognize
+    (version skew, a custom trigger). Both must fail loudly: the ``execute_complete``
+    handlers raise on ``timeout``/``error`` and treat everything else as success, so
+    an unrecognized status would otherwise silently succeed.
+    """
+    if event is None:
+        raise AnthropicTriggerEventError("Trigger error: event is None")
+    if event.get("status") not in TRIGGER_EVENT_STATUSES:
+        raise AnthropicTriggerEventError(
+            f"Unexpected trigger event status {event.get('status')!r}: {event!r}"
+        )
+    return event
 
 
 def evaluate_batch_counts(
@@ -385,17 +409,35 @@ class AnthropicHook(BaseHook):
             params["system"] = system
         return self.conn.messages.count_tokens(**params).input_tokens
 
-    def create_batch(self, requests: list[dict[str, Any]]) -> MessageBatch:
+    @staticmethod
+    def _apply_default_model(request: dict[str, Any], default_model: str) -> dict[str, Any]:
+        """
+        Fill ``params['model']`` from ``default_model`` when the request omits it.
+
+        The input dict is never mutated, and a request that sets its own ``model`` is
+        returned unchanged, so a single batch can still mix models across requests.
+        """
+        params = request.get("params")
+        if not isinstance(params, dict) or params.get("model"):
+            return request
+        return {**request, "params": {**params, "model": default_model}}
+
+    def create_batch(self, requests: list[dict[str, Any]], model: str | None = None) -> MessageBatch:
         """
         Submit a Message Batch.
 
         :param requests: A list of ``{"custom_id": str, "params": {...}}`` dicts, where
             ``params`` is a ``messages.create`` payload (``model``, ``max_tokens``,
-            ``messages``, ...).
+            ``messages``, ...). A request that omits ``model`` inherits ``model`` below,
+            or the connection's ``default_model`` (``extra['model']``) when that is unset too.
+        :param model: Default model id for requests that do not set their own. Falls back
+            to the connection's :attr:`default_model`.
         """
         self._require_first_party("The Message Batches API")
+        default_model = model or self.default_model
+        prepared = [self._apply_default_model(request, default_model) for request in requests]
         # ``Request`` is a TypedDict, so the plain dicts callers build match structurally.
-        return self.conn.messages.batches.create(requests=cast("Iterable[Request]", requests))
+        return self.conn.messages.batches.create(requests=cast("Iterable[Request]", prepared))
 
     def get_batch(self, batch_id: str) -> MessageBatch:
         """Retrieve a Message Batch by ID."""

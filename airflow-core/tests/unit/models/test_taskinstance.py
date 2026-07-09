@@ -109,7 +109,6 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -2589,7 +2588,6 @@ class TestTaskInstance:
             "task_display_name": "Test Refresh from DB Task",
             "dag_version_id": mock.ANY,
             "context_carrier": {},
-            "span_status": SpanStatus.ENDED,
             "retry_delay_override": 60.0,
             "retry_reason": "Rate limit, backing off",
         }

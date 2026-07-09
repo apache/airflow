@@ -88,6 +88,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 # Providers
 /providers/akeyless/ @eladkal # + @baraka-akeyless @deanshak
 /providers/amazon/ @o-nikolas
+/providers/anthropic/ @kaxil @gopidesupavan
 /providers/apache/iceberg/ @Fokko
 /providers/celery/ @hussein-awala @dheerajturaga
 /providers/cncf/kubernetes @jedcunningham @hussein-awala @jscheffl

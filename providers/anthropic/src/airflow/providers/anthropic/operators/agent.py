@@ -23,7 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.anthropic.exceptions import AnthropicAgentSessionError, AnthropicAgentSessionTimeout
-from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
+from airflow.providers.anthropic.hooks.anthropic import AnthropicHook, validate_execute_complete_event
 from airflow.providers.anthropic.triggers.agent import AnthropicAgentSessionTrigger
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
@@ -191,8 +191,7 @@ class AnthropicAgentSessionOperator(BaseOperator):
         return session.id
 
     def execute_complete(self, context: Context, event: Any = None) -> str:
-        if not event:
-            raise AnthropicAgentSessionError("Trigger resumed without an event payload.")
+        event = validate_execute_complete_event(event)
         # The deferred task is a fresh instance; restore the session id from the event.
         self.session_id = event["session_id"]
         status = event["status"]

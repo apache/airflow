@@ -1,0 +1,7 @@
+.env
+*.iml
+# DAGs are sourced from providers/openlineage/tests/system at runtime by prepare_dags.py
+dags/
+logs/
+# Provider wheels built from main for older-version (compat) image builds
+provider_dist/
