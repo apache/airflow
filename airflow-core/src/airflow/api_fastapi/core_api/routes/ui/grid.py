@@ -65,7 +65,7 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     task_group_to_dict_grid,
 )
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -291,8 +291,14 @@ def get_grid_runs(
         .correlate(DagRun)
         .label("has_missed_deadline")
     )
+    has_note_subq = (
+        exists()
+        .where(DagRunNote.dag_run_id == DagRun.id, DagRunNote.content.isnot(None))
+        .correlate(DagRun)
+        .label("has_note")
+    )
     base_query = (
-        select(DagRun, has_missed_deadline)
+        select(DagRun, has_missed_deadline, has_note_subq)
         .where(DagRun.dag_id == dag_id)
         .options(
             load_only(
@@ -329,10 +335,10 @@ def get_grid_runs(
         return_total_entries=False,
     )
     results = session.execute(dag_runs_select_filter).unique().all()
-    dag_runs = [run for run, _ in results]
+    dag_runs = [run for run, _, _ in results]
     attach_dag_versions_to_runs(dag_runs, session=session)
     grid_runs = []
-    for run, has_missed in results:
+    for run, has_missed, has_note in results:
         grid_runs.append(
             GridRunsResponse.model_validate(
                 {
@@ -346,6 +352,7 @@ def get_grid_runs(
                     "run_type": run.run_type,
                     "dag_versions": run.dag_versions,
                     "has_missed_deadline": has_missed,
+                    "has_note": has_note,
                 }
             )
         )
@@ -470,7 +477,7 @@ def get_grid_ti_summaries_stream(
 
         has_note_subq = (
             exists()
-            .where(TaskInstanceNote.ti_id == TaskInstance.id)
+            .where(TaskInstanceNote.ti_id == TaskInstance.id, TaskInstanceNote.content.isnot(None))
             .correlate(TaskInstance)
             .label("has_note")
         )
