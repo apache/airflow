@@ -80,6 +80,7 @@ OpenAI, Anthropic, or other pydantic-ai-supported connection:
     Toolsets <toolsets>
     Operators <operators/index>
     Examples <examples>
+    End-to-End Pipelines <end_to_end_pipelines>
     Retry Policies <retry_policies>
     HITL Review <hitl_review>
     Observability <observability>

@@ -39,8 +39,7 @@ Single-prompt tasks
      - What it shows
    * - :doc:`operators/llm`
      - ``@task.llm`` for text, structured output, classification, and dynamic task mapping over
-       LLM results (``example_llm.py``, ``example_llm_classification.py``,
-       ``example_llm_analysis_pipeline.py``).
+       LLM results (``example_llm.py``, ``example_llm_classification.py``, ``example_llm_analysis_pipeline.py``).
    * - :doc:`operators/llm_branch`
      - ``@task.llm_branch`` picking which downstream task runs.
    * - :doc:`operators/llm_file_analysis`
@@ -99,8 +98,8 @@ Retrieval & document processing
 End-to-end scenarios
 ---------------------
 
-Production-shaped Dags that combine several of the patterns above into one pipeline. These don't
-have a dedicated guide yet -- read the source directly:
+Production-shaped Dags that combine several of the patterns above into one pipeline. See
+:doc:`end_to_end_pipelines` for the architecture behind each one.
 
 .. list-table::
    :header-rows: 1
