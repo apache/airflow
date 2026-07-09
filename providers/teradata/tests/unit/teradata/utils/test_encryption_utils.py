@@ -35,7 +35,7 @@ class TestEncryptionUtils:
         allowed_chars = string.ascii_letters + string.digits + string.punctuation
         assert (all(c in allowed_chars for c in pwd)) is True
 
-    @patch("subprocess.run")
+    @patch("airflow.providers.teradata.utils.encryption_utils.subprocess.run")
     def test_generate_encrypted_file_with_openssl_calls_subprocess(self, mock_run):
         file_path = "/tmp/plain.txt"
         password = "testpass"
@@ -139,3 +139,4 @@ class TestEncryptionUtils:
         ssh_client.exec_command.assert_called_once_with(expected_cmd)
         assert exit_status == 0
         assert output == "decrypted output"
+        assert err == ""
