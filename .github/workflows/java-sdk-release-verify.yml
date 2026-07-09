@@ -26,6 +26,11 @@
 #   * on manual dispatch -> verify the ACTUAL staged artifacts: the source
 #     package in dist/dev and the closed Nexus staging repo. Run this after
 #     staging, before sending the [VOTE] email.
+#
+# The environment setup intentionally mirror what a human verifying the release
+# would do. An (unpinned) latest Gradle is downloaded to create the Gradle
+# wrapper from, and a more modern JDK is used to run things.
+
 ---
 name: Java SDK release verification
 
@@ -56,7 +61,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  JAVA_VERSION: "11"
+  JAVA_VERSION: "21"
 
 jobs:
   source-release:
