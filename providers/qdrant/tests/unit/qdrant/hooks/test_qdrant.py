@@ -131,3 +131,83 @@ class TestQdrantHook:
         self.qdrant_hook.conn.delete_collection(collection_name=self.collection_name)
 
         conn.delete_collection.assert_called_once_with(collection_name=self.collection_name)
+
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
+    def test_search_returns_list_of_dicts(self, conn):
+        """``search`` returns plain dicts by calling ``model_dump`` on each point.
+
+        Raw ``ScoredPoint`` pydantic objects are not XCom-serializable; the hook's
+        job is to convert them at the boundary so callers get JSON-safe results.
+        """
+        point_a = Mock(spec=["model_dump"])
+        point_a.model_dump.return_value = {"id": "a", "score": 0.9, "payload": {"text": "hi"}}
+        point_b = Mock(spec=["model_dump"])
+        point_b.model_dump.return_value = {"id": "b", "score": 0.7, "payload": {"text": "yo"}}
+        conn.query_points.return_value = Mock(points=[point_a, point_b])
+
+        results = self.qdrant_hook.search(
+            collection_name=self.collection_name,
+            query=[0.1, 0.2, 0.3],
+            limit=5,
+        )
+
+        assert results == [
+            {"id": "a", "score": 0.9, "payload": {"text": "hi"}},
+            {"id": "b", "score": 0.7, "payload": {"text": "yo"}},
+        ]
+        point_a.model_dump.assert_called_once_with()
+        point_b.model_dump.assert_called_once_with()
+
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
+    def test_search_uses_query_points_and_forwards_arguments(self, conn):
+        """``search`` calls ``query_points`` (modern API) with all arguments forwarded.
+
+        Guards against a regression to the deprecated ``search()`` API and against
+        silently dropping optional parameters.
+        """
+        conn.query_points.return_value = Mock(points=[])
+        query_filter = Mock(name="filter")
+        search_params = Mock(name="params")
+
+        self.qdrant_hook.search(
+            collection_name=self.collection_name,
+            query=[1.0, 2.0, 3.0],
+            query_filter=query_filter,
+            search_params=search_params,
+            limit=7,
+            offset=2,
+            with_payload=["title"],
+            with_vectors=False,
+            score_threshold=0.5,
+        )
+
+        conn.search.assert_not_called()
+        conn.query_points.assert_called_once_with(
+            collection_name=self.collection_name,
+            query=[1.0, 2.0, 3.0],
+            query_filter=query_filter,
+            search_params=search_params,
+            limit=7,
+            offset=2,
+            with_payload=["title"],
+            with_vectors=False,
+            score_threshold=0.5,
+        )
+
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
+    def test_search_forwards_extra_kwargs(self, conn):
+        """Extra ``**kwargs`` (e.g. ``using`` for named vectors) reach ``query_points``.
+
+        Keeps the hook forward-compatible with future ``query_points`` parameters
+        (hybrid search, named vectors) without needing to enumerate them here.
+        """
+        conn.query_points.return_value = Mock(points=[])
+
+        self.qdrant_hook.search(
+            collection_name=self.collection_name,
+            query=[0.1, 0.2, 0.3],
+            using="text-embedding",
+        )
+
+        _, kwargs = conn.query_points.call_args
+        assert kwargs["using"] == "text-embedding"
