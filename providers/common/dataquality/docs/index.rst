@@ -31,16 +31,21 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: References
+    :caption: Guides
 
-    Python API <_api/airflow/providers/common/dataquality/index>
+    Rules, rule sets, and checks <rules>
+    Operators <operators>
+    Decorators <decorators>
+    Assets and quality gating <assets>
+    Generating rules with an LLM <agents>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: System tests
+    :caption: References
 
-    System Tests <_api/tests/system/common/dataquality/index>
+    Configuration <configurations-ref>
+    Python API <_api/airflow/providers/common/dataquality/index>
 
 .. toctree::
     :hidden:
@@ -50,21 +55,12 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-dataquality/>
     Installing from sources <installing-providers-from-sources>
 
-.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+``Data Quality Provider``
 
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Commits
-
-    Detailed list of commits <commits>
-
-
-apache-airflow-providers-common-dataquality package
-------------------------------------------------------
-
-Common Data Quality Provider
+Declarative data quality rules with durable, per-rule execution history.
+Checks run through ``common.sql`` DB-API hooks; results are persisted to a
+configurable results store (object storage or local files) so task, run,
+and rule-level quality can be inspected over time.
 
 
 Release: 0.1.0
@@ -87,11 +83,15 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=3.0.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0.0``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
+``apache-airflow-providers-common-sql``     ``>=2.0.0``
+``pydantic``                                ``>=2.11.0``
+``pyyaml``                                  ``>=6.0.2``
+==========================================  ==================
 
 Downloading official packages
 -----------------------------

@@ -19,7 +19,11 @@ Package ``apache-airflow-providers-common-dataquality``
 
 Release: ``0.1.0``
 
-Common Data Quality Provider
+``Data Quality Provider``
+
+Declarative data quality rules with durable, per-rule execution history. Checks run through
+``common.sql`` DB-API hooks; results are persisted to a configurable results store (object
+storage or local files) so task, run, and rule-level quality can be inspected over time.
 
 Provider package
 ----------------
@@ -37,8 +41,12 @@ see ``Requirements`` below.
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=3.0.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0.0``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
+``apache-airflow-providers-common-sql``     ``>=2.0.0``
+``pydantic``                                ``>=2.11.0``
+``pyyaml``                                  ``>=6.0.2``
+==========================================  ==================

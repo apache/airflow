@@ -149,7 +149,6 @@ body:
         - common-sql
         - databricks
         - datadog
-        - dataquality
         - dbt-cloud
         - dingding
         - discord
