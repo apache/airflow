@@ -51,6 +51,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddTeamNameField,
     AddVariableKeysEndpoint,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_09_30 import AddLogIdTemplateField
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
@@ -59,6 +60,10 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
 bundle = VersionBundle(
     HeadVersion(),
     Version("2026-10-30", AddArgBindingsToTIRunContext, AddCallbackRunEndpoint),
+    Version(
+        "2026-09-30",
+        AddLogIdTemplateField,
+    ),
     Version(
         "2026-06-30",
         AddVariableKeysEndpoint,

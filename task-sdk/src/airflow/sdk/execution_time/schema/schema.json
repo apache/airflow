@@ -5111,6 +5111,18 @@
           ],
           "default": null,
           "title": "Arg Bindings"
+        },
+        "log_id_template": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Log Id Template"
         }
       },
       "required": [
