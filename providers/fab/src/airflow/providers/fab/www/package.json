@@ -56,8 +56,8 @@
     "stylelint": "^17.14.0",
     "terser-webpack-plugin": "^5.6.1",
     "url-loader": "4.1.1",
-    "webpack": "^5.108.3",
-    "webpack-cli": "^7.1.0",
+    "webpack": "^5.108.4",
+    "webpack-cli": "^7.2.1",
     "webpack-license-plugin": "^4.5.1",
     "webpack-manifest-plugin": "^6.0.1"
   },
