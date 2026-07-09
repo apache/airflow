@@ -477,7 +477,7 @@ def get_grid_ti_summaries_stream(
 
         has_note_subq = (
             exists()
-            .where(TaskInstanceNote.ti_id == TaskInstance.id)
+            .where(TaskInstanceNote.ti_id == TaskInstance.id, TaskInstanceNote.content.isnot(None))
             .correlate(TaskInstance)
             .label("has_note")
         )
