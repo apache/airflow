@@ -41,6 +41,7 @@ import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
+import { useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import { DagCard } from "./DagCard";
@@ -188,6 +189,9 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 
 export const DagsList = () => {
   const { t: translate } = useTranslation();
+
+  useDocumentTitle(translate("common:nav.dags"));
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
