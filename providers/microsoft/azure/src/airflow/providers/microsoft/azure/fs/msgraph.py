@@ -61,12 +61,15 @@ def _get_certificate_token(
     """
     from azure.identity import CertificateCredential
 
-    credential = CertificateCredential(
+    from airflow.providers.microsoft.azure.hooks.msgraph import build_certificate_credential
+
+    credential = build_certificate_credential(
         tenant_id=tenant_id,
         client_id=client_id,
         certificate_path=certificate_path,
-        certificate_data=certificate_data.encode() if certificate_data else None,
+        certificate_data=certificate_data,
         password=certificate_password,
+        credential_cls=CertificateCredential,
     )
     access_token = credential.get_token(scope)
     return {

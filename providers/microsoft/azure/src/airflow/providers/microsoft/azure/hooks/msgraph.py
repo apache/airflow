@@ -90,6 +90,40 @@ def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
 
     return func(*args, **filtered_kwargs)
 
+def build_certificate_credential(
+    *,
+    tenant_id: str,
+    client_id: str,
+    certificate_path: str | None = None,
+    certificate_data: str | None = None,
+    password: str | None = None,
+    authority: str | None = None,
+    proxies: dict | None = None,
+    disable_instance_discovery: bool = False,
+    connection_verify: bool = True,
+    credential_cls: type = CertificateCredential,
+):
+    """
+    Build a certificate-based ``TokenCredential`` from connection-style certificate fields.
+
+    Centralizes the certificate kwargs-building logic (notably encoding ``certificate_data``
+    to bytes) so it isn't duplicated between :meth:`KiotaRequestAdapterHook.get_credentials`
+    (async, uses ``azure.identity.aio.CertificateCredential``) and
+    :func:`airflow.providers.microsoft.azure.fs.msgraph._get_certificate_token` (sync, uses
+    ``azure.identity.CertificateCredential``). Callers pass the concrete credential class
+    (sync or async) via ``credential_cls``.
+    """
+    return credential_cls(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        password=password,
+        certificate_path=certificate_path,
+        certificate_data=certificate_data.encode() if certificate_data else None,
+        authority=authority,
+        proxies=proxies,
+        disable_instance_discovery=disable_instance_discovery,
+        connection_verify=connection_verify,
+    )
 
 class DefaultResponseHandler(ResponseHandler):
     """DefaultResponseHandler returns JSON payload or content in bytes or response headers."""
@@ -487,17 +521,19 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Disable instance discovery: %s", disable_instance_discovery)
         self.log.info("MSAL Proxies: %s", redact(msal_proxies, name="proxies"))
         if certificate_path or certificate_data:
-            return CertificateCredential(
+            return build_certificate_credential(
                 tenant_id=tenant_id,
                 client_id=login,  # type: ignore
                 password=password,
                 certificate_path=certificate_path,
-                certificate_data=certificate_data.encode() if certificate_data else None,
+                certificate_data=certificate_data,
                 authority=authority,
                 proxies=msal_proxies,
                 disable_instance_discovery=disable_instance_discovery,
                 connection_verify=verify,
+                credential_cls=CertificateCredential,
             )
+            
         return ClientSecretCredential(
             tenant_id=tenant_id,
             client_id=login,  # type: ignore
