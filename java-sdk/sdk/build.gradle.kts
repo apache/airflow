@@ -287,6 +287,10 @@ tasks.named("compileKotlin") {
     dependsOn("generateJsonSchema2Pojo")
 }
 
+tasks.named("runKtlintCheckOverMainSourceSet") {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
+}
+
 tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
     dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
