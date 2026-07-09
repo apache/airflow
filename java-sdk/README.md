@@ -466,7 +466,24 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
    Keep the RC tag for traceability.
 
-4. Update the download page and wait ~1 hour after promoting so Central has
+4. **Publish** a GitHub release. Attach the **voted, signed** source artifacts.
+   From the directory holding the three signed files (e.g. `dist/release`):
+
+   ```bash
+   gh release create java-sdk/<VERSION> \
+     --repo apache/airflow \
+     --title "Apache Airflow Java SDK <VERSION>" \
+     --notes "See the Java SDK README for the features in this release." \
+     --verify-tag \
+     --prerelease \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
+   ```
+
+   Drop the `--prerelease` flag is this is not a prerelease.
+
+5. Update the download page and wait ~1 hour after promoting so Central has
    synced. Send the `[ANNOUNCE]` email.
 
 ### If the vote fails
