@@ -53,6 +53,27 @@ Additional OAuth2 parameters supported via connection extras:
 * **username**: Username for password grant flow
 * **password**: Password for password grant flow
 
+Certificate-based Authentication
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As an alternative to a client secret, you can authenticate with a certificate, using the
+same ``certificate_path`` / ``certificate_data`` extras already supported by
+:class:`~airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook`:
+
+* **certificate_path**: Path to a PEM/PFX certificate file containing the private key
+* **certificate_data**: PEM-encoded certificate/private key content (alternative to ``certificate_path``)
+* **Password**: If the certificate's private key is encrypted, set it here (reuses the same
+  connection field as the client secret)
+
+When either ``certificate_path`` or ``certificate_data`` is set, it takes precedence over
+``client_secret``.
+
+.. note::
+    Unlike client-secret auth, the filesystem does not automatically refresh a certificate-based
+    token. A single access token (typically valid ~60-90 minutes) is fetched when the filesystem
+    is created. Tasks that run longer than that should re-resolve the ``ObjectStoragePath`` to
+    obtain a fresh token.
+
 Connection extra field configuration example:
 
 .. code-block:: json
@@ -63,6 +84,15 @@ Connection extra field configuration example:
         "token_endpoint": "https://login.microsoftonline.com/your-tenant/oauth2/v2.0/token",
         "redirect_uri": "http://localhost:8080/callback",
         "token_endpoint_auth_method": "client_secret_post"
+    }
+
+Certificate-based connection extra example:
+
+.. code-block:: json
+
+    {
+        "drive_id": "b!abc123...",
+        "certificate_path": "/path/to/certificate.pem"
     }
 
 Usage Examples

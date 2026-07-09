@@ -1,0 +1,1 @@
+Added support for certificate-based authentication in the Microsoft Graph filesystem (``msgraph``/``sharepoint``/``onedrive``/``msgd`` schemes), matching the existing certificate auth support in ``KiotaRequestAdapterHook``.

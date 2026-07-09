@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.fs.msgraph import get_fs
 
