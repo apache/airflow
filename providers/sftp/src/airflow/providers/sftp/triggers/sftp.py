@@ -25,7 +25,7 @@ from typing import Any
 from dateutil.parser import parse as parse_date
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.sftp.constants import SFTPOperation
+from airflow.providers.sftp.operators.sftp import SFTPOperation
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.timezone import convert_to_utc
@@ -204,8 +204,8 @@ class SFTPOperationTrigger(BaseTrigger):
         """Run the file transfer asynchronously and yield a TriggerEvent when done."""
         try:
             if self.ssh_conn_id is None:
-    raise ValueError("ssh_conn_id must be set for SFTPTrigger")
-hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id)
+                raise ValueError("ssh_conn_id must be set for SFTPTrigger")
+            hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id)
             await hook.transfer(
                 operation=self.operation,
                 local_filepath=self.local_filepath,
