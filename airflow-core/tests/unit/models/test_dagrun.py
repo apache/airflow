@@ -4497,6 +4497,21 @@ class TestDagRunTracing:
         span_ctx = otel_trace.get_current_span(parent_trace_context(conf)).get_span_context()
         assert span_ctx.trace_state.get("foo") == "bar"
 
+    def test_parent_trace_context_drops_non_str_tracestate(self):
+        """A non-str tracestate is dropped instead of being passed to the propagator, which would raise."""
+        from airflow.models.dagrun import parent_trace_context
+
+        conf = {
+            PARENT_TRACE_CONTEXT_KEY: {
+                "traceparent": f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01",
+                "tracestate": 123,
+            }
+        }
+        span_ctx = otel_trace.get_current_span(parent_trace_context(conf)).get_span_context()
+        assert span_ctx.is_valid
+        assert format(span_ctx.trace_id, "032x") == self._EXTERNAL_TRACE_ID
+        assert len(span_ctx.trace_state) == 0
+
     def test_context_carrier_embeds_external_parent_from_conf(self, dag_maker):
         """A run with airflow/parent_trace_context rides the external trace_id."""
         with dag_maker("test_tracing_embed_conf"):
