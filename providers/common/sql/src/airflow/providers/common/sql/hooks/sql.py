@@ -1191,7 +1191,7 @@ class DbApiHook(BaseHook):
             self._conn_lock = asyncio.Lock()
         async with self._conn_lock:
             if not self._connection:
-                self._connection = await get_async_connection(self.conn_id)
+                self._connection = await get_async_connection(self.get_conn_id())
             db = self._connection
             if self.connector is None:
                 raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")

@@ -392,8 +392,10 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_aget_conn_success(self):
+    @patch("airflow.providers.common.sql.hooks.sql.get_async_connection", new_callable=AsyncMock)
+    async def test_aget_conn_success(self, mock_get_async_connection):
         hook = mock_db_hook(DbApiHook)
+        mock_get_async_connection.return_value = Connection(conn_id="c", conn_type="test")
         mock_db_conn = MagicMock()
         hook.connector = AsyncMock()
         hook.connector.connect.return_value = mock_db_conn
@@ -402,21 +404,25 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_aget_conn_raises_without_connector(self):
+    @patch("airflow.providers.common.sql.hooks.sql.get_async_connection", new_callable=AsyncMock)
+    async def test_aget_conn_raises_without_connector(self, mock_get_async_connection):
         hook = mock_db_hook(DbApiHook)
+        mock_get_async_connection.return_value = Connection(conn_id="c", conn_type="test")
         hook.connector = None
         with pytest.raises(RuntimeError, match="didn't have `self.connector` set"):
             await hook.aget_conn()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_aget_conn_caches_airflow_connection(self):
+    @patch("airflow.providers.common.sql.hooks.sql.get_async_connection", new_callable=AsyncMock)
+    async def test_aget_conn_caches_airflow_connection(self, mock_get_async_connection):
         hook = mock_db_hook(DbApiHook)
+        mock_get_async_connection.return_value = Connection(conn_id="c", conn_type="test")
         hook.connector = AsyncMock()
         hook.connector.connect.return_value = MagicMock()
         await hook.aget_conn()
         await hook.aget_conn()
-        assert hook.connection_invocations == 1
+        mock_get_async_connection.assert_awaited_once()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
