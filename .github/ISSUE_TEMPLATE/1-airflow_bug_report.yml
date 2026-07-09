@@ -165,6 +165,7 @@ body:
         - grpc
         - hashicorp
         - http
+        - ibm-db2
         - ibm-mq
         - imap
         - influxdb

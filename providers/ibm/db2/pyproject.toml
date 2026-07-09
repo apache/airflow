@@ -56,6 +56,7 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.32.0",
     "ibm-db>=3.0.0",
     "ibm-db-sa>=0.4.0",
+    "methodtools>=0.4.7",
 ]
 
 [project.optional-dependencies]
@@ -81,6 +82,7 @@ docs = [
 apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-task-sdk = {workspace = true}
+apache-airflow-providers-common-compat = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 

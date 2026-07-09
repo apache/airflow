@@ -27,18 +27,15 @@ source-date-epoch: 1743033600
 versions:
   - 0.1.0
 
-dependencies:
-  - apache-airflow>=2.11.0
-  - apache-airflow-providers-common-compat>=1.12.0
-  - apache-airflow-providers-common-sql>=1.32.0
-  - ibm-db>=3.0.0
-  - ibm-db-sa>=0.4.0
-
 integrations:
   - integration-name: IBM Db2
     external-doc-url: https://www.ibm.com/products/db2
     logo: /docs/integration-logos/Db2.png
     tags: [software]
+
+dialects:
+  - dialect-type: db2
+    dialect-class-name: airflow.providers.ibm.db2.dialects.db2.Db2Dialect
 
 hooks:
   - integration-name: IBM Db2
