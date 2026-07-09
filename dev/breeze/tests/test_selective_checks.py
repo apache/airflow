@@ -1203,7 +1203,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "ci-image-build": "true",
                 # common providers feed OpenLineage e2e tests, which need the PROD image.
                 "prod-image-build": "true",
-                "run-providers-e2e-tests-openlineage": "true",
+                "run-openlineage-e2e-tests": "true",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
@@ -1477,7 +1477,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
             {
-                "run-providers-e2e-tests-openlineage": "true",
+                "run-openlineage-e2e-tests": "true",
                 "prod-image-build": "true",
             },
             id="Run OpenLineage e2e tests for openlineage provider change",
@@ -1485,15 +1485,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/common/compat/src/airflow/providers/common/compat/sdk.py",),
             {
-                "run-providers-e2e-tests-openlineage": "true",
+                "run-openlineage-e2e-tests": "true",
                 "prod-image-build": "true",
             },
             id="Run OpenLineage e2e tests for common provider change",
         ),
         pytest.param(
-            ("providers-e2e-tests/openlineage/tests/harness.py",),
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/harness.py",),
             {
-                "run-providers-e2e-tests-openlineage": "true",
+                "run-openlineage-e2e-tests": "true",
                 "prod-image-build": "true",
             },
             id="Run OpenLineage e2e tests when the e2e harness changes",
@@ -1501,7 +1501,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
             {
-                "run-providers-e2e-tests-openlineage": "false",
+                "run-openlineage-e2e-tests": "false",
                 "prod-image-build": "false",
             },
             id="Do not run OpenLineage e2e tests for unrelated provider change",

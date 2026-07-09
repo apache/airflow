@@ -427,9 +427,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     of affected providers (but not recursively - only direct dependencies are added)
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
-* `OpenLineage E2E tests` (the deployed-stack tests under `providers-e2e-tests/openlineage`, exposed as
-  the `run-providers-e2e-tests-openlineage` output) run when the `openlineage` or `common` providers or the
-  `providers-e2e-tests` harness change — and always on `canary` runs (where `full tests needed` also
+* `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
+  `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
+  `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
+  openlineage e2e suite change — and always on `canary` runs (where `full tests needed` also
   covers core/task-sdk changes). Like the other deployed e2e suites, enabling them forces
   `PROD Image building`.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type

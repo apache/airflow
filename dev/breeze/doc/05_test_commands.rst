@@ -371,28 +371,12 @@ a local venv. You can build the prod image with breeze and that will be used by 
 You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
 ``breeze testing airflow-e2e-tests`` command.
 
-The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
-
-Running provider E2E tests
-..........................
-
-You can use Breeze to run provider end-to-end tests, run against a real built Airflow image
-(``$DOCKER_IMAGE``) rather than the in-process ``dag.test()`` path used by provider system tests.
-What "e2e" means, and how the stack under test gets stood up, is entirely up to the provider — the
-OpenLineage suite, for example, deploys a real Airflow via docker-compose and runs its system-test
-DAGs against it, but a different provider could drive it a completely different way. Those tests run
-using the Production image by default; pass ``--airflow-version`` to run against an older released
-Airflow version with the current providers installed from main.
-
-.. image:: ./images/output_testing_providers-e2e-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-e2e-tests.svg
-  :width: 100%
-  :alt: Breeze testing providers-e2e-tests
-
-The provider E2E tests are in the ``providers-e2e-tests/`` folder in the main repo; see
-``providers-e2e-tests/README.md`` for how to run any provider's suite, how it's wired into CI, and
-what's involved in adding a new provider (``providers-e2e-tests/openlineage/`` is one
-example implementation).
+The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Each suite is a
+``--e2e-test-mode`` (``basic``, ``remote_log``, ``event_driven``, ``java_sdk``, ``go_sdk``,
+``openlineage``, ...); the mode selects a docker-compose overlay and the matching test package under
+``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
+deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
+emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
 
 Running Airflow UI E2E tests
 .............................

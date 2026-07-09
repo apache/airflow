@@ -60,12 +60,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Go SDK e2e tests (true/false)"
         required: true
         type: string
-      run-providers-e2e-tests-openlineage:
+      run-openlineage-e2e-tests:
         description: "Whether to run OpenLineage e2e tests (true/false)"
-        required: true
-        type: string
-      providers-compatibility-tests-matrix:
-        description: "JSON matrix of released Airflow versions for provider e2e compat tests."
         required: true
         type: string
       constraints-branch:
@@ -329,34 +325,17 @@ jobs:
       e2e_test_mode: "go_sdk"
     if: inputs.canary-run == 'true' || inputs.run-go-sdk-e2e-tests == 'true'
 
-  test-providers-e2e-tests-openlineage:
-    name: "Provider E2E tests openlineage"
-    uses: ./.github/workflows/providers-e2e-tests.yml
+  test-e2e-integration-tests-openlineage:
+    name: "OpenLineage e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
-      provider: "openlineage"
-      provider-display-name: "OpenLineage"
+      workflow-name: "OpenLineage e2e test"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
-    if: inputs.canary-run == 'true' || inputs.run-providers-e2e-tests-openlineage == 'true'
-
-  test-providers-e2e-tests-openlineage-compat:
-    name: "Provider E2E tests openlineage compat"
-    strategy:
-      fail-fast: false
-      matrix:
-        compat: ${{ fromJSON(inputs.providers-compatibility-tests-matrix) }}
-    uses: ./.github/workflows/providers-e2e-tests.yml
-    with:
-      provider: "openlineage"
-      provider-display-name: "OpenLineage"
-      runners: ${{ inputs.runners }}
-      platform: ${{ inputs.platform }}
-      default-python-version: "${{ inputs.default-python-version }}"
-      use-uv: ${{ inputs.use-uv }}
-      airflow-version: ${{ matrix.compat.airflow-version }}
-    if: inputs.canary-run == 'true' || inputs.run-providers-e2e-tests-openlineage == 'true'
+      e2e_test_mode: "openlineage"
+    if: inputs.canary-run == 'true' || inputs.run-openlineage-e2e-tests == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"

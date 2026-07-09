@@ -21,7 +21,6 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
-apache-airflow-openlineage-e2e-tests = false
 apache-airflow-providers-informatica = false
 apache-airflow-providers-clickhousedb = false
 apache-airflow-providers-amazon = false
@@ -172,7 +171,6 @@ members = [
     "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-mypy",
-    "apache-airflow-openlineage-e2e-tests",
     "apache-airflow-providers",
     "apache-airflow-providers-airbyte",
     "apache-airflow-providers-akeyless",
@@ -1495,7 +1493,6 @@ ci-image = [
     { name = "apache-airflow-docker-tests" },
     { name = "apache-airflow-helm-chart" },
     { name = "apache-airflow-kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests" },
     { name = "apache-airflow-scripts" },
     { name = "apache-airflow-shared-configuration" },
     { name = "apache-airflow-shared-dagnode" },
@@ -1525,7 +1522,6 @@ dev = [
     { name = "apache-airflow-docker-tests" },
     { name = "apache-airflow-helm-chart" },
     { name = "apache-airflow-kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests" },
     { name = "apache-airflow-scripts" },
     { name = "apache-airflow-shared-configuration" },
     { name = "apache-airflow-shared-dagnode" },
@@ -1807,7 +1803,6 @@ ci-image = [
     { name = "apache-airflow-docker-tests", editable = "docker-tests" },
     { name = "apache-airflow-helm-chart", editable = "chart" },
     { name = "apache-airflow-kubernetes-tests", editable = "kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests", editable = "providers-e2e-tests/openlineage" },
     { name = "apache-airflow-scripts", editable = "scripts" },
     { name = "apache-airflow-shared-configuration", editable = "shared/configuration" },
     { name = "apache-airflow-shared-dagnode", editable = "shared/dagnode" },
@@ -1837,7 +1832,6 @@ dev = [
     { name = "apache-airflow-docker-tests", editable = "docker-tests" },
     { name = "apache-airflow-helm-chart", editable = "chart" },
     { name = "apache-airflow-kubernetes-tests", editable = "kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests", editable = "providers-e2e-tests/openlineage" },
     { name = "apache-airflow-scripts", editable = "scripts" },
     { name = "apache-airflow-shared-configuration", editable = "shared/configuration" },
     { name = "apache-airflow-shared-dagnode", editable = "shared/dagnode" },
@@ -2879,29 +2873,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "mypy", specifier = ">=1.0.0" }]
-
-[[package]]
-name = "apache-airflow-openlineage-e2e-tests"
-version = "0.0.1"
-source = { editable = "providers-e2e-tests/openlineage" }
-dependencies = [
-    { name = "apache-airflow-core" },
-    { name = "apache-airflow-devel-common" },
-]
-
-[package.dev-dependencies]
-mypy = [
-    { name = "apache-airflow-devel-common", extra = ["mypy"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "apache-airflow-core", editable = "airflow-core" },
-    { name = "apache-airflow-devel-common", editable = "devel-common" },
-]
-
-[package.metadata.requires-dev]
-mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-providers"
