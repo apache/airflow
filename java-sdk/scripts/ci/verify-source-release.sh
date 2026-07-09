@@ -82,7 +82,7 @@ echo "    OK"
 echo "==> 4. Diff against the tagged source (only export-ignored files may differ)"
 git -C "$REPO_ROOT" worktree add --detach --quiet "$tagco" "$tag"
 diffout="$(diff -rq "$extracted" "$tagco/java-sdk" \
-  | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|\.editorconfig|scripts)$' || true)"
+  | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|scripts)$' || true)"
 if [ -n "$diffout" ]; then
   echo "ERROR: tarball differs from the tag beyond the export-ignored files:" >&2
   echo "$diffout" >&2

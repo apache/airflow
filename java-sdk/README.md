@@ -399,7 +399,7 @@ manager, before sending the vote — should run against the source package in
    git clone --branch java-sdk/<VERSION>-rc<N> \
      https://github.com/apache/airflow.git tag-checkout
    diff -rq apache-airflow-java-sdk-<VERSION>/ tag-checkout/java-sdk/ \
-     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|\.editorconfig|scripts)$'
+     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|scripts)$'
    ```
 
    Any remaining diff output is unexpected and should block the vote.
