@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
+
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 
 task_id = "test_emr_serverless_create_application_operator"
@@ -78,6 +80,16 @@ class TestEmrServerlessHook:
 
 
 class TestEmrServerlessHookSession:
+    @pytest.fixture(autouse=True)
+    def _supported_botocore(self):
+        # The session methods gate on botocore >= 1.43.0. Pin a supported version so these
+        # tests exercise the boto calls regardless of the botocore installed in CI.
+        with patch(
+            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+            return_value=(1, 43, 0),
+        ):
+            yield
+
     @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
     def test_start_session_minimal(self, conn_mock: MagicMock):
         conn_mock().start_session.return_value = {"sessionId": "sess-1"}
@@ -142,3 +154,23 @@ class TestEmrServerlessHookSession:
         hook.terminate_session("app", "sess-1")
 
         conn_mock().terminate_session.assert_called_once_with(applicationId="app", sessionId="sess-1")
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("start_session", ("app", "role")),
+            ("get_session_state", ("app", "sess-1")),
+            ("get_session_endpoint", ("app", "sess-1")),
+            ("terminate_session", ("app", "sess-1")),
+        ],
+    )
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_session_methods_gate_on_old_botocore(self, conn_mock: MagicMock, method, args):
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+        with patch(
+            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+            return_value=(1, 41, 0),
+        ):
+            with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
+                getattr(hook, method)(*args)
+        conn_mock().start_session.assert_not_called()

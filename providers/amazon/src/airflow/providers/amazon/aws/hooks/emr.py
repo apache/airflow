@@ -27,6 +27,7 @@ from botocore.exceptions import ClientError
 from tenacity import retry_if_exception, stop_after_attempt, wait_fixed
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils import get_botocore_version
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
@@ -267,9 +268,25 @@ class EmrServerlessHook(AwsBaseHook):
     SESSION_FAILURE_STATES = {"FAILED", "TERMINATING", "TERMINATED"}
     SESSION_SUCCESS_STATES = {"STARTED", "IDLE"}
 
+    # botocore version that first shipped the EMR Serverless interactive session APIs.
+    # The provider keeps a lower botocore floor, so the session methods gate on this at
+    # runtime instead of forcing every user onto a newer botocore.
+    SESSION_MIN_BOTOCORE_VERSION = (1, 43, 0)
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
+
+    def _check_interactive_session_support(self) -> None:
+        """Raise a clear error if the installed botocore is too old for interactive sessions."""
+        if get_botocore_version() < self.SESSION_MIN_BOTOCORE_VERSION:
+            required = ".".join(map(str, self.SESSION_MIN_BOTOCORE_VERSION))
+            installed = ".".join(map(str, get_botocore_version()))
+            raise RuntimeError(
+                f"EMR Serverless interactive sessions require botocore >= {required}, "
+                f"but botocore {installed} is installed. Upgrade botocore (and aiobotocore >= 3.6.0 "
+                "for deferrable mode) to use this feature."
+            )
 
     def cancel_running_jobs(
         self, application_id: str, waiter_config: dict | None = None, wait_for_completion: bool = True
@@ -332,6 +349,7 @@ class EmrServerlessHook(AwsBaseHook):
         :param idle_timeout_minutes: Auto-stop the session after this many idle minutes.
         :param configuration_overrides: Optional Spark/monitoring configuration overrides.
         """
+        self._check_interactive_session_support()
         params: dict[str, Any] = {
             "applicationId": application_id,
             "executionRoleArn": execution_role_arn,
@@ -346,6 +364,7 @@ class EmrServerlessHook(AwsBaseHook):
 
     def get_session_state(self, application_id: str, session_id: str) -> str:
         """Return the current state of an interactive session."""
+        self._check_interactive_session_support()
         return self.conn.get_session(applicationId=application_id, sessionId=session_id)["session"]["state"]
 
     def get_session_endpoint(self, application_id: str, session_id: str) -> dict:
@@ -359,10 +378,12 @@ class EmrServerlessHook(AwsBaseHook):
         .. seealso::
             - :external+boto3:py:meth:`EMRServerless.Client.get_session_endpoint`
         """
+        self._check_interactive_session_support()
         return self.conn.get_session_endpoint(applicationId=application_id, sessionId=session_id)
 
     def terminate_session(self, application_id: str, session_id: str) -> None:
         """Terminate an interactive session."""
+        self._check_interactive_session_support()
         self.conn.terminate_session(applicationId=application_id, sessionId=session_id)
 
 

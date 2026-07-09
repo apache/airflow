@@ -165,7 +165,8 @@ Set ``deferrable=True`` to release the worker slot while the session warms up.
     (``StartSession``, ``GetSession``, ``GetSessionEndpoint``, ``TerminateSession``) are only
     available in ``botocore>=1.43.0``. Deferrable mode additionally needs ``aiobotocore>=3.6.0``,
     the first release whose ``botocore`` pin allows 1.43.0. The Amazon provider keeps a lower
-    minimum for these libraries, so install compatible versions to use interactive sessions.
+    minimum for these libraries, so install compatible versions to use interactive sessions;
+    the operators raise a clear error at runtime if the installed ``botocore`` is too old.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_emr_serverless_session.py
    :language: python
