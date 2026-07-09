@@ -21,23 +21,24 @@
 #
 # Usage:
 #   verify-source-release.sh --tarball <path> --tag java-sdk/<version>-rc<N> \
-#       [--sha512 <path>] [--nexus-repo-id <NNNN>]
+#       [--sha512 <path>]
 #
 # Requirements:
-#   Bash with common shell tools, Git, Gradle, JDK 11,
-#   and (for --nexus-repo-id) network access.
+#   Bash with common shell tools, Git, Gradle, JDK 11.
+#
+# Staged convenience binaries are checked separately by
+# smoke-test-staged-binaries.sh (only meaningful for a staged release).
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 
-tarball="" tag="" sha512="" nexus_repo_id=""
+tarball="" tag="" sha512=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --tarball) tarball="$2"; shift 2 ;;
     --tag) tag="$2"; shift 2 ;;
     --sha512) sha512="$2"; shift 2 ;;
-    --nexus-repo-id) nexus_repo_id="$2"; shift 2 ;;
     *) echo "Unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -116,37 +117,5 @@ while IFS= read -r jar; do
 done < <(find "$extracted" -path '*/build/libs/*.jar')
 [ "$missing" -eq 0 ] || exit 1
 echo "    OK"
-
-if [ -n "$nexus_repo_id" ]; then
-  echo "==> 7. Staged-binary smoke test (Nexus repo orgapacheairflow-$nexus_repo_id)"
-  version="$(basename "$extracted" | sed 's/^apache-airflow-java-sdk-//')"
-  smoke="$work/smoke"
-  mkdir -p "$smoke"
-  cat > "$smoke/settings.gradle.kts" <<'SETTINGS'
-rootProject.name = "airflow-sdk-nexus-smoke"
-SETTINGS
-  cat > "$smoke/build.gradle.kts" <<BUILD
-plugins { id("java-library") }
-repositories {
-    maven { url = uri("https://repository.apache.org/content/repositories/orgapacheairflow-${nexus_repo_id}/") }
-    mavenCentral()
-}
-dependencies {
-    implementation(platform("org.apache.airflow:airflow-sdk-bom:${version}"))
-    implementation("org.apache.airflow:airflow-sdk")
-    implementation("org.apache.airflow:airflow-sdk-jpl")
-    implementation("org.apache.airflow:airflow-sdk-jul")
-    implementation("org.apache.airflow:airflow-sdk-log4j2")
-    implementation("org.apache.airflow:airflow-sdk-slf4j")
-    implementation("org.apache.airflow:airflow-sdk-processor")
-}
-BUILD
-  (
-    cd "$smoke"
-    # Forces resolution of every BOM-managed artifact from the staging repo.
-    gradle --no-daemon dependencies --configuration runtimeClasspath
-  )
-  echo "    OK"
-fi
 
 echo "All release-verification checks passed."

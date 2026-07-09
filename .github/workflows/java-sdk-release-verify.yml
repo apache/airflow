@@ -149,10 +149,9 @@ jobs:
           echo "${sum}  /tmp/gradle.zip" | sha256sum -c -
           unzip -q -d "$HOME/gradle" /tmp/gradle.zip
           echo "$HOME/gradle/gradle-${ver}/bin" >> "$GITHUB_PATH"
-      - name: Verify the staged artifacts
+      - name: Verify the staged source package
         env:
           TAG: ${{ inputs.tag }}
-          NEXUS_REPO_ID: ${{ inputs.nexus_repo_id }}
         run: |
           set -euo pipefail
           rcdir="${TAG#java-sdk/}"; version="${rcdir%-rc*}"
@@ -160,5 +159,14 @@ jobs:
           java-sdk/scripts/ci/verify-source-release.sh \
             --tarball "staged/${file}" \
             --sha512 "staged/${file}.sha512" \
-            --tag "${TAG}" \
-            --nexus-repo-id "${NEXUS_REPO_ID}"
+            --tag "${TAG}"
+      - name: Smoke-test the staged convenience binaries
+        env:
+          TAG: ${{ inputs.tag }}
+          NEXUS_REPO_ID: ${{ inputs.nexus_repo_id }}
+        run: |
+          set -euo pipefail
+          rcdir="${TAG#java-sdk/}"; version="${rcdir%-rc*}"
+          java-sdk/scripts/ci/smoke-test-staged-binaries.sh \
+            --nexus-repo-id "${NEXUS_REPO_ID}" \
+            --version "${version}"
