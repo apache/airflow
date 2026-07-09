@@ -1173,6 +1173,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -1428,6 +1434,12 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
         '409':
           description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '503':
+          description: Service Unavailable
           content:
             application/json:
               schema:
