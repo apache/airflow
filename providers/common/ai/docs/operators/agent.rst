@@ -207,18 +207,30 @@ fails mid-run (network error, timeout, transient API failure), a plain retry
 re-executes every LLM call and tool call from scratch -- repeating work that
 already succeeded and incurring additional cost.
 
-Setting ``durable=True`` caches each LLM response and tool result to
-ObjectStorage as it completes. On retry, completed steps are replayed from the
-cache and only the remaining steps run against the live model and tools. The
-cache is deleted after successful completion.
+Setting ``durable=True`` caches each LLM response and tool result as it
+completes. On retry, completed steps are replayed from the cache and only the
+remaining steps run against the live model and tools. The cache is deleted
+after successful completion.
 
 Durable execution only helps when the task has retries configured. Without
 retries there is nothing to replay.
 
 **Configuration**
 
-Set the cache location in ``airflow.cfg``. The task raises ``ValueError`` at
-runtime if ``durable=True`` and the option is missing.
+On **Airflow >= 3.3** the cache is stored in the
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>`,
+scoped to the task instance. No configuration is required; the store handles
+persistence across retries.
+
+By default each cached step is written to the Airflow metadata database. Model
+responses and large tool results can be sizable, so for agents with large
+payloads configure ``[workers] state_store_backend`` to offload step values to
+external storage (e.g. object storage) instead of the metadata database; the
+provider then stores only a reference in the database.
+
+On **Airflow < 3.3** the cache is persisted to ObjectStorage and the location
+must be set in ``airflow.cfg``. The task raises ``ValueError`` at runtime if
+``durable=True`` and the option is missing.
 
 .. code-block:: ini
 
@@ -251,10 +263,10 @@ cache:
 
 **How it works**
 
-1. On first execution, each LLM response and tool result is saved to a JSON
-   file as the agent progresses, together with a fingerprint of the request
-   that produced it (model, message history, settings, and tools for LLM
-   steps; tool name, arguments, and call id for tool steps).
+1. On first execution, each LLM response and tool result is saved as the agent
+   progresses, together with a fingerprint of the request that produced it
+   (model, message history, settings, and tools for LLM steps; tool name,
+   arguments, and call id for tool steps).
 2. If the task fails and Airflow retries it, completed steps are loaded from
    the cache and returned without calling the model or tool. Steps not yet in
    the cache proceed normally.
@@ -266,29 +278,31 @@ cache:
    an LLM step produces fresh tool call ids, so tool results recorded under
    the old conversation no longer match. A changed agent costs a re-run; it
    never replays responses that belong to a different conversation.
-4. After successful completion, the cache file is deleted.
+4. After successful completion, the cached steps are deleted.
 
 Replay verification compares the **requests** sent to models and tools, not
 the code behind them. Editing a tool's implementation between attempts does
 not invalidate an already-cached result for an identical call, and pointing
 ``llm_conn_id`` at a different endpoint serving the same model name does not
-invalidate cached responses -- delete the cache file to force a fully fresh
-run.
+invalidate cached responses -- clear the cache to force a fully fresh run.
 
 After the run, a single INFO summary line reports how many steps were
 replayed vs executed fresh. Per-step detail is available at DEBUG level.
 
-The cache file is named ``{dag_id}_{task_id}_{run_id}.json`` (with
-``_{map_index}`` appended for mapped tasks) and stored under the configured
-``durable_cache_path``. To force a completely fresh run, delete the cache file
-for that task.
+The cache is scoped to a single task instance (DAG id, run id, task id, and
+map index), so each run replays only its own steps. On Airflow >= 3.3 the cache
+lives in the task state store and is removed when the DAG run is cleaned up; on
+Airflow < 3.3 it is a JSON file named ``{dag_id}_{task_id}_{run_id}.json`` (with
+``_{map_index}`` appended for mapped tasks) under the configured
+``durable_cache_path``.
 
 .. note::
 
-    Runs that fail permanently (exhaust all retries) leave their cache file
-    behind. These orphaned files do not affect future DAG runs (each run gets
-    its own file) but will consume storage. Clean them up periodically or add
-    a lifecycle policy to the storage backend.
+    Runs that fail permanently (exhaust all retries) leave their cached steps
+    behind. These do not affect future DAG runs (each run is scoped separately).
+    On Airflow >= 3.3 they are reclaimed when the DAG run is removed; on Airflow
+    < 3.3 the orphaned JSON files consume storage until cleaned up, so add a
+    lifecycle policy to the storage backend or remove them periodically.
 
 **Side effects and idempotency**
 
@@ -443,9 +457,10 @@ Parameters
   prone to runaway tool loops, so ``tool_calls_limit`` is a useful guardrail.
   See :ref:`howto/operator:llm` for an example. Default ``None``.
 - ``durable``: When ``True``, enables step-level caching of model responses and
-  tool results via ObjectStorage. On retry, cached steps are replayed instead of
-  re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``
-  config option to be set. Default ``False``.
+  tool results. On retry, cached steps are replayed instead of re-executing
+  expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
+  configuration needed); on older cores it requires the ``[common.ai]
+  durable_cache_path`` config option to be set. Default ``False``.
 - ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
   tool that the model drives by writing Python, executed in the Monty sandbox.
   Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
