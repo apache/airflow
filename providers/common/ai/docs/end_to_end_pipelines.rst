@@ -118,8 +118,7 @@ AIP progress tracking: pipeline vs. agent
 
 `example_aip_progress_tracker.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py>`__
 tracks the same thing -- progress on a set of Airflow Improvement Proposals, checked against
-Confluence specs and GitHub activity -- with two different architectures, to compare the
-tradeoffs directly:
+Confluence specs and GitHub activity -- with two different architectures, to compare the tradeoff directly:
 
 - ``example_aip_progress_tracker`` -- a **deterministic pipeline**. Evidence is gathered by
   fixed tasks; dynamically-mapped ``LLMOperator`` calls analyze each AIP with structured output;
