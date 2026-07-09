@@ -148,6 +148,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.trigger_kwargs = trigger_kwargs or {}
         self._fired_event = False
         self._since_time = None
+        self.last_pod: V1Pod | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesCreatePodTrigger arguments and classpath."""
@@ -416,7 +417,8 @@ class KubernetesPodTrigger(BaseTrigger):
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     async def _get_pod(self) -> V1Pod:
         """Get the pod from Kubernetes with retries."""
-        pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
+        pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace, pod=self.last_pod)
+        self.last_pod = pod
         # Due to AsyncKubernetesHook overriding get_pod, we need to cast the return
         # value to kubernetes_asyncio.V1Pod, because it's perceived as different type
         return cast("V1Pod", pod)
