@@ -236,18 +236,21 @@ workflow); the automatic `uv.lock`-push runs are not restricted.
 
 To run it:
 
+![Run the Update constraints workflow](images/update_constraints_run_workflow.png)
+
 1. Go to the [`Update constraints`](https://github.com/apache/airflow/actions/workflows/update-constraints-on-push.yml)
    workflow in the Actions tab.
 2. Click **Run workflow** and keep the branch set to `main` (this is where the workflow runs
    from - it is not the branch whose constraints get refreshed).
-3. In the **ref** field, enter the commit-ish to refresh constraints from - for example
-   `v3-3-test`, `v3-3-stable`, `constraints-3-3`, an RC tag, or a commit hash. The matching
-   `constraints-X-Y` branch to push to is derived automatically from that ref's
+3. In the **Optional repo reference to build constraints** field, enter the ref to refresh
+   constraints from - for example `v3-3-test`, `v3-3-stable`, `constraints-3-3`, an RC tag, or a
+   commit hash. Leave it empty to refresh the branch you run from (`main` -> `constraints-main`).
+   The matching `constraints-X-Y` branch to push to is derived automatically from that ref's
    `dev/breeze/src/airflow_breeze/branch_defaults.py`, so pointing at anything on the 3.3 line
    refreshes `constraints-3-3`.
-4. Keep **Re-resolve to the newest matching dependencies** enabled (the default) so the run
-   picks up the latest released providers/dependencies from PyPI. Disable it only if you want
-   to regenerate constraints strictly from that ref's `uv.lock` without upgrading.
+4. Keep **Upgrade deps to newest from PyPI** enabled (the default) so the run picks up the
+   latest released providers/dependencies from PyPI. Disable it only if you want to regenerate
+   constraints strictly from that ref's `uv.lock` without upgrading.
 5. Once the run finishes, verify the new commit on the matching constraints branch
    (for example `constraints-3-3` for a 3.3 refresh):
 

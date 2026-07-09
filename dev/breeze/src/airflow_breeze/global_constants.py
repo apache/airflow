@@ -21,6 +21,7 @@ Global constants that are used by all other Breeze components.
 from __future__ import annotations
 
 import platform
+import re
 from enum import Enum
 from pathlib import Path
 
@@ -308,6 +309,7 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "java-sdk",
     "task-sdk",
     "apache-airflow-ctl",
 ]
@@ -730,6 +732,15 @@ def get_task_sdk_version():
     return task_sdk_version
 
 
+def get_java_sdk_version() -> str:
+    """Read the Java SDK version from 'java-sdk/gradle.properties'."""
+    props_path = AIRFLOW_ROOT_PATH / "java-sdk" / "gradle.properties"
+    for line in props_path.read_text().splitlines():
+        if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
+            return match.group(1)
+    raise RuntimeError(f"Java SDK version not found in {props_path}")
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
@@ -850,6 +861,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "3.2.2",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.3.0",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

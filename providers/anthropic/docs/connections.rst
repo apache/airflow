@@ -49,7 +49,7 @@ Extra (optional)
       ``model`` (e.g. ``hook.create_message(...)``, ``hook.create_agent(...)``). Set it here
       to change the model without editing Dags; falls back to the provider default
       (``claude-opus-4-8``).
-    * ``aws_region`` — AWS region for the ``bedrock`` platform.
+    * ``aws_region`` — AWS region for the ``bedrock`` and ``aws`` platforms.
     * ``project_id`` / ``region`` — GCP project and region for the ``vertex`` platform.
     * ``resource`` — Azure resource name for the ``foundry`` platform.
     * ``anthropic_client_kwargs`` — a nested dictionary forwarded verbatim to the client

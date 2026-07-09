@@ -106,6 +106,23 @@ PIP package                                 Version required
 ``akeyless``                                ``>=5.0.0``
 ==========================================  ==================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-akeyless[cloud_id]
+
+
+============  =====================
+Extra         Dependencies
+============  =====================
+``cloud_id``  ``akeyless_cloud_id``
+============  =====================
+
 Downloading official packages
 -----------------------------
 
