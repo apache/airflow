@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
@@ -26,12 +26,16 @@ describe("Dag Filters", () => {
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("states.success")).toBeInTheDocument());
-    await waitFor(() => screen.getByText("states.success").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByText("states.failed")).toBeInTheDocument());
-    await waitFor(() => screen.getByText("states.failed").click());
+    const trigger = within(screen.getByTestId("dags-last-run-state-filter")).getByRole("combobox");
+
+    await waitFor(() => trigger.click());
+    await waitFor(() => screen.getByTestId("dags-last-run-state-filter-success").click());
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+
+    await waitFor(() => trigger.click());
+    await waitFor(() => screen.getByTestId("dags-last-run-state-filter-failed").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
   });
 });

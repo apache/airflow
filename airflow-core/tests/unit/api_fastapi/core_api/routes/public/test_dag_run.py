@@ -56,7 +56,6 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
-    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
@@ -141,7 +140,6 @@ def setup(request, dag_maker, *, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
     clear_db_assets()

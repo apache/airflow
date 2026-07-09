@@ -427,6 +427,11 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     of affected providers (but not recursively - only direct dependencies are added)
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
+* `OpenLineage E2E tests` (the deployed-stack tests under `providers-e2e-tests/openlineage`, exposed as
+  the `run-providers-e2e-tests-openlineage` output) run when the `openlineage` or `common` providers or the
+  `providers-e2e-tests` harness change — and always on `canary` runs (where `full tests needed` also
+  covers core/task-sdk changes). Like the other deployed e2e suites, enabling them forces
+  `PROD Image building`.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
@@ -480,6 +485,10 @@ when some files are not changed. Those are the rules implemented:
   * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
     wrapper, which downloads the Gradle distribution, so we avoid that download on PRs that do
     not touch `java-sdk/`)
+  * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
+    skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
+    wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
+    the ts-sdk follow-up PR's job, not the schema author's)
   * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
     `check-provider-yaml-valid` check is skipped
 
@@ -531,6 +540,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
+| java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
 | kind-version                                            | Which Kind version to use for tests                                                                     | v0.24.0                                  |      |
 | kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.10-v1.25.2 3.11-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |
@@ -622,6 +632,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 |----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
 | all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
 | allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| area:kubernetes-tests            | run-kubernetes-tests             | If set, the Kubernetes tests job is run regardless of changed files (does not force the full test matrix). |
 | canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
 | default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |

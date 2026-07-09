@@ -120,6 +120,9 @@ export type Type11 = "DRCount";
 export type Filepath = string;
 export type BundleName = string;
 export type BundleVersion = string | null;
+export type VersionData1 = {
+  [k: string]: unknown;
+} | null;
 export type Msg = string | null;
 export type DagId1 = string;
 export type RunId1 = string;
@@ -192,6 +195,9 @@ export type BundleName1 = string;
 export type Filepath1 = string;
 export type BundleName2 = string;
 export type BundleVersion1 = string | null;
+export type VersionData2 = {
+  [k: string]: unknown;
+} | null;
 export type Msg1 = string | null;
 /**
  * All possible states that a Task Instance can be in.
@@ -243,6 +249,9 @@ export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
 export type BundleName3 = string;
 export type BundleVersion2 = string | null;
+export type VersionData3 = {
+  [k: string]: unknown;
+} | null;
 export type Msg2 = string | null;
 export type EmailType = "failure" | "retry";
 export type Type14 = "EmailRequest";
@@ -363,12 +372,18 @@ export type After = string | null;
 export type Before = string | null;
 export type Limit = number | null;
 export type Ascending = boolean;
+export type Extra7 = {
+  [k: string]: string;
+} | null;
 export type Type29 = "GetAssetEventByAsset";
 export type AliasName = string;
 export type After1 = string | null;
 export type Before1 = string | null;
 export type Limit1 = number | null;
 export type Ascending1 = boolean;
+export type Extra8 = {
+  [k: string]: string;
+} | null;
 export type Type30 = "GetAssetEventByAssetAlias";
 export type Name11 = string;
 export type Key6 = string;
@@ -849,6 +864,7 @@ export interface DagCallbackRequest {
   filepath: Filepath;
   bundle_name: BundleName;
   bundle_version: BundleVersion;
+  version_data?: VersionData1;
   msg?: Msg;
   dag_id: DagId1;
   run_id: RunId1;
@@ -959,6 +975,7 @@ export interface TaskCallbackRequest {
   filepath: Filepath1;
   bundle_name: BundleName2;
   bundle_version: BundleVersion1;
+  version_data?: VersionData2;
   msg?: Msg1;
   ti: TaskInstance;
   task_callback_type?: TaskInstanceState | null;
@@ -1019,6 +1036,7 @@ export interface EmailRequest {
   filepath: Filepath2;
   bundle_name: BundleName3;
   bundle_version: BundleVersion2;
+  version_data?: VersionData3;
   msg?: Msg2;
   ti: TaskInstance;
   email_type?: EmailType;
@@ -1205,6 +1223,7 @@ export interface GetAssetEventByAsset {
   before?: Before;
   limit?: Limit;
   ascending?: Ascending;
+  extra?: Extra7;
   type?: Type29;
 }
 /**
@@ -1217,6 +1236,7 @@ export interface GetAssetEventByAssetAlias {
   before?: Before1;
   limit?: Limit1;
   ascending?: Ascending1;
+  extra?: Extra8;
   type?: Type30;
 }
 /**
