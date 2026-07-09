@@ -19,13 +19,15 @@
 ``apache-airflow-providers-openai``
 ======================================
 
+The ``openai`` provider gives Dags direct access to OpenAI's own APIs — this page compares
+that choice against ``common.ai``.
+
 When to use this provider
 --------------------------
 
-The ``openai`` provider gives Dags direct access to OpenAI's own APIs. This page compares
-that choice against ``common.ai``. Use ``openai`` when a Dag needs OpenAI's
-native API surface — thin wrappers over OpenAI-specific endpoints and options, built on
-``OpenAIHook``, the underlying client the operators below share:
+Use ``openai`` when a Dag needs OpenAI's native API surface — thin wrappers over
+OpenAI-specific endpoints and options, built on ``OpenAIHook``, the underlying client the
+operators below share:
 
 * ``OpenAIEmbeddingOperator`` — call the Embeddings API directly, e.g. to feed a vector
   store.

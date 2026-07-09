@@ -19,12 +19,13 @@
 ``apache-airflow-providers-cohere``
 ======================================
 
+The ``cohere`` provider gives Dags direct access to Cohere's own Embed API — this page
+compares that choice against ``common.ai``.
+
 When to use this provider
 --------------------------
 
-The ``cohere`` provider gives Dags direct access to Cohere's own Embed API. This page
-compares that choice against ``common.ai``. Use ``cohere`` when a Dag needs Cohere's
-native embedding models specifically:
+Use ``cohere`` when a Dag needs Cohere's native embedding models specifically:
 
 * ``CohereEmbeddingOperator`` — call Cohere's
   `Embed API <https://docs.cohere.com/docs/embeddings>`__ directly via ``CohereHook``.

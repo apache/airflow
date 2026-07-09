@@ -19,12 +19,14 @@
 ``apache-airflow-providers-anthropic``
 ======================================
 
+The ``anthropic`` provider gives Dags direct access to Anthropic's own APIs — this page
+compares that choice against ``common.ai``.
+
 When to use this provider
 --------------------------
 
-The ``anthropic`` provider gives Dags direct access to Anthropic's own APIs. This page
-compares that choice against ``common.ai``. Use ``anthropic`` when a Dag needs Anthropic's
-native API surface — services Anthropic runs for you, which no vendor-neutral operator wraps:
+Use ``anthropic`` when a Dag needs Anthropic's native API surface — services Anthropic runs
+for you, which no vendor-neutral operator wraps:
 
 * ``AnthropicBatchOperator`` and ``AnthropicBatchSensor`` — submit a Claude
   `Message Batches <https://docs.claude.com/en/docs/build-with-claude/batch-processing>`__
