@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -39,7 +40,13 @@ except ImportError:  # Airflow 2
 DAG_ID = "openlineage_taskflow_simple_dag"
 
 
-@dag(schedule=None, start_date=datetime(2021, 1, 1), catchup=False, default_args={"retries": 0})
+@dag(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
+    schedule=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    default_args={"retries": 0},
+)
 def openlineage_taskflow_simple_dag():
     @task
     def do_nothing_task(**context):
