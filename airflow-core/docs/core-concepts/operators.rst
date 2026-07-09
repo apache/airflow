@@ -303,6 +303,13 @@ Alternatively, Jinja can also be instructed to render a native Python object. Th
             python_callable=transform,
         )
 
+.. note::
+
+    ``NativeEnvironment`` renders values according to Python literal rules. This is useful when a template
+    should produce a list, dict, number, or boolean, but it also means a string that looks like a number,
+    such as ``"42"``, can be rendered as the integer ``42``. Keep the default string rendering, use a
+    callable template field, or add explicit quoting if the task needs the value to stay a string.
+
 
 .. _concepts:reserved-keywords:
 

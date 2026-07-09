@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+2.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add unified emission_policy config for OpenLineage provider (#66992)``
+
+Misc
+~~~~
+
+
+Doc-only
+~~~~~~~~
+
+* ``Add OpenLineage Spark conf injection to DatabricksSubmitRunOperator (#67894)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Fix hll import in openlineage system tests (#69196)``
+   * ``Add OpenLineage system tests for new emission_policy feature (#69181)``
+
 2.18.1
 ......
 

@@ -46,3 +46,7 @@ docs port="6060":
 # Generate protocol buffers
 protoc:
   @prek run -a protoc
+
+# Regenerate the coordinator-protocol data models from the task-sdk supervisor schema
+generate-models:
+  go generate ./pkg/execution/genmodels/...
