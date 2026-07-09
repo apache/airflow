@@ -240,10 +240,10 @@ class SSHHook(BaseHook):
 
                 if host_key is not None:
                     host_key = host_key.strip()
-                    host_key_parts = host_key.split(None, 1)
+                    host_key_parts = host_key.split()
                     key_constructor: _HostKeyConstructor = paramiko.RSAKey
-                    if len(host_key_parts) == 2:
-                        key_type, host_key = host_key_parts
+                    if len(host_key_parts) >= 2:
+                        key_type, host_key = host_key_parts[:2]
                         if key_type == "ssh-dss":
                             raise ValueError(
                                 "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
@@ -626,12 +626,14 @@ class SSHHookAsync(BaseHook):
             self.known_hosts = "none"
         elif host_key is not None:
             host_key = host_key.strip()
-            host_key_parts = host_key.split(None, 1)
+            host_key_parts = host_key.split()
             if host_key_parts and host_key_parts[0] == "ssh-dss":
                 raise ValueError(
                     "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
                     "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
                 )
+            if len(host_key_parts) >= 2:
+                host_key = " ".join(host_key_parts[:2])
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self):

@@ -75,7 +75,7 @@ class TestSSHHookAsync:
         """Test parsing host_key from connection extras."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
         mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"host_key": " ssh-rsa AAAAB3... ", "no_host_key_check": "false"}
+        mock_conn.extra_dejson = {"host_key": " ssh-rsa AAAAB3... user@host ", "no_host_key_check": "false"}
         mock_conn.host = "test.host"
 
         hook._parse_extras(mock_conn)

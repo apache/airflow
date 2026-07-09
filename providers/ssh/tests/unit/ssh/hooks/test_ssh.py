@@ -600,6 +600,12 @@ class TestSSHHook:
             ("ecdsa-sha2-nistp384", TEST_HOST_KEY_ECDSA_P384, paramiko.ECDSAKey, "ecdsa-sha2-nistp384"),
             ("ecdsa-sha2-nistp521", TEST_HOST_KEY_ECDSA_P521, paramiko.ECDSAKey, "ecdsa-sha2-nistp521"),
             ("ssh-ed25519", TEST_HOST_KEY_ED25519, paramiko.Ed25519Key, "ssh-ed25519"),
+            (
+                "ssh-ed25519",
+                f"{TEST_HOST_KEY_ED25519} user@host",
+                paramiko.Ed25519Key,
+                "ssh-ed25519",
+            ),
         ],
     )
     @mock.patch.object(SSHHook, "get_connection")
