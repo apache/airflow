@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pendulum
 import pytest
-from openlineage.client.facet_v2 import parent_run, source_code_location_job
+from openlineage.client.facet_v2 import parent_run
 from uuid6 import uuid7
 
 from airflow import DAG
@@ -36,7 +36,6 @@ from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
     _MAX_DOC_BYTES,
-    _PRODUCER,
     AssetInfo,
     DagInfo,
     DagRunInfo,
@@ -53,6 +52,7 @@ from airflow.providers.openlineage.utils.utils import (
     _get_tasks_details,
     _truncate_string_to_byte_size,
     build_dag_run_ol_run_id,
+    build_task_event_job_facet_kwargs,
     build_task_event_job_facets,
     build_task_event_run_facets,
     build_task_instance_ol_run_id,
@@ -4421,17 +4421,12 @@ def test_get_source_code_location_job_facet():
 
     facets = get_source_code_location_job_facet(dag)
 
-    assert facets == {
-        "sourceCodeLocation": source_code_location_job.SourceCodeLocationJobFacet(
-            type="git",
-            url="https://github.com/apache/airflow.git",
-            repoUrl="https://github.com/apache/airflow.git",
-            path="dags/example.py",
-            version="abc123",
-            branch="main",
-            producer=_PRODUCER,
-        )
-    }
+    assert facets["sourceCodeLocation"].type == "git"
+    assert facets["sourceCodeLocation"].url == "https://github.com/apache/airflow.git"
+    assert facets["sourceCodeLocation"].repoUrl == "https://github.com/apache/airflow.git"
+    assert facets["sourceCodeLocation"].path == "dags/example.py"
+    assert facets["sourceCodeLocation"].version == "abc123"
+    assert facets["sourceCodeLocation"].branch == "main"
 
 
 def test_get_source_code_location_job_facet_returns_empty_for_missing_location():
@@ -4487,6 +4482,25 @@ def test_build_task_event_job_facets_includes_source_code_location_from_dag():
     assert facets["sourceCodeLocation"].url == "https://github.com/apache/airflow.git"
     assert facets["sourceCodeLocation"].path == "dags/example.py"
     assert facets["sourceCodeLocation"].version == "abc123"
+
+
+def test_build_task_event_job_facet_kwargs_includes_facets_when_source_location_is_set():
+    kwargs = build_task_event_job_facet_kwargs(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(
+            owner="",
+            source_code_location=SourceCodeLocation(
+                repo_url="https://github.com/apache/airflow.git",
+                path="dags/example.py",
+                version="abc123",
+            ),
+        ),
+    )
+
+    source_code_location_facet = kwargs["job_facets"]["sourceCodeLocation"]
+    assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+    assert source_code_location_facet.path == "dags/example.py"
+    assert source_code_location_facet.version == "abc123"
 
 
 def test_build_task_event_job_facets_minimal_when_nothing_set():

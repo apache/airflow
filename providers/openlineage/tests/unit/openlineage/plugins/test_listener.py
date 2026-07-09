@@ -119,13 +119,6 @@ def direct_submit_call(self, callable, *args, **kwargs):
     return callable(*args, **kwargs)
 
 
-def assert_source_code_location_job_facet(event):
-    source_code_location_facet = event.job.facets["sourceCodeLocation"]
-    assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
-    assert source_code_location_facet.path == "dags/example.py"
-    assert source_code_location_facet.version == "abc123"
-
-
 class MockExecutor:
     def __init__(self, *args, **kwargs):
         self.submitted = False
@@ -474,7 +467,7 @@ class TestOpenLineageListenerAirflow2:
 
     @pytest.mark.parametrize("event_name", ["running", "success", "failed"])
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet", return_value={})
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled", return_value=False)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet", return_value={})
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet", return_value={})
     @mock.patch(
@@ -497,6 +490,7 @@ class TestOpenLineageListenerAirflow2:
         event_name,
     ):
         listener, task_instance = self._create_listener_and_task_instance()
+        mock_disabled.return_value = EmissionPolicy.defaults()
         task_instance.task.dag.source_code_location = SourceCodeLocation(
             repo_url="https://github.com/apache/airflow.git",
             path="dags/example.py",
@@ -514,7 +508,10 @@ class TestOpenLineageListenerAirflow2:
             listener.on_task_instance_failed(None, task_instance, ValueError("test"), None)
 
         emitted_event = listener.adapter.emit.call_args.args[0]
-        assert_source_code_location_job_facet(emitted_event)
+        source_code_location_facet = emitted_event.job.facets["sourceCodeLocation"]
+        assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+        assert source_code_location_facet.path == "dags/example.py"
+        assert source_code_location_facet.version == "abc123"
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
@@ -1483,7 +1480,7 @@ class TestOpenLineageListenerAirflow3:
 
     @pytest.mark.parametrize("event_name", ["running", "success", "failed", "skipped"])
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet", return_value={})
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled", return_value=False)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet", return_value={})
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet", return_value={})
     @mock.patch(
@@ -1506,6 +1503,7 @@ class TestOpenLineageListenerAirflow3:
         event_name,
     ):
         listener, task_instance = self._create_listener_and_task_instance()
+        mock_disabled.return_value = EmissionPolicy.defaults()
         task_instance.task.dag.source_code_location = SourceCodeLocation(
             repo_url="https://github.com/apache/airflow.git",
             path="dags/example.py",
@@ -1525,7 +1523,10 @@ class TestOpenLineageListenerAirflow3:
             listener.on_task_instance_skipped(None, task_instance)
 
         emitted_event = listener.adapter.emit.call_args.args[0]
-        assert_source_code_location_job_facet(emitted_event)
+        source_code_location_facet = emitted_event.job.facets["sourceCodeLocation"]
+        assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+        assert source_code_location_facet.path == "dags/example.py"
+        assert source_code_location_facet.version == "abc123"
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags"),

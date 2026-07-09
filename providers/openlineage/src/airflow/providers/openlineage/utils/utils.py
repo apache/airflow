@@ -362,6 +362,23 @@ def build_task_event_job_facets(
     }
 
 
+def build_task_event_job_facet_kwargs(
+    *,
+    task,
+    dag,
+    additional_job_facets: dict[str, JobFacet] | None = None,
+) -> dict[str, dict[str, JobFacet]]:
+    if not get_source_code_location_job_facet(dag):
+        return {}
+    return {
+        "job_facets": build_task_event_job_facets(
+            task=task,
+            dag=dag,
+            additional_job_facets=additional_job_facets,
+        )
+    }
+
+
 def _get_parent_run_facet(
     parent_run_id: str,
     parent_job_name: str,

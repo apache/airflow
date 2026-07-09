@@ -42,7 +42,7 @@ from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     DagRunInfo,
-    build_task_event_job_facets,
+    build_task_event_job_facet_kwargs,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -155,18 +155,6 @@ def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **
     event = getattr(_get_process_adapter(), adapter_method_name)(**kwargs)
     Stats.gauge(stats_key, len(Serde.to_json(event).encode("utf-8")))
     return event
-
-
-def _build_task_event_job_facet_kwargs(*, task, dag, task_metadata: OperatorLineage) -> dict:
-    if not get_source_code_location_job_facet(dag):
-        return {}
-    return {
-        "job_facets": build_task_event_job_facets(
-            task=task,
-            dag=dag,
-            additional_job_facets=task_metadata.job_facets,
-        )
-    }
 
 
 class OpenLineageListener:
@@ -342,7 +330,9 @@ class OpenLineageListener:
                     ),
                     **debug_facet,
                 },
-                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
+                **build_task_event_job_facet_kwargs(
+                    task=task, dag=dag, additional_job_facets=task_metadata.job_facets
+                ),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -504,7 +494,9 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
-                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
+                **build_task_event_job_facet_kwargs(
+                    task=task, dag=dag, additional_job_facets=task_metadata.job_facets
+                ),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -681,7 +673,9 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
-                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
+                **build_task_event_job_facet_kwargs(
+                    task=task, dag=dag, additional_job_facets=task_metadata.job_facets
+                ),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -833,7 +827,9 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
-                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
+                **build_task_event_job_facet_kwargs(
+                    task=task, dag=dag, additional_job_facets=task_metadata.job_facets
+                ),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -954,8 +950,8 @@ class OpenLineageListener:
                         task_uuid,
                         include_full_task_info=include_full_task_info,
                     )
-                    job_facet_kwargs = _build_task_event_job_facet_kwargs(
-                        task=task, dag=dag, task_metadata=task_metadata
+                    job_facet_kwargs = build_task_event_job_facet_kwargs(
+                        task=task, dag=dag, additional_job_facets=task_metadata.job_facets
                     )
 
             adapter_kwargs: dict = {
