@@ -76,7 +76,7 @@ Package apache-airflow-providers-ibm-db2
 `IBM Db2 <https://www.ibm.com/products/db2>`__
 
 
-Release: 1.0.0
+Release: 0.1.0
 
 Provider package
 ----------------
@@ -95,11 +95,13 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.11.0``.
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.11.0``
-``apache-airflow-providers-common-sql``  ``>=1.32.0``
-``ibm-db``                               ``>=3.0.0``
-``ibm-db-sa``                            ``>=0.4.0``
-=======================================  ==================
+===========================================  ==================
+PIP package                                  Version required
+===========================================  ==================
+``apache-airflow``                           ``>=2.11.0``
+``apache-airflow-providers-common-compat``   ``>=1.12.0``
+``apache-airflow-providers-common-sql``      ``>=1.32.0``
+``ibm-db``                                   ``>=3.0.0``
+``ibm-db-sa``                                ``>=0.4.0``
+``methodtools``                              ``>=0.4.7``
+===========================================  ==================
