@@ -234,6 +234,8 @@ def get_mapped_xcom_by_slice(
         else:
             if stop < 0:
                 stop += get_query_count(query, session=session)
+                if stop < -1:
+                    stop = -1
             # After adjustment, if bounds have crossed, the slice is empty
             if step >= 0 and stop <= start:
                 return XComSequenceSliceResponse([])
@@ -253,7 +255,10 @@ def get_mapped_xcom_by_slice(
                 query = query.limit(-start)
         else:
             if stop >= 0:
-                stop -= get_query_count(query, session=session)
+                count = get_query_count(query, session=session)
+                if stop > count:
+                    stop = count
+                stop -= count
             # After adjustment, if bounds have crossed, the slice is empty
             if step > 0 and -1 - stop <= -1 - start:
                 return XComSequenceSliceResponse([])

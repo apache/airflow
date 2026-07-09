@@ -237,6 +237,10 @@ class TestXComsGetEndpoint:
             pytest.param(slice(-1, None, -1), id="-1::-1"),
             pytest.param(slice(-2, -1, None), id="-2:-1"),
             pytest.param(slice(-1, -3, -1), id="-1:-3:-1"),
+            pytest.param(slice(2, 1, None), id="2:1"),
+            pytest.param(slice(-2, 1, None), id="-2:1"),
+            pytest.param(slice(-2, 4, None), id="-2:4"),
+            pytest.param(slice(1, -10, -1), id="1:-10:-1"),
         ],
     )
     def test_xcom_get_with_slice(self, client, dag_maker, session, key):
