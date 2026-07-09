@@ -260,25 +260,19 @@ class TestDogStats:
             metric="empty", sample_rate=1, value=1, tags=[]
         )
 
-    def test_key_value_tag_emitted_with_colon(self):
+    @pytest.mark.parametrize(
+        ("tags", "expected"),
+        [
+            ({"env": "prod"}, {"env:prod"}),
+            ({"production": ""}, {"production"}),
+            ({"production": "", "env": "staging"}, {"production", "env:staging"}),
+        ],
+    )
+    def test_key_value_and_standalone_tags(self, tags, expected):
         dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
-        dogstatsd.incr("my_metric", tags={"env": "prod"})
-        self.dogstatsd_client.increment.assert_called_once_with(
-            metric="my_metric", sample_rate=1, value=1, tags=["env:prod"]
-        )
-
-    def test_standalone_tag_empty_value_emitted_without_colon(self):
-        dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
-        dogstatsd.incr("my_metric", tags={"production": ""})
-        self.dogstatsd_client.increment.assert_called_once_with(
-            metric="my_metric", sample_rate=1, value=1, tags=["production"]
-        )
-
-    def test_mixed_tags_standalone_and_key_value(self):
-        dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
-        dogstatsd.incr("my_metric", tags={"production": "", "env": "staging"})
+        dogstatsd.incr("my_metric", tags=tags)
         call_kwargs = self.dogstatsd_client.increment.call_args
-        assert set(call_kwargs.kwargs["tags"]) == {"production", "env:staging"}
+        assert set(call_kwargs.kwargs["tags"]) == expected
 
 
 class TestStatsAllowAndBlockLists:
@@ -478,29 +472,35 @@ class TestStatsWithInfluxDBEnabled:
         )
         self.statsd_client.incr.assert_called_once_with("test_stats_run.delay", 1, 1)
 
-    def test_increment_counter_with_tags(self):
-        self.stats.incr(
-            "test_stats_run.delay",
-            tags={"key0": 0, "key1": "val1", "key2": "val2"},
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
-
-    def test_increment_counter_with_tags_and_forward_slash(self):
-        self.stats.incr("test_stats_run.dag", tags={"path": "/some/path/dag.py"})
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.dag,path=/some/path/dag.py", 1, 1)
-
-    def test_does_not_increment_counter_drops_invalid_tags(self):
-        self.stats.incr(
-            "test_stats_run.delay",
-            tags={"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1", 1, 1)
-
-    def test_standalone_tag_empty_value_emitted_as_true(self):
-        self.stats.incr("test_stats_run.delay", tags={"production": "", "key1": "val1"})
-        self.statsd_client.incr.assert_called_once_with(
-            "test_stats_run.delay,production=true,key1=val1", 1, 1
-        )
+    @pytest.mark.parametrize(
+        ("stat", "tags", "expected"),
+        [
+            (
+                "test_stats_run.delay",
+                {"key0": 0, "key1": "val1", "key2": "val2"},
+                "test_stats_run.delay,key0=0,key1=val1",
+            ),
+            (
+                "test_stats_run.dag",
+                {"path": "/some/path/dag.py"},
+                "test_stats_run.dag,path=/some/path/dag.py",
+            ),
+            (
+                "test_stats_run.delay",
+                {"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
+                "test_stats_run.delay,key1=val1",
+            ),
+            # Empty value renders as `=true` in influxdb line protocol.
+            (
+                "test_stats_run.delay",
+                {"production": "", "key1": "val1"},
+                "test_stats_run.delay,production=true,key1=val1",
+            ),
+        ],
+    )
+    def test_increment_counter_with_tags(self, stat, tags, expected):
+        self.stats.incr(stat, tags=tags)
+        self.statsd_client.incr.assert_called_once_with(expected, 1, 1)
 
 
 def always_invalid(stat_name):

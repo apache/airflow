@@ -260,8 +260,7 @@ class RuntimeTaskInstance(TaskInstance):
         if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
             tags.update(build_dag_metric_tags(self.task.dag.tags))
         # Built-in keys always win on collision.
-        tags["dag_id"] = self.dag_id
-        tags["task_id"] = self.task_id
+        tags.update(dag_id=self.dag_id, task_id=self.task_id)
         if self._ti_context_from_server:
             # run_type keeps the tag set consistent with the scheduler-side TaskInstance.stats_tags.
             # Coerce the DagRunType enum to its bare value so it serializes as e.g. "scheduled" rather

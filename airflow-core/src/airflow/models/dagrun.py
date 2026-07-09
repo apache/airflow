@@ -736,7 +736,9 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> ScalarResult[DagRun]:
+    def get_running_dag_runs_to_examine(
+        cls, session: Session, *, eagerly_load_dag_tags: bool
+    ) -> ScalarResult[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -767,10 +769,10 @@ class DagRun(Base, LoggingMixin):
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        # When dag tags are emitted as metric tags, eagerly load dag_model.tags so stats_tags
-        # does not fire a per-DagRun N+1 lazy load in the scheduler loop. Off by default, so the
-        # extra load is only paid when the feature is enabled.
-        if airflow_conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+        # When dag tags are emitted as metric tags, eagerly load dag_model.tags so stats_tags does not
+        # fire a per-DagRun N+1 lazy load in the scheduler loop. The caller owns the feature decision;
+        # the scheduler passes its cached flag so the loop never reads conf.
+        if eagerly_load_dag_tags:
             query = query.options(joinedload(cls.dag_model).selectinload(DagModel.tags))
 
         query = query.where(DagRun.run_after <= func.now())

@@ -6367,12 +6367,8 @@ def _make_dag_tagged_ti(create_runtime_ti, tags):
     from airflow.sdk import DAG
     from airflow.sdk.bases.operator import BaseOperator
 
-    class _NoopOperator(BaseOperator):
-        def execute(self, context):
-            return None
-
     with DAG("tagged_dag", tags=tags):
-        task = _NoopOperator(task_id="t")
+        task = BaseOperator(task_id="t")
     return create_runtime_ti(task=task)
 
 
@@ -6384,8 +6380,11 @@ def test_stats_tags_dag_tags_disabled_by_default(create_runtime_ti):
 
 @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
 def test_stats_tags_without_dag_tags(create_runtime_ti):
-    ti = _make_dag_tagged_ti(create_runtime_ti, [])
-    assert ti.stats_tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
+    tags = _make_dag_tagged_ti(create_runtime_ti, []).stats_tags
+    assert tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
+    # run_type must be a plain str, not a DagRunType enum member: DagRunType is a str-enum, so the
+    # dict equality above passes either way, but the enum serializes as "dagruntype.manual" on the wire.
+    assert type(tags["run_type"]) is str
 
 
 @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
@@ -6398,11 +6397,3 @@ def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
         "task_id": "t",
         "run_type": "manual",
     }
-
-
-def test_stats_tags_run_type_is_bare_string(create_runtime_ti):
-    """run_type must be the bare DagRunType value (e.g. 'manual'), not the enum — otherwise it
-    serializes as 'dagruntype.manual' on the wire and disagrees with the scheduler-side tag."""
-    run_type = _make_dag_tagged_ti(create_runtime_ti, []).stats_tags["run_type"]
-    assert run_type == "manual"
-    assert type(run_type) is str  # plain str, not a DagRunType enum member

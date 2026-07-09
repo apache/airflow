@@ -21,7 +21,7 @@ import datetime
 from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
-from functools import reduce
+from functools import partial, reduce
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, call
@@ -1086,10 +1086,10 @@ class TestDagRun:
         )
 
         if state == DagRunState.RUNNING:
-            func = DagRun.get_running_dag_runs_to_examine
+            fetch = partial(DagRun.get_running_dag_runs_to_examine, session, eagerly_load_dag_tags=False)
         else:
-            func = DagRun.get_queued_dag_runs_to_set_running
-        runs = func(session).all()
+            fetch = partial(DagRun.get_queued_dag_runs_to_set_running, session)
+        runs = fetch().all()
 
         assert runs == [dr]
 
@@ -1097,7 +1097,7 @@ class TestDagRun:
         session.merge(orm_dag)
         session.commit()
 
-        runs = func(session).all()
+        runs = fetch().all()
         assert runs == []
 
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
@@ -4664,7 +4664,9 @@ def test_get_running_dag_runs_to_examine_eager_loads_dag_tags(dag_maker, session
     session.commit()
 
     dr = next(
-        r for r in DagRun.get_running_dag_runs_to_examine(session=session) if r.dag_id == "eager_tag_dag"
+        r
+        for r in DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=True)
+        if r.dag_id == "eager_tag_dag"
     )
     # dag_model and its tags are already populated — no lazy load needed at metric-emission time.
     assert "dag_model" not in sa_inspect(dr).unloaded
