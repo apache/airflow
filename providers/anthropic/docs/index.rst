@@ -22,12 +22,14 @@
 When to use this provider
 --------------------------
 
-Use ``anthropic`` when a Dag needs Anthropic's native API surface — services Anthropic runs
-for you, which no vendor-neutral operator wraps:
+The ``anthropic`` provider gives Dags direct access to Anthropic's own APIs. This page
+compares that choice against ``common.ai``. Use ``anthropic`` when a Dag needs Anthropic's
+native API surface — services Anthropic runs for you, which no vendor-neutral operator wraps:
 
 * ``AnthropicBatchOperator`` and ``AnthropicBatchSensor`` — submit a Claude
   `Message Batches <https://docs.claude.com/en/docs/build-with-claude/batch-processing>`__
-  job for asynchronous bulk processing and wait for it to complete.
+  job for asynchronous bulk processing and wait for it to complete; Message Batches run at
+  50% of standard cost, with most completing within an hour and a 24-hour SLA.
 * ``AnthropicAgentSessionOperator`` — start a Managed Agents session in which the agent loop
   runs server-side on Anthropic's infrastructure; the Airflow task only kicks off the session
   and waits for its outcome.
