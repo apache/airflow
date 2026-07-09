@@ -456,6 +456,7 @@ class TestSnowflakeSqlApiOperator:
         assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger), (
             "Trigger is not a SnowflakeSqlApiTrigger"
         )
+        assert exc.value.trigger.cancel_on_kill is True
 
     def test_snowflake_sql_api_pushes_query_ids_to_xcom(
         self,
@@ -745,6 +746,22 @@ class TestSnowflakeSqlApiOperator:
             statement_count=4,
         )
         operator.query_ids = []
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_respects_cancel_on_kill_false(self, mock_cancel_queries):
+        """on_kill does not cancel queries when cancel_on_kill is disabled."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            cancel_on_kill=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
 
         operator.on_kill()
 

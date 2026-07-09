@@ -55,7 +55,59 @@ class TestSnowflakeSqlApiTrigger:
             "snowflake_conn_id": "test_conn",
             "token_life_time": LIFETIME,
             "token_renewal_delta": RENEWAL_DELTA,
+            "cancel_on_kill": True,
         }
+
+    def test_snowflake_sql_trigger_serialization_cancel_on_kill_false(self):
+        """cancel_on_kill=False round-trips through serialization."""
+        trigger = SnowflakeSqlApiTrigger(
+            poll_interval=POLL_INTERVAL,
+            query_ids=QUERY_IDS,
+            snowflake_conn_id="test_conn",
+            token_life_time=LIFETIME,
+            token_renewal_delta=RENEWAL_DELTA,
+            cancel_on_kill=False,
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["cancel_on_kill"] is False
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook")
+    async def test_on_kill_cancels_the_queries(self, mock_hook):
+        """on_kill() cancels the running queries when enabled and query_ids are set."""
+        await self.TRIGGER.on_kill()
+        mock_hook.assert_called_once_with("test_conn", LIFETIME, RENEWAL_DELTA)
+        mock_hook.return_value.cancel_queries.assert_called_once_with(QUERY_IDS)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("cancel_on_kill", "query_ids"),
+        [
+            pytest.param(False, QUERY_IDS, id="disabled"),
+            pytest.param(True, [], id="no-query-ids"),
+        ],
+    )
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook")
+    async def test_on_kill_does_not_cancel(self, mock_hook, cancel_on_kill, query_ids):
+        """on_kill() is a no-op (no hook built) when disabled or without query_ids."""
+        trigger = SnowflakeSqlApiTrigger(
+            poll_interval=POLL_INTERVAL,
+            query_ids=query_ids,
+            snowflake_conn_id="test_conn",
+            token_life_time=LIFETIME,
+            token_renewal_delta=RENEWAL_DELTA,
+            cancel_on_kill=cancel_on_kill,
+        )
+        await trigger.on_kill()
+        mock_hook.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook")
+    async def test_on_kill_swallows_cancel_errors(self, mock_hook):
+        """on_kill() logs and swallows exceptions raised while cancelling."""
+        mock_hook.return_value.cancel_queries.side_effect = Exception("Snowflake API error")
+        await self.TRIGGER.on_kill()
+        mock_hook.return_value.cancel_queries.assert_called_once_with(QUERY_IDS)
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status")

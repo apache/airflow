@@ -380,6 +380,9 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
             To set the timeout to the maximum value (604800 seconds), set timeout to 0.
     :param deferrable: Run operator in the deferrable mode.
     :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
+    :param cancel_on_kill: If True (default), cancel the running Snowflake queries when the task is
+        killed. This applies both while the operator is running and, for a deferred task, while it
+        waits in the triggerer.
     :param durable: When ``True`` (the default), the submitted statement handles are persisted to
         task state before polling begins. A worker crash on retry reconnects to the existing
         statements instead of resubmitting the SQL. Set to ``False`` to always submit fresh on
@@ -413,6 +416,7 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         timeout: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         snowflake_api_retry_args: dict[str, Any] | None = None,
+        cancel_on_kill: bool = True,
         **kwargs: Any,
     ) -> None:
         self.snowflake_conn_id = snowflake_conn_id
@@ -425,6 +429,7 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self.execute_async = False
         self.snowflake_api_retry_args = snowflake_api_retry_args or {}
         self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
         self.query_ids: list[str] = []
         if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
             hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
@@ -491,6 +496,7 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 snowflake_conn_id=self.snowflake_conn_id,
                 token_life_time=self.token_life_time,
                 token_renewal_delta=self.token_renewal_delta,
+                cancel_on_kill=self.cancel_on_kill,
             ),
             method_name="execute_complete",
         )
@@ -617,6 +623,8 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
 
     def on_kill(self) -> None:
         """Cancel the running query."""
+        if not self.cancel_on_kill:
+            return
         if self.query_ids:
             self.log.info("Cancelling the query ids %s", self.query_ids)
             self._hook.cancel_queries(self.query_ids)
