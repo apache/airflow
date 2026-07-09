@@ -473,6 +473,18 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          description: Filter Dags that have any DagRun in the given state. Only ``queued``
+            and ``running`` are supported.
+          title: Dag Run State
+        description: Filter Dags that have any DagRun in the given state. Only ``queued``
+          and ``running`` are supported.
       - name: bundle_name
         in: query
         required: false
