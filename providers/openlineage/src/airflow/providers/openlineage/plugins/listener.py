@@ -933,7 +933,7 @@ class OpenLineageListener:
             doc_type: str | None = None
             airflow_run_facet: dict = {}
             job_facet_kwargs: dict = {}
-            task_metadata = OperatorLineage()
+            task_metadata: OperatorLineage = OperatorLineage()
             if task:  # on scheduler, we should have access to task
                 doc, doc_type = get_task_documentation(task)
                 dag = getattr(task, "dag")
