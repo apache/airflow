@@ -50,6 +50,8 @@ except ImportError:
 
 CMD_TIMEOUT = 10
 
+_HostKeyConstructor = type[paramiko.RSAKey] | type[paramiko.ECDSAKey] | type[paramiko.Ed25519Key]
+
 
 class SSHHook(BaseHook):
     """
@@ -95,7 +97,7 @@ class SSHHook(BaseHook):
         paramiko.Ed25519Key,
     )
 
-    _host_key_mappings: dict[str, type[paramiko.PKey]] = {
+    _host_key_mappings: dict[str, _HostKeyConstructor] = {
         "ssh-rsa": paramiko.RSAKey,
         "ecdsa-sha2-nistp256": paramiko.ECDSAKey,
         "ecdsa-sha2-nistp384": paramiko.ECDSAKey,
