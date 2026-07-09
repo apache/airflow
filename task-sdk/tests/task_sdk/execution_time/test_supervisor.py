@@ -3603,7 +3603,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             if remote_logging and expected_env:
                 connection_available = {"available": False, "conn_uri": None}
 
-                def mock_upload_to_remote(process_log, ti):
+                def mock_upload_to_remote(process_log, ti, ti_context=None):
                     connection_available["available"] = expected_env in os.environ
                     connection_available["conn_uri"] = os.environ.get(expected_env)
 
@@ -3650,6 +3650,51 @@ def test_log_upload_failures_are_non_fatal(mocker):
         ti_id=TI_ID,
         pid=12345,
     )
+
+
+def test_on_child_started_retains_ti_context(mocker, make_ti_context):
+    ti_context = make_ti_context()
+    client = mocker.MagicMock()
+    client.task_instances.start.return_value = ti_context
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=client,
+        process=mocker.MagicMock(),
+    )
+    mocker.patch.object(ActivitySubprocess, "send_msg")
+
+    proc._on_child_started(
+        ti=TaskInstance(id=TI_ID, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()),
+        dag_rel_path="test.py",
+        bundle_info=FAKE_BUNDLE,
+        sentry_integration="",
+    )
+
+    assert proc._ti_context is ti_context
+
+
+def test_upload_logs_forwards_ti_context(mocker, make_ti_context):
+    """The supervisor passes the retained TIRunContext to the remote log uploader."""
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    proc.ti = mocker.MagicMock()
+    proc._ti_context = make_ti_context()
+
+    mocker.patch("airflow.sdk.execution_time.supervisor._remote_logging_conn")
+    upload_to_remote = mocker.patch("airflow.sdk.log.upload_to_remote")
+
+    proc._upload_logs()
+
+    upload_to_remote.assert_called_once_with(proc.process_log, proc.ti, ti_context=proc._ti_context)
 
 
 def test_logs_uploaded_even_when_state_update_fails(mocker):

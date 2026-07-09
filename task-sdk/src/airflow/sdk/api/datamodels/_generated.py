@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-06-30"
+API_VERSION: Final[str] = "2026-09-30"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -797,3 +797,4 @@ class TIRunContext(BaseModel):
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
     start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
+    log_id_template: Annotated[str | None, Field(title="Log Id Template")] = None
