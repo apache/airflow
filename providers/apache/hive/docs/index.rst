@@ -113,8 +113,8 @@ PIP package                                 Version required
 ``jmespath``                                ``>=0.7.0``
 ==========================================  =================================================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -130,14 +130,36 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_  ``microsoft.mssql``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                      ``mysql``
 `apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_                    ``presto``
 `apache-airflow-providers-samba <https://airflow.apache.org/docs/apache-airflow-providers-samba>`_                      ``samba``
 `apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_                  ``vertica``
 ======================================================================================================================  ===================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-hive[amazon]
+
+
+===================  =============================================================================================
+Extra                Dependencies
+===================  =============================================================================================
+``amazon``           ``apache-airflow-providers-amazon``
+``microsoft.mssql``  ``apache-airflow-providers-microsoft-mssql``
+``mysql``            ``apache-airflow-providers-mysql``
+``presto``           ``apache-airflow-providers-presto``
+``samba``            ``apache-airflow-providers-samba``
+``sqlalchemy``       ``sqlalchemy>=1.4.54``
+``vertica``          ``apache-airflow-providers-vertica``
+``GSSAPI``           ``winkerberos>=0.7.0; sys_platform == "win32"``, ``kerberos>=1.3.0; sys_platform != "win32"``
+===================  =============================================================================================
 
 Downloading official packages
 -----------------------------

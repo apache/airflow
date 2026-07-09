@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { setupServer, type SetupServerApi } from "msw/node";
+import { setupServer, type SetupServer } from "msw/node";
 import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
@@ -28,7 +28,7 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { Header } from "./Header";
 
-let server: SetupServerApi;
+let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...handlers);
