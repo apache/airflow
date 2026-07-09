@@ -1157,6 +1157,22 @@ class TestConnectionOperations:
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
 
+    def test_connection_get_url_encodes_conn_id(self):
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(
+                status_code=200,
+                json={"conn_id": "dev/my_conn", "conn_type": "http"},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="dev/my_conn")
+
+        assert isinstance(result, ConnectionResponse)
+        assert requests_seen[0].url.raw_path == b"/connections/dev%2Fmy_conn"
+
     @pytest.mark.parametrize("status_code", [401, 403])
     def test_connection_get_authz_returns_permission_denied(self, status_code):
         """401/403 from the API server is reported as PERMISSION_DENIED, not raised."""
