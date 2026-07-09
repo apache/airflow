@@ -373,6 +373,40 @@ def _get_source_line(cls: type) -> int | None:
         return None
 
 
+def load_resumable_job_mixin() -> type | None:
+    """Import ResumableJobMixin for durable-execution capability checks, or None if unavailable."""
+    try:
+        from airflow.sdk import ResumableJobMixin
+
+        return ResumableJobMixin
+    except ImportError:
+        log.warning("Could not import ResumableJobMixin")
+        return None
+
+
+def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
+    """Return True if a class fully implements ResumableJobMixin's crash-recovery contract.
+
+    Inheriting the mixin is not sufficient: a complete override is inert unless
+    execute() actually calls execute_resumable().
+    """
+    if resumable_mixin is None or resumable_mixin not in cls.__mro__:
+        return False
+
+    if inspect.isabstract(cls):
+        return False
+
+    execute = getattr(cls, "execute", None)
+    if execute is None:
+        return False
+    try:
+        source = inspect.getsource(execute)
+    except (OSError, TypeError):
+        return False
+
+    return "execute_resumable" in source
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],

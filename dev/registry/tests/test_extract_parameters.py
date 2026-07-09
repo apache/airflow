@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import abc
+import builtins
 import json
 import types
 from unittest.mock import patch
@@ -31,6 +33,8 @@ from extract_parameters import (
     compare_with_ast,
     discover_classes_from_provider,
     get_category,
+    is_durable_capable,
+    load_resumable_job_mixin,
 )
 
 
@@ -99,6 +103,142 @@ class TestGetSourceLine:
     def test_returns_none_for_dynamic_class(self):
         DynamicClass = type("DynamicClass", (), {})
         assert _get_source_line(DynamicClass) is None
+
+
+# ---------------------------------------------------------------------------
+# load_resumable_job_mixin
+# ---------------------------------------------------------------------------
+class TestLoadResumableJobMixin:
+    def test_returns_none_when_airflow_sdk_unavailable(self):
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "airflow.sdk":
+                raise ImportError("no airflow.sdk here")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fake_import):
+            assert load_resumable_job_mixin() is None
+
+
+# ---------------------------------------------------------------------------
+# is_durable_capable
+# ---------------------------------------------------------------------------
+class FakeResumableJobMixin(abc.ABC):
+    """Stand-in for airflow.sdk.ResumableJobMixin's abstract-method contract."""
+
+    @abc.abstractmethod
+    def submit_job(self, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_status(self, external_id, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def is_job_active(self, status):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def is_job_succeeded(self, status):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def poll_until_complete(self, external_id, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_result(self, external_id, context):
+        raise NotImplementedError
+
+    def execute_resumable(self, context):
+        raise NotImplementedError
+
+
+class FullyImplementedResumableOperator(FakeResumableJobMixin):
+    def execute(self, context):
+        return self.execute_resumable(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def get_job_status(self, external_id, context):
+        return "RUNNING"
+
+    def is_job_active(self, status):
+        return status == "RUNNING"
+
+    def is_job_succeeded(self, status):
+        return status == "SUCCEEDED"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class PartiallyImplementedResumableOperator(FakeResumableJobMixin):
+    """Retry-path methods left unoverridden -- would only blow up on an actual crash-recovery retry."""
+
+    def execute(self, context):
+        return self.execute_resumable(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class UnwiredResumableOperator(FakeResumableJobMixin):
+    """execute() never calls execute_resumable -- dead capability, never exercised."""
+
+    def execute(self, context):
+        return self.submit_job(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def get_job_status(self, external_id, context):
+        return "RUNNING"
+
+    def is_job_active(self, status):
+        return status == "RUNNING"
+
+    def is_job_succeeded(self, status):
+        return status == "SUCCEEDED"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class PlainOperator:
+    def execute(self, context):
+        return None
+
+
+class TestIsDurableCapable:
+    def test_fully_implemented_and_wired_qualifies(self):
+        assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
+
+    def test_missing_retry_path_overrides_disqualifies(self):
+        assert is_durable_capable(PartiallyImplementedResumableOperator, FakeResumableJobMixin) is False
+
+    def test_implemented_but_not_called_from_execute_disqualifies(self):
+        assert is_durable_capable(UnwiredResumableOperator, FakeResumableJobMixin) is False
+
+    def test_no_mixin_in_mro_disqualifies(self):
+        assert is_durable_capable(PlainOperator, FakeResumableJobMixin) is False
+
+    def test_mixin_unavailable_disqualifies(self):
+        assert is_durable_capable(FullyImplementedResumableOperator, None) is False
 
 
 # ---------------------------------------------------------------------------
