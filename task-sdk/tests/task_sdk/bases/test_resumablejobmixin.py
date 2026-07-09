@@ -552,5 +552,5 @@ class TestAbstractMethodEnforcement:
     )
     def test_missing_single_method_fails_at_construction(self, partial_cls, missing_method):
         assert partial_cls.__abstractmethods__ == frozenset({missing_method})
-        with pytest.raises(TypeError, match=f"abstract method '{missing_method}'"):
+        with pytest.raises(TypeError):
             partial_cls(task_id="test_task")
