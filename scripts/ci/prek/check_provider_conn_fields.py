@@ -81,22 +81,23 @@ def build_mismatch_error(
     hook_class_name: str,
 ) -> str | None:
     """
-    Check that every key declared in ``conn-fields`` exists in
-    ``get_connection_form_widgets()``.
+    Check that ``conn-fields`` and ``get_connection_form_widgets()`` are in sync.
 
-    ``conn-fields`` is the new React UI's view of a connection type and is
-    intentionally a *subset* of the Flask form widgets — fields can be omitted
-    from ``conn-fields`` on purpose.  We therefore only flag keys that appear in
-    ``conn-fields`` but are absent from the hook's form (invalid / stale
-    declarations).  The reverse direction (hook fields not listed in
-    ``conn-fields``) is not an error.
+    Once a provider declares ``conn-fields``, those declarations must exactly
+    match the hook's form widgets — we flag both directions:
 
-    Return an error string when stale keys are found, or ``None`` when the
-    declared keys are all valid.
+    - Keys present in ``conn-fields`` but absent from the hook → stale / invalid
+      declarations that should be removed.
+    - Keys present in the hook but absent from ``conn-fields`` → fields that will
+      be invisible in the new React connection UI, almost certainly unintentional.
+
+    Return an error string when any mismatch is found, or ``None`` when the sets
+    are identical.
     """
     only_in_yaml = yaml_keys - hook_keys
+    only_in_hook = hook_keys - yaml_keys
 
-    if not only_in_yaml:
+    if not only_in_yaml and not only_in_hook:
         return None
 
     lines = [
@@ -104,9 +105,20 @@ def build_mismatch_error(
         f"`{hook_class_name}.get_connection_form_widgets()` "
         f"for connection-type '{connection_type}':"
     ]
-    lines.append(
-        "  Fields in provider.yaml conn-fields but NOT in get_connection_form_widgets(): "
-        + ", ".join(sorted(only_in_yaml))
-    )
-    lines.append("[yellow]How to fix it[/]: Remove the stale key(s) from conn-fields in provider.yaml.")
+    if only_in_yaml:
+        lines.append(
+            "  Fields in provider.yaml conn-fields but NOT in get_connection_form_widgets(): "
+            + ", ".join(sorted(only_in_yaml))
+        )
+        lines.append(
+            "[yellow]How to fix it[/]: Remove the stale key(s) from conn-fields in provider.yaml."
+        )
+    if only_in_hook:
+        lines.append(
+            "  Fields in get_connection_form_widgets() but NOT in provider.yaml conn-fields: "
+            + ", ".join(sorted(only_in_hook))
+        )
+        lines.append(
+            "[yellow]How to fix it[/]: Add the missing key(s) to conn-fields in provider.yaml."
+        )
     return "\n".join(lines)
