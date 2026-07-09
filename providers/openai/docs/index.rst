@@ -19,6 +19,41 @@
 ``apache-airflow-providers-openai``
 ======================================
 
+When to use this provider
+--------------------------
+
+Use ``openai`` when a Dag needs OpenAI's native API surface — thin wrappers over
+OpenAI-specific endpoints and options:
+
+* ``OpenAIEmbeddingOperator`` — call the Embeddings API directly, e.g. to feed a vector
+  store.
+* ``OpenAIResponseOperator`` — call the
+  `Responses API <https://platform.openai.com/docs/api-reference/responses>`__ with
+  OpenAI-specific parameters.
+* ``OpenAITriggerBatchOperator`` and ``OpenAIHook`` — submit a
+  `Batch API <https://platform.openai.com/docs/guides/batch>`__ job for asynchronous bulk
+  processing and wait for it to complete.
+
+Use :doc:`apache-airflow-providers-common-ai:index` instead when the AI step should be run by
+Airflow itself and stay vendor-neutral:
+
+* Generation, classification, or structured extraction with ``LLMOperator`` — it works with
+  OpenAI models via a connection, and switching to another model provider later is a
+  connection change, not a Dag rewrite.
+* Agents whose loop runs in the Airflow worker with ``AgentOperator`` — Airflow-defined
+  toolsets (SQL, hooks, MCP servers), human-in-the-loop review, and durable step replay.
+* Document-to-vector-store pipelines with its document loader, embedding, and retrieval
+  operators, which are not tied to OpenAI's embedding models.
+
+In short: pick ``openai`` to reach an OpenAI-only endpoint; pick ``common.ai`` to keep the
+Dag portable across model providers.
+
+For example, calling the Responses API directly:
+
+.. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
+    :language: python
+    :start-after: [START howto_operator_openai_response]
+    :end-before: [END howto_operator_openai_response]
 
 .. toctree::
     :hidden:
@@ -34,6 +69,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Quick start <quickstart>
     Connection types <connections>
     Operators <operators/openai>
 
@@ -73,7 +109,7 @@ Enables interaction with OpenAI APIs for text generation, embeddings,
 and other AI-powered workflows directly from Airflow DAGs.
 
 
-Release: 1.7.5
+Release: 1.8.0
 
 Provider package
 ----------------
@@ -98,27 +134,8 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``openai[datalib]``                         ``>=1.66.0``
+``openai[datalib]``                         ``>=2.37.0``
 ==========================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-openai[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -126,5 +143,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-openai 1.7.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.5.tar.gz.sha512>`__)
-* `The apache-airflow-providers-openai 1.7.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.5-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-openai 1.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openai 1.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0-py3-none-any.whl.sha512>`__)

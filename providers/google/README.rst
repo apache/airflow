@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.1.0``
+Release: ``22.2.2``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.2/>`_.
 
 Installation
 ------------
@@ -79,6 +79,7 @@ PIP package                                 Version required
 ``google-cloud-aiplatform[evaluation]``     ``>=1.155.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
+``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.33.0; python_version >= "3.13"``
 ``google-cloud-alloydb``                    ``>=0.4.0``
@@ -129,6 +130,7 @@ PIP package                                 Version required
 ``proto-plus``                              ``>=1.26.0``
 ``pyarrow``                                 ``>=18.0.0; python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
+``pydantic``                                ``>=2.13.1; python_version >= "3.14"``
 ``python-slugify``                          ``>=7.0.0``
 ``sqlalchemy-bigquery``                     ``>=1.2.1``
 ``sqlalchemy-spanner``                      ``>=1.6.2``
@@ -137,8 +139,8 @@ PIP package                                 Version required
 ``types-protobuf``                          ``>=5.27.0,!=5.29.1.20250402``
 ==========================================  ==================================================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -154,16 +156,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
-`apache-airflow-providers-apache-beam <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam>`_            ``apache.beam``
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_              ``common.sql``
 `apache-airflow-providers-facebook <https://airflow.apache.org/docs/apache-airflow-providers-facebook>`_                  ``facebook``
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_    ``microsoft.azure``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_    ``microsoft.mssql``
+`apache-airflow-providers-mongo <https://airflow.apache.org/docs/apache-airflow-providers-mongo>`_                        ``mongo``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                        ``mysql``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_            ``openlineage``
 `apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
@@ -191,6 +191,7 @@ Extra                 Dependencies
 ``apache.cassandra``  ``apache-airflow-providers-apache-cassandra``
 ``microsoft.azure``   ``apache-airflow-providers-microsoft-azure>=13.0.0``
 ``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
+``mongo``             ``apache-airflow-providers-mongo``
 ``mysql``             ``apache-airflow-providers-mysql``
 ``openlineage``       ``apache-airflow-providers-openlineage``
 ``postgres``          ``apache-airflow-providers-postgres``
@@ -205,4 +206,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.2/changelog.html>`_.

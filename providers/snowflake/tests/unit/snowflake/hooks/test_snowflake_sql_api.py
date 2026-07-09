@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import unittest
 import uuid
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
@@ -619,9 +618,7 @@ class TestSnowflakeSqlApiHook:
                 "private_key_content": base64_encoded_encrypted_private_key,
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
@@ -648,9 +645,7 @@ class TestSnowflakeSqlApiHook:
         }
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         with (
-            unittest.mock.patch.dict(
-                "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-            ),
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
             pytest.raises(
                 ValueError,
                 match="The private_key_file and private_key_content extra fields are mutually "
@@ -675,9 +670,7 @@ class TestSnowflakeSqlApiHook:
                 "private_key_file": str(encrypted_temporary_private_key),
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
@@ -698,24 +691,18 @@ class TestSnowflakeSqlApiHook:
                 "private_key_file": str(unencrypted_temporary_private_key),
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
         connection_kwargs["password"] = ""
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
         connection_kwargs["password"] = _PASSWORD
         with (
-            unittest.mock.patch.dict(
-                "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-            ),
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
             pytest.raises(TypeError, match="Password was given but private key is not encrypted."),
         ):
             SnowflakeSqlApiHook(snowflake_conn_id="test_conn").get_private_key()

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -171,7 +171,12 @@ class DagVersion(Base):
         if load_bundle_model:
             query = query.options(joinedload(cls.bundle))
 
-        query = query.order_by(cls.created_at.desc()).limit(1)
+        # Order by version_number, not created_at: version_number is monotonic and unique per
+        # dag_id, so it is deterministic even when two versions share a created_at timestamp.
+        # write_dag relies on this select to compute the next version_number; ordering by
+        # created_at could pick a non-max row under a tie and collide with the
+        # (dag_id, version_number) unique constraint.
+        query = query.order_by(cls.version_number.desc()).limit(1)
         return query
 
     @classmethod
@@ -224,9 +229,21 @@ class DagVersion(Base):
         if version_number:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
 
-        return session.scalar(version_select_obj.order_by(cls.id.desc()).limit(1))
+        return session.scalar(version_select_obj.order_by(cls.version_number.desc()).limit(1))
 
     @property
     def version(self) -> str:
         """A human-friendly representation of the version."""
         return f"{self.dag_id}-{self.version_number}"
+
+
+def _resolve_version_data(
+    dag_version: DagVersion | None, bundle_version: str | None
+) -> dict[str, Any] | None:
+    """Return a bundle version's ``version_data`` manifest, but only for pinned runs."""
+    # Expose version_data only when the run is pinned (bundle_version set) and a DagVersion is
+    # present, so the bundle initializes against the exact version the run used. Unpinned runs
+    # follow the latest bundle state, and legacy rows have no DagVersion.
+    if dag_version is not None and bundle_version is not None:
+        return dag_version.version_data
+    return None

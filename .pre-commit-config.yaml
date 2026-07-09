@@ -16,11 +16,12 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit, commit-msg]
 minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
-  golang: 1.24.0
+  golang: 1.25.0
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -31,7 +32,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: d77825acdc8ca194308680fa4f8385ae5bb61cb4  # frozen: v2.4.1
+    rev: 59dcae910a6ad4bbe8711275b854e3cd5c30f08b  # frozen: v2.5.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -248,11 +249,76 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: ts-sdk-lint
+        name: Lint TypeScript SDK
+        entry: ./ts-sdk/scripts/ci/prek/ts_sdk_lint.py
+        language: node
+        files: |
+          (?x)
+          ^ts-sdk/.*\.(js|ts|json)$
+        exclude: |
+          (?x)
+          ^ts-sdk/node_modules/.*|
+          ^ts-sdk/.pnpm-store/.*|
+          ^ts-sdk/dist/.*
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
+      - id: check-ts-sdk-supervisor-schema
+        name: Check TypeScript SDK supervisor schema is up to date
+        entry: ./ts-sdk/scripts/ci/prek/check_supervisor_schema.py
+        language: node
+        files: >
+          (?x)
+          ^ts-sdk/src/generated/supervisor\.ts$|
+          ^ts-sdk/scripts/generate-supervisor\.mjs$
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
         language: python
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
+        pass_filenames: false
+        require_serial: true
+      - id: check-java-sdk-version-in-sync
+        name: Check Java SDK JDK version is consistent across build files
+        entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^\.github/workflows/codeql-analysis\.yml$|
+          ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
+          ^scripts/docker/install_os_dependencies\.sh$|
+          ^Dockerfile$|
+          ^Dockerfile\.ci$
+        pass_filenames: false
+        require_serial: true
+      - id: sync-java-sdk-supervisor-schema
+        name: Sync Java SDK supervisor schema with configured version
+        description: "Download the Supervisor Schema when Java SDK's bundled schema.json drifts"
+        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncSupervisorSchema
+        language: system
+        pass_filenames: false
+        files: >
+          (?x)
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/sdk/schema/schema\.json$
+      - id: check-go-version-in-sync
+        name: Check Go toolchain version is consistent across build files
+        entry: ./scripts/ci/prek/check_go_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^go-sdk/go\.mod$|
+          ^kubernetes-tests/lang_sdk/go_example/go\.mod$|
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$|
+          ^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$|
+          ^go-sdk/\.pre-commit-config\.yaml$|
+          ^\.pre-commit-config\.yaml$
         pass_filenames: false
         require_serial: true
       - id: check-partition-mapper-defaults-in-sync
@@ -438,7 +504,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
+    rev: e3eebf65325ccc992422292cb7a4baee967cf815  # frozen: v1.26.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -548,7 +614,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.16']
+        additional_dependencies: ['ruff==0.15.20']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -629,6 +695,17 @@ repos:
         entry: ./scripts/ci/prek/supported_versions.py
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
+        pass_filenames: false
+      - id: generate-api-permissions-doc
+        name: Generate REST API permission reference documentation
+        entry: ./scripts/ci/prek/extract_permissions.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^airflow-core/docs/security/api_permissions_ref\.rst$
         pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
@@ -716,6 +793,7 @@ repos:
           ^java-sdk/gradlew$|
           ^java-sdk/gradlew\.bat$|
           ^java-sdk/gradle|
+          ^java-sdk/scala_spark_example/src/main/scala/org/apache/airflow/example/ScalaSparkExample\.scala$|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -1079,6 +1157,14 @@ repos:
         files: changelog\.(rst|txt)$
         entry: ./scripts/ci/prek/changelog_duplicates.py
         pass_filenames: true
+      - id: check-no-conventional-commit-message
+        name: Check commit message is not Conventional Commits style
+        description: "Reject feat:/fix:/chore: style commit subjects - Airflow uses plain prose"
+        language: python
+        entry: ./scripts/ci/prek/check_no_conventional_commit_message.py
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: true
       - id: check-changelog-format
         name: Check changelog format
         language: python
@@ -1103,8 +1189,7 @@ repos:
           (?x)
           ^dev/breeze/.*$|
           ^\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/breeze_cmd_line\.py$|
-          ^generated/provider_dependencies\.json$
+          ^scripts/ci/prek/breeze_cmd_line\.py$$
         require_serial: true
         pass_filenames: false
       - id: check-example-dags-urls

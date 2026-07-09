@@ -20,7 +20,7 @@ import importlib
 import logging
 import os
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
@@ -395,19 +395,24 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
+    def get_bundle(
+        self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
+    ) -> BaseDagBundle:
         """
         Get a DAG bundle by name.
 
         :param name: The name of the DAG bundle.
         :param version: The version of the DAG bundle you need (optional). If not provided, ``tracking_ref`` will be used instead.
+        :param version_data: Optional structured data associated with this version (e.g., S3 manifest).
 
         :return: The DAG bundle.
         """
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
-        return cfg_bundle.bundle_class(name=name, version=version, **cfg_bundle.kwargs)
+        return cfg_bundle.bundle_class(
+            name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
+        )
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """

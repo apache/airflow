@@ -52,10 +52,17 @@ KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
 
 # Java SDK E2E test paths
 JAVA_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
-JAVA_SDK_DAGS_PATH = JAVA_SDK_ROOT_PATH / "dags"
-JAVA_SDK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "example" / "build" / "install" / "example" / "lib"
+JAVA_SDK_EXAMPLE_DAGS_PATH = JAVA_SDK_ROOT_PATH / "example" / "src" / "resources" / "dags"
+JAVA_SDK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "example" / "build" / "bundle"
+JAVA_SDK_MAVEN_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "m2"
 JAVA_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "java.yml"
 JAVA_DOCKERFILE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "Dockerfile.java"
+
+# Scala Spark example paths (a separate bundle with its own coordinator/queue).
+SCALA_SPARK_EXAMPLE_DAGS_PATH = (
+    JAVA_SDK_ROOT_PATH / "scala_spark_example" / "src" / "main" / "resources" / "dags"
+)
+SCALA_SPARK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "scala_spark_example" / "build" / "bundle"
 
 # Go SDK E2E test paths
 GO_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
@@ -72,7 +79,7 @@ GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
 # The Alpine variant is ~7x smaller than the Debian one and is safe here because the
 # bundle is built with CGO_ENABLED=0 (a fully static binary, independent of musl/glibc)
 # and module fetches go through the HTTPS proxy (no git/gcc needed).
-GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.24-alpine")
+GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
 
 # Local provider sources are mounted into the airflow containers under this directory so
 # ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)

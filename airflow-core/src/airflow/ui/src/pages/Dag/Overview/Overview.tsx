@@ -30,7 +30,6 @@ import {
 } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
-import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { dagRunsLimitKey } from "src/constants/localStorage";
@@ -87,7 +86,6 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
-      <NeedsReviewButton dagId={dagId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
