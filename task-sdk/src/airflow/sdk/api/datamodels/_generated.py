@@ -1277,6 +1277,7 @@ class TIRunContext(BaseModel):
         ),
     ] = None
     multi_team: Annotated[bool | None, Field(title="Multi Team")] = False
+    log_id_template: Annotated[str | None, Field(title="Log Id Template")] = None
 
 
 class TaskCallbackRequest(BaseModel):

@@ -37,6 +37,7 @@ def get_bundle() -> VersionBundle:
     """
     from cadwyn import HeadVersion, Version, VersionBundle
 
+    from airflow.sdk.execution_time.schema.versions.v2026_09_30 import AddLogIdTemplateField
     from airflow.sdk.execution_time.schema.versions.v2026_10_30 import (
         AddArgBindingsToSupervisorTIRunContext,
         AddDagDefinitionsToDagFileParsingResult,
@@ -70,6 +71,7 @@ def get_bundle() -> VersionBundle:
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
             AddExpandedTICountToSupervisorTIRunContext,
         ),
+        Version("2026-09-30", AddLogIdTemplateField),
         Version("2026-06-16"),
     )
 
