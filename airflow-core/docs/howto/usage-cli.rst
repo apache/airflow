@@ -323,6 +323,13 @@ Downgrading Airflow
 
 You can downgrade to a particular Airflow version with the ``db downgrade`` command.  Alternatively you may provide an Alembic revision id to downgrade to.
 
+.. warning::
+
+    ``db downgrade`` only reverts schema changes tracked by Alembic. It does not rewrite metadata rows
+    that were already written by the newer Airflow version into an older serialization format. If the
+    newer version has already run against the database, restoring a metadata DB backup taken before the
+    upgrade is the only clean rollback path.
+
 If you want to preview the commands but not execute them, use option ``--show-sql-only``.
 
 Options ``--from-revision`` and ``--from-version`` may only be used in conjunction with the ``--show-sql-only`` option, because when actually *running* migrations we should always downgrade from current revision.
