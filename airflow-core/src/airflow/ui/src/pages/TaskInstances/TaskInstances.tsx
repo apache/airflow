@@ -44,7 +44,7 @@ import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
+import { useAutoRefresh, isStatePending, renderDuration, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
@@ -253,6 +253,10 @@ const taskInstanceColumns = ({
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
+
+  // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
+
   const [searchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState({

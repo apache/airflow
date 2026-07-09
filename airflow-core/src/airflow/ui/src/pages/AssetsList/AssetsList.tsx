@@ -34,6 +34,7 @@ import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
+import { useDocumentTitle } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
@@ -117,6 +118,9 @@ const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
 
 export const AssetsList = () => {
   const { t: translate } = useTranslation(["assets", "common"]);
+
+  useDocumentTitle(translate("common:nav.assets"));
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const namePattern = searchParams.get(NAME_PATTERN) ?? "";

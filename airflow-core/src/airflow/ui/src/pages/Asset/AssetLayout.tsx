@@ -29,6 +29,7 @@ import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { ProgressBar } from "src/components/ui";
 import { GroupsProvider } from "src/context/groups";
 import { NavTabs } from "src/layouts/Details/NavTabs";
+import { useDocumentTitle } from "src/utils";
 
 import { AssetGraph } from "./AssetGraph";
 import { AssetPanelButtons } from "./AssetPanelButtons";
@@ -48,6 +49,8 @@ export const AssetLayout = () => {
       enabled: Boolean(assetId),
     },
   );
+
+  useDocumentTitle(asset?.name);
 
   const links = [
     {
