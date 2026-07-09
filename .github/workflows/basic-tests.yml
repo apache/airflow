@@ -44,6 +44,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run scripts tests (true/false)"
         required: true
         type: string
+      run-mcp-server-tests:
+        description: "Whether to run dev MCP server tests (true/false)"
+        required: true
+        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -101,6 +105,7 @@ jobs:
     timeout-minutes: 10
     name: Dev MCP server tests
     runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-mcp-server-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
