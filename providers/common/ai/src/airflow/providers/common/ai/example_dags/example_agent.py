@@ -230,23 +230,24 @@ example_agent_operator_hitl_review()
 
 
 # [START howto_operator_agent_code_mode]
-@dag(tags=["example"])
-def example_agent_operator_code_mode():
-    AgentOperator(
-        task_id="code_mode_analyst",
-        prompt="For the top 3 customers by order count, what was each one's total spend?",
-        llm_conn_id="pydanticai_default",
-        system_prompt="You are a SQL analyst. Write Python that calls the tools to answer.",
-        toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
-        # Requires the `code-mode` extra:
-        #   pip install "apache-airflow-providers-common-ai[code-mode]"
-        code_mode=True,
-    )
+if SQLToolset is not None:
 
+    @dag(tags=["example"])
+    def example_agent_operator_code_mode():
+        AgentOperator(
+            task_id="code_mode_analyst",
+            prompt="For the top 3 customers by order count, what was each one's total spend?",
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a SQL analyst. Write Python that calls the tools to answer.",
+            toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
+            # Requires the `code-mode` extra:
+            #   pip install "apache-airflow-providers-common-ai[code-mode]"
+            code_mode=True,
+        )
 
-# [END howto_operator_agent_code_mode]
+    # [END howto_operator_agent_code_mode]
 
-example_agent_operator_code_mode()
+    example_agent_operator_code_mode()
 
 
 # ---------------------------------------------------------------------------
