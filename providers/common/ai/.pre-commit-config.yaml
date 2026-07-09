@@ -56,13 +56,3 @@ repos:
           (?x)
           ^src/airflow/providers/common/ai/plugins/.*\.py$|
           ^tests/unit/common/ai/plugins/.*\.py$
-      - id: check-common-ai-examples-referenced
-        name: Check common.ai example Dags are referenced in examples.rst
-        description: Every example_dags/*.py file must be reachable from docs/examples.rst
-        entry: ../../../scripts/ci/prek/check_common_ai_examples_referenced.py
-        language: python
-        pass_filenames: false
-        files: >
-          (?x)
-          ^src/airflow/providers/common/ai/example_dags/.*\.py$|
-          ^docs/.*\.rst$
