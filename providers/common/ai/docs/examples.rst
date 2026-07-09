@@ -39,7 +39,10 @@ Single-prompt tasks
      - What it shows
    * - :doc:`operators/llm`
      - ``@task.llm`` for text, structured output, classification, and dynamic task mapping over
-       LLM results (``example_llm.py``, ``example_llm_classification.py``, ``example_llm_analysis_pipeline.py``).
+       LLM results
+       (`example_llm.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm.py>`__,
+       `example_llm_classification.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_classification.py>`__,
+       `example_llm_analysis_pipeline.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_analysis_pipeline.py>`__).
    * - :doc:`operators/llm_branch`
      - ``@task.llm_branch`` picking which downstream task runs.
    * - :doc:`operators/llm_file_analysis`
