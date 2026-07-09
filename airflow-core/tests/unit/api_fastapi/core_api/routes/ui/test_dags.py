@@ -22,6 +22,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -133,6 +134,31 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 if previous_run_after:
                     assert previous_run_after > dag_run["run_after"]
                 previous_run_after = dag_run["run_after"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session):
+        # Backwards backfill: an older run is still running while the latest run already finished.
+        older_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_1")
+        )
+        older_run.state = DagRunState.RUNNING
+        session.commit()
+
+        # last_dag_run_state only looks at the latest run, which is not running
+        last_state = test_client.get("/dags", params={"last_dag_run_state": "running"})
+        assert last_state.status_code == 200
+        assert [dag["dag_id"] for dag in last_state.json()["dags"]] == []
+
+        # dag_run_state matches a Dag that has any run in the state
+        any_state = test_client.get("/dags", params={"dag_run_state": "running"})
+        assert any_state.status_code == 200
+        assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
+
+    @pytest.mark.parametrize("unsupported_state", ["success", "failed"])
+    def test_dag_run_state_rejects_unsupported_states(self, test_client, unsupported_state):
+        # Only running/queued have a partial index; other states would force a full table scan.
+        response = test_client.get("/dags", params={"dag_run_state": unsupported_state})
+        assert response.status_code == 400
 
     @pytest.fixture
     def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):

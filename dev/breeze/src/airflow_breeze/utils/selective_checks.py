@@ -132,6 +132,7 @@ class FileGroupForCi(Enum):
     EVENT_DRIVEN_E2E_FILES = auto()
     JAVA_SDK_E2E_FILES = auto()
     GO_SDK_E2E_FILES = auto()
+    PROVIDERS_E2E_OPENLINEAGE_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -249,6 +250,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/go\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
+        ],
+        FileGroupForCi.PROVIDERS_E2E_OPENLINEAGE_FILES: [
+            r"^providers-e2e-tests/openlineage/.*",
+            r"^providers/openlineage/.*",
+            r"^providers/common/compat/.*",
+            r"^providers/common/io/.*",
+            r"^providers/common/sql/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -483,7 +491,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.OTEL_FILES: [
             r"^airflow-core/src/airflow/observability/.*",
             r"^shared/observability/src/airflow_shared/observability/.*",
-            r"^airflow-core/src/airflow/utils/span_status\.py$",
             # The otel integration tests assert the exact span hierarchy that
             # task_runner emits, so changes to either must exercise the integration.
             r"^airflow-core/tests/integration/otel/.*",
@@ -1038,6 +1045,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.GO_SDK_E2E_FILES)
 
     @cached_property
+    def run_providers_e2e_tests_openlineage(self) -> bool:
+        return self._should_be_run(FileGroupForCi.PROVIDERS_E2E_OPENLINEAGE_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1179,6 +1190,7 @@ class SelectiveChecks:
             or self.run_event_driven_e2e_tests
             or self.run_java_sdk_e2e_tests
             or self.run_go_sdk_e2e_tests
+            or self.run_providers_e2e_tests_openlineage
             or self.run_ui_e2e_tests
         )
 

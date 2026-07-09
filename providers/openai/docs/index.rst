@@ -69,6 +69,7 @@ For example, calling the Responses API directly:
     :maxdepth: 1
     :caption: Guides
 
+    Quick start <quickstart>
     Connection types <connections>
     Operators <operators/openai>
 
