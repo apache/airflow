@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.providers.openlineage.plugins.facets import AirflowRunFacet
+    from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowRunFacet
     from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
     from airflow.utils.state import DagRunState
 else:
@@ -181,6 +181,15 @@ class OpenLineageAdapter(LoggingMixin):
 
         if airflow_facet:
             team_name = airflow_facet.dagRun.get("dag_team_name")
+        else:
+            airflow_dagrun_facet = cast("AirflowDagRunFacet | None", facets.get("airflowDagRun"))
+            if airflow_dagrun_facet:
+                dag_run = airflow_dagrun_facet.dagRun
+                team_name = (
+                    dag_run.get("dag_team_name")
+                    if isinstance(dag_run, dict)
+                    else getattr(dag_run, "dag_team_name", None)
+                )
 
         try:
             with Stats.timer(

@@ -359,6 +359,7 @@ def test_dag_run_team_name(
     mock_get_team_name.assert_called_once_with("bundle_name")
 
 
+@pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
 @patch("airflow.providers.openlineage.utils.utils.DagBundleModel.get_team_name")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
@@ -371,6 +372,7 @@ def test_dag_run_team_name_no_bundle(mock_getboolean, mock_get_team_name):
     mock_get_team_name.assert_not_called()
 
 
+@pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
 @patch("airflow.providers.openlineage.utils.utils.DagBundleModel.get_team_name")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=False)

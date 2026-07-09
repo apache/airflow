@@ -641,6 +641,50 @@ def test_emit_complete_event(
 
 @mock.patch(f"{stats_reference}.timer")
 @mock.patch(f"{stats_reference}.incr")
+def test_emit_complete_event_dagrun_fallback(
+    mock_stats_incr,
+    mock_stats_timer,
+):
+    client = MagicMock()
+    adapter = OpenLineageAdapter(client)
+
+    event = RunEvent(
+        eventType=RunState.COMPLETE,
+        eventTime=datetime.datetime.now().isoformat(),
+        run=Run(
+            runId=str(uuid.uuid4()),
+            facets={
+                "airflowDagRun": AirflowDagRunFacet(
+                    dag={},
+                    dagRun={"dag_team_name": "team_a"},
+                ),
+            },
+        ),
+        job=Job(
+            namespace=namespace(),
+            name="dag",
+            facets={},
+        ),
+        producer=_PRODUCER,
+        inputs=[],
+        outputs=[],
+    )
+
+    adapter.emit(event)
+
+    mock_stats_incr.assert_not_called()
+    mock_stats_timer.assert_called_once_with(
+        "ol.emit.attempts",
+        tags={
+            "event_type": "complete",
+            "transport_type": ANY,
+            "team_name": "team_a",
+        },
+    )
+
+
+@mock.patch(f"{stats_reference}.timer")
+@mock.patch(f"{stats_reference}.incr")
 def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
