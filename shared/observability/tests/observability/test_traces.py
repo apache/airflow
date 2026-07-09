@@ -298,23 +298,26 @@ class TestNewDagrunTraceCarrierParentContext:
         span_ctx = _carrier_span_context(new_dagrun_trace_carrier(parent_context=context.Context()))
         assert span_ctx.is_valid
 
-    def test_parent_based_sampler_inherits_sampled_parent(self, with_sampler):
-        # Root decision is OFF, but a sampled parent should flip it to sampled.
-        with_sampler(ParentBased(root=ALWAYS_OFF))
-        parent = _parent_context(trace_id=0xAAA, sampled=True)
-        assert _carrier_is_sampled(new_dagrun_trace_carrier(parent_context=parent)) is True
-
-    def test_parent_based_sampler_inherits_unsampled_parent(self, with_sampler):
-        # Root decision is ON, but an unsampled parent should flip it to not-sampled.
-        with_sampler(ParentBased(root=ALWAYS_ON))
-        parent = _parent_context(trace_id=0xAAA, sampled=False)
-        assert _carrier_is_sampled(new_dagrun_trace_carrier(parent_context=parent)) is False
-
-    def test_force_sampled_overrides_parent(self, with_sampler):
-        with_sampler(ParentBased(root=ALWAYS_ON))
-        parent = _parent_context(trace_id=0xAAA, sampled=True)
-        carrier = new_dagrun_trace_carrier(parent_context=parent, force_sampled=False)
-        assert _carrier_is_sampled(carrier) is False
+    @pytest.mark.parametrize(
+        ("sampler", "parent_sampled", "force_sampled", "expected_sampled"),
+        [
+            # Root decision is OFF, but a sampled parent flips it to sampled.
+            pytest.param(ParentBased(root=ALWAYS_OFF), True, None, True, id="inherits-sampled-parent"),
+            # Root decision is ON, but an unsampled parent flips it to not-sampled.
+            pytest.param(ParentBased(root=ALWAYS_ON), False, None, False, id="inherits-unsampled-parent"),
+            # force_sampled bypasses the parent-based decision entirely.
+            pytest.param(
+                ParentBased(root=ALWAYS_ON), True, False, False, id="force-sampled-overrides-parent"
+            ),
+        ],
+    )
+    def test_parent_based_sampler_decision(
+        self, with_sampler, sampler, parent_sampled, force_sampled, expected_sampled
+    ):
+        with_sampler(sampler)
+        parent = _parent_context(trace_id=0xAAA, sampled=parent_sampled)
+        carrier = new_dagrun_trace_carrier(parent_context=parent, force_sampled=force_sampled)
+        assert _carrier_is_sampled(carrier) is expected_sampled
 
     def test_embedding_preserves_parent_trace_state_when_forced(self):
         # With force_sampled the sampler is skipped, so the external tracestate is the source.
