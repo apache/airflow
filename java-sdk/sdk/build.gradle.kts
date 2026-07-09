@@ -39,6 +39,7 @@ val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
+val schemaModelsDir = layout.buildDirectory.dir("generate-resources/main/src/main/java")
 val discriminatorDir = layout.buildDirectory.dir("generated-resources/main/src/main/kotlin")
 
 dependencies {
@@ -241,11 +242,7 @@ val javadocJar by tasks.registering(Jar::class) {
 jsonSchema2Pojo {
     setSource(listOf(pointersDir.get().asFile))
     targetPackage = jsonSchemaPackage
-    targetDirectory =
-        layout.buildDirectory
-            .dir("generate-resources/main/src/main/java")
-            .get()
-            .asFile
+    targetDirectory = schemaModelsDir.get().asFile
     setAnnotationStyle("jackson")
     dateTimeType = "java.time.OffsetDateTime"
     generateBuilders = false
@@ -261,8 +258,8 @@ jsonSchema2Pojo {
 
 sourceSets {
     main {
-        java.srcDir(layout.buildDirectory.dir("generate-resources/main/src/main/java"))
-        kotlin.srcDir(discriminatorDir)
+        java.srcDir(tasks.named("generateJsonSchema2Pojo").map { schemaModelsDir })
+        kotlin.srcDir(tasks.named("generateDiscriminator").map { discriminatorDir })
     }
 }
 
@@ -286,16 +283,8 @@ tasks.named("generateJsonSchema2Pojo") {
     dependsOn("generatePointers")
 }
 
-tasks.named("compileJava") {
-    dependsOn("generateJsonSchema2Pojo")
-}
-
 tasks.named("compileKotlin") {
-    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
-}
-
-tasks.named("runKtlintCheckOverMainSourceSet") {
-    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
+    dependsOn("generateJsonSchema2Pojo")
 }
 
 tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
