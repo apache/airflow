@@ -203,10 +203,10 @@ path is ``airflow.sdk.observability``:
         ...
 
 .. versionadded:: 3.3.0
-    Calling the module-level ``stats`` functions (``stats.incr()``, ``stats.gauge()``,
-    and so on) requires Airflow 3.3.0 or newer. On earlier versions, use the ``Stats``
-    class instead: ``from airflow.sdk.observability.stats import Stats``, then
-    ``Stats.incr(...)``.
+    The module-level ``stats`` functions (``stats.incr()``, ``stats.gauge()``, and so on).
+
+On earlier versions, use the ``Stats`` class instead:
+``from airflow.sdk.observability.stats import Stats``, then ``Stats.incr(...)``.
 
 ``incr``, ``decr``, ``gauge``, ``timing`` and ``timer`` also accept an optional
 ``tags`` mapping for dimensional metrics on backends that support them:
