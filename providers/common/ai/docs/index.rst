@@ -36,7 +36,8 @@ When to use this provider
    * - A vendor's native Embeddings, Responses, or Batch API
      - The vendor's own provider
      - e.g. :doc:`apache-airflow-providers-openai:index`,
-       :doc:`apache-airflow-providers-anthropic:index`
+       :doc:`apache-airflow-providers-anthropic:index`,
+       :doc:`apache-airflow-providers-cohere:index`
    * - A vendor-managed, server-side agent session (e.g. Anthropic Managed Agents)
      - The vendor's own provider
      - e.g. :doc:`apache-airflow-providers-anthropic:index`
@@ -69,6 +70,7 @@ a service the vendor runs for you, which no vendor-neutral operator wraps:
 * :doc:`apache-airflow-providers-anthropic:index` — the Claude Message Batches API, and
   Managed Agents sessions where the agent loop runs on Anthropic's infrastructure rather
   than in the Airflow worker.
+* :doc:`apache-airflow-providers-cohere:index` — Cohere's own Embed API.
 
 As a rule of thumb: if Airflow should *run* the AI step (and the model should stay
 swappable), use ``common.ai``; if the Dag *submits work to* a vendor-managed service and
