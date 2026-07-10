@@ -28,7 +28,7 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):
@@ -85,6 +85,22 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
+class _ExternalViewDictRequired(TypedDict):
+    name: str
+    href: str
+
+
+class ExternalViewDict(_ExternalViewDictRequired, total=False):
+    """Dictionary structure for entries in AirflowPlugin.external_views."""
+
+    icon: str
+    icon_dark_mode: str
+    url_route: str
+    category: str
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]
+    nav_top_level: bool
+
+
 class AirflowPlugin:
     """Class used to define AirflowPlugin."""
 
@@ -103,7 +119,7 @@ class AirflowPlugin:
     flask_blueprints: list[Any] = []
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
-    external_views: list[Any] = []
+    external_views: list[ExternalViewDict] = []
     react_apps: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
