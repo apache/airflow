@@ -2714,7 +2714,7 @@ requires-dist = [
     { name = "types-deprecated", marker = "extra == 'mypy'", specifier = ">=1.2.9.20240311" },
     { name = "types-docutils", marker = "extra == 'mypy'", specifier = ">=0.21.0.20240704" },
     { name = "types-markdown", marker = "extra == 'mypy'", specifier = ">=3.6.0.20240316" },
-    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=3.4.0.20240423,<4.0.0" },
+    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402,<5.0.0" },
     { name = "types-protobuf", marker = "extra == 'mypy'", specifier = ">=5.26.0.20240422" },
     { name = "types-pymysql", marker = "extra == 'mypy'", specifier = ">=1.1.0.20240425" },
     { name = "types-python-dateutil", marker = "extra == 'mypy'", specifier = ">=2.9.0.20240316" },
@@ -7172,6 +7172,7 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
+    { name = "asyncpg" },
     { name = "psycopg", extra = ["binary"] },
     { name = "psycopg2-binary" },
 ]
@@ -7223,6 +7224,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
+    { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "asyncpg", marker = "extra == 'asyncpg'", specifier = ">=0.30.0" },
     { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
@@ -7606,7 +7608,7 @@ requires-dist = [
     { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
     { name = "asyncssh", marker = "python_full_version < '3.14'", specifier = ">=2.12.0" },
     { name = "asyncssh", marker = "python_full_version >= '3.14'", specifier = ">=2.22.0" },
-    { name = "paramiko", specifier = ">=3.5.1,<4.0.0" },
+    { name = "paramiko", specifier = ">=4.0.0,<5.0.0" },
     { name = "sshfs", marker = "extra == 'sshfs'", specifier = ">=2023.1.0" },
 ]
 provides-extras = ["openlineage", "sshfs"]
@@ -7883,7 +7885,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "asyncssh", specifier = ">=2.12.0" },
-    { name = "paramiko", specifier = ">=3.5.1,<4.0.0" },
+    { name = "paramiko", specifier = ">=4.0.0,<5.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -14580,6 +14582,15 @@ wheels = [
 ]
 
 [[package]]
+name = "invoke"
+version = "3.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/f6/227c48c5fe47fa178ccf1fda8f047d16c97ba926567b661e9ce2045c600c/invoke-3.0.3.tar.gz", hash = "sha256:437b6a622223824380bfb4e64f612711a6b648c795f565efc8625af66fb57f0c", size = 343419, upload-time = "2026-04-07T15:17:48.307Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/de/bbc12563bbf979618d17625a4e753ff7a078523e28d870d3626daa97261a/invoke-3.0.3-py3-none-any.whl", hash = "sha256:f11327165e5cbb89b2ad1d88d3292b5113332c43b8553b494da435d6ec6f5053", size = 160958, upload-time = "2026-04-07T15:17:46.875Z" },
+]
+
+[[package]]
 name = "ipdb"
 version = "0.13.13"
 source = { registry = "https://pypi.org/simple" }
@@ -18140,16 +18151,17 @@ all = [
 
 [[package]]
 name = "paramiko"
-version = "3.5.1"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcrypt" },
     { name = "cryptography" },
+    { name = "invoke" },
     { name = "pynacl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/15/ad6ce226e8138315f2451c2aeea985bf35ee910afb477bae7477dc3a8f3b/paramiko-3.5.1.tar.gz", hash = "sha256:b2c665bc45b2b215bd7d7f039901b14b067da00f3a11e6640995fd58f2664822", size = 1566110, upload-time = "2025-02-04T02:37:59.783Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/e7/81fdcbc7f190cdb058cffc9431587eb289833bdd633e2002455ca9bb13d4/paramiko-4.0.0.tar.gz", hash = "sha256:6a25f07b380cc9c9a88d2b920ad37167ac4667f8d9886ccebd8f90f654b5d69f", size = 1630743, upload-time = "2025-08-04T01:02:03.711Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/f8/c7bd0ef12954a81a1d3cea60a13946bd9a49a0036a5927770c461eade7ae/paramiko-3.5.1-py3-none-any.whl", hash = "sha256:43b9a0501fc2b5e70680388d9346cf252cfb7d00b0667c39e80eb43a408b8f61", size = 227298, upload-time = "2025-02-04T02:37:57.672Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/90/a744336f5af32c433bd09af7854599682a383b37cfd78f7de263de6ad6cb/paramiko-4.0.0-py3-none-any.whl", hash = "sha256:0e20e00ac666503bf0b4eda3b6d833465a2b7aff2e2b3d79a8bba5ef144ee3b9", size = 223932, upload-time = "2025-08-04T01:02:02.029Z" },
 ]
 
 [[package]]
@@ -23607,14 +23619,14 @@ wheels = [
 
 [[package]]
 name = "types-paramiko"
-version = "3.5.0.20250801"
+version = "4.0.0.20260518"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/c4/4df427c835e9c795662241410732ab936c6f58be798ec25ce7015771c448/types_paramiko-3.5.0.20250801.tar.gz", hash = "sha256:e79ff84eaf44f2a5ad811743edef5d9c0cd6632a264a526f00405b87db1ec99b", size = 28838, upload-time = "2025-08-01T03:48:52.777Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/b6/4cdb11fb6006be6309844dc5f88b6efef3f5ea5352ade42a1e9308570e28/types_paramiko-4.0.0.20260518.tar.gz", hash = "sha256:286f6830945cba63797eedf375ed87138d93198121253afe66c5d6dbcf91318d", size = 29193, upload-time = "2026-05-18T06:06:36.776Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/5b/0f0bb1e45f7547d081ae9d490a88c6f6031d0f2c97459236e0a2a8b27207/types_paramiko-3.5.0.20250801-py3-none-any.whl", hash = "sha256:3e02a0fcf2b7e7b213e0cd569f7223ff9af417052a4d149d84172ebaa6fd742e", size = 39705, upload-time = "2025-08-01T03:48:51.855Z" },
+    { url = "https://files.pythonhosted.org/packages/44/a2/1a54b77758c9c175526bd0448de353f0563e71ba1ddc8bd4ac0c835deafd/types_paramiko-4.0.0.20260518-py3-none-any.whl", hash = "sha256:0ffaf1a6eb796833a49653cba4c7be13af51c8269d75234972d6239763dda270", size = 38791, upload-time = "2026-05-18T06:06:35.771Z" },
 ]
 
 [[package]]
