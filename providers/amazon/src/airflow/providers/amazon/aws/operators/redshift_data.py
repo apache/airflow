@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import botocore.exceptions
 
@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         DescribeStatementResponseTypeDef,
         GetStatementResultResponseTypeDef,
     )
+    from pydantic import JsonValue
 
     from airflow.sdk import Context
 
@@ -160,7 +161,8 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
     def execute(self, context: Context) -> list[GetStatementResultResponseTypeDef] | list[str]:
         """Execute a statement against Amazon Redshift."""
         if not self.deferrable:
-            return self.execute_resumable(context)
+            self.execute_resumable(context)
+            return self._sql_results
 
         self.log.info("Executing statement: %s", self.sql)
 
@@ -287,10 +289,11 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
             context["ti"].xcom_push(key="session_id", value=output.session_id)
         return self.statement_id
 
-    def get_job_status(self, external_id: str, context: Context) -> str:
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         """Query the raw statement status; a missing/expired statement degrades to NOT_FOUND."""
+        statement_id = cast("str", external_id)
         try:
-            resp = self.hook.conn.describe_statement(Id=external_id)
+            resp = self.hook.conn.describe_statement(Id=statement_id)
         except botocore.exceptions.ClientError as e:
             if e.response["Error"]["Code"] in ("ResourceNotFoundException", "ValidationException"):
                 return "NOT_FOUND"
@@ -303,24 +306,27 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
     def is_job_succeeded(self, status: str) -> bool:
         return status == FINISHED_STATE
 
-    def poll_until_complete(
-        self, external_id: str, context: Context
-    ) -> list[GetStatementResultResponseTypeDef] | list[str]:
-        self.statement_id = external_id
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        statement_id = cast("str", external_id)
+        self.statement_id = statement_id
         if self.wait_for_completion:
-            self.hook.wait_for_results(external_id, poll_interval=self.poll_interval)
+            self.hook.wait_for_results(statement_id, poll_interval=self.poll_interval)
         # Fetch here (not just in get_job_result): on reconnect the mixin calls only
-        # poll_until_complete and returns its value directly, never calling get_job_result.
+        # poll_until_complete, never get_job_result, so execute() reads self._sql_results
+        # afterward rather than relying on either method's return value.
         self._sql_results = self.get_sql_results(
-            statement_id=external_id, return_sql_result=self.return_sql_result
+            statement_id=statement_id, return_sql_result=self.return_sql_result
         )
         self._result_fetched = True
-        return self._sql_results
 
     def get_job_result(
-        self, external_id: str, context: Context
+        self, external_id: JsonValue, context: Context
     ) -> list[GetStatementResultResponseTypeDef] | list[str]:
-        self.statement_id = external_id
-        if getattr(self, "_result_fetched", False):
-            return self._sql_results
-        return self.get_sql_results(statement_id=external_id, return_sql_result=self.return_sql_result)
+        statement_id = cast("str", external_id)
+        self.statement_id = statement_id
+        if not getattr(self, "_result_fetched", False):
+            self._sql_results = self.get_sql_results(
+                statement_id=statement_id, return_sql_result=self.return_sql_result
+            )
+            self._result_fetched = True
+        return self._sql_results
