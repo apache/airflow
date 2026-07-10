@@ -19,20 +19,25 @@
 ``apache-airflow-providers-openai``
 ======================================
 
+The ``openai`` provider gives Dags direct access to OpenAI's own APIs — this page compares
+that choice against ``common.ai``.
+
 When to use this provider
 --------------------------
 
 Use ``openai`` when a Dag needs OpenAI's native API surface — thin wrappers over
-OpenAI-specific endpoints and options:
+OpenAI-specific endpoints and options, built on ``OpenAIHook``, the underlying client the
+operators below share:
 
 * ``OpenAIEmbeddingOperator`` — call the Embeddings API directly, e.g. to feed a vector
   store.
 * ``OpenAIResponseOperator`` — call the
   `Responses API <https://platform.openai.com/docs/api-reference/responses>`__ with
   OpenAI-specific parameters.
-* ``OpenAITriggerBatchOperator`` and ``OpenAIHook`` — submit a
+* ``OpenAITriggerBatchOperator`` — submit a
   `Batch API <https://platform.openai.com/docs/guides/batch>`__ job for asynchronous bulk
-  processing and wait for it to complete.
+  processing and wait for it to complete; OpenAI prices Batch API calls at roughly half the
+  cost of the equivalent synchronous call, in exchange for a turnaround of up to ~24 hours.
 
 Use :doc:`apache-airflow-providers-common-ai:index` instead when the AI step should be run by
 Airflow itself and stay vendor-neutral:
