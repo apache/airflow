@@ -135,7 +135,6 @@ class TestAzureSynapseRunSparkBatchOperator:
         op.on_kill()
         mock_cancel_job_run.assert_called_once_with(job_id=JOB_RUN_RESPONSE["id"])
 
-
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
     def test_job_id_extracted_from_hybrid_model_response(self, mock_run_spark_job, mock_get_job_run_status):
@@ -313,9 +312,7 @@ class TestAzureSynapseRunPipelineOperator:
             # Checking the pipeline run status should _not_ be called when ``wait_for_termination`` is False.
             mock_get_pipeline_run.assert_not_called()
 
-    @mock.patch(
-        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.run_pipeline"
-    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.run_pipeline")
     def test_run_id_extracted_from_hybrid_model_response(self, mock_run_pipeline):
         """Regression test: azure SDK v10 hybrid models don't expose attributes via vars()."""
 
