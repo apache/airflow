@@ -75,3 +75,35 @@ class TestTimeoutPosix:
         tp = TimeoutPosix(seconds=1, error_message="boom")
         with pytest.raises(AirflowTaskTimeout, match="boom"):
             tp.handle_timeout(signal.SIGALRM, None)
+
+    def test_handle_timeout_raises_even_when_log_write_fails(self):
+        # Task-runner logs go through a pipe owned by the supervisor. If that
+        # pipe is broken when SIGALRM fires (e.g. supervisor already died),
+        # self.log.error raises BrokenPipeError inside the signal handler.
+        # Without a guard, that OSError replaces the AirflowTaskTimeout, so
+        # the task exits with the wrong exception class and skips the
+        # timeout-handling path in task_runner. See #64212.
+        if not hasattr(signal, "SIGALRM"):
+            pytest.skip("SIGALRM not supported on this platform")
+
+        tp = TimeoutPosix(seconds=1, error_message="boom")
+        tp.log = mock.MagicMock()
+        tp.log.error.side_effect = BrokenPipeError("supervisor pipe closed")
+
+        with pytest.raises(AirflowTaskTimeout, match="boom"):
+            tp.handle_timeout(signal.SIGALRM, None)
+
+        tp.log.error.assert_called_once_with("Process timed out", pid=mock.ANY)
+
+    def test_handle_timeout_normal_path_logs_and_raises(self):
+        """Regression guard: on the happy path the log is emitted AND AirflowTaskTimeout is raised."""
+        if not hasattr(signal, "SIGALRM"):
+            pytest.skip("SIGALRM not supported on this platform")
+
+        tp = TimeoutPosix(seconds=1, error_message="boom")
+        tp.log = mock.MagicMock()
+
+        with pytest.raises(AirflowTaskTimeout, match="boom"):
+            tp.handle_timeout(signal.SIGALRM, None)
+
+        tp.log.error.assert_called_once_with("Process timed out", pid=mock.ANY)
