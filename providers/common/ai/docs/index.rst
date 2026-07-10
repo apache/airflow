@@ -79,6 +79,7 @@ OpenAI, Anthropic, or other pydantic-ai-supported connection:
     Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>
+    Examples <examples>
     Retry Policies <retry_policies>
     HITL Review <hitl_review>
     Observability <observability>
