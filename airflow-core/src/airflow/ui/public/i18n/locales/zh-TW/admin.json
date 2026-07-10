@@ -177,6 +177,7 @@
           "title": "跳過"
         }
       },
+      "parsingFile": "正在解析檔案...",
       "title": "匯入變數",
       "upload": "上傳 JSON 檔案",
       "uploadPlaceholder": "上傳包含變數的 JSON 檔案 (例如：{\"key\": \"value\", ...})"
