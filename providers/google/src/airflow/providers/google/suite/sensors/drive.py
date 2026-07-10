@@ -64,6 +64,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         drive_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -72,11 +73,13 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         self.drive_id = drive_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.subject = subject
 
     def poke(self, context: Context) -> bool:
         self.log.info("Sensor is checking for the file %s in the folder %s", self.file_name, self.folder_id)
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            subject=self.subject,
         )
         return hook.exists(folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id)

@@ -72,6 +72,7 @@ class GoogleDriveToGCSOperator(BaseOperator):
         drive_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -82,11 +83,13 @@ class GoogleDriveToGCSOperator(BaseOperator):
         self.file_name = file_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.subject = subject
 
     def execute(self, context: Context) -> list[str]:
         gdrive_hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            subject=self.subject,
         )
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

@@ -209,6 +209,7 @@ class _CredentialProvider(LoggingMixin):
         key_secret_project_id: str | None = None,
         scopes: Collection[str] | None = None,
         delegate_to: str | None = None,
+        subject: str | None = None,
         disable_logging: bool = False,
         target_principal: str | None = None,
         delegates: Sequence[str] | None = None,
@@ -240,6 +241,7 @@ class _CredentialProvider(LoggingMixin):
         self.key_secret_project_id = key_secret_project_id
         self.scopes = scopes
         self.delegate_to = delegate_to
+        self.subject = subject
         self.disable_logging = disable_logging
         self.target_principal = target_principal
         self.delegates = delegates
@@ -275,14 +277,17 @@ class _CredentialProvider(LoggingMixin):
                 credentials, project_id = self._get_credentials_using_credential_config_file()
             else:
                 credentials, project_id = self._get_credentials_using_adc()
-            if self.delegate_to:
+   
+            delegated_subject = self.subject or self.delegate_to
+
+            if delegated_subject:
                 if hasattr(credentials, "with_subject"):
-                    credentials = credentials.with_subject(self.delegate_to)
+                    credentials = credentials.with_subject(delegated_subject)
                 else:
                     raise AirflowException(
-                        "The `delegate_to` parameter cannot be used here as the current "
-                        "authentication method does not support account impersonate. "
-                        "Please use service-account for authorization."
+                        "The current authentication method does not support "
+                        "Google Workspace Domain-Wide Delegation."
+                         "Please use service account credentials."
                     )
 
             if self.target_principal:
