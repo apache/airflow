@@ -260,13 +260,6 @@ class TestExasolHook:
 
     @pytest.mark.parametrize("method_name", ["get_records", "get_first"])
     def test_get_records_and_get_first_reject_list_of_statements(self, method_name):
-        """Regression test: pyexasol's execute() never accepted a list of SQL statements.
-
-        ExasolHook.get_records()/get_first() are typed as accepting ``str | list[str]`` (matching the
-        DbApiHook base class contract), but they call pyexasol's ``conn.execute()`` directly, which has
-        only ever accepted a single ``str`` query. Passing a list here was always broken at runtime; we
-        now raise a clear error instead of forwarding it straight to pyexasol.
-        """
         method = getattr(self.db_hook, method_name)
         with pytest.raises(TypeError, match="only supports a single SQL string"):
             method(["SELECT 1", "SELECT 2"])
