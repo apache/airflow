@@ -71,15 +71,6 @@ repos:
         entry: ../scripts/ci/prek/check_airflow_v_imports_in_tests.py
         pass_filenames: true
         files: ^.*/tests/.+\.py$
-      - id: check-no-caplog-in-tests
-        language: pygrep
-        name: Tests do not use caplog fixture
-        description: >
-          Do not use caplog in tests — prefer checking logic and not log output.
-          See https://github.com/apache/airflow/blob/main/CLAUDE.md#testing-standards
-        entry: \bcaplog\b
-        pass_filenames: true
-        files: ^.*/tests/.+\.py$
       - id: check-sql-dependency-common-data-structure
         name: Check dependency of SQL providers
         description: Check dependency of SQL Providers with common data structure
