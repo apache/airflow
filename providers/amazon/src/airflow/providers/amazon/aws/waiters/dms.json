@@ -95,6 +95,85 @@
                     "state": "success"
                 }
             ]
+        },
+        "replication_task_modified": {
+            "operation": "DescribeReplicationTasks",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "modifying",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "stopped",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "ready",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "failed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "creating",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "starting",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "running",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "stopping",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "moving",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "testing",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "failed-move",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ReplicationTasks[0].Status",
+                    "expected": "deleting",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }

@@ -16,21 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box, Text, Code } from "@chakra-ui/react";
+import { HStack, Box, Code, Text } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MdOutlineStorage, MdTimeline } from "react-icons/md";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { useParams } from "react-router-dom";
-import { useSearchParams } from "react-router-dom";
+import { Outlet, useParams } from "react-router-dom";
 
-import { useAssetServiceGetAsset, useAssetServiceGetAssetEvents } from "openapi/queries";
-import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { useAssetServiceGetAsset } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
-import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar } from "src/components/ui";
-import { SearchParamsKeys } from "src/constants/searchParams";
-import { OpenGroupsProvider } from "src/context/openGroups";
+import { GroupsProvider } from "src/context/groups";
+import { NavTabs } from "src/layouts/Details/NavTabs";
+import { useDocumentTitle } from "src/utils";
 
 import { AssetGraph } from "./AssetGraph";
 import { AssetPanelButtons } from "./AssetPanelButtons";
@@ -43,11 +42,6 @@ export const AssetLayout = () => {
   const direction = i18n.dir();
   const [dependencyType, setDependencyType] = useState<"data" | "scheduling">("scheduling");
 
-  const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-timestamp"];
-
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
     undefined,
@@ -55,6 +49,8 @@ export const AssetLayout = () => {
       enabled: Boolean(assetId),
     },
   );
+
+  useDocumentTitle(asset?.name);
 
   const links = [
     {
@@ -64,36 +60,16 @@ export const AssetLayout = () => {
     },
   ];
 
-  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
-  const [searchParams] = useSearchParams();
-  const { data, isLoading: isLoadingEvents } = useAssetServiceGetAssetEvents(
-    {
-      assetId: asset?.id,
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      orderBy,
-      sourceDagId: searchParams.get(DAG_ID) ?? undefined,
-      sourceTaskId: searchParams.get(TASK_ID) ?? undefined,
-      timestampGte: searchParams.get(START_DATE) ?? undefined,
-      timestampLte: searchParams.get(END_DATE) ?? undefined,
-    },
-    undefined,
-    { enabled: Boolean(asset?.id) },
-  );
-
-  const setOrderBy = (value: string) => {
-    setTableURLState({
-      pagination,
-      sorting: [
-        {
-          desc: value.startsWith("-"),
-          id: value.replace("-", ""),
-        },
-      ],
-    });
-  };
-
   const { fitView, getZoom } = useReactFlow();
+
+  const tabs = [
+    { icon: <MdTimeline />, label: translate("assets:events"), value: "" },
+    {
+      icon: <MdOutlineStorage />,
+      label: translate("assets:assetStateStore.title"),
+      value: "asset-state-store",
+    },
+  ];
 
   return (
     <>
@@ -112,9 +88,9 @@ export const AssetLayout = () => {
           <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetPanelButtons dependencyType={dependencyType} setDependencyType={setDependencyType} />
-              <OpenGroupsProvider dagId="~">
+              <GroupsProvider dagId="~">
                 <AssetGraph asset={asset} dependencyType={dependencyType} />
-              </OpenGroupsProvider>
+              </GroupsProvider>
             </Box>
           </Panel>
           <PanelResizeHandle
@@ -151,17 +127,8 @@ export const AssetLayout = () => {
               </Box>
             ) : null}
 
-            <Box h="100%" overflow="auto" pt={2}>
-              <AssetEvents
-                assetId={asset?.id}
-                data={data}
-                isLoading={isLoadingEvents}
-                setOrderBy={setOrderBy}
-                setTableUrlState={setTableURLState}
-                showFilters={true}
-                tableUrlState={tableURLState}
-              />
-            </Box>
+            <NavTabs tabs={tabs} />
+            <Outlet />
           </Panel>
         </PanelGroup>
       </Box>

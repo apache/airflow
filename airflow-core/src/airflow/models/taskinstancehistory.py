@@ -45,7 +45,6 @@ from airflow.models.base import Base, StringID
 from airflow.models.hitl import HITLDetail
 from airflow.models.hitl_history import HITLDetailHistory
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
@@ -58,6 +57,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class TaskInstanceHistory(Base):
@@ -102,9 +102,6 @@ class TaskInstanceHistory(Base):
     )
     rendered_map_index: Mapped[str | None] = mapped_column(String(250), nullable=True)
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -116,6 +113,12 @@ class TaskInstanceHistory(Base):
 
     task_display_name: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     dag_version_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+
+    # Retry policy snapshot: copied from TaskInstance on record_ti() so the
+    # audit trail of "why did the policy decide N seconds, reason X" is
+    # preserved per try (TI columns are cleared on the next ti_run).
+    retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     dag_version = relationship(
         "DagVersion",
@@ -179,9 +182,16 @@ class TaskInstanceHistory(Base):
         """Alias for primary key field to support TaskInstance."""
         return self.task_instance_id
 
+    @property
+    def key(self) -> TaskInstanceKey:
+        """Returns a key that identifies this history record, mirroring TaskInstance.key."""
+        from airflow.models.taskinstancekey import TaskInstanceKey
+
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
+
     @staticmethod
     @provide_session
-    def record_ti(ti: TaskInstance, session: Session = NEW_SESSION) -> None:
+    def record_ti(ti: TaskInstance, *, session: Session = NEW_SESSION) -> None:
         """Record a TaskInstance to TaskInstanceHistory."""
         exists_q = session.scalar(
             select(func.count(TaskInstanceHistory.task_id)).where(
@@ -197,8 +207,11 @@ class TaskInstanceHistory(Base):
         ti_history_state = ti.state
         if ti.state not in State.finished:
             ti_history_state = TaskInstanceState.FAILED
-            ti.end_date = timezone.utcnow()
-            ti.set_duration()
+            # Callers that know when the try actually ended (e.g. the Execution API
+            # retry path) pre-set end_date and duration; only stamp archive time when unset.
+            if ti.end_date is None:
+                ti.end_date = timezone.utcnow()
+                ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
 
@@ -207,6 +220,6 @@ class TaskInstanceHistory(Base):
             session.add(HITLDetailHistory(ti_hitl_detail))
 
     @provide_session
-    def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
+    def get_dagrun(self, *, session: Session = NEW_SESSION) -> DagRun:
         """Return the DagRun for this TaskInstanceHistory, matching TaskInstance."""
         return self.dag_run

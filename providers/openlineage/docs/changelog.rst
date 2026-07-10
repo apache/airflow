@@ -26,6 +26,133 @@
 Changelog
 ---------
 
+2.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add unified emission_policy config for OpenLineage provider (#66992)``
+
+Misc
+~~~~
+
+
+Doc-only
+~~~~~~~~
+
+* ``Add OpenLineage Spark conf injection to DatabricksSubmitRunOperator (#67894)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Fix hll import in openlineage system tests (#69196)``
+   * ``Add OpenLineage system tests for new emission_policy feature (#69181)``
+
+2.18.1
+......
+
+Misc
+~~~~
+
+* ``Add openlineage system tests for missing use cases (#68664)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Small operator improvements in openlineage system tests (#68677)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
+2.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Openlineage: Read HTTP API key auth from Airflow connection (#66342)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Self-heal ProcessPoolExecutor on BrokenProcessPool (#67400)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct README.rst common compat version reference inconsistency (#67554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add new options to test operator (#67195)``
+
+
+2.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add standardized SQL check representation for listeners (#66849)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache connections in OpenLineage SQL hook lineage (#64843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Isolate openlineage extractor test from hook lineage collector pollution (#67057)``
+   * ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
+
+2.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+* ``Add public emit_dataset_lineage and emit_query_lineage API for OpenLineage provider (#65788)``
+* ``Add dynamically emitted asset events to OpenLineage (#65727)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent stats from breaking executor initializer (#66351)``
+* ``Manual state change should not use fork-execute model on scheduler (#65677)``
+
+Misc
+~~~~
+
+* ``Cleanup integration names for consistency (#66287)``
+* ``Bump Ol client dependency to 1.46 (#66145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+2.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add rendered map_index template to OpenLineage events (#65529)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix DetachedInstanceError in OpenLineage listener by using safe_getattr (#65579)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.14.0
 ......
 

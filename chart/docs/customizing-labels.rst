@@ -21,7 +21,8 @@ Customizing Labels and Annotations for Pods
 Customizing Pod Labels
 ----------------------
 
-The Helm Chart allows you to customize labels for your Airflow objects. You can set global labels that apply to all objects and pods defined in the chart, as well as component-specific labels for individual Airflow components.
+The Helm Chart allows you to customize labels for your Airflow objects. You can set global labels that apply to all objects and pods defined in the chart,
+as well as component-specific labels for individual Airflow components.
 
 Global Labels
 ~~~~~~~~~~~~~
@@ -69,7 +70,7 @@ Pod annotations can be customized similarly to labels using ``podAnnotations`` a
 Global Pod Annotations
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Global pod annotations can be set using ``airflowPodAnnotations``. These are applied to all Airflow component pods (scheduler, api-server/webserver, triggerer, dag-processor and workers):
+Global pod annotations can be set using ``airflowPodAnnotations``. These are applied to all Airflow component pods (scheduler, api-server, triggerer, dag-processor and workers):
 
 .. code-block:: yaml
    :caption: values.yaml

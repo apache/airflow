@@ -21,6 +21,7 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - main
+      - v3-3-test
       - v3-2-test
       - v3-1-test
 
@@ -100,7 +101,7 @@ jobs:
 
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           # Always checkout main to ensure Breeze with set-milestone command is available

@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
+from airflow.models.taskinstance import TaskInstance as TIModel
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.state import TaskInstanceState
 
@@ -333,6 +334,60 @@ class TestUpdateHITLDetailEndpoint:
         _assert_sample_audit_log(audit_log)
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_response_resumes_awaiting_input_task_without_trigger(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_update_payload: dict[str, Any],
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        """A human response transitions a parked AWAITING_INPUT task straight to SCHEDULED, no trigger."""
+        # Park the task exactly as the 3.3 operator does: AWAITING_INPUT, next_method set, no trigger.
+        ti = session.get(TIModel, sample_ti.id)
+        assert ti is not None
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        ti.trigger_id = None
+        session.commit()
+        # Sanity: the park persisted before we respond.
+        session.expire_all()
+        parked = session.get(TIModel, sample_ti.id)
+        assert parked is not None
+        assert parked.state == TaskInstanceState.AWAITING_INPUT
+
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json=sample_update_payload,
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        refreshed = session.get(TIModel, sample_ti.id)
+        assert refreshed is not None
+        # Resumed so the scheduler re-queues execute_complete -- with no triggerer involved.
+        assert refreshed.state == TaskInstanceState.SCHEDULED
+        assert refreshed.trigger_id is None
+        assert refreshed.next_method == "execute_complete"
+        assert "event" in (refreshed.next_kwargs or {})
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_should_respond_400_for_invalid_option(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+    ) -> None:
+        """Write-side validation rejects an out-of-set option (400) instead of failing the task on resume."""
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Maybe"], "params_input": {}},
+        )
+        assert response.status_code == 400
+        assert "Invalid options" in response.json()["detail"]
+
+    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail_respondent")
     def test_should_respond_200_to_assigned_users(
         self,
@@ -546,6 +601,9 @@ class TestGetHITLDetailsEndpoint:
             ({"dag_id_pattern": "other_Dag_"}, 3),
             ({"task_id": "hitl_task_0"}, 1),
             ({"task_id_pattern": "another_hitl"}, 3),
+            ({"dag_id_prefix_pattern": "hitl_dag"}, 5),
+            ({"dag_id_prefix_pattern": "other_Dag_"}, 3),
+            ({"task_id_prefix_pattern": "another_hitl"}, 3),
             ({"map_index": -1}, 8),
             ({"map_index": 1}, 0),
             ({"state": "deferred"}, 5),
@@ -578,6 +636,9 @@ class TestGetHITLDetailsEndpoint:
             "dag_id_pattern_other_dag",
             "task_id",
             "task_id_pattern",
+            "dag_id_prefix_pattern_hitl_dag",
+            "dag_id_prefix_pattern_other_dag",
+            "task_id_prefix_pattern",
             "map_index_none",
             "map_index_1",
             "ti_state_deferred",
@@ -623,7 +684,7 @@ class TestGetHITLDetailsEndpoint:
                     "multiple": False,
                     "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
                     "assigned_users": [],
-                    "created_at": DEFAULT_CREATED_AT.isoformat().replace("+00:00", "Z"),
+                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_CREATED_AT),
                     "responded_by_user": None,
                     "responded_at": None,
                     "chosen_options": None,

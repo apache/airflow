@@ -27,6 +27,91 @@
 Changelog
 ---------
 
+6.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SnowparkContainerJobOperator (#68259)``
+* ``Add SnowflakeCortexAgentHook (#68942)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SnowflakeSqlApiOperator polling to avoid needless sleeps (#69450)``
+* ``Align hook run() annotations with None-able handler results (#69230)``
+
+Misc
+~~~~
+
+* ``Extract configuration-specific logic from _get_static_conn_params() (#68597)``
+* ``SnowflakeHook: extract OAuth token lifecycle management into dedicated helper (#68549)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``SnowflakeSqlApiOperator: add XCom query ID test coverage (#68731)``
+   * ``Add a test verifying that SnowparkOperator closes the Snowpark (#68775)``
+   * ``Refactor Snowflake provider tests to remove legacy unittest imports (#68898)``
+
+6.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Snowflake Workload Identity Federation (WIF) support (#68107)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve SnowflakeSqlApiOperator error message on query status check failure (#66642)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix compat test flakiness in SnowflakeSqlApiHook timeout test (#67641)``
+
+6.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Add statement timeout support in SnowflakeSqlApiHook & Operator (#63575)``
+
+Misc
+~~~~
+
+* ``Replace AirflowExceptions with native exceptions  in Snowflake provider (#66279)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add PAT connection to snowflake in SnowflakeHook (#66953)``
+* ``Add Snowflake data quality operator examples to provider docs and system tests (#65623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+6.12.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''SnowflakeHook'' transaction support: multi-statement SQL and 'AUTOCOMMIT' (#65040)``
+* ``Mark Snowflake connection form 'Proxy Port' field optional (#65444)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 6.12.1
 ......
 

@@ -18,10 +18,14 @@
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
   "assetEvent_other": "資源事件",
+  "assetInactive": {
+    "tooltip": "上游資源已停用；排程器會暫停分區評估，直到資源重新啟用。"
+  },
   "backfill_one": "回填",
   "backfill_other": "回填",
   "browse": {
-    "auditLog": "審計日誌",
+    "auditLog": "稽核日誌",
+    "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
@@ -61,9 +65,15 @@
     "dagVersions": "Dag 版本",
     "dataIntervalEnd": "資料區間結束",
     "dataIntervalStart": "資料區間起始",
+    "durationStats": {
+      "mean": "平均值",
+      "mode": "眾數"
+    },
+    "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
-    "partitionKey": "資產分區鍵",
+    "partitionDate": "資源分區日期",
+    "partitionKey": "資源分區鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
@@ -75,8 +85,8 @@
   "dagRun_other": "Dag 執行",
   "dagRunId": "Dag 執行 ID",
   "dagWarnings": "Dag 警告 / 錯誤",
-  "defaultToGraphView": "預設使用圖形視圖",
-  "defaultToGridView": "預設使用網格視圖",
+  "defaultToGraphView": "預設使用圖形檢視",
+  "defaultToGridView": "預設使用網格檢視",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -136,7 +146,11 @@
     "selectDateRange": "選擇日期範圍",
     "startTime": "起始時間"
   },
+  "fullscreen": {
+    "tooltip": "按下 {{hotkey}} 進入全螢幕"
+  },
   "generateToken": "產生權杖",
+  "key": "鍵",
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
@@ -166,17 +180,38 @@
   "note": {
     "add": "新增筆記",
     "dagRun": "Dag 執行筆記",
+    "edit": "編輯筆記",
     "label": "筆記",
     "placeholder": "新增筆記...",
-    "taskInstance": "任務實例筆記"
+    "preview": "預覽",
+    "taskInstance": "任務實例筆記",
+    "write": "撰寫"
   },
+  "overallStatus": "整體狀態",
   "partitionedDagRun_one": "分區的 Dag 執行",
   "partitionedDagRun_other": "分區的 Dag 執行",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "收到的資源事件"
   },
-  "pendingDagRun_one": "待執行的 Dag 執行",
-  "pendingDagRun_other": "待執行的 Dag 執行",
+  "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
+  "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
+  "presetFilters": {
+    "deleteTitle": "刪除預設篩選條件",
+    "deleteWarning": "預設篩選條件僅儲存在此瀏覽器中。",
+    "duplicate": "預設篩選條件「{{name}}」已儲存完全相同的設定。",
+    "empty": "尚無預設篩選條件",
+    "info": {
+      "default": "將預設篩選條件釘選為預設值後，當您在未套用任何篩選的情況下進入此頁面時，系統會自動套用該篩選條件。",
+      "save": "將目前的篩選與排序儲存為具名的預設篩選條件，之後可隨時切換回來。",
+      "storage": "預設篩選條件儲存在此瀏覽器中。"
+    },
+    "namePlaceholder": "預設篩選條件名稱",
+    "nothingToSave": "沒有可儲存的內容。套用篩選或排序後即可儲存為預設篩選條件。",
+    "save": "儲存",
+    "setDefault": "設為預設",
+    "title": "預設篩選條件",
+    "unsetDefault": "取消預設"
+  },
   "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {
@@ -193,6 +228,12 @@
     },
     "tooltip": "按 {{hotkey}} 捲動到{{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "在值中任意位置進行匹配 (子字串搜尋)。在大型部署上會較慢，因為無法使用預設的 B-tree 索引。詳情請參閱文件中關於自訂中繼資料索引的章節。",
+      "title": "任意位置匹配"
+    }
+  },
   "security": {
     "actions": "操作",
     "permissions": "權限",
@@ -202,6 +243,47 @@
   },
   "selectLanguage": "選擇語言",
   "selected": "已選取",
+  "shortcuts": {
+    "categories": {
+      "code": "程式碼",
+      "dagView": "Dag 檢視",
+      "filters": "篩選條件",
+      "global": "全域",
+      "logs": "日誌",
+      "navigation": "導覽",
+      "runActions": "執行與任務動作",
+      "search": "搜尋"
+    },
+    "descriptions": {
+      "clearRun": "清除 $t(dagRun_one)",
+      "clearTaskInstance": "清除 $t(taskInstance_one)",
+      "downloadLogs": "下載日誌",
+      "focusFilterSearch": "聚焦篩選搜尋",
+      "focusLogSearch": "搜尋日誌",
+      "focusSearch": "聚焦搜尋",
+      "markRunFailed": "標記 $t(dagRun_one) 為失敗",
+      "markRunSuccess": "標記 $t(dagRun_one) 為成功",
+      "markTaskFailed": "標記 $t(task_one) 為失敗",
+      "markTaskGroupFailed": "標記 $t(taskGroup_one) 為失敗",
+      "markTaskGroupSuccess": "標記 $t(taskGroup_one) 為成功",
+      "markTaskSuccess": "標記 $t(task_one) 為成功",
+      "navigateTasks": "導覽$t(task_other)",
+      "openGraphFilters": "開啟圖形篩選條件",
+      "scrollBottom": "捲動至最下方",
+      "scrollTop": "捲動至最上方",
+      "searchDags": "搜尋 $t(dag_other)",
+      "showHelp": "顯示$t(shortcuts.title)",
+      "toggleExpand": "展開或收合所有群組",
+      "toggleFullscreen": "切換全螢幕",
+      "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleSource": "切換來源",
+      "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
+      "toggleTimestamp": "切換時間戳記",
+      "toggleWrap": "切換$t(wrap.wrap)"
+    },
+    "empty": "此頁面沒有可用的鍵盤快捷鍵。",
+    "title": "鍵盤快捷鍵"
+  },
   "showDetailsPanel": "顯示詳細資訊",
   "signedInAs": "登入身分：",
   "source": {
@@ -214,6 +296,7 @@
   "startDate": "開始日期",
   "state": "狀態",
   "states": {
+    "awaiting_input": "等待輸入",
     "deferred": "已延後",
     "failed": "失敗",
     "no_status": "無狀態",
@@ -246,23 +329,33 @@
       "any": "任何"
     },
     "tagPlaceholder": "依標籤篩選",
-    "to": "到"
+    "to": "到",
+    "updatedAt": "更新時間"
   },
   "task": {
+    "dependsOnPast": "依賴過去",
     "documentation": "任務文件",
     "lastInstance": "最後實例",
     "operator": "任務操作器",
-    "triggerRule": "觸發規則"
+    "retries": "重試次數",
+    "triggerRule": "觸發規則",
+    "waitForDownstream": "等待下游"
   },
   "task_one": "任務",
   "task_other": "任務",
-  "taskGroup": "任務群組",
+  "taskGroup": {
+    "documentation": "任務群組文件"
+  },
+  "taskGroup_one": "任務群組",
+  "taskGroup_other": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
+    "additionalAttributes": "任務實例額外屬性",
     "dagVersion": "Dag 版本",
     "executor": "執行器",
     "executorConfig": "執行器設定",
     "hostname": "主機名稱",
+    "id": "ID",
     "maxTries": "最大嘗試次數",
     "pid": "PID",
     "pool": "資源池",
@@ -270,12 +363,15 @@
     "priorityWeight": "優先權權重",
     "queue": "排隊",
     "queuedWhen": "開始排隊時間",
+    "renderedMapIndex": "渲染後的映射索引",
     "scheduledWhen": "開始排程時間",
+    "trigger": "觸發器",
     "triggerer": {
       "assigned": "指派的觸發者",
       "class": "觸發器類別",
       "createdAt": "觸發器建立時間",
       "id": "觸發器 ID",
+      "job": "觸發者工作",
       "latestHeartbeat": "最新觸發者心跳時間",
       "title": "觸發者資訊"
     },
@@ -372,6 +468,7 @@
     "mustBeAtLeast": "必須至少為 {{min}}。",
     "mustBeValidNumber": "必須為有效的數字。"
   },
+  "value": "值",
   "wrap": {
     "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切換換行",

@@ -19,6 +19,50 @@
 Changelog
 ---------
 
+0.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Verify SSH host keys by default in the Git provider hook (#69103)``
+
+Misc
+~~~~
+
+* ``Correct README.rst common compat version reference inconsistency (#67554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
+   * ``Prepare provider documentation 2026-06-02 (#67920)``
+
+0.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Git Sparse Checkout to Git Dag Bundle (#67047)``
+* ``Add BundleVersion dataclass and version_data persistence to DagVersion (#66491)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add skip on git clone when local version matches bundle version (#63814)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Add tests for git bundle force-push resilience, error recovery, etc. (#65750)``
+
 0.3.1
 .....
 

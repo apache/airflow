@@ -23,12 +23,17 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1775592098
+source-date-epoch: 1783356304
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.8.0
+  - 6.7.0
+  - 6.6.0
+  - 6.5.4
+  - 6.5.3
   - 6.5.2
   - 6.5.1
   - 6.5.0
@@ -220,6 +225,20 @@ config:
         type: string
         example: ~
         default: "1000"
+      es_compat_with:
+        description: |
+          Pin the ``compatible-with`` HTTP content-negotiation level used by the
+          Elasticsearch client. Accepts a server major version string (e.g. ``"7"``,
+          ``"8"``, ``"9"``). When unset, the elasticsearch-py client negotiates its
+          own major version, which makes an ``elasticsearch>=9`` client (the default
+          for fresh installs) incompatible with Elasticsearch 8.x servers — every
+          request is rejected with HTTP 400 ``media_type_header_exception``.
+          Setting this option keeps a single Airflow image compatible with both
+          ``elasticsearch<9`` and ``elasticsearch>=9`` servers.
+        version_added: 6.5.4
+        type: string
+        example: "8"
+        default: ""
   elasticsearch_configs:
     description: ~
     options:

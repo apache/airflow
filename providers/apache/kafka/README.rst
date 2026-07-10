@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-kafka``
 
-Release: ``1.13.2``
+Release: ``1.14.0``
 
 
 `Apache Kafka  <https://kafka.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.kafka`` provider. All classes for this p
 are in ``airflow.providers.apache.kafka`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.13.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.14.0/>`_.
 
 Installation
 ------------
@@ -61,8 +61,8 @@ PIP package                                 Version required
 ``confluent-kafka``                         ``>=2.13.2; python_version >= "3.14"``
 ==========================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -71,13 +71,12 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-kafka[common.compat]
+    pip install apache-airflow-providers-apache-kafka[common.messaging]
 
 
 ========================================================================================================================  ====================
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
 ========================================================================================================================  ====================
@@ -93,4 +92,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.13.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.14.0/changelog.html>`_.

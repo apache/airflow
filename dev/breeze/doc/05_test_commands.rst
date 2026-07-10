@@ -373,6 +373,27 @@ You can override the ``DOCKER_IMAGE`` environment variable to point to the image
 
 The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
 
+Running provider E2E tests
+..........................
+
+You can use Breeze to run provider end-to-end tests, run against a real built Airflow image
+(``$DOCKER_IMAGE``) rather than the in-process ``dag.test()`` path used by provider system tests.
+What "e2e" means, and how the stack under test gets stood up, is entirely up to the provider — the
+OpenLineage suite, for example, deploys a real Airflow via docker-compose and runs its system-test
+DAGs against it, but a different provider could drive it a completely different way. Those tests run
+using the Production image by default; pass ``--airflow-version`` to run against an older released
+Airflow version with the current providers installed from main.
+
+.. image:: ./images/output_testing_providers-e2e-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-e2e-tests.svg
+  :width: 100%
+  :alt: Breeze testing providers-e2e-tests
+
+The provider E2E tests are in the ``providers-e2e-tests/`` folder in the main repo; see
+``providers-e2e-tests/README.md`` for how to run any provider's suite, how it's wired into CI, and
+what's involved in adding a new provider (``providers-e2e-tests/openlineage/`` is one
+example implementation).
+
 Running Airflow UI E2E tests
 .............................
 
@@ -424,7 +445,7 @@ You can:
 * Manage KinD Kubernetes cluster, upload Airflow image, deploy Airflow to the cluster and check its status with
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` and ``breeze k8s deploy-cluster`` commands
-* Hot-reload DAGs and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
+* Hot-reload Dags and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
 * Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
   cluster, uploading the image, deploying airflow, running tests and deleting the cluster
@@ -565,7 +586,24 @@ All parameters of the command are here:
   :width: 100%
   :alt: Breeze k8s deploy-airflow
 
-Hot-reloading DAGs and core sources
+Setting up the lang-SDK coordinator system test
+...............................................
+
+``breeze k8s setup-lang-sdk-test`` provisions a cluster for the lang-SDK coordinator
+system test: it builds the Go and Java example bundles, deploys an in-cluster localstack
+S3, uploads the artifacts and the Python stub Dag to their buckets, renders the
+coordinator pod-template image placeholders, and installs the Helm release configured for
+the ``golang`` and ``java`` queues. After it completes, run the test with
+``breeze k8s tests``.
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_setup-lang-sdk-test.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_setup-lang-sdk-test.svg
+  :width: 100%
+  :alt: Breeze k8s setup-lang-sdk-test
+
+Hot-reloading Dags and core sources
 ...................................
 
 After deploying Airflow you can run ``breeze k8s dev`` to sync local ``dags/`` and
@@ -649,6 +687,53 @@ output during test execution.
 .. code-block:: bash
 
     breeze k8s tests -- test_kubernetes_executor.py -s
+
+Smoke-testing a kustomize overlay
+.................................
+
+You can run ``breeze k8s smoke-test-overlay <name>`` to apply one of the
+overlays in ``chart/kustomize-overlays/`` to the current KinD cluster,
+wait for every resource declared in that overlay's ``STATUS.yaml``
+``verify:`` block, and run the optional per-overlay pytest module under
+``chart/tests/overlay_tests/``. An overlay's ``STATUS`` may only advance to
+``tested`` once this command exits 0.
+
+The runner is overlay-agnostic. For every overlay it:
+
+* renders the overlay and substitutes ``RELEASE-NAME`` / ``NAMESPACE``,
+* **auto-preloads every ``image:`` referenced by the rendered manifest**
+  into the kind nodes via ``docker pull`` (with retry on Docker Hub
+  rate limits) + ``kind load docker-image``, so the test does not flake
+  on registry availability,
+* applies the overlay,
+* polls each ``verify:`` resource for its declared success state while
+  **failing fast on terminal pod waiting reasons**
+  (``ImagePullBackOff``, ``ErrImagePull``, ``CrashLoopBackOff``,
+  ``CreateContainerConfigError``, …) rather than waiting out the full
+  ``timeout_seconds``,
+* runs the optional per-overlay pytest module,
+* deletes the overlay (skip with ``--skip-cleanup``).
+
+See ``chart/kustomize-overlays/CONTRIBUTING.rst`` for the full
+lifecycle and how an overlay's ``STATUS`` advances from ``not-tested``
+to ``tested``.
+
+.. code-block:: bash
+
+    breeze k8s deploy-cluster --rebuild-base-image
+    breeze k8s deploy-airflow
+    breeze k8s smoke-test-overlay kerberos
+
+.. note::
+
+   ``--rebuild-base-image`` flag is only required during the first run of the command.
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_smoke-test-overlay.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_smoke-test-overlay.svg
+  :width: 100%
+  :alt: Breeze k8s smoke-test-overlay
 
 Running k8s complete tests
 ..........................

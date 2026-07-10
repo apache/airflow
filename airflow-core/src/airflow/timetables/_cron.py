@@ -143,6 +143,16 @@ class CronMixin:
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
 
+    def localize_partition_datetime(self, dt: datetime.datetime) -> DateTime:
+        """
+        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
+
+        Overrides the base (UTC pass-through) so partition-date filter bounds are
+        evaluated in the timetable's local timezone rather than at the raw UTC
+        instant, while preserving sub-day precision.
+        """
+        return convert_to_utc(make_aware(dt.replace(tzinfo=None), self._timezone))
+
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)

@@ -45,6 +45,7 @@ venv
 clients/*
 files/*
 dags/*
+providers-e2e-tests/openlineage/dags/dag_doc.md
 generated/*
 .gitmodules
 prod_image_installed_providers.txt
@@ -326,6 +327,12 @@ www-hash.txt
 
 # Vendored-in code
 /src/airflow/providers/google/_vendor/*
+
+# Java SDK build outputs
+/java-sdk/bin/*
+/java-sdk/build/*
+/java-sdk/*/bin/*
+/java-sdk/*/build/*
 
 # Git ignore file
 .gitignore

@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines -- Gantt transform, time range, links, and axis ticks share one module */
 import dayjs from "dayjs";
 import type { To } from "react-router-dom";
 
@@ -30,11 +28,15 @@ import { renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
+  /** Effective task end (end_date, or "now" while running) — consistent across all segments of the same try. */
+  end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
   queued_when?: string | null;
   scheduled_when?: string | null;
+  /** Actual task execution start_date — consistent across all segments of the same try. */
+  start_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
   tryNumber?: number;
@@ -135,10 +137,14 @@ export const transformGanttData = ({
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
 
-            // Include scheduled/queued times in tooltip data whenever the timestamps exist.
+            const effectiveEndDate =
+              endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
+
             const tryWhenForTooltip = {
               ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
               ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
+              ...(startDate === null ? {} : { start_when: startDate }),
+              ...(effectiveEndDate === null ? {} : { end_when: effectiveEndDate }),
             };
 
             let endMs: number;

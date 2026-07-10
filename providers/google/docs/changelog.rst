@@ -27,6 +27,252 @@
 Changelog
 ---------
 
+22.2.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Log SQL query on its own line in BigQueryInsertJobOperator (#69386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+
+22.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GKE provider 401 on kubernetes client 36.x (#69032)``
+
+Misc
+~~~~
+
+* ``Deprecate implicit legacy SQL default in BigQuery operators (#67113)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky CloudSQL custom-universe trigger test on loaded runners (#68981)``
+
+22.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add MongoToGCSOperator to copy MongoDB collections to GCS (#66013)``
+* ``Forward Google Cloud Run container logs to Airflow log via verbose flag (#67140)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DataprocCreateBatchOperator' stuck in deferred state for a long time (#67638)``
+* ``Fix empty labels in Stackdriver log IO for Airflow 3 Supervisor (#68292)``
+* ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
+* ``Validate destination paths derived from GCS object names (#67667)``
+
+Misc
+~~~~
+
+* ``Bump google-cloud-aiplatform to force upgrade of litellm (#66632)``
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+* ``Add Ray constraints for Python 3.14 in Google provider (#68710)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document that the Google OpenID auth backend matches users by their (mutable) email (#68391)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add tests for links/base and links/bigquery in Google provider (#68066)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+   * ``Bump aiohttp regarding dependabot warning (#67978)``
+
+22.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add idle/auto stop TTLs and master/worker instance flexibility … (#65653)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Harden Stackdriver handler against Cloud Logging failures (#67513)``
+* ``Fix Cloud Run deferrable trigger handling of transient 503 (#67219)``
+* ``Remove the leftover temporary report file in BidManager download (#67076)``
+* ``Fail closed in GCS log handler when existing-log read fails (#67511)``
+* ``Reject GCS blob names that escape the target directory on download (#67509)``
+* ``Warn when remote_log_conn_id is configured but not found (#67510)``
+* ``Write Cloud SQL keyfile_dict credentials with 0600 permissions (#67507)``
+
+Misc
+~~~~
+
+* ``Bump minimum google-api-core to 2.30.3 to fix Dag import timeout (#67774)``
+* ``Migrate Stackdriver logging config to RemoteLogIO pattern (#66513)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Rework StackdriverTaskHandler for the structlog era #65191 (#65198)``
+* ``Fixing mypy errors in google gen ai provider and tests (#67276)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix wrong changelog entry for BigQueryInsertJobOperator in google provider 22.0.0 (#67280)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+22.0.0
+......
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Hooks
+  * Remove ``MLEngineHook`` use ``airflow.providers.google.cloud.hooks.vertex_ai.ModelServiceHook`` instead
+  * Remove ``MLEngineAsyncHook``
+
+* Triggers
+  * Remove ``MLEngineStartTrainingJobTrigger`` use appropriate trigger from ``airflow.providers.google.cloud.triggers.vertex_ai``
+
+* Links
+  * Remove ``MLEngineModelLink`` use ``airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink`` instead
+  * Remove ``MLEngineModelsListLink`` use ``airflow.providers.google.cloud.links.vertex_ai.VertexAIModelListLink`` instead
+  * Remove ``MLEngineJobDetailsLink`` use appropriate link from ``airflow.providers.google.cloud.links.vertex_ai`` instead
+  * Remove ``MLEngineModelVersionDetailsLink`` use ``airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink`` instead
+  * Remove ``MLEngineJobSListLink`` use appropriate link from ``airflow.providers.google.cloud.links.vertex_ai`` instead
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove MLEngine from google provider (#66526)``
+
+Features
+~~~~~~~~
+
+* ``Add 'host_key_policy' option to 'ComputeEngineSSHHook' (#66746)``
+* ``Add BigQueryStreamingBufferEmptySensor for DML on streaming tables (#66652)``
+* ``Deprecate 'job_id_path' XCom push from 'BigQueryInsertJobOperator' (#66760)``
+* ``Migrate BigQueryInsertJobTrigger to on_kill() for user-initiated kills (#66704)``
+* ``Add Cloud SQL Auth Proxy IAM authentication (#66510)``
+* ``Add aliases for rebranded Google services (#66344)``
+* ``Add BigQuery routine operators and existence sensor (#65499)``
+* ``Skip S3 folder-marker keys in S3ToGCSOperator (#65724)``
+* ``Support all bq load job and ext table config options in GCSToBigQueryOperator (#64505)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve BigQueryIntervalCheckTrigger params after triggerer restart (#67053)``
+* ``Fix CloudRunExecuteJobOperator deferrable mode silently passing on cancel (#67050)``
+* ``Render Jinja templates in CloudBatchSubmitJobOperator job field (#67021)``
+* ``Adapt GCP CloudSQL trigger to run in private cloud (#66917)``
+* ``Serialize poll_interval and impersonation_chain on DataFusionStartPipelineTrigger (#66968)``
+* ``Fix 'BigQueryStreamingBufferEmptySensor.poke()' always raise 'NotFound' (#66962)``
+* ``Fix CloudSecretManagerBackend regression with explicit project_id (#61654)``
+* ``Fix broken GKEStartPodOperator extra link (#66657)``
+* ``Adjust GCP BigQuery triggers for the private cloud (#66404)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Bundle documentation for Google GCS (#66993)``
+* ``Document Dataproc limitations in Sovereign Cloud from Google (#66706)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move BigQuery streaming-buffer system test to manual-only (#67009)``
+   * ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
+   * ``Enable ruff PLE1205 to catch logging calls with too many arguments (#66978)``
+   * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
+   * ``Fix no-op equality checks in Vertex AI trigger tests (#66894)``
+   * ``Fix misleading pod scheduling log message ("Waiting until" → "Waiting up to") (#66164)``
+   * ``Revert "Apply AIR201-style replacements (#65197)" (#66712)``
+   * ``Google: Use Kubernetes models in GKE link tests (#66683)``
+   * ``Add system tests for Dataproc trigger on_kill cancel behavior (#65982)``
+   * ``Adjust log message header for expandable sources (#66570)``
+
+21.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add engine flag support to Dataproc ClusterGenerator and bump google-cloud-dataproc to 5.27.0 (#65130)``
+* ``Migrate DataprocSubmitTrigger and DataprocSubmitJobDirectTrigger to on_kill() (#65742)``
+* ``Add optional object-level retention support to GcsToGcsOperator (#66204)``
+* ``Add universe_domain support for GoogleBaseHook (#66159)``
+* ``Update the Kubernetes Engine components to be able to work on "Sovereign Cloud from Google" environments (#66341)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Rediscover succeeded pods in GKEJobTrigger to handle Kubernetes Job retries with XCom (#63915)``
+* ``Fix Cloud Composer create env operator (#64956)``
+* ``Fix GenAIGenerativeModelHook ignoring Airflow connection credentials (#65731)``
+* ``Fix GCSToGCSOperator ignoring replace=False for single-file copy (#66014)``
+* ``Fix Dataflow deferrable trigger handling of transient 503 (#66293)``
+* ``Fix BigQueryInsertJobTrigger not propagating CancelledError (#63730)``
+* ``Pass 'schedule_timeout_seconds' through to 'GKEStartPodTrigger' from 'GKEStartPodOperator' (#66355)``
+* ``Return list of GCS URIs from SalesforceToGcsOperator (#61659)``
+* ``Fix consistent return response from PubSubPullOperator (#66156)``
+
+Misc
+~~~~
+* ``Update Composer naming and add ManagedAirflow aliases (#66001)``
+* ``Change the name in rebranding of Google services: "TPC" -> "Sovereign Cloud from Google" (#66415)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Iterate file objects directly instead of calling readlines() (#66291)``
+   * ``Apply AIR201-style replacements (#65197)``
+   * ``Add pluggable retry policies for Airflow tasks (AIP-105) (#65474)``
+   * ``Update correct annotation for 3.3 version compat constant (#65999)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Align Dag capitalization from "DAG" to "Dag" for providers/google/ (#66155)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+21.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add quota project id support to Google cloud base hook (#56324)``
+* ``Return list of destination URIs from S3ToGCSOperator (#64851)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix passing labels to BQ job (#65663)``
+
+Misc
+~~~~
+* ``Fix Google Dataflow hook failing import when apache-beam not installed (#65659)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rename Cloud Composer service in the operator docs (#64257)``
+* ``Update Compute SSH documentation about TPC (#65662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make werkzeug import optional in Google provider test conftest (#65581)``
+   * ``Avoid unspecced MagicMock for execute_complete context in S3ToGCS test (#65087)``
+   * ``Fix stale system test documentation links (#65071)``
+   * ``Update gen ai batch api system test (#64964)``
 
 21.1.0
 ......

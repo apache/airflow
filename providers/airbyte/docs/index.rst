@@ -76,7 +76,7 @@ apache-airflow-providers-airbyte package
 `Airbyte <https://airbyte.com/>`__
 
 
-Release: 5.4.1
+Release: 5.5.2
 
 Provider package
 ----------------
@@ -101,28 +101,9 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``airbyte-api``                             ``>=0.52.0``
-``requests``                                ``>=2.32.0``
+``airbyte-api``                             ``>=1.0.0,<2.0``
+``httpx``                                   ``>=0.28.1``
 ==========================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-airbyte[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -130,5 +111,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-airbyte 5.4.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.4.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.4.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.4.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-airbyte 5.4.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.4.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.4.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.4.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-airbyte 5.5.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.5.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.5.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.5.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-airbyte 5.5.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.5.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.5.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-5.5.2-py3-none-any.whl.sha512>`__)

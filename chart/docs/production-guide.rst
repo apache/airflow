@@ -218,10 +218,6 @@ API Secret Key
 You should set a static API secret key when deploying with Airflow chart as it will help ensure
 your Airflow components only restart when necessary.
 
-.. note::
-
-   This section also applies to the webserver for Airflow 2 (simply replace ``api`` with ``webserver``).
-
 .. warning::
 
    You should use a different secret key for every instance you run, as this key is used to sign
@@ -248,7 +244,6 @@ Follow below steps to create static API secret key:
       :caption: values.yaml
 
       apiSecretKeySecretName: my-api-secret
-      # Where the random key is under `webserver-secret-key` in the k8s Secret
 
    .. warning::
 
@@ -285,14 +280,19 @@ This setting can be configured in the Airflow chart at different levels:
    :caption: values.yaml
 
    workers:
-     safeToEvict: true
+     celery:
+       safeToEvict: true
+     kubernetes:
+       safeToEvict: true
    scheduler:
      safeToEvict: true
    apiServer:
      safeToEvict: true
 
-``workers.safeToEvict`` defaults to ``false``, and when using ``KubernetesExecutor``
-``workers.safeToEvict`` shouldn't be set to ``true`` as the workers may be removed before finishing.
+.. note::
+
+   ``workers.kubernetes.safeToEvict`` defaults to ``false`` as it shouldn't be set to ``true``,
+   because the tasks may be removed before finishing.
 
 Extending and customizing Airflow Image
 ---------------------------------------
@@ -390,6 +390,38 @@ You can create and configure ``Ingress`` objects. See the :ref:`Ingress chart pa
 For more information on ``Ingress``, see the
 `Kubernetes Ingress documentation <https://kubernetes.io/docs/concepts/services-networking/ingress/>`_.
 
+Gateway API (HTTPRoute)
+^^^^^^^^^^^^^^^^^^^^^^^
+
+As an alternative to ``Ingress``, the chart can create a
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` for the API server.
+This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
+the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``parentRefs``.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   apiServer:
+     httpRoute:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - airflow.example.com
+
+For fine-grained routing, supply ``apiServer.httpRoute.rules`` directly — the entry mirrors the
+upstream ``HTTPRouteRule`` schema and overrides the default rule generated from ``path`` + ``pathType``.
+
+.. note::
+
+   ``HTTPRoute`` is an alternative to the API server ``Ingress``, so enable only one of
+   ``ingress.apiServer`` or ``apiServer.httpRoute`` — enabling both at the same time fails template
+   rendering. When ``apiServer.httpRoute.enabled`` is ``true``, the chart also verifies (via Helm
+   ``Capabilities``) that the Gateway API CRDs are installed and fails with a clear message if they
+   are not.
+
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -477,7 +509,7 @@ If you are using a Datadog agent in your environment, this will enable Airflow t
 Celery Backend
 --------------
 
-If you are using ``CeleryExecutor`` or ``CeleryKubernetesExecutor``, you can bring your own Celery backend.
+If you are using ``CeleryExecutor``, you can bring your own Celery backend.
 
 By default, the chart will deploy Redis. However, you can use any supported Celery backend instead:
 
@@ -705,8 +737,6 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-jwt-secret``                         | ``.Values.jwtSecretName``                | ``AIRFLOW__API_AUTH__JWT_SECRET``                |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
-| ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
-+-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | ``AIRFLOW__CELERY__RESULT_BACKEND``              |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-airflow-broker-url``                 | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
@@ -748,7 +778,7 @@ You can read more about advanced ways of setting configuration variables in the
 Service Account Token Volume Configuration
 ------------------------------------------
 
-When using pod-launching executors (``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``),
+When using pod-launching executors (``CeleryExecutor``, ``KubernetesExecutor``),
 you can configure how Kubernetes service account tokens are mounted into pods. This provides enhanced security control
 and compatibility with security policies like Kyverno.
 
@@ -790,12 +820,12 @@ This container-specific approach ensures that:
 Configuration Options
 ^^^^^^^^^^^^^^^^^^^^^
 
-The service account token volume configuration is available for the scheduler component and includes the following options:
+The service account token volume configuration is available for the scheduler and cleanup component and includes the following options:
 
 .. code-block:: yaml
    :caption: values.yaml
 
-   scheduler:
+   (scheduler|cleanup):
      serviceAccount:
        automountServiceAccountToken: false
        serviceAccountTokenVolume:
@@ -828,9 +858,7 @@ Supported Executors
 The service account token volume configuration is only effective for pod-launching executors:
 
 * ``CeleryExecutor`` - when launching Celery worker pods
-* ``CeleryKubernetesExecutor`` - for both Celery workers and Kubernetes task pods
 * ``KubernetesExecutor`` - when launching task pods in Kubernetes
-* ``LocalKubernetesExecutor`` - for Kubernetes task pods in local mode
 
 For other executors (``LocalExecutor``, ``SequentialExecutor``), this configuration has no effect
 as they don't launch additional pods.

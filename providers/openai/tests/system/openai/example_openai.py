@@ -22,7 +22,7 @@ import pendulum
 # If you only need Airflow 3+, you can use: from airflow.sdk import dag, task
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.openai.hooks.openai import OpenAIHook
-from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
+from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAIResponseOperator
 
 
 def input_text_callable(
@@ -78,7 +78,7 @@ def example_openai_dag():
         task_id="embedding_using_xcom_data",
         conn_id="openai_default",
         input_text=task_to_store_input_text_in_xcom(),
-        model="text-embedding-ada-002",
+        model="text-embedding-3-small",
     )
 
     OpenAIEmbeddingOperator(
@@ -90,15 +90,24 @@ def example_openai_dag():
             input_kwarg1="input_kwarg1_value",
             input_kwarg2="input_kwarg2_value",
         ),
-        model="text-embedding-ada-002",
+        model="text-embedding-3-small",
     )
     OpenAIEmbeddingOperator(
         task_id="embedding_using_text",
         conn_id="openai_default",
         input_text=texts,
-        model="text-embedding-ada-002",
+        model="text-embedding-3-small",
     )
     # [END howto_operator_openai_embedding]
+
+    # [START howto_operator_openai_response]
+    OpenAIResponseOperator(
+        task_id="openai_response",
+        conn_id="openai_default",
+        input_text="Write a haiku about data pipelines.",
+        response_kwargs={"instructions": "You are a helpful assistant."},
+    )
+    # [END howto_operator_openai_response]
 
     create_embeddings_using_hook()
 

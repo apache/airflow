@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-zendesk``
 
-Release: ``4.11.3``
+Release: ``4.12.0``
 
 
 `Zendesk <https://www.zendesk.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``zendesk`` provider. All classes for this provid
 are in ``airflow.providers.zendesk`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.11.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.12.0/>`_.
 
 Installation
 ------------
@@ -58,24 +58,5 @@ PIP package                                 Version required
 ``zenpy``                                   ``>=2.0.40``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-zendesk[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.11.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.12.0/changelog.html>`_.

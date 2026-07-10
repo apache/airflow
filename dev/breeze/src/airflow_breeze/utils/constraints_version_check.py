@@ -570,6 +570,65 @@ def print_package_table_row(
     return status_category
 
 
+def parse_freeze(freeze_text: str) -> dict[str, str]:
+    """Parse ``uv pip freeze`` output into a ``{canonical_name: version}`` mapping.
+
+    Lines that are not simple ``name==version`` pins (editable installs, ``@`` URLs,
+    log noise emitted by uv) are ignored.
+    """
+    from packaging.utils import canonicalize_name
+
+    versions: dict[str, str] = {}
+    for line in freeze_text.splitlines():
+        match = re.match(r"^([A-Za-z0-9_.\-]+)==([\w.\-]+)$", line.strip())
+        if match:
+            versions[str(canonicalize_name(match.group(1)))] = match.group(2)
+    return versions
+
+
+def extract_uv_conflict(text: str) -> str:
+    """Slice uv's resolver-conflict narrative out of a noisy command log.
+
+    uv prints unsatisfiable resolutions as a block that starts with a line containing
+    ``No solution found`` followed by ``Because ... we can conclude ...`` lines. The breeze
+    shell wraps every command with an Airflow (re)install, so the conflict is buried in a lot
+    of unrelated build/install output — this returns just the conflict block (with ANSI color
+    codes stripped), or an empty string if no conflict was reported.
+    """
+    ansi_re = re.compile(r"\x1b\[[0-9;]*m")
+    clean = ansi_re.sub("", text)
+    lines = clean.splitlines()
+    for index, line in enumerate(lines):
+        if "No solution found" in line:
+            return "\n".join(lines[index:]).strip()
+    return ""
+
+
+def find_downgrades(
+    before: dict[str, str], after: dict[str, str], exclude: str
+) -> list[tuple[str, str, str]]:
+    """Return ``(name, before_version, after_version)`` for packages that went *down*.
+
+    ``exclude`` is the canonical name of the package being explained (it is expected
+    to go up, so it is never reported as a downgrade).
+    """
+    from packaging import version
+
+    downgrades: list[tuple[str, str, str]] = []
+    for name, before_version in before.items():
+        if name == exclude:
+            continue
+        after_version = after.get(name)
+        if after_version is None:
+            continue
+        try:
+            if version.parse(after_version) < version.parse(before_version):
+                downgrades.append((name, before_version, after_version))
+        except version.InvalidVersion:
+            continue
+    return sorted(downgrades)
+
+
 def explain_package_upgrade(
     pkg: str,
     pinned_version: str,
@@ -593,24 +652,39 @@ def explain_package_upgrade(
     additional_args = []
     if airflow_constraints_mode == "constraints-source-providers":
         # In case of source constraints we also need to add all development dependencies
-        # to reflect exactly what is installed in the CI image by default
-        additional_args.extend(
-            ["--group", "dev", "--group", "docs", "--group", "docs-gen", "--group", "leveldb"]
-        )
+        # to reflect exactly what is installed in the CI image by default. The ``ci-image``
+        # group aggregates dev/docs/docs-gen plus any hard-to-install provider extras
+        # (see root pyproject.toml).
+        additional_args.extend(["--group", "ci-image"])
     with (
         preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
         preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
     ):
+        from packaging.utils import canonicalize_name
+
+        canonical_pkg = str(canonicalize_name(pkg))
+
         shell_params = ShellParams(
             github_repository=github_repository,
             python=python_version,
             mount_sources=MOUNT_SELECTED,
         )
-        output_before = Output(title="output_before", file_name=get_temp_file_name())
-        execute_command_in_shell(
-            shell_params,
-            project_name="constraints",
-            command=shlex.join(
+
+        # Marker echoed between ``uv sync`` and ``uv pip freeze`` so the freeze output can be
+        # sliced out of the combined shell log.
+        freeze_marker = "===BREEZE_RESOLVED_FREEZE==="
+
+        def sync_and_freeze(title: str):
+            """Resolve at --resolution highest and, in the *same* shell, freeze the result.
+
+            Each ``execute_command_in_shell`` call is a fresh ``docker compose run --rm``
+            container, so running ``uv pip freeze`` as a separate call would not reliably see
+            the environment the sync just populated. Chaining both in one ``bash -c`` keeps
+            the freeze in the same shell/venv as the sync. ``&&`` ensures the freeze only runs
+            when the sync succeeds and that a sync failure is still reflected in the return
+            code. Returns ``(result, combined_output_text, {canonical_name: version})``.
+            """
+            sync = shlex.join(
                 [
                     "uv",
                     "sync",
@@ -622,40 +696,123 @@ def explain_package_upgrade(
                     "--python",
                     python_version,
                 ]
-            ),
-            output=output_before,
-            signal_error=False,
-        )
+            )
+            output = Output(title=title, file_name=get_temp_file_name())
+            result = execute_command_in_shell(
+                shell_params,
+                project_name="breeze-constraints",
+                command=shlex.join(["bash", "-c", f"{sync} && echo {freeze_marker} && uv pip freeze"]),
+                output=output,
+                signal_error=False,
+            )
+            text = Path(output.file_name).read_text()
+            versions = parse_freeze(text.split(freeze_marker, 1)[1]) if freeze_marker in text else {}
+            return result, text, versions
+
+        # Baseline: resolve the workspace at --resolution highest *without* any pin and
+        # record what version that resolution naturally selects for the package. This is
+        # the resolution that actually generates the constraints, so it is the ground truth
+        # for "what would the constraints pick".
+        _, before_text, before_versions = sync_and_freeze("output_before")
+        baseline_version = before_versions.get(canonical_pkg)
+
         update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
         if get_verbose():
             syntax = Syntax(
                 airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False
             )
             explanation += "\n" + str(syntax)
-        output_after = Output(title="output_after", file_name=get_temp_file_name())
-        after_result = execute_command_in_shell(
-            shell_params,
-            project_name="constraints",
-            command=shlex.join(
-                [
-                    "uv",
-                    "sync",
-                    "--all-packages",
-                    "--resolution",
-                    "highest",
-                    "--refresh",
-                    "--python",
-                    python_version,
-                ],
-            ),
-            output=output_after,
-            signal_error=False,
-        )
-        if after_result.returncode == 0:
-            explanation += f"\n[bold yellow]Package {pkg} can be upgraded from {pinned_version} to {latest_version} without conflicts.[/]."
-            if airflow_constraints_mode == "constraints-source-providers":
-                explanation += Path(output_after.file_name).read_text()
-        if after_result.returncode != 0 or get_verbose():
-            explanation += f"\n[yellow]uv sync output for {pkg}=={latest_version}:[/]\n"
-            explanation += Path(output_after.file_name).read_text()
+        after_result, after_text, after_versions = sync_and_freeze("output_after")
+
+        # A zero exit code only proves that *some* valid resolution exists with the pin — not
+        # that --resolution highest would ever select it. Inspect what was actually resolved:
+        # if honouring the pin forced *other* packages to be downgraded, the unpinned highest
+        # resolution (i.e. the constraints) keeps the package at its lower version, so this is
+        # NOT a clean upgrade.
+        resolved_version = after_versions.get(canonical_pkg)
+        downgrades = find_downgrades(before_versions, after_versions, exclude=canonical_pkg)
+
+        if after_result.returncode != 0:
+            # Forcing the package to its latest version produced no valid resolution at all:
+            # a genuine hard conflict. Surface uv's own conflict narrative from the sync log.
+            explanation += (
+                f"\n[bold red]Package {pkg} CANNOT be upgraded to {latest_version}: "
+                f"uv could not resolve the workspace with {pkg}=={latest_version} pinned "
+                f"(hard conflict).[/]"
+            )
+            conflict = extract_uv_conflict(after_text)
+            if conflict:
+                explanation += f"\n\n[bold yellow]Conflict as reported by uv:[/]\n{conflict}"
+        elif not before_versions or not after_versions:
+            # Without the resolved version lists we cannot tell a clean upgrade apart from one
+            # that only works by downgrading other packages — never silently claim success.
+            explanation += (
+                f"\n[bold yellow]uv sync succeeded but the resolved package versions could not "
+                f"be read (empty freeze output), so the upgrade of {pkg} to {latest_version} "
+                f"could not be classified.[/]"
+            )
+        elif baseline_version == latest_version:
+            explanation += (
+                f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
+                f"--resolution highest. The constraints file appears to be stale.[/]"
+            )
+        elif resolved_version != latest_version:
+            explanation += (
+                f"\n[bold yellow]uv sync succeeded but {pkg} still resolved to "
+                f"{resolved_version or 'an unknown version'}, not {latest_version} — "
+                f"the pin did not take effect, so this is not a real upgrade.[/]"
+            )
+        elif downgrades:
+            explanation += (
+                f"\n[bold yellow]Package {pkg} can reach {latest_version} only by DOWNGRADING "
+                f"other packages, so --resolution highest keeps it at "
+                f"{baseline_version or pinned_version}. Required downgrades:[/]"
+            )
+            for name, before_version, after_version in downgrades:
+                explanation += f"\n  - {name}: {before_version} -> {after_version}"
+            # Reproduce the conflict explicitly so uv's own resolver narrative is visible.
+            # A fresh `uv pip compile` of just the package at its target version plus the
+            # packages it would otherwise displace (held at their current versions) is a
+            # contradiction, so uv fails and prints exactly why they cannot coexist. Running
+            # it from scratch (rather than against the workspace) keeps the output to the
+            # conflict itself, and we filter to uv's narrative regardless of shell noise.
+            conflict_pins = [f"{pkg}=={latest_version}"]
+            conflict_pins += [f"{name}=={before_version}" for name, before_version, _ in downgrades]
+            printf_cmd = "printf '%s\\n' " + " ".join(shlex.quote(pin) for pin in conflict_pins)
+            probe_output = Output(title="conflict_probe", file_name=get_temp_file_name())
+            execute_command_in_shell(
+                shell_params,
+                project_name="breeze-constraints",
+                command=shlex.join(
+                    [
+                        "bash",
+                        "-c",
+                        f"{printf_cmd} | uv pip compile - --python {shlex.quote(python_version)}",
+                    ]
+                ),
+                output=probe_output,
+                signal_error=False,
+            )
+            conflict = extract_uv_conflict(Path(probe_output.file_name).read_text())
+            explanation += (
+                f"\n\n[bold yellow]Conflict as reported by uv "
+                f"(uv pip compile {' '.join(conflict_pins)}):[/]\n"
+            )
+            explanation += conflict or "[dim](uv did not emit a conflict narrative)[/]"
+        else:
+            explanation += (
+                f"\n[bold green]Package {pkg} can be upgraded from {pinned_version} to "
+                f"{latest_version} without conflicts and without downgrading other packages.[/]"
+                f"\n[dim]If this result is unexpected, run 'uv cache clean' and retry — a stale "
+                f"uv cache can make breeze resolve against an out-of-date environment.[/]"
+            )
+
+        if get_verbose():
+            # Full resolver logs of both phases — only when explicitly requested, since they
+            # are very long (each is a complete uv sync plus freeze).
+            explanation += (
+                f"\n\n[yellow]--- uv resolver output: phase 1, baseline (no pin) ---[/]\n{before_text}"
+                f"\n[yellow]--- uv resolver output: phase 2, with {pkg}=={latest_version} pinned ---[/]"
+                f"\n{after_text}"
+            )
     return explanation

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-ftp``
 
-Release: ``3.14.3``
+Release: ``3.15.2``
 
 
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
@@ -36,7 +36,7 @@ This is a provider package for ``ftp`` provider. All classes for this provider p
 are in ``airflow.providers.ftp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.14.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.15.2/>`_.
 
 Installation
 ------------
@@ -57,8 +57,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -67,15 +67,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-ftp[common.compat]
+    pip install apache-airflow-providers-ftp[openlineage]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
 
 Optional dependencies
 ----------------------
@@ -87,4 +86,4 @@ Extra            Dependencies
 ===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.14.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ftp/3.15.2/changelog.html>`_.

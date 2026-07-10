@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -25,7 +26,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher, _parse_log_level
 
 
 class TestAwsTaskLogFetcher:
@@ -44,10 +45,6 @@ class TestAwsTaskLogFetcher:
         self.set_up_log_fetcher()
 
     @mock.patch(
-        "threading.Event.is_set",
-        side_effect=(False, False, False, True),
-    )
-    @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(
             iter(
@@ -64,14 +61,15 @@ class TestAwsTaskLogFetcher:
             iter([]),
         ),
     )
-    def test_run(self, get_log_events_mock, event_is_set_mock):
-        self.log_fetcher.run()
+    def test_run(self, get_log_events_mock):
+        with mock.patch.object(self.log_fetcher._event, "is_set", side_effect=(False, False, False, True)):
+            self.log_fetcher.run()
 
-        self.logger_mock.info.assert_has_calls(
+        self.logger_mock.log.assert_has_calls(
             [
-                mock.call("[2021-04-02 21:51:07,123] First"),
-                mock.call("[2021-04-02 21:52:47,456] Second"),
-                mock.call("[2021-04-02 21:54:27,789] Third"),
+                mock.call(logging.INFO, "[2021-04-02 21:51:07,123] First"),
+                mock.call(logging.INFO, "[2021-04-02 21:52:47,456] Second"),
+                mock.call(logging.INFO, "[2021-04-02 21:54:27,789] Third"),
             ]
         )
 
@@ -144,3 +142,113 @@ class TestAwsTaskLogFetcher:
     @mock.patch.object(AwsLogsHook, "conn")
     def test_get_last_log_messages_with_no_log_events(self, mock_conn):
         assert self.log_fetcher.get_last_log_messages(2) == []
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
+        side_effect=(
+            iter(
+                [
+                    {
+                        "timestamp": 1617400267123,
+                        "message": '{"levelname": "ERROR", "message": "Something failed"}',
+                    },
+                    {
+                        "timestamp": 1617400367456,
+                        "message": "WARNING: disk space low",
+                    },
+                    {
+                        "timestamp": 1617400467789,
+                        "message": "Just a plain message",
+                    },
+                ]
+            ),
+        ),
+    )
+    def test_run_with_log_level_detection(self, get_log_events_mock):
+        with mock.patch.object(self.log_fetcher._event, "is_set", side_effect=(False, True)):
+            self.log_fetcher.run()
+
+        self.logger_mock.log.assert_has_calls(
+            [
+                mock.call(
+                    logging.ERROR,
+                    '[2021-04-02 21:51:07,123] {"levelname": "ERROR", "message": "Something failed"}',
+                ),
+                mock.call(logging.WARNING, "[2021-04-02 21:52:47,456] WARNING: disk space low"),
+                mock.call(logging.INFO, "[2021-04-02 21:54:27,789] Just a plain message"),
+            ]
+        )
+
+
+class TestParseLogLevel:
+    @pytest.mark.parametrize(
+        ("message", "expected_level"),
+        [
+            ('{"levelname": "ERROR", "message": "fail"}', logging.ERROR),
+            ('{"levelname": "WARNING", "message": "warn"}', logging.WARNING),
+            ('{"levelname": "DEBUG", "message": "dbg"}', logging.DEBUG),
+            ('{"levelname": "CRITICAL", "message": "crit"}', logging.CRITICAL),
+            ('{"levelname": "INFO", "message": "ok"}', logging.INFO),
+            ('{"level": "error", "msg": "fail"}', logging.ERROR),
+            ('{"level": "WARNING", "msg": "warn"}', logging.WARNING),
+        ],
+        ids=[
+            "json-error",
+            "json-warning",
+            "json-debug",
+            "json-critical",
+            "json-info",
+            "json-level-field-lowercase",
+            "json-level-field-uppercase",
+        ],
+    )
+    def test_json_structured_logs(self, message, expected_level):
+        assert _parse_log_level(message) == expected_level
+
+    @pytest.mark.parametrize(
+        ("message", "expected_level"),
+        [
+            ("ERROR: something broke", logging.ERROR),
+            ("WARNING: watch out", logging.WARNING),
+            ("WARN: also watch out", logging.WARNING),
+            ("DEBUG: details", logging.DEBUG),
+            ("CRITICAL: very bad", logging.CRITICAL),
+            ("FATAL: system down", logging.CRITICAL),
+            ("[ERROR] something broke", logging.ERROR),
+            ("[WARNING] watch out", logging.WARNING),
+            ("INFO - all good", logging.INFO),
+        ],
+        ids=[
+            "prefix-error",
+            "prefix-warning",
+            "prefix-warn",
+            "prefix-debug",
+            "prefix-critical",
+            "prefix-fatal",
+            "bracketed-error",
+            "bracketed-warning",
+            "prefix-info-dash",
+        ],
+    )
+    def test_plain_text_prefix(self, message, expected_level):
+        assert _parse_log_level(message) == expected_level
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "Just a regular log message",
+            "This message mentions ERROR in the middle",
+            "",
+            "2026-05-18 08:06:04 some log",
+            "{invalid json",
+        ],
+        ids=[
+            "plain-text",
+            "error-in-middle",
+            "empty",
+            "timestamp-prefix",
+            "invalid-json",
+        ],
+    )
+    def test_defaults_to_info(self, message):
+        assert _parse_log_level(message) == logging.INFO

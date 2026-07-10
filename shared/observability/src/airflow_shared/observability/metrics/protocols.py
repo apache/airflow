@@ -27,8 +27,18 @@ if TYPE_CHECKING:
 DeltaType = int | float | datetime.timedelta
 
 
+class BackendTimerProtocol(Protocol):
+    """Minimal interface of a backend timer (e.g. pystatsd / dogstatsd) wrapped by :class:`Timer`."""
+
+    def start(self) -> object: ...
+
+    def stop(self) -> object: ...
+
+
 class TimerProtocol(Protocol):
     """Type protocol for StatsLogger.timer."""
+
+    duration: float | None
 
     def __enter__(self) -> Self: ...
 
@@ -54,7 +64,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer() as t:
+        with stats.timer() as t:
             # Something to time
             frob_the_foos()
 
@@ -64,7 +74,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        timer = Stats.timer().start()
+        timer = stats.timer().start()
 
         # Something to time
         frob_the_foos()
@@ -77,7 +87,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer("foos.frob"):
+        with stats.timer("foos.frob"):
             # Something to time
             frob_the_foos()
 
@@ -85,7 +95,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer("foos.frob") as t:
+        with stats.timer("foos.frob") as t:
             # Something to time
             frob_the_foos()
 
@@ -98,7 +108,7 @@ class Timer(TimerProtocol):
     _start_time: float | None
     duration: float | None
 
-    def __init__(self, real_timer: Timer | None = None) -> None:
+    def __init__(self, real_timer: BackendTimerProtocol | None = None) -> None:
         self.real_timer = real_timer
 
     def __enter__(self) -> Self:

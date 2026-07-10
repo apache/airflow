@@ -18,7 +18,7 @@
  */
 
 /**
- * Calendar data fixture — creates success + failed DAG runs for calendar tests.
+ * Calendar data fixture — creates success + failed Dag runs for calendar tests.
  */
 import dayjs from "dayjs";
 import { testConfig } from "playwright.config";
@@ -27,9 +27,9 @@ import {
   apiCreateDagRun,
   apiSetDagRunState,
   safeCleanupDagRun,
-  uniqueRunId,
   waitForDagReady,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 export type CalendarRunsData = {
   dagId: string;

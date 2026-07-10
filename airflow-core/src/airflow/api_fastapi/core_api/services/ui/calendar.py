@@ -30,10 +30,13 @@ from sqlalchemy.orm import InstrumentedAttribute, Session
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
+    CalendarDeadlineCollectionResponse,
+    CalendarDeadlineResponse,
     CalendarTimeRangeCollectionResponse,
     CalendarTimeRangeResponse,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
@@ -57,12 +60,12 @@ class CalendarService:
         granularity: Literal["hourly", "daily"] = "daily",
     ) -> CalendarTimeRangeCollectionResponse:
         """
-        Get calendar data for a DAG including historical and planned runs.
+        Get calendar data for a Dag including historical and planned runs.
 
         Args:
-            dag_id: The DAG ID
+            dag_id: The Dag ID
             session: Database session
-            dag: The DAG object
+            dag: The Dag object
             logical_date: Date range filter for logical_date
             partition_date: Date range filter for partition_date
             granularity: Time granularity ("hourly" or "daily")
@@ -93,7 +96,7 @@ class CalendarService:
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> tuple[list[CalendarTimeRangeResponse], Sequence[Row]]:
-        """Get historical DAG runs from the database."""
+        """Get historical Dag runs from the database."""
         dialect = get_dialect_name(session)
 
         effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
@@ -136,7 +139,7 @@ class CalendarService:
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
-        """Get planned DAG runs based on the DAG's timetable."""
+        """Get planned Dag runs based on the Dag's timetable."""
         if not self._should_calculate_planned_runs(dag, raw_dag_states):
             return []
 
@@ -357,3 +360,55 @@ class CalendarService:
             return False
 
         return True
+
+    def get_deadline_calendar_data(
+        self,
+        dag_id: str,
+        deadline_time: RangeFilter,
+        granularity: Literal["hourly", "daily"] = "daily",
+        *,
+        session: Session,
+    ) -> CalendarDeadlineCollectionResponse:
+        """
+        Get deadline calendar data for a Dag, aggregated by time bucket and missed status.
+
+        Args:
+            dag_id: The Dag ID
+            session: Database session
+            deadline_time: Date range filter for deadline_time
+            granularity: Time granularity ("hourly" or "daily")
+
+        Returns:
+            Aggregated deadline counts per time bucket, split by missed/pending status
+        """
+        dialect = get_dialect_name(session)
+        time_expression = self._get_time_truncation_expression(Deadline.deadline_time, granularity, dialect)
+
+        select_stmt = (
+            sa.select(
+                time_expression.label("datetime"),
+                Deadline.missed,
+                sa.func.count("*").label("count"),
+            )
+            .join(Deadline.dagrun)
+            .where(DagRun.dag_id == dag_id)
+            .group_by(time_expression, Deadline.missed)
+            .order_by(time_expression.asc(), Deadline.missed.asc())
+        )
+
+        select_stmt = deadline_time.to_orm(select_stmt)
+        rows = session.execute(select_stmt).all()
+
+        results = [
+            CalendarDeadlineResponse(
+                date=row.datetime,
+                missed=row.missed,
+                count=int(row._mapping["count"]),
+            )
+            for row in rows
+        ]
+
+        return CalendarDeadlineCollectionResponse(
+            total_entries=len(results),
+            deadlines=results,
+        )

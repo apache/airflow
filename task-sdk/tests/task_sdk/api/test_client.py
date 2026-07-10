@@ -36,6 +36,7 @@ from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponse
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
+    AssetStateStoreResponse,
     ConnectionResponse,
     DagResponse,
     DagRunState,
@@ -43,12 +44,14 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
+    TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
+    AssetsByAliasResult,
     DeferTask,
     ErrorResponse,
     OKResponse,
@@ -102,6 +105,25 @@ class TestClient:
             make_client(httpx.MockTransport(handle_request))
 
         assert isinstance(err.value, FileNotFoundError)
+
+    @mock.patch("airflow.sdk.api.client.API_SSL_CA_FILE_PATH", "/capath/does/not/exist/")
+    def test_ssl_with_cafile(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(FileNotFoundError) as err:
+            make_client(httpx.MockTransport(handle_request))
+
+        assert isinstance(err.value, FileNotFoundError)
+
+    @mock.patch("ssl.create_default_context")
+    @mock.patch("airflow.sdk.api.client.API_CLIENT_USE_PUBLIC_CERTS", True)
+    def test_use_public_certs(self, mock_default_context):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        make_client(httpx.MockTransport(handle_request))
+        mock_default_context.return_value.load_verify_locations.assert_called_with(certifi.where())
 
     @mock.patch("airflow.sdk.api.client.API_TIMEOUT", 60.0)
     def test_timeout_configuration(self):
@@ -838,6 +860,23 @@ class TestVariableOperations:
                     key="test_key",
                 )
 
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_variable_get_authz_returns_permission_denied(self, status_code):
+        """401/403 from the API server is reported as PERMISSION_DENIED, not raised.
+
+        The ExecutionAPISecretsBackend uses this distinction to refuse fallback
+        to a less-restrictive backend on an explicit deny.
+        """
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        resp = client.variables.get(key="denied_var")
+        assert isinstance(resp, ErrorResponse)
+        assert resp.error == ErrorType.PERMISSION_DENIED
+        assert resp.detail == {"key": "denied_var", "status_code": status_code}
+
     def test_variable_set_success(self):
         # Simulate a successful response from the server when putting a variable
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1118,6 +1157,19 @@ class TestConnectionOperations:
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
 
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_connection_get_authz_returns_permission_denied(self, status_code):
+        """401/403 from the API server is reported as PERMISSION_DENIED, not raised."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="denied_conn")
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.PERMISSION_DENIED
+        assert result.detail == {"conn_id": "denied_conn", "status_code": status_code}
+
 
 class TestAssetEventOperations:
     @pytest.mark.parametrize(
@@ -1163,6 +1215,68 @@ class TestAssetEventOperations:
         assert len(result.asset_events) == 1
         assert result.asset_events[0].asset.name == "this_asset"
         assert result.asset_events[0].asset.uri == "s3://bucket/key"
+
+    def test_extra_dict_param_passed(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            extra_pairs = [v for k, v in params.multi_items() if k == "extra"]
+            assert sorted(extra_pairs) == sorted(["region=us", "env=prod"])
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {"name": "a", "uri": "s3://b", "group": "asset"},
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="a", uri="s3://b", extra={"region": "us", "env": "prod"})
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+
+    def test_extra_dict_with_alias(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert request.url.path == "/asset-events/by-asset-alias"
+            extra_pairs = [v for k, v in params.multi_items() if k == "extra"]
+            assert extra_pairs == ["env=prod"]
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {"name": "a", "uri": "s3://b", "group": "asset"},
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(alias_name="my_alias", extra={"env": "prod"})
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+
+    def test_extra_none_not_sent(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert "extra" not in params
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="a", uri="s3://b")
+        assert isinstance(result, AssetEventsResponse)
 
 
 class TestAssetOperations:
@@ -1221,6 +1335,37 @@ class TestAssetOperations:
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.ASSET_NOT_FOUND
 
+    def test_get_by_alias_returns_list(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/assets/by-alias"
+            assert request.url.params["alias_name"] == "my_alias"
+            return httpx.Response(
+                status_code=200,
+                json=[
+                    {"name": "asset_a", "uri": "s3://bucket/a", "group": "asset", "extra": {}},
+                    {"name": "asset_b", "uri": "s3://bucket/b", "group": "asset", "extra": {}},
+                ],
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.assets.get_by_alias("my_alias")
+
+        assert isinstance(result, AssetsByAliasResult)
+        assert len(result.assets) == 2
+        assert isinstance(result.assets[0], AssetResponse)
+        assert isinstance(result.assets[1], AssetResponse)
+        assert result.assets[0].name == "asset_a"
+        assert result.assets[1].name == "asset_b"
+
+    def test_get_by_alias_returns_empty_for_unknown_alias(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200, json=[])
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.assets.get_by_alias("unknown_alias")
+
+        assert result.assets == []
+
 
 class TestDagRunOperations:
     def test_trigger(self):
@@ -1238,7 +1383,10 @@ class TestDagRunOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.dag_runs.trigger(
-            dag_id="test_trigger", run_id="test_run_id", logical_date=timezone.datetime(2025, 1, 1)
+            dag_id="test_trigger",
+            run_id="test_run_id",
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 2),
         )
 
         assert result == OKResponse(ok=True)
@@ -1651,6 +1799,37 @@ class TestDagsOperations:
             next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
         )
 
+    def test_get_url_quotes_dag_id_as_single_path_segment(self):
+        """Test that Dag IDs cannot escape the dags API path."""
+        requests_seen = []
+        crafted_dag_id = "x/../../variables/secret_key"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            if request.url.path == "/variables/secret_key":
+                return httpx.Response(
+                    status_code=200,
+                    json={"key": "secret_key", "value": "super-secret-value"},
+                )
+            return httpx.Response(
+                status_code=404,
+                json={
+                    "detail": {
+                        "message": "The Dag was not found",
+                        "reason": "not_found",
+                    }
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.dags.get(dag_id=crafted_dag_id)
+
+        assert requests_seen[0].url.raw_path == b"/dags/x%2F..%2F..%2Fvariables%2Fsecret_key"
+        assert requests_seen[0].url.path != "/variables/secret_key"
+        assert "super-secret-value" not in str(exc_info.value)
+
     def test_get_not_found(self):
         """Test that getting a missing dag raises a server response error."""
 
@@ -1697,3 +1876,220 @@ class TestDagsOperations:
 
         with pytest.raises(ServerResponseError):
             client.dags.get(dag_id="test_dag")
+
+
+class TestTaskStateOperations:
+    TI_ID = uuid7()
+
+    def test_get_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/store/ti/{self.TI_ID}/job_id":
+                return httpx.Response(status_code=200, json={"value": "spark_app_001"})
+            return httpx.Response(status_code=400)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.get(ti_id=self.TI_ID, key="job_id")
+
+        assert isinstance(result, TaskStateStoreResponse)
+        assert result.value == "spark_app_001"
+
+    def test_get_returns_error_response_on_404(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "Task state key 'job_id' not found"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.get(ti_id=self.TI_ID, key="job_id")
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.TASK_STORE_NOT_FOUND
+
+    def test_set_success(self):
+        expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == f"/store/ti/{self.TI_ID}/job_id"
+            assert b'"value":"spark_app_001"' in request.content
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.set(
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_with_expires_at_sends_field(self):
+        """expires_at is forwarded as an ISO datetime string in the request body."""
+        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body["value"] == "spark_app_001"
+            assert body["expires_at"] == "2026-05-21T12:00:00Z"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.set(
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_with_never_expire_sends_null_expires_at(self):
+        """NEVER_EXPIRE sends expires_at=null — stored as NULL in DB, GC skips it."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body.get("expires_at") is None
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.set(
+            ti_id=self.TI_ID,
+            key="job_id",
+            value="v",
+            expires_at=None,
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_delete_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/store/ti/{self.TI_ID}/job_id"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.delete(ti_id=self.TI_ID, key="job_id")
+        assert result == OKResponse(ok=True)
+
+    def test_clear_sends_delete_request(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/store/ti/{self.TI_ID}"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.clear(ti_id=self.TI_ID)
+        assert result == OKResponse(ok=True)
+
+
+class TestAssetStateOperations:
+    def test_get_by_name_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if (
+                request.url.path == "/store/asset/by-name/value"
+                and request.url.params["name"] == "test_asset"
+                and request.url.params["key"] == "watermark"
+            ):
+                return httpx.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
+            return httpx.Response(status_code=400)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.get(key="watermark", name="test_asset")
+
+        assert isinstance(result, AssetStateStoreResponse)
+        assert result.value == "2026-04-30T00:00:00Z"
+
+    def test_get_by_uri_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if (
+                request.url.path == "/store/asset/by-uri/value"
+                and request.url.params["uri"] == "s3://bucket/key"
+                and request.url.params["key"] == "watermark"
+            ):
+                return httpx.Response(status_code=200, json={"value": "2026-04-30T00:00:00Z"})
+            return httpx.Response(status_code=400)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.get(key="watermark", uri="s3://bucket/key")
+
+        assert isinstance(result, AssetStateStoreResponse)
+        assert result.value == "2026-04-30T00:00:00Z"
+
+    def test_get_returns_error_response_on_404(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "Asset state key 'watermark' not found"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.get(key="watermark", name="test_asset")
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.ASSET_STORE_NOT_FOUND
+
+    def test_set_by_name_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == "/store/asset/by-name/value"
+            assert request.url.params["name"] == "test_asset"
+            assert request.url.params["key"] == "watermark"
+            assert b'"value":"2026-04-30T00:00:00Z"' in request.content
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.set(
+            key="watermark", value="2026-04-30T00:00:00Z", name="test_asset"
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_by_uri_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == "/store/asset/by-uri/value"
+            assert request.url.params["uri"] == "s3://bucket/key"
+            assert request.url.params["key"] == "watermark"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.set(
+            key="watermark", value="2026-04-30T00:00:00Z", uri="s3://bucket/key"
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_delete_by_name_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/store/asset/by-name/value"
+            assert request.url.params["name"] == "test_asset"
+            assert request.url.params["key"] == "watermark"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.delete(key="watermark", name="test_asset")
+        assert result == OKResponse(ok=True)
+
+    def test_delete_by_uri_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/store/asset/by-uri/value"
+            assert request.url.params["uri"] == "s3://bucket/key"
+            assert request.url.params["key"] == "watermark"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.delete(key="watermark", uri="s3://bucket/key")
+        assert result == OKResponse(ok=True)
+
+    def test_clear_by_name_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/store/asset/by-name/clear"
+            assert request.url.params["name"] == "test_asset"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.clear(name="test_asset")
+        assert result == OKResponse(ok=True)
+
+    def test_clear_by_uri_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/store/asset/by-uri/clear"
+            assert request.url.params["uri"] == "s3://bucket/key"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state_store.clear(uri="s3://bucket/key")
+        assert result == OKResponse(ok=True)

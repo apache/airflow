@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-tableau"
-version = "5.4.0"
+version = "5.6.0"
 description = "Provider package apache-airflow-providers-tableau for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -61,9 +61,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.10.1",
-    # Tableau release 0.39 is missing the tableauserverclient root folder in the package.
-    # we are limiting it for now - issue - https://github.com/tableau/server-client-python/issues/1745
-    "tableauserverclient>=0.27, !=0.39",
+    "tableauserverclient>=0.27",
 ]
 
 [dependency-groups]
@@ -101,8 +99,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.4.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.4.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.6.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.6.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -114,3 +112,14 @@ provider_info = "airflow.providers.tableau.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.tableau"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "tests/",
+]

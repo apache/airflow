@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
+import { Button, HStack, VStack } from "@chakra-ui/react";
 import { FiDatabase } from "react-icons/fi";
 
 import { usePartitionedDagRunServiceGetPendingPartitionedDagRun } from "openapi/queries";
-import type { PartitionedDagRunAssetResponse } from "openapi/requests/types.gen";
-import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
-import type { NextRunEvent } from "src/components/AssetExpression/types";
-import { Popover } from "src/components/ui";
+import type { NextRunAssetEventResponse, PartitionedDagRunAssetResponse } from "openapi/requests/types.gen";
+import { AssetExpression } from "src/components/AssetExpression";
+import { RollupKeyChecklist } from "src/components/RollupKeyChecklist";
+import { Popover, RouterLink } from "src/components/ui";
 
 type Props = {
   readonly dagId: string;
@@ -35,15 +35,20 @@ type Props = {
 export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalRequired }: Props) => {
   const { data, isLoading } = usePartitionedDagRunServiceGetPendingPartitionedDagRun({ dagId, partitionKey });
 
-  const assetExpression = data?.asset_expression as ExpressionType | undefined;
+  const assetExpression = data?.asset_expression ?? undefined;
   const assets: Array<PartitionedDagRunAssetResponse> = data?.assets ?? [];
 
-  const events: Array<NextRunEvent> = assets
-    .filter((ak: PartitionedDagRunAssetResponse) => ak.received)
+  const hasRollup = assets.some((ak) => ak.is_rollup);
+
+  const events: Array<NextRunAssetEventResponse> = assets
+    .filter((ak: PartitionedDagRunAssetResponse) => ak.received_count > 0)
     .map((ak: PartitionedDagRunAssetResponse) => ({
       id: ak.asset_id,
-      lastUpdate: "received",
+      is_rollup: ak.is_rollup,
+      last_update: ak.received ? "received" : null,
       name: ak.asset_name,
+      received_count: ak.received_count,
+      required_count: ak.required_count,
       uri: ak.asset_uri,
     }));
 
@@ -51,7 +56,7 @@ export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalReq
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount positioning={{ placement: "bottom-end" }} unmountOnExit>
       <Popover.Trigger asChild>
-        <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
+        <Button loading={isLoading} paddingInline={0} variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
           {`${String(totalReceived)} / ${String(totalRequired)}`}
         </Button>
@@ -59,7 +64,22 @@ export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalReq
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
         <Popover.Arrow />
         <Popover.Body>
-          <AssetExpression events={events} expression={assetExpression} />
+          {hasRollup ? (
+            <HStack align="start" gap={4} maxH="300px" overflowX="auto" overflowY="auto">
+              {assets
+                .filter((ak) => ak.is_rollup)
+                .map((ak) => (
+                  <VStack align="start" gap={1} key={ak.asset_id}>
+                    <RouterLink fontSize="xs" fontWeight="semibold" to={`/assets/${ak.asset_id}`}>
+                      {ak.asset_name}
+                    </RouterLink>
+                    <RollupKeyChecklist receivedKeys={ak.received_keys} requiredKeys={ak.required_keys} />
+                  </VStack>
+                ))}
+            </HStack>
+          ) : (
+            <AssetExpression events={events} expression={assetExpression} />
+          )}
         </Popover.Body>
       </Popover.Content>
     </Popover.Root>

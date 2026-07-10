@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import json
+import logging
+import re
 import time
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
@@ -30,9 +33,49 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 if TYPE_CHECKING:
     from airflow.sdk.types import Logger
 
+_LOG_LEVEL_PATTERN = re.compile(
+    r"^\s*(?:\[)?(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL)(?:\])?\s*[:\-]?\s*",
+    re.IGNORECASE,
+)
+_LOG_LEVEL_MAP: dict[str, int] = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "WARN": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+    "FATAL": logging.CRITICAL,
+}
+
+
+def _parse_log_level(message: str) -> int:
+    """
+    Detect the Python logging level from a CloudWatch log message.
+
+    Supports two formats:
+    1. JSON-structured logs with a ``levelname`` or ``level`` field.
+    2. Plain-text prefixes such as ``ERROR:``, ``[WARNING]``, ``CRITICAL -``, etc.
+
+    Returns ``logging.INFO`` when no known level is found (backwards-compatible).
+    """
+    stripped = message.strip()
+    if stripped.startswith("{"):
+        try:
+            parsed = json.loads(stripped)
+            level_str = parsed.get("levelname") or parsed.get("level") or ""
+            level = _LOG_LEVEL_MAP.get(level_str.upper(), -1)
+            if level != -1:
+                return level
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    match = _LOG_LEVEL_PATTERN.match(message)
+    if match:
+        return _LOG_LEVEL_MAP.get(match.group(1).upper(), logging.INFO)
+    return logging.INFO
+
 
 class AwsTaskLogFetcher(Thread):
-    """Fetch Cloudwatch log events with specific interval and send the log events to the logger.info."""
+    """Fetch Cloudwatch log events with specific interval and forward them at the detected log level."""
 
     def __init__(
         self,
@@ -72,7 +115,8 @@ class AwsTaskLogFetcher(Thread):
                     # When a slight delay is added before logging the event, that solves the issue
                     # See https://github.com/apache/airflow/issues/40875
                     time.sleep(0.001)
-                self.logger.info(self.event_to_str(log_event))
+                level = _parse_log_level(log_event["message"])
+                self.logger.log(level, self.event_to_str(log_event))
                 prev_timestamp_event = current_timestamp_event
 
     def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
@@ -84,7 +128,7 @@ class AwsTaskLogFetcher(Thread):
             )
         except ClientError as error:
             if error.response["Error"]["Code"] != "ResourceNotFoundException":
-                self.logger.warning("Error on retrieving Cloudwatch log events", error)
+                self.logger.warning("Error on retrieving Cloudwatch log events: %s", error)
             else:
                 self.logger.info(
                     "Cannot find log stream yet, it can take a couple of seconds to show up. "
@@ -95,7 +139,7 @@ class AwsTaskLogFetcher(Thread):
                 )
             yield from ()
         except ConnectionClosedError as error:
-            self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
+            self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events: %s", error)
             yield from ()
 
     @staticmethod

@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Link } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
 
 import type { DagScheduleAssetReference, TaskOutletAssetReference } from "openapi/requests/types.gen";
-import { Popover } from "src/components/ui";
+import { Popover, RouterLink } from "src/components/ui";
 
 type Props = {
   readonly dependencies: Array<DagScheduleAssetReference | TaskOutletAssetReference>;
@@ -36,7 +35,7 @@ export const DependencyPopover = ({ dependencies, type }: Props) => {
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild disabled={dependencies.length === 0}>
-        <Button size="sm" variant="outline">
+        <Button variant="outline">
           {dependencies.length} {translate(dependencyKey, { count: dependencies.length })}
         </Button>
       </Popover.Trigger>
@@ -57,9 +56,9 @@ export const DependencyPopover = ({ dependencies, type }: Props) => {
             }
 
             return (
-              <Link asChild color="fg.info" display="block" key={key} py={2}>
-                <RouterLink to={link}>{label}</RouterLink>
-              </Link>
+              <RouterLink display="block" key={key} py={2} to={link}>
+                {label}
+              </RouterLink>
             );
           })}
         </Popover.Body>

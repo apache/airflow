@@ -88,6 +88,16 @@ log = structlog.get_logger(logger_name=__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
+def _serialize_query_param(value: Any) -> Any:
+    if isinstance(value, datetime.datetime):
+        return value.isoformat()
+    return value
+
+
+def _build_query_params(**values: Any) -> dict[str, Any]:
+    return {name: _serialize_query_param(value) for name, value in values.items() if value is not None}
+
+
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
@@ -269,8 +279,8 @@ class AssetsOperations(BaseOperations):
         """List all assets from the API server."""
         return super().execute_list(path="assets", data_model=AssetCollectionResponse)
 
-    def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
-        """List all assets by alias from the API server."""
+    def list_aliases(self) -> AssetAliasCollectionResponse | ServerResponseError:
+        """List all assets aliases from the API server."""
         return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
 
     def create_event(
@@ -354,7 +364,7 @@ class BackfillOperations(BaseOperations):
         """Create a backfill."""
         try:
             self.response = self.client.post(
-                "backfills", data=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills", json=backfill.model_dump(mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -364,7 +374,7 @@ class BackfillOperations(BaseOperations):
         """Create a dry run backfill."""
         try:
             self.response = self.client.post(
-                "backfills/dry_run", data=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills/dry_run", json=backfill.model_dump(mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -450,7 +460,7 @@ class ConnectionsOperations(BaseOperations):
         """Create a connection."""
         try:
             self.response = self.client.post(
-                "connections", json=connection.model_dump(mode="json", exclude_none=True)
+                "connections", json=connection.model_dump(mode="json", by_alias=True, exclude_none=True)
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -459,7 +469,9 @@ class ConnectionsOperations(BaseOperations):
     def bulk(self, connections: BulkBodyConnectionBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple connections."""
         try:
-            self.response = self.client.patch("connections", json=connections.model_dump(mode="json"))
+            self.response = self.client.patch(
+                "connections", json=connections.model_dump(mode="json", by_alias=True)
+            )
             return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -487,7 +499,8 @@ class ConnectionsOperations(BaseOperations):
         """Update a connection."""
         try:
             self.response = self.client.patch(
-                f"connections/{connection.connection_id}", json=connection.model_dump(mode="json")
+                f"connections/{connection.connection_id}",
+                json=connection.model_dump(mode="json", by_alias=True),
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -499,7 +512,9 @@ class ConnectionsOperations(BaseOperations):
     ) -> ConnectionTestResponse | ServerResponseError:
         """Test a connection."""
         try:
-            self.response = self.client.post("connections/test", json=connection.model_dump(mode="json"))
+            self.response = self.client.post(
+                "connections/test", json=connection.model_dump(mode="json", by_alias=True)
+            )
             return ConnectionTestResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -509,7 +524,7 @@ class DagsOperations(BaseOperations):
     """Dags operations."""
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
-        """Get a DAG."""
+        """Get a Dag."""
         try:
             self.response = self.client.get(f"dags/{dag_id}")
             return DAGResponse.model_validate_json(self.response.content)
@@ -596,48 +611,68 @@ class DagsOperations(BaseOperations):
 class DagRunOperations(BaseOperations):
     """Dag run operations."""
 
-    def get(self, dag_id: str, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
+    def get(
+        self, dag_id: str, dag_run_id: str, *, suppress_error_log: bool = False
+    ) -> DAGRunResponse | ServerResponseError:
         """Get a dag run."""
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}",
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
     def list(
         self,
-        state: str,
-        limit: int,
+        state: str | None = None,
+        limit: int = 100,
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
+        logical_date_gte: datetime.datetime | None = None,
+        logical_date_lte: datetime.datetime | None = None,
+        order_by: str | None = None,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
         List dag runs (at most `limit` results).
 
         Args:
-            state: Filter dag runs by state
+            state: Filter dag runs by state (optional; no filter applied when omitted)
             start_date: Filter dag runs by start date (optional)
             end_date: Filter dag runs by end date (optional)
             limit: Limit the number of results returned
             dag_id: The DAG ID to filter by. If None, retrieves dag runs for all DAGs (using "~").
+            logical_date_gte: Filter dag runs with a logical date greater than or equal to this value.
+            logical_date_lte: Filter dag runs with a logical date less than or equal to this value.
+            order_by: Order the results by the specified field.
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
             dag_id = "~"
 
-        params: dict[str, Any] = {
-            "state": str(state),
-            "limit": limit,
-        }
-        if start_date is not None:
-            params["start_date"] = start_date.isoformat()
-        if end_date is not None:
-            params["end_date"] = end_date.isoformat()
+        params = _build_query_params(
+            limit=limit,
+            state=str(state) if state is not None else None,
+            start_date=start_date,
+            end_date=end_date,
+            logical_date_gte=logical_date_gte,
+            logical_date_lte=logical_date_lte,
+            order_by=order_by,
+        )
 
         try:
             self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
+        """Delete a Dag run."""
+        try:
+            self.client.delete(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            return dag_run_id
         except ServerResponseError as e:
             raise e
 
@@ -652,13 +687,7 @@ class JobsOperations(BaseOperations):
         is_alive: bool | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params: dict[str, Any] = {}
-        if job_type:
-            params["job_type"] = job_type
-        if hostname:
-            params["hostname"] = hostname
-        if is_alive is not None:
-            params["is_alive"] = is_alive
+        params = _build_query_params(job_type=job_type or None, hostname=hostname or None, is_alive=is_alive)
 
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 

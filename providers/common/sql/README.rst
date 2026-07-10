@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-sql``
 
-Release: ``1.34.0``
+Release: ``2.0.2``
 
 
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
@@ -36,7 +36,7 @@ This is a provider package for ``common.sql`` provider. All classes for this pro
 are in ``airflow.providers.common.sql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.34.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.0.2/>`_.
 
 Installation
 ------------
@@ -60,8 +60,8 @@ PIP package                                 Version required
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -78,7 +78,6 @@ Dependent package                                                               
 ====================================================================================================================  ==================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                  ``amazon``
 `apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_    ``common.compat``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_        ``openlineage``
 ====================================================================================================================  ==================
 
@@ -99,4 +98,4 @@ Extra               Dependencies
 ==================  =======================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.34.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.0.2/changelog.html>`_.

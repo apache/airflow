@@ -88,6 +88,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: Always
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
@@ -146,7 +147,7 @@ spec:
               readOnly: true
             {{- end }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.pgbouncer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.pgbouncer.extraVolumeMounts) . | nindent 12 }}
@@ -212,7 +213,7 @@ spec:
             secretName: {{ template "pgbouncer_certificates_secret" . }}
         {{- end }}
         {{- if .Values.volumes }}
-          {{- toYaml .Values.volumes | nindent 8 }}
+          {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.pgbouncer.extraVolumes }}
           {{- tpl (toYaml .Values.pgbouncer.extraVolumes) . | nindent 8 }}

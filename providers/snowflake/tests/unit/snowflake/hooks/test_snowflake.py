@@ -1314,9 +1314,9 @@ class TestPytestSnowflakeHook:
 
         if expected is ValueError:
             with pytest.raises(ValueError, match=match):
-                hook._validate_grant_type(grant_type)
+                hook._oauth.validate_grant_type(grant_type)
         else:
-            assert hook._validate_grant_type(grant_type) == expected
+            assert hook._oauth.validate_grant_type(grant_type) == expected
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
@@ -1599,7 +1599,7 @@ class TestPytestSnowflakeHook:
 
         t0 = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
 
-        # _get_valid_oauth_token calls utcnow twice per refresh:
+        # get_valid_oauth_token from _SnowflakeOAuthManager calls utcnow twice per refresh:
         #   1) validity check
         #   2) issued_at
         mock_timezone_utcnow.side_effect = [
@@ -1787,3 +1787,132 @@ class TestPytestSnowflakeHook:
             # Check that the URI doesn't contain proxy params
             called_uri = mock_create_engine.call_args[0][0]
             assert "proxy_host" not in str(called_uri)
+
+    def test_get_connection_form_widgets_proxy_port_is_optional(self):
+        """Proxy Port is an IntegerField and must remain optional.
+
+        Regression test for the Snowflake connection form silently rejecting
+        save when `Proxy Port` is left blank. `IntegerField` fails WTForms
+        validation on empty input by default, so `Optional()` is required to
+        preserve the documented optional semantics.
+        """
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+        Form = pytest.importorskip("wtforms").Form
+        Optional = pytest.importorskip("wtforms.validators").Optional
+        MultiDict = pytest.importorskip("werkzeug.datastructures").MultiDict
+
+        widgets = SnowflakeHook.get_connection_form_widgets()
+        assert "proxy_port" in widgets
+
+        proxy_port_field = widgets["proxy_port"]
+        assert any(isinstance(v, Optional) for v in proxy_port_field.kwargs.get("validators", []))
+
+        form_cls = type("_SnowflakeConnForm", (Form,), dict(widgets))
+
+        empty_form = form_cls(MultiDict([("proxy_port", "")]))
+        assert empty_form.validate() is True, empty_form.errors
+        assert empty_form.proxy_port.data is None
+
+        populated_form = form_cls(MultiDict([("proxy_port", "8080")]))
+        assert populated_form.validate() is True, populated_form.errors
+        assert populated_form.proxy_port.data == 8080
+
+        invalid_form = form_cls(MultiDict([("proxy_port", "not-an-int")]))
+        assert invalid_form.validate() is False
+        assert "proxy_port" in invalid_form.errors
+
+    @pytest.mark.parametrize("provider", ["AWS", "AZURE", "GCP", "OIDC"])
+    def test_get_conn_params_forwards_workload_identity_provider(self, provider):
+        """When authenticator is WORKLOAD_IDENTITY, workload_identity_provider must reach the connector.
+
+        The connector raises ``251017: workload_identity_provider must be set ...`` if the param is
+        dropped, so the hook has to forward it for keyless Workload Identity Federation to work.
+        """
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = provider
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["authenticator"] == "WORKLOAD_IDENTITY"
+        assert conn_params["workload_identity_provider"] == provider
+
+    def test_get_conn_params_omits_workload_identity_provider_when_unset(self):
+        """workload_identity_provider must not appear in conn params unless configured."""
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
+        ):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert "workload_identity_provider" not in conn_params
+
+    def test_get_conn_params_workload_identity_provider_backcompat_prefix(self):
+        """The backcompat ``extra__snowflake__`` prefix is honored for workload_identity_provider."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["extra__snowflake__workload_identity_provider"] = "GCP"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["workload_identity_provider"] == "GCP"
+
+    def test_get_conn_passes_workload_identity_provider_to_connect(self):
+        """The forwarded param has to land in the actual ``snowflake.connector.connect()`` call."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "GCP"
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch("snowflake.connector.connect") as mock_connect,
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
+
+        call_kwargs = mock_connect.call_args[1]
+        assert call_kwargs["authenticator"] == "WORKLOAD_IDENTITY"
+        assert call_kwargs["workload_identity_provider"] == "GCP"
+
+    def test_get_connection_form_widgets_exposes_workload_identity_provider(self):
+        """The connection form must expose a workload_identity_provider field so users can set it in the UI."""
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+
+        widgets = SnowflakeHook.get_connection_form_widgets()
+
+        assert "workload_identity_provider" in widgets
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [("token", "an-oidc-jwt"), ("token_file_path", "/var/run/secrets/oidc/token")],
+    )
+    def test_get_conn_params_forwards_oidc_token(self, field, value):
+        """OIDC WIF needs a caller-supplied token; the connector raises if it is missing.
+
+        Unlike AWS/AZURE/GCP (which fetch the token from cloud metadata), OIDC requires
+        ``token`` or ``token_file_path`` to be forwarded.
+        """
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "OIDC"
+        connection_kwargs["extra"][field] = value
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["workload_identity_provider"] == "OIDC"
+        assert conn_params[field] == value
+
+    def test_get_conn_params_omits_oidc_token_when_unset(self):
+        """token/token_file_path must not appear unless explicitly configured."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "GCP"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert "token" not in conn_params
+        assert "token_file_path" not in conn_params

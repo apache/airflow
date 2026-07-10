@@ -27,6 +27,98 @@
 Changelog
 ---------
 
+1.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Show running task logs in the UI with OpenSearch remote logging (#69407)``
+* ``Generalize extra parameters (#65613)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+1.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add remote log upload support for callback subprocesses (#66379)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+``OpensearchTaskHandler`` no longer silently registers itself as the remote
+task-log reader during ``dictConfig``. The implicit registration still happens
+for one more release but now emits an ``AirflowProviderDeprecationWarning`` and
+will be removed in a future provider release. If you ship a custom
+``[logging] logging_config_class`` module that swaps in ``OpensearchTaskHandler``,
+set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at module scope in that
+module. See the OpenSearch provider's logging guide for the updated override
+example.
+
+1.9.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor Opensearch log formatter to use timezone.from_timestamp (#66856)``
+* ``Deprecate implicit REMOTE_TASK_LOG registration in OpensearchTaskHandler (#67106)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+1.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Adjust log message header for expandable sources (#66570)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix elasticsearch and opensearch providers changelog.rst (#67007)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+1.9.1
+.....
+
+.. note::
+  When the ``[opensearch] host`` config embeds credentials
+  (``https://user:password@opensearch.example.com:9200``), the log-source
+  label shown in task logs is now the host URL with the ``user:password@``
+  portion stripped. Previously the full URL (including credentials) could
+  appear as a dictionary key in the task-log output when log-hits did not
+  carry a ``host`` field. The OpenSearch client is still connected using
+  the full URL, so authentication is unaffected.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Strip userinfo from OpenSearch host URL before using it as task-log label (#65509)``
+* ``Fix opensearch provider to use SDK imports for Airflow 3.2+ (#65076)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document OpenSearch logging override needed on Airflow 3.0.0 – 3.2.0 (#65209)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 1.9.0
 .....
 

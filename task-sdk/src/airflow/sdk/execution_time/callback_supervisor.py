@@ -18,33 +18,56 @@
 
 from __future__ import annotations
 
+import os
+import signal
 import sys
 import time
 from importlib import import_module
-from typing import TYPE_CHECKING, BinaryIO, ClassVar, Protocol
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Protocol
 from uuid import UUID
 
 import attrs
 import structlog
-from pydantic import TypeAdapter
+from pydantic import Field, TypeAdapter
 
-from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
+from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
+    GetConnection,
+    GetVariable,
+    GetVariableKeys,
+    MaskSecret,
+)
+from airflow.sdk.execution_time.request_handlers import (
+    handle_get_connection,
+    handle_get_variable,
+    handle_get_variable_keys,
+    handle_mask_secret,
+)
 from airflow.sdk.execution_time.supervisor import (
     MIN_HEARTBEAT_INTERVAL,
     SOCKET_CLEANUP_TIMEOUT,
     WatchedSubprocess,
+    _ensure_client,
     _make_process_nondumpable,
 )
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
+
+    from airflow.sdk.api.client import Client
 
     # Core (airflow.executors.workloads.base.BundleInfo) and SDK (airflow.sdk.api.datamodels._generated.BundleInfo)
     # are structurally identical, but MyPy treats them as different types. This Protocol makes MyPy happy.
     class _BundleInfoLike(Protocol):
         name: str
         version: str | None
+        version_data: dict[str, Any] | None
 
 
 __all__ = ["CallbackSubprocess", "supervise_callback"]
@@ -52,9 +75,20 @@ __all__ = ["CallbackSubprocess", "supervise_callback"]
 log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_supervisor")
 
 
+# The set of messages that a callback subprocess can send to the supervisor.
+# This is a minimal subset of ToSupervisor: read-only access to Connections
+# and Variables, plus MaskSecret for the secrets masker.
+CallbackToSupervisor = Annotated[
+    GetConnection | GetVariable | GetVariableKeys | MaskSecret,
+    Field(discriminator="type"),
+]
+
+
 def execute_callback(
     callback_path: str,
     callback_kwargs: dict,
+    dag_rel_path: os.PathLike[str],
+    bundle_path: os.PathLike[str] | None,
     log,
 ) -> tuple[bool, str | None]:
     """
@@ -73,6 +107,8 @@ def execute_callback(
 
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
+    :param dag_rel_path: Relative path to the DAG file.
+    :param bundle_path: Path to the bundle file.
     :param log: Logger instance for recording execution.
     :return: Tuple of (success: bool, error_message: str | None)
     """
@@ -83,7 +119,23 @@ def execute_callback(
         # Import the callback callable
         # Expected format: "module.path.to.function_or_class"
         module_path, function_name = callback_path.rsplit(".", 1)
-        module = import_module(module_path)
+        # If the callback is defined within the Dag module, the module path is modified during DAG serialization.
+        # Attempt to import it using the path of the Dag file.
+        if module_path.startswith(UNUSUAL_MODULE_PREFIX):
+            if not dag_rel_path:
+                return False, "Dag relative path not found."
+            if not bundle_path:
+                return False, "Bundle path not found."
+            abs_path = Path(bundle_path) / Path(dag_rel_path)
+            spec = spec_from_file_location(module_path, abs_path)
+            if spec is None:
+                return False, f"Could not create module spec for {module_path}"
+            if spec.loader is None:
+                return False, f"Module spec has no loader for {module_path}"
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+        else:
+            module = import_module(module_path)
         callback_callable = getattr(module, function_name)
 
         log.debug("Executing callback", callback_path=callback_path, callback_kwargs=callback_kwargs)
@@ -123,14 +175,6 @@ def execute_callback(
         return False, error_msg
 
 
-# An empty message set; the callback subprocess doesn't currently communicate back to the
-# supervisor. This means callback code cannot access runtime services like Connection.get()
-# or Variable.get() which require the supervisor to pass requests to the API server.
-# To enable this, add the needed message types here and implement _handle_request accordingly.
-# See ActivitySubprocess.decoder in supervisor.py for the full task message set and examples.
-_EmptyMessage: TypeAdapter[None] = TypeAdapter(None)
-
-
 @attrs.define(kw_only=True)
 class CallbackSubprocess(WatchedSubprocess):
     """
@@ -138,9 +182,15 @@ class CallbackSubprocess(WatchedSubprocess):
 
     Uses the WatchedSubprocess infrastructure for fork/monitor/signal handling
     while keeping a simple lifecycle: start, run callback, exit.
+
+    Provides a limited set of comms channels (Connections and Variables) so
+    that callback code can access runtime services like
+    ``Connection.get()`` and ``Variable.get()`` via the supervisor's API client.
     """
 
-    decoder: ClassVar[TypeAdapter] = _EmptyMessage
+    client: Client  # The HTTP client to use for communication with the API server.
+
+    decoder: ClassVar[TypeAdapter[CallbackToSupervisor]] = TypeAdapter(CallbackToSupervisor)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -149,7 +199,9 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
+        dag_rel_path: os.PathLike[str],
         bundle_info: _BundleInfoLike | None = None,
+        client: Client,
         logger: FilteringBoundLogger | None = None,
         **kwargs,
     ) -> Self:
@@ -159,7 +211,12 @@ class CallbackSubprocess(WatchedSubprocess):
         # ONLY works because WatchedSubprocess.start() uses os.fork(), so the child
         # inherits the parent's memory space and the variables are available directly.
         def _target():
+            from airflow.sdk.execution_time import task_runner
+            from airflow.sdk.execution_time.comms import CommsDecoder, ToTask
+
             _log = structlog.get_logger(logger_name="callback_runner")
+            task_runner.SUPERVISOR_COMMS = CommsDecoder[ToTask, CallbackToSupervisor](log=_log)
+            bundle_path = None
 
             # If bundle info is provided, initialize the bundle and ensure its path is importable.
             # This is needed for user-defined callbacks that live inside a DAG bundle rather than
@@ -171,6 +228,7 @@ class CallbackSubprocess(WatchedSubprocess):
                     bundle = DagBundlesManager().get_bundle(
                         name=bundle_info.name,
                         version=bundle_info.version,
+                        version_data=bundle_info.version_data,
                     )
                     bundle.initialize()
                     if (bundle_path := str(bundle.path)) not in sys.path:
@@ -185,13 +243,20 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
-            success, error_msg = execute_callback(callback_path, callback_kwargs, _log)
+            success, error_msg = execute_callback(
+                callback_path=callback_path,
+                callback_kwargs=callback_kwargs,
+                dag_rel_path=dag_rel_path,
+                bundle_path=bundle_path,
+                log=_log,
+            )
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
 
         return super().start(
             id=UUID(id) if not isinstance(id, UUID) else id,
+            client=client,
             target=_target,
             logger=logger,
             **kwargs,
@@ -201,8 +266,8 @@ class CallbackSubprocess(WatchedSubprocess):
         """
         Wait for the callback subprocess to complete.
 
-        Mirrors the structure of ActivitySubprocess.wait() but without heartbeating,
-        task API state management, or log uploading.
+        Mirrors the structure of ActivitySubprocess.wait() but without heartbeating
+        or task API state management.
         """
         if self._exit_code is not None:
             return self._exit_code
@@ -213,7 +278,28 @@ class CallbackSubprocess(WatchedSubprocess):
             self.selector.close()
 
         self._exit_code = self._exit_code if self._exit_code is not None else 1
+
+        self._upload_logs()
+
         return self._exit_code
+
+    def _get_callback_execution_timeout(self) -> int:
+        """Read the callback_execution_timeout config value."""
+        from airflow.sdk.configuration import conf
+
+        return conf.getint("callbacks", "callback_execution_timeout", fallback=0)
+
+    def _upload_logs(self):
+        from airflow.sdk.execution_time.supervisor import _remote_logging_conn
+        from airflow.sdk.log import upload_to_remote
+
+        try:
+            with _remote_logging_conn(self.client):
+                upload_to_remote(self.process_log)
+        except Exception:
+            log.exception(
+                "Failed to upload callback logs to remote storage", callback_id=self.id, pid=self.pid
+            )
 
     def _monitor_subprocess(self):
         """
@@ -221,9 +307,28 @@ class CallbackSubprocess(WatchedSubprocess):
 
         A simplified version of ActivitySubprocess._monitor_subprocess() without heartbeating
         or timeout handling, just process output monitoring and stuck-socket cleanup.
+
+        If ``[callbacks] callback_execution_timeout`` is set to a positive value, the subprocess
+        is killed after that many seconds.
         """
+        timeout = self._get_callback_execution_timeout()
+        start_monotonic = time.monotonic()
+
         while self._exit_code is None or self._open_sockets:
             self._service_subprocess(max_wait_time=MIN_HEARTBEAT_INTERVAL)
+
+            # Enforce execution timeout if configured.
+            if timeout > 0 and self._exit_code is None:
+                elapsed = time.monotonic() - start_monotonic
+                if elapsed > timeout:
+                    log.warning(
+                        "Callback execution timeout exceeded; terminating subprocess",
+                        pid=self.pid,
+                        timeout_seconds=timeout,
+                        elapsed_seconds=elapsed,
+                    )
+                    self.kill(signal.SIGTERM, escalation_delay=5.0, force=True)
+                    break
 
             # If the process has exited but sockets remain open, apply a timeout
             # to prevent hanging indefinitely on stuck sockets.
@@ -241,19 +346,49 @@ class CallbackSubprocess(WatchedSubprocess):
                     )
                     self._cleanup_open_sockets()
 
-    def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
-        """Handle incoming requests from the callback subprocess (currently none expected)."""
-        log.warning("Unexpected request from callback subprocess", msg=msg)
+    def _handle_request(self, msg: CallbackToSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
+        """Handle incoming requests from the callback subprocess."""
+        if isinstance(msg, MaskSecret):
+            log.debug("Received request from callback (body omitted)", msg=type(msg))
+        else:
+            log.debug("Received request from callback", msg=msg)
+
+        resp: BaseModel | None = None
+        dump_opts: dict[str, bool] = {}
+
+        if isinstance(msg, GetConnection):
+            resp, dump_opts = handle_get_connection(self.client, msg)
+        elif isinstance(msg, GetVariable):
+            resp, dump_opts = handle_get_variable(self.client, msg)
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
+        elif isinstance(msg, MaskSecret):
+            handle_mask_secret(msg)
+        else:
+            log.warning("Unhandled request from callback subprocess", msg=msg)
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(
+                    error=ErrorType.API_SERVER_ERROR,
+                    detail={"status_code": 400, "message": "Unhandled request"},
+                ),
+            )
+            return
+
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
 
-def _configure_logging(log_path: str) -> tuple[FilteringBoundLogger, BinaryIO]:
+def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO]:
     """Configure file-based logging for the callback subprocess."""
+    from airflow.sdk.execution_time.supervisor import _remote_logging_conn
     from airflow.sdk.log import init_log_file, logging_processors
 
     log_file = init_log_file(log_path)
     log_file_descriptor: BinaryIO = log_file.open("ab")
     underlying_logger = structlog.BytesLogger(log_file_descriptor)
-    processors = logging_processors(json_output=True)
+    with _remote_logging_conn(client):
+        processors = logging_processors(json_output=True)
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="callback").bind()
 
     return logger, log_file_descriptor
@@ -264,8 +399,12 @@ def supervise_callback(
     id: str,
     callback_path: str,
     callback_kwargs: dict,
+    dag_rel_path: os.PathLike[str],
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
+    token: str = "",
+    server: str | None = None,
+    client: Client | None = None,
 ) -> int:
     """
     Run a single callback execution to completion in a supervised subprocess.
@@ -273,8 +412,12 @@ def supervise_callback(
     :param id: Unique identifier for this callback execution.
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
+    :param dag_rel_path: Relative path to the DAG file.
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
+    :param token: Authentication token for the API client.
+    :param server: Base URL of the API server.
+    :param client: Optional preconfigured client for communication with the server (mostly for tests).
     :return: Exit code of the subprocess (0 = success).
     """
     _make_process_nondumpable()
@@ -283,35 +426,37 @@ def supervise_callback(
 
     logger: FilteringBoundLogger
     log_file_descriptor: BinaryIO | None = None
-    if log_path:
-        logger, log_file_descriptor = _configure_logging(log_path)
-    else:
-        # When no log file is requested, still use a callback-specific logger
-        # so logs are clearly separated from task logs.
-        logger = structlog.get_logger(logger_name="callback").bind()
 
-    try:
-        process = CallbackSubprocess.start(
-            id=id,
-            callback_path=callback_path,
-            callback_kwargs=callback_kwargs,
-            bundle_info=bundle_info,
-            logger=logger,
-            subprocess_logs_to_stdout=True,
-        )
+    with _ensure_client(server, token, client=client) as client:
+        if log_path:
+            logger, log_file_descriptor = _configure_logging(log_path, client)
+        else:
+            logger = structlog.get_logger(logger_name="callback").bind()
 
-        exit_code = process.wait()
-        end = time.monotonic()
-        log.info(
-            "Workload finished",
-            workload_type="ExecutorCallback",
-            workload_id=id,
-            exit_code=exit_code,
-            duration=end - start,
-        )
-        if exit_code != 0:
-            raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
-        return exit_code
-    finally:
-        if log_path and log_file_descriptor:
-            log_file_descriptor.close()
+        try:
+            process = CallbackSubprocess.start(
+                id=id,
+                callback_path=callback_path,
+                callback_kwargs=callback_kwargs,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
+                client=client,
+                logger=logger,
+                subprocess_logs_to_stdout=True,
+            )
+
+            exit_code = process.wait()
+            end = time.monotonic()
+            log.info(
+                "Workload finished",
+                workload_type="ExecutorCallback",
+                workload_id=id,
+                exit_code=exit_code,
+                duration=end - start,
+            )
+            if exit_code != 0:
+                raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
+            return exit_code
+        finally:
+            if log_path and log_file_descriptor:
+                log_file_descriptor.close()

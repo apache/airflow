@@ -67,10 +67,10 @@ class ConfigChange:
     breaking: bool = False
     remove_if_equals: str | bool | int | float | None = None
 
-    def message(self, api_client=NEW_API_CLIENT) -> str | None:
+    def message(self, all_configs: Config) -> str | None:
         """Generate a message for this configuration change."""
         if self.default_change:
-            value = self._get_option_value(api_client.configs.list())
+            value = self._get_option_value(all_configs)
             if value != self.new_default:
                 return (
                     f"Changed default value of `{self.config.option}` in `{self.config.section}` "
@@ -86,14 +86,15 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        if self.was_removed and not self.remove_if_equals:
-            return (
-                f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
-                f"from `{self.config.section}` section."
-                f"{self.suggestion}"
-            )
+        if self.was_removed:
+            if self.remove_if_equals is None:
+                return self._removed_message
+
+            value = self._get_option_value(all_configs)
+            if value == str(self.remove_if_equals):
+                return self._removed_message
         if self.is_invalid_if is not None:
-            value = self._get_option_value(api_client.configs.list())
+            value = self._get_option_value(all_configs)
             if value == self.is_invalid_if:
                 return (
                     f"Invalid value `{self.is_invalid_if}` set for `{self.config.option}` configuration parameter "
@@ -108,6 +109,14 @@ class ConfigChange:
                     if option.key == self.config.option:
                         return option.value if isinstance(option.value, str) else str(option.value)
         return None
+
+    @property
+    def _removed_message(self) -> str:
+        return (
+            f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
+            f"from `{self.config.section}` section."
+            f"{self.suggestion}"
+        )
 
 
 CONFIGS_CHANGES = [
@@ -540,9 +549,9 @@ CONFIGS_CHANGES = [
         was_removed=False,
         new_default="False",
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
-        "This means that DAGs without explicit definition of the `catchup` parameter will not "
+        "This means that Dags without explicit definition of the `catchup` parameter will not "
         "catchup by default. "
-        "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
+        "If your Dags rely on catchup behavior, not explicitly defined in the Dag definition, "
         "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
         "to enable the behavior from Airflow 2.x.",
         breaking=True,
@@ -805,8 +814,9 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
                     None,
                 )
                 if target_option:
-                    if configuration.message(api_client=api_client) is not None:
-                        lint_issues.append(configuration.message(api_client=api_client))
+                    msg = configuration.message(all_configs)
+                    if msg is not None:
+                        lint_issues.append(msg)
 
         if lint_issues:
             rich.print("[red]Found issues in your airflow.cfg:[/red]")

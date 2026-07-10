@@ -23,10 +23,14 @@ from unittest.mock import ANY
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody
+from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
 from airflow.models.team import Team
 from airflow.models.variable import Variable
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -53,6 +57,10 @@ TEST_VARIABLE_KEY5 = "nested_dictionary_variable"
 TEST_VARIABLE_VALUE5 = '{"config": {"password": "some_password", "next": {"api_key": "some_api_key", "next_again": {"token": "some_token"}}}}'
 TEST_VARIABLE_DESCRIPTION5 = "Variable with a nested sensitive key"
 
+TEST_VARIABLE_KEY6 = "db_password"
+TEST_VARIABLE_VALUE6 = '{"config": "actual_secret"}'
+TEST_VARIABLE_DESCRIPTION6 = "Variable with a sensitive key name and JSON value with non-sensitive inner keys"
+
 TEST_VARIABLE_KEY4 = "test_variable_key/with_slashes"
 TEST_VARIABLE_VALUE4 = "test_variable_value"
 TEST_VARIABLE_DESCRIPTION4 = "Some description for the variable"
@@ -69,7 +77,7 @@ def create_file_upload(content: dict) -> BytesIO:
 
 
 @provide_session
-def _create_variables(session) -> None:
+def _create_variables(*, session: Session = NEW_SESSION) -> None:
     team = session.scalars(select(Team).where(Team.name == "test")).one()
 
     Variable.set(
@@ -115,9 +123,16 @@ def _create_variables(session) -> None:
         session=session,
     )
 
+    Variable.set(
+        key=TEST_VARIABLE_KEY6,
+        value=TEST_VARIABLE_VALUE6,
+        description=TEST_VARIABLE_DESCRIPTION6,
+        session=session,
+    )
+
 
 @provide_session
-def _create_team(session) -> None:
+def _create_team(*, session: Session = NEW_SESSION) -> None:
     session.add(Team(name="test"))
     session.commit()
 
@@ -126,7 +141,6 @@ class TestVariableEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self):
         clear_db_variables()
-        clear_db_teams()
         with conf_vars({("core", "multi_team"): "True"}):
             yield
 
@@ -143,13 +157,13 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
         variables = session.scalars(select(Variable)).all()
-        assert len(variables) == 6
+        assert len(variables) == 7
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY4}")
         assert response.status_code == 204
         variables = session.scalars(select(Variable)).all()
-        assert len(variables) == 4
+        assert len(variables) == 5
         check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
@@ -232,6 +246,16 @@ class TestGetVariable(TestVariableEndpoint):
                     "team_name": None,
                 },
             ),
+            (
+                TEST_VARIABLE_KEY6,
+                {
+                    "key": TEST_VARIABLE_KEY6,
+                    "value": '{"config": "***"}',
+                    "description": TEST_VARIABLE_DESCRIPTION6,
+                    "is_encrypted": True,
+                    "team_name": None,
+                },
+            ),
         ],
     )
     def test_get_should_respond_200(self, test_client, session, key, expected_response):
@@ -254,6 +278,32 @@ class TestGetVariable(TestVariableEndpoint):
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
 
+    def test_get_should_respond_200_with_null_value_when_decryption_fails(self, test_client, session):
+        """
+        Regression test for https://github.com/apache/airflow/pull/65452.
+
+        If the stored value cannot be decrypted (for example after a Fernet key
+        rotation) ``Variable.get_val`` returns ``None``. The endpoint must then
+        respond with HTTP 200 and ``"value": null`` instead of failing with an
+        HTTP 500 caused by response-schema validation.
+        """
+        from cryptography.fernet import InvalidToken
+
+        self.create_variables()
+        with mock.patch("airflow.models.variable.get_fernet") as mock_get_fernet:
+            mock_get_fernet.return_value.decrypt.side_effect = InvalidToken
+            response = test_client.get(f"/variables/{TEST_VARIABLE_KEY}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body == {
+            "key": TEST_VARIABLE_KEY,
+            "value": None,
+            "description": TEST_VARIABLE_DESCRIPTION,
+            "is_encrypted": True,
+            "team_name": None,
+        }
+
 
 class TestGetVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
@@ -263,7 +313,7 @@ class TestGetVariables(TestVariableEndpoint):
             # Filters
             (
                 {},
-                6,
+                7,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
@@ -271,14 +321,15 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY5,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
-            ({"limit": 1}, 6, [TEST_VARIABLE_KEY]),
-            ({"limit": 1, "offset": 1}, 6, [TEST_VARIABLE_KEY2]),
+            ({"limit": 1}, 7, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 7, [TEST_VARIABLE_KEY2]),
             # Sort
             (
                 {"order_by": "id"},
-                6,
+                7,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
@@ -286,12 +337,14 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY5,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
             (
                 {"order_by": "-id"},
-                6,
+                7,
                 [
+                    TEST_VARIABLE_KEY6,
                     TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
@@ -302,8 +355,9 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "key"},
-                6,
+                7,
                 [
+                    TEST_VARIABLE_KEY6,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY2,
@@ -314,7 +368,7 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "-key"},
-                6,
+                7,
                 [
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
@@ -322,12 +376,13 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
             # Search
             (
                 {"variable_key_pattern": "~"},
-                6,
+                7,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
@@ -335,9 +390,11 @@ class TestGetVariables(TestVariableEndpoint):
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY5,
+                    TEST_VARIABLE_KEY6,
                 ],
             ),
             ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
+            ({"variable_key_prefix_pattern": "test_variable_search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
         ],
     )
     def test_should_respond_200(
@@ -1448,3 +1505,26 @@ class TestBulkVariables(TestVariableEndpoint):
 
         expected_error_keys = {err["input"]["key"] for err in detail}
         assert sorted(expected_error_keys) == ["var_2", "var_3"]
+
+    @pytest.mark.parametrize("num_variables", [1, 25])
+    def test_bulk_delete_resolves_existence_in_single_query(self, session, num_variables):
+        """Bulk delete looks up all targeted variables in one query, not one per key (no N+1)."""
+        keys = [f"bulk_delete_var_{i}" for i in range(num_variables)]
+        for key in keys:
+            Variable.set(key=key, value="value", session=session)
+        session.commit()
+
+        request = BulkBody[VariableBody].model_validate(
+            {"actions": [{"action": "delete", "entities": keys, "action_on_non_existence": "skip"}]}
+        )
+        service = BulkVariableService(session=session, request=request)
+
+        # Only the single existence-lookup SELECT runs here; deletes flush later on commit.
+        with assert_queries_count(1):
+            response = service.handle_request()
+
+        assert response.delete is not None
+        assert sorted(response.delete.success) == sorted(keys)
+
+        session.commit()
+        assert session.scalars(select(Variable.key).where(Variable.key.in_(keys))).all() == []

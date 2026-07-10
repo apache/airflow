@@ -19,14 +19,24 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from pydantic import AliasPath, AwareDatetime, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
+from pydantic import (
+    AliasPath,
+    AwareDatetime,
+    ConfigDict,
+    Field,
+    JsonValue,
+    NonNegativeInt,
+    StringConstraints,
+    field_validator,
+)
 
 from airflow._shared.secrets_masker import redact
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
+from airflow.models.base import ID_LEN
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -34,7 +44,7 @@ if TYPE_CHECKING:
 
 
 class DagScheduleAssetReference(StrictBaseModel):
-    """DAG schedule reference serializer for assets."""
+    """Dag schedule reference serializer for assets."""
 
     dag_id: str
     created_at: datetime
@@ -179,12 +189,22 @@ class QueuedEventCollectionResponse(BaseModel):
     total_entries: int
 
 
+class AssetEventAccessControl(StrictBaseModel):
+    """Access control settings for asset event consumer team filtering."""
+
+    consumer_teams: list[str] | None = None
+    allow_global: bool = True
+
+
 class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 
     asset_id: int
-    partition_key: str | None = None
+    # pattern (not strip_whitespace) so the value isn't mutated — must stay byte-identical to what
+    # `_validate_outlet_event_partition_keys` in the Execution API accepts for the same raw input.
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)] | None = None
     extra: dict = Field(default_factory=dict)
+    access_control: AssetEventAccessControl | None = None
 
     @field_validator("extra", mode="after")
     def set_from_rest_api(cls, v: dict) -> dict:

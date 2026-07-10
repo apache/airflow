@@ -58,7 +58,7 @@ from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
+from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
@@ -168,7 +168,8 @@ class S3Hook(AwsBaseHook):
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("s3") <S3.Client>`
     and :external+boto3:py:class:`boto3.resource("s3") <S3.ServiceResource>`.
 
-    :param transfer_config_args: Configuration object for managed S3 transfers.
+    :param transfer_config_args: Default Configuration object for managed S3 transfers.
+        Can also be set in the service_config.
     :param extra_args: Extra arguments that may be passed to the download/upload operations.
 
     .. seealso::
@@ -198,13 +199,20 @@ class S3Hook(AwsBaseHook):
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
             raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
-        self.transfer_config = TransferConfig(**transfer_config_args or {})
+        self._transfer_config_args = transfer_config_args or {}
 
         if extra_args and not isinstance(extra_args, dict):
             raise TypeError(f"extra_args expected dict, got {type(extra_args).__name__}.")
         self._extra_args = extra_args or {}
 
         super().__init__(*args, **kwargs)
+
+    @property
+    def transfer_config(self):
+        if not hasattr(self, "_transfer_config"):
+            self._transfer_config_args.update(self.service_config.get("transfer_config_args", {}))
+            self._transfer_config = TransferConfig(**self._transfer_config_args)
+        return self._transfer_config
 
     @cached_property
     def resource(self):
@@ -1621,12 +1629,18 @@ class S3Hook(AwsBaseHook):
         extra_args = {**self.extra_args}
         if self._requester_pays:
             extra_args["RequestPayer"] = "requester"
-        s3_obj.download_fileobj(
-            file,
-            ExtraArgs=extra_args,
-            Config=self.transfer_config,
-        )
-        file.flush()
+        try:
+            s3_obj.download_fileobj(
+                file,
+                ExtraArgs=extra_args,
+                Config=self.transfer_config,
+            )
+            file.flush()
+        finally:
+            # The file is created with delete=False / opened by us, so closing the
+            # handle keeps the data on disk while releasing the descriptor even when
+            # the download raises.
+            file.close()
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
@@ -1796,6 +1810,7 @@ class S3Hook(AwsBaseHook):
         """Download S3 files from the S3 bucket to the local directory."""
         self.log.debug("Downloading data from s3://%s/%s to %s", bucket_name, s3_prefix, local_dir)
 
+        local_dir_resolved = local_dir.resolve()
         local_s3_objects = []
         s3_bucket = self.get_bucket(bucket_name)
         for obj in s3_bucket.objects.filter(Prefix=s3_prefix):
@@ -1803,6 +1818,12 @@ class S3Hook(AwsBaseHook):
                 continue
             obj_path = Path(obj.key)
             local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
+            try:
+                local_target_path.resolve().relative_to(local_dir_resolved)
+            except ValueError:
+                raise S3HookPathTraversalError(
+                    f"S3 object key {obj.key!r} resolves outside local directory {local_dir}"
+                ) from None
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)

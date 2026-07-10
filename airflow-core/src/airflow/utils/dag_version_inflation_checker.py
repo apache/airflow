@@ -21,24 +21,26 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-RUNTIME_VARYING_CALLS = [
-    ("datetime", "now"),
-    ("datetime", "today"),
-    ("datetime", "utcnow"),
-    ("date", "today"),
-    ("time", "time"),
-    ("time", "localtime"),
-    ("random", "random"),
-    ("random", "randint"),
-    ("random", "choice"),
-    ("random", "uniform"),
-    ("uuid", "uuid4"),
-    ("uuid", "uuid1"),
-    ("pendulum", "now"),
-    ("pendulum", "today"),
-    ("pendulum", "yesterday"),
-    ("pendulum", "tomorrow"),
-]
+RUNTIME_VARYING_CALLS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("datetime", "now"),
+        ("datetime", "today"),
+        ("datetime", "utcnow"),
+        ("date", "today"),
+        ("time", "time"),
+        ("time", "localtime"),
+        ("random", "random"),
+        ("random", "randint"),
+        ("random", "choice"),
+        ("random", "uniform"),
+        ("uuid", "uuid4"),
+        ("uuid", "uuid1"),
+        ("pendulum", "now"),
+        ("pendulum", "today"),
+        ("pendulum", "yesterday"),
+        ("pendulum", "tomorrow"),
+    }
+)
 
 
 class DagVersionInflationCheckLevel(Enum):

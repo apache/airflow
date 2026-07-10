@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-winrm"
-version = "3.14.2"
+version = "3.14.4"
 description = "Provider package apache-airflow-providers-microsoft-winrm for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -62,6 +62,10 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "pywinrm>=0.5.0",
+    # pywinrm imports ``spnego.ContextProxy``, which pyspnego only exposes from 0.4.0 onwards.
+    # Floor it directly so lowest-dependency resolution does not pick a pre-0.4.0 pyspnego
+    # (which fails at import time with ``module 'spnego' has no attribute 'ContextProxy'``).
+    "pyspnego>=0.4.0",
 ]
 
 [dependency-groups]
@@ -99,8 +103,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.14.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.14.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.14.4"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.14.4/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -112,3 +116,15 @@ provider_info = "airflow.providers.microsoft.winrm.get_provider_info:get_provide
 
 [tool.flit.module]
 name = "airflow.providers.microsoft.winrm"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/microsoft/__init__.py",
+    "tests/",
+]

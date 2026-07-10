@@ -21,9 +21,11 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Hashable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
@@ -64,6 +66,13 @@ class BundleInfo(BaseModel):
 
     name: str
     version: str | None = None
+    version_data: dict[str, Any] | None = None
+    """Optional structured metadata for this bundle version (e.g., an S3 object manifest).
+
+    This field is serialized on every workload payload — executor command-line argv for
+    K8s/ECS/Batch/Lambda, message body for Celery/SQS. Keep payloads small to avoid hitting
+    transport limits (ARG_MAX is ~128 KB on Linux; the etcd PodSpec ceiling is ~1.5 MB).
+    """
 
 
 class BaseWorkloadSchema(BaseModel):
@@ -76,7 +85,13 @@ class BaseWorkloadSchema(BaseModel):
 
     @staticmethod
     def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
-        return generator.generate({"sub": sub_id}) if generator else ""
+        if not generator:
+            return ""
+        valid_for = conf.getfloat("scheduler", "task_queued_timeout")
+        return generator.generate(
+            extras={"sub": sub_id, "scope": "workload"},
+            valid_for=valid_for,
+        )
 
 
 class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):

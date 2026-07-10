@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-openlineage``
 
-Release: ``2.14.0``
+Release: ``2.19.0``
 
 
 `OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.
@@ -37,7 +37,7 @@ This is a provider package for ``openlineage`` provider. All classes for this pr
 are in ``airflow.providers.openlineage`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.14.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.19.0/>`_.
 
 Installation
 ------------
@@ -56,31 +56,11 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.3``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``attrs``                                   ``>=22.2``
-``openlineage-integration-common``          ``>=1.41.0``
-``openlineage-python``                      ``>=1.41.0``
+``openlineage-integration-common``          ``>=1.47.0``
+``openlineage-python``                      ``>=1.47.0``
 ==========================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-openlineage[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-==================================================================================================================  =================
 
 Optional dependencies
 ----------------------
@@ -92,4 +72,4 @@ Extra           Dependencies
 ==============  ======================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.14.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.19.0/changelog.html>`_.

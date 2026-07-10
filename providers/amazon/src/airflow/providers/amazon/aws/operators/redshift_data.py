@@ -120,14 +120,16 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         if poll_interval > 0:
             self.poll_interval = poll_interval
         else:
-            self.log.warning(
-                "Invalid poll_interval:",
-                poll_interval,
-            )
+            self.log.warning("Invalid poll_interval: %s", poll_interval)
         self.return_sql_result = return_sql_result
         self.deferrable = deferrable
         self.session_id = session_id
         self.session_keep_alive_seconds = session_keep_alive_seconds
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "deferrable=True and wait_for_completion=False are set; deferrable will be "
+                "ignored and this task will run non-deferrable."
+            )
 
     def execute(self, context: Context) -> list[GetStatementResultResponseTypeDef] | list[str]:
         """Execute a statement against Amazon Redshift."""

@@ -29,6 +29,7 @@ import os
 import re
 import ssl
 from collections.abc import Iterable
+from email.header import decode_header, make_header
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -192,6 +193,7 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
+        overwrite: bool = True,
     ) -> None:
         """
         Download mail's attachments in the mail folder by its name to the local directory.
@@ -210,6 +212,8 @@ class ImapHook(BaseHook):
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
+        :param overwrite: If True (default), existing files are overwritten. If False, a unique
+            suffix is added to avoid overwriting.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, max_mails, mail_folder, mail_filter
@@ -218,7 +222,7 @@ class ImapHook(BaseHook):
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
 
-        self._create_files(mail_attachments, local_output_directory)
+        self._create_files(mail_attachments, local_output_directory, overwrite=overwrite)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
         if not_found_mode not in ("raise", "warn", "ignore"):
@@ -286,14 +290,31 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
+    def _create_files(
+        self, mail_attachments: list, local_output_directory: str, overwrite: bool = True
+    ) -> None:
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
                 self.log.error("Can not create file because it is escaping the current directory!")
             else:
-                self._create_file(name, payload, local_output_directory)
+                self._create_file(name, payload, local_output_directory, overwrite=overwrite)
+
+    def _create_file(
+        self, name: str, payload: Any, local_output_directory: str, overwrite: bool = True
+    ) -> None:
+        file_path = self._correct_path(name, local_output_directory)
+
+        if not overwrite:
+            base, ext = os.path.splitext(file_path)
+            counter = 1
+            while os.path.exists(file_path):
+                file_path = f"{base}_{counter}{ext}"
+                counter += 1
+
+        with open(file_path, "wb") as file:
+            file.write(payload)
 
     def _is_symlink(self, name: str) -> bool:
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
@@ -301,20 +322,14 @@ class ImapHook(BaseHook):
         return os.path.islink(name)
 
     def _is_escaping_current_directory(self, name: str) -> bool:
-        return "../" in name
+        return f"..{os.sep}" in name
 
     def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
             local_output_directory + name
-            if local_output_directory.endswith("/")
-            else local_output_directory + "/" + name
+            if local_output_directory.endswith(os.sep)
+            else local_output_directory + os.sep + name
         )
-
-    def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
-        file_path = self._correct_path(name, local_output_directory)
-
-        with open(file_path, "wb") as file:
-            file.write(payload)
 
 
 class Mail(LoggingMixin):
@@ -388,6 +403,19 @@ class MailPart:
         """
         return self.part.get_content_maintype() != "multipart" and self.part.get("Content-Disposition")
 
+    @staticmethod
+    def _decode_filename(filename: str | None) -> str | None:
+        """
+        Decode a filename that may contain RFC 2047 encoded segments.
+
+        :param filename: The filename extracted from the email part. It may contain
+            plain text, RFC 2047 encoded text, or a mix of both.
+        :returns: The decoded Unicode filename, or the original value if decoding fails.
+        """
+        if filename is None:
+            return ""
+        return str(make_header(decode_header(filename)))
+
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
         Check if the given name matches the part's name.
@@ -395,7 +423,7 @@ class MailPart:
         :param name: The name to look for.
         :returns: True if it matches the name (including regular expression).
         """
-        return re.match(name, self.part.get_filename())  # type: ignore
+        return re.match(name, self._decode_filename(self.part.get_filename()))  # type: ignore
 
     def has_equal_name(self, name: str) -> bool:
         """
@@ -404,7 +432,7 @@ class MailPart:
         :param name: The name to look for.
         :returns: True if it is equal to the given name.
         """
-        return self.part.get_filename() == name
+        return self._decode_filename(self.part.get_filename()) == name
 
     def get_file(self) -> tuple:
         """
@@ -412,4 +440,4 @@ class MailPart:
 
         :returns: the part's name and payload.
         """
-        return self.part.get_filename(), self.part.get_payload(decode=True)
+        return self._decode_filename(self.part.get_filename()), self.part.get_payload(decode=True)

@@ -25,8 +25,11 @@ import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
+import { NOTE_GRADIENT } from "./constants";
+
 type Props = {
   readonly dagId: string;
+  readonly hasNote?: boolean;
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
@@ -36,7 +39,16 @@ type Props = {
   readonly taskId: string;
 };
 
-export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
+export const GridTI = ({
+  dagId,
+  hasNote = false,
+  instance,
+  isGroup,
+  isMapped,
+  onClick,
+  runId,
+  taskId,
+}: Props) => {
   const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const location = useLocation();
@@ -80,7 +92,12 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
       py={0}
       transition="background-color 0.2s"
     >
-      <TaskInstanceTooltip openDelay={500} positioning={{ placement: "bottom" }} taskInstance={instance}>
+      <TaskInstanceTooltip
+        openDelay={500}
+        positioning={{ placement: "bottom" }}
+        runId={runId}
+        taskInstance={instance}
+      >
         <Box as="span" display="inline-block">
           <Link
             data-testid={`grid-${runId}-${taskId}`}
@@ -102,6 +119,7 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
               justifyContent="center"
               minH={0}
               p={0}
+              style={hasNote ? { background: NOTE_GRADIENT } : undefined}
               variant="solid"
               width="14px"
             >

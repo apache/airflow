@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
+    S3CopyPrefixOperator,
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
@@ -30,6 +31,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3ListOperator,
     S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
+    S3ReadObjectOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.providers.common.compat.sdk import DAG, chain
@@ -141,6 +143,14 @@ with DAG(
         replace=True,
     )
 
+    # [START howto_operator_s3_read_object]
+    read_object = S3ReadObjectOperator(
+        task_id="read_object",
+        s3_bucket=bucket_name,
+        s3_key=key,
+    )
+    # [END howto_operator_s3_read_object]
+
     # [START howto_operator_s3_list_prefixes]
     list_prefixes = S3ListPrefixesOperator(
         task_id="list_prefixes",
@@ -245,6 +255,16 @@ with DAG(
     )
     # [END howto_operator_s3_copy_object]
 
+    # [START howto_operator_s3_copy_prefix]
+    copy_prefix = S3CopyPrefixOperator(
+        task_id="copy_prefix",
+        source_bucket_name=bucket_name,
+        source_bucket_prefix=f"{env_id}-",
+        dest_bucket_name=bucket_name_2,
+        dest_bucket_prefix=f"{env_id}-copied-",
+    )
+    # [END howto_operator_s3_copy_prefix]
+
     # [START howto_operator_s3_file_transform]
     file_transform = S3FileTransformOperator(
         task_id="file_transform",
@@ -301,6 +321,7 @@ with DAG(
         delete_tagging,
         create_object,
         create_object_2,
+        read_object,
         list_prefixes,
         list_keys,
         [sensor_one_key, sensor_two_keys, sensor_key_with_function, sensor_key_with_regex],
@@ -311,6 +332,7 @@ with DAG(
             sensor_key_with_regex_deferrable,
         ],
         copy_object,
+        copy_prefix,
         file_transform,
         sensor_keys_unchanged,
         # TEST TEARDOWN

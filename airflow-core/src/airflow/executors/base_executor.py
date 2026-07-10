@@ -24,24 +24,46 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import pendulum
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.callback import ExecuteCallback
+from airflow.executors.workloads.connection_test import TestConnection
 from airflow.executors.workloads.task import ExecuteTask
+from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
-from airflow.models.callback import CallbackKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
+
+
+def get_execution_api_server_url(conf_source: AirflowConfigParser | ExecutorConf = conf) -> str:
+    """
+    Resolve the execution API server URL from configuration.
+
+    :param conf_source: Configuration source to read from. Defaults to the global ``conf``.
+        Team-specific executors can pass their own config (e.g. ``ExecutorConf``) to resolve
+        a team-specific URL.
+    """
+    base_url = conf_source.get("api", "base_url", fallback="/")
+    # ExecutorConf.get() is typed as str | None even when fallback= guarantees a str,
+    # so the `not base_url` guard and the cast() below keep mypy happy.
+    if not base_url or base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    return cast(
+        "str", conf_source.get("core", "execution_api_server_url", fallback=default_execution_api_server)
+    )
+
 
 if TYPE_CHECKING:
     import argparse
@@ -49,15 +71,18 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow._shared.logging.remote import StreamingLogResponse
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
+    from airflow.configuration import AirflowConfigParser
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
-    from airflow.executors.workloads.types import WorkloadKey
+    from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.callback import CallbackKey
+    from airflow.models.connection_test import ConnectionTestKey
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Event_buffer dict value type
     # Tuple of: state, info
@@ -147,10 +172,18 @@ class BaseExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = False
     supports_callbacks: bool = False
     supports_multi_team: bool = False
+    # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``)
+    # to bound hook execution. Executors that opt in must run on POSIX systems.
+    supports_connection_test: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
     is_production: bool = True
+
+    # When True, the scheduler pre-assigns external_executor_id (a UUID) at queuing time,
+    # committed atomically with the QUEUED state. The executor can then use this ID to
+    # correlate the task with its external representation (e.g. Celery task_id).
+    pre_assigns_external_executor_id: ClassVar[bool] = False
 
     serve_logs: bool = False
 
@@ -178,8 +211,10 @@ class BaseExecutor(LoggingMixin):
         return generator
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
-        stats_factory = stats_utils.get_stats_factory(Stats)
-        Stats.initialize(factory=stats_factory)
+        stats.initialize(
+            factory=stats_utils.get_stats_factory(),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+        )
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -189,7 +224,8 @@ class BaseExecutor(LoggingMixin):
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
-        self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.queued_callbacks: dict[CallbackKey, workloads.ExecuteCallback] = {}
+        self.queued_connection_tests: dict[ConnectionTestKey, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -219,8 +255,11 @@ class BaseExecutor(LoggingMixin):
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
-    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+    def log_task_event(self, *, event: str, extra: str, ti_key: WorkloadKey):
         """Add an event to the log table."""
+        if not isinstance(ti_key, TaskInstanceKey):
+            self.log.debug("Skipping log_task_event for callback key %s (event=%s)", ti_key, event)
+            return
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
@@ -234,11 +273,19 @@ class BaseExecutor(LoggingMixin):
                     f"Set supports_callbacks = True and implement callback handling in _process_workloads(). "
                     f"See LocalExecutor or CeleryExecutor for reference implementation."
                 )
-            self.queued_callbacks[workload.callback.id] = workload
+            self.queued_callbacks[workload.key] = workload
+        elif isinstance(workload, workloads.TestConnection):
+            if not self.supports_connection_test:
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support TestConnection workloads. "
+                    f"Set supports_connection_test = True and implement connection test handling "
+                    f"in _process_workloads(). See LocalExecutor for reference implementation."
+                )
+            self.queued_connection_tests[workload.key] = workload
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
-                f"Workload must be one of: ExecuteTask, ExecuteCallback."
+                f"Workload must be one of: ExecuteTask, ExecuteCallback, TestConnection."
             )
 
     def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, ExecutorWorkload]]:
@@ -266,7 +313,7 @@ class BaseExecutor(LoggingMixin):
 
         return workloads_to_schedule
 
-    def _process_workloads(self, workloads: Sequence[ExecutorWorkload]) -> None:
+    def _process_workloads(self, workload_items: Sequence[ExecutorWorkload]) -> None:
         """
         Process the given workloads.
 
@@ -274,7 +321,7 @@ class BaseExecutor(LoggingMixin):
         the execution of workloads (e.g., queuing them to workers, submitting to
         external systems, etc.).
 
-        :param workloads: List of workloads to process
+        :param workload_items: List of workloads to process
         """
         raise NotImplementedError(f"{type(self).__name__} must implement _process_workloads()")
 
@@ -304,14 +351,35 @@ class BaseExecutor(LoggingMixin):
         open_slots = self.parallelism - len(self.running)
 
         num_running_workloads = len(self.running)
-        num_queued_workloads = len(self.queued_tasks) + len(self.queued_callbacks)
+        num_queued_workloads = (
+            len(self.queued_tasks) + len(self.queued_callbacks) + len(self.queued_connection_tests)
+        )
 
         self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
 
+        self.trigger_connection_tests()
+
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
+
+    def trigger_connection_tests(self) -> None:
+        """Process queued connection tests, respecting available slot capacity."""
+        if not self.supports_connection_test or not self.queued_connection_tests:
+            return
+
+        available = self.slots_available
+        if available <= 0:
+            return
+
+        tests_to_run = list(self.queued_connection_tests.values())[:available]
+        self._process_workloads(tests_to_run)
+
+    def fail_connection_test(self, key: ConnectionTestKey) -> None:
+        """Drop a connection-test workload from in-memory queues (called by the reaper)."""
+        self.queued_connection_tests.pop(key, None)
+        self.running.discard(key)
 
     def _get_metric_name(self, metric_base_name: str) -> str:
         return (
@@ -342,20 +410,20 @@ class BaseExecutor(LoggingMixin):
         else:
             self.log.debug("%s open slots for executor %s", open_slots, name)
 
-        Stats.gauge(
+        stats.gauge(
             open_slots_metric_name,
             value=open_slots,
-            tags={"status": "open", "name": name},
+            tags=prune_dict({"status": "open", "executor_class_name": name, "team_name": self.team_name}),
         )
-        Stats.gauge(
+        stats.gauge(
             queued_tasks_metric_name,
             value=num_queued_tasks,
-            tags={"status": "queued", "name": name},
+            tags=prune_dict({"status": "queued", "executor_class_name": name, "team_name": self.team_name}),
         )
-        Stats.gauge(
+        stats.gauge(
             running_tasks_metric_name,
             value=num_running_tasks,
-            tags={"status": "running", "name": name},
+            tags=prune_dict({"status": "running", "executor_class_name": name, "team_name": self.team_name}),
         )
 
     def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, workloads.ExecuteTask]]:
@@ -407,9 +475,7 @@ class BaseExecutor(LoggingMixin):
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
     # to FAILED. By using TaskInstanceState enum here it confuses matters!
-    def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
-    ) -> None:
+    def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         """
         Change state of the task.
 
@@ -426,41 +492,41 @@ class BaseExecutor(LoggingMixin):
                 self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
-    def fail(self, key: TaskInstanceKey, info=None) -> None:
+    def fail(self, key: WorkloadKey, info=None) -> None:
         """
         Set fail state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.FAILED, info)
+        self.change_state(key, state_class_for_key(key).FAILED, info)
 
-    def success(self, key: TaskInstanceKey, info=None) -> None:
+    def success(self, key: WorkloadKey, info=None) -> None:
         """
         Set success state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.SUCCESS, info)
+        self.change_state(key, state_class_for_key(key).SUCCESS, info)
 
-    def queued(self, key: TaskInstanceKey, info=None) -> None:
+    def queued(self, key: WorkloadKey, info=None) -> None:
         """
         Set queued state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.QUEUED, info)
+        self.change_state(key, state_class_for_key(key).QUEUED, info)
 
-    def running_state(self, key: TaskInstanceKey, info=None) -> None:
+    def running_state(self, key: WorkloadKey, info=None) -> None:
         """
         Set running state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
+        self.change_state(key, state_class_for_key(key).RUNNING, info, remove_running=False)
 
     def get_event_buffer(self, dag_ids=None) -> dict[WorkloadKey, EventBufferValueType]:
         """
@@ -468,7 +534,7 @@ class BaseExecutor(LoggingMixin):
 
         In case dag_ids is specified it will only return and flush events
         for the given dag_ids. Otherwise, it returns and flushes all events.
-        Note: Callback events (with string keys) are always included regardless of dag_ids filter.
+        Note: Callback events (with CallbackKey keys) are always included regardless of dag_ids filter.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
@@ -479,7 +545,7 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                if isinstance(key, CallbackKey) or key.dag_id in dag_ids:
+                if not isinstance(key, TaskInstanceKey) or key.dag_id in dag_ids:
                     cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events
@@ -493,6 +559,19 @@ class BaseExecutor(LoggingMixin):
         :return: tuple of logs and messages
         """
         return [], []
+
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        """
+        Return a streaming response for task logs.
+
+        Executors that don't implement this method raise ``NotImplementedError``; callers should
+        catch that and fall back to :meth:`get_task_log`.
+
+        :param ti: A TaskInstance object
+        :param try_number: current try_number to read log from
+        :return: StreamingLogResponse
+        """
+        raise NotImplementedError
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
@@ -533,13 +612,24 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new workloads (tasks and callbacks) this executor instance can accept."""
-        return self.parallelism - len(self.running) - len(self.queued_tasks) - len(self.queued_callbacks)
+        """Number of new workloads (tasks, callbacks, and connection tests) this executor instance can accept."""
+        return (
+            self.parallelism
+            - len(self.running)
+            - len(self.queued_tasks)
+            - len(self.queued_callbacks)
+            - len(self.queued_connection_tests)
+        )
 
     @property
     def slots_occupied(self):
-        """Number of workloads (tasks and callbacks) this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks) + len(self.queued_callbacks)
+        """Number of workloads (tasks, callbacks, and connection tests) this executor instance is currently managing."""
+        return (
+            len(self.running)
+            + len(self.queued_tasks)
+            + len(self.queued_callbacks)
+            + len(self.queued_connection_tests)
+        )
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""
@@ -617,14 +707,7 @@ class BaseExecutor(LoggingMixin):
         # Resolve server URL from config when not explicitly provided.
         # For example, team-specific executors may wish to pass their own server URL.
         if server is None:
-            base_url = conf.get("api", "base_url", fallback="/")
-            if base_url.startswith("/"):
-                base_url = f"http://localhost:8080{base_url}"
-            server = conf.get(
-                "core",
-                "execution_api_server_url",
-                fallback=f"{base_url.rstrip('/')}/execution/",
-            )
+            server = get_execution_api_server_url()
 
         if isinstance(workload, ExecuteTask):
             from airflow.sdk.execution_time.supervisor import supervise_task
@@ -649,8 +732,21 @@ class BaseExecutor(LoggingMixin):
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
                 callback_kwargs=workload.callback.data.get("kwargs", {}),
+                dag_rel_path=workload.dag_rel_path,
                 log_path=workload.log_path,
                 bundle_info=workload.bundle_info,
+                token=workload.token,
+                server=server,
+            )
+        if isinstance(workload, TestConnection):
+            from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test
+
+            return supervise_connection_test(
+                connection_test_id=workload.connection_test_id,
+                connection_id=workload.connection_id,
+                timeout=workload.timeout,
+                token=workload.token,
+                server=server,
             )
         raise ValueError(f"Unknown workload type: {type(workload).__name__}")
 

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is an example DAG for the use of the SQLExecuteQueryOperator with Hive.
+This is an example Dag for the use of the SQLExecuteQueryOperator with Hive.
 """
 
 from __future__ import annotations
@@ -74,10 +74,10 @@ with DAG(
     from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
-    # when "tearDown" task with trigger rule is part of the DAG
+    # when "tearDown" task with trigger rule is part of the Dag
     list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
+# Needed to run the example Dag with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

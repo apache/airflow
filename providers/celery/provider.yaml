@@ -23,12 +23,16 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1775591849
+source-date-epoch: 1783356304
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.22.0
+  - 3.21.0
+  - 3.20.0
+  - 3.19.0
   - 3.18.0
   - 3.17.2
   - 3.17.1
@@ -146,6 +150,35 @@ config:
         type: string
         example: ~
         default: "16"
+      mp_start_method:
+        description: |
+          The ``multiprocessing`` start method the ``airflow celery worker`` process uses for the
+          standard-library ``multiprocessing`` helpers it starts: the log server (``serve_logs``),
+          the stale-bundle-cleanup process, and the optional ``[secrets] use_cache`` manager. Must
+          be one of the values returned by ``multiprocessing.get_all_start_methods()`` on your
+          platform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the default) it
+          falls back to ``[core] mp_start_method`` and then to the platform default.
+
+          Python 3.14 changed the Unix default from ``fork`` to ``forkserver``. ``forkserver`` and
+          ``spawn`` re-import Airflow in each helper and start extra forkserver/resource-tracker
+          processes, which increases the worker's resident memory; set this to ``fork`` to restore
+          the pre-3.14 behaviour. This setting governs the standard-library ``multiprocessing``
+          helpers only: Celery's ``prefork`` pool is driven by ``billiard`` (a separate fork of
+          ``multiprocessing``) and always uses ``fork``, so it is unaffected either way.
+        version_added: ~
+        type: string
+        example: "fork"
+        default: ~
+      mp_forkserver_preload:
+        description: |
+          Comma-separated list of modules the ``forkserver`` process should import up front, so the
+          worker's ``multiprocessing`` helpers inherit them copy-on-write instead of re-importing
+          them. Only used when the effective ``mp_start_method`` is ``forkserver``. Falls back to
+          ``[core] mp_forkserver_preload`` when unset.
+        version_added: ~
+        type: string
+        example: "airflow"
+        default: ~
       worker_autoscale:
         description: |
           The maximum and minimum number of pool processes that will be used to dynamically resize
@@ -183,6 +216,17 @@ config:
         type: boolean
         example: ~
         default: "true"
+      json_logs:
+        description: |
+          Emit Celery worker stdout in JSON format. When set, this takes precedence over
+          the global ``[logging] json_logs`` setting, allowing the worker to use a
+          different format than the rest of the deployment. When unset (the default),
+          the value falls back to ``[logging] json_logs``, which itself defaults to
+          ``False``.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: ~
       broker_url:
         description: |
           The Celery broker URL. Celery supports multiple broker types. See:
@@ -204,7 +248,7 @@ config:
         version_added: ~
         type: string
         sensitive: true
-        example: "db+postgresql://postgres:airflow@postgres/airflow"
+        example: "db+postgresql+psycopg2://postgres:airflow@postgres/airflow"
         default: ~
       result_backend_sqlalchemy_engine_options:
         description: |

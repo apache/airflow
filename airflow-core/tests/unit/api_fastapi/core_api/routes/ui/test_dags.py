@@ -22,16 +22,18 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.sdk.timezone import utcnow
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -54,7 +56,7 @@ pytestmark = pytest.mark.db_test
 class TestGetDagRuns(TestPublicDagEndpoint):
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup_dag_runs(self, session=None) -> None:
+    def setup_dag_runs(self, *, session: Session = NEW_SESSION) -> None:
         # Create DAG Runs
         for dag_id in [DAG1_ID, DAG2_ID, DAG3_ID, DAG4_ID, DAG5_ID]:
             dag_runs_count = 5 if dag_id in [DAG1_ID, DAG2_ID] else 2
@@ -95,6 +97,8 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             # Search
             ({"dag_id_pattern": "1"}, [DAG1_ID], 6),
             ({"dag_display_name_pattern": "test_dag2"}, [DAG2_ID], 5),
+            ({"dag_id_prefix_pattern": "test_dag1"}, [DAG1_ID], 6),
+            ({"dag_display_name_prefix_pattern": "test_dag2"}, [DAG2_ID], 5),
             # Bundle filters
             ({"bundle_name": "dag_maker"}, [DAG1_ID, DAG2_ID], 11),
             ({"bundle_name": "wrong_bundle"}, [], 0),
@@ -130,6 +134,31 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 if previous_run_after:
                     assert previous_run_after > dag_run["run_after"]
                 previous_run_after = dag_run["run_after"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session):
+        # Backwards backfill: an older run is still running while the latest run already finished.
+        older_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_1")
+        )
+        older_run.state = DagRunState.RUNNING
+        session.commit()
+
+        # last_dag_run_state only looks at the latest run, which is not running
+        last_state = test_client.get("/dags", params={"last_dag_run_state": "running"})
+        assert last_state.status_code == 200
+        assert [dag["dag_id"] for dag in last_state.json()["dags"]] == []
+
+        # dag_run_state matches a Dag that has any run in the state
+        any_state = test_client.get("/dags", params={"dag_run_state": "running"})
+        assert any_state.status_code == 200
+        assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
+
+    @pytest.mark.parametrize("unsupported_state", ["success", "failed"])
+    def test_dag_run_state_rejects_unsupported_states(self, test_client, unsupported_state):
+        # Only running/queued have a partial index; other states would force a full table scan.
+        response = test_client.get("/dags", params={"dag_run_state": unsupported_state})
+        assert response.status_code == 400
 
     @pytest.fixture
     def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):
@@ -350,6 +379,13 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 403
 
+    def test_latest_run_should_response_400_when_dag_id_is_tilde(self, test_client):
+        response = test_client.get("/dags/~/latest_run")
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "`~` was supplied as dag_id, but querying multiple dags is not supported."
+        }
+
     @pytest.mark.parametrize(
         ("query_params", "expected_dag_count"),
         [
@@ -409,3 +445,145 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         # Verify that DAG1 is not marked as favorite for the test user
         dag1_data = next(dag for dag in body["dags"] if dag["dag_id"] == DAG1_ID)
         assert dag1_data["is_favorite"] is False
+
+
+# Rows seeded by the parent ``TestPublicDagEndpoint.setup`` fixture. Tracked here
+# so expected counts below stay derivable if the parent fixture is ever changed.
+_PARENT_DAG1_FAILED = 1  # via ``dag_maker.create_dagrun(state=FAILED)``
+_PARENT_DAG3_FAILED = 1  # via ``_create_deactivated_paused_dag``
+_PARENT_DAG3_SUCCESS = 1  # via ``_create_deactivated_paused_dag``
+
+
+class TestGetDagRunStateCounts(TestPublicDagEndpoint):
+    """Tests for ``GET /ui/dags/run_state_counts``."""
+
+    @pytest.fixture(autouse=True)
+    def seed_dag_runs(self, setup, session) -> None:
+        # DAG1 gets runs in every state. DAG2 gets only SUCCESS/FAILED.
+        # DAG3 is left to the parent fixture.
+        base = utcnow() - pendulum.duration(days=10)
+        for dag_id, scheme in (
+            (
+                DAG1_ID,
+                [
+                    DagRunState.SUCCESS,
+                    DagRunState.SUCCESS,
+                    DagRunState.FAILED,
+                    DagRunState.FAILED,
+                    DagRunState.RUNNING,
+                    DagRunState.QUEUED,
+                ],
+            ),
+            (DAG2_ID, [DagRunState.SUCCESS, DagRunState.FAILED]),
+        ):
+            for idx, state in enumerate(scheme):
+                # Offset by idx seconds so the (dag_id, logical_date) and
+                # (dag_id, run_after) uniqueness constraints both hold.
+                run_after = base + pendulum.duration(seconds=idx)
+                session.add(
+                    DagRun(
+                        dag_id=dag_id,
+                        run_id=f"{dag_id}_state_run_{idx}",
+                        run_type=DagRunType.MANUAL,
+                        start_date=run_after,
+                        logical_date=run_after,
+                        run_after=run_after,
+                        state=state,
+                        triggered_by=DagRunTriggeredByType.TEST,
+                    )
+                )
+        session.commit()
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_returns_zero_filled_counts_per_requested_dag(self, test_client):
+        response = test_client.get(
+            "/dags/run_state_counts",
+            params={"dag_ids": [DAG1_ID, DAG3_ID]},
+        )
+        assert response.status_code == 200
+        counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
+        # DAG1: 2 SUCCESS + 2 FAILED + 1 RUNNING + 1 QUEUED locally + parent seeds.
+        assert counts[DAG1_ID] == {
+            "success": 2,
+            "failed": 2 + _PARENT_DAG1_FAILED,
+            "running": 1,
+            "queued": 1,
+        }
+        # DAG3: only parent seeds (this fixture skips DAG3).
+        assert counts[DAG3_ID] == {
+            "success": _PARENT_DAG3_SUCCESS,
+            "failed": _PARENT_DAG3_FAILED,
+            "running": 0,
+            "queued": 0,
+        }
+
+    def test_deduplicates_dag_ids(self, test_client):
+        response = test_client.get(
+            "/dags/run_state_counts",
+            params={"dag_ids": [DAG1_ID, DAG1_ID]},
+        )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [DAG1_ID]
+
+    def test_rejects_too_many_dag_ids(self, test_client):
+        # The page never sends more than maximum_page_limit dag_ids; a direct call with a
+        # larger list is rejected so the per-Dag UNION ALL width stays bounded.
+        too_many = [f"dag_{idx}" for idx in range(conf.getint("api", "maximum_page_limit") + 1)]
+        response = test_client.get("/dags/run_state_counts", params={"dag_ids": too_many})
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_permission_filter_hides_disallowed_dags(self, test_client, session):
+        # The test user is granted read on DAG1, DAG2, DAG4, DAG5 (DAG3 is paused/stale in
+        # the parent fixture). Asking for a dag that exists but the caller cannot read
+        # should silently drop it from the result.
+        with mock.patch.object(
+            SimpleAuthManager,
+            "get_authorized_dag_ids",
+            return_value={DAG1_ID},
+        ):
+            response = test_client.get(
+                "/dags/run_state_counts",
+                params={"dag_ids": [DAG1_ID, DAG2_ID]},
+            )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [DAG1_ID]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.routes.ui.dags.STATE_COUNT_CAP", 3)
+    def test_caps_counts_at_state_count_cap(self, test_client, session):
+        # Push SUCCESS over the (patched) cap while FAILED stays under it: states cap independently.
+        base = utcnow() - pendulum.duration(days=5)
+        for idx in range(5):
+            run_after = base + pendulum.duration(seconds=idx)
+            session.add(
+                DagRun(
+                    dag_id=DAG2_ID,
+                    run_id=f"{DAG2_ID}_cap_run_{idx}",
+                    run_type=DagRunType.MANUAL,
+                    start_date=run_after,
+                    logical_date=run_after,
+                    run_after=run_after,
+                    state=DagRunState.SUCCESS,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                )
+            )
+        session.commit()
+
+        response = test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG2_ID]})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["state_count_limit"] == 3
+        counts = {entry["dag_id"]: entry["state_counts"] for entry in body["dags"]}
+        assert counts[DAG2_ID]["success"] == 3
+        assert counts[DAG2_ID]["failed"] == 1
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG1_ID]})
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG1_ID]})
+        assert response.status_code == 403

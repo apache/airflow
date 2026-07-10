@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-smtp``
 
-Release: ``2.4.5``
+Release: ``3.0.2``
 
 
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
@@ -36,7 +36,7 @@ This is a provider package for ``smtp`` provider. All classes for this provider 
 are in ``airflow.providers.smtp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.4.5/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-smtp/3.0.2/>`_.
 
 Installation
 ------------
@@ -58,24 +58,5 @@ PIP package                                 Version required
 ``aiosmtplib``                              ``>=0.1.6``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-smtp[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.4.5/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-smtp/3.0.2/changelog.html>`_.

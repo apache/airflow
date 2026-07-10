@@ -447,6 +447,25 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Classifying provider changes
+""""""""""""""""""""""""""""
+
+You can use Breeze to classify each provider's unreleased changes using hard-coded,
+high-confidence rules, flagging ambiguous commits as ``needs_llm`` for an agent or skill
+to assess. The result is emitted as JSON, providing a deterministic alternative to the
+``--non-interactive`` documentation run used purely for change discovery.
+
+The below example classifies the pending changes for all providers.
+
+.. code-block:: bash
+
+     breeze release-management classify-provider-changes
+
+.. image:: ./images/output_release-management_classify-provider-changes.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_classify-provider-changes.svg
+  :width: 100%
+  :alt: Breeze classify-provider-changes
+
 Updating provider next version
 """"""""""""""""""""""""""""""
 
@@ -501,6 +520,28 @@ You can see all providers available by running this command:
 
 If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
 ``--tag`` flag corresponds to actual tag in git.
+
+.. note::
+
+    Before each provider is built, Breeze runs ``git clean -fdx -e .venv -e .idea -e .vscode``
+    inside the provider's source directory. This removes **all untracked and .gitignored**
+    files under that path — locally generated docs (``docs/_api``), sphinx caches,
+    ``__pycache__``, ``*.egg-info``, and any scratch files an RM produced while iterating.
+    The cleanup is necessary because the flit-based providers ship with explicit
+    ``[tool.flit.sdist]`` include lists that scan directories (``docs/``, ``tests/``,
+    ``src/``) rather than asking git, so any in-tree leftovers would otherwise leak into
+    the sdist/wheel and break reproducibility against the released artifacts on
+    dist.apache.org.
+
+    The top-level ``.venv``, ``.idea`` and ``.vscode`` directories at the **repository
+    root** are unaffected — they live outside any provider directory and are not in any
+    flit include path, so flit would never pick them up regardless. The ``-e .venv``,
+    ``-e .idea`` and ``-e .vscode`` excludes are a safety net for the rare case where
+    someone keeps a per-provider venv or IDE config **inside** the provider directory;
+    in that case the cleanup will still preserve them.
+
+    A dry-run pass (``git clean -ndx ...``) is printed first, so you see the list of
+    files that are about to be removed before the destructive pass runs.
 
 
 .. image:: ./images/output_release-management_prepare-provider-distributions.svg
@@ -923,6 +964,29 @@ You can use Breeze to generate an airflow-ctl issue when you release new airflow
   :width: 100%
   :alt: Breeze release-management generate-issue-content-airflow-ctl
 
+Preparing Apache Airflow Mypy distributions
+""""""""""""""""""""""""""""""""""""""""""""
+
+You can prepare Apache Airflow Mypy distributions using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-mypy-distributions
+
+This prepares Apache Airflow Mypy .whl package in the dist folder.
+
+You can specify the optional ``--distribution-format`` flag to build selected formats of the Mypy distributions.
+The default is ``wheel``.
+
+.. code-block:: bash
+
+     breeze release-management prepare-mypy-distributions --distribution-format=both
+
+.. image:: ./images/output_release-management_prepare-mypy-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-mypy-distributions.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-mypy-distributions
+
 Publishing the documentation to S3
 """"""""""""""""""""""""""""""""""
 
@@ -1015,6 +1079,39 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_publish-docs.svg
   :width: 100%
   :alt: Breeze workflow-run publish-docs
+
+Publishing the schema files to S3
+"""""""""""""""""""""""""""""""""
+
+Alongside the documentation, the ``Publish Docs to S3`` workflow also publishes two generated schema artifacts
+to the same docs bucket, under the ``schemas/`` prefix (served at ``https://airflow.apache.org/schemas/``):
+
+* The Execution API OpenAPI spec ``schemas/execution-api/<version>.json``
+* The Supervisor JSON Schema ``schemas/supervisor-schema/<version>.json``
+
+Each dated file is immutable, so the command uploads individual objects and skips a date that already exists
+unless ``--overwrite`` is given. Publishing is gated on the package set. The schema files are only published
+when ``apache-airflow`` or ``task-sdk`` is built.
+
+To publish the schema files to S3, use the ``release-management publish-schemas-to-s3`` command:
+
+.. code-block:: bash
+
+     breeze release-management publish-schemas-to-s3 \
+       --execution-api execution-api.json \
+       --supervisor supervisor-schema.json \
+       --destination-location s3://live-docs-airflow-apache-org/schemas/
+
+``--destination-location`` is the ``s3://<bucket>/schemas/`` location to publish under; each schema is
+written to ``<location>/<schema-type>/<version>.json``. Pass at least one of
+``--execution-api`` / ``--supervisor``.
+
+These are all available flags of ``release-management publish-schemas-to-s3`` command:
+
+.. image:: ./images/output_release-management_publish-schemas-to-s3.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-schemas-to-s3.svg
+  :width: 100%
+  :alt: Breeze release-management publish-schemas-to-s3
 
 Checking release files
 """"""""""""""""""""""

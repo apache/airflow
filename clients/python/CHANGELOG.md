@@ -17,6 +17,79 @@
  under the License.
  -->
 
+# v3.3.0
+
+## New Features:
+
+- AIP-103: Add Core API endpoints for task state and asset state (#67041)
+- AIP-103: Add patch task state core API and support for ``expires_at`` in set API (#67319)
+- Add ``awaiting_input`` task state for Human-in-the-loop (#68028)
+- Return dag-specified results in the dag run wait API (#64577)
+- Add ``POST /dags/{dag_id}/clearDagRuns`` bulk endpoint (#67709)
+- Add bulk delete Dag Runs (#67095)
+- Add bulk update to mark Dag runs as success/failed (#67948)
+- Clear, mark success/failed and delete multiple task instances (#64141)
+- Add partition clear support to the REST API matching the CLI (#68702)
+- Propagate ``partition_date`` to consumers of partitioned assets (#67285)
+- Add consumer-team asset filtering API endpoint support (#68034)
+- Add Dag runs filters for Consuming Asset (#63624)
+- Add async connection testing via workers for security isolation (#62343)
+- Add ``nav_top_level`` option for plugin nav items (#67084)
+- Implement patching of task group instances in the API (#62812)
+- Add cursor-based pagination for the ``get_dag_runs`` endpoint (#65604)
+- Add cursor-based pagination for the ``get_task_instances`` endpoint (#64845)
+- Support ordering ``XCom`` entries in the REST API (#65418)
+- Enable queueing up new tasks (#63484)
+- Add the "is backfillable" property for Dags (#64644)
+- Add ``DagRunType`` for operator (#63733)
+- Pass ``try_number`` to the extra links API (#65661)
+- Add ``rerun_with_latest_version`` config hierarchy for clear/rerun behavior (#63884)
+
+## Improvements:
+
+- Record writer info for every asset-store write for better cross-linkage (#67902)
+- Apply note when clearing a Dag Run / task instances (#67639)
+- Update search parameters to better leverage DB indexes (#64963)
+- Filter task instances by rendered map index (#66008)
+- Handle undecryptable Variable values gracefully in the Stable REST API (#65452)
+- Surface import errors on deactivated Dags (#65687)
+- Align Dag capitalization from "DAG" to "Dag" in the API (#66211, #66099, #66112)
+
+## Bug Fixes:
+
+- Stop exposing trigger kwargs in the REST API response (#67868)
+- Fix Dag run partition-key filter breaking on composite keys with ``|`` (#68459)
+- Fix sort order for mapped task instances (#67551)
+- Fix using the Dag form when materializing an asset (#64211)
+- Fix ``GET /auth/login`` missing 400 in the OpenAPI spec (#67571)
+- Fix ``GET /pools`` list endpoint incorrectly documenting 404 in the OpenAPI spec (#67570)
+- Fix backfill params not overriding existing Dag run conf (#64939)
+- Fix ``PATCH /dags`` pagination bug and document wildcard ``dag_id_pattern`` (#63665)
+
+# v3.2.2
+
+## Improvements:
+
+- UI: Filter task instances by rendered map index (#66008) (#67163)
+- UI: Enable queue up new tasks (#63484) (#66869)
+- Pass ``try_number`` to extra links API (#65661) (#66171)
+- Update search parameters to better leverage DB indexes (#64963) (#65964)
+- Add cursor-based pagination for ``get_dag_runs`` endpoint (#65604) (#65746)
+- Support ordering ``XCom`` entries in the REST API and UI (#65418) (#65600)
+- UI: Add Dag runs filters for Consuming Asset (#63624) (#65306)
+- Align Dag capitalization from "DAG" to "Dag" in ``core_api`` (#66211) (#66304)
+
+## Bug Fixes:
+
+- Fix backfill params not overriding existing Dag run conf (#64939) (#65599)
+- Fix ``PATCH /dags`` pagination bug and document wildcard ``dag_id_pattern`` (#65309)
+
+# v3.2.1
+
+## Bug Fixes:
+
+ - Fix: use Dag form when materializing asset ([#64211](https://github.com/apache/airflow/pull/64211))
+
 # v3.2.0
 
 ## New Features:

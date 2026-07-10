@@ -20,6 +20,7 @@ from __future__ import annotations
 import gc
 import multiprocessing
 import os
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -28,12 +29,13 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
-from airflow.executors.base_executor import BaseExecutor, ExecutorConf
-from airflow.executors.local_executor import LocalExecutor, _get_execution_api_server_url
+from airflow.executors.base_executor import BaseExecutor, ExecutorConf, get_execution_api_server_url
+from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models.callback import CallbackFetchMethod
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -48,6 +50,19 @@ skip_non_fork_mp_start = pytest.mark.skipif(
     multiprocessing.get_start_method() != "fork",
     reason="mock patching in test doesn't work with non-fork multiprocessing start methods",
 )
+
+
+class TestLocalExecutorMpStartMethod:
+    @mock.patch("airflow.executors.local_executor.multiprocessing.get_start_method", autospec=True)
+    def test_is_mp_using_fork_resolved_per_instance(self, mock_get_start_method):
+        """``is_mp_using_fork`` is resolved at ``__init__`` (reflecting any configured start
+        method) rather than once at import time."""
+        mock_get_start_method.return_value = "fork"
+        assert LocalExecutor(parallelism=1).is_mp_using_fork is True
+
+        mock_get_start_method.return_value = "forkserver"
+        assert LocalExecutor(parallelism=1).is_mp_using_fork is False
+
 
 skip_fork_mp_start = pytest.mark.skipif(
     multiprocessing.get_start_method() == "fork",
@@ -74,6 +89,13 @@ def _make_task_workload():
         token="test_token",
         log_path=None,
     )
+
+
+def _write_large_results_to_queue(result_queue, result_count, payload_size):
+    payload = RuntimeError("x" * payload_size)
+    for index in range(result_count):
+        key = TaskInstanceKey("test_dag", f"test_task_{index}", "test_run")
+        result_queue.put((key, State.SUCCESS, payload))
 
 
 class TestLocalExecutor:
@@ -219,19 +241,25 @@ class TestLocalExecutor:
 
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch("airflow.executors.base_executor.stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = LocalExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "LocalExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "LocalExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "LocalExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "executor_class_name": "LocalExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
@@ -253,6 +281,93 @@ class TestLocalExecutor:
             pass
         finally:
             executor.end()
+
+    def test_end_drains_results_while_joining_workers(self):
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock()
+        executor.result_queue = mock.MagicMock()
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.is_alive.side_effect = [True, True, True, False]
+        executor.workers = {1: proc}
+
+        with mock.patch.object(executor, "_read_results") as mock_read_results:
+            executor.end()
+
+        executor.activity_queue.put.assert_called_once_with(None)
+        assert proc.join.call_args_list == [mock.call(timeout=0.05), mock.call(timeout=0.05)]
+        assert mock_read_results.call_count == 3
+        proc.close.assert_called_once()
+        executor.activity_queue.close.assert_called_once()
+        executor.result_queue.close.assert_called_once()
+
+    def test_end_terminates_workers_and_closes_resources_on_interrupt(self):
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock()
+        executor.result_queue = mock.MagicMock()
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.is_alive.side_effect = [True, True]
+        executor.workers = {1: proc}
+
+        with (
+            mock.patch.object(executor, "_read_results", side_effect=[KeyboardInterrupt, None]),
+            mock.patch.object(executor, "_terminate_worker_process") as mock_terminate_worker_process,
+            pytest.raises(KeyboardInterrupt),
+        ):
+            executor.end()
+
+        mock_terminate_worker_process.assert_called_once_with(proc)
+        proc.close.assert_called_once()
+        executor.activity_queue.close.assert_called_once()
+        executor.result_queue.close.assert_called_once()
+
+    def test_terminate_joins_worker_after_sigterm(self):
+        executor = LocalExecutor(parallelism=1)
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.is_alive.side_effect = [True, False]
+        executor.workers = {1: proc}
+
+        executor.terminate()
+
+        proc.terminate.assert_called_once_with()
+        proc.join.assert_called_once_with(timeout=0.2)
+        proc.kill.assert_not_called()
+
+    def test_terminate_kills_worker_that_ignores_sigterm(self):
+        executor = LocalExecutor(parallelism=1)
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.pid = 123
+        proc.is_alive.side_effect = [True, True]
+        executor.workers = {1: proc}
+
+        executor.terminate()
+
+        proc.terminate.assert_called_once_with()
+        proc.kill.assert_called_once_with()
+        assert proc.join.call_args_list == [mock.call(timeout=0.2), mock.call(timeout=0.2)]
+
+    @pytest.mark.execution_timeout(10)
+    def test_end_drains_result_queue_to_avoid_join_deadlock(self):
+        # Pin the worker to "fork": the drain logic under test is start-method-agnostic, but under the
+        # "forkserver" default (Python 3.14+ on Linux) each spawned worker re-imports the whole airflow
+        # stack before it can write a result, which intermittently exceeds the execution_timeout and
+        # makes this test flaky. Forking inherits the already-imported parent, so the worker writes
+        # immediately and reliably reproduces the full-result_queue scenario this test guards.
+        ctx = multiprocessing.get_context("fork")
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = ctx.SimpleQueue()
+        executor.result_queue = ctx.SimpleQueue()
+        result_count = 8
+        payload_size = 128 * 1024
+        proc = ctx.Process(
+            target=_write_large_results_to_queue,
+            args=(executor.result_queue, result_count, payload_size),
+        )
+        proc.start()
+        executor.workers = {proc.pid: proc}
+
+        executor.end()
+
+        assert len(executor.event_buffer) == result_count
 
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),
@@ -289,7 +404,7 @@ class TestLocalExecutor:
 
         with conf_vars(conf_values):
             team_conf = ExecutorConf(team_name=None)
-            BaseExecutor.run_workload(_make_task_workload(), server=_get_execution_api_server_url(team_conf))
+            BaseExecutor.run_workload(_make_task_workload(), server=get_execution_api_server_url(team_conf))
 
             mock_run_workload.assert_called_once()
             assert mock_run_workload.call_args.kwargs["server"] == expected_server
@@ -318,7 +433,7 @@ class TestLocalExecutor:
                 # Test team-specific config
                 team_conf = ExecutorConf(team_name=team_name)
                 BaseExecutor.run_workload(
-                    _make_task_workload(), server=_get_execution_api_server_url(team_conf)
+                    _make_task_workload(), server=get_execution_api_server_url(team_conf)
                 )
 
                 # Verify team-specific server URL was used
@@ -330,7 +445,7 @@ class TestLocalExecutor:
                 # Test global config (no team)
                 global_conf = ExecutorConf(team_name=None)
                 BaseExecutor.run_workload(
-                    _make_task_workload(), server=_get_execution_api_server_url(global_conf)
+                    _make_task_workload(), server=get_execution_api_server_url(global_conf)
                 )
 
                 # Verify default server URL was used
@@ -353,7 +468,7 @@ class TestLocalExecutor:
             # Verify each executor has its own workers dict
             assert team_a_executor.workers is not team_b_executor.workers
 
-            if LocalExecutor.is_mp_using_fork:
+            if team_a_executor.is_mp_using_fork:
                 # fork pre-spawns all workers at start()
                 assert len(team_a_executor.workers) == 2
                 assert len(team_b_executor.workers) == 3
@@ -383,7 +498,7 @@ class TestLocalExecutor:
 
         executor.start()
 
-        if LocalExecutor.is_mp_using_fork:
+        if executor.is_mp_using_fork:
             assert len(executor.workers) == 2
         else:
             # forkserver/spawn use lazy spawning
@@ -392,8 +507,16 @@ class TestLocalExecutor:
         executor.end()
 
 
+class TestLocalExecutorConnectionTestSupport:
+    def test_supports_connection_test_flag_is_true(self):
+        executor = LocalExecutor()
+        assert executor.supports_connection_test is True
+
+
 class TestLocalExecutorCallbackSupport:
     CALLBACK_UUID = "12345678-1234-5678-1234-567812345678"
+    TEST_TOKEN = "test_token"
+    TEST_SERVER = "http://localhost:8080/execution/"
 
     def test_supports_callbacks_flag_is_true(self):
         executor = LocalExecutor()
@@ -419,7 +542,7 @@ class TestLocalExecutorCallbackSupport:
         executor.start()
 
         try:
-            executor.queued_callbacks[callback_data.id] = callback_workload
+            executor.queued_callbacks[callback_workload.key] = callback_workload
             executor._process_workloads([callback_workload])
             assert len(executor.queued_callbacks) == 0
             # We can't easily verify worker execution without running the worker,
@@ -437,7 +560,7 @@ class TestLocalExecutorCallbackSupport:
         )
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
-            dag_rel_path="test.py",
+            dag_rel_path=Path("test.py"),
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
@@ -449,8 +572,11 @@ class TestLocalExecutorCallbackSupport:
             id=self.CALLBACK_UUID,
             callback_path="test.module.my_callback",
             callback_kwargs={"arg1": "val1"},
+            dag_rel_path=Path("test.py"),
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
+            server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )
 
     @mock.patch(
@@ -465,7 +591,7 @@ class TestLocalExecutorCallbackSupport:
         )
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
-            dag_rel_path="test.py",
+            dag_rel_path=Path("test.py"),
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",

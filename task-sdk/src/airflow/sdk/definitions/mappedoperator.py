@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
@@ -314,6 +315,7 @@ class MappedOperator(AbstractOperator):
     start_trigger_args: StartTriggerArgs | None
     start_from_trigger: bool
     _needs_expansion: bool = True
+    returns_dag_result: bool = False
 
     dag: DAG | None
     task_group: TaskGroup | None
@@ -360,7 +362,7 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return (frozenset(attrs.fields_dict(MappedOperator))) - {
+        return frozenset(attrs.fields_dict(MappedOperator)) - {
             "_is_empty",
             "_can_skip_downstream",
             "dag",
@@ -375,6 +377,7 @@ class MappedOperator(AbstractOperator):
             "_needs_expansion",
             "partial_kwargs",
             "operator_extra_links",
+            "returns_dag_result",
         }
 
     @property
@@ -553,6 +556,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
+    def retry_policy(self) -> RetryPolicy | None:
+        return self.partial_kwargs.get("retry_policy")
+
+    @retry_policy.setter
+    def retry_policy(self, value: RetryPolicy | None) -> None:
+        self.partial_kwargs["retry_policy"] = value
+
+    @property
     def priority_weight(self) -> int:
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
@@ -647,6 +658,10 @@ class MappedOperator(AbstractOperator):
     @property
     def has_on_skipped_callback(self) -> bool:
         return bool(self.on_skipped_callback)
+
+    @property
+    def has_retry_policy(self) -> bool:
+        return bool(self.retry_policy)
 
     @property
     def run_as_user(self) -> str | None:
@@ -779,6 +794,7 @@ class MappedOperator(AbstractOperator):
         op.is_setup = is_setup
         op.is_teardown = is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        op.returns_dag_result = self.returns_dag_result
         op.downstream_task_ids = self.downstream_task_ids
         op.upstream_task_ids = self.upstream_task_ids
         return op

@@ -20,7 +20,11 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import type { TFunction } from "i18next";
 
 import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+} from "src/components/renderStructuredLog";
 import { parseStreamingLogContent } from "src/utils/logs";
 
 type GetDownloadTextOptions = {
@@ -46,8 +50,9 @@ export const getDownloadText = ({
   translate,
 }: GetDownloadTextOptions): Array<string> => {
   const lines = parseStreamingLogContent(fetchedData);
+  const tiContext = extractTIContext(lines);
 
-  return lines.map((line) =>
+  const rendered = lines.map((line) =>
     renderStructuredLog({
       index: 0,
       logLevelFilters,
@@ -60,11 +65,27 @@ export const getDownloadText = ({
       translate,
     }),
   );
+
+  if (tiContext !== undefined) {
+    const preExecuteGroup = lines.findIndex((line) => {
+      const text = typeof line === "string" ? line : line.event;
+
+      return text.includes("::group::Pre Execute");
+    });
+
+    rendered.splice(
+      preExecuteGroup === -1 ? 0 : preExecuteGroup + 1,
+      0,
+      renderTIContextPreamble(tiContext, "text", "Task Identity") as string,
+    );
+  }
+
+  return rendered;
 };
 
 export type HighlightOptions = {
   currentMatchLineIndex?: number;
-  hash: string;
+  hashIndex?: number;
   index: number;
   searchMatchIndices?: Set<number>;
 };
@@ -76,7 +97,7 @@ export type HighlightOptions = {
  */
 export const getHighlightColor = ({
   currentMatchLineIndex,
-  hash,
+  hashIndex,
   index,
   searchMatchIndices,
 }: HighlightOptions): string => {
@@ -86,7 +107,7 @@ export const getHighlightColor = ({
   if (searchMatchIndices?.has(index)) {
     return "yellow.subtle";
   }
-  if (Boolean(hash) && index === Number(hash) - 1) {
+  if (hashIndex !== undefined && index === hashIndex) {
     return "brand.emphasized";
   }
 

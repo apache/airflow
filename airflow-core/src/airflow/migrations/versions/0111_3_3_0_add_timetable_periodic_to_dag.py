@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import disable_sqlite_fkeys
+
 revision = "9fabad868fdb"
 down_revision = "a4c2d171ae18"
 branch_labels = None
@@ -47,5 +49,6 @@ def upgrade():
 
 def downgrade():
     """Remove timetable_periodic column from DagModel."""
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_column("timetable_periodic")
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_column("timetable_periodic")

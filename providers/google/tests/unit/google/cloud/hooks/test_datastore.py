@@ -43,13 +43,18 @@ class TestDatastoreHook:
         ):
             self.datastore_hook = DatastoreHook()
 
+    @patch("airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_client_options")
     @patch("airflow.providers.google.cloud.hooks.datastore.DatastoreHook._authorize")
     @patch("airflow.providers.google.cloud.hooks.datastore.build")
-    def test_get_conn(self, mock_build, mock_authorize):
+    def test_get_conn(self, mock_build, mock_authorize, mock_get_client_options):
         conn = self.datastore_hook.get_conn()
 
         mock_build.assert_called_once_with(
-            "datastore", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "datastore",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert conn == mock_build.return_value
         assert conn == self.datastore_hook.connection

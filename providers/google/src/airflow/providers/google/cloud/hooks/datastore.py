@@ -62,7 +62,11 @@ class DatastoreHook(GoogleBaseHook):
         if not self.connection:
             http_authorized = self._authorize()
             self.connection = build(
-                "datastore", self.api_version, http=http_authorized, cache_discovery=False
+                "datastore",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+                client_options=self.get_client_options(),
             )
 
         return self.connection

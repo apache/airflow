@@ -25,6 +25,7 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import platform
 import ssl
@@ -50,7 +51,9 @@ from tenacity import (
 )
 
 from airflow import __version__
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers_manager import ProvidersManager
 
 try:
@@ -59,6 +62,8 @@ except ImportError:
     from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from airflow.models import Connection
 
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
@@ -87,6 +92,19 @@ TOKEN_EXCHANGE_DATA = {
 }
 
 
+class DatabricksProxyConfigurationError(AirflowException):
+    """Raised when Databricks connection proxy configuration is invalid."""
+
+
+def _describe_last_retry_error(retry_error: RetryError) -> str:
+    """Best-effort description of a RetryError last exception, some exceptions raise from __str__ when partially initialized."""
+    last_exc = retry_error.last_attempt.exception()
+    try:
+        return str(last_exc)
+    except Exception:
+        return repr(last_exc)
+
+
 class BaseDatabricksHook(BaseHook):
     """
     Base for interaction with Databricks.
@@ -111,11 +129,14 @@ class BaseDatabricksHook(BaseHook):
         "host",
         "use_azure_managed_identity",
         DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
+        "azure_managed_identity_client_id",
         "azure_ad_endpoint",
         "azure_resource_id",
         "azure_tenant_id",
+        "proxies",
         "service_principal_oauth",
         "federated_k8s",
+        "federated_token_provider",
         "k8s_token_path",
         "k8s_namespace_path",
         "k8s_projected_volume_token_path",
@@ -232,6 +253,47 @@ class BaseDatabricksHook(BaseHook):
             raise ValueError(f"`{attr_name}` must be present in Connection")
         return attr
 
+    @cached_property
+    def proxies(self) -> dict[str, str] | None:
+        """Return validated proxy configuration from connection extras."""
+        extra_dejson = self.databricks_conn.extra_dejson
+        if not isinstance(extra_dejson, dict):
+            return None
+
+        proxies = extra_dejson.get("proxies")
+        if proxies is None:
+            return None
+        if not isinstance(proxies, dict):
+            raise DatabricksProxyConfigurationError("Connection extra 'proxies' must be a JSON object.")
+
+        invalid_keys = set(proxies) - {"http", "https"}
+        if invalid_keys:
+            invalid_keys_str = ", ".join(sorted(invalid_keys))
+            raise DatabricksProxyConfigurationError(
+                f"Connection extra 'proxies' only supports 'http' and 'https' keys. Got: {invalid_keys_str}."
+            )
+
+        for proxy_scheme, proxy_url in proxies.items():
+            if not isinstance(proxy_url, str) or not proxy_url:
+                raise DatabricksProxyConfigurationError(
+                    "Connection extra 'proxies' values must be non-empty strings. "
+                    f"Invalid value for '{proxy_scheme}'."
+                )
+
+        return proxies or None
+
+    def _get_requests_kwargs(self) -> dict[str, Any]:
+        return {"proxies": self.proxies} if self.proxies else {}
+
+    def _get_aiohttp_kwargs(self, url: str) -> dict[str, str]:
+        if not self.proxies:
+            return {}
+        proxy = self.proxies.get(urlsplit(url).scheme)
+        return {"proxy": proxy} if proxy else {}
+
+    def _get_azure_credential_kwargs(self) -> dict[str, dict[str, str]]:
+        return {"proxies": self.proxies} if self.proxies else {}
+
     def _get_retry_object(self) -> Retrying:
         """
         Instantiate a retry object.
@@ -267,6 +329,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_requests_kwargs(),
                     )
 
                     resp.raise_for_status()
@@ -276,8 +339,11 @@ class BaseDatabricksHook(BaseHook):
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -305,6 +371,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_aiohttp_kwargs(resource),
                     ) as resp:
                         resp.raise_for_status()
                         jsn = await resp.json()
@@ -313,8 +380,11 @@ class BaseDatabricksHook(BaseHook):
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -340,12 +410,23 @@ class BaseDatabricksHook(BaseHook):
             for attempt in self._get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        token = ManagedIdentityCredential().get_token(f"{resource}/.default")
+                        client_id = self.databricks_conn.extra_dejson.get(
+                            "azure_managed_identity_client_id", None
+                        )
+                        # Managed identity authenticates against the link-local IMDS endpoint
+                        # (169.254.169.254), which must be reached directly and is unsupported behind a
+                        # proxy, so the `proxies` extra is intentionally not forwarded here (unlike the
+                        # ClientSecretCredential / DefaultAzureCredential paths, which call the public
+                        # Entra ID endpoint and do receive the proxy kwargs).
+                        token = ManagedIdentityCredential(client_id=client_id).get_token(
+                            f"{resource}/.default"
+                        )
                     else:
                         credential = ClientSecretCredential(
                             client_id=self._get_connection_attr("login"),
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            **self._get_azure_credential_kwargs(),
                         )
                         token = credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -387,13 +468,22 @@ class BaseDatabricksHook(BaseHook):
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        async with AsyncManagedIdentityCredential() as credential:
+                        client_id = self.databricks_conn.extra_dejson.get(
+                            "azure_managed_identity_client_id", None
+                        )
+                        # Managed identity authenticates against the link-local IMDS endpoint
+                        # (169.254.169.254), which must be reached directly and is unsupported behind a
+                        # proxy, so the `proxies` extra is intentionally not forwarded here (unlike the
+                        # ClientSecretCredential / DefaultAzureCredential paths, which call the public
+                        # Entra ID endpoint and do receive the proxy kwargs).
+                        async with AsyncManagedIdentityCredential(client_id=client_id) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     else:
                         async with AsyncClientSecretCredential(
                             client_id=self._get_connection_attr("login"),
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            **self._get_azure_credential_kwargs(),
                         ) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -436,7 +526,9 @@ class BaseDatabricksHook(BaseHook):
                     #
                     # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
                     # https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview
-                    token = DefaultAzureCredential().get_token(f"{resource}/.default")
+                    token = DefaultAzureCredential(**self._get_azure_credential_kwargs()).get_token(
+                        f"{resource}/.default"
+                    )
 
                     jsn = {
                         "access_token": token.token,
@@ -481,7 +573,9 @@ class BaseDatabricksHook(BaseHook):
                     #
                     # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
                     # https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview
-                    token = await AsyncDefaultAzureCredential().get_token(f"{resource}/.default")
+                    token = await AsyncDefaultAzureCredential(
+                        **self._get_azure_credential_kwargs()
+                    ).get_token(f"{resource}/.default")
 
                     jsn = {
                         "access_token": token.token,
@@ -819,12 +913,79 @@ class BaseDatabricksHook(BaseHook):
             )
         return client_id
 
+    def _get_federation_subject_token(self) -> tuple[str, str | None]:
+        """
+        Resolve the OIDC JWT to exchange for a Databricks token (RFC 8693 ``subject_token``).
+
+        Two subject-token sources are supported:
+
+        * ``federated_token_provider`` -- a dotted path to a ``Callable[[], str]`` that returns
+          the JWT. The token is obtained in-process and never written to disk, so a control
+          plane can vend a short-lived, per-workload identity token for the exchange. ``client_id``
+          is optional here: supply it in the extra for a service principal federation policy, or
+          omit it for an account-wide federation policy.
+        * Kubernetes service account (default) -- read from the pod. ``client_id`` is required
+          because Kubernetes service account tokens cannot carry custom claims, so only
+          service-principal-level federation is possible; it is validated before the token is read.
+
+        :return: a ``(subject_token, client_id)`` tuple; ``client_id`` is ``None`` when the exchange
+            should omit it (account-wide federation policy).
+        """
+        provider = self.databricks_conn.extra_dejson.get("federated_token_provider")
+        if provider:
+            return self._resolve_supplied_subject_token(provider), self.databricks_conn.extra_dejson.get(
+                "client_id"
+            )
+        client_id = self._get_required_client_id()
+        return self._get_k8s_jwt_token(), client_id
+
+    async def _a_get_federation_subject_token(self) -> tuple[str, str | None]:
+        """Async version of :meth:`_get_federation_subject_token`."""
+        provider = self.databricks_conn.extra_dejson.get("federated_token_provider")
+        if provider:
+            # The provider is a synchronous callable that typically makes a blocking network call to
+            # mint the token. Offload it to a worker thread so it can't stall the triggerer event loop.
+            loop = asyncio.get_running_loop()
+            subject_token = await loop.run_in_executor(None, self._resolve_supplied_subject_token, provider)
+            return subject_token, self.databricks_conn.extra_dejson.get("client_id")
+        client_id = self._get_required_client_id()
+        return await self._a_get_k8s_jwt_token(), client_id
+
+    def _resolve_supplied_subject_token(self, provider: str) -> str:
+        """
+        Import and invoke the ``federated_token_provider`` callable, returning its OIDC JWT.
+
+        The dotted path is resolved and executed in-process; its return value is the RFC 8693
+        ``subject_token`` and is never written to disk. Surrounding whitespace is stripped (matching
+        the Kubernetes path), and a value that is not a non-empty string raises, so a misconfigured
+        provider fails with a clear error rather than posting a blank or newline-padded
+        ``subject_token`` to the exchange.
+        """
+        token_provider: Callable[[], str] = import_string(provider)
+        token = token_provider()
+        if not isinstance(token, str) or not token.strip():
+            raise ValueError(f"federated_token_provider {provider!r} must return a non-empty string token.")
+        return token.strip()
+
+    def _build_federation_exchange_data(self, subject_token: str, client_id: str | None) -> dict[str, str]:
+        """
+        Build the RFC 8693 token-exchange form data.
+
+        ``client_id`` is included when set -- required for Kubernetes/service principal federation,
+        optional for a supplied provider -- and omitted for an account-wide federation policy.
+        """
+        data = {**TOKEN_EXCHANGE_DATA, "subject_token": subject_token}
+        if client_id:
+            data["client_id"] = client_id
+        return data
+
     def _get_federated_databricks_token(self, resource: str) -> str:
         """
-        Get Databricks OAuth token by exchanging Kubernetes JWT token.
+        Get a Databricks OAuth token by exchanging a federated OIDC JWT.
 
-        Uses RFC 8693 token exchange to convert a Kubernetes service account JWT
-        into a Databricks OAuth token. Requires service principal-level federation.
+        Uses RFC 8693 token exchange to convert an OIDC subject token -- supplied either by a
+        ``federated_token_provider`` callable or by the pod's Kubernetes service account (see
+        :meth:`_get_federation_subject_token`) -- into a Databricks OAuth token.
 
         :param resource: Databricks OIDC token exchange URL
         :return: Databricks OAuth access token
@@ -835,15 +996,12 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing federated token is expired or missing. Fetching new token...")
 
-        client_id = self._get_required_client_id()
+        subject_token, client_id = self._get_federation_subject_token()
 
-        # Get JWT from Kubernetes
-        jwt_token = self._get_k8s_jwt_token()
-        self.log.debug("JWT Token obtained from Kubernetes: %s", jwt_token)
-
-        # Prepare token exchange request following RFC 8693
+        # Prepare token exchange request following RFC 8693. The subject token is never logged --
+        # it is a short-lived credential.
         token_exchange_url = resource
-        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token, "client_id": client_id}
+        data = self._build_federation_exchange_data(subject_token, client_id)
 
         try:
             for attempt in self._get_retry_object():
@@ -856,6 +1014,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_requests_kwargs(),
                     )
                     resp.raise_for_status()
                     jsn = resp.json()
@@ -866,10 +1025,10 @@ class BaseDatabricksHook(BaseHook):
                     break
         except RetryError:
             raise AirflowException(
-                f"Failed to exchange Kubernetes JWT for Databricks token after {self.retry_limit} retries. Giving up."
+                f"Failed to exchange the federated OIDC token for a Databricks token after {self.retry_limit} retries. Giving up."
             )
         except requests_exceptions.HTTPError as e:
-            msg = f"Failed to exchange Kubernetes JWT for Databricks token. Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            msg = f"Failed to exchange the federated OIDC token for a Databricks token. Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
 
         return jsn["access_token"]
@@ -882,15 +1041,12 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing federated token is expired or missing. Fetching new token...")
 
-        client_id = self._get_required_client_id()
+        subject_token, client_id = await self._a_get_federation_subject_token()
 
-        # Get JWT from Kubernetes
-        jwt_token = await self._a_get_k8s_jwt_token()
-        self.log.debug("JWT Token obtained from Kubernetes: %s", jwt_token)
-
-        # Prepare token exchange request following RFC 8693
+        # Prepare token exchange request following RFC 8693. The subject token is never logged --
+        # it is a short-lived credential.
         token_exchange_url = resource
-        data = {**TOKEN_EXCHANGE_DATA, "subject_token": jwt_token, "client_id": client_id}
+        data = self._build_federation_exchange_data(subject_token, client_id)
 
         try:
             async for attempt in self._a_get_retry_object():
@@ -903,6 +1059,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/x-www-form-urlencoded",
                         },
                         timeout=self.token_timeout_seconds,
+                        **self._get_aiohttp_kwargs(token_exchange_url),
                     ) as resp:
                         resp.raise_for_status()
                         jsn = await resp.json()
@@ -913,11 +1070,11 @@ class BaseDatabricksHook(BaseHook):
                     break
         except RetryError:
             raise AirflowException(
-                f"Failed to exchange Kubernetes JWT for Databricks token after {self.retry_limit} retries. Giving up."
+                f"Failed to exchange the federated OIDC token for a Databricks token after {self.retry_limit} retries. Giving up."
             )
         except aiohttp.ClientResponseError as err:
             raise AirflowException(
-                f"Failed to exchange Kubernetes JWT for Databricks token. Response: {err.message}, Status Code: {err.status}"
+                f"Failed to exchange the federated OIDC token for a Databricks token. Response: {err.message}, Status Code: {err.status}"
             )
 
         return jsn["access_token"]
@@ -1007,6 +1164,9 @@ class BaseDatabricksHook(BaseHook):
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
             return self._get_sp_token(self._get_oidc_token_service_url())
+        if self.databricks_conn.extra_dejson.get("federated_token_provider"):
+            self.log.debug("Using OIDC token federation with a supplied token provider.")
+            return self._get_federated_databricks_token(self._get_oidc_token_service_url())
         if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
             "federated_k8s", False
         ):
@@ -1044,6 +1204,9 @@ class BaseDatabricksHook(BaseHook):
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
             return await self._a_get_sp_token(self._get_oidc_token_service_url())
+        if self.databricks_conn.extra_dejson.get("federated_token_provider"):
+            self.log.debug("Using OIDC token federation with a supplied token provider.")
+            return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
         if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
             "federated_k8s", False
         ):
@@ -1131,17 +1294,21 @@ class BaseDatabricksHook(BaseHook):
                         auth=auth,
                         headers=headers,
                         timeout=self.timeout_seconds,
+                        **self._get_requests_kwargs(),
                     )
                     self.log.debug("Response Status Code: %s", response.status_code)
                     self.log.debug("Response text: %s", response.text)
                     response.raise_for_status()
                     return response.json()
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
                 msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-                raise AirflowException(msg)
+                raise DatabricksApiError(msg, http_status_code=e.response.status_code) from e
             raise
 
     async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):
@@ -1194,15 +1361,21 @@ class BaseDatabricksHook(BaseHook):
                         auth=auth,
                         headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
+                        **self._get_aiohttp_kwargs(url),
                     ) as response:
                         self.log.debug("Response Status Code: %s", response.status)
                         self.log.debug("Response text: %s", response.text)
                         response.raise_for_status()
                         return await response.json()
-        except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except RetryError as e:
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times "
+                f"(last error: {_describe_last_retry_error(e)}). Giving up."
+            ) from e
         except aiohttp.ClientResponseError as err:
-            raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
+            raise DatabricksApiError(
+                f"Response: {err.message}, Status Code: {err.status}", http_status_code=err.status
+            ) from err
 
     @staticmethod
     def _get_error_code(exception: BaseException) -> str:

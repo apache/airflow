@@ -31,6 +31,7 @@ with DAG(
     schedule="@daily",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
+    tags=["example"],
 ) as dag:
     ingest = EmptyOperator(task_id="ingest")
     analyse = EmptyOperator(task_id="analyze")

@@ -21,6 +21,7 @@ Global constants that are used by all other Breeze components.
 from __future__ import annotations
 
 import platform
+import re
 from enum import Enum
 from pathlib import Path
 
@@ -72,6 +73,17 @@ CUSTOM_BACKEND = "custom"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND, CUSTOM_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
+# Docker images that specific provider tests pull directly via testcontainers (bypassing docker
+# compose, so the "docker compose pull" pre-pull does not cover them). Keyed by the provider
+# distribution (dotted id) whose tests pull them, so an image is only pre-pulled when that provider's
+# tests are actually in the run. Pre-pulling (in CI only, before the timed run) keeps the pull -- slow
+# on cold caches, notably the GitHub-hosted ARM canary -- out of the per-test setup timeout. Keep the
+# tags in sync with the provider test conftests that use them (currently
+# providers/mongo/tests/conftest.py: MONGO_IMAGE + the testcontainers ryuk reaper).
+TESTCONTAINERS_IMAGES_BY_PROVIDER: dict[str, list[str]] = {
+    "mongo": ["mongo:8.0", "testcontainers/ryuk:0.8.1"],
+}
+
 TESTABLE_CORE_INTEGRATIONS = ["kerberos", "otel", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
@@ -101,6 +113,25 @@ DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
     "trino",
     "ydb",
 ]
+# Maps each testable provider integration to the provider distribution (dotted id)
+# that "owns" it. Used by selective checks to only run a provider integration when
+# its owning provider is among the affected providers of a change.
+TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
+    "celery": "celery",
+    "cassandra": "apache.cassandra",
+    "drill": "apache.drill",
+    "elasticsearch": "elasticsearch",
+    "tinkerpop": "apache.tinkerpop",
+    "kafka": "apache.kafka",
+    "localstack": "amazon",
+    "mongo": "mongo",
+    "mssql": "microsoft.mssql",
+    "pinot": "apache.pinot",
+    "qdrant": "qdrant",
+    "redis": "redis",
+    "trino": "trino",
+    "ydb": "ydb",
+}
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
@@ -145,7 +176,29 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
 ALLOWED_TERMINAL_MULTIPLEXERS = ["mprocs", "tmux"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = [
+    "breeze",
+    "breeze-prek",
+    "breeze-quick-start",
+    "breeze-task-sdk-test",
+    "breeze-airflowctl-test",
+    "breeze-e2e-test",
+    "docker-compose",
+]
+
+# Every docker compose project name that any breeze command, prek hook, or
+# CI workflow uses. `breeze down` discovers running compose projects via the
+# `com.docker.compose.project` label and only touches the ones that match
+# either an exact entry in `KNOWN_DOCKER_COMPOSE_PROJECT_NAMES` or one of the
+# prefixes in `KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES`. When you add a new
+# project_name pattern anywhere (new breeze command, new prek hook, new CI
+# step), update this list so `breeze down` stays a one-shot cleanup.
+KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
+    "breeze",  # default `breeze shell` / `breeze start-airflow`
+]
+KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
+    "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
+]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
@@ -173,6 +226,13 @@ SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
 FAB_AUTH_MANAGER = "FabAuthManager"
 
 GOLANG_WORKER = "go"
+
+JAVA_SDK = "java"
+ALLOWED_SDKS = [JAVA_SDK]
+
+# JDK version used to build the Java SDK and its example bundles (e.g. the lang-SDK k8s system test).
+# Keep in sync with the toolchain the Java SDK Gradle build targets.
+JAVA_SDK_VERSION = "17"
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
@@ -240,8 +300,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.0.1"
-UV_VERSION = "0.11.6"
+PIP_VERSION = "26.1.2"
+UV_VERSION = "0.11.26"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -249,6 +309,7 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "java-sdk",
     "task-sdk",
     "apache-airflow-ctl",
 ]
@@ -267,6 +328,11 @@ class TarBallType(Enum):
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
+]
+
+SCHEMA_DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/schemas/",
+    "s3://staging-docs-airflow-apache-org/schemas/",
 ]
 
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
@@ -338,7 +404,7 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_ROOT_PATH / "helm-tests" / "tests" / "helm_tests").iterdir()
+            for candidate in (AIRFLOW_ROOT_PATH / "chart" / "tests" / "helm_tests").iterdir()
             if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
@@ -666,11 +732,20 @@ def get_task_sdk_version():
     return task_sdk_version
 
 
+def get_java_sdk_version() -> str:
+    """Read the Java SDK version from 'java-sdk/gradle.properties'."""
+    props_path = AIRFLOW_ROOT_PATH / "java-sdk" / "gradle.properties"
+    for line in props_path.read_text().splitlines():
+        if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
+            return match.group(1)
+    raise RuntimeError(f"Java SDK version not found in {props_path}")
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
-        for line_raw in dockerfile.readlines():
+        for line_raw in dockerfile:
             if "ARG AIRFLOW_EXTRAS=" in line_raw:
                 line = line_raw.split("=")[1].strip()
                 return line.replace('"', "")
@@ -750,6 +825,7 @@ DEFAULT_EXTRAS = [
     "mysql",
     "odbc",
     "openlineage",
+    "opensearch",
     "pandas",
     "postgres",
     "redis",
@@ -767,7 +843,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai opensearch",
+        "remove-providers": "anthropic common.messaging edge3 fab git keycloak informatica common.ai opensearch",
         "run-unit-tests": "true",
     },
     {
@@ -784,7 +860,13 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.2.0",
+        "airflow-version": "3.2.2",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.3.0",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
@@ -794,7 +876,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.20",
     "3.11": "3.11.15",
     "3.12": "3.12.13",
-    "3.13": "3.13.13",
+    "3.13": "3.13.14",
     "3.14": "3.14.3",
 }
 

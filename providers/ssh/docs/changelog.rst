@@ -27,6 +27,63 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS private keys and ssh-dss host keys are no longer supported (#54079)``
+
+  Paramiko 4.0 removed DSS/DSA support; see `paramiko changelog <https://www.paramiko.org/changelog.html>`__ for upstream details. If you use a DSA private key in an SSH connection, generate a new key (for example ``ssh-keygen -t ed25519`` or ``-t rsa``), install the public key on the server, and point your Airflow connection at the new key file or ``private_key`` extra. If you pin the remote host with a ``host_key`` extra in ``ssh-dss`` form, obtain the server's current RSA, ECDSA, or Ed25519 host key and replace the value. The same constraints apply to SFTP connections that rely on paramiko via the SSH provider.
+
+5.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'SSHRemoteJobOperator' orphaning the remote job on cancellation (#68644)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Rerun flaky SSHRemoteJobOperator kill test on process-group races (#69384)``
+
+5.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reduce SSH connection churn in 'SSHRemoteJobOperator' under high fan-out (#68115)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky SSH test_command_timeout_fail on loaded CI runners (#67829)``
+
+5.0.2
+.....
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+5.0.1
+.....
+
+Misc
+~~~~
+
+* ``Bump paramiko lower bound to >=3.5.1 due to adding Vespa provider (#63988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.0.0
 .....
 

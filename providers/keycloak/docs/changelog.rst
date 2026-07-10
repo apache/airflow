@@ -25,6 +25,75 @@
 Changelog
 ---------
 
+0.8.1
+.....
+
+.. note::
+    The ``get_cli_user`` method added to the Keycloak auth manager in 0.8.0 has been
+    removed together with the revert of the airflowctl CLI client integration in Airflow
+    core. If you relied on ``airflowctl`` CLI authentication via the Keycloak service
+    account, provide an API token via the ``AIRFLOW_CLI_TOKEN`` environment variable
+    instead.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix keycloak missing resource error check (#69028)``
+* ``Handle missing Keycloak resources as access denied (#68951)``
+
+Misc
+~~~~
+
+* ``Parallelize per-dag auth checks in KeycloakAuthManager (#69107)``
+* ``Revert airflowctl dependency from airflow-core (#68856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+
+0.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement 'get_cli_user' in the Keycloak auth manager so airflowctl CLI commands can authenticate via a service account (#68175)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.7.3
+.....
+
+Misc
+~~~~
+
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+0.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Attach default role policies (#67031)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update Keycloak documentation to mention '[api] base_url' (#66023)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
 0.7.1
 .....
 

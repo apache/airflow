@@ -25,9 +25,9 @@ from unittest import mock
 
 import pytest
 from opentelemetry.metrics import MeterProvider
+from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
 from airflow_shared.observability.common import get_otel_data_exporter
-from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
@@ -97,15 +97,54 @@ class TestOtelMetrics:
             ],
         ],
     )
-    def test_invalid_stat_names_are_caught(self, invalid_stat_combo):
+    def test_invalid_stat_names_are_skipped(self, invalid_stat_combo):
         prefix = invalid_stat_combo[0]
         name = invalid_stat_combo[1]
         self.stats.prefix = prefix
 
-        with pytest.raises(InvalidStatsNameException):
-            self.stats.incr(name)
+        result = self.stats.incr(name)
 
-        self.meter.assert_not_called()
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.scheduled_duration",
+            "dag.my_dag.tâche_principale.duration",
+            "dag.my_dag.aufgäbe.duration",
+        ],
+    )
+    def test_non_ascii_stat_names_are_skipped_without_raising(self, stat):
+        result = self.stats.incr(stat)
+
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag_processing.last_run.seconds_ago.PBI_SKU_Performance copy",  # space in filename
+            "dag_processing.last_run.seconds_ago.mein_däg_file",  # non-ASCII in filename
+        ],
+    )
+    def test_gauge_with_invalid_stat_names_skipped_without_raising(self, stat):
+        self.stats.gauge(stat, value=1)
+
+        self.meter.get_meter().create_gauge.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.duration",  # non-ASCII
+            "dag.my_dag.task copy.duration",  # space
+        ],
+    )
+    def test_timer_with_invalid_stat_name_does_not_record(self, stat):
+        with self.stats.timer(stat):
+            pass
+
+        self.meter.get_meter().create_histogram.assert_not_called()
 
     def test_old_name_exception_works(self, caplog):
         name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
@@ -189,7 +228,7 @@ class TestOtelMetrics:
         assert mock_random.call_count == 2
         # add() is called once in the initial stats.incr and once for the decr that passed the rate check.
         self.map[full_name(name)].add.assert_has_calls(expected_calls)
-        self.map[full_name(name)].add.call_count == 2
+        assert self.map[full_name(name)].add.call_count == 2
 
     def test_gauge_new_metric(self, name):
         self.stats.gauge(name, value=1)
@@ -204,7 +243,7 @@ class TestOtelMetrics:
         self.stats.gauge(name, value=1, tags=tags)
 
         self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        self.map[key].attributes == tags
+        assert self.map[key].attributes == tags
 
     def test_gauge_existing_metric(self, name):
         self.stats.gauge(name, value=1)
@@ -244,25 +283,28 @@ class TestOtelMetrics:
 
         self.stats.timing(name, dt=datetime.timedelta(seconds=123))
 
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        expected_value = 123000.0
-        assert self.map[full_name(name)].value == expected_value
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
+        self.meter.get_meter().create_histogram.return_value.record.assert_called_once_with(
+            123000.0, attributes=None
+        )
 
     def test_timing_new_metric_with_tags(self, name):
         tags = {"hello": "world"}
-        key = _generate_key_name(full_name(name), tags)
 
         self.stats.timing(name, dt=1, tags=tags)
 
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        self.map[key].attributes == tags
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
+        self.meter.get_meter().create_histogram.return_value.record.assert_called_once_with(
+            1.0, attributes=tags
+        )
 
     def test_timing_existing_metric(self, name):
         self.stats.timing(name, dt=1)
         self.stats.timing(name, dt=2)
 
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        assert self.map[full_name(name)].value == 2
+        # histogram created only once, but both observations are recorded
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
+        assert self.meter.get_meter().create_histogram.return_value.record.call_count == 2
 
     # For the four test_timer_foo tests below:
     #   time.perf_count() is called once to get the starting timestamp and again
@@ -277,18 +319,19 @@ class TestOtelMetrics:
         expected_duration = 3140.0
         assert timer.duration == expected_duration
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
 
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
     def test_timer_no_name_returns_float_but_does_not_store_value(self, mock_time, name):
         with self.stats.timer() as timer:
             pass
 
+        assert hasattr(timer, "duration")
         assert isinstance(timer.duration, float)
         expected_duration = 3140.0
         assert timer.duration == expected_duration
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_not_called()
+        self.meter.get_meter().create_histogram.assert_not_called()
 
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
     def test_timer_start_and_stop_manually_send_false(self, mock_time, name):
@@ -301,7 +344,7 @@ class TestOtelMetrics:
         expected_value = 3140.0
         assert timer.duration == expected_value
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_not_called()
+        self.meter.get_meter().create_histogram.assert_not_called()
 
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
     def test_timer_start_and_stop_manually_send_true(self, mock_time, name):
@@ -314,7 +357,7 @@ class TestOtelMetrics:
         expected_value = 3140.0
         assert timer.duration == expected_value
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
 
     @pytest.mark.parametrize(
         (
@@ -389,6 +432,38 @@ class TestOtelMetrics:
                 "grpc",
                 id="type_specific_vars_take_precedence",
             ),
+            pytest.param(
+                {},
+                "::1",
+                "4318",
+                "http://[::1]:4318/v1/metrics",
+                "http",
+                id="airflow_config_ipv6_loopback_is_bracketed",
+            ),
+            pytest.param(
+                {},
+                "2001:db8::1",
+                "4318",
+                "http://[2001:db8::1]:4318/v1/metrics",
+                "http",
+                id="airflow_config_ipv6_literal_is_bracketed",
+            ),
+            pytest.param(
+                {},
+                "[::1]",
+                "4318",
+                "http://[::1]:4318/v1/metrics",
+                "http",
+                id="airflow_config_already_bracketed_ipv6_is_preserved",
+            ),
+            pytest.param(
+                {},
+                "10.0.0.1",
+                "4318",
+                "http://10.0.0.1:4318/v1/metrics",
+                "http",
+                id="airflow_config_ipv4_literal_passes_through_unchanged",
+            ),
         ],
     )
     def test_config_priorities(
@@ -415,6 +490,18 @@ class TestOtelMetrics:
                 == f"opentelemetry.exporter.otlp.proto.{expected_exporter_module}.metric_exporter"
             )
 
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
+    def test_get_otel_logger_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
+        get_otel_logger(host="localhost", port=4318)
+
+        call_kwargs = mock_provider.call_args.kwargs
+        views = call_kwargs["views"]
+        assert len(views) == 1
+        view = views[0]
+        assert isinstance(view, View)
+        assert isinstance(view._aggregation, ExponentialBucketHistogramAggregation)
+
     def test_atexit_flush_on_process_exit(self):
         """
         Run a process that initializes a logger, creates a stat and then exits.
@@ -422,8 +509,11 @@ class TestOtelMetrics:
         The logger initialization registers an atexit hook.
         Test that the hook runs and flushes the created stat at shutdown.
         """
-        test_module_name = "tests.observability.metrics.test_otel_logger"
-        function_call_str = f"import {test_module_name} as m; m.mock_service_run()"
+        function_call_str = (
+            "from airflow_shared.observability.metrics.otel_logger import get_otel_logger; "
+            "logger = get_otel_logger(debug=True); "
+            "logger.incr('my_test_stat')"
+        )
 
         proc = subprocess.run(
             [sys.executable, "-c", function_call_str],

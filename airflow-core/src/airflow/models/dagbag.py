@@ -18,17 +18,19 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from collections.abc import MutableMapping
 from contextlib import nullcontext
 from threading import RLock
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import UUID
 
 from cachetools import LRUCache, TTLCache
 from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
+from airflow.configuration import conf
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 
@@ -40,6 +42,20 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.definitions.dag import SerializedDAG
+
+
+class _CacheEntry(NamedTuple):
+    """A cached deserialized DAG plus the metadata needed to detect staleness on lookup."""
+
+    dag: SerializedDAG
+    dag_hash: str
+    # Monotonic timestamp of the last time this entry's dag_hash was confirmed current against the
+    # DB. Used to throttle revalidation: a serialized DAG cannot be rewritten more often than
+    # [core] min_serialized_dag_update_interval, so within that window the cached copy is served
+    # without a DB round-trip. Because the window restarts on each confirmed hit and is on a
+    # different clock than the dag processor's write throttle, worst-case staleness is bounded to
+    # roughly one-to-two update intervals -- still bounded, vs. the previous unbounded-until-restart.
+    last_validated: float
 
 
 class DBDagBag:
@@ -67,8 +83,10 @@ class DBDagBag:
         :param cache_ttl: Time-to-live for cache entries in seconds. If None or 0, no TTL (LRU only).
         """
         self.load_op_links = load_op_links
-        self._dags: MutableMapping[UUID | str, SerializedDAG] = {}
+        self._dags: MutableMapping[UUID | str, _CacheEntry] = {}
         self._use_cache = False
+
+        self._revalidation_interval = conf.getint("core", "min_serialized_dag_update_interval")
 
         # Initialize bounded cache if cache_size is provided and > 0
         if cache_size and cache_size > 0:
@@ -84,27 +102,58 @@ class DBDagBag:
         self._lock: RLock | nullcontext = RLock() if self._use_cache else nullcontext()
 
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
-        """Read and optionally cache a SerializedDAG from a SerializedDagModel."""
+        """Read and cache a SerializedDAG (with its ``dag_hash`` for staleness detection)."""
         serdag.load_op_links = self.load_op_links
         dag = serdag.dag
         if not dag:
             return None
         with self._lock:
-            self._dags[serdag.dag_version_id] = dag
+            self._dags[serdag.dag_version_id] = _CacheEntry(dag, serdag.dag_hash, time.monotonic())
             cache_size = len(self._dags)
         if self._use_cache:
-            Stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
+            stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
         return dag
 
-    def _get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
-        # Check cache first
-        with self._lock:
-            dag = self._dags.get(version_id)
+    @staticmethod
+    def _current_dag_hash(version_id: UUID | str, session: Session) -> str | None:
+        """Return the current ``dag_hash`` of the serialized DAG for ``version_id``, or None."""
+        from airflow.models.serialized_dag import SerializedDagModel
 
-        if dag:
-            if self._use_cache:
-                Stats.incr("api_server.dag_bag.cache_hit")
-            return dag
+        return session.scalar(
+            select(SerializedDagModel.dag_hash).where(SerializedDagModel.dag_version_id == version_id)
+        )
+
+    def _get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
+        with self._lock:
+            cached = self._dags.get(version_id)
+
+        if cached is not None:
+            now = time.monotonic()
+            # A serialized DAG cannot be rewritten more often than
+            # [core] min_serialized_dag_update_interval, so an entry validated within that window
+            # cannot have gone stale yet -- serve it without touching the DB.
+            if now - cached.last_validated < self._revalidation_interval:
+                if self._use_cache:
+                    stats.incr("api_server.dag_bag.cache_hit")
+                return cached.dag
+            # Past the window: a version may have been updated in place (same dag_version_id, new
+            # content + new dag_hash) by SerializedDagModel.write_dag, so confirm the cached copy
+            # against the current dag_hash. That validation is a single-row lookup on the
+            # uniquely-indexed serialized_dag.dag_version_id column.
+            if self._current_dag_hash(version_id, session) == cached.dag_hash:
+                # Still current: restart the revalidation window so the next hits skip the query.
+                # (For a TTLCache this write-back also refreshes the entry's TTL/LRU recency, which
+                # is fine -- the entry was just re-confirmed against the DB.)
+                with self._lock:
+                    current = self._dags.get(version_id)
+                    if current is not None and current.dag_hash == cached.dag_hash:
+                        self._dags[version_id] = current._replace(last_validated=now)
+                if self._use_cache:
+                    stats.incr("api_server.dag_bag.cache_hit")
+                return cached.dag
+            # Stale (updated in place) or the version no longer exists: drop and reload below.
+            with self._lock:
+                self._dags.pop(version_id, None)
 
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
         if not dag_version:
@@ -112,15 +161,17 @@ class DBDagBag:
         if not (serdag := dag_version.serialized_dag):
             return None
 
-        # Double-checked locking: another thread may have cached it while we queried DB.
-        # Only emit the miss metric after confirming no other thread cached it, to avoid
-        # counting a single lookup as both a miss and a hit.
+        # Double-checked locking: another thread may have cached it while we queried DB. Such an
+        # entry was just loaded from the DB, so it is well within its revalidation window and is
+        # served without an extra hash check, consistent with the policy above. Only emit the miss
+        # metric after confirming no other thread cached it, to avoid counting a single lookup as
+        # both a miss and a hit.
         if self._use_cache:
             with self._lock:
-                if dag := self._dags.get(version_id):
-                    Stats.incr("api_server.dag_bag.cache_hit")
-                    return dag
-            Stats.incr("api_server.dag_bag.cache_miss")
+                if (cached := self._dags.get(version_id)) is not None:
+                    stats.incr("api_server.dag_bag.cache_hit")
+                    return cached.dag
+            stats.incr("api_server.dag_bag.cache_miss")
         return self._read_dag(serdag)
 
     def get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
@@ -152,8 +203,8 @@ class DBDagBag:
             self._dags.clear()
 
         if self._use_cache:
-            Stats.incr("api_server.dag_bag.cache_clear")
-            Stats.gauge("api_server.dag_bag.cache_size", 0)
+            stats.incr("api_server.dag_bag.cache_clear")
+            stats.gauge("api_server.dag_bag.cache_size", 0)
         return count
 
     @staticmethod

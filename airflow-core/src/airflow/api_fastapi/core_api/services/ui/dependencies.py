@@ -21,6 +21,7 @@ from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
 from airflow.models.asset import AssetModel
+from airflow.models.dag import DagModel
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -85,7 +86,7 @@ def extract_single_connected_component(
 
 
 def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dict[str, list[dict]]:
-    """Get scheduling dependencies between DAGs."""
+    """Get scheduling dependencies between Dags."""
     from airflow.models.serialized_dag import SerializedDagModel
 
     nodes_dict: dict[str, dict] = {}
@@ -98,6 +99,20 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dic
         dag_node_id = f"dag:{dag}"
         if dag_node_id not in nodes_dict:
             for dep in dependencies:
+                # Skip dependency objects whose edge endpoints reference DAGs
+                # outside the caller's readable set. ``dep.node_id`` /
+                # ``dep.source`` / ``dep.target`` would otherwise embed those
+                # DAG ids in the response even when the top-level filter
+                # above hides the DAG itself.
+                if readable_dag_ids is not None:
+                    referenced_dag_ids: set[str] = set()
+                    if dep.source != dep.dependency_type and ":" not in dep.source:
+                        referenced_dag_ids.add(dep.source)
+                    if dep.target != dep.dependency_type and ":" not in dep.target:
+                        referenced_dag_ids.add(dep.target)
+                    if not referenced_dag_ids.issubset(readable_dag_ids):
+                        continue
+
                 # Add nodes
                 nodes_dict[dag_node_id] = {"id": dag_node_id, "label": dag, "type": "dag"}
                 if dep.node_id not in nodes_dict:
@@ -119,6 +134,28 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dic
                     source = dep.node_id
                     target = dep.target if ":" in dep.target else f"dag:{dep.target}"
                     edge_tuples.add((source, target))
+
+    # Create missing ``dag:`` nodes which may have been skipped by the loop above.
+    # A DAG referenced only as a trigger target or a sensor source may have no
+    # scheduling dependencies of its own. Without this loop, these DAGs will not be
+    # materialised and will result in dangling edges.
+    for source, target in edge_tuples:
+        for endpoint in (source, target):
+            if endpoint.startswith("dag:") and endpoint not in nodes_dict:
+                nodes_dict[endpoint] = {
+                    "id": endpoint,
+                    "label": endpoint.removeprefix("dag:"),
+                    "type": "dag",
+                }
+
+    dag_ids = [node["label"] for node in nodes_dict.values() if node["type"] == "dag"]
+    if dag_ids:
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids)
+        for node in nodes_dict.values():
+            if node["type"] == "dag":
+                team_name = dag_id_to_team.get(node["label"])
+                if team_name:
+                    node["team"] = team_name
 
     return {
         "nodes": list(nodes_dict.values()),
@@ -252,6 +289,17 @@ def get_data_dependencies(
                 for outlet_ref in outlet_refs:
                     if outlet_ref.asset_id not in processed_assets:
                         assets_to_process.append(outlet_ref.asset_id)
+
+    all_dag_ids = list({dag_id for dag_id, _ in processed_tasks})
+    if all_dag_ids:
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(all_dag_ids, session=session)
+        for node in nodes_dict.values():
+            if not node["id"].startswith("task:"):
+                continue
+            dag_id = node["id"].removeprefix("task:").split(SEPARATOR, 1)[0]
+            team_name = dag_id_to_team.get(dag_id)
+            if team_name:
+                node["team"] = team_name
 
     return {
         "nodes": list(nodes_dict.values()),

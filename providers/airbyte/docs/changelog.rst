@@ -27,6 +27,87 @@ Changelog
 ---------
 
 
+Transitive dependency changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+  This release upgrades the provider's ``airbyte-api`` dependency to the ``1.x`` series and switches
+  the underlying HTTP client from ``requests`` to ``httpx``.
+
+  No changes are required for typical Dag authors: the ``AirbyteHook``, ``AirbyteTriggerSyncOperator``,
+  and ``AirbyteJobSensor`` public interfaces are unchanged, and the Airbyte connection configuration
+  (including the ``proxies`` extra) keeps the same format.
+
+  Action is required only if your environment relies on the provider's transitive dependencies:
+
+  * ``airbyte-api`` is now ``>=1.0.0,<2.0`` (previously ``>=0.52.0,<1.0.0``). The ``1.x`` SDK is built
+    on Pydantic models, so any code importing ``airbyte_api`` directly must pass request objects as
+    keyword arguments (e.g. ``GetJobRequest(job_id=...)``) and handle its stricter response validation.
+  * ``requests`` is no longer installed by this provider. If your code relied on it being pulled in
+    transitively, declare ``requests`` as an explicit dependency of your own project.
+
+
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``Cap airbyte-api < 1.0.0 due to breaking changes (#69081)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+5.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable execution timeout handling for Airbyte jobs. (#67816)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement execution_timeout semantics for AirbyteTriggerSyncOperator in deferrable mode (#64051)``
+
+Bug Fixes
+~~~~~~~~~
+
+   * ``Fix deferrable execution_timeout handling in AirbyteTriggerSyncOperator (#67382)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare providers release 2026-05-19 (#67137)``
+
+5.4.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make OAuth credentials optional for Airbyte OSS deployments (#64986)``
+
+Misc
+~~~~
+
+* ``Add tests for execute_complete success and error paths (#64119)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 5.4.1
 .....
 

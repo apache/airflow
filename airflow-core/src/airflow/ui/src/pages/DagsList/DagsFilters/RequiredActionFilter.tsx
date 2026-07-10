@@ -18,7 +18,6 @@
  */
 import { Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { LuUserRoundPen } from "react-icons/lu";
 
 import { StateBadge } from "src/components/StateBadge";
 
@@ -32,15 +31,11 @@ export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
 
   return (
     <Button
-      colorPalette="brand"
       data-testid="dags-needs-review-filter"
       onClick={onToggle}
-      size="sm"
       variant={needsReview ? "solid" : "outline"}
     >
-      <StateBadge colorPalette="deferred">
-        <LuUserRoundPen />
-      </StateBadge>
+      <StateBadge state="awaiting_input" />
       {translate("requiredAction_other")}
     </Button>
   );

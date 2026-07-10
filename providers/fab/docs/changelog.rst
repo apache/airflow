@@ -20,6 +20,186 @@
 Changelog
 ---------
 
+.. note::
+    The Azure AD OAuth provider in the FAB auth manager now verifies the ``id_token``
+    signature by default: ``verify_signature`` now defaults to ``True`` (previously
+    ``False``), consistent with the Authentik provider. Deployments that intentionally
+    relied on skipping signature verification must set ``verify_signature: False``
+    explicitly in the Azure provider ``client_kwargs`` to keep the previous behaviour.
+
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG named "DAGs" colliding with the global DAGs permission resource (#69106)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69344)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69210)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69186)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69133)``
+
+3.7.1
+.....
+
+.. note::
+    The ``get_cli_user`` method added to the FAB auth manager in 3.7.0 has been removed
+    together with the revert of the airflowctl CLI client integration in Airflow core.
+    If you relied on ``airflowctl`` CLI authentication through the FAB auth manager,
+    provide an API token via the ``AIRFLOW_CLI_TOKEN`` environment variable instead.
+
+Misc
+~~~~
+
+* ``Revert airflowctl dependency from airflow-core (#68856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement 'get_cli_user' in the FAB auth manager so airflowctl CLI commands can authenticate (#68175)``
+* ``Add Browse > Deadlines menu item for compatibility with Airflow 3.3.0 (#67586)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix fab deserialize user session leak (#68100)``
+* ``Import ldap.filter in security_manager override (#68226)``
+* ``Add defensive validation for LDAP search filter configuration (#67630)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update FAB auth manager Flask config wording for Airflow 3 (#68162)``
+* ``Fix removed webserver command in FAB SSO guide for Airflow 3 (#68166)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#67928)``
+   * ``[main] Upgrade important CI environment (#68163)``
+   * ``Bump stylelint (#68347)``
+   * ``Bump prettier (#68576)``
+   * ``Bump eslint (#68681)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
+3.6.5
+.....
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 5 updates (#67733)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#67512)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+* ``Remove exclusion of yanked version dependencies from providers (#66857)``
+* ``Bump eslint (via audit fix) (#67220)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove findings from positional session check in Core Utils (#67777)``
+   * ``[main] CI: Upgrade important CI environment (#67593)``
+   * ``[main] CI: Upgrade important CI environment (#67313)``
+
+
+3.6.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix provider DB upgrades with existing tables (#66883)``
+* ``Clean up FK associations before deleting role (#65375) (#66686)``
+* ``Fix session cookie serialization when using securecookie backend (#66565)``
+* ``Fix escape special characters in LDAP authentication filter (#66417)``
+
+Misc
+~~~~
+
+* ``Bump flask-appbuilder to 5.2.1 and mirror new auth event hooks (#66841)``
+* ``Bump terser-webpack-plugin (#66834)``
+* ``Pin pyjwt>=2.11.0 in FAB provider and stabilise JWT tests under PyJWT 2.12 (#66840)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#66742)``
+* ``Bump stylelint (#66528)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#66429)``
+* ``Bump stylelint (#67148)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove global variables in airflow.settings (#67070)" (#67099)``
+   * ``Remove global variables in airflow.settings (#67070)``
+   * ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
+   * ``[main] CI: Upgrade important CI environment (#66843)``
+
+3.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix NPM security vulnerabilities in fab provider (#66031)``
+* ``Fix FAB password hashing to respect FAB_PASSWORD_HASH_METHOD config (#65735)``
+* ``Fix fab mysql migration error caused by pre defiend fk name in orm create (#65831)``
+* ``Fix '/auth/token' 500 when FAB auth manager is recreated (#65710)``
+* ``Honor AUTH_ROLE_PUBLIC in FastAPI API server (#65685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#66068)``
+   * ``Bump stylelint (#66224)``
+   * ``Bump moment-timezone from 0.6.1 to 0.6.2 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#66166)``
+   * ``Bump terser-webpack-plugin (#66033)``
+   * ``Bump stylelint (#65979)``
+   * ``Dispose flask_sqlalchemy + airflow ORM engines in fab test fixtures (#65941)``
+   * ``[main] CI: Upgrade important CI environment (#65933)``
+   * ``Revert "Remove global variables in airflow.settings (#61917)" (#65718)``
+   * ``Remove global variables in airflow.settings (#61917)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLite migration 02ca36b0235b to use naming_convention for batch_alter_table (#65540)``
+* ``Invalidate cached user permissions after LDAP role sync to prevent intermittent 403 errors (#64539)``
+* ``Lazily initialize flask_app in FastAPI routes (#64908)``
+* ``Fix duplicate Date headers in Flask WSGI responses (#64726)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#65567)``
+* ``Bump stylelint (#65380)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#65234)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#65145)``
+* ``Bump eslint (#65681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#65521)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
 3.6.1
 .....
 
