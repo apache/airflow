@@ -1947,6 +1947,7 @@ export class DagService {
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
+     * @param data.timetableType
      * @param data.hasPendingActions
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
@@ -1979,6 +1980,7 @@ export class DagService {
                 is_favorite: data.isFavorite,
                 has_asset_schedule: data.hasAssetSchedule,
                 asset_dependency: data.assetDependency,
+                timetable_type: data.timetableType,
                 has_pending_actions: data.hasPendingActions
             },
             errors: {

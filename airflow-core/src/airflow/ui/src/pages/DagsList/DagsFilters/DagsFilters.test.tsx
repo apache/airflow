@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
@@ -66,5 +66,21 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     screen.getByText("filters.paused.paused").click();
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
+  });
+
+  it("filters dags by timetable type", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("dags-timetable-type-filter"), {
+      target: { value: "CronTriggerTimetable" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    });
   });
 });

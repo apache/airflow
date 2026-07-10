@@ -22,7 +22,9 @@
       "all": "All",
       "paused": "Paused"
     },
-    "runIdPatternFilter": "Search Dag Runs"
+    "runIdPatternFilter": "Search Dag Runs",
+    "timetableType": "Timetable type",
+    "timetableTypeClear": "Clear timetable type filter"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
