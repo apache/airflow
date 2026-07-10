@@ -115,41 +115,36 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
                 # task keeps the aggregated coarse-grained lineage (backward compatible) while each
                 # child query is additionally emitted below as its own event for per-statement detail.
                 # https://cloud.google.com/bigquery/docs/information-schema-jobs#multi-statement_query_job
-                child_jobs_to_emit = []
+                child_jobs_properties = []
                 for child_job in self._client.list_jobs(parent_job=self.job_id):
-                    # BigQuery returns Job objects; keep raw job IDs supported for lightweight clients.
-                    child_job_id = getattr(child_job, "job_id", child_job)
                     try:
-                        child_job_properties = self._client.get_job(job_id=child_job_id)._properties
+                        child_jobs_properties.append(
+                            self._client.get_job(job_id=child_job.job_id)._properties
+                        )
+                    except Exception as child_exception:
+                        self.log.warning(
+                            "Cannot retrieve BigQuery child job `%s`. %s",
+                            child_job.job_id,
+                            child_exception,
+                            exc_info=True,
+                        )
+                child_jobs_properties.sort(key=self._get_child_job_sort_key)
+                for child_index, child_job_properties in enumerate(child_jobs_properties, start=1):
+                    try:
                         child_inputs, child_outputs = self._get_inputs_and_outputs(child_job_properties)
                     except Exception as child_exception:
                         self.log.warning(
-                            "Cannot retrieve lineage for BigQuery child job `%s`. %s",
-                            child_job_id,
+                            "Cannot extract lineage for BigQuery child job `%s`. %s",
+                            get_from_nullable_chain(child_job_properties, ["jobReference", "jobId"]),
                             child_exception,
                             exc_info=True,
                         )
                         continue
                     inputs.extend(child_inputs)
                     outputs.extend(child_outputs)
-                    child_jobs_to_emit.append(
-                        (
-                            str(child_job_id),
-                            child_job_properties,
-                            child_inputs,
-                            child_outputs,
-                        )
-                    )
-                for child_index, (
-                    child_job_id,
-                    child_job_properties,
-                    child_inputs,
-                    child_outputs,
-                ) in enumerate(sorted(child_jobs_to_emit, key=self._get_child_job_sort_key), start=1):
                     self._emit_child_query_lineage(
                         task_instance=task_instance,
                         child_index=child_index,
-                        child_job_id=child_job_id,
                         child_job_properties=child_job_properties,
                         inputs=child_inputs,
                         outputs=child_outputs,
@@ -181,7 +176,6 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         *,
         task_instance,
         child_index: int,
-        child_job_id: str,
         child_job_properties: dict,
         inputs: list[InputDataset | Dataset],
         outputs: list[OutputDataset | Dataset],
@@ -190,15 +184,24 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             self.log.debug("No task instance available. Skipping BigQuery child job OpenLineage event.")  # type: ignore[attr-defined]
             return
 
-        from airflow.providers.openlineage.api.sql import emit_query_lineage
+        try:
+            from airflow.providers.openlineage.api.sql import emit_query_lineage
+        except ImportError:
+            self.log.debug(  # type: ignore[attr-defined]
+                "The emit_query_lineage API requires apache-airflow-providers-openlineage>=2.16.0. "
+                "Skipping BigQuery child job OpenLineage event."
+            )
+            return
+
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         child_query = get_from_nullable_chain(child_job_properties, ["configuration", "query", "query"])
         job_facets = {"sql": SQLJobFacet(query=SQLParser.normalize_sql(child_query))} if child_query else None
+        error_result = get_from_nullable_chain(child_job_properties, ["status", "errorResult"])
         start_time = self._get_bigquery_job_datetime(child_job_properties, "startTime")
         end_time = self._get_bigquery_job_datetime(child_job_properties, "endTime")
         emit_query_lineage(
-            query_id=child_job_id,
+            query_id=get_from_nullable_chain(child_job_properties, ["jobReference", "jobId"]),
             query_source_namespace=BIGQUERY_NAMESPACE,
             # Intentionally not passed as query_text: BigQuery job metadata already provides
             # authoritative lineage, and parser-derived datasets could duplicate or conflict
@@ -208,6 +211,8 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             outputs=outputs,
             start_time=start_time,
             end_time=end_time,
+            is_successful=error_result is None,
+            error_message=error_result.get("message") if error_result else None,
             task_instance=task_instance,
             job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{child_index}",
             additional_run_facets={"bigQueryJob": self._get_bigquery_job_run_facet(child_job_properties)},
@@ -225,16 +230,15 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             return None
 
     @classmethod
-    def _get_child_job_sort_key(cls, child_job) -> tuple[datetime, str]:
+    def _get_child_job_sort_key(cls, properties: dict) -> tuple[datetime, str]:
         # Emit children ordered by execution time so the query.N suffix is stable across runs,
         # breaking ties deterministically by job id.
-        child_job_id, child_job_properties, _, _ = child_job
-        start_time = cls._get_bigquery_job_datetime(child_job_properties, "startTime")
+        start_time = cls._get_bigquery_job_datetime(properties, "startTime")
         return (
             # None is not comparable with datetime, so a missing startTime maps to
             # datetime.max to sort those children last instead of crashing the sort.
             start_time or datetime.max.replace(tzinfo=timezone.utc),
-            child_job_id,
+            get_from_nullable_chain(properties, ["jobReference", "jobId"]) or "",
         )
 
     def _get_inputs_and_outputs(self, properties: dict) -> tuple[list[InputDataset], list[OutputDataset]]:

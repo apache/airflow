@@ -432,7 +432,7 @@ class TestBigQueryOpenLineageMixin:
             Table.from_api_repr(read_common_json_file("table_details.json")),
             Table.from_api_repr(read_common_json_file("out_table_details.json")),
         ]
-        self.client.list_jobs.return_value = ["child_job_id"]
+        self.client.list_jobs.return_value = [MagicMock(job_id="child_job_id")]
         mock_ti = make_task_instance()
 
         lineage = self.operator.get_openlineage_facets_on_complete(mock_ti)
@@ -486,9 +486,14 @@ class TestBigQueryOpenLineageMixin:
             ),
         ]
         mock_emit_query_lineage.assert_called_once()
-        assert mock_emit_query_lineage.call_args.kwargs["query_id"] == "child_job_id"
+        assert (
+            mock_emit_query_lineage.call_args.kwargs["query_id"]
+            == self.query_job_details["jobReference"]["jobId"]
+        )
         assert mock_emit_query_lineage.call_args.kwargs["query_source_namespace"] == "bigquery"
         assert mock_emit_query_lineage.call_args.kwargs["query_text"] is None
+        assert mock_emit_query_lineage.call_args.kwargs["is_successful"] is True
+        assert mock_emit_query_lineage.call_args.kwargs["error_message"] is None
         assert mock_emit_query_lineage.call_args.kwargs["task_instance"] is mock_ti
         assert mock_emit_query_lineage.call_args.kwargs["job_name"] == "dag_id.task_id.query.1"
         assert mock_emit_query_lineage.call_args.kwargs["start_time"] == datetime.fromtimestamp(
@@ -510,6 +515,7 @@ class TestBigQueryOpenLineageMixin:
         parent_job_details = copy.deepcopy(self.script_job_details)
         parent_job_details["statistics"]["numChildJobs"] = "2"
         child_job_1_details = {
+            "jobReference": {"jobId": "child_job_1"},
             "configuration": {
                 "jobType": "QUERY",
                 "query": {"query": "CREATE TABLE output_table1 AS SELECT 1 AS id"},
@@ -518,6 +524,7 @@ class TestBigQueryOpenLineageMixin:
             "status": {"state": "DONE"},
         }
         child_job_2_details = {
+            "jobReference": {"jobId": "child_job_2"},
             "configuration": {
                 "jobType": "QUERY",
                 "query": {"query": "CREATE TABLE output_table2 AS SELECT 2 AS id"},
@@ -534,7 +541,10 @@ class TestBigQueryOpenLineageMixin:
             MagicMock(_properties=child_job_1_details),
             MagicMock(_properties=child_job_2_details),
         ]
-        self.client.list_jobs.return_value = ["child_job_1", "child_job_2"]
+        self.client.list_jobs.return_value = [
+            MagicMock(job_id="child_job_1"),
+            MagicMock(job_id="child_job_2"),
+        ]
         mock_ti = make_task_instance()
 
         def get_inputs_and_outputs(_, properties):
@@ -586,6 +596,7 @@ class TestBigQueryOpenLineageMixin:
         parent_job_details = copy.deepcopy(self.script_job_details)
         parent_job_details["statistics"]["numChildJobs"] = "2"
         child_job_1_details = {
+            "jobReference": {"jobId": "child_job_1"},
             "configuration": {
                 "jobType": "QUERY",
                 "query": {"query": "CREATE TABLE output_table1 AS SELECT 1 AS id"},
@@ -598,6 +609,7 @@ class TestBigQueryOpenLineageMixin:
             "status": {"state": "DONE"},
         }
         child_job_2_details = {
+            "jobReference": {"jobId": "child_job_2"},
             "configuration": {
                 "jobType": "QUERY",
                 "query": {"query": "CREATE TABLE output_table2 AS SELECT 2 AS id"},
@@ -637,8 +649,9 @@ class TestBigQueryOpenLineageMixin:
 
         lineage = self.operator.get_openlineage_facets_on_complete(make_task_instance())
 
-        assert lineage.inputs == [input_table2, input_table1]
-        assert lineage.outputs == [output_table2, output_table1]
+        # Aggregation follows the sorted (execution-time) order, not the list_jobs order.
+        assert lineage.inputs == [input_table1, input_table2]
+        assert lineage.outputs == [output_table1, output_table2]
         assert mock_is_openlineage_active.call_count == 2
         assert mock_emit.call_count == 4
         child_1_start, child_1_complete, child_2_start, child_2_complete = [
@@ -677,14 +690,29 @@ class TestBigQueryOpenLineageMixin:
     ):
         parent_job_details = copy.deepcopy(self.script_job_details)
         parent_job_details["statistics"]["numChildJobs"] = "2"
+        child_job_1_details = {
+            "jobReference": {"jobId": "child_job_1"},
+            "configuration": {"jobType": "QUERY"},
+            "statistics": {"startTime": "1600000000000"},
+            "status": {"state": "DONE"},
+        }
+        child_job_2_details = {
+            "jobReference": {"jobId": "child_job_2"},
+            "configuration": {"jobType": "QUERY", "query": {"query": "SELECT 2"}},
+            "statistics": {"startTime": "1600000010000"},
+            "status": {"state": "DONE"},
+        }
         input_table2 = InputDataset(namespace="bigquery", name="project.dataset.input_table2")
         output_table2 = OutputDataset(namespace="bigquery", name="project.dataset.output_table2")
         self.client.get_job.side_effect = [
             MagicMock(_properties=parent_job_details),
-            MagicMock(_properties={"configuration": {"jobType": "QUERY"}, "status": {"state": "DONE"}}),
-            MagicMock(_properties=copy.deepcopy(self.query_job_details)),
+            MagicMock(_properties=child_job_1_details),
+            MagicMock(_properties=child_job_2_details),
         ]
-        self.client.list_jobs.return_value = ["child_job_1", "child_job_2"]
+        self.client.list_jobs.return_value = [
+            MagicMock(job_id="child_job_1"),
+            MagicMock(job_id="child_job_2"),
+        ]
         mock_get_inputs_and_outputs.side_effect = [
             RuntimeError("broken child"),
             ([input_table2], [output_table2]),
@@ -699,6 +727,8 @@ class TestBigQueryOpenLineageMixin:
         assert mock_emit_query_lineage.call_args.kwargs["query_id"] == "child_job_2"
         assert mock_emit_query_lineage.call_args.kwargs["inputs"] == [input_table2]
         assert mock_emit_query_lineage.call_args.kwargs["outputs"] == [output_table2]
+        # The failing child keeps its positional slot so the query.N suffix stays stable across runs.
+        assert mock_emit_query_lineage.call_args.kwargs["job_name"] == "dag_id.task_id.query.2"
 
     @patch("airflow.providers.openlineage.api.sql.emit_query_lineage")
     def test_script_job_without_task_instance_does_not_emit_child_query_events(self, mock_emit_query_lineage):
@@ -710,7 +740,7 @@ class TestBigQueryOpenLineageMixin:
             Table.from_api_repr(read_common_json_file("table_details.json")),
             Table.from_api_repr(read_common_json_file("out_table_details.json")),
         ]
-        self.client.list_jobs.return_value = ["child_job_id"]
+        self.client.list_jobs.return_value = [MagicMock(job_id="child_job_id")]
 
         lineage = self.operator.get_openlineage_facets_on_complete(None)
 
@@ -727,7 +757,6 @@ class TestBigQueryOpenLineageMixin:
         self.operator._emit_child_query_lineage(
             task_instance=make_task_instance(),
             child_index=1,
-            child_job_id="child_job_id",
             child_job_properties={
                 "configuration": {"jobType": "QUERY", "query": {}},
                 "statistics": {"query": {"cacheHit": False, "totalBytesBilled": "10"}},
@@ -737,6 +766,43 @@ class TestBigQueryOpenLineageMixin:
         )
 
         assert mock_emit_query_lineage.call_args.kwargs["additional_job_facets"] is None
+
+    @patch("airflow.providers.openlineage.api.sql.emit_query_lineage")
+    def test_child_query_lineage_marks_failed_child_job(self, mock_emit_query_lineage):
+        self.operator._emit_child_query_lineage(
+            task_instance=make_task_instance(),
+            child_index=1,
+            child_job_properties={
+                "jobReference": {"jobId": "child_job_id"},
+                "configuration": {"jobType": "QUERY", "query": {"query": "SELECT 1"}},
+                "status": {"state": "DONE", "errorResult": {"reason": "invalid", "message": "Syntax error"}},
+            },
+            inputs=[],
+            outputs=[],
+        )
+
+        assert mock_emit_query_lineage.call_args.kwargs["is_successful"] is False
+        assert mock_emit_query_lineage.call_args.kwargs["error_message"] == "Syntax error"
+
+    @patch.dict("sys.modules", {"airflow.providers.openlineage.api.sql": None})
+    def test_child_query_lineage_skipped_with_old_openlineage_provider(self):
+        self.client.get_job.side_effect = [
+            MagicMock(_properties=self.script_job_details),
+            MagicMock(_properties=self.query_job_details),
+        ]
+        self.client.get_table.side_effect = [
+            Table.from_api_repr(read_common_json_file("table_details.json")),
+            Table.from_api_repr(read_common_json_file("out_table_details.json")),
+        ]
+        self.client.list_jobs.return_value = [MagicMock(job_id="child_job_id")]
+
+        lineage = self.operator.get_openlineage_facets_on_complete(make_task_instance())
+
+        # Old OpenLineage providers lack emit_query_lineage: the parent event must still
+        # aggregate child datasets and must not gain a misleading errorMessage facet.
+        assert [i.name for i in lineage.inputs] == ["airflow-openlineage.new_dataset.test_table"]
+        assert [o.name for o in lineage.outputs] == ["airflow-openlineage.new_dataset.output_table"]
+        assert "errorMessage" not in lineage.run_facets
 
     @pytest.mark.parametrize(
         ("value", "expected"),
