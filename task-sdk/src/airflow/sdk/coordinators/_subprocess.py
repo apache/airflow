@@ -43,7 +43,13 @@ import structlog
 
 from airflow.sdk.configuration import conf
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
+from airflow.sdk.execution_time.supervisor import (
+    ActivitySubprocess,
+    NeverRaised,
+    ProcessTracker,
+    make_buffered_socket_reader,
+    process_log_messages_from_subprocess,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -352,6 +358,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 *tracker.untrack(stdout_r, stderr_r, socks[comm_server], socks[logs_server]),
                 data=drained,
             )
+            self._register_logs_reaccepter(logs_server, proc)
             self._on_child_started(
                 ti=what,
                 dag_rel_path=dag_rel_path,
@@ -364,6 +371,45 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             tracker.untrack(comm_server, logs_server, proc)
 
         return self
+
+    def _register_logs_reaccepter(self, logs_server: socket.socket, proc: subprocess.Popen) -> None:
+        """Keep accepting on the logs server so runtimes can reconnect and flush buffered logs."""
+
+        def accept(sock: socket.socket) -> bool:
+            try:
+                conn, _ = sock.accept()
+            except BlockingIOError:
+                return True
+            except OSError:
+                return False
+            try:
+                if not _is_connection_from_process(conn, proc):
+                    log.warning(
+                        "Rejected log reconnection not owned by child process",
+                        pid=proc.pid,
+                        peer=conn.getpeername(),
+                    )
+                    conn.close()
+                    return True
+            except OSError:
+                log.warning("Rejected log reconnection after socket error", pid=proc.pid)
+                conn.close()
+                return True
+            log.debug("Accepted log socket reconnection", pid=proc.pid)
+            self._open_sockets[conn] = "logs"
+            self.selector.register(
+                conn,
+                selectors.EVENT_READ,
+                make_buffered_socket_reader(
+                    process_log_messages_from_subprocess(self._get_target_loggers()),
+                    on_close=self._on_socket_closed,
+                ),
+            )
+            return True
+
+        # Not in _open_sockets: a listener has no EOF, so the monitor loop must not wait on it.
+        logs_server.setblocking(False)
+        self.selector.register(logs_server, selectors.EVENT_READ, (accept, self._on_socket_closed))
 
     def wait(self) -> int:
         code = super().wait()

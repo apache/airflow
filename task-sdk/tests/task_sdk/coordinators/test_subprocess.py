@@ -844,3 +844,85 @@ class TestPopenActivitySubprocessStart:
                 subprocess_logs_to_stdout=False,
             )
         assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
+
+
+class TestLogsReaccepter:
+    @pytest.fixture(autouse=True)
+    def mock_child_connection_check(self):
+        with patch(
+            "airflow.sdk.coordinators._subprocess._is_connection_from_process",
+            return_value=True,
+        ):
+            yield
+
+    @pytest.fixture
+    def proc(self, mock_client):
+        with (
+            patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock,
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started"),
+        ):
+            popen_mock.return_value.pid = 12345
+            proc = _PopenActivitySubprocess.start(
+                what=_make_ti(),
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                command=["/bin/true"],
+                subprocess_logs_to_stdout=False,
+            )
+        yield proc
+        proc.selector.close()
+        proc._close_unused_sockets(proc._comm_server, proc._logs_server)
+
+    def test_reconnected_log_records_are_forwarded(self, proc):
+        """A runtime reconnecting to the logs server gets its flushed records read, not black-holed."""
+        received: list[bytes] = []
+
+        def recording_processor(loggers):
+            while True:
+                received.append(bytes((yield)))
+
+        with patch(
+            "airflow.sdk.coordinators._subprocess.process_log_messages_from_subprocess",
+            side_effect=recording_processor,
+        ):
+            client = socket.create_connection(proc._logs_server.getsockname())
+            try:
+                # First service accepts the reconnection, second reads the flushed line.
+                proc._service_subprocess(max_wait_time=1.0)
+                assert "logs" in proc._open_sockets.values()
+                client.sendall(b'{"event": "buffered while down"}\n')
+                proc._service_subprocess(max_wait_time=1.0)
+            finally:
+                client.close()
+        assert received == [b'{"event": "buffered while down"}\n']
+
+    @pytest.mark.parametrize("check", [False, OSError("gone")], ids=["not_owned", "socket_error"])
+    def test_rejected_reconnection_keeps_listening(self, proc, check):
+        with patch(
+            "airflow.sdk.coordinators._subprocess._is_connection_from_process",
+            **({"side_effect": check} if isinstance(check, OSError) else {"return_value": check}),
+        ):
+            rejected = socket.create_connection(proc._logs_server.getsockname())
+            proc._service_subprocess(max_wait_time=1.0)
+            rejected.close()
+        assert "logs" not in proc._open_sockets.values()
+
+        accepted = socket.create_connection(proc._logs_server.getsockname())
+        try:
+            proc._service_subprocess(max_wait_time=1.0)
+            assert "logs" in proc._open_sockets.values()
+        finally:
+            accepted.close()
+
+    def test_spurious_wakeup_does_not_close_listener(self, proc):
+        handler, _ = proc.selector.get_key(proc._logs_server).data
+        assert handler(proc._logs_server) is True
