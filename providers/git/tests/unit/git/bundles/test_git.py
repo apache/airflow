@@ -702,35 +702,12 @@ class TestGitDagBundle:
         assert {"test_dag.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_tracking_ref_supports_commit_sha(self, mock_githook, git_repo):
-        """Ensure that tracking_ref accepts a full commit SHA and checks out that commit."""
-        repo_path, repo = git_repo
-        mock_githook.return_value.repo_url = repo_path
-        first_commit = repo.head.commit
-
-        # Add a second commit so the SHA-pinned bundle can be verified against it
-        file_path = repo_path / "new_test.py"
-        with open(file_path, "w") as f:
-            f.write("hello world")
-        repo.index.add([file_path])
-        repo.index.commit("Another commit")
-
-        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=first_commit.hexsha)
-        bundle.initialize()
-
-        assert _version_str(bundle.get_current_version()) == first_commit.hexsha
-
-        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
-        assert {"test_dag.py"} == files_in_repo
-
-        assert_repo_is_closed(bundle)
-
-    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_tracking_ref_commit_sha_promote_and_rollback(self, mock_githook, git_repo):
-        """Ensure a SHA-pinned tracking_ref can be promoted to a new SHA and rolled back.
+        """Ensure tracking_ref accepts a full commit SHA, and a SHA-pinned bundle can be
+        promoted to a new SHA and rolled back.
 
-        This mirrors how a bundle config change is applied in practice: a new bundle
-        object is created with the updated ``tracking_ref``.
+        Promotion/rollback is simulated by creating a new bundle object with the updated
+        tracking_ref, mirroring how a bundle config change is applied in practice.
         """
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -746,6 +723,9 @@ class TestGitDagBundle:
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=first_commit.hexsha)
         bundle.initialize()
         assert _version_str(bundle.get_current_version()) == first_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+        assert_repo_is_closed(bundle)
 
         # Promote: config change re-creates the bundle pointed at the second commit's SHA
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
