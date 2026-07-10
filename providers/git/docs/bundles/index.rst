@@ -64,8 +64,3 @@ without a restart. Tags and commit SHAs are static (assuming tags aren't moved),
 to known-good code — but promoting or rolling back a SHA means changing ``tracking_ref`` in
 ``dag_bundle_config_list`` itself, which requires restarting the Dag processor and workers to take
 effect.
-
-This is different from Dag bundle versioning: each Dag run already records the commit its bundle
-resolved to and can be rerun with that code regardless of the current ``tracking_ref`` (see
-:ref:`rerun_with_latest_version <config:core__rerun_with_latest_version>`). That only affects
-individual reruns, not which commit future runs use.
