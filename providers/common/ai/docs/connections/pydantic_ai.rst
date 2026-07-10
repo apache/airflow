@@ -38,8 +38,11 @@ Model
     dedicated input in the connection form (via ``conn-fields``) and stores its
     value in ``extra["model"]``.
 
-    Examples: ``openai:gpt-5.3``, ``anthropic:claude-sonnet-4-20250514``,
+    Examples: ``openai:gpt-5.3``, ``anthropic:claude-sonnet-5``,
     ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.0-flash``
+
+    See `Anthropic's models overview <https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison>`__
+    for the current list of Claude model IDs across the Claude API, Amazon Bedrock, and Google Cloud.
 
     The model can also be overridden at the hook/operator level via the
     ``model_id`` parameter.
