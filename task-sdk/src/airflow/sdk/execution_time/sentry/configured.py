@@ -80,24 +80,26 @@ class ConfiguredSentry(NoopSentry):
                 log.exception("Invalid executor Sentry integration", import_path=executor_integration)
 
         sentry_config_opts: dict[str, Any] = conf.getsection("sentry") or {}
-        if sentry_config_opts:
-            sentry_config_opts.pop("sentry_on")
-            old_way_dsn = sentry_config_opts.pop("sentry_dsn", None)
-            new_way_dsn = sentry_config_opts.pop("dsn", None)
-            # supported backward compatibility with old way dsn option
-            dsn = old_way_dsn or new_way_dsn
+        sentry_config_opts.pop("sentry_on", None)
+        old_way_dsn = sentry_config_opts.pop("sentry_dsn", None)
+        new_way_dsn = sentry_config_opts.pop("dsn", None)
+        # supported backward compatibility with old way dsn option
+        dsn = old_way_dsn or new_way_dsn
 
-            if unsupported_options := self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts):
-                log.warning(
-                    "There are unsupported options in [sentry] section",
-                    options=unsupported_options,
-                )
-        else:
-            dsn = None
-            if before_send := conf.getimport("sentry", "before_send", fallback=None):
-                sentry_config_opts["before_send"] = before_send
-            if transport := conf.getimport("sentry", "transport", fallback=None):
-                sentry_config_opts["transport"] = transport
+        if unsupported_options := self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts):
+            log.warning(
+                "There are unsupported options in [sentry] section",
+                options=unsupported_options,
+            )
+
+        # before_send/transport are dotted-path strings and must be resolved to callables here.
+        # This must run unconditionally: conf.getsection("sentry") always returns a non-empty
+        # dict (schema defaults), so gating this behind "sentry_config_opts is empty" made it
+        # unreachable and left before_send/transport as raw strings (GH#69464).
+        if before_send := conf.getimport("sentry", "before_send", fallback=None):
+            sentry_config_opts["before_send"] = before_send
+        if transport := conf.getimport("sentry", "transport", fallback=None):
+            sentry_config_opts["transport"] = transport
 
         if dsn:
             sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
