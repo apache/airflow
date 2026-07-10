@@ -36,6 +36,13 @@ import type { DagSearchOption } from "src/utils/option";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
 
+const formatOptionLabel = (option: DagSearchOption) => (
+  <Flex alignItems="center" gap={2}>
+    <StateBadge state={option.state} />
+    <Text>{option.label}</Text>
+  </Flex>
+);
+
 export const SearchDags = ({
   setIsOpen,
 }: {
@@ -83,13 +90,6 @@ export const SearchDags = ({
       });
     },
     300,
-  );
-
-  const formatOptionLabel = (option: DagSearchOption) => (
-    <Flex alignItems="center" gap={2}>
-      <StateBadge state={option.state} />
-      <Text>{option.label}</Text>
-    </Flex>
   );
 
   return (
