@@ -72,17 +72,6 @@ class ExasolHook(DbApiHook):
         """
         Validate that query parameters are a dict, as required by pyexasol.
 
-        pyexasol's ``ExaConnection.execute``/``export_to_pandas``/``export_to_file`` have only ever
-        accepted a ``dict`` for query parameters (they are interpolated into the SQL via
-        ``str.format(**query_params)``, and pyexasol's own type stubs declare ``query_params: dict |
-        None``). Positional-style parameters (lists/tuples) were never actually supported at runtime,
-        even though this hook's signatures (inherited from
-        :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`) advertise the broader
-        ``Iterable | Mapping[str, Any] | None`` type. As of pyexasol 2.x, which ships a ``py.typed``
-        marker, mypy now enforces this at the type level too. We validate explicitly here so that
-        passing a non-dict fails fast with a clear message instead of an opaque error surfacing deep
-        inside pyexasol.
-
         :param parameters: The parameters as passed to this hook's public methods.
         :return: The same parameters, narrowed to ``dict[str, Any] | None`` for pyexasol/mypy.
         """
