@@ -467,7 +467,7 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
    Keep the RC tag for traceability.
 
-4. **Publish** a GitHub release. Attach the **voted, signed** source artifacts.
+4. Publish a **GitHub release**. Attach the **voted, signed** source artifacts.
    From the directory holding the three signed files (e.g. `dist/release`):
 
    ```bash
@@ -482,10 +482,68 @@ Reply with a `[RESULT][VOTE]` tally, then:
      apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
    ```
 
-   Drop the `--prerelease` flag is this is not a prerelease.
+   Drop the `--prerelease` flag if this is not a prerelease.
 
-5. Update the download page and wait ~1 hour after promoting so Central has
-   synced. Send the `[ANNOUNCE]` email.
+5. **Announce.** Wait ~1 hour after promoting so Maven Central has synced, then
+   send a plain-text `[ANNOUNCE]` email to `users@airflow.apache.org` (cc
+   `dev@airflow.apache.org`) using the "Announce email template" below, and
+   record the release (version + date) in the ASF Committee Report Helper:
+   <https://reporter.apache.org/addrelease.html?airflow>.
+
+6. Publish the **API docs.** Trigger the *Publish Docs to S3* workflow in
+   `apache/airflow` for the release tag:
+
+   ```bash
+   gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
+     -f ref=java-sdk/<VERSION> \
+     -f include-docs=java-sdk \
+     -f destination=live
+   ```
+
+   Optionally use `destination=staging` first to check, then `live`. It may be
+   possible to `auto` instead, which resolves to `live` for a release tag.
+
+   Confirm that `https://airflow.apache.org/docs/java-sdk/stable/` resolves
+   (allow time for cache invalidation) and `/docs/java-sdk/` redirects to it.
+
+### Announce email template
+
+Send to `users@airflow.apache.org`, cc `dev@airflow.apache.org`.
+
+```text
+Subject: [ANNOUNCE] Apache Airflow Java SDK <VERSION> Released
+
+Dear Airflow community,
+
+I'm happy to announce that Apache Airflow Java SDK <VERSION> was just released.
+
+The signed source release can be downloaded from:
+https://downloads.apache.org/airflow/java-sdk/<VERSION>/
+
+We also published the convenience binaries to Maven Central, under group id
+org.apache.airflow. Import airflow-sdk-bom:<VERSION> to keep the module versions
+aligned.
+
+The API documentation is available at:
+https://airflow.apache.org/docs/java-sdk/<VERSION>/
+
+<Optional: one or two lines on notable changes; omit for the first release.>
+
+Thanks to everyone who contributed to and tested this release.
+
+Cheers,
+<your name>
+```
+
+Pre-send checklist:
+
+* The Maven Central sync has completed (the BOM resolves for a fresh consumer)
+  and the docs URL above resolves.
+* Fill or delete the optional changes line.
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** --
+  any match means a placeholder (`<VERSION>`, `<your name>`, ...) was left
+  unfilled.
+
 
 ### If the vote fails
 
