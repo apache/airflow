@@ -47,6 +47,7 @@ from airflow.sdk import (
     FixedKeyMapper,
     HourWindow,
     IdentityMapper,
+    JitteredCronTimetable,
     MinimumCount,
     MonthWindow,
     MultipleCronTriggerTimetable,
@@ -326,6 +327,7 @@ class _Serializer:
         DeltaDataIntervalTimetable: "airflow.timetables.interval.DeltaDataIntervalTimetable",
         DeltaTriggerTimetable: "airflow.timetables.trigger.DeltaTriggerTimetable",
         EventsTimetable: "airflow.timetables.events.EventsTimetable",
+        JitteredCronTimetable: "airflow.timetables.trigger.JitteredCronTimetable",
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
@@ -388,6 +390,17 @@ class _Serializer:
             "timezone": encode_timezone(timetable.timezone),
             "interval": encode_interval(timetable.interval),
             "run_immediately": encode_run_immediately(timetable.run_immediately),
+        }
+
+    @serialize_timetable.register
+    def _(self, timetable: JitteredCronTimetable) -> dict[str, Any]:
+        return {
+            "expression": timetable.expression,
+            "timezone": encode_timezone(timetable.timezone),
+            "interval": encode_interval(timetable.interval),
+            "run_immediately": encode_run_immediately(timetable.run_immediately),
+            "seed": timetable.seed,
+            "max_jitter": timetable.max_jitter.total_seconds(),
         }
 
     @serialize_timetable.register
