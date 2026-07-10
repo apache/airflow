@@ -46,7 +46,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import (
-    PARENT_TRACE_CONTEXT_KEY,
+    DAGRUN_PARENT_TRACE_CONTEXT_KEY,
     OverrideableRandomIdGenerator,
 )
 from airflow._shared.timezones import timezone
@@ -4451,22 +4451,24 @@ class TestDagRunTracing:
         ("conf", "expected_trace_id"),
         [
             pytest.param(
-                {PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+                {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
                 _EXTERNAL_TRACE_ID,
                 id="traceparent-string",
             ),
             pytest.param(
                 {
-                    PARENT_TRACE_CONTEXT_KEY: {
+                    DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
                         "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"
                     }
                 },
                 _EXTERNAL_TRACE_ID,
                 id="carrier-dict",
             ),
-            pytest.param({PARENT_TRACE_CONTEXT_KEY: "not-a-traceparent"}, None, id="malformed"),
-            pytest.param({PARENT_TRACE_CONTEXT_KEY: 123}, None, id="non-str"),
-            pytest.param({PARENT_TRACE_CONTEXT_KEY: {"nope": "x"}}, None, id="dict-without-traceparent"),
+            pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: "not-a-traceparent"}, None, id="malformed"),
+            pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: 123}, None, id="non-str"),
+            pytest.param(
+                {DAGRUN_PARENT_TRACE_CONTEXT_KEY: {"nope": "x"}}, None, id="dict-without-traceparent"
+            ),
             pytest.param({}, None, id="empty-conf"),
             pytest.param(None, None, id="no-conf"),
             pytest.param({"other": "x"}, None, id="unrelated-key"),
@@ -4489,7 +4491,7 @@ class TestDagRunTracing:
         from airflow.models.dagrun import parent_trace_context
 
         conf = {
-            PARENT_TRACE_CONTEXT_KEY: {
+            DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
                 "traceparent": f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01",
                 "tracestate": "foo=bar",
             }
@@ -4502,7 +4504,7 @@ class TestDagRunTracing:
         from airflow.models.dagrun import parent_trace_context
 
         conf = {
-            PARENT_TRACE_CONTEXT_KEY: {
+            DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
                 "traceparent": f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01",
                 "tracestate": 123,
             }
@@ -4513,11 +4515,13 @@ class TestDagRunTracing:
         assert len(span_ctx.trace_state) == 0
 
     def test_context_carrier_embeds_external_parent_from_conf(self, dag_maker):
-        """A run with airflow/parent_trace_context rides the external trace_id."""
+        """A run with airflow/dagrun_parent_trace_context rides the external trace_id."""
         with dag_maker("test_tracing_embed_conf"):
             EmptyOperator(task_id="t1")
         dr = dag_maker.create_dagrun(
-            conf={PARENT_TRACE_CONTEXT_KEY: f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01"}
+            conf={
+                DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01"
+            }
         )
 
         ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
@@ -4545,7 +4549,9 @@ class TestDagRunTracing:
             EmptyOperator(task_id="t1")
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
         dr.dag = dag
-        dr.conf = {PARENT_TRACE_CONTEXT_KEY: f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01"}
+        dr.conf = {
+            DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{self._EXTERNAL_TRACE_ID}-{self._EXTERNAL_SPAN_ID}-01"
+        }
         # Carrier already rides the external trace with its own child span id, sampled.
         dr.context_carrier = {"traceparent": f"00-{self._EXTERNAL_TRACE_ID}-3333333333333333-01"}
 

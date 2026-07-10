@@ -103,7 +103,7 @@ run — from the UI/API "Trigger with config" dialog, the ``airflow dags trigger
 ``airflow/task_span_detail_level``
     Integer detail level controlling how many spans task execution emits for this run.
 
-``airflow/parent_trace_context``
+``airflow/dagrun_parent_trace_context``
     Embed this run in an **external** trace instead of it being a root trace. Supply a W3C
     ``traceparent`` string (optionally a mapping with ``traceparent`` and ``tracestate``) captured
     from the system that triggered the run — an upstream orchestrator, event pipeline, CI job, or
@@ -114,7 +114,7 @@ run — from the UI/API "Trigger with config" dialog, the ``airflow dags trigger
 
     .. code-block:: json
 
-        {"airflow/parent_trace_context": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+        {"airflow/dagrun_parent_trace_context": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
 
 Enable Https
 -----------------

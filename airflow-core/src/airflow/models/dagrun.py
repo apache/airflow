@@ -64,7 +64,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import (
-    PARENT_TRACE_CONTEXT_KEY,
+    DAGRUN_PARENT_TRACE_CONTEXT_KEY,
     TASK_SPAN_DETAIL_LEVEL_KEY,
     TRACE_SAMPLED_KEY,
     new_dagrun_trace_carrier,
@@ -197,7 +197,7 @@ def trace_sampled_override(conf) -> bool | None:
 
 def parent_trace_context(conf) -> context.Context | None:
     """
-    External parent trace context from the ``airflow/parent_trace_context`` run conf key.
+    External parent trace context from the ``airflow/dagrun_parent_trace_context`` run conf key.
 
     Lets a run be embedded in a trace owned by an external system (an upstream
     orchestrator, event pipeline, CI job, another Airflow) instead of being a root
@@ -209,7 +209,7 @@ def parent_trace_context(conf) -> context.Context | None:
     """
     if not conf:
         return None
-    raw = conf.get(PARENT_TRACE_CONTEXT_KEY)
+    raw = conf.get(DAGRUN_PARENT_TRACE_CONTEXT_KEY)
     if isinstance(raw, str):
         carrier = {"traceparent": raw}
     elif isinstance(raw, dict) and isinstance(raw.get("traceparent"), str):
@@ -1174,7 +1174,7 @@ class DagRun(Base, LoggingMixin):
 
             # Root by default: an Airflow-initiated run owns its own trace, so we do not
             # attach to whatever span is incidentally active in the scheduler. When the run
-            # opted into an external trace via airflow/parent_trace_context, start under that
+            # opted into an external trace via airflow/dagrun_parent_trace_context, start under that
             # parent so the run nests inside it. The carrier was already built riding the same
             # external trace_id (both read the same conf), so the override_ids trace_id is a
             # no-op here — only the span_id override takes effect and the parent link comes

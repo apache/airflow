@@ -4153,12 +4153,12 @@ def test_clear_task_instances_honors_trace_sampled_conf(dag_maker, session, flag
 
 @pytest.mark.db_test
 def test_clear_task_instances_keeps_external_parent_trace(dag_maker, session):
-    """The regenerated carrier keeps riding the external trace from airflow/parent_trace_context."""
+    """The regenerated carrier keeps riding the external trace from airflow/dagrun_parent_trace_context."""
     external_trace_id = "11111111111111111111111111111111"
     with dag_maker("test_clear_parent_trace"):
         EmptyOperator(task_id="t1")
     dag_run = dag_maker.create_dagrun(
-        conf={"airflow/parent_trace_context": f"00-{external_trace_id}-2222222222222222-01"}
+        conf={"airflow/dagrun_parent_trace_context": f"00-{external_trace_id}-2222222222222222-01"}
     )
     ti = dag_run.get_task_instance("t1", session=session)
     ti.state = TaskInstanceState.SUCCESS

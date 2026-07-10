@@ -60,7 +60,7 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
 TASK_SPAN_DETAIL_LEVEL_KEY = "airflow/task_span_detail_level"
 DEFAULT_TASK_SPAN_DETAIL_LEVEL = 1
 TRACE_SAMPLED_KEY = "airflow/trace_sampled"
-PARENT_TRACE_CONTEXT_KEY = "airflow/parent_trace_context"
+DAGRUN_PARENT_TRACE_CONTEXT_KEY = "airflow/dagrun_parent_trace_context"
 
 
 def new_dagrun_trace_carrier(
@@ -90,7 +90,7 @@ def new_dagrun_trace_carrier(
     dag_run, task_run, worker spans -- lives inside the external trace) and the
     sampling decision is made with that parent, so parent-based samplers inherit
     the external SAMPLED flag. Airflow wires this from the
-    ``airflow/parent_trace_context`` run conf key; when None the run is a root
+    ``airflow/dagrun_parent_trace_context`` run conf key; when None the run is a root
     trace as before.
     """
     parent_span_context = (
