@@ -105,6 +105,9 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
+/** Marks the manifest line on stdout, which import-time logging may also reach. */
+export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
+
 /** Bundle manifest fields only the built bundle itself knows: the schema
  *  version it was compiled against and the Dag/task pairs it registered.
  *  `airflow-ts-pack` runs `node bundle.mjs --airflow-metadata` to read this. */
@@ -128,7 +131,7 @@ export function buildBundleManifest(
 export async function startCoordinator(opts: StartCoordinatorOptions = {}): Promise<void> {
   const argv = opts.argv ?? process.argv;
   if (argv.includes(AIRFLOW_METADATA_FLAG)) {
-    process.stdout.write(`${JSON.stringify(buildBundleManifest())}\n`);
+    process.stdout.write(`${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest())}\n`);
     return;
   }
   const parsed =

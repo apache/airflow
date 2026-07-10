@@ -60,11 +60,19 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@msgpack/msgpack": "^3.1.2",
+    "@msgpack/msgpack": "^3.1.2"
+  },
+  "peerDependencies": {
     "esbuild": "^0.28.1"
+  },
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "esbuild": "^0.28.1",
     "@types/node": "^22.19.17",
     "eslint": "^10.4.0",
     "json-schema-to-typescript": "^15.0.4",

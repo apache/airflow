@@ -26,15 +26,21 @@
 // registry and schema version, never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { build } from "esbuild";
-
-import { AIRFLOW_METADATA_FLAG, type BundleManifest } from "../coordinator/runtime.js";
+import {
+  AIRFLOW_METADATA_FLAG,
+  AIRFLOW_METADATA_SENTINEL,
+  type BundleManifest,
+} from "../coordinator/runtime.js";
 
 const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const BUNDLE_FILENAME = "bundle.mjs";
+// bundle.mjs is written only after validation, so failures leave no partial artifact.
+const STAGING_FILENAME = "bundle.pack-staging.mjs";
+const MANIFEST_TIMEOUT_MS = 60_000;
+const MANIFEST_MAX_BUFFER = 64 << 20;
 export const EMBEDDED_METADATA_PREFIX = "//# airflowMetadata=";
 
 const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir>] [--source <name>]
@@ -53,6 +59,10 @@ export interface PackArgs {
   source: string;
 }
 
+function usageError(message: string): Error {
+  return new Error(`${message}\n\n${USAGE}`);
+}
+
 export function parsePackArgs(argv: readonly string[]): PackArgs {
   let entry: string | null = null;
   let outdir = "dist";
@@ -61,19 +71,19 @@ export function parsePackArgs(argv: readonly string[]): PackArgs {
     const arg = argv[i]!;
     if (arg === "--outdir" || arg === "--source") {
       const value = argv[i + 1];
-      if (!value) throw new Error(`${arg} requires a value\n\n${USAGE}`);
+      if (!value) throw usageError(`${arg} requires a value`);
       if (arg === "--outdir") outdir = value;
       else source = value;
       i += 1;
     } else if (arg.startsWith("-")) {
-      throw new Error(`Unknown option ${arg}\n\n${USAGE}`);
+      throw usageError(`Unknown option ${arg}`);
     } else if (entry) {
-      throw new Error(`Unexpected argument ${arg}\n\n${USAGE}`);
+      throw usageError(`Unexpected argument ${arg}`);
     } else {
       entry = arg;
     }
   }
-  if (!entry) throw new Error(`Missing entry file\n\n${USAGE}`);
+  if (!entry) throw usageError("Missing entry file");
   return { entry, outdir, source: source ?? path.basename(entry) };
 }
 
@@ -110,58 +120,99 @@ function readSdkVersion(): string {
 }
 
 function readBundleManifest(bundlePath: string): BundleManifest {
-  const stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
-    encoding: "utf-8",
-  });
-  let manifest: BundleManifest;
+  let stdout: string;
   try {
-    manifest = JSON.parse(stdout) as BundleManifest;
+    stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
+      encoding: "utf-8",
+      timeout: MANIFEST_TIMEOUT_MS,
+      maxBuffer: MANIFEST_MAX_BUFFER,
+    });
   } catch (error) {
-    throw new Error(`Bundle produced invalid --airflow-metadata output: ${String(error)}`, {
+    throw new Error(`Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`, {
       cause: error,
     });
   }
-  if (!manifest.supervisor_schema_version || typeof manifest.dags !== "object") {
-    throw new Error("Bundle produced incomplete --airflow-metadata output");
+
+  // Import-time logging from user code lands on stdout too; pick the sentinel line.
+  const line = stdout
+    .split("\n")
+    .reverse()
+    .find((candidate) => candidate.startsWith(AIRFLOW_METADATA_SENTINEL));
+  if (line === undefined) {
+    throw new Error(`Bundle produced no ${AIRFLOW_METADATA_FLAG} output`);
+  }
+
+  let manifest: BundleManifest;
+  try {
+    manifest = JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length)) as BundleManifest;
+  } catch (error) {
+    throw new Error(`Bundle produced invalid ${AIRFLOW_METADATA_FLAG} output: ${String(error)}`, {
+      cause: error,
+    });
+  }
+  if (!manifest.supervisor_schema_version || !manifest.dags || typeof manifest.dags !== "object") {
+    throw new Error(`Bundle produced incomplete ${AIRFLOW_METADATA_FLAG} output`);
   }
   return manifest;
+}
+
+// esbuild keeps an entry hashbang as line 1, where the metadata comment must go;
+// NodeCoordinator always runs the bundle through `node`, so drop it.
+function stripShebang(bundle: string): string {
+  if (!bundle.startsWith("#!")) return bundle;
+  const newline = bundle.indexOf("\n");
+  return newline === -1 ? "" : bundle.slice(newline + 1);
+}
+
+async function loadEsbuild(): Promise<typeof import("esbuild")> {
+  try {
+    return await import("esbuild");
+  } catch (error) {
+    throw new Error(
+      "airflow-ts-pack needs esbuild; install it alongside the SDK (e.g. `npm i -D esbuild`)",
+      { cause: error },
+    );
+  }
 }
 
 export async function runPack(argv: readonly string[]): Promise<void> {
   const args = parsePackArgs(argv);
   const bundlePath = path.join(args.outdir, BUNDLE_FILENAME);
+  const stagingPath = path.join(args.outdir, STAGING_FILENAME);
+  const { build } = await loadEsbuild();
 
-  await build({
-    entryPoints: [args.entry],
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    target: "node22",
-    outfile: bundlePath,
-  });
+  try {
+    await build({
+      entryPoints: [args.entry],
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      target: "node22",
+      outfile: stagingPath,
+    });
 
-  const manifest = readBundleManifest(bundlePath);
-  if (Object.keys(manifest.dags).length === 0) {
-    throw new Error(
-      `${args.entry} registered no tasks; call registerTask(...) before startCoordinator()`,
-    );
+    const manifest = readBundleManifest(stagingPath);
+    if (Object.keys(manifest.dags).length === 0) {
+      throw new Error(
+        `${args.entry} registered no tasks; call registerTask(...) before startCoordinator()`,
+      );
+    }
+
+    const metadataYaml = renderMetadataYaml({
+      airflow_bundle_metadata_version: AIRFLOW_BUNDLE_METADATA_VERSION,
+      sdk: {
+        language: "typescript",
+        version: readSdkVersion(),
+        supervisor_schema_version: manifest.supervisor_schema_version,
+      },
+      source: args.source,
+      dags: manifest.dags,
+    });
+    const metadataLine = `${EMBEDDED_METADATA_PREFIX}${Buffer.from(metadataYaml, "utf-8").toString("base64")}\n`;
+    writeFileSync(bundlePath, metadataLine + stripShebang(readFileSync(stagingPath, "utf-8")));
+  } finally {
+    rmSync(stagingPath, { force: true });
   }
-
-  const metadataYaml = renderMetadataYaml({
-    airflow_bundle_metadata_version: AIRFLOW_BUNDLE_METADATA_VERSION,
-    sdk: {
-      language: "typescript",
-      version: readSdkVersion(),
-      supervisor_schema_version: manifest.supervisor_schema_version,
-    },
-    source: args.source,
-    dags: manifest.dags,
-  });
-  const metadataLine = `${EMBEDDED_METADATA_PREFIX}${Buffer.from(metadataYaml, "utf-8").toString("base64")}\n`;
-  writeFileSync(
-    bundlePath,
-    Buffer.concat([Buffer.from(metadataLine, "utf-8"), readFileSync(bundlePath)]),
-  );
 
   console.log(`Wrote ${bundlePath} (airflow metadata embedded)`);
 }

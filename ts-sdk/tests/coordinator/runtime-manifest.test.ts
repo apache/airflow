@@ -19,7 +19,11 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildBundleManifest, startCoordinator } from "../../src/coordinator/runtime.js";
+import {
+  AIRFLOW_METADATA_SENTINEL,
+  buildBundleManifest,
+  startCoordinator,
+} from "../../src/coordinator/runtime.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
 
 describe("buildBundleManifest", () => {
@@ -51,7 +55,9 @@ describe("startCoordinator --airflow-metadata", () => {
     await startCoordinator({ argv: ["node", "bundle.mjs", "--airflow-metadata"] });
 
     expect(write).toHaveBeenCalledTimes(1);
-    const payload = JSON.parse(String(write.mock.calls[0]![0]));
+    const written = String(write.mock.calls[0]![0]);
+    expect(written.startsWith(AIRFLOW_METADATA_SENTINEL)).toBe(true);
+    const payload = JSON.parse(written.slice(AIRFLOW_METADATA_SENTINEL.length));
     expect(payload.supervisor_schema_version).toBe(SUPERVISOR_API_VERSION);
     expect(payload.dags).toEqual({});
   });

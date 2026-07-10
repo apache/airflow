@@ -154,9 +154,12 @@ bundle with `airflow-ts-pack` and uses a Python stub Dag.
 
 ## Packing bundles
 
-`airflow-ts-pack` produces everything `NodeCoordinator` needs in one command:
+`airflow-ts-pack` produces everything `NodeCoordinator` needs in one command.
+Packing is build-time only, so `esbuild` is an optional peer dependency the
+runtime install skips:
 
 ```bash
+npm install --save-dev esbuild
 airflow-ts-pack src/main.ts --outdir dist
 ```
 

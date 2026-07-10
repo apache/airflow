@@ -31,8 +31,11 @@ import {
   runPack,
 } from "../../src/cli/pack.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
+import { AIRFLOW_METADATA_SENTINEL } from "../../src/coordinator/runtime.js";
 
 const FIXTURE_ENTRY = fileURLToPath(new URL("fixtures/entry.ts", import.meta.url));
+const NOISY_ENTRY = fileURLToPath(new URL("fixtures/noisy-entry.ts", import.meta.url));
+const EMPTY_ENTRY = fileURLToPath(new URL("fixtures/empty-entry.ts", import.meta.url));
 const SDK_VERSION = (
   JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf-8")) as {
     version: string;
@@ -132,6 +135,36 @@ describe("runPack", () => {
     const dumped = execFileSync(process.execPath, [bundlePath, "--airflow-metadata"], {
       encoding: "utf-8",
     });
-    expect(JSON.parse(dumped).supervisor_schema_version).toBe(SUPERVISOR_API_VERSION);
+    expect(dumped.startsWith(AIRFLOW_METADATA_SENTINEL)).toBe(true);
+    expect(
+      JSON.parse(dumped.slice(AIRFLOW_METADATA_SENTINEL.length)).supervisor_schema_version,
+    ).toBe(SUPERVISOR_API_VERSION);
+  });
+
+  it("keeps a shebang entry runnable and reads the manifest past import-time logging", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    await runPack([NOISY_ENTRY, "--outdir", outdir]);
+
+    const bundlePath = path.join(outdir, "bundle.mjs");
+    const bundle = readFileSync(bundlePath, "utf-8");
+    expect(bundle.startsWith(EMBEDDED_METADATA_PREFIX)).toBe(true);
+    expect(bundle).not.toContain("#!/usr/bin/env node");
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+
+    const metadata = Buffer.from(
+      bundle.split("\n")[0]!.slice(EMBEDDED_METADATA_PREFIX.length),
+      "base64",
+    ).toString("utf-8");
+    expect(metadata).toContain('  "noisy_dag":');
+
+    execFileSync(process.execPath, [bundlePath, "--airflow-metadata"], { encoding: "utf-8" });
+  });
+
+  it("leaves no bundle behind when the entry registers no tasks", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+
+    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("registered no tasks");
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 });
