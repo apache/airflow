@@ -70,3 +70,9 @@ dag_bundle_config_list`` config change like any other: it takes effect only afte
 and workers are restarted to reload the configuration. This is unlike moving a branch/tag ref, where
 the config is unchanged and the existing ``refresh_interval`` polling picks up the new commit with no
 restart required.
+
+This is also distinct from Dag bundle versioning. Each Dag run already records the commit its bundle
+resolved to, so it can be rerun with that exact code regardless of the bundle's current
+``tracking_ref`` (see :ref:`rerun_with_latest_version <config:core__rerun_with_latest_version>`).
+That only affects individual reruns; it does not change which commit new Dag parses and runs use.
+Promoting or rolling back the active environment still requires changing ``tracking_ref`` itself.
