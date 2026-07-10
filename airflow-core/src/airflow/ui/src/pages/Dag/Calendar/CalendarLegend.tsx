@@ -145,7 +145,7 @@ export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, 
           </Text>
           <HStack gap={4} justify="center" wrap="wrap">
             <HStack gap={2}>
-              <Box color="info.fg" fontSize="sm" lineHeight={1}>
+              <Box fontSize="sm" lineHeight={1}>
                 <FiClock />
               </Box>
               <Text color="fg.muted" fontSize="xs">
@@ -153,7 +153,7 @@ export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, 
               </Text>
             </HStack>
             <HStack gap={2}>
-              <Box color="error.fg" fontSize="sm" lineHeight={1}>
+              <Box fontSize="sm" lineHeight={1}>
                 <FiAlertTriangle />
               </Box>
               <Text color="fg.muted" fontSize="xs">

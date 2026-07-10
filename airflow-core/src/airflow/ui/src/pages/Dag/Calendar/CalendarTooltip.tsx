@@ -106,7 +106,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
           </Text>
           {missedDeadlines > 0 && (
             <HStack data-testid="calendar-tooltip-deadline-missed" gap={3}>
-              <Box color="error.fg" fontSize="16px" lineHeight={1}>
+              <Box fontSize="16px" lineHeight={1}>
                 <FiAlertTriangle />
               </Box>
               <Text fontSize="xs">
@@ -116,7 +116,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
           )}
           {pendingDeadlines > 0 && (
             <HStack data-testid="calendar-tooltip-deadline-pending" gap={3}>
-              <Box color="info.fg" fontSize="16px" lineHeight={1}>
+              <Box fontSize="16px" lineHeight={1}>
                 <FiClock />
               </Box>
               <Text fontSize="xs">
