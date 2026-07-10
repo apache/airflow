@@ -63,7 +63,8 @@ UpdateAzureAIAgentOperator
 
 Azure AI Hosted agent updates are published as new immutable versions. To create a new version, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.UpdateAzureAIAgentOperator`.
-The operator accepts the same parameters as ``CreateAzureAIAgentOperator``.
+The operator accepts the same parameters as ``CreateAzureAIAgentOperator`` and returns the newly
+created Hosted agent version as a serializable dictionary.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -91,6 +92,7 @@ The ``responses`` protocol sends the payload to the agent's OpenAI-compatible en
 ``invocations`` protocol posts it to the agent's invocations endpoint.
 Pass ``agent_session_id`` to reuse an existing Hosted agent session with the ``invocations``
 protocol and ``user_isolation_key`` to scope endpoint resources to a specific end user.
+The operator returns the JSON-compatible protocol response.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -105,7 +107,9 @@ DeleteAzureAIAgentOperator
 
 To delete an Azure AI Hosted agent and all of its versions, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.DeleteAzureAIAgentOperator`.
-Pass ``agent_version`` to delete only one version.
+Pass ``agent_version`` to delete only one version. Set ``force=True`` to also delete active sessions
+associated with the agent or version.
+The operator returns the serialized deletion response.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python

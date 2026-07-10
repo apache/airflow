@@ -6254,6 +6254,7 @@ version = "13.5.1"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
+    { name = "aiohttp" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "azure-ai-projects" },
@@ -6329,6 +6330,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "adlfs", specifier = ">=2023.10.0" },
+    { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -6337,7 +6339,7 @@ requires-dist = [
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
-    { name = "azure-ai-projects", specifier = ">=2.1.0" },
+    { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=8.0.0,<15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.6.0" },
     { name = "azure-datalake-store", specifier = ">=0.0.45" },

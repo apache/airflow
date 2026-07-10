@@ -20,23 +20,24 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
-from airflow.providers.microsoft.azure.hooks.ai_agents import (
+from airflow.providers.microsoft.azure._ai_agents import (
     VERSION_FAILURE_STATUSES,
     VERSION_INTERMEDIATE_STATUSES,
     VERSION_SUCCESS_STATUSES,
-    AzureAIAgentsHook,
     _get_agent_version,
     _get_resource_attr,
     _get_version_status,
     _serialize_resource,
 )
+from airflow.providers.microsoft.azure.hooks.ai_agents import AzureAIAgentsHook
 from airflow.providers.microsoft.azure.triggers.ai_agents import AzureAIAgentVersionTrigger
 
 if TYPE_CHECKING:
     from azure.ai.projects.models import AgentBlueprintReference
+    from pydantic import JsonValue
 
     from airflow.sdk import Context
 
@@ -122,7 +123,7 @@ class CreateAzureAIAgentOperator(BaseOperator):
             api_version=self.api_version,
         )
 
-    def execute(self, context: Context) -> dict[str, Any]:
+    def execute(self, context: Context) -> dict[str, JsonValue]:
         """Create an Azure AI Hosted agent version and optionally wait for it to become active."""
         self.log.info("Creating Azure AI Hosted agent %s version.", self.agent_name)
         version = self.hook.create_agent_version(
@@ -133,7 +134,7 @@ class CreateAzureAIAgentOperator(BaseOperator):
             blueprint_reference=self.blueprint_reference,
         )
         if not self.wait_for_completion:
-            return _serialize_resource(version)
+            return cast("dict[str, JsonValue]", _serialize_resource(version))
         agent_version = _get_agent_version(version)
         if self.deferrable:
             self.defer(
@@ -151,13 +152,13 @@ class CreateAzureAIAgentOperator(BaseOperator):
             )
         return self._wait_for_version(agent_version=agent_version)
 
-    def _wait_for_version(self, *, agent_version: str) -> dict[str, Any]:
+    def _wait_for_version(self, *, agent_version: str) -> dict[str, JsonValue]:
         end_time = time.monotonic() + self.timeout
         while True:
             version = self.hook.get_agent_version(agent_name=self.agent_name, agent_version=agent_version)
             status = _get_version_status(version)
             if status in VERSION_SUCCESS_STATUSES:
-                return _serialize_resource(version)
+                return cast("dict[str, JsonValue]", _serialize_resource(version))
             if status in VERSION_FAILURE_STATUSES:
                 error = _get_resource_attr(version, "error") or "No error details were returned"
                 raise RuntimeError(
@@ -182,7 +183,7 @@ class CreateAzureAIAgentOperator(BaseOperator):
             )
             time.sleep(self.poll_interval)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None) -> dict[str, Any]:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None) -> dict[str, JsonValue]:
         """Resume after the version trigger completes."""
         if event is None:
             raise RuntimeError("Trigger returned no event.")
@@ -273,7 +274,7 @@ class RunAzureAIAgentOperator(BaseOperator):
             api_version=self.api_version,
         )
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> JsonValue:
         """Invoke an Azure AI Hosted agent and return the response payload."""
         self.log.info("Invoking Azure AI Hosted agent %s with %s protocol.", self.agent_name, self.protocol)
         if self.protocol == "responses":
@@ -299,7 +300,7 @@ class DeleteAzureAIAgentOperator(BaseOperator):
     :param agent_name: Hosted agent name.
     :param agent_version: Optional Hosted agent version. When omitted, the whole agent is deleted.
         Default is ``None``.
-    :param force: Whether to cascade-delete active sessions when deleting the whole agent.
+    :param force: Whether to cascade-delete active sessions when deleting the agent or version.
         Default is ``False``.
     :param wait_for_completion: Whether to wait until the resource is deleted. Default is ``True``.
     :param poll_interval: Time in seconds between status checks. Default is ``30.0``.
@@ -353,7 +354,7 @@ class DeleteAzureAIAgentOperator(BaseOperator):
             api_version=self.api_version,
         )
 
-    def execute(self, context: Context) -> dict[str, Any]:
+    def execute(self, context: Context) -> dict[str, JsonValue]:
         """Delete an Azure AI Hosted agent or version and optionally wait for deletion."""
         delete_response: Any
         if self.agent_version is None:
@@ -364,16 +365,18 @@ class DeleteAzureAIAgentOperator(BaseOperator):
                 "Deleting Azure AI Hosted agent %s version %s.", self.agent_name, self.agent_version
             )
             delete_response = self.hook.delete_agent_version(
-                agent_name=self.agent_name, agent_version=self.agent_version
+                agent_name=self.agent_name, agent_version=self.agent_version, force=self.force
             )
 
         if self.wait_for_completion:
             self._wait_for_deletion()
-        return _serialize_resource(delete_response)
+        return cast("dict[str, JsonValue]", _serialize_resource(delete_response))
 
     def _wait_for_deletion(self) -> None:
         end_time = time.monotonic() + self.timeout
-        resource_description = self._delete_resource_description()
+        resource_description = f"agent {self.agent_name}"
+        if self.agent_version is not None:
+            resource_description += f" version {self.agent_version}"
         while True:
             if self.agent_version is None:
                 is_deleted = self.hook.is_agent_deleted(agent_name=self.agent_name)
@@ -393,8 +396,3 @@ class DeleteAzureAIAgentOperator(BaseOperator):
                 self.poll_interval,
             )
             time.sleep(self.poll_interval)
-
-    def _delete_resource_description(self) -> str:
-        if self.agent_version is None:
-            return f"agent {self.agent_name}"
-        return f"agent {self.agent_name} version {self.agent_version}"

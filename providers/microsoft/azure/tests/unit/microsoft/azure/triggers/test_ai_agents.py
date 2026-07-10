@@ -82,6 +82,13 @@ class TestAzureAIAgentVersionTrigger:
 
         assert kwargs["endpoint"] is None
 
+    @mock.patch(f"{MODULE}._serialize_resource", autospec=True)
+    def test_build_trigger_event_does_not_serialize_intermediate_version(self, mock_serialize):
+        trigger = build_trigger()
+
+        assert trigger._build_trigger_event({"status": "creating"}) is None
+        mock_serialize.assert_not_called()
+
     @pytest.mark.asyncio
     @mock.patch.object(AzureAIAgentsAsyncHook, "close", autospec=True)
     @mock.patch.object(AzureAIAgentsAsyncHook, "async_get_agent_version", autospec=True)

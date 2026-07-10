@@ -22,15 +22,15 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow.providers.microsoft.azure.hooks.ai_agents import (
+from airflow.providers.microsoft.azure._ai_agents import (
     VERSION_FAILURE_STATUSES,
     VERSION_INTERMEDIATE_STATUSES,
     VERSION_SUCCESS_STATUSES,
-    AzureAIAgentsAsyncHook,
     _get_resource_attr,
     _get_version_status,
     _serialize_resource,
 )
+from airflow.providers.microsoft.azure.hooks.ai_agents import AzureAIAgentsAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -85,6 +85,9 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
     def _build_trigger_event(self, version: Any) -> TriggerEvent | None:
         """Build a terminal TriggerEvent for a Hosted agent version."""
         status = _get_version_status(version)
+        if status in VERSION_INTERMEDIATE_STATUSES:
+            return None
+
         serialized_version = _serialize_resource(version)
         if status in VERSION_SUCCESS_STATUSES:
             return TriggerEvent(
@@ -108,18 +111,16 @@ class AzureAIAgentVersionTrigger(BaseTrigger):
                     "version": serialized_version,
                 }
             )
-        if status not in VERSION_INTERMEDIATE_STATUSES:
-            return TriggerEvent(
-                {
-                    "status": "error",
-                    "message": (
-                        f"Azure AI Hosted agent {self.agent_name} version {self.agent_version} "
-                        f"reached unknown status {status}."
-                    ),
-                    "version": serialized_version,
-                }
-            )
-        return None
+        return TriggerEvent(
+            {
+                "status": "error",
+                "message": (
+                    f"Azure AI Hosted agent {self.agent_name} version {self.agent_version} "
+                    f"reached unknown status {status}."
+                ),
+                "version": serialized_version,
+            }
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll the Hosted agent version status until terminal state or timeout."""

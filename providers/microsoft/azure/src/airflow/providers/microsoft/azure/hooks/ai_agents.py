@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote
 
@@ -30,6 +29,11 @@ from azure.identity.aio import ClientSecretCredential as AsyncClientSecretCreden
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.microsoft.azure._ai_agents import (
+    VERSION_DELETED_STATUS,
+    _get_version_status,
+    _serialize_resource,
+)
 from airflow.providers.microsoft.azure.hooks.base_azure import _AZURE_CLOUD_ENVIRONMENTS
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -49,55 +53,12 @@ if TYPE_CHECKING:
     )
     from azure.core.credentials import TokenCredential
     from azure.core.credentials_async import AsyncTokenCredential
+    from pydantic import JsonValue
 
     from airflow.sdk import Connection
 
 
 DEFAULT_REQUEST_TIMEOUT = 60.0
-VERSION_INTERMEDIATE_STATUSES = {"creating", "deleting"}
-VERSION_SUCCESS_STATUSES = {"active"}
-VERSION_FAILURE_STATUSES = {"failed"}
-VERSION_DELETED_STATUS = "deleted"
-
-
-def _serialize_resource(resource: Any) -> Any:
-    """Serialize an SDK model or response object into XCom-safe primitives."""
-    if resource is None or isinstance(resource, str | int | float | bool):
-        return resource
-    if isinstance(resource, list | tuple):
-        return [_serialize_resource(item) for item in resource]
-    if isinstance(resource, dict):
-        return {key: _serialize_resource(value) for key, value in resource.items()}
-    if hasattr(resource, "as_dict"):
-        return _serialize_resource(resource.as_dict())
-    if hasattr(resource, "model_dump"):
-        return _serialize_resource(resource.model_dump())
-    return resource
-
-
-def _get_resource_attr(resource: Any, attr: str) -> Any:
-    """Get an attribute from an SDK resource or mapping."""
-    if isinstance(resource, dict):
-        return resource.get(attr)
-    return getattr(resource, attr, None)
-
-
-def _get_version_status(version: Any) -> str:
-    """Return a normalized Hosted agent version status string."""
-    status = _get_resource_attr(version, "status")
-    if hasattr(status, "value"):
-        status = status.value
-    if status is None:
-        raise ValueError("Azure AI Hosted agent version did not include a status.")
-    return str(status).lower()
-
-
-def _get_agent_version(version: Any) -> str:
-    """Return the version identifier from a Hosted agent version payload."""
-    agent_version = _get_resource_attr(version, "version")
-    if agent_version is None:
-        raise ValueError("Azure AI Hosted agent response did not include a version.")
-    return str(agent_version)
 
 
 class AzureAIAgentsHook(BaseHook):
@@ -133,6 +94,7 @@ class AzureAIAgentsHook(BaseHook):
         self.endpoint = endpoint
         self.api_version = api_version
         self.timeout = timeout
+        self._sync_client: AIProjectClient | None = None
 
     @classmethod
     @add_managed_identity_connection_widgets
@@ -170,27 +132,21 @@ class AzureAIAgentsHook(BaseHook):
             },
         }
 
-    @cached_property
-    def _connection(self) -> Connection:
-        return self.get_connection(self.conn_id)
-
-    @cached_property
-    def _client(self) -> AIProjectClient:
-        conn = self._connection
-        # Hosted agents are a Foundry preview feature; allow_preview makes the SDK send
-        # the required Foundry-Features request header.
-        return AIProjectClient(
-            endpoint=self._get_endpoint(conn),
-            credential=self._get_credential(conn),
-            api_version=self.api_version,
-            allow_preview=True,
-            connection_timeout=self.timeout,
-            read_timeout=self.timeout,
-        )
-
     def get_conn(self) -> AIProjectClient:
         """Return the Azure AI Foundry project client."""
-        return self._client
+        if self._sync_client is None:
+            conn = self.get_connection(self.conn_id)
+            # Hosted agents are a Foundry preview feature; allow_preview makes the SDK send
+            # the required Foundry-Features request header.
+            self._sync_client = AIProjectClient(
+                endpoint=self._get_endpoint(conn),
+                credential=self._get_credential(conn),
+                api_version=self.api_version,
+                allow_preview=True,
+                connection_timeout=self.timeout,
+                read_timeout=self.timeout,
+            )
+        return self._sync_client
 
     def _get_endpoint(self, conn: Connection) -> str:
         endpoint = self.endpoint or conn.host or self._get_field(conn.extra_dejson, "endpoint")
@@ -208,11 +164,21 @@ class AzureAIAgentsHook(BaseHook):
         )
         return cloud_env["authority"]
 
+    @staticmethod
+    def _should_use_client_secret_credential(conn: Connection, tenant: str | None) -> bool:
+        credential_fields = (conn.login, conn.password, tenant)
+        if any(credential_fields) and not all(credential_fields):
+            raise ValueError(
+                "Azure Client ID, Azure Secret, and Azure Tenant ID must all be provided when "
+                "authenticating with a service principal."
+            )
+        return all(credential_fields)
+
     def _get_credential(self, conn: Connection) -> TokenCredential:
         extras = conn.extra_dejson
         tenant = self._get_field(extras, "tenantId")
 
-        if all([conn.login, conn.password, tenant]):
+        if self._should_use_client_secret_credential(conn, tenant):
             self.log.info("Getting connection using specific credentials.")
             return ClientSecretCredential(
                 client_id=cast("str", conn.login),
@@ -238,10 +204,6 @@ class AzureAIAgentsHook(BaseHook):
             ),
         )
 
-    @staticmethod
-    def _quote_resource_id(resource_id: str) -> str:
-        return quote(resource_id, safe="")
-
     def create_agent_version(
         self,
         agent_name: str,
@@ -256,9 +218,9 @@ class AzureAIAgentsHook(BaseHook):
 
         :param agent_name: Hosted agent name.
         :param definition: Hosted agent container definition.
-        :param metadata: Optional metadata attached to the Hosted agent.
-        :param description: Optional human-readable Hosted agent description.
-        :param blueprint_reference: Optional managed identity blueprint reference.
+        :param metadata: Optional metadata attached to the Hosted agent. Default is ``None``.
+        :param description: Optional human-readable Hosted agent description. Default is ``None``.
+        :param blueprint_reference: Optional managed identity blueprint reference. Default is ``None``.
         :return: Created Hosted agent version.
         """
         return self.get_conn().agents.create_version(
@@ -294,19 +256,26 @@ class AzureAIAgentsHook(BaseHook):
 
         :param agent_name: Hosted agent name.
         :param force: Whether to force deletion when the Hosted agent has active sessions.
+            Default is ``False``.
         :return: Deletion response.
         """
         return self.get_conn().agents.delete(agent_name=agent_name, force=force)
 
-    def delete_agent_version(self, agent_name: str, agent_version: str) -> DeleteAgentVersionResponse:
+    def delete_agent_version(
+        self, agent_name: str, agent_version: str, *, force: bool = False
+    ) -> DeleteAgentVersionResponse:
         """
         Delete one Hosted agent version.
 
         :param agent_name: Hosted agent name.
         :param agent_version: Hosted agent version.
+        :param force: Whether to force deletion when the Hosted agent version has active sessions.
+            Default is ``False``.
         :return: Deletion response.
         """
-        return self.get_conn().agents.delete_version(agent_name=agent_name, agent_version=agent_version)
+        return self.get_conn().agents.delete_version(
+            agent_name=agent_name, agent_version=agent_version, force=force
+        )
 
     def is_agent_version_deleted(self, agent_name: str, agent_version: str) -> bool:
         """
@@ -341,21 +310,21 @@ class AzureAIAgentsHook(BaseHook):
         input_data: dict[str, Any],
         *,
         user_isolation_key: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, JsonValue]:
         """
         Invoke a Hosted agent through the OpenAI Responses protocol.
 
         :param agent_name: Hosted agent name.
         :param input_data: Request payload for the Responses protocol.
-        :param user_isolation_key: Optional user isolation key for endpoint resources.
-        :return: Serialized Responses protocol response.
+        :param user_isolation_key: Optional user isolation key for endpoint resources. Default is ``None``.
+        :return: JSON-compatible Responses protocol response.
         """
-        openai_client = self.get_conn().get_openai_client(agent_name=agent_name)
         request_kwargs: dict[str, Any] = {}
         if user_isolation_key:
             request_kwargs["extra_headers"] = {"x-ms-user-isolation-key": user_isolation_key}
-        response = openai_client.responses.create(**input_data, **request_kwargs)
-        return cast("dict[str, Any]", response.model_dump(mode="json"))
+        with self.get_conn().get_openai_client(agent_name=agent_name) as openai_client:
+            response = openai_client.responses.create(**input_data, **request_kwargs)
+        return cast("dict[str, JsonValue]", response.model_dump(mode="json"))
 
     def invoke_agent_invocations(
         self,
@@ -364,7 +333,7 @@ class AzureAIAgentsHook(BaseHook):
         *,
         agent_session_id: str | None = None,
         user_isolation_key: str | None = None,
-    ) -> Any:
+    ) -> JsonValue:
         """
         Invoke a Hosted agent through the Invocations protocol.
 
@@ -373,9 +342,10 @@ class AzureAIAgentsHook(BaseHook):
 
         :param agent_name: Hosted agent name.
         :param input_data: Request payload for the Invocations protocol.
-        :param agent_session_id: Optional Hosted agent session id.
-        :param user_isolation_key: Optional user isolation key for endpoint resources.
-        :return: Invocations protocol payload; its shape is defined by the Hosted agent container.
+        :param agent_session_id: Optional Hosted agent session id. Default is ``None``.
+        :param user_isolation_key: Optional user isolation key for endpoint resources. Default is ``None``.
+        :return: JSON-compatible Invocations protocol payload; its shape is defined by the Hosted agent
+            container.
         """
         params = {"api-version": self.api_version}
         if agent_session_id:
@@ -383,7 +353,7 @@ class AzureAIAgentsHook(BaseHook):
         headers = {"x-ms-user-isolation-key": user_isolation_key} if user_isolation_key else None
         request = HttpRequest(
             "POST",
-            f"/agents/{self._quote_resource_id(agent_name)}/endpoint/protocols/invocations",
+            f"/agents/{quote(agent_name, safe='')}/endpoint/protocols/invocations",
             params=params,
             headers=headers,
             json=input_data,
@@ -392,7 +362,7 @@ class AzureAIAgentsHook(BaseHook):
         response.raise_for_status()
         if not response.content:
             return None
-        return response.json()
+        return _serialize_resource(response.json())
 
 
 class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
@@ -415,6 +385,7 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
         timeout: float | None = DEFAULT_REQUEST_TIMEOUT,
     ) -> None:
         self._async_client: AsyncAIProjectClient | None = None
+        self._async_credential: AsyncTokenCredential | None = None
         super().__init__(
             azure_ai_agents_conn_id=azure_ai_agents_conn_id,
             endpoint=endpoint,
@@ -422,19 +393,18 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
             timeout=timeout,
         )
 
-    async def __aenter__(self):
-        """Enter async context manager."""
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Exit async context manager, closing the async client."""
-        await self.close()
-
     async def close(self) -> None:
-        """Close the async Azure AI Foundry project client."""
-        if self._async_client is not None:
-            await self._async_client.close()
+        """Close the async Azure AI Foundry project client and credential."""
+        try:
+            if self._async_client is not None:
+                await self._async_client.close()
+        finally:
             self._async_client = None
+            if self._async_credential is not None:
+                try:
+                    await self._async_credential.close()
+                finally:
+                    self._async_credential = None
 
     async def get_async_conn(self) -> AsyncAIProjectClient:
         """Return the async Azure AI Foundry project client."""
@@ -442,9 +412,10 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
             return self._async_client
 
         conn = await get_async_connection(self.conn_id)
+        self._async_credential = self._get_async_credential(conn)
         self._async_client = AsyncAIProjectClient(
             endpoint=self._get_endpoint(conn),
-            credential=self._get_async_credential(conn),
+            credential=self._async_credential,
             api_version=self.api_version,
             allow_preview=True,
             connection_timeout=self.timeout,
@@ -456,7 +427,7 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
         extras = conn.extra_dejson
         tenant = self._get_field(extras, "tenantId")
 
-        if all([conn.login, conn.password, tenant]):
+        if self._should_use_client_secret_credential(conn, tenant):
             self.log.info("Getting connection using specific credentials.")
             return AsyncClientSecretCredential(
                 client_id=cast("str", conn.login),

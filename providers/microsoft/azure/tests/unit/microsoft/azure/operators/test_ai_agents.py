@@ -380,9 +380,29 @@ class TestDeleteAzureAIAgentOperator:
             result = operator.execute(context={})
 
         assert result == {"object": "agent.version.deleted", "deleted": True}
-        mock_delete_version.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="2")
+        mock_delete_version.assert_called_once_with(
+            mock.ANY, agent_name=AGENT_NAME, agent_version="2", force=False
+        )
         mock_is_deleted.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="2")
         mock_log_info.assert_any_call("Azure AI Hosted %s was deleted.", f"agent {AGENT_NAME} version 2")
+
+    @mock.patch.object(AzureAIAgentsHook, "delete_agent_version", autospec=True)
+    def test_execute_deletes_agent_version_with_force(self, mock_delete_version):
+        mock_delete_version.return_value = {"object": "agent.version.deleted", "deleted": True}
+        operator = DeleteAzureAIAgentOperator(
+            task_id="delete_agent_version",
+            agent_name=AGENT_NAME,
+            agent_version="2",
+            force=True,
+            wait_for_completion=False,
+        )
+
+        result = operator.execute(context={})
+
+        assert result == {"object": "agent.version.deleted", "deleted": True}
+        mock_delete_version.assert_called_once_with(
+            mock.ANY, agent_name=AGENT_NAME, agent_version="2", force=True
+        )
 
     @mock.patch(f"{MODULE}.time.sleep", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)

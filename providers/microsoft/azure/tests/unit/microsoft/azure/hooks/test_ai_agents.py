@@ -23,13 +23,15 @@ import pytest
 from azure.core.exceptions import ResourceNotFoundError
 
 from airflow.models import Connection
+from airflow.providers.microsoft.azure._ai_agents import (
+    _get_agent_version,
+    _get_version_status,
+    _serialize_resource,
+)
 from airflow.providers.microsoft.azure.hooks.ai_agents import (
     DEFAULT_REQUEST_TIMEOUT,
     AzureAIAgentsAsyncHook,
     AzureAIAgentsHook,
-    _get_agent_version,
-    _get_version_status,
-    _serialize_resource,
 )
 
 MODULE = "airflow.providers.microsoft.azure.hooks.ai_agents"
@@ -51,7 +53,7 @@ BLUEPRINT_REFERENCE = {"type": "ManagedAgentIdentityBlueprint", "blueprint_id": 
 @pytest.fixture
 def hook_with_mocked_client():
     hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
-    hook.__dict__["_client"] = mock.MagicMock()
+    hook._sync_client = mock.MagicMock()
     return hook
 
 
@@ -97,6 +99,30 @@ class TestAzureAIAgentsHook:
             tenant_id="tenant-id",
             authority="login.microsoftonline.us",
         )
+
+    @pytest.mark.parametrize(
+        ("login", "password", "tenant"),
+        [
+            ("client-id", None, None),
+            (None, "client-secret", None),
+            (None, None, "tenant-id"),
+            ("client-id", "client-secret", None),
+            ("client-id", None, "tenant-id"),
+            (None, "client-secret", "tenant-id"),
+        ],
+    )
+    def test_get_credential_rejects_partial_service_principal(self, login, password, tenant):
+        conn = Connection(
+            conn_id=CONN_ID,
+            conn_type="azure_ai_agents",
+            login=login,
+            password=password,
+            extra={"tenantId": tenant} if tenant else None,
+        )
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+
+        with pytest.raises(ValueError, match="must all be provided"):
+            hook._get_credential(conn)
 
     @mock.patch(f"{MODULE}.get_sync_default_azure_credential", autospec=True)
     @mock.patch(f"{MODULE}.AIProjectClient", autospec=True)
@@ -220,13 +246,14 @@ class TestAzureAIAgentsHook:
         hook.get_conn().agents.delete.assert_called_once_with(agent_name=AGENT_NAME, force=force)
         assert result == hook.get_conn().agents.delete.return_value
 
-    def test_delete_agent_version(self, hook_with_mocked_client):
+    @pytest.mark.parametrize("force", [False, True])
+    def test_delete_agent_version(self, hook_with_mocked_client, force):
         hook = hook_with_mocked_client
 
-        result = hook.delete_agent_version(agent_name=AGENT_NAME, agent_version="2")
+        result = hook.delete_agent_version(agent_name=AGENT_NAME, agent_version="2", force=force)
 
         hook.get_conn().agents.delete_version.assert_called_once_with(
-            agent_name=AGENT_NAME, agent_version="2"
+            agent_name=AGENT_NAME, agent_version="2", force=force
         )
         assert result == hook.get_conn().agents.delete_version.return_value
 
@@ -262,7 +289,8 @@ class TestAzureAIAgentsHook:
 
     def test_invoke_agent_responses(self, hook_with_mocked_client):
         hook = hook_with_mocked_client
-        openai_client = hook.get_conn().get_openai_client.return_value
+        openai_client_manager = hook.get_conn().get_openai_client.return_value
+        openai_client = openai_client_manager.__enter__.return_value
         openai_client.responses.create.return_value.model_dump.return_value = {"output_text": "hello"}
 
         result = hook.invoke_agent_responses(
@@ -277,14 +305,17 @@ class TestAzureAIAgentsHook:
             input="hello",
             extra_headers={"x-ms-user-isolation-key": "user-key"},
         )
+        openai_client_manager.__exit__.assert_called_once_with(None, None, None)
 
     def test_invoke_agent_responses_without_isolation_key(self, hook_with_mocked_client):
         hook = hook_with_mocked_client
-        openai_client = hook.get_conn().get_openai_client.return_value
+        openai_client_manager = hook.get_conn().get_openai_client.return_value
+        openai_client = openai_client_manager.__enter__.return_value
 
         hook.invoke_agent_responses(agent_name=AGENT_NAME, input_data={"input": "hello"})
 
         openai_client.responses.create.assert_called_once_with(input="hello")
+        openai_client_manager.__exit__.assert_called_once_with(None, None, None)
 
     @mock.patch(f"{MODULE}.HttpRequest", autospec=True)
     def test_invoke_agent_invocations(self, mock_request_cls, hook_with_mocked_client):
@@ -327,6 +358,20 @@ class TestAzureAIAgentsHook:
         )
         assert mock_request_cls.call_args.kwargs["headers"] is None
 
+    @mock.patch(f"{MODULE}.HttpRequest", autospec=True)
+    def test_invoke_agent_invocations_rejects_non_json_response(
+        self, mock_request_cls, hook_with_mocked_client
+    ):
+        hook = hook_with_mocked_client
+        response = hook.get_conn().send_request.return_value
+        response.content = b'{"result": "done"}'
+        response.json.return_value = {"result": object()}
+
+        with pytest.raises(TypeError, match="Cannot serialize.*object.*for XCom"):
+            hook.invoke_agent_invocations(agent_name=AGENT_NAME, input_data={"message": "hello"})
+
+        response.raise_for_status.assert_called_once_with()
+
     def test_get_version_status_raises_when_status_missing(self):
         with pytest.raises(ValueError, match="did not include a status"):
             _get_version_status({})
@@ -355,16 +400,19 @@ class TestAzureAIAgentsHook:
 
         assert _serialize_resource(PydanticModel()) == {"output_text": "hello"}
 
-    def test_serialize_resource_does_not_serialize_arbitrary_object_attributes(self):
+    def test_serialize_resource_rejects_arbitrary_objects(self):
         class ArbitraryObject:
             value = "class-value"
 
             def __init__(self):
                 self.value = "instance-value"
 
-        resource = ArbitraryObject()
+        with pytest.raises(TypeError, match="Cannot serialize.*ArbitraryObject.*for XCom"):
+            _serialize_resource(ArbitraryObject())
 
-        assert _serialize_resource(resource) is resource
+    def test_serialize_resource_rejects_non_string_mapping_keys(self):
+        with pytest.raises(TypeError, match="must use string keys"):
+            _serialize_resource({1: "value"})
 
 
 class TestAzureAIAgentsAsyncHook:
@@ -419,6 +467,17 @@ class TestAzureAIAgentsAsyncHook:
             authority="login.microsoftonline.com",
         )
 
+    async def test_get_async_credential_rejects_partial_service_principal(self):
+        conn = Connection(
+            conn_id=CONN_ID,
+            conn_type="azure_ai_agents",
+            login="client-id",
+        )
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        with pytest.raises(ValueError, match="must all be provided"):
+            hook._get_async_credential(conn)
+
     async def test_async_get_agent_version(self):
         hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
         client = mock.MagicMock()
@@ -432,11 +491,32 @@ class TestAzureAIAgentsAsyncHook:
 
     async def test_close(self):
         hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
-        client = mock.MagicMock()
+        client = mock.MagicMock(spec=["close"])
         client.close = mock.AsyncMock()
+        credential = mock.MagicMock(spec=["close"])
+        credential.close = mock.AsyncMock()
         hook._async_client = client
+        hook._async_credential = credential
 
         await hook.close()
 
         client.close.assert_awaited_once_with()
+        credential.close.assert_awaited_once_with()
         assert hook._async_client is None
+        assert hook._async_credential is None
+
+    async def test_close_closes_credential_when_client_close_fails(self):
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+        client = mock.MagicMock(spec=["close"])
+        client.close = mock.AsyncMock(side_effect=RuntimeError("client close failed"))
+        credential = mock.MagicMock(spec=["close"])
+        credential.close = mock.AsyncMock()
+        hook._async_client = client
+        hook._async_credential = credential
+
+        with pytest.raises(RuntimeError, match="client close failed"):
+            await hook.close()
+
+        credential.close.assert_awaited_once_with()
+        assert hook._async_client is None
+        assert hook._async_credential is None
