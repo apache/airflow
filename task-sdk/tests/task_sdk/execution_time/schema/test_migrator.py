@@ -105,12 +105,9 @@ _LATEST_VERSION = "3026-06-16"
 class TestSchemaVersionMigratorDowngrade:
     """
     Drive the downgrade direction against a mock bundle so we can pin
-    *field-level* migration behaviour. The real supervisor bundle has
-    no schema-level migrations on the IPC bodies yet, so it would no-op
-    every version -- which proves nothing about the migration chain.
-    The mock bundle's mechanism is identical to the real one, so what
-    we prove about it applies to the real bundle the moment a
-    ``schema(...)`` instruction lands.
+    *field-level* migration behaviour independent of the real bundle's
+    contents. The real bundle's ``stub_args`` migration is covered by
+    :class:`TestRealBundleStubArgsDowngrade` below.
     """
 
     @pytest.fixture
@@ -369,3 +366,76 @@ class TestLazyCadwynImport:
             "assert 'cadwyn' in sys.modules, 'cadwyn should load when the bundle is accessed'"
         )
         subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
+
+class TestRealBundleStubArgsDowngrade:
+    """
+    Drive the *real* supervisor bundle through the ``stub_args`` migration.
+
+    ``AddStubArgsToTIRunContext`` is the bundle's first ``schema(...)``
+    instruction on a model *nested* inside a registered body
+    (``StartupDetails.ti_context``); this pins that the downgrade
+    re-validation strips the nested field on the wire for a runtime
+    pinned to the previous version, and keeps it at head.
+    """
+
+    @pytest.fixture
+    def startup_details(self):
+        import datetime
+        import uuid
+
+        from airflow.sdk.api.datamodels._generated import (
+            BundleInfo,
+            DagRun,
+            DagRunState,
+            DagRunType,
+            TaskInstance,
+            TIRunContext,
+        )
+        from airflow.sdk.execution_time.comms import StartupDetails
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return StartupDetails(
+            ti=TaskInstance(
+                id=uuid.uuid4(),
+                task_id="transform",
+                dag_id="d",
+                run_id="r",
+                try_number=1,
+                dag_version_id=uuid.uuid4(),
+            ),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="b", version=None),
+            start_date=now,
+            ti_context=TIRunContext(
+                dag_run=DagRun(
+                    dag_id="d",
+                    run_id="r",
+                    logical_date=now,
+                    start_date=now,
+                    run_type=DagRunType.MANUAL,
+                    state=DagRunState.RUNNING,
+                    run_after=now,
+                    consumed_asset_events=[],
+                ),
+                max_tries=1,
+                stub_args=[
+                    {"kind": "literal", "data_type": "string", "value": "uk"},
+                    {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
+                ],
+            ),
+            sentry_integration="",
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_stub_args_for_previous_version(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
+        assert "stub_args" not in out["ti_context"]
+
+    def test_head_version_keeps_stub_args(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-07-30")
+        assert out.ti_context.stub_args is not None
+        assert [a.kind for a in out.ti_context.stub_args] == ["literal", "xcom"]

@@ -393,6 +393,34 @@ class DagRun(StrictBaseModel):
         return values
 
 
+StubArgDataType = Literal["string", "integer", "number", "boolean", "object", "array", "any"]
+"""Language-neutral value type a stub-task argument binds to in the foreign runtime."""
+
+
+class StubTaskArg(BaseModel):
+    """
+    One positional argument of a stub (foreign-runtime) task, in declaration order.
+
+    A deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema
+    generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
+    """
+
+    kind: Literal["xcom", "literal"]
+    """Whether the value comes from an upstream task's XCom or is a literal from the Dag file."""
+
+    data_type: StubArgDataType = "any"
+    """Declared type from the stub function's annotation; runtimes type-check against it."""
+
+    task_id: str | None = None
+    """Upstream task id to pull the XCom from. Only set when ``kind`` is ``xcom``."""
+
+    key: str = "return_value"
+    """XCom key to pull. Only meaningful when ``kind`` is ``xcom``."""
+
+    value: JsonValue | None = None
+    """The literal value from the Dag file. Only set when ``kind`` is ``literal``."""
+
+
 class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
 
@@ -433,6 +461,13 @@ class TIRunContext(BaseModel):
     When resuming from deferral, this is set to the task's original ``start_date`` so the
     supervisor uses it instead of ``datetime.now()``.  This ensures ``context["ti"].start_date``
     always reflects when the task *first* started, not when it was rescheduled/resumed.
+    """
+
+    stub_args: list[StubTaskArg] | None = None
+    """
+    Ordered positional-argument binding spec for stub (foreign-runtime) tasks.
+
+    ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
 

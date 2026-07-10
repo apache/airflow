@@ -32,7 +32,7 @@ import (
 // reported in a bundle's airflow-metadata manifest as
 // sdk.supervisor_schema_version so the supervisor can down/upgrade messages to
 // a shape the bundle understands.
-const SupervisorSchemaVersion = "2026-06-16"
+const SupervisorSchemaVersion = "2026-07-30"
 
 // The message-type discriminator strings (genmodels.Type*) are generated from the
 // schema's "type" consts in discriminators.gen.go; outbound messages stamp the

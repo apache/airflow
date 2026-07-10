@@ -53,6 +53,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
+    StubTaskArg,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
     TIAwaitingInputStatePayload,
@@ -80,6 +81,7 @@ from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
@@ -89,6 +91,8 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
+from airflow.serialization.enums import Encoding
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -109,6 +113,30 @@ ti_id_router = VersionedAPIRouter(
 
 log = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+# Task type recorded on the TI row (``TaskInstance.operator``) for
+# ``airflow.providers.standard.decorators.stub._StubOperator``. Used to gate the
+# serialized-dag lookup for ``stub_args`` so regular tasks never pay for it.
+_STUB_TASK_TYPE = "_StubOperator"
+
+
+def _get_stub_args(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
+    """Extract the stub task's serialized positional-arg spec from the serialized Dag blob."""
+    if dag_version_id is None:
+        return None
+    dag_version = session.get(DagVersion, dag_version_id)
+    if dag_version is None or dag_version.serialized_dag is None:
+        return None
+    data = dag_version.serialized_dag.data
+    if not data:
+        return None
+    for task in data.get("dag", {}).get("tasks", []):
+        var = task.get(Encoding.VAR) or {}
+        if var.get("task_id") == task_id:
+            if encoded := var.get("_stub_args"):
+                return BaseSerialization.deserialize(encoded)
+            return None
+    return None
 
 
 @ti_id_router.patch(
@@ -163,6 +191,8 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.operator,
+            TI.dag_version_id,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -309,6 +339,13 @@ def ti_run(
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
+
+        # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
+        # spec; the route excludes unset fields, keeping regular responses lean.
+        if ti.operator == _STUB_TASK_TYPE and (
+            stub_args := _get_stub_args(ti.dag_version_id, ti.task_id, session=session)
+        ):
+            context.stub_args = [StubTaskArg.model_validate(arg) for arg in stub_args]
 
         # Only set if they are non-null
         if ti.next_method:

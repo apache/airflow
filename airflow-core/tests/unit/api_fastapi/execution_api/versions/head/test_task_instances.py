@@ -370,6 +370,43 @@ class TestTIRunState:
         assert extras["scope"] == "execution"
         assert extras["sub"] == str(ti.id)
 
+    def test_ti_run_returns_stub_args_for_stub_task(self, client, dag_maker):
+        """A stub task's TaskFlow arg spec is extracted from the serialized dag and returned."""
+        from airflow.providers.standard.decorators.stub import stub
+
+        def extract(): ...
+
+        def transform(country: str, extracted: dict): ...
+
+        with dag_maker("test_stub_args_dag", serialized=True):
+            stub(transform)("uk", stub(extract)())
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances()}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        payload = {
+            "state": "running",
+            "hostname": "random-hostname",
+            "unixname": "random-unixname",
+            "pid": 100,
+            "start_date": "2024-09-30T12:00:00Z",
+        }
+
+        response = client.patch(f"/execution/task-instances/{tis['transform'].id}/run", json=payload)
+        assert response.status_code == 200
+        assert response.json()["stub_args"] == [
+            {"kind": "literal", "data_type": "string", "value": "uk"},
+            {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
+        ]
+
+        # An argless stub has no captured spec, so the field stays unset.
+        response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=payload)
+        assert response.status_code == 200
+        assert "stub_args" not in response.json()
+
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
         with dag_maker("test_dynamic_task_mapping_with_parse_time_value", serialized=True):

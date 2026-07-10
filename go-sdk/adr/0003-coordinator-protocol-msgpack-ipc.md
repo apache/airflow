@@ -217,13 +217,22 @@ Supervisor                          Bundle binary (Go)
     │                                       │
     ├── StartupDetails ────────────────────►│
     │   (ti, dag_rel_path, bundle_info,     │
-    │    start_date, ti_context)            │
+    │    start_date, ti_context; the        │
+    │    ti_context carries stub_args, the  │
+    │    positional-argument spec captured  │
+    │    from the stub Dag's TaskFlow call) │
     │                                       │
     │                                       ├── lookup task:
     │                                       │     bundle.dags[ti.dag_id]
     │                                       │     .tasks[ti.task_id]
     │                                       │   (returns TaskState{state:"removed"}
     │                                       │    if not found, mirroring Java)
+    │                                       │
+    │                                       ├── bind stub_args onto the task
+    │                                       │   fn's data parameters (literals
+    │                                       │   decode directly; xcom refs pull
+    │                                       │   below); arity/type mismatch
+    │                                       │   fails the task
     │                                       │
     │                                       ├── construct sdk.Client whose
     │                                       │   GetConnection / GetVariable /

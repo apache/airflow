@@ -127,12 +127,28 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
 	return ret, nil
 }
 
-func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
+// transform demonstrates TaskFlow-style argument binding: the Python stub Dag
+// calls “transform("uk", extract())“, so the runtime binds the "uk" literal
+// onto country and pulls extract's return-value XCom into extracted -- the
+// injectable parameters (runtime context, client, logger) are filled by type
+// as before, in any position.
+func transform(
+	ctx sdk.TIRunContext,
+	client sdk.VariableClient,
+	log *slog.Logger,
+	country string,
+	extracted map[string]any,
+) error {
 	// This function takes a VariableClient and not a Client to make unit testing it easier. See
 	// `./main_test.go` for an example unit of this task fn. Functionally taking a `sdk.Client` is the same (as
 	// Client includes VariableClient) but by using the dedicated type it can be easier to write unit tests.
 	//
 	// It also gives a better indication of what features the tasks use
+	log.InfoContext(ctx, "Bound TaskFlow arguments",
+		"country", country,
+		"extracted_go_version", extracted["go_version"],
+		"extracted_timestamp", extracted["timestamp"],
+	)
 	key := "my_variable"
 	val, err := client.GetVariable(ctx, key)
 	if err != nil {

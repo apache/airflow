@@ -77,7 +77,7 @@ from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.enums import Encoding
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -3403,6 +3403,46 @@ def test_python_callable_name_uses_qualname_exclude_module():
     op3 = PythonOperator(task_id="task3", python_callable=partial_func)
     serialized3 = OperatorSerialization.serialize_operator(op3)
     assert serialized3["python_callable_name"] == "empty_function"
+
+
+def test_stub_task_args_round_trip():
+    """The stub task's TaskFlow arg spec (``_stub_args``) survives Dag serialization."""
+    from airflow.providers.standard.decorators.stub import stub
+
+    def extract(): ...
+
+    def transform(country: str, extracted: dict): ...
+
+    with DAG(dag_id="stub_args_dag", schedule=None) as dag:
+        stub(transform)("uk", stub(extract)())
+
+    ser_dag = DagSerialization.to_dict(dag)
+    encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
+    assert "_stub_args" not in encoded_tasks["extract"], "argless stubs must not serialize a spec"
+    assert encoded_tasks["transform"]["_stub_args"] == [
+        {
+            Encoding.TYPE: DAT.DICT,
+            Encoding.VAR: {"kind": "literal", "data_type": "string", "value": "uk"},
+        },
+        {
+            Encoding.TYPE: DAT.DICT,
+            Encoding.VAR: {
+                "kind": "xcom",
+                "data_type": "object",
+                "task_id": "extract",
+                "key": "return_value",
+            },
+        },
+    ]
+
+    round_tripped = DagSerialization.from_dict(ser_dag)
+    assert round_tripped.task_dict["transform"]._stub_args == [
+        {"kind": "literal", "data_type": "string", "value": "uk"},
+        {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
+    ]
+    assert not hasattr(round_tripped.task_dict["extract"], "_stub_args") or (
+        round_tripped.task_dict["extract"]._stub_args is None
+    )
 
 
 def test_handle_v1_serdag():

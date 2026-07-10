@@ -253,6 +253,7 @@ disable-timestamp=true
 enable-version-header=true
 enum-field-as-literal='one' # When a single enum member, make it output a `Literal["..."]`
 input-file-type='openapi'
+set-default-enum-member=true # `= DataType.ANY` not `= "any"`, keeping mypy happy with enum-typed fields
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='AwareDatetime'
 target-python-version='3.10'

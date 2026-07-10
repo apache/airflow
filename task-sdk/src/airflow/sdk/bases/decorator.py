@@ -588,6 +588,11 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
+        if not getattr(self.operator_class, "supports_expand", True):
+            operator_name = (
+                getattr(self.operator_class, "custom_operator_name", None) or self.operator_class.__name__
+            )
+            raise TypeError(f"{operator_name} tasks do not support dynamic task mapping (.expand())")
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()

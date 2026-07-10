@@ -84,3 +84,46 @@ class TestTeamNameFieldBackwardCompat:
             response = client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
         assert response.json()["dag_run"]["team_name"] is None
+
+
+class TestStubArgsFieldBackwardCompat:
+    @pytest.fixture(autouse=True)
+    def _freeze_time(self, time_machine):
+        time_machine.move_to(TIMESTAMP_STR, tick=False)
+
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.fixture
+    def stub_ti(self, dag_maker):
+        from airflow.providers.standard.decorators.stub import stub
+
+        def extract(): ...
+
+        def transform(country: str, extracted: dict): ...
+
+        with dag_maker("test_stub_args_compat_dag", serialized=True):
+            stub(transform)("uk", stub(extract)())
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances()}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+        return tis["transform"]
+
+    def test_old_version_strips_stub_args_even_when_set(self, old_ver_client, stub_ti):
+        response = old_ver_client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert "stub_args" not in response.json()
+
+    def test_head_version_includes_stub_args(self, client, stub_ti):
+        response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert response.json()["stub_args"] == [
+            {"kind": "literal", "data_type": "string", "value": "uk"},
+            {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
+        ]

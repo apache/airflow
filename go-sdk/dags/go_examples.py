@@ -33,6 +33,10 @@ run exercises XCom across the language boundary, the same way
   routed to the ``ExecutableCoordinator``, which locates the bundle by dag_id and
   runs the binary in coordinator mode. ``extract`` returns a map (pushed as its
   ``return_value`` XCom); ``transform`` reads the ``my_variable`` variable.
+* ``transform`` is called TaskFlow-style -- ``transform("uk", extract())`` -- so
+  the stub captures a positional-argument spec (a literal plus an XCom
+  reference) that the Go runtime binds onto the Go function's ``country`` and
+  ``extracted`` parameters, pulling ``extract``'s XCom on demand.
 * ``load`` (``retries=1``) returns an error on its first attempt and succeeds
   on the retry, exercising the UP_FOR_RETRY path through the Go coordinator. It
   is a leaf (not upstream of ``python_task_2``) so its retry is observable
@@ -65,7 +69,7 @@ def extract(): ...
 
 
 @task.stub(queue="golang")
-def transform(): ...
+def transform(country: str, extracted: dict): ...
 
 
 # ``load`` fails on its first attempt and succeeds on the retry, exercising the
@@ -86,7 +90,10 @@ def python_task_2(extracted):
 @dag(dag_id="simple_dag")
 def simple_dag():
     extracted = extract()
-    transformed = transform()
+    # TaskFlow-style call: "uk" is captured as a literal argument and
+    # ``extracted`` as an XCom reference; both bind onto the Go function's
+    # data parameters at execution time (this also wires extract >> transform).
+    transformed = transform("uk", extracted)
     python_task_1() >> extracted >> transformed
     # ``load`` fails once then succeeds on retry; keep it a leaf (not upstream
     # of python_task_2) so its retry is observable without affecting the Python

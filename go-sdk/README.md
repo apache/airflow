@@ -105,6 +105,16 @@ A task is an ordinary Go function. The runtime inspects its signature and inject
 `sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
 the task failed.
 
+Any other parameter is a **data parameter**: in declaration order, data parameters receive the
+positional arguments of the Python stub Dag's TaskFlow call. A JSON-serializable literal in the Dag
+file (`transform("uk", ...)`) decodes straight into the parameter; an upstream task output
+(`transform(..., extract())`) is pulled from that task's XCom in the current dag run and decoded into
+the parameter's type. The runtime fails the task loudly when the argument count doesn't match the
+number of data parameters or a declared type can't bind to the Go type. Data parameters must be
+JSON-decodable (no func/chan/unsafe-pointer, no non-empty interfaces) — checked once at registration.
+TaskFlow argument binding arrives over the coordinator protocol, so it is coordinator-mode only today;
+on the Edge Worker path a task with data parameters fails with the arity error.
+
 ```go
 func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
     conn, err := client.GetConnection(ctx, "test_http")
@@ -112,12 +122,17 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
     return map[string]any{"go_version": runtime.Version()}, nil
 }
 
-func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
+// The stub Dag calls transform("uk", extract()): "uk" binds onto country and
+// extract's return-value XCom is pulled into extracted.
+func transform(
+    ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger,
+    country string, extracted map[string]any,
+) error {
     val, err := client.GetVariable(ctx, "my_variable")
     if err != nil {
         return err
     }
-    log.Info("Obtained variable", "my_variable", val)
+    log.Info("Obtained variable", "my_variable", val, "country", country)
     return nil
 }
 ```
