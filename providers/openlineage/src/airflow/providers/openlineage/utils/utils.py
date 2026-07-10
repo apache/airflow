@@ -88,9 +88,6 @@ except ImportError:
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
 
-if AIRFLOW_V_3_3_PLUS:
-    from airflow.models.dagbundle import DagBundleModel
-
 if TYPE_CHECKING:
     from typing import TypeAlias
 
@@ -1064,6 +1061,8 @@ class DagRunInfo(InfoJsonEncodable):
         """Extract the team name for the DagRun."""
         if not AIRFLOW_V_3_3_PLUS or not airflow_conf.getboolean("core", "multi_team", fallback=False):
             return None
+
+        from airflow.models.dagbundle import DagBundleModel
 
         bundle_name = cls.dag_version_info(dagrun, "bundle_name")
         if not isinstance(bundle_name, str):
