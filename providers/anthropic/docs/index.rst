@@ -19,6 +19,45 @@
 ``apache-airflow-providers-anthropic``
 ======================================
 
+The ``anthropic`` provider gives Dags direct access to Anthropic's own APIs — this page
+compares that choice against ``common.ai``.
+
+When to use this provider
+--------------------------
+
+Use ``anthropic`` when a Dag needs Anthropic's native API surface — services Anthropic runs
+for you, which no vendor-neutral operator wraps:
+
+* ``AnthropicBatchOperator`` and ``AnthropicBatchSensor`` — submit a Claude
+  `Message Batches <https://docs.claude.com/en/docs/build-with-claude/batch-processing>`__
+  job for asynchronous bulk processing and wait for it to complete; Message Batches run at
+  50% of standard cost, with most completing within an hour and a 24-hour SLA.
+* ``AnthropicAgentSessionOperator`` — start a Managed Agents session in which the agent loop
+  runs server-side on Anthropic's infrastructure; the Airflow task only kicks off the session
+  and waits for its outcome.
+
+Use :doc:`apache-airflow-providers-common-ai:index` instead when the AI step should be run by
+Airflow itself and stay vendor-neutral:
+
+* Generation, classification, or structured extraction with ``LLMOperator`` — it works with
+  Claude via a connection, and switching to another model provider later is a connection
+  change, not a Dag rewrite.
+* Agents whose loop runs **in the Airflow worker** with ``AgentOperator`` — Airflow-defined
+  toolsets (SQL, hooks, MCP servers), human-in-the-loop review, and durable step replay.
+
+Both ``AgentOperator`` and ``AnthropicAgentSessionOperator`` run agents with Claude models;
+the difference is where the loop executes and who controls the tools. ``AgentOperator``
+orchestrates the loop in the worker and calls tools you define in the Dag.
+``AnthropicAgentSessionOperator`` hands the whole session to Anthropic's managed service —
+the agent runs autonomously against a pre-created agent and environment, without
+Airflow-side tool execution.
+
+For example, running the Message Batches API directly:
+
+.. exampleinclude:: /../tests/system/anthropic/example_anthropic_batch.py
+    :language: python
+    :start-after: [START howto_operator_anthropic_batch]
+    :end-before: [END howto_operator_anthropic_batch]
 
 .. toctree::
     :hidden:
@@ -34,6 +73,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Quick start <quickstart>
     Connection types <connections>
     Operators <operators/anthropic>
 

@@ -14,6 +14,7 @@ import * as Common from "./common";
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
 * @param data.namePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+* @param data.uri Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
 * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``uri_prefix_pattern`` parameter when possible.
@@ -24,7 +25,7 @@ import * as Common from "./common";
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uriPattern, uriPrefixPattern }: {
+export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   limit?: number;
   namePattern?: string;
@@ -32,9 +33,10 @@ export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { d
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uriPattern, uriPrefixPattern }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) });
 /**
 * Get Asset Aliases
 * Get asset aliases.
@@ -83,6 +85,7 @@ export const ensureUseAssetServiceGetAssetAliasData = (queryClient: QueryClient,
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
 * @param data.namePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+* @param data.extra Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
 * @param data.timestampGte
 * @param data.timestampGt
 * @param data.timestampLte
@@ -90,8 +93,9 @@ export const ensureUseAssetServiceGetAssetAliasData = (queryClient: QueryClient,
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient, { assetId, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
+  extra?: string[];
   limit?: number;
   namePattern?: string;
   namePrefixPattern?: string;
@@ -105,7 +109,7 @@ export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -663,6 +667,7 @@ export const ensureUseDagServiceGetDagTagsData = (queryClient: QueryClient, { li
 * @param data.paused
 * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
 * @param data.lastDagRunState
+* @param data.dagRunState Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
 * @param data.bundleName
 * @param data.bundleVersion
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
@@ -673,7 +678,7 @@ export const ensureUseDagServiceGetDagTagsData = (queryClient: QueryClient, { li
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -683,6 +688,7 @@ export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { ass
   dagIdPrefixPattern?: string;
   dagIds?: string[];
   dagRunsLimit?: number;
+  dagRunState?: DagRunState;
   excludeStale?: boolean;
   hasAssetSchedule?: boolean;
   hasImportErrors?: boolean;
@@ -696,7 +702,7 @@ export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { ass
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Latest Run Info
 * Get latest run.
@@ -2085,6 +2091,27 @@ export const ensureUseCalendarServiceGetCalendarData = (queryClient: QueryClient
   partitionDateLt?: string;
   partitionDateLte?: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }) });
+/**
+* Get Calendar Deadlines
+* Get aggregated deadline counts for a Dag, bucketed by deadline_time and missed status.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.granularity
+* @param data.deadlineTimeGte
+* @param data.deadlineTimeGt
+* @param data.deadlineTimeLte
+* @param data.deadlineTimeLt
+* @returns CalendarDeadlineCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseCalendarServiceGetCalendarDeadlinesData = (queryClient: QueryClient, { dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }: {
+  dagId: string;
+  deadlineTimeGt?: string;
+  deadlineTimeGte?: string;
+  deadlineTimeLt?: string;
+  deadlineTimeLte?: string;
+  granularity?: "hourly" | "daily";
+}) => queryClient.ensureQueryData({ queryKey: Common.UseCalendarServiceGetCalendarDeadlinesKeyFn({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }), queryFn: () => CalendarService.getCalendarDeadlines({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }) });
 /**
 * List Teams
 * @param data The data for the request.

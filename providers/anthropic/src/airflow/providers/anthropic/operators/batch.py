@@ -60,6 +60,10 @@ class AnthropicBatchOperator(BaseOperator):
 
     :param requests: A list of ``{"custom_id": str, "params": {...}}`` dicts, where
         ``params`` is a ``messages.create`` payload (``model``, ``max_tokens``, ``messages``, ...).
+        A request that omits ``model`` inherits ``model`` below, or the connection's
+        ``default_model`` (``extra['model']``) when that is unset too.
+    :param model: Default model id applied to requests that don't set their own. Lets you
+        pick the batch's model once instead of repeating it in every request.
     :param conn_id: The Anthropic connection ID to use.
     :param deferrable: Run the operator in deferrable mode.
     :param poll_interval: Seconds between status checks, in both the synchronous and
@@ -75,11 +79,12 @@ class AnthropicBatchOperator(BaseOperator):
         results are not discarded).
     """
 
-    template_fields: Sequence[str] = ("requests",)
+    template_fields: Sequence[str] = ("requests", "model")
 
     def __init__(
         self,
         requests: list[dict[str, Any]],
+        model: str | None = None,
         conn_id: str = AnthropicHook.default_conn_name,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 60,
@@ -90,6 +95,7 @@ class AnthropicBatchOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.requests = requests
+        self.model = model
         self.conn_id = conn_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
@@ -106,7 +112,7 @@ class AnthropicBatchOperator(BaseOperator):
     def execute(self, context: Context) -> str | None:
         if not self.requests:
             raise ValueError("AnthropicBatchOperator requires at least one request; got an empty list.")
-        batch = self.hook.create_batch(self.requests)
+        batch = self.hook.create_batch(self.requests, model=self.model)
         self.batch_id = batch.id
         # Push immediately so a crash between submit and completion never loses the batch.
         context["ti"].xcom_push(key="batch_id", value=batch.id)

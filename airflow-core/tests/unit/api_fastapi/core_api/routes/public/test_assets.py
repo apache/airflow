@@ -37,6 +37,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.base import ID_LEN
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
@@ -576,6 +577,14 @@ class TestGetAssets(TestAssets):
                     "wasb://some_asset_bucket_/key",
                 },
             ),
+            # Exact-match ``uri`` filter: only the asset whose full URI matches is returned.
+            ({"uri": "s3://folder/key"}, {"s3://folder/key"}),
+            ({"uri": "gcp://bucket/key"}, {"gcp://bucket/key"}),
+            # Repeated ``uri`` params match any of the given URIs.
+            ({"uri": ["s3://folder/key", "gcp://bucket/key"]}, {"s3://folder/key", "gcp://bucket/key"}),
+            # A substring of an existing URI must NOT match (unlike uri_pattern).
+            ({"uri": "s3://folder"}, set()),
+            ({"uri": "does-not-exist://key"}, set()),
         ],
     )
     @provide_session
@@ -1078,6 +1087,87 @@ class TestGetAssetEvents(TestAssets):
         }
 
 
+class TestGetAssetEventsExtraFilter(TestAssets):
+    @pytest.fixture
+    def _setup(self, session):
+        self.create_assets(num=2, session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={"region": "us", "env": "prod"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r1",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={"region": "eu", "env": "prod"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r2",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={"region": "us", "env": "staging"},
+                source_task_id="t2",
+                source_dag_id="d2",
+                source_run_id="r3",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r4",
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ({"extra": "region=us"}, 2),
+            ({"extra": "region=eu"}, 1),
+            ({"extra": "env=prod"}, 2),
+            ({"extra": "env=staging"}, 1),
+            ({"extra": "region=ap"}, 0),
+            ({"extra": "nonexistent=us"}, 0),
+            ({}, 4),
+        ],
+    )
+    def test_extra_filter(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.usefixtures("_setup")
+    def test_extra_filter_combined_with_asset_id(self, test_client):
+        response = test_client.get("/assets/events", params={"extra": "region=us", "asset_id": "1"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ([("extra", "region=us"), ("extra", "env=prod")], 1),
+            ([("extra", "region=eu"), ("extra", "env=prod")], 1),
+            ([("extra", "region=us"), ("extra", "env=staging")], 1),
+            ([("extra", "region=eu"), ("extra", "env=staging")], 0),
+        ],
+    )
+    def test_extra_filter_multiple_keys(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+
 class TestGetAssetEndpoint(TestAssets):
     @provide_session
     def test_should_respond_200(self, test_client, *, session):
@@ -1335,6 +1425,29 @@ class TestPostAssetEvents(TestAssets):
         response = test_client.post("/assets/events", json=event_invalid_payload)
 
         assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_status_code"),
+        [
+            pytest.param("", 422, id="empty"),
+            pytest.param("   ", 422, id="whitespace_only"),
+            pytest.param("a" * (ID_LEN + 1), 422, id="too_long"),
+            pytest.param("2026-03-23", 200, id="valid"),
+            pytest.param(None, 200, id="none"),
+        ],
+    )
+    def test_partition_key_validation(self, test_client, session, partition_key, expected_status_code):
+        (asset,) = self.create_assets(num=1, session=session)
+        event_payload = {"asset_id": asset.id, "partition_key": partition_key}
+        response = test_client.post("/assets/events", json=event_payload)
+        assert response.status_code == expected_status_code
+
+    def test_partition_key_preserves_surrounding_whitespace(self, test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        event_payload = {"asset_id": asset.id, "partition_key": "  2026-03-23  "}
+        response = test_client.post("/assets/events", json=event_payload)
+        assert response.status_code == 200
+        assert response.json()["partition_key"] == "  2026-03-23  "
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
