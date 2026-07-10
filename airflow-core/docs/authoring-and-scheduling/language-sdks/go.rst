@@ -37,6 +37,12 @@ the bundle: one runnable file to ship, with no separate manifest or archive. The
    :local:
    :depth: 2
 
+API reference
+-------------
+
+The generated API reference for the Go SDK module, and the list of its released versions, is available on
+`pkg.go.dev <https://pkg.go.dev/github.com/apache/airflow/go-sdk>`__.
+
 Prerequisites
 -------------
 

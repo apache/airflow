@@ -26,6 +26,33 @@
 Changelog
 ---------
 
+7.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add durable execution to 'DatabricksRunNowOperator' (#69174)``
+* ``Accept BLOCKED and WAITING_FOR_RETRY Databricks run states (#69193)``
+* ``Add durable execution to DatabricksSubmitRunOperator (#68974)``
+* ``Add proxy support to Databricks connections (#68527)``
+* ``Surface databricks API errors as a separate exception (#69019)``
+* ``Add query tags to 'DatabricksSqlSensor' and 'DatabricksPartitionSensor' (#68704)``
+* ``Add OpenLineage Spark conf injection to DatabricksSubmitRunOperator (#67894)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Include last error cause in Databricks API when retry is exhausted (#69238)``
+* ``Align hook run() annotations with None-able handler results (#69230)``
+* ``Reconnect to blocked Databricks runs in SubmitRunOperator durable retries (#69195)``
+* ``Fix DatabricksWorkflowTaskGroup ignoring upstream/downstream set before with block (#68924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 7.16.1
 ......
 

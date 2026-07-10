@@ -29,6 +29,10 @@ class AnthropicBatchTimeout(AnthropicError):
     """Raised when an Anthropic Message Batch does not reach a terminal status in time."""
 
 
+class AnthropicTriggerEventError(AnthropicError):
+    """Raised when a deferred task resumes with a missing or malformed trigger event."""
+
+
 class AnthropicAgentSessionError(AnthropicError):
     """Raised when a Managed Agents session terminates or fails."""
 
