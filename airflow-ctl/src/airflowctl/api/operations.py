@@ -88,6 +88,16 @@ log = structlog.get_logger(logger_name=__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
+def _serialize_query_param(value: Any) -> Any:
+    if isinstance(value, datetime.datetime):
+        return value.isoformat()
+    return value
+
+
+def _build_query_params(**values: Any) -> dict[str, Any]:
+    return {name: _serialize_query_param(value) for name, value in values.items() if value is not None}
+
+
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
@@ -601,10 +611,15 @@ class DagsOperations(BaseOperations):
 class DagRunOperations(BaseOperations):
     """Dag run operations."""
 
-    def get(self, dag_id: str, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
+    def get(
+        self, dag_id: str, dag_run_id: str, *, suppress_error_log: bool = False
+    ) -> DAGRunResponse | ServerResponseError:
         """Get a dag run."""
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}",
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -616,6 +631,9 @@ class DagRunOperations(BaseOperations):
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
+        logical_date_gte: datetime.datetime | None = None,
+        logical_date_lte: datetime.datetime | None = None,
+        order_by: str | None = None,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
         List dag runs (at most `limit` results).
@@ -626,22 +644,35 @@ class DagRunOperations(BaseOperations):
             end_date: Filter dag runs by end date (optional)
             limit: Limit the number of results returned
             dag_id: The DAG ID to filter by. If None, retrieves dag runs for all DAGs (using "~").
+            logical_date_gte: Filter dag runs with a logical date greater than or equal to this value.
+            logical_date_lte: Filter dag runs with a logical date less than or equal to this value.
+            order_by: Order the results by the specified field.
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
             dag_id = "~"
 
-        params: dict[str, Any] = {"limit": limit}
-        if state is not None:
-            params["state"] = str(state)
-        if start_date is not None:
-            params["start_date"] = start_date.isoformat()
-        if end_date is not None:
-            params["end_date"] = end_date.isoformat()
+        params = _build_query_params(
+            limit=limit,
+            state=str(state) if state is not None else None,
+            start_date=start_date,
+            end_date=end_date,
+            logical_date_gte=logical_date_gte,
+            logical_date_lte=logical_date_lte,
+            order_by=order_by,
+        )
 
         try:
             self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
+        """Delete a Dag run."""
+        try:
+            self.client.delete(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            return dag_run_id
         except ServerResponseError as e:
             raise e
 
@@ -656,13 +687,7 @@ class JobsOperations(BaseOperations):
         is_alive: bool | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params: dict[str, Any] = {}
-        if job_type:
-            params["job_type"] = job_type
-        if hostname:
-            params["hostname"] = hostname
-        if is_alive is not None:
-            params["is_alive"] = is_alive
+        params = _build_query_params(job_type=job_type or None, hostname=hostname or None, is_alive=is_alive)
 
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 

@@ -300,6 +300,15 @@ The table below summarizes ``DUMB_INIT_SETSID`` possible values and their use ca
 |                | If you are running it through ``["bash", "-c"]`` command,            |
 |                | you  need to start the worker via ``exec airflow celery worker``     |
 |                | as the last command executed.                                        |
+|                |                                                                      |
+|                | The same applies to KubernetesExecutor task pods. Here ``dumb-init`` |
+|                | runs as the init process and its direct child is the task            |
+|                | *supervisor*, which supervises a single task subprocess. Setting the |
+|                | variable to 0 propagates a graceful SIGTERM only to the supervisor,  |
+|                | which then performs a warm shutdown and waits for the running task   |
+|                | to finish, instead of the signal being broadcast to the whole        |
+|                | process group and killing the task subprocess directly. The Airflow  |
+|                | Helm chart sets this on the KubernetesExecutor pod template for you. |
 +----------------+----------------------------------------------------------------------+
 
 Additional quick test options

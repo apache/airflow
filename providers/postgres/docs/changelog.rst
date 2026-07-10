@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+    The default async metadata-database driver is now ``psycopg`` (psycopg3),
+    which is installed by default in place of ``asyncpg``. As a result, the
+    ``[psycopg]`` optional extra was removed and ``[asyncpg]`` was added.
+
+    Starting with Airflow 3.4.0, the default derived async connection URL changes from
+    ``postgresql+asyncpg://`` to ``postgresql+psycopg_async://``, which is safe behind
+    transaction-mode PgBouncer with no extra configuration. To keep using asyncpg, install
+    ``apache-airflow-providers-postgres[asyncpg]`` and set
+    ``[database] sql_alchemy_conn_async = postgresql+asyncpg://...`` explicitly.
+
+* ``Switch the default async Postgres driver from asyncpg to psycopg3 (#69089)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 6.8.0
 .....
 

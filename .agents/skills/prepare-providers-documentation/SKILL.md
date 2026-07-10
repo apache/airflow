@@ -245,6 +245,16 @@ ever need the min-Airflow-bump case (`v`), that one is still a `needs_llm`
 judgement: a sub-agent should flag it when a PR bumps the provider's minimum
 Airflow version.
 
+> [!NOTE]
+> A `needs_llm` commit can still be classified as `skip` by the LLM. The
+> deterministic classifier only catches test/example-only changes by looking
+> at which files were modified in the commit. PRs that change build tooling,
+> packaging infrastructure, or breeze templates (files under `dev/breeze/`,
+> `scripts/`, etc.) and only regenerate template-generated files in the
+> provider slice (e.g. `README.rst`, `index.rst`, `pyproject.toml`) are NOT
+> caught by the deterministic rules but should still be classified as `skip`
+> — they have zero user-facing impact on the provider package itself.
+
 #### Classify the `needs_llm` commits — batched per provider, not one agent per PR
 
 Only the commits the classifier returned as `needs_llm` still need a sub-agent.
@@ -292,9 +302,18 @@ For EACH commit above:
    - feature:       adds new capability, parameter, operator, sensor, hook,
                     or extends an existing one in a backwards-compatible way
    - breaking:      see "Breaking-change checklist" below
-   - misc:          dependency bumps, internal refactors, packaging-only
-                    changes, type-hint cleanups, no user-visible behavior
-   - skip:          only tests/examples/CI for this provider's slice
+   - misc:          dependency bumps, internal refactors, type-hint
+                    cleanups, no user-visible behavior
+   - skip:          only tests/examples/CI for this provider's slice,
+                    OR changes that only touch build tooling, packaging
+                    infrastructure, or template-generated files (e.g.
+                    README.rst, index.rst, pyproject.toml regeneration,
+                    flit/sdist config, breeze templates) — even when
+                    those files live under the provider path. If the
+                    PR's actual code changes are entirely in dev/breeze/
+                    or similar tooling and the provider-scoped diff is
+                    limited to regenerated docs/metadata, classify as
+                    skip.
    - min_airflow_bump: explicitly bumps the minimum Airflow version pin
 4. Set BREAKING_RISK to "maybe" whenever the diff has any signal from the
    breaking-change checklist below, even if you think the author intended
@@ -477,6 +496,14 @@ Rules:
   indent, double backticks).
 - Subjects must be the original commit subject with backticks replaced by
   single quotes (matches `message_without_backticks`). Don't paraphrase.
+- **Strip Conventional Commit prefixes** before writing to the changelog.
+  If the subject starts with a prefix like `feat:`, `fix:`, `chore:`,
+  `docs:`, `refactor:`, `ci:`, `test:`, `perf:`, `build:`, or `style:`
+  (with or without a scope in parentheses, e.g. `fix(amazon):`), remove
+  the prefix and capitalize the first letter of the remaining text.
+  Example: `refactor: Fix _is_http_client_closed ...` →
+  `Fix _is_http_client_closed ...`. Airflow does not use Conventional
+  Commits and these prefixes should not appear in changelogs.
 - Always keep the `(#NNNN)` PR suffix.
 
 #### 4c. Regenerate templates with breeze
@@ -544,6 +571,14 @@ provider-by-provider:
 
 - Confirm the version in `provider.yaml` matches the bump rule.
 - Confirm `changelog.rst` has the right sections populated.
+- **Check for misplaced top-level note blocks.** Each provider's
+  `changelog.rst` has a standing `.. NOTE TO CONTRIBUTORS:` RST comment
+  near the top (above all version sections). If you detect any `.. note::`
+  directive that is NOT nested under a specific version section (i.e. it
+  appears before the first version header, or between the `Changelog`
+  heading and the first version), notify the release manager immediately —
+  it likely means a breaking-change or min-version note was accidentally
+  written at the wrong indentation level or position.
 - Confirm Phase 4d ran: no `# use next version` comment remains where the
   referenced provider was bumped in this wave.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
