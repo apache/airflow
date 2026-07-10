@@ -25,6 +25,12 @@ write workflow bundles, and have Airflow consume the result.
 The SDK and execution-time logic is implemented in Kotlin.
 An example is bundled showing how the SDK can be used in Java.
 
+See also Airflow documentation on Java SDK under *Authoring and Scheduling* for
+more details on using the Java SDK.
+
+The SDK requires Java 11 or later at runtime. Optional components and
+development tools may have further requirements.
+
 ## Building the SDK
 
 ```bash
