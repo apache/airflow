@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-09T07:37:43.688617
+# This constraints file was automatically generated on 2026-07-10T03:26:31.497355
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -346,6 +346,7 @@ influxdb-client==1.50.0
 influxdb3-python==0.20.0
 iniconfig==2.3.0
 inputimeout==1.0.4
+invoke==3.0.3
 ipdb==0.13.13
 ipykernel==7.3.0
 ipython==8.39.0
@@ -492,7 +493,7 @@ pandas-stubs==2.3.3.260113
 pandas==2.3.3
 pandocfilters==1.5.1
 papermill==2.7.0
-paramiko==3.5.1
+paramiko==4.0.0
 parso==0.8.7
 pathable==0.6.0
 pathlib_abc==0.5.2
@@ -723,7 +724,7 @@ types-certifi==2021.10.8.3
 types-cffi==2.0.0.20260518
 types-croniter==6.2.3.20260704
 types-docutils==0.22.3.20260518
-types-paramiko==3.5.0.20250801
+types-paramiko==4.0.0.20260518
 types-protobuf==7.34.1.20260518
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20260518
