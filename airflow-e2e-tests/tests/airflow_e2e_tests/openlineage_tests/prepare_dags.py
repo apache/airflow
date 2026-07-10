@@ -33,8 +33,9 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from airflow_e2e_tests.constants import AIRFLOW_ROOT_PATH
+
 HERE = Path(__file__).resolve().parent
-AIRFLOW_ROOT_PATH = HERE.parents[4]
 
 SYSTEM_TESTS_SOURCE = AIRFLOW_ROOT_PATH / "providers" / "openlineage" / "tests" / "system"
 # Harness-only modules (warmup DAG, versioned bundle) that are not part of the provider system tests.
