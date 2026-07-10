@@ -488,6 +488,7 @@ class TestBigQueryOpenLineageMixin:
         mock_emit_query_lineage.assert_called_once()
         assert mock_emit_query_lineage.call_args.kwargs["query_id"] == "child_job_id"
         assert mock_emit_query_lineage.call_args.kwargs["query_source_namespace"] == "bigquery"
+        assert mock_emit_query_lineage.call_args.kwargs["query_text"] is None
         assert mock_emit_query_lineage.call_args.kwargs["task_instance"] is mock_ti
         assert mock_emit_query_lineage.call_args.kwargs["job_name"] == "dag_id.task_id.query.1"
         assert mock_emit_query_lineage.call_args.kwargs["start_time"] == datetime.fromtimestamp(

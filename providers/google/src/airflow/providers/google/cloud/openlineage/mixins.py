@@ -200,6 +200,10 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         emit_query_lineage(
             query_id=child_job_id,
             query_source_namespace=BIGQUERY_NAMESPACE,
+            # Intentionally not passed as query_text: BigQuery job metadata already provides
+            # authoritative lineage, and parser-derived datasets could duplicate or conflict
+            # with it. The SQL is still attached via the sql facet in additional_job_facets.
+            query_text=None,
             inputs=inputs,
             outputs=outputs,
             start_time=start_time,
@@ -222,11 +226,13 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
 
     @classmethod
     def _get_child_job_sort_key(cls, child_job) -> tuple[datetime, str]:
-        # Emit children ordered by execution time so the query.N suffix is stable across runs;
-        # children missing a startTime sort last, then break ties deterministically by job id.
+        # Emit children ordered by execution time so the query.N suffix is stable across runs,
+        # breaking ties deterministically by job id.
         child_job_id, child_job_properties, _, _ = child_job
         start_time = cls._get_bigquery_job_datetime(child_job_properties, "startTime")
         return (
+            # None is not comparable with datetime, so a missing startTime maps to
+            # datetime.max to sort those children last instead of crashing the sort.
             start_time or datetime.max.replace(tzinfo=timezone.utc),
             child_job_id,
         )

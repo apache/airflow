@@ -193,7 +193,7 @@ Extra                 Dependencies
 ``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
 ``mongo``             ``apache-airflow-providers-mongo``
 ``mysql``             ``apache-airflow-providers-mysql``
-``openlineage``       ``apache-airflow-providers-openlineage>=2.16.0``
+``openlineage``       ``apache-airflow-providers-openlineage``
 ``postgres``          ``apache-airflow-providers-postgres``
 ``presto``            ``apache-airflow-providers-presto``
 ``salesforce``        ``apache-airflow-providers-salesforce``
