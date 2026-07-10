@@ -341,8 +341,8 @@ class TestOtelIntegration:
             state = wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
             assert state == State.SUCCESS, f"Dag run did not complete successfully. Final state: {state}."
 
-            # The ti span_status is updated while processing the executor events,
-            # which is after the dag_run state has been updated.
+            # wait_for_dag_run returns on the dag_run DB state, but OTel metrics are exported
+            # asynchronously, so wait for them to reach stdout before we capture it below.
             time.sleep(10)
 
             task_dict = dag.task_dict
@@ -508,11 +508,10 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
 
-            # Skip the span_status check.
             wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
 
-            # The ti span_status is updated while processing the executor events,
-            # which is after the dag_run state has been updated.
+            # wait_for_dag_run returns on the dag_run DB state, but spans reach Jaeger
+            # asynchronously via the BatchSpanProcessor, so wait before querying the trace below.
             time.sleep(10)
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
