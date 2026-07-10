@@ -60,9 +60,13 @@ bundle to that exact commit:
     ]'
 
 Branches move as new commits are pushed, which is useful when combined with ``refresh_interval`` to
-pick up new changes automatically. Tags and commit SHAs point to a fixed commit (assuming tags are
-not moved), so they're useful for pinning a bundle to known-good code.
+pick up new changes automatically without any restart. Tags and commit SHAs point to a fixed commit
+(assuming tags are not moved), so they're useful for pinning a bundle to known-good code.
 
 When ``tracking_ref`` is a commit SHA, new commits pushed to the repository are not picked up by
-``refresh_interval``, since a SHA always refers to the same commit. To promote or roll back to a
-different SHA, update the bundle configuration's ``tracking_ref`` to the desired SHA.
+``refresh_interval``, since a SHA always refers to the same commit. Promoting or rolling back to a
+different SHA means changing the ``tracking_ref`` value itself, which is an ``[dag_processor]
+dag_bundle_config_list`` config change like any other: it takes effect only after the Dag processor
+and workers are restarted to reload the configuration. This is unlike moving a branch/tag ref, where
+the config is unchanged and the existing ``refresh_interval`` polling picks up the new commit with no
+restart required.
