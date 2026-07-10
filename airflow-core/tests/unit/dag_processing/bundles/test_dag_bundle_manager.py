@@ -134,6 +134,13 @@ def test_get_bundle():
     assert bundle.name == "my-test-bundle"
     assert bundle.version == "hello"
     assert bundle.refresh_interval == 1
+    assert bundle.dag_id is None
+
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        bundle = bundle_manager.get_bundle(name="my-test-bundle", version="hello", dag_id="my_dag")
+    assert bundle.dag_id == "my_dag"
 
     # And none for version also works!
     with patch.dict(
