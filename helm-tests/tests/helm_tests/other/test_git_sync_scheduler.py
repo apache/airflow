@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -121,6 +122,56 @@ class TestGitSyncSchedulerTest:
                 "timeoutSeconds": 1,
             },
         }
+
+    @pytest.mark.parametrize(
+        ("executor", "show_only", "extra_values"),
+        [
+            ("LocalExecutor", "templates/scheduler/scheduler-deployment.yaml", {}),
+            ("CeleryExecutor", "templates/workers/worker-deployment.yaml", {}),
+            ("CeleryExecutor", "templates/triggerer/triggerer-deployment.yaml", {}),
+            (
+                "KubernetesExecutor",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                {"dagProcessor": {"enabled": True}},
+            ),
+        ],
+    )
+    def test_metrics_port_added_when_metrics_enabled(self, executor, show_only, extra_values):
+        values = {
+            "executor": executor,
+            "dags": {"gitSync": {"enabled": True, "metrics": {"enabled": True}}},
+            **extra_values,
+        }
+        docs = render_chart(values=values, show_only=[show_only])
+
+        container = jmespath.search("spec.template.spec.containers[?name=='git-sync']", docs[0])[0]
+        assert container["ports"] == [{"name": "gitsync-metrics", "containerPort": 1234}]
+        assert {"name": "GITSYNC_HTTP_METRICS", "value": "true"} in container["env"]
+        assert {"name": "GIT_SYNC_HTTP_METRICS", "value": "true"} in container["env"]
+
+    def test_metrics_port_follows_http_port(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "dags": {"gitSync": {"enabled": True, "httpPort": 8080, "metrics": {"enabled": True}}},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        container = jmespath.search("spec.template.spec.containers[?name=='git-sync']", docs[0])[0]
+        assert container["ports"] == [{"name": "gitsync-metrics", "containerPort": 8080}]
+
+    def test_no_metrics_port_by_default(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "dags": {"gitSync": {"enabled": True}},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        container = jmespath.search("spec.template.spec.containers[?name=='git-sync']", docs[0])[0]
+        assert "ports" not in container
 
     def test_validate_the_git_sync_container_spec_if_wait_specified(self):
         docs = render_chart(
