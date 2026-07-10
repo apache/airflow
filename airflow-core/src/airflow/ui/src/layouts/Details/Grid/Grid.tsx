@@ -208,6 +208,7 @@ export const Grid = ({
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
             <DurationAxis top="4px" />
             <Flex flexDirection="row-reverse">
+              {!showGantt && <Box aria-hidden flexShrink={0} minWidth="16px" width="16px" />}
               {runsWithVersionFlags?.map((dr) => (
                 <Bar
                   key={dr.run_id}
@@ -237,6 +238,7 @@ export const Grid = ({
           <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
         </Box>
         <Flex flexDirection="row-reverse" flexShrink={0}>
+          {!showGantt && <Box aria-hidden flexShrink={0} minWidth="16px" width="16px" />}
           {gridRuns?.map((dr: GridRunsResponse) => (
             <TaskInstancesColumn
               key={dr.run_id}
