@@ -48,7 +48,7 @@ import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -223,12 +223,15 @@ const runColumns = ({ dagId, open, translate }: ColumnProps): Array<ColumnDef<DA
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
   const { dagId } = useParams();
+
+  // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:dagRun_other") : undefined);
+
   const [searchParams] = useSearchParams();
   const { onClose, onOpen, open } = useDisclosure();
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
-      conf: false,
       dag_version: false,
       end_date: false,
       partition_key: false,

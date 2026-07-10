@@ -56,7 +56,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``asyncssh``                                ``>=2.12.0``
-``paramiko``                                ``>=3.5.1,<4.0.0``
+``paramiko``                                ``>=4.0.0,<5.0.0``
 ==========================================  ==================
 
 The changelog for the provider package can be found in the

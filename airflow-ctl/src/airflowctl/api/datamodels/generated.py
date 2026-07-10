@@ -431,6 +431,10 @@ class ConnectionTestResponse(BaseModel):
     message: Annotated[str, Field(title="Message")]
 
 
+class PartitionKey(RootModel[str]):
+    root: Annotated[str, Field(max_length=250, pattern="\\S", title="Partition Key")]
+
+
 class CreateAssetEventsBody(BaseModel):
     """
     Create asset events request.
@@ -440,7 +444,7 @@ class CreateAssetEventsBody(BaseModel):
         extra="forbid",
     )
     asset_id: Annotated[int, Field(title="Asset Id")]
-    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_key: Annotated[PartitionKey | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     access_control: AssetEventAccessControl | None = None
 
@@ -642,6 +646,7 @@ class DagWarningType(str, Enum):
     """
 
     ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
 

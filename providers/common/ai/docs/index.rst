@@ -19,6 +19,72 @@
 ``apache-airflow-providers-common-ai``
 ##################################################
 
+The ``common.ai`` provider is the vendor-neutral way to put LLM and agent steps in a Dag.
+
+When to use this provider
+--------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Use case
+     - Use
+     - Package
+   * - Portable generation, classification, extraction, branching, or a
+       worker-run agent with toolsets
+     - ``common.ai``
+     - ``apache-airflow-providers-common-ai``
+   * - A vendor's native Embeddings, Responses, or Batch API
+     - The vendor's own provider
+     - e.g. :doc:`apache-airflow-providers-openai:index`,
+       :doc:`apache-airflow-providers-anthropic:index`,
+       :doc:`apache-airflow-providers-cohere:index`
+   * - A vendor-managed, server-side agent session (e.g. Anthropic Managed Agents)
+     - The vendor's own provider
+     - e.g. :doc:`apache-airflow-providers-anthropic:index`
+
+``common.ai`` is built on `pydantic-ai <https://ai.pydantic.dev/>`__, so the model vendor
+(OpenAI, Anthropic, Google, Bedrock, …) is picked by the connection ``llm_conn_id`` points
+at — switching providers later is a connection change, not a Dag rewrite. Existing LangChain
+tools aren't locked out either: with the ``langchain`` extra installed, they can be wrapped
+in ``LangChainToolset`` and dropped straight into a common.ai agent (see :doc:`toolsets`).
+The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools all
+run in the Airflow worker, where they get retries, logging, and observability like any other
+task.
+
+Use it when a Dag needs:
+
+* **Generation, classification, summarization, or structured extraction** —
+  :doc:`LLMOperator and @task.llm <operators/llm>`, with Pydantic-typed output pushed to XCom.
+* **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
+* **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
+  in the worker, calling Airflow-defined :doc:`toolsets <toolsets>` (SQL, hooks, MCP servers),
+  with optional human-in-the-loop review and durable step replay — if the task retries after
+  a failure, completed steps are replayed from cache instead of re-executing.
+* **Document pipelines** — loading, file analysis, embeddings, and retrieval for RAG
+  (see :doc:`operators/index`).
+
+Use a vendor's own provider instead when the Dag needs that vendor's **native API surface** —
+a service the vendor runs for you, which no vendor-neutral operator wraps:
+
+* :doc:`apache-airflow-providers-openai:index` — the Embeddings, Responses, and Batch APIs.
+* :doc:`apache-airflow-providers-anthropic:index` — the Claude Message Batches API, and
+  Managed Agents sessions where the agent loop runs on Anthropic's infrastructure rather
+  than in the Airflow worker.
+* :doc:`apache-airflow-providers-cohere:index` — Cohere's own Embed API.
+
+As a rule of thumb: if Airflow should *run* the AI step (and the model should stay
+swappable), use ``common.ai``; if the Dag *submits work to* a vendor-managed service and
+waits for the result, use that vendor's provider.
+
+For example, this ``LLMOperator`` call is unchanged whether ``llm_conn_id`` points at an
+OpenAI, Anthropic, or other pydantic-ai-supported connection:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
+    :language: python
+    :start-after: [START howto_operator_llm_basic]
+    :end-before: [END howto_operator_llm_basic]
 
 .. toctree::
     :hidden:
@@ -39,6 +105,7 @@
     Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>
+    Examples <examples>
     Retry Policies <retry_policies>
     HITL Review <hitl_review>
     Observability <observability>

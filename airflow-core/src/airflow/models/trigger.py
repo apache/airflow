@@ -35,7 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.enums import stringify_encoding_keys as _stringify_encoding_keys
+from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -158,7 +158,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(_stringify_encoding_keys(kwargs))
+        serialized_kwargs = serialize(stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -570,12 +570,31 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
+            from airflow.models.dag_version import _resolve_version_data
+
+            # Derive bundle identity from the TI's dag_version (falling back to dag_run/dag_model
+            # for legacy/unpinned runs), mirroring the other callback sites so bundle_version and
+            # version_data always describe the same version.
+            bundle_name = (
+                task_instance.dag_version.bundle_name
+                if task_instance.dag_version
+                else task_instance.dag_model.bundle_name
+            )
+            bundle_version = (
+                task_instance.dag_version.bundle_version
+                if task_instance.dag_version and task_instance.dag_run.bundle_version is not None
+                else task_instance.dag_run.bundle_version
+            )
+            version_data = _resolve_version_data(
+                task_instance.dag_version, task_instance.dag_run.bundle_version
+            )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
                 task_callback_type=event.task_instance_state,
-                bundle_name=task_instance.dag_model.bundle_name,
-                bundle_version=task_instance.dag_run.bundle_version,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
             )
             log.info("Sending callback: %s", request)
             try:
