@@ -301,3 +301,41 @@ def example_agent_session():
 # [END howto_agent_session]
 
 example_agent_session()
+
+
+# ---------------------------------------------------------------------------
+# 9. Dynamic system prompt: template system_prompt from an upstream task's XCom
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_dynamic_system_prompt]
+@dag(tags=["example"])
+def example_agent_dynamic_system_prompt():
+    @task
+    def classify(ticket: str) -> dict:
+        category = "shipping" if "order" in ticket.lower() else "other"
+        return {"priority": "high", "category": category}
+
+    @task.agent(
+        llm_conn_id="pydanticai_default",
+        # system_prompt is a templated field -- Jinja renders it at task-run
+        # time, pulling the classification an upstream task already computed.
+        system_prompt=(
+            "You are handling a {{ ti.xcom_pull(task_ids='classify')['priority'] }}-priority "
+            "'{{ ti.xcom_pull(task_ids='classify')['category'] }}' ticket. "
+            "Draft a concise, friendly reply."
+        ),
+    )
+    def draft_reply(ticket: str, triage: dict) -> str:
+        # `triage` creates the task dependency; its content also flows into
+        # system_prompt via Jinja above. The returned string is the *prompt*
+        # sent to the agent -- the drafted reply is this task's XCom output.
+        return f"Draft a reply for: {ticket}"
+
+    ticket = "Where is my order? It still hasn't shipped."
+    draft_reply(ticket, classify(ticket))
+
+
+# [END howto_agent_dynamic_system_prompt]
+
+example_agent_dynamic_system_prompt()
