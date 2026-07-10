@@ -433,6 +433,11 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   openlineage e2e suite change — and always on `canary` runs (where `full tests needed` also
   covers core/task-sdk changes). Like the other deployed e2e suites, enabling them forces
   `PROD Image building`.
+* `OpenLineage E2E compat tests` (the same suite rerun against older released Airflow versions with
+  current provider code, exposed as the `run-openlineage-e2e-compat-tests` output) are costly, so
+  they do NOT run on every OpenLineage PR: only on `canary` runs or when the `full tests needed`
+  label is explicitly set. Deliberately not tied to *derived* `full tests needed` (large PRs, env
+  changes, pushes) — the same rationale as `run-ui-e2e-tests`.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`

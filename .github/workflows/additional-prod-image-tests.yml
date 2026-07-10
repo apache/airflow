@@ -64,6 +64,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run OpenLineage e2e tests (true/false)"
         required: true
         type: string
+      run-openlineage-e2e-compat-tests:
+        description: "Whether to run the OpenLineage older-Airflow compat matrix (true/false)"
+        required: true
+        type: string
       providers-compatibility-tests-matrix:
         description: "JSON matrix of released Airflow versions for the OpenLineage e2e compat tests."
         required: true
@@ -341,8 +345,9 @@ jobs:
       e2e_test_mode: "openlineage"
     if: inputs.canary-run == 'true' || inputs.run-openlineage-e2e-tests == 'true'
 
-  # Older-Airflow compatibility: run only on canary (scheduled / main) to catch core-vs-provider
-  # breakages early without adding the matrix cost to every PR — PRs run the PROD job above only.
+  # Older-Airflow compatibility: costly, so it does not run on every OpenLineage PR — only on canary
+  # (scheduled / main) or when a maintainer sets the "full tests needed" label (both folded into the
+  # run-openlineage-e2e-compat-tests selective-check output). PRs otherwise run the PROD job only.
   test-e2e-integration-tests-openlineage-compat:
     name: "OpenLineage e2e compat tests with PROD image"
     strategy:
@@ -356,7 +361,7 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       airflow-version: ${{ matrix.compat.airflow-version }}
-    if: inputs.canary-run == 'true'
+    if: inputs.run-openlineage-e2e-compat-tests == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"

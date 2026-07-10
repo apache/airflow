@@ -66,17 +66,19 @@ breeze testing airflow-e2e-tests --e2e-test-mode openlineage
 
 ## Compatibility with older Airflow
 
-On canary (scheduled / main) runs, a compat matrix reruns the suite against older *released* Airflow
-versions with the current provider code from main — the same idea as the provider compatibility
-tests, catching core-vs-provider breakages early. It builds a lightweight image
-(`apache/airflow:<version>` + current OpenLineage-related provider wheels, see
+A compat matrix reruns the suite against older *released* Airflow versions with the current provider
+code from main — the same idea as the provider compatibility tests, catching core-vs-provider
+breakages early. It builds a lightweight image (`apache/airflow:<version>` + current
+OpenLineage-related provider wheels, see
 [`docker/openlineage-compat.Dockerfile`](../../../docker/openlineage-compat.Dockerfile)) and runs:
 
 ```bash
 breeze testing airflow-e2e-tests --e2e-test-mode openlineage --airflow-version 3.1.8
 ```
 
-PRs run the PROD-image job only; the compat matrix is canary-only to keep PR CI cheap.
+The matrix is costly, so it does **not** run on every OpenLineage PR: it runs on canary (scheduled /
+main) or when a maintainer sets the **`full tests needed`** label on the PR (both folded into the
+`run-openlineage-e2e-compat-tests` selective-check output). Ordinary PRs run the PROD-image job only.
 
 Some DAGs require a newer Airflow than the compat targets and are dropped for older versions in
 `prepare_dags.py` (`MIN_AIRFLOW_VERSION_FOR_DAG`) — e.g. `example_openlineage_hitl_dag` needs 3.1+

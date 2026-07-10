@@ -1204,6 +1204,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 # common providers feed OpenLineage e2e tests, which need the PROD image.
                 "prod-image-build": "true",
                 "run-openlineage-e2e-tests": "true",
+                # ordinary OL PR (no canary, no "full tests needed" label): compat matrix stays off.
+                "run-openlineage-e2e-compat-tests": "false",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
@@ -2076,6 +2078,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "run-mypy-providers": "true",
                     "run-ui-e2e-tests": "true",
+                    "run-openlineage-e2e-compat-tests": "true",
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if no version label is set",

@@ -1050,6 +1050,16 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
 
     @cached_property
+    def run_openlineage_e2e_compat_tests(self) -> bool:
+        # The older-Airflow compat matrix is costly, so it does not run on every OpenLineage PR:
+        # only on canary (scheduled / main) or when a maintainer explicitly asks via the label.
+        # Deliberately not tied to derived full_tests_needed (large PRs, env changes, pushes) — same
+        # rationale as run_ui_e2e_tests.
+        if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
+            return True
+        return False
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
