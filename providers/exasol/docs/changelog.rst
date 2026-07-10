@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate exasol provider to pyexasol 2.x; remove the <2 cap (#69123)``
+
+  This provider now requires ``pyexasol>=2.0.0,<3``. pyexasol 2.0.0 ships a ``py.typed`` marker
+  (`pyexasol changelog <https://exasol.github.io/pyexasol/master/changes/changes_2.html>`__), which
+  surfaces several previously-hidden type mismatches in the Exasol hook:
+
+  * ``ExasolHook.get_records()`` and ``ExasolHook.get_first()`` now only accept a single SQL string,
+    not a list of statements (pyexasol's underlying ``execute()`` never actually supported a list; use
+    ``ExasolHook.run()`` for executing multiple statements in sequence).
+  * ``parameters``/``query_params`` passed to ``get_records()``, ``get_first()``, ``run()``, and
+    ``get_df()``/``get_pandas_df()`` must be a ``dict``/``Mapping``. Positional-style parameters
+    (lists/tuples) were never actually supported by pyexasol at runtime and will now raise a clear
+    ``TypeError`` instead of failing deep inside pyexasol (or silently doing the wrong thing).
+  * If you pass ``export_params={"with_column_names": ...}`` to ``ExasolHook.export_to_file()`` or
+    ``ExasolToS3Operator``, note that pyexasol 2.0.0 fixed this option to be interpreted as a real
+    boolean; previously any value (including ``False``) was treated as ``True``.
+
 4.10.4
 ......
 

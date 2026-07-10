@@ -62,9 +62,9 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    # Capped to 1.x: pyexasol 2.x ships stricter types that break the exasol hook.
-    # Remove the cap after migrating; tracked at https://github.com/apache/airflow/issues/69123
-    "pyexasol>=0.26.0,<2",
+    # Migrated to pyexasol 2.x (adds a py.typed marker; see hooks/exasol.py for the resulting fixes).
+    # Capped to 2.x since we haven't yet verified compatibility with a future 3.x major release.
+    "pyexasol>=2.0.0,<3",
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
     'pandas>=2.3.3; python_version >="3.14"',

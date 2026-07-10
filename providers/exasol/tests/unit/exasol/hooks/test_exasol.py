@@ -194,11 +194,18 @@ class TestExasolHook:
 
     def test_run_with_parameters(self):
         sql = "SQL"
-        parameters = ("param1", "param2")
+        parameters = {"param1": "value1", "param2": "value2"}
         self.db_hook.run(sql, autocommit=True, parameters=parameters)
         self.conn.set_autocommit.assert_called_once_with(True)
         self.conn.execute.assert_called_once_with(sql, parameters)
         self.conn.commit.assert_not_called()
+
+    def test_run_with_non_mapping_parameters_raises(self):
+        sql = "SQL"
+        parameters = ("param1", "param2")
+        with pytest.raises(TypeError, match="only supports named/dict-style query parameters"):
+            self.db_hook.run(sql, autocommit=True, parameters=parameters)
+        self.conn.execute.assert_not_called()
 
     def test_run_multi_queries(self):
         sql = ["SQL1", "SQL2"]
@@ -250,6 +257,27 @@ class TestExasolHook:
         assert call_kw["sql"] == sql
         assert call_kw["sql_parameters"] is None
         assert call_kw["cur"] is self.cur
+
+    @pytest.mark.parametrize("method_name", ["get_records", "get_first"])
+    def test_get_records_and_get_first_reject_list_of_statements(self, method_name):
+        """Regression test: pyexasol's execute() never accepted a list of SQL statements.
+
+        ExasolHook.get_records()/get_first() are typed as accepting ``str | list[str]`` (matching the
+        DbApiHook base class contract), but they call pyexasol's ``conn.execute()`` directly, which has
+        only ever accepted a single ``str`` query. Passing a list here was always broken at runtime; we
+        now raise a clear error instead of forwarding it straight to pyexasol.
+        """
+        method = getattr(self.db_hook, method_name)
+        with pytest.raises(TypeError, match="only supports a single SQL string"):
+            method(["SELECT 1", "SELECT 2"])
+        self.conn.execute.assert_not_called()
+
+    @pytest.mark.parametrize("method_name", ["get_records", "get_first"])
+    def test_get_records_and_get_first_reject_non_mapping_parameters(self, method_name):
+        method = getattr(self.db_hook, method_name)
+        with pytest.raises(TypeError, match="only supports named/dict-style query parameters"):
+            method("SELECT 1", parameters=("param1", "param2"))
+        self.conn.execute.assert_not_called()
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
     def test_get_df_hook_lineage(self, mock_send_lineage):
@@ -334,3 +362,8 @@ class TestExasolHook:
     def test_get_df_polars(self):
         with pytest.raises(NotImplementedError):
             self.db_hook.get_df("SQL", df_type="polars")
+
+    def test_get_df_pandas_rejects_non_mapping_parameters(self):
+        with pytest.raises(TypeError, match="only supports named/dict-style query parameters"):
+            self.db_hook.get_df("SQL", parameters=("param1", "param2"), df_type="pandas")
+        self.conn.export_to_pandas.assert_not_called()
