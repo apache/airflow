@@ -23,8 +23,8 @@
 # ///
 """Check that no new ``caplog`` usage is added in test files.
 
-Existing usages are recorded in ``known_caplog_usage.txt``; a file's count may
-not exceed its recorded limit. See ``CLAUDE.md#testing-standards``.
+Existing usages are recorded in ``generated/known_caplog_usage.txt``; a file's
+count may not exceed its recorded limit. See ``CLAUDE.md#testing-standards``.
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ class CaplogAllowlistManager(AllowlistManager):
         return (
             "New [bold]caplog[/bold] usage in a test file — see CLAUDE.md#testing-standards.\n"
             "If pre-existing, run [cyan]./scripts/ci/prek/check_caplog_usage.py --generate[/cyan] "
-            "and commit [cyan]known_caplog_usage.txt[/cyan]."
+            "and commit [cyan]generated/known_caplog_usage.txt[/cyan]."
         )
 
     def format_violation_details(self, path: Path) -> list[str]:
@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    manager = CaplogAllowlistManager(Path(__file__).parent / "known_caplog_usage.txt")
+    manager = CaplogAllowlistManager(REPO_ROOT / "generated" / "known_caplog_usage.txt")
 
     if args.generate:
         return manager.generate()

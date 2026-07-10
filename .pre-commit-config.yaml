@@ -1230,7 +1230,7 @@ repos:
           (?x)
           ^(airflow-core|task-sdk)/tests/.*\.py$|
           ^providers/[^/]+/tests/.*\.py$|
-          ^scripts/ci/prek/known_caplog_usage\.txt$
+          ^generated/known_caplog_usage\.txt$
       - id: check-no-new-airflow-core-utils-modules
         name: Check that no new modules are added under airflow-core/src/airflow/utils
         entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
