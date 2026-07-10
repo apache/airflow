@@ -921,6 +921,9 @@ jobs:
       run-java-sdk-e2e-tests: ${{ needs.build-info.outputs.run-java-sdk-e2e-tests }}
       run-go-sdk-e2e-tests: ${{ needs.build-info.outputs.run-go-sdk-e2e-tests }}
       run-openlineage-e2e-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-tests }}
+      # yamllint disable rule:line-length
+      providers-compatibility-tests-matrix: >
+        ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}

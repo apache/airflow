@@ -377,6 +377,9 @@ The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Eac
 ``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
 deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
 emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
+Pass ``--airflow-version`` (openlineage mode only) to run against an older released Airflow version
+with the current providers from main, instead of the default PROD image; CI runs this compat matrix
+on canary only. See ``airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/README.md``.
 
 Running Airflow UI E2E tests
 .............................

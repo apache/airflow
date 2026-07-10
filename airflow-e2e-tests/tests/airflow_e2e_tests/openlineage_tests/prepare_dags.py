@@ -30,6 +30,7 @@ dotted-path ``VariableTransport`` both resolve unchanged — no import rewriting
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
@@ -43,6 +44,24 @@ DAGS_EXTRA_SOURCE = HERE / "dags_extra"
 
 # The marker after which everything is Airflow's in-process test harness (pytest-only).
 PYTEST_FOOTER_MARKER = "from tests_common.test_utils.system_tests import get_test_run"
+
+# Example DAGs that need a minimum Airflow version. When running the compat matrix against an older
+# version, the DAG file is removed entirely — a module-level import (e.g. the HITL operators) would
+# otherwise raise at parse time and take the whole dag-processor down, not just skip that one DAG.
+MIN_AIRFLOW_VERSION_FOR_DAG: dict[str, tuple[int, int]] = {
+    "example_openlineage_hitl_dag.py": (3, 1),
+}
+
+
+def _target_airflow_version() -> tuple[int, int] | None:
+    """(major, minor) of the compat-targeted Airflow version, or None for the default/prod run."""
+    raw = os.environ.get("E2E_TARGET_AIRFLOW_VERSION", "").strip()
+    if not raw:
+        return None
+    parts = raw.split(".")
+    if len(parts) < 2 or not (parts[0].isdigit() and parts[1].isdigit()):
+        return None
+    return int(parts[0]), int(parts[1])
 
 
 def _strip_pytest_footer(dag_file: Path) -> None:
@@ -71,6 +90,12 @@ def prepare_dags(dest: Path) -> Path:
     # The pytest conftest imports `pytest`, which is absent from the PROD image; drop it so the
     # dag-processor does not choke on it.
     (openlineage_dir / "conftest.py").unlink(missing_ok=True)
+
+    target_version = _target_airflow_version()
+    if target_version is not None:
+        for dag_file_name, min_version in MIN_AIRFLOW_VERSION_FOR_DAG.items():
+            if target_version < min_version:
+                (openlineage_dir / dag_file_name).unlink(missing_ok=True)
 
     for dag_file in openlineage_dir.glob("example_openlineage_*.py"):
         _strip_pytest_footer(dag_file)

@@ -64,6 +64,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run OpenLineage e2e tests (true/false)"
         required: true
         type: string
+      providers-compatibility-tests-matrix:
+        description: "JSON matrix of released Airflow versions for the OpenLineage e2e compat tests."
+        required: true
+        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -336,6 +340,23 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "openlineage"
     if: inputs.canary-run == 'true' || inputs.run-openlineage-e2e-tests == 'true'
+
+  # Older-Airflow compatibility: run only on canary (scheduled / main) to catch core-vs-provider
+  # breakages early without adding the matrix cost to every PR — PRs run the PROD job above only.
+  test-e2e-integration-tests-openlineage-compat:
+    name: "OpenLineage e2e compat tests with PROD image"
+    strategy:
+      fail-fast: false
+      matrix:
+        compat: ${{ fromJSON(inputs.providers-compatibility-tests-matrix) }}
+    uses: ./.github/workflows/openlineage-e2e-compat-tests.yml
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      airflow-version: ${{ matrix.compat.airflow-version }}
+    if: inputs.canary-run == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"
