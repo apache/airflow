@@ -50,6 +50,7 @@ MIGRATED_CLI_COMMANDS = [
     (connection_command.create_default_connections, "airflowctl connections create-defaults"),
     (dag_command.dag_trigger, "airflowctl dags trigger"),
     (dag_command.dag_delete, "airflowctl dags delete"),
+    (dag_command.dag_list_dags, "airflowctl dags list"),
     (dag_command.dag_details, "airflowctl dags get-details"),
     (dag_command.dag_list_import_errors, "airflowctl dags list-import-errors"),
     (dag_command.dag_pause, "airflowctl dags pause"),
