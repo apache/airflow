@@ -33,6 +33,7 @@ import { PausedFilter } from "./PausedFilter";
 import { RequiredActionFilter } from "./RequiredActionFilter";
 import { RunStateSelect } from "./RunStateSelect";
 import { TagFilter } from "./TagFilter";
+import { TimetableTypeFilter } from "./TimetableTypeFilter";
 
 const {
   DAG_RUN_STATE: DAG_RUN_STATE_PARAM,
@@ -41,6 +42,7 @@ const {
   NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
   OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
+  TIMETABLE_TYPE: TIMETABLE_TYPE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type BooleanFilterValue = "all" | "false" | "true";
@@ -66,6 +68,7 @@ export const DagsFilters = () => {
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const activeRunState = searchParams.get(DAG_RUN_STATE_PARAM);
+  const timetableType = searchParams.get(TIMETABLE_TYPE_PARAM) ?? "";
 
   const [pattern, setPattern] = useState("");
 
@@ -139,6 +142,16 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
+  const handleTimetableTypeChange = (value: string) => {
+    if (value) {
+      searchParams.set(TIMETABLE_TYPE_PARAM, value);
+    } else {
+      searchParams.delete(TIMETABLE_TYPE_PARAM);
+    }
+    resetPagination();
+    setSearchParams(searchParams);
+  };
+
   const handleSelectTagsChange = (
     tags: MultiValue<{
       label: string;
@@ -173,6 +186,7 @@ export const DagsFilters = () => {
       />
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
       <PausedFilter onChange={handlePausedChange} value={pausedValue} />
+      <TimetableTypeFilter onChange={handleTimetableTypeChange} value={timetableType} />
       <TagFilter
         onMenuScrollToBottom={() => {
           void fetchNextPage();

@@ -545,6 +545,14 @@ paths:
           description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
         description: Filter Dags by asset dependency (name or URI)
+      - name: timetable_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Timetable Type
       - name: has_pending_actions
         in: query
         required: false

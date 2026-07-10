@@ -136,6 +136,20 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 previous_run_after = dag_run["run_after"]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("query_params", "expected_ids"),
+        [
+            ({"timetable_type": ["CronTriggerTimetable"], "exclude_stale": False}, [DAG3_ID]),
+            ({"timetable_type": ["NullTimetable"], "exclude_stale": False}, [DAG1_ID, DAG2_ID]),
+        ],
+    )
+    def test_timetable_type_filter(self, test_client: TestClient, query_params, expected_ids):
+        response = test_client.get("/dags", params=query_params)
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == expected_ids
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session):
         # Backwards backfill: an older run is still running while the latest run already finished.
         older_run = session.scalar(
