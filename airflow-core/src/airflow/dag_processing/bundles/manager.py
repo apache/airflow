@@ -314,13 +314,18 @@ class DagBundlesManager(LoggingMixin):
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
+            # Pop configured bundles out of ``stored`` before ``_extract_and_sign_template``.
+            # A transient connection error from that call must not deactivate the bundle,
+            # which would make all Dags in it non-schedulable.
+            bundle = stored.pop(name, None)
+
             try:
                 new_template, new_params = _extract_and_sign_template(name)
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
                 continue
 
-            if bundle := stored.pop(name, None):
+            if bundle:
                 bundle.active = True
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template

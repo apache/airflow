@@ -201,6 +201,36 @@ def test_sync_bundles_to_db(clear_db, session):
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_sync_bundles_to_db_keeps_configured_bundle_on_transient_creation_error(clear_db, session):
+    """A configured bundle failing to instantiate with transient error must not be deactivated."""
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+        session.add(
+            ParseImportError(
+                bundle_name="my-test-bundle",
+                filename="some_file.py",
+                stacktrace="some error",
+            )
+        )
+        session.flush()
+
+        manager = DagBundlesManager()
+        with patch.object(
+            DagBundlesManager, "get_bundle", autospec=True, side_effect=RuntimeError("transient error")
+        ):
+            manager.sync_bundles_to_db()
+
+    bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == "my-test-bundle"))
+    assert bundle.active is True
+    assert session.scalar(select(func.count(ParseImportError.id))) == 1
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db_does_not_log_removing_none_team(clear_db, caplog):
     with patch.dict(
         os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
