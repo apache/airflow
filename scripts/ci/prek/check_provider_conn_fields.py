@@ -110,15 +110,11 @@ def build_mismatch_error(
             "  Fields in provider.yaml conn-fields but NOT in get_connection_form_widgets(): "
             + ", ".join(sorted(only_in_yaml))
         )
-        lines.append(
-            "[yellow]How to fix it[/]: Remove the stale key(s) from conn-fields in provider.yaml."
-        )
+        lines.append("[yellow]How to fix it[/]: Remove the stale key(s) from conn-fields in provider.yaml.")
     if only_in_hook:
         lines.append(
             "  Fields in get_connection_form_widgets() but NOT in provider.yaml conn-fields: "
             + ", ".join(sorted(only_in_hook))
         )
-        lines.append(
-            "[yellow]How to fix it[/]: Add the missing key(s) to conn-fields in provider.yaml."
-        )
+        lines.append("[yellow]How to fix it[/]: Add the missing key(s) to conn-fields in provider.yaml.")
     return "\n".join(lines)

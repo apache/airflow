@@ -118,7 +118,9 @@ class TestCheckConnFieldsForEntry:
         "conn_fields, get_keys, expected_in_error",
         [
             pytest.param(["a", "extra"], _get_keys("a"), "extra", id="extra-key-in-yaml"),
-            pytest.param(["a"], _get_keys("a", "extra_hook"), "extra_hook", id="hook-has-extra-key-not-in-yaml"),
+            pytest.param(
+                ["a"], _get_keys("a", "extra_hook"), "extra_hook", id="hook-has-extra-key-not-in-yaml"
+            ),
             pytest.param(["a"], _raise, "boom", id="unexpected-exception-message"),
             pytest.param(["a"], _raise, HOOK_CLASS, id="unexpected-exception-mentions-hook-class"),
         ],
