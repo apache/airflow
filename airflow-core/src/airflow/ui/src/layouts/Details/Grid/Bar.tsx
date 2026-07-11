@@ -25,7 +25,7 @@ import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
 import { BundleVersionIndicator, DagVersionIndicator } from "./VersionIndicator";
-import { BAR_HEIGHT } from "./constants";
+import { BAR_HEIGHT, NOTE_GRADIENT } from "./constants";
 import {
   getBundleVersion,
   getMaxVersionNumber,
@@ -83,6 +83,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
         <GridButton
           alignItems="center"
           color="fg"
+          colorPalette={run.state ?? "none"}
           dagId={dagId}
           duration={run.duration}
           flexDir="column"
@@ -93,6 +94,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
           runId={run.run_id}
           searchParams={search}
           state={run.state}
+          style={run.has_note ? { background: NOTE_GRADIENT } : undefined}
           zIndex={1}
         >
           {run.run_type !== "scheduled" && <RunTypeIcon color="white" runType={run.run_type} size="10px" />}

@@ -39,7 +39,7 @@ The generated API reference for the Java SDK is published with the Airflow docum
 Prerequisites
 -------------
 
-* JRE 17 or later must be available on the Airflow worker nodes.
+* JRE 11 or later must be available on the Airflow worker nodes.
 * The compiled task JAR(s) and JVM dependencies must be accessible from the worker.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator;
   no additional Python packages are needed.

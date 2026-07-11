@@ -15,19 +15,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Add index on asset.uri.
+
+Revision ID: c4e7a1f9b2d0
+Revises: 436dc127462c
+Create Date: 2026-07-06 00:00:00.000000
+"""
+
 from __future__ import annotations
 
-from enum import Enum
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = "c4e7a1f9b2d0"
+down_revision = "436dc127462c"
+branch_labels = None
+depends_on = None
+airflow_version = "3.4.0"
 
 
-class SpanStatus(str, Enum):
-    """All possible statuses for a span."""
+def upgrade():
+    """Apply Add index on asset.uri."""
+    with op.batch_alter_table("asset", schema=None) as batch_op:
+        batch_op.create_index("idx_asset_uri", ["uri"], unique=False)
 
-    NOT_STARTED = "not_started"
-    ACTIVE = "active"
-    ENDED = "ended"
-    SHOULD_END = "should_end"
-    NEEDS_CONTINUANCE = "needs_continuance"
 
-    def __str__(self) -> str:
-        return self.value
+def downgrade():
+    """Unapply Add index on asset.uri."""
+    with op.batch_alter_table("asset", schema=None) as batch_op:
+        batch_op.drop_index("idx_asset_uri")

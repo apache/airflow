@@ -1394,11 +1394,42 @@ class _PendingActionsFilter(BaseParam[bool]):
 
 QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
 
+
+class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
+    """Filter Dags that have any DagRun in the given state, not only the latest one."""
+
+    # Only these states have a partial index on dag_run; others would force a full table scan.
+    SUPPORTED_STATES = (DagRunState.QUEUED, DagRunState.RUNNING)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        run_subquery = sql_select(DagRun.dag_id).where(DagRun.state == self.value).distinct()
+        return select.where(DagModel.dag_id.in_(run_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        dag_run_state: DagRunState | None = Query(
+            None,
+            description="Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.",
+        ),
+    ) -> _AnyDagRunStateFilter:
+        if dag_run_state is not None and dag_run_state not in cls.SUPPORTED_STATES:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"dag_run_state only supports {[state.value for state in cls.SUPPORTED_STATES]}.",
+            )
+        return cls().set_value(dag_run_state)
+
+
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
     FilterParam[DagRunState | None],
     Depends(filter_param_factory(DagRun.state, DagRunState | None, filter_name="last_dag_run_state")),
 ]
+QueryAnyDagRunStateFilter = Annotated[_AnyDagRunStateFilter, Depends(_AnyDagRunStateFilter.depends)]
 
 
 def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
@@ -1688,6 +1719,23 @@ QueryAssetNamePrefixPatternSearch = Annotated[
 QueryUriPatternSearch = Annotated[_SearchParam, Depends(search_param_factory(AssetModel.uri, "uri_pattern"))]
 QueryUriPrefixPatternSearch = Annotated[
     _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.uri, "uri_prefix_pattern"))
+]
+QueryUriExactMatch = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            AssetModel.uri,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            filter_name="uri",
+            default_factory=list,
+            description=(
+                "Exact-match filter on the full asset URI. Compiles to an indexed equality "
+                "comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match "
+                "multiple assets."
+            ),
+        )
+    ),
 ]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))
