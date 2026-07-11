@@ -321,6 +321,44 @@ class TestCommandFactory:
         assert is_alive_arg.kwargs["default"] is None
         assert is_alive_arg.kwargs["type"] is bool
 
+    def test_command_factory_body_bool_fields_use_datamodel_defaults(self, tmp_path):
+        """Generated bool flags default to the datamodel field's default, so the CLI mirrors the API defaults."""
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class TasksOperations(BaseOperations):
+                    def clear(self, dag_id: str, body: ClearTaskInstancesBody):
+                        self.response = self.client.post(
+                            f"dags/{dag_id}/clearTaskInstances",
+                            json=body.model_dump(mode="json"),
+                        )
+                        return self.response
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=str(temp_file))
+        clear_args: list = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "tasks":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "clear":
+                    clear_args = list(sub_command.args)
+                    break
+
+        expected_defaults = {
+            "--dry-run": True,
+            "--only-failed": True,
+            "--reset-dag-runs": True,
+            "--include-upstream": False,
+            # datamodel default is None (fallback semantics), so the flag falls back to False
+            "--run-on-latest-version": False,
+        }
+        for flag, expected_default in expected_defaults.items():
+            arg = next(a for a in clear_args if a.flags == (flag,))
+            assert arg.kwargs["action"] == BooleanOptionalAction, flag
+            assert arg.kwargs["default"] is expected_default, flag
+
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
 
