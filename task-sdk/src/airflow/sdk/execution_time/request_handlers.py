@@ -30,7 +30,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from airflow.sdk import timezone
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
