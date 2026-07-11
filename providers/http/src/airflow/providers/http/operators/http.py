@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -26,6 +27,8 @@ from requests import Response
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
 from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
+
+IDEMPOTENT_METHODS = {"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"}
 
 if TYPE_CHECKING:
     from requests.auth import AuthBase
@@ -209,8 +212,32 @@ class HttpOperator(BaseOperator):
         return all_responses
 
     def execute_async(self, context: Context) -> None:
-        self.defer(
-            trigger=HttpTrigger(
+        if self.method.upper() not in IDEMPOTENT_METHODS:
+            warnings.warn(
+                f"HttpOperator with deferrable=True and method={self.method} may send duplicate "
+                "requests if the Triggerer restarts. Deferrable mode executes the request in "
+                "the Triggerer, which may be re-run on restart. Use only with idempotent methods "
+                "or use HttpSensor/EventSensor for polling. "
+                "See https://github.com/apache/airflow/issues/67945",
+                UserWarning,
+                stacklevel=2,
+            )
+            # Suppress duplicate warning from HttpTrigger to avoid double warning for operator path
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", category=UserWarning, message=".*may send duplicate requests.*"
+                )
+                trigger = HttpTrigger(
+                    http_conn_id=self.http_conn_id,
+                    auth_type=serialize_auth_type(self._resolve_auth_type()),
+                    method=self.method,
+                    endpoint=self.endpoint,
+                    headers=self.headers,
+                    data=self.data,
+                    extra_options=self.extra_options,
+                )
+        else:
+            trigger = HttpTrigger(
                 http_conn_id=self.http_conn_id,
                 auth_type=serialize_auth_type(self._resolve_auth_type()),
                 method=self.method,
@@ -218,7 +245,9 @@ class HttpOperator(BaseOperator):
                 headers=self.headers,
                 data=self.data,
                 extra_options=self.extra_options,
-            ),
+            )
+        self.defer(
+            trigger=trigger,
             method_name="execute_complete",
         )
 
@@ -300,13 +329,35 @@ class HttpOperator(BaseOperator):
             next_page_params = self.pagination_function(response)
             if not next_page_params:
                 return self.process_response(context=context, response=all_responses)
-            self.defer(
-                trigger=HttpTrigger(
+            if self.method.upper() not in IDEMPOTENT_METHODS:
+                warnings.warn(
+                    f"HttpOperator with deferrable=True and method={self.method} may send duplicate "
+                    "requests if the Triggerer restarts. Deferrable mode executes the request in "
+                    "the Triggerer, which may be re-run on restart. Use only with idempotent methods "
+                    "or use HttpSensor/EventSensor for polling. "
+                    "See https://github.com/apache/airflow/issues/67945",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", category=UserWarning, message=".*may send duplicate requests.*"
+                    )
+                    trigger = HttpTrigger(
+                        http_conn_id=self.http_conn_id,
+                        auth_type=serialize_auth_type(self._resolve_auth_type()),
+                        method=self.method,
+                        **self._merge_next_page_parameters(next_page_params),
+                    )
+            else:
+                trigger = HttpTrigger(
                     http_conn_id=self.http_conn_id,
                     auth_type=serialize_auth_type(self._resolve_auth_type()),
                     method=self.method,
                     **self._merge_next_page_parameters(next_page_params),
-                ),
+                )
+            self.defer(
+                trigger=trigger,
                 method_name="execute_complete",
                 kwargs={"paginated_responses": all_responses},
             )

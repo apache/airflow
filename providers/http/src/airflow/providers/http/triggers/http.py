@@ -21,6 +21,7 @@ import base64
 import importlib
 import inspect
 import sys
+import warnings
 from collections.abc import AsyncIterator
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
@@ -35,6 +36,8 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+IDEMPOTENT_METHODS = {"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"}
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger
@@ -141,6 +144,16 @@ class HttpTrigger(BaseTrigger):
         self.headers = headers
         self.data = data
         self.extra_options = extra_options
+        if self.method.upper() not in IDEMPOTENT_METHODS:
+            warnings.warn(
+                f"HttpTrigger with method={self.method} may send duplicate requests if the "
+                "Triggerer restarts. The trigger executes the request in the Triggerer, which "
+                "may be re-run on restart. Use only with idempotent methods or use "
+                "HttpSensorTrigger/HttpEventTrigger for polling. "
+                "See https://github.com/apache/airflow/issues/67945",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
