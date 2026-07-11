@@ -156,6 +156,26 @@ tasks can consume it.
     :end-before: [END howto_agent_chain]
 
 
+.. _howto/operator:agent-dynamic-system-prompt:
+
+Dynamic System Prompt
+----------------------
+
+``system_prompt`` is a templated field, so instead of a static string it
+can be a Jinja expression that reads a value an earlier task already
+computed -- for example, tailoring the agent's instructions to a
+classification produced upstream.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_agent_dynamic_system_prompt]
+    :end-before: [END howto_agent_dynamic_system_prompt]
+
+Open the **Rendered Template** tab on the task instance to see the
+substituted ``system_prompt`` after Jinja fills in ``classify``'s XCom
+values.
+
+
 Multi-turn Sessions
 -------------------
 
