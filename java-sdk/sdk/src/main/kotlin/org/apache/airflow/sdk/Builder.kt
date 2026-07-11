@@ -79,12 +79,10 @@ class Builder internal constructor() {
    *
    * @param task The task ID to pull. If empty or not given, the annotated
    *    parameter's name is used by default.
-   * @param key The XCom key to pull. Defaults to the task's return value.
    */
   @Target(AnnotationTarget.VALUE_PARAMETER)
   @MustBeDocumented
   annotation class XCom(
     val task: String = "",
-    val key: String = Client.XCOM_RETURN_KEY,
   )
 }

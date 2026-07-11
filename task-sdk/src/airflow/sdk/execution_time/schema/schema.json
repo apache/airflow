@@ -753,6 +753,19 @@
           ],
           "title": "Bundle Version"
         },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
         "msg": {
           "anyOf": [
             {
@@ -1651,6 +1664,19 @@
           ],
           "title": "Bundle Version"
         },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
         "msg": {
           "anyOf": [
             {
@@ -1846,6 +1872,21 @@
           "title": "Ascending",
           "type": "boolean"
         },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
         "type": {
           "const": "GetAssetEventByAsset",
           "default": "GetAssetEventByAsset",
@@ -1908,6 +1949,21 @@
           "default": true,
           "title": "Ascending",
           "type": "boolean"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
         },
         "type": {
           "const": "GetAssetEventByAssetAlias",
@@ -3859,6 +3915,19 @@
           ],
           "title": "Bundle Version"
         },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
         "msg": {
           "anyOf": [
             {
@@ -4515,6 +4584,18 @@
           "format": "date-time",
           "title": "Timestamp",
           "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
         }
       },
       "required": [

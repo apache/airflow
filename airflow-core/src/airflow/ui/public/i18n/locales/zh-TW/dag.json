@@ -103,9 +103,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "navigation": "導航: {{arrow}}",
-    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F",
-    "toggleGroup": "展開/收合群組: 空白鍵"
+    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "返回",

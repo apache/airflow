@@ -87,6 +87,21 @@ class TestRedshiftDataOperator:
         assert op.hook._verify is None
         assert op.hook._config is None
 
+    @mock.patch.object(RedshiftDataOperator, "log", new_callable=mock.MagicMock)
+    def test_init_warns_when_deferrable_has_no_effect(self, mock_log):
+        """deferrable=True is a no-op when wait_for_completion=False; the user should be told."""
+        RedshiftDataOperator(
+            task_id=TASK_ID,
+            database=DATABASE,
+            sql=SQL,
+            deferrable=True,
+            wait_for_completion=False,
+        )
+        mock_log.warning.assert_called_once_with(
+            "deferrable=True and wait_for_completion=False are set; deferrable will be "
+            "ignored and this task will run non-deferrable."
+        )
+
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_execute(self, mock_conn, mock_exec_query):

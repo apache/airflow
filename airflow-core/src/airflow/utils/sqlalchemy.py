@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import datetime
+import json
 import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
@@ -28,8 +29,9 @@ from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.functions import FunctionElement
-from sqlalchemy.types import JSON, Text, TypeDecorator
+from sqlalchemy.types import JSON, NullType, Text, TypeDecorator
 
 from airflow._shared.timezones.timezone import make_naive, utc
 from airflow.configuration import conf
@@ -45,7 +47,6 @@ if TYPE_CHECKING:
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
-    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
@@ -131,6 +132,56 @@ def _random_db_uuid_mysql(element, compiler, **kw):
 @compiles(random_db_uuid, "sqlite")
 def _random_db_uuid_sqlite(element, compiler, **kw):
     return "uuid4()"
+
+
+class JsonContains(ColumnElement):
+    """
+    Dialect-aware JSON containment check.
+
+    Compiles to ``@>`` on PostgreSQL (GIN-indexable), ``JSON_CONTAINS`` on
+    MySQL, and per-key ``json_extract`` comparisons on SQLite.
+
+    All dialects use bound parameters to avoid SQL injection.
+    """
+
+    inherit_cache = False
+    type = NullType()
+
+    def __init__(self, column, kv_dict: dict[str, str]):
+        self.column = column
+        self.kv_dict = kv_dict
+
+
+@compiles(JsonContains, "postgresql")
+def _pg_json_contains(element, compiler, **kw):
+    from sqlalchemy import cast, literal
+
+    col = cast(element.column, JSONB)
+    param = literal(json.dumps(element.kv_dict)).cast(JSONB)
+    expr = col.contains(param)
+    return compiler.process(expr, **kw)
+
+
+@compiles(JsonContains, "mysql")
+def _mysql_json_contains(element, compiler, **kw):
+    from sqlalchemy import bindparam, func
+
+    param = bindparam(None, json.dumps(element.kv_dict), expanding=False)
+    expr = func.JSON_CONTAINS(element.column, param)
+    return compiler.process(expr == 1, **kw)
+
+
+@compiles(JsonContains)
+def _default_json_contains(element, compiler, **kw):
+    from sqlalchemy import and_, func, literal
+
+    clauses = []
+    for k, v in element.kv_dict.items():
+        path = f"$.{k}"
+        clauses.append(func.json_extract(element.column, literal(path)) == literal(v))
+    if len(clauses) == 1:
+        return compiler.process(clauses[0], **kw)
+    return compiler.process(and_(*clauses), **kw)
 
 
 class UtcDateTime(TypeDecorator):
@@ -591,6 +642,10 @@ def is_lock_not_available_error(error: OperationalError):
     # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
     # importing it. This doesn't
     if db_err_code in ("55P03", 1205, 3572):
+        return True
+    # SQLite: `database is locked` (SQLITE_BUSY) — check the error text since
+    # sqlite3.OperationalError.args[0] is a human-readable string, not a numeric code
+    if error.orig and "database is locked" in str(error.orig).lower():
         return True
     return False
 

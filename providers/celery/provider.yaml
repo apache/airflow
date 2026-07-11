@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1782481463
+source-date-epoch: 1783356304
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.22.0
   - 3.21.0
   - 3.20.0
   - 3.19.0
@@ -215,6 +216,17 @@ config:
         type: boolean
         example: ~
         default: "true"
+      json_logs:
+        description: |
+          Emit Celery worker stdout in JSON format. When set, this takes precedence over
+          the global ``[logging] json_logs`` setting, allowing the worker to use a
+          different format than the rest of the deployment. When unset (the default),
+          the value falls back to ``[logging] json_logs``, which itself defaults to
+          ``False``.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: ~
       broker_url:
         description: |
           The Celery broker URL. Celery supports multiple broker types. See:
@@ -236,7 +248,7 @@ config:
         version_added: ~
         type: string
         sensitive: true
-        example: "db+postgresql://postgres:airflow@postgres/airflow"
+        example: "db+postgresql+psycopg2://postgres:airflow@postgres/airflow"
         default: ~
       result_backend_sqlalchemy_engine_options:
         description: |
