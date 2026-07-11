@@ -1434,6 +1434,24 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run java unit and e2e tests for java-sdk source change",
         ),
         pytest.param(
+            ("java-sdk/README.md",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip java unit and e2e tests for java-sdk README-only change",
+        ),
+        pytest.param(
+            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip java unit and e2e tests for java-sdk ADR-only change",
+        ),
+        pytest.param(
             ("airflow-e2e-tests/docker/java.yml",),
             {
                 "run-java-sdk-tests": "false",
@@ -1666,6 +1684,16 @@ def test_expected_output_pull_request_main(
             ("SECURITY.md",),
             True,
             id="ktlint skipped when no java-sdk files change",
+        ),
+        pytest.param(
+            ("java-sdk/README.md",),
+            True,
+            id="ktlint skipped when only java-sdk docs change",
+        ),
+        pytest.param(
+            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
+            True,
+            id="ktlint skipped when only java-sdk ADR docs change",
         ),
     ],
 )
