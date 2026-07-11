@@ -142,7 +142,7 @@ func TestPack_CrossArchExecutableWithMetadataFile(t *testing.T) {
 sdk:
   language: "go"
   version: "` + sdkVersion + `"
-  supervisor_schema_version: "2026-06-16"
+  supervisor_schema_version: "2026-06-23"
 source: "main.go"
 dags:
   concurrent_xcom_dag:
