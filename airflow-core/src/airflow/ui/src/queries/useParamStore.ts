@@ -45,11 +45,85 @@ type FormStore = {
   conf: string;
   disabled: boolean;
   initialParamDict: ParamsSpec;
+  initParamsDictFromConf: (newParamsDict: ParamsSpec) => void;
+  mergeParamUpdatesIntoConf: boolean;
   paramsDict: ParamsSpec;
+  paramsDictSnapshot: ParamsSpec;
   setConf: (confString: string) => void;
   setDisabled: (disabled: boolean) => void;
   setInitialParamDict: (newParamsDict: ParamsSpec) => void;
+  setMergeParamUpdatesIntoConf: (mergeParamUpdatesIntoConf: boolean) => void;
   setParamsDict: (newParamsDict: ParamsSpec) => void;
+};
+
+const valuesAreEqual = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+
+const hasValue = (value: unknown) => value !== "" && value !== null && value !== undefined;
+
+const parseConfObject = (confString: string) => {
+  if (confString.trim() === "") {
+    return {};
+  }
+
+  const parsedConf = JSON.parse(confString) as unknown;
+
+  return typeof parsedConf === "object" && parsedConf !== null && !Array.isArray(parsedConf)
+    ? (parsedConf as Record<string, unknown>)
+    : {};
+};
+
+const buildParamsDictFromConf = ({
+  baseDict,
+  confString,
+  includeMissingParams,
+  includeUnknownParams,
+  paramsDict,
+}: {
+  readonly baseDict: ParamsSpec;
+  readonly confString: string;
+  readonly includeMissingParams: boolean;
+  readonly includeUnknownParams: boolean;
+  readonly paramsDict: ParamsSpec;
+}) => {
+  const parsedConf = parseConfObject(confString);
+
+  // Preserve a stable ordering of parameters (and thus sections in the trigger form)
+  // by following the order from the initial param dict when available.
+  const updatedParamsDictEntries: Array<[string, ParamSpec]> = [];
+  const inBase = new Set<string>(Object.keys(baseDict));
+
+  for (const [key, baseParam] of Object.entries(baseDict)) {
+    if (Object.hasOwn(parsedConf, key) || includeMissingParams) {
+      updatedParamsDictEntries.push([
+        key,
+        {
+          description: baseParam.description ?? null,
+          schema: baseParam.schema,
+          value: Object.hasOwn(parsedConf, key) ? parsedConf[key] : undefined,
+        },
+      ]);
+    }
+  }
+
+  if (includeUnknownParams) {
+    // Append any extra keys that exist in the JSON but not in the base dict.
+    for (const [key, value] of Object.entries(parsedConf)) {
+      if (!inBase.has(key)) {
+        const existingParam = paramsDict[key] ?? baseDict[key];
+
+        updatedParamsDictEntries.push([
+          key,
+          {
+            description: existingParam?.description ?? null,
+            schema: existingParam?.schema ?? paramPlaceholder.schema,
+            value,
+          },
+        ]);
+      }
+    }
+  }
+
+  return Object.fromEntries(updatedParamsDictEntries);
 };
 
 const createParamStore = () =>
@@ -57,7 +131,25 @@ const createParamStore = () =>
     conf: "{}",
     disabled: false,
     initialParamDict: {},
+    initParamsDictFromConf: (newParamsDict: ParamsSpec) =>
+      set((state) => {
+        const paramsDict = buildParamsDictFromConf({
+          baseDict: newParamsDict,
+          confString: state.conf,
+          includeMissingParams: true,
+          includeUnknownParams: false,
+          paramsDict: state.paramsDict,
+        });
+
+        return {
+          initialParamDict: newParamsDict,
+          paramsDict,
+          paramsDictSnapshot: structuredClone(paramsDict),
+        };
+      }),
+    mergeParamUpdatesIntoConf: false,
     paramsDict: {},
+    paramsDictSnapshot: {},
 
     setConf: (confString: string) =>
       set((state) => {
@@ -65,55 +157,68 @@ const createParamStore = () =>
           return {};
         }
 
-        const parsedConf = JSON.parse(confString) as Record<string, unknown>;
         const baseDict =
           Object.keys(state.initialParamDict).length > 0 ? state.initialParamDict : state.paramsDict;
+        const paramsDict = buildParamsDictFromConf({
+          baseDict,
+          confString,
+          includeMissingParams: state.mergeParamUpdatesIntoConf,
+          includeUnknownParams: !state.mergeParamUpdatesIntoConf,
+          paramsDict: state.paramsDict,
+        });
 
-        // Preserve a stable ordering of parameters (and thus sections in the trigger form)
-        // by following the order from the initial param dict when available.
-        const updatedParamsDictEntries: Array<[string, ParamSpec]> = [];
-        const inBase = new Set<string>(Object.keys(baseDict));
-
-        for (const [key, baseParam] of Object.entries(baseDict)) {
-          if (Object.hasOwn(parsedConf, key)) {
-            updatedParamsDictEntries.push([
-              key,
-              {
-                description: baseParam.description ?? null,
-                schema: baseParam.schema,
-                value: parsedConf[key],
-              },
-            ]);
-          }
-        }
-
-        // Append any extra keys that exist in the JSON but not in the base dict.
-        for (const [key, value] of Object.entries(parsedConf)) {
-          if (!inBase.has(key)) {
-            const existingParam = state.paramsDict[key] ?? state.initialParamDict[key];
-
-            updatedParamsDictEntries.push([
-              key,
-              {
-                description: existingParam?.description ?? null,
-                schema: existingParam?.schema ?? paramPlaceholder.schema,
-                value,
-              },
-            ]);
-          }
-        }
-
-        const updatedParamsDict: ParamsSpec = Object.fromEntries(updatedParamsDictEntries);
-
-        return { conf: confString, paramsDict: updatedParamsDict };
+        return {
+          conf: confString,
+          paramsDict,
+          paramsDictSnapshot: state.mergeParamUpdatesIntoConf ? structuredClone(paramsDict) : {},
+        };
       }),
 
     setDisabled: (disabled: boolean) => set(() => ({ disabled })),
 
     setInitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
 
+    setMergeParamUpdatesIntoConf: (mergeParamUpdatesIntoConf: boolean) =>
+      set(() => ({ mergeParamUpdatesIntoConf })),
+
     setParamsDict: (newParamsDict: ParamsSpec) =>
       set((state) => {
+        if (state.mergeParamUpdatesIntoConf) {
+          const changedKeys = Object.entries(newParamsDict)
+            .filter(([key, param]) => !valuesAreEqual(param.value, state.paramsDictSnapshot[key]?.value))
+            .map(([key]) => key);
+
+          if (changedKeys.length === 0) {
+            return { paramsDict: newParamsDict, paramsDictSnapshot: structuredClone(newParamsDict) };
+          }
+
+          let parsedConf: Record<string, unknown>;
+
+          try {
+            parsedConf = parseConfObject(state.conf);
+          } catch {
+            return { paramsDict: newParamsDict, paramsDictSnapshot: structuredClone(newParamsDict) };
+          }
+
+          for (const key of changedKeys) {
+            const value = newParamsDict[key]?.value;
+
+            if (hasValue(value)) {
+              parsedConf[key] = value;
+            } else {
+              parsedConf = Object.fromEntries(
+                Object.entries(parsedConf).filter(([existingKey]) => existingKey !== key),
+              );
+            }
+          }
+
+          return {
+            conf: JSON.stringify(parsedConf, undefined, 2),
+            paramsDict: newParamsDict,
+            paramsDictSnapshot: structuredClone(newParamsDict),
+          };
+        }
+
         const newConf = JSON.stringify(
           Object.fromEntries(Object.entries(newParamsDict).map(([key, { value }]) => [key, value])),
           undefined,

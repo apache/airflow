@@ -35,6 +35,8 @@ import { useParamStore } from "src/queries/useParamStore";
 import StandardFields from "./ConnectionStandardFields";
 import type { ConnectionBody } from "./Connections";
 
+const CONNECTION_EXTRA_NAMESPACE = "connection-extra";
+
 type AddConnectionFormProps = {
   readonly error: unknown;
   readonly initialConnection: ConnectionBody;
@@ -57,7 +59,7 @@ const ConnectionForm = ({
     isPending: isMetaPending,
     keysList: connectionTypes,
   } = useConnectionTypeMeta();
-  const { conf: extra, setConf } = useParamStore();
+  const { conf: extra, setConf } = useParamStore(CONNECTION_EXTRA_NAMESPACE);
   const {
     control,
     formState: { isDirty, isValid },
@@ -223,6 +225,8 @@ const ConnectionForm = ({
               flexibleFormDefaultSection={translate("connections.form.extraFields")}
               initialParamsDict={paramsDic}
               key={selectedConnType}
+              namespace={CONNECTION_EXTRA_NAMESPACE}
+              preserveRawConf
               setError={setFormErrors}
               subHeader={isEditMode ? translate("connections.form.helperTextForRedactedFields") : undefined}
             />

@@ -77,6 +77,7 @@ export type FlexibleFormProps = {
   readonly key?: string;
   readonly namespace?: string;
   readonly noAccordion?: boolean;
+  readonly preserveRawConf?: boolean;
   readonly setError: (error: boolean) => void;
   readonly subHeader?: string;
 };
@@ -89,31 +90,55 @@ export const FlexibleForm = ({
   isHITL,
   namespace = "default",
   noAccordion,
+  preserveRawConf = false,
   setError,
   subHeader,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
+  const {
+    initParamsDictFromConf,
+    paramsDict: params,
+    setDisabled,
+    setInitialParamDict,
+    setMergeParamUpdatesIntoConf,
+    setParamsDict,
+  } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
   const [hasValidationError, setHasValidationError] = useState(false);
+
+  useEffect(() => {
+    setMergeParamUpdatesIntoConf(preserveRawConf);
+  }, [preserveRawConf, setMergeParamUpdatesIntoConf]);
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
     if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
       const paramsCopy = structuredClone(initialParamsDict.paramsDict);
 
-      setParamsDict(paramsCopy);
-      setInitialParamDict(initialParamsDict.paramsDict);
+      if (preserveRawConf) {
+        initParamsDictFromConf(paramsCopy);
+      } else {
+        setParamsDict(paramsCopy);
+        setInitialParamDict(initialParamsDict.paramsDict);
+      }
     }
-  }, [initialParamsDict, params, setParamsDict, setInitialParamDict]);
+  }, [
+    initParamsDictFromConf,
+    initialParamsDict,
+    params,
+    preserveRawConf,
+    setParamsDict,
+    setInitialParamDict,
+  ]);
 
   useEffect(
     () => () => {
       // Clear paramsDict and initialParamDict when the component is unmounted or modal closes
       setParamsDict({});
       setInitialParamDict({});
+      setMergeParamUpdatesIntoConf(false);
     },
-    [setParamsDict, setInitialParamDict],
+    [setParamsDict, setInitialParamDict, setMergeParamUpdatesIntoConf],
   );
 
   useEffect(() => {
