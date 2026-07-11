@@ -443,6 +443,25 @@ class TestKiotaRequestAdapterHook:
             assert actual == [users, next_users]
 
     @pytest.mark.asyncio
+    async def test_paginated_run_refuses_cross_host_next_link(self):
+        first_page = {
+            "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
+            "value": [{"id": "1"}],
+        }
+        response = mock_json_response(200, first_page)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(ValueError, match="attacker.example"):
+                await hook.paginated_run(url="users")
+
+            # The off-host pagination link is refused before it is fetched, so the bearer
+            # token is never sent to the attacker host.
+            assert mock_get_http_response.call_count == 1
+
+    @pytest.mark.asyncio
     async def test_build_request_adapter_masks_secrets(self):
         """Test that sensitive data is masked when building request adapter."""
         with patch_hook(

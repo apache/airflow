@@ -629,6 +629,13 @@ class KiotaRequestAdapterHook(BaseHook):
 
         responses: list[dict] = []
 
+        # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
+        # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
+        # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
+        # response could redirect the token off-host. Pin follow-up requests to the configured
+        # endpoint's host (CWE-918).
+        allowed_netloc = urlparse((await self.get_async_conn()).base_url).netloc
+
         async def run(
             url: str = "",
             query_parameters: dict[str, Any] | None = None,
@@ -648,7 +655,7 @@ class KiotaRequestAdapterHook(BaseHook):
                     responses.append(response)
 
                     if pagination_function:
-                        url, query_parameters = execute_callable(
+                        next_url, query_parameters = execute_callable(
                             pagination_function,
                             response=response,
                             url=url,
@@ -660,6 +667,16 @@ class KiotaRequestAdapterHook(BaseHook):
                             data=data,
                             responses=lambda: responses,
                         )
+                        if (
+                            next_url
+                            and next_url.startswith("http")
+                            and urlparse(next_url).netloc != allowed_netloc
+                        ):
+                            raise ValueError(
+                                f"Refusing to follow pagination link {next_url!r}: its host differs "
+                                f"from the configured Microsoft Graph endpoint {allowed_netloc!r}."
+                            )
+                        url = next_url
                 else:
                     break
 
