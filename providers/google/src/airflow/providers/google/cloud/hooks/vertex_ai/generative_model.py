@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import vertexai
 from vertexai.generative_models import GenerativeModel
@@ -30,11 +30,17 @@ from vertexai.preview.caching import CachedContent
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
+if TYPE_CHECKING:
+    from vertexai.preview.evaluation import EvalResult, EvalTask
+
 try:
     from vertexai.preview.evaluation import EvalResult, EvalTask
 except ImportError as e:
-    EvalResult = EvalTask = None  # type: ignore[assignment,misc]
     _evaluation_import_error = e
+    # Fallback for mypy: use Any so that calls like EvalTask(...) don't error at type-check time.
+    # At runtime, guard checks _evaluation_import_error and raises before using these.
+    EvalResult = Any  # type: ignore[no-redef]
+    EvalTask = Any  # type: ignore[no-redef]
 else:
     _evaluation_import_error = None
 
