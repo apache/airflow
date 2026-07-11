@@ -219,8 +219,10 @@ lives:
 .. image:: ../img/diagram_task_sdk_execution_architecture.png
 
 The message flow of a supervised run — startup, running the user code, proxied Connection/Variable/XCom
-lookups, heartbeats, and reporting the final state — is shown below as a numbered, top-to-bottom sequence.
-Each step names the process that performs it, and each arrow is coloured by its sender and labelled with the
+lookups, heartbeats, and reporting the final state — is shown below as a sequence diagram, with each process
+on its own lifeline. The **Supervisor** sits in the middle, so the Task ↔ Supervisor request/response
+round-trip (the task asks for a Connection/Variable/XCom and gets the answer back) reads as arrows going back
+and forth between neighboring lifelines. Each arrow is numbered, colored by its sender, and labeled with the
 message class or protocol used:
 
 .. image:: ../img/diagram_task_sdk_execution_sequence.png
@@ -262,8 +264,9 @@ task, like a Python task, never holds the task JWT itself:
 .. image:: ../img/diagram_java_sdk_execution_architecture.png
 
 The end-to-end workflow of a Java task — from ``@task.stub`` through the coordinator, the JVM subprocess, the
-proxied Connection/Variable/XCom lookups, and reporting the final state — is shown below as a numbered
-top-to-bottom sequence:
+proxied Connection/Variable/XCom lookups, and reporting the final state — is shown below as a sequence diagram.
+As above, the **Supervisor** is the central lifeline, so the JVM ↔ Supervisor round-trip over loopback TCP is
+drawn as arrows going back and forth to its neighbours:
 
 .. image:: ../img/diagram_java_sdk_execution_sequence.png
 
