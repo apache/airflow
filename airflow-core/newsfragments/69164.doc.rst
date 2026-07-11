@@ -1,0 +1,1 @@
+Updated the ``sql_alchemy_pool_pre_ping`` configuration description to link to the SQLAlchemy 2.0 documentation instead of the outdated 1.4 docs.
