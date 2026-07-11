@@ -79,6 +79,20 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: uri
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: Exact-match filter on the full asset URI. Compiles to an indexed
+            equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+            to match multiple assets.
+          title: Uri
+        description: Exact-match filter on the full asset URI. Compiles to an indexed
+          equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+          to match multiple assets.
       - name: uri_pattern
         in: query
         required: false
@@ -478,6 +492,18 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: extra
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+            (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
+          title: Extra
+        description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+          (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
       - name: timestamp_gte
         in: query
         required: false
@@ -1161,6 +1187,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -1416,6 +1448,12 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
         '409':
           description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '503':
+          description: Service Unavailable
           content:
             application/json:
               schema:
@@ -13264,6 +13302,8 @@ components:
         partition_key:
           anyOf:
           - type: string
+            maxLength: 250
+            pattern: \S
           - type: 'null'
           title: Partition Key
         extra:
@@ -14530,6 +14570,7 @@ components:
       type: string
       enum:
       - asset conflict
+      - duplicate dag id
       - non-existent pool
       - runtime varying value
       title: DagWarningType
@@ -15233,6 +15274,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -16766,6 +16812,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       required:

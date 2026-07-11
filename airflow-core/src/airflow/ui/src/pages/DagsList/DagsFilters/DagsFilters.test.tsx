@@ -52,11 +52,8 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
-    // There are two "All" buttons (StateFilters and PausedFilter).
-    // The second one belongs to PausedFilter.
-    const allButtons = screen.getAllByText("filters.paused.all");
-
-    allButtons[1]?.click();
+    // PausedFilter is the only filter using the "All" (filters.paused.all) label.
+    screen.getByText("filters.paused.all").click();
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
   });

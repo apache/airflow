@@ -473,6 +473,18 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          description: Filter Dags that have any DagRun in the given state. Only ``queued``
+            and ``running`` are supported.
+          title: Dag Run State
+        description: Filter Dags that have any DagRun in the given state. Only ``queued``
+          and ``running`` are supported.
       - name: bundle_name
         in: query
         required: false
@@ -587,6 +599,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/run_state_counts:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Run State Counts
+      description: Return per-Dag DagRun state counts (zero-filled) for the Dag list
+        page.
+      operationId: get_dag_run_state_counts_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 100
+          title: Dag Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGsRunStateCountsCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -1697,6 +1744,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/calendar/{dag_id}/deadlines:
+    get:
+      tags:
+      - Calendar
+      summary: Get Calendar Deadlines
+      description: Get aggregated deadline counts for a Dag, bucketed by deadline_time
+        and missed status.
+      operationId: get_calendar_deadlines
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          enum:
+          - hourly
+          - daily
+          type: string
+          default: daily
+          title: Granularity
+      - name: deadline_time_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gte
+      - name: deadline_time_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gt
+      - name: deadline_time_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lte
+      - name: deadline_time_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lt
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarDeadlineCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/teams:
     get:
       tags:
@@ -2029,6 +2153,42 @@ components:
       - type
       title: BaseNodeResponse
       description: Base Node serializer for responses.
+    CalendarDeadlineCollectionResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+        deadlines:
+          items:
+            $ref: '#/components/schemas/CalendarDeadlineResponse'
+          type: array
+          title: Deadlines
+      type: object
+      required:
+      - total_entries
+      - deadlines
+      title: CalendarDeadlineCollectionResponse
+      description: Response model for calendar deadline aggregation results.
+    CalendarDeadlineResponse:
+      properties:
+        date:
+          type: string
+          format: date-time
+          title: Date
+        missed:
+          type: boolean
+          title: Missed
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - date
+      - missed
+      - count
+      title: CalendarDeadlineResponse
+      description: Represents aggregated deadline counts for a specific calendar time
+        bucket.
     CalendarTimeRangeCollectionResponse:
       properties:
         total_entries:
@@ -2260,6 +2420,24 @@ components:
       - duration
       title: DAGRunLightResponse
       description: DAG Run serializer for responses.
+    DAGRunStateCountsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        state_counts:
+          additionalProperties:
+            type: integer
+          propertyNames:
+            $ref: '#/components/schemas/DagRunState'
+          type: object
+          title: State Counts
+      type: object
+      required:
+      - dag_id
+      - state_counts
+      title: DAGRunStateCountsResponse
+      description: Per-Dag counts of DagRuns grouped by state.
     DAGRunStates:
       properties:
         queued:
@@ -2499,6 +2677,22 @@ components:
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
+    DAGsRunStateCountsCollectionResponse:
+      properties:
+        dags:
+          items:
+            $ref: '#/components/schemas/DAGRunStateCountsResponse'
+          type: array
+          title: Dags
+        state_count_limit:
+          type: integer
+          title: State Count Limit
+      type: object
+      required:
+      - dags
+      - state_count_limit
+      title: DAGsRunStateCountsCollectionResponse
+      description: Collection of per-Dag DagRun-state counts for the Dag list page.
     DagRunState:
       type: string
       enum:
@@ -2994,6 +3188,9 @@ components:
         has_missed_deadline:
           type: boolean
           title: Has Missed Deadline
+        has_note:
+          type: boolean
+          title: Has Note
         duration:
           type: number
           title: Duration
@@ -3009,6 +3206,7 @@ components:
       - state
       - run_type
       - has_missed_deadline
+      - has_note
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.

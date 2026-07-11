@@ -29,6 +29,7 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { IconButton } from "src/components/ui";
 import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
 import { useConfig } from "src/queries/useConfig";
+import { useDocumentTitle } from "src/utils";
 
 import { ReactPlugin } from "../ReactPlugin";
 import { AlertContent } from "./AlertContent";
@@ -44,6 +45,9 @@ const defaultHour = "24";
 export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
   const { t: translate } = useTranslation("dashboard");
+
+  useDocumentTitle(translate("common:nav.home"));
+
   const instanceName = useConfig("instance_name");
 
   const now = dayjs();
