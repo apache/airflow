@@ -111,7 +111,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``blinker``                                 ``>=1.6.2``
 ``flask``                                   ``>=2.2.1``
-``flask-appbuilder``                        ``==5.2.1``
+``flask-appbuilder``                        ``==5.2.2``
 ``pyjwt``                                   ``>=2.11.0``
 ``flask-login``                             ``>=0.6.2; python_version < "3.14"``
 ``flask-login``                             ``>=0.6.3; python_version >= "3.14"``

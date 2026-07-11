@@ -5269,7 +5269,7 @@ requires-dist = [
     { name = "blinker", specifier = ">=1.6.2" },
     { name = "cachetools", specifier = ">=6.0" },
     { name = "flask", specifier = ">=2.2.1" },
-    { name = "flask-appbuilder", specifier = "==5.2.1" },
+    { name = "flask-appbuilder", specifier = "==5.2.2" },
     { name = "flask-limiter", specifier = ">3" },
     { name = "flask-login", marker = "python_full_version < '3.14'", specifier = ">=0.6.2" },
     { name = "flask-login", marker = "python_full_version >= '3.14'", specifier = ">=0.6.3" },
@@ -6225,8 +6225,10 @@ version = "13.5.1"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
+    { name = "aiohttp" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "azure-ai-projects" },
     { name = "azure-batch" },
     { name = "azure-cosmos" },
     { name = "azure-datalake-store" },
@@ -6299,6 +6301,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "adlfs", specifier = ">=2023.10.0" },
+    { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -6307,6 +6310,7 @@ requires-dist = [
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
+    { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=8.0.0,<15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.6.0" },
     { name = "azure-datalake-store", specifier = ">=0.0.45" },
@@ -9479,6 +9483,23 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-ai-projects"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "azure-identity" },
+    { name = "azure-storage-blob" },
+    { name = "isodate" },
+    { name = "openai" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b9/d8/24342aea74fe75b0a8378b6eff665b9c1cb63f855c1a96f70a0095e474a2/azure_ai_projects-2.2.0.tar.gz", hash = "sha256:58ee31bb031cfb004051145c545294bb0d32de679c670c312ef384845bd72cef", size = 668496, upload-time = "2026-05-30T00:20:59.099Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/cf/90f27a2b48c9b748f84194b07e565f900e7f0ce0500da9b9f067dca599d3/azure_ai_projects-2.2.0-py3-none-any.whl", hash = "sha256:8f89bdaca4df1bd479d3bd2bd0f19a0905d60be6d17b84a69e8fabd82eac5906", size = 344307, upload-time = "2026-05-30T00:21:00.672Z" },
+]
+
+[[package]]
 name = "azure-batch"
 version = "14.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -11995,7 +12016,7 @@ wheels = [
 
 [[package]]
 name = "flask-appbuilder"
-version = "5.2.1"
+version = "5.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apispec", extra = ["yaml"] },
@@ -12020,9 +12041,9 @@ dependencies = [
     { name = "werkzeug" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/97/b2/ad1784b3393cda84fd68b90689b1d6db037c13a62a9726ef639068bf8a75/flask_appbuilder-5.2.1.tar.gz", hash = "sha256:a5f6f34aa4ae0092a9eeb5051dc210869d9360429a429b0be88416c2616e1281", size = 7077970, upload-time = "2026-04-09T11:06:35.649Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/f1/6aa168038f829eb76f056caa72d8381d64520b3444c185f5121e96e3828c/flask_appbuilder-5.2.2.tar.gz", hash = "sha256:0527623394b40b859ff47056e3621a61eefaaa16ccf188f272c64294307587ca", size = 7078906, upload-time = "2026-06-23T12:21:39.139Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/af/bdfd96170b1159ddc0e8424dfebbbac93d7270a1a749b0857fdaf384f027/flask_appbuilder-5.2.1-py3-none-any.whl", hash = "sha256:c5a134870fc0b780ac8d9de15fea8c470613ebe44feeddf01a2c18d2c066e144", size = 2217302, upload-time = "2026-04-09T11:06:32.891Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/f9/2c3cb04fac8ef455746d7ab536bf58bf66d39785dc2612d24af514be5b98/flask_appbuilder-5.2.2-py3-none-any.whl", hash = "sha256:9dcae59cd15e5a284175d65c682529a6a73b7ba9d53d408e4796ec062d05472a", size = 2217171, upload-time = "2026-06-23T12:21:34.926Z" },
 ]
 
 [[package]]
@@ -14268,6 +14289,7 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/6b/e8e38a3e1b828c029e4b0aa39ecdd940319ffe725273a0f8be6efae88a7c/ibmmq-2.1.0.tar.gz", hash = "sha256:63ac906290700b55e88cc7c32232579e4419aba209830b6009d6d89cbb089555", size = 436005, upload-time = "2026-06-17T11:48:41.238Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2d/e6/d17301d1171dea40b6ed642557174c0de78fea46568756106d143e98cc88/ibmmq-2.1.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:9dbb2b509ec1e86a8111480e35c5b346fa21bae7266c35634d76dd377da80fdb", size = 395482, upload-time = "2026-06-17T11:48:36.803Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/2e/f8b4f8088ca697d9d5978fba6e5d9a1adf83421346c51800b3700b179f52/ibmmq-2.1.0-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:81c65da995be055d4fe02eb65ab05b8c5465324d3c320d5def63bbea32c08087", size = 435602, upload-time = "2026-07-06T08:02:24.283Z" },
     { url = "https://files.pythonhosted.org/packages/20/09/e833b4e18115c94df8b3e6c293755a1cdb5bbd30b935ecc71b89e0206874/ibmmq-2.1.0-cp39-abi3-win_amd64.whl", hash = "sha256:5d68c837f216721b2d6d7495cf91c717670a5cec383b28aa584616a9c48c1c30", size = 400532, upload-time = "2026-06-17T11:48:38.923Z" },
 ]
 
