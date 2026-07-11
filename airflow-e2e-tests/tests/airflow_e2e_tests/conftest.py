@@ -52,6 +52,7 @@ from airflow_e2e_tests.constants import (
     KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
+    OPENLINEAGE_COMPOSE_PATH,
     OPENSEARCH_PATH,
     PROVIDERS_MOUNT_CONTAINER_PATH,
     PROVIDERS_ROOT_PATH,
@@ -69,6 +70,7 @@ console = Console(width=400, color_system="standard")
 class _E2ETestState:
     compose_instance: DockerCompose | None = None
     airflow_logs_path: Path | None = None
+    airflow_dags_path: Path | None = None
 
 
 def _copy_localstack_files(tmp_dir):
@@ -566,6 +568,21 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _setup_openlineage_integration(dot_env_file, tmp_dir):
+    """Set up the openlineage E2E test mode.
+
+    The OpenLineage system-test DAGs are the single source of truth; ``prepare_dags`` copies them
+    into the stack's dags folder (stripping the pytest-only footer) alongside the harness-only warmup
+    DAG and versioned bundle. The ``openlineage.yml`` overlay carries the OpenLineage env config and
+    mounts the generated ``dag_doc.md`` where the docs DAG resolves it.
+    """
+    from airflow_e2e_tests.openlineage_tests.prepare_dags import prepare_dags
+
+    console.print("[yellow]Preparing OpenLineage DAGs from the provider system tests...")
+    prepare_dags(tmp_dir / "dags")
+    copyfile(OPENLINEAGE_COMPOSE_PATH, tmp_dir / "openlineage.yml")
+
+
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("breeze-airflow-e2e-tests")
 
@@ -580,9 +597,13 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         (tmp_dir / subdir).mkdir()
 
     _E2ETestState.airflow_logs_path = tmp_dir / "logs"
+    _E2ETestState.airflow_dags_path = tmp_dir / "dags"
 
-    console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
-    copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
+    # openlineage sources its dags from the provider system tests (via _setup_openlineage_integration),
+    # so it must not also load the stock e2e dags — the harness triggers every dag it finds.
+    if E2E_TEST_MODE != "openlineage":
+        console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
+        copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
 
     dot_env_file = tmp_dir / ".env"
     dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
@@ -613,6 +634,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "go_sdk":
         compose_file_names.append("go.yml")
         _setup_go_sdk_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "openlineage":
+        compose_file_names.append("openlineage.yml")
+        _setup_openlineage_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -706,6 +730,18 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
 def compose_instance():
     """Provide access to the running Docker Compose instance."""
     return _E2ETestState.compose_instance
+
+
+@pytest.fixture(scope="session")
+def airflow_logs_path():
+    """Live host path of the stack's task logs (bind-mounted), readable while tests run."""
+    return _E2ETestState.airflow_logs_path
+
+
+@pytest.fixture(scope="session")
+def airflow_dags_path():
+    """Host path of the dags served to the stack."""
+    return _E2ETestState.airflow_dags_path
 
 
 def generate_test_report(results):

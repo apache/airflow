@@ -49,8 +49,6 @@ TASK_SDK_TESTS_REQUIREMENTS = TASK_SDK_INTEGRATION_TESTS_ROOT_PATH / "requiremen
 
 AIRFLOW_E2E_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests"
 
-PROVIDERS_E2E_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers-e2e-tests"
-
 AIRFLOW_CTL_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-ctl-tests"
 
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
@@ -125,7 +123,6 @@ def run_docker_compose_tests(
     test_type: str = "docker-compose",
     skip_image_check: bool = False,
     test_mode: str = "basic",
-    provider: str = "",
 ) -> tuple[int, str]:
     if not skip_image_check:
         command_result = run_command(
@@ -168,9 +165,6 @@ def run_docker_compose_tests(
     elif test_type == "airflow-e2e-tests":
         test_path = Path("tests") / "airflow_e2e_tests" / f"{test_mode}_tests"
         cwd = AIRFLOW_E2E_TESTS_ROOT_PATH.as_posix()
-    elif test_type == "providers-e2e-tests":
-        test_path = Path("tests")
-        cwd = (PROVIDERS_E2E_TESTS_ROOT_PATH / provider).as_posix()
     elif test_type == "airflow-ctl-integration":
         test_path = Path("tests") / "airflowctl_tests"
         cwd = AIRFLOW_CTL_TESTS_ROOT_PATH.as_posix()
