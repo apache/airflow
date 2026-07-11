@@ -22,8 +22,13 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models.connection import Connection
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+    DbtCloudTriggerEventException,
+)
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 
@@ -151,10 +156,11 @@ class TestDbtCloudJobRunSensor:
         [
             ("cancelled", "Job run 1234 has been cancelled."),
             ("error", "Job run 1234 has failed."),
+            ("timeout", "Job run 1234 has timed out."),
         ],
     )
     def test_execute_complete_failure(self, mock_status, mock_message):
-        """Assert execute_complete method to raise exception on the cancelled and error status"""
+        """Assert execute_complete method to raise exception on the cancelled, error, and timeout status"""
         task = DbtCloudJobRunSensor(
             dbt_cloud_conn_id=self.CONN_ID,
             task_id=self.TASK_ID,
@@ -162,7 +168,30 @@ class TestDbtCloudJobRunSensor:
             timeout=self.TIMEOUT,
             deferrable=True,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(DbtCloudJobRunException, match=mock_message):
             task.execute_complete(
                 context={}, event={"status": mock_status, "message": mock_message, "run_id": self.DBT_RUN_ID}
             )
+
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param(
+                {"status": "rescheduling", "message": "m", "run_id": 1234},
+                "Unexpected trigger event status",
+                id="unknown-status",
+            ),
+        ],
+    )
+    def test_execute_complete_invalid_event_raises(self, event, match):
+        """Assert execute_complete raises instead of silently succeeding on a malformed event"""
+        task = DbtCloudJobRunSensor(
+            dbt_cloud_conn_id=self.CONN_ID,
+            task_id=self.TASK_ID,
+            run_id=self.DBT_RUN_ID,
+            timeout=self.TIMEOUT,
+            deferrable=True,
+        )
+        with pytest.raises(DbtCloudTriggerEventException, match=match):
+            task.execute_complete(context={}, event=event)
