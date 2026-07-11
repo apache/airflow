@@ -95,9 +95,25 @@ RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor \
     -- -k test_lang_sdk_combined_dag_succeeds
 ```
 
-In CI (and for a one-shot local run) steps 2-3 are folded into the standard k8s job via
-`breeze k8s run-complete-tests --lang-sdk-test`: it provisions the lang-SDK env after the base
-deploy, then runs the test. The `k8s-tests.yml` workflow enables it (`RUN_LANG_SDK_K8S_TESTS=true`,
-which `--lang-sdk-test` reads) for a single variant only -- KubernetesExecutor with standard-naming
-off -- so the other five k8s jobs skip the test. The provisioning builds (Go bundle, Java jar, Java
-worker image) and the localstack deploy run in parallel.
+In CI (and for a one-shot local run) steps 2-3 are folded into a single `run-complete-tests` call via
+`breeze k8s run-complete-tests --lang-sdk-test`: it provisions the lang-SDK env after the base deploy,
+then runs the test. Rather than bolting this onto the regular k8s system-test matrix (which ran it
+redundantly on all six `KubernetesExecutor` / standard-naming-off jobs and added ~6 minutes each), the
+`k8s-tests.yml` workflow runs it in a **dedicated `tests-kubernetes-lang-sdk` job** on a single default
+Python-Kubernetes combo (the `lang-sdk-kubernetes-combo` input, wired from the `default-python-version`
+and `default-kubernetes-version` build-info outputs). That job sets `RUN_LANG_SDK_K8S_TESTS=true`
+(which `--lang-sdk-test` reads) and runs only the lang-SDK test (`-k
+test_lang_sdk_combined_dag_succeeds`), not the full suite; the regular system-test matrix no longer runs
+it at all. The provisioning builds (Go bundle, Java jar, Java worker image) and the localstack deploy
+run in parallel.
+
+By default the Go bundle and Java jar are built inside ephemeral toolchain containers so a dev host
+needs neither Go nor a JDK installed. In CI the dedicated job sets `LANG_SDK_NATIVE_TOOLCHAIN=true`,
+which makes breeze build both artifacts with the host `go` / `./gradlew` instead: the workflow installs
+the toolchains via `actions/setup-go` and `actions/setup-java` and restores the Go module/build cache
+and the Gradle distribution + dependency cache with `actions/cache`, so the build skips the per-run
+toolchain-image pulls and cold dependency downloads. The cache keys carry a `-v1-` salt and a
+`runner.arch` segment (see `lang-sdk-go-v1-` / `lang-sdk-gradle-v1-` in `k8s-tests.yml`) — bump the salt
+to force-invalidate a poisoned cache; the arch segment keeps the amd64 and arm64 caches separate. The
+JDK version comes from the `java-sdk-version` build-info output (the `JAVA_SDK_VERSION` breeze
+constant).

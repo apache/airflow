@@ -404,12 +404,23 @@ class TestPydanticAIHookCreateAgentInstrumentation:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_caller_instrument_short_circuits(self, mock_infer_model, mock_settings, mock_agent_cls):
         """A caller that passes its own ``instrument`` wins; we don't override it."""
-        mock_infer_model.return_value = MagicMock(spec=Model)
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
         hook = self._hook()
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.create_agent(instructions="hi", instrument=False)
+            agent = hook.create_agent(instructions="hi", instrument=False)
 
+        # ``instrument`` is not an Agent() constructor kwarg in pydantic-ai 2.x:
+        # it must be stripped from the constructor call and applied through the
+        # ``agent.instrument`` property instead, and the provider's own
+        # auto-instrumentation must not override the caller's value.
+        mock_agent_cls.assert_called_once_with(
+            mock_model,
+            output_type=str,
+            instructions="hi",
+        )
+        assert agent.instrument is False
         mock_settings.assert_not_called()
 
 

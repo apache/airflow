@@ -28,6 +28,7 @@ const makeRun = (runId: string): GridRunsResponse => ({
   duration: 0,
   end_date: null,
   has_missed_deadline: false,
+  has_note: false,
   queued_at: null,
   run_after: "2024-01-01T00:00:00Z",
   run_id: runId,

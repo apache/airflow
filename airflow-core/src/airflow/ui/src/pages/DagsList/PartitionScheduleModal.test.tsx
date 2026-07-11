@@ -43,6 +43,9 @@ vi.mock("src/queries/useConfig", () => ({
 
 vi.mock("src/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
+  // Must stay inside the factory: vitest hoists vi.mock above module scope, so an outer-scope
+  // component cannot be referenced here.
+  // eslint-disable-next-line unicorn/consistent-function-scoping
   const DialogPart = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>;
 
   return {

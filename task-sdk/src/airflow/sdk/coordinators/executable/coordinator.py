@@ -29,10 +29,14 @@ from typing import TYPE_CHECKING, Any, BinaryIO
 
 import attrs
 import structlog
-import yaml
 
+from airflow.sdk.coordinators._bundle_metadata import (
+    ResolvedBundle,
+    convert_roots,
+    extract_supervisor_schema_version,
+    parse_metadata_mapping,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -236,20 +240,10 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
             return None
 
     try:
-        data = yaml.safe_load(metadata_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, yaml.YAMLError) as exc:
+        return parse_metadata_mapping(metadata_bytes, source="bundle metadata")
+    except ValueError as exc:
         log.debug("Cannot decode bundle metadata; skipping", path=str(path), error=str(exc))
         return None
-
-    if not isinstance(data, dict):
-        log.debug(
-            "Bundle metadata is not a mapping; skipping",
-            path=str(path),
-            type=type(data).__name__,
-        )
-        return None
-
-    return data
 
 
 def _dag_ids(metadata: dict[str, Any]) -> set[str]:
@@ -258,18 +252,6 @@ def _dag_ids(metadata: dict[str, Any]) -> set[str]:
         return set()
 
     return set(dags.keys())
-
-
-def _supervisor_schema_version(metadata: dict[str, Any]) -> str | None:
-    sdk = metadata.get("sdk")
-    if not isinstance(sdk, dict):
-        return None
-
-    value = sdk.get("supervisor_schema_version")
-    if not isinstance(value, str) or not value:
-        return None
-
-    return value
 
 
 def _find_executables(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
@@ -308,15 +290,8 @@ def _walk_executables(
             yield item
 
 
-def _validate_schema_version(instance, _, value) -> str:
-    return get_schema_version_migrator().resolve_version(str(value))
-
-
 @attrs.define
-class _Bundle:
-    path: pathlib.Path
-    schema_version: str = attrs.field(validator=_validate_schema_version)
-
+class _Bundle(ResolvedBundle):
     @classmethod
     def find(cls, executables_root: Sequence[pathlib.Path], dag_id: str) -> Self:
         log.debug("Finding executable bundles recursively", roots=executables_root)
@@ -328,12 +303,7 @@ class _Bundle:
                 continue
 
             try:
-                if (schema_version := _supervisor_schema_version(metadata)) is None:
-                    reason = "missing or invalid sdk.supervisor_schema_version"
-                    log.debug("Bundle metadata rejected; skipping", path=str(p), error=reason)
-                    rejected.append((p.resolve(), reason))
-                    continue
-                return cls(path=p.resolve(), schema_version=schema_version)
+                return cls(path=p.resolve(), schema_version=extract_supervisor_schema_version(metadata))
             except (TypeError, ValueError) as exc:
                 log.debug("Bundle metadata rejected; skipping", path=str(p), error=str(exc))
                 rejected.append((p.resolve(), str(exc)))
@@ -350,16 +320,6 @@ class _Bundle:
             tp = "cannot find executable bundle containing dag_id={0!r} in {1}"
             details = ""
         raise FileNotFoundError(tp.format(dag_id, resolved_paths, details))
-
-
-def _convert_executables_root(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
 
 
 @attrs.define(kw_only=True)
@@ -385,7 +345,7 @@ class ExecutableCoordinator(SubprocessCoordinator):
     """
 
     executables_root: list[pathlib.Path] = attrs.field(
-        converter=_convert_executables_root,
+        converter=convert_roots,
         validator=attrs.validators.min_len(1),
     )
 

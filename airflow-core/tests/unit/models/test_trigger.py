@@ -335,6 +335,33 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert actual_xcoms == expected_xcoms
 
 
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_callback_includes_version_data(mock_send, session, create_task_instance):
+    """A finished deferred task's callback carries version_data for a pinned run, and its
+    bundle_version is derived from the same dag_version so the two cannot diverge."""
+    version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    # Pin the run and attach a manifest to the TI's dag_version.
+    task_instance.dag_run.bundle_version = "some_hash"
+    task_instance.dag_version.bundle_version = "some_hash"
+    task_instance.dag_version.version_data = version_data
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
+    session.flush()
+
+    mock_send.assert_called_once()
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.bundle_version == "some_hash"
+    assert request.version_data == version_data
+
+
 @pytest.fixture
 def create_triggerer():
     """Fixture factory which creates individual test Triggerer instances."""

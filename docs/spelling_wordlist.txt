@@ -24,7 +24,9 @@ AdsInsights
 adsinsights
 afterall
 agentcore
+AgentDetails
 agentic
+AgentVersionDetails
 ai
 aio
 aiobotocore
@@ -121,6 +123,7 @@ auditable
 Auth
 auth
 authenticator
+Authentik
 Authlib
 authMechanism
 authorised
@@ -448,6 +451,8 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+DeleteAgentResponse
+DeleteAgentVersionResponse
 delim
 deliverability
 deltalake
@@ -940,6 +945,7 @@ KerberosClient
 keycloak
 Keyfile
 keyfile
+keyless
 KeyManagementServiceClient
 keyring
 keyspace
@@ -1014,6 +1020,7 @@ Logstash
 logstash
 longblob
 lookups
+loopback
 lshift
 lte
 lxml
@@ -1038,6 +1045,7 @@ maxcompute
 Maxime
 MaxRuntimeInSeconds
 mb
+MCP
 md
 mem
 memcached
@@ -1046,6 +1054,7 @@ memorystore
 memray
 Mesos
 mesos
+MessageBatch
 metaclass
 metadatabase
 metadataStores

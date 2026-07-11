@@ -118,7 +118,7 @@ Execution API") for the security boundary.
 .. code-block:: bash
 
     airflow edge worker
-    2025-09-27T12:28:32.954316Z [info     ] Starting worker with API endpoint http://localhost:8080/edge_worker/v1/rpcapi
+    2026-07-09T12:28:32.954316Z [info     ] Starting worker with API endpoint http://localhost:8080/edge_worker/v1/rpcapi
       ____________       _____________
      ____    |__( )_________  __/__  /________      __
     ____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /
@@ -130,7 +130,7 @@ Execution API") for the security boundary.
     /___/\_,_/\_, /\__/   |__/|__/\___/_/ /_/\_\\__/_/
             /___/
 
-    2025-09-27T12:28:33.171525Z [info     ] No new job to process
+    2026-07-09T12:28:33.171525Z [debug    ] No new job to process
 
 
 To start a worker assigned to a specific team:

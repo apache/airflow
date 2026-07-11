@@ -22,11 +22,18 @@ import type {
   ConnectionResult,
   GetXComOpts,
   SetXComOpts,
+  StartCoordinatorOptions,
   TaskClient,
   TaskContext,
   TaskRegistration,
 } from "../src/index.js";
-import { listRegisteredTasks, registerTask, VariableNotFoundError } from "../src/index.js";
+import {
+  listRegisteredTasks,
+  registerTask,
+  startCoordinator,
+  SUPERVISOR_API_VERSION,
+  VariableNotFoundError,
+} from "../src/index.js";
 
 describe("public API", () => {
   it("exports task registration helpers", () => {
@@ -40,6 +47,18 @@ describe("public API", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.name).toBe("VariableNotFoundError");
     expect(err.key).toBe("missing");
+  });
+
+  it("exports the coordinator runtime entrypoint", () => {
+    expectTypeOf<typeof startCoordinator>().toEqualTypeOf<
+      (opts?: StartCoordinatorOptions) => Promise<void>
+    >();
+    expectTypeOf<StartCoordinatorOptions>().toEqualTypeOf<{
+      commAddr?: string;
+      logsAddr?: string;
+      argv?: readonly string[];
+    }>();
+    expectTypeOf(SUPERVISOR_API_VERSION).toMatchTypeOf<string>();
   });
 
   it("uses idiomatic TypeScript names for public client types", () => {
@@ -94,8 +113,6 @@ describe("public API", () => {
     function acceptsSetXComOpts(_opts: SetXComOpts): void {}
     function acceptsTaskRegistration(_registration: TaskRegistration): void {}
 
-    // TODO: Add coordinator-runtime tests that validate these camelCase
-    // public options map to the supervisor schema's snake_case fields.
     acceptsGetXComOpts({
       key: "result",
       dagId: "example",
