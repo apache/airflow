@@ -43,7 +43,7 @@ def _no_op(*args, **kwargs) -> Any:
 
 def create_mock_kafka_consumer(
     message_count: int = 1001, message_content: Any = "test_message", track_consumed_messages: bool = False
-) -> tuple[mock.MagicMock, mock.MagicMock, list[int] | None]:
+) -> tuple[mock.MagicMock, Any, list[int] | None]:
     """
     Creates a mock Kafka consumer with configurable behavior.
 
@@ -81,12 +81,12 @@ def create_mock_kafka_consumer(
     )
 
     #
-    return mock_consumer, mock_get_consumer, total_consumed_count  # type: ignore[return-value]
+    return mock_consumer, mock_get_consumer, total_consumed_count
 
 
 def create_mock_kafka_consumer_from_messages(
     messages: list[Any],
-) -> tuple[mock.MagicMock, mock.MagicMock]:
+) -> tuple[mock.MagicMock, Any]:
     mocked_messages = messages.copy()
 
     def mock_consume(num_messages=0, timeout=-1):
