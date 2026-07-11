@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-11T07:41:25.648741
+# This constraints file was automatically generated on 2026-07-11T22:08:52.874638
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.2
 MarkupSafe==3.0.3
-PyAthena==3.34.0
+PyAthena==3.35.0
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -255,7 +255,7 @@ celery==5.6.3
 certifi==2026.6.17
 cffi==2.1.0
 chardet==6.0.0.post1
-charset-normalizer==3.4.7
+charset-normalizer==3.4.9
 ciso8601==2.3.3
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
@@ -300,7 +300,7 @@ facebook_business==25.0.2
 fastapi-cli==0.0.28
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.14.2
+fastcore==1.14.3
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.6
@@ -314,7 +314,7 @@ gcloud-aio-auth==5.4.4
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.7.0
-genai-prices==0.0.69
+genai-prices==0.0.70
 geomet==1.1.0
 gevent==26.5.0
 gitdb==4.0.12
@@ -324,7 +324,7 @@ google-api-core==2.31.0
 google-api-python-client==2.198.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
-google-auth==2.55.1
+google-auth==2.55.2
 google-cloud-aiplatform==1.148.1
 google-cloud-alloydb==0.11.0
 google-cloud-appengine-logging==1.10.0
@@ -405,8 +405,8 @@ huggingface_hub==1.22.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
-ibm-cloud-sdk-core==3.24.4
-ibmcloudant==0.11.8
+ibm-cloud-sdk-core==3.25.0
+ibmcloudant==0.11.9
 idna==3.18
 ijson==3.4.0.post0
 immutabledict==4.3.1
@@ -671,7 +671,7 @@ tinycss2==1.5.1
 tokenizers==0.23.1
 tomlkit==0.15.0
 tornado==6.5.7
-tqdm==4.68.3
+tqdm==4.68.4
 traitlets==5.15.1
 trino==0.338.0
 truststore==0.10.4
