@@ -414,7 +414,7 @@ providers/trino/src/airflow/providers/trino/hooks/trino.py::1
 providers/vespa/src/airflow/providers/vespa/operators/vespa_ingest.py::1
 providers/ydb/src/airflow/providers/ydb/hooks/ydb.py::1
 providers/ydb/src/airflow/providers/ydb/operators/ydb.py::1
-scripts/ci/prek/check_new_airflow_exception_usage.py::4
+scripts/ci/prek/check_new_airflow_exception_usage.py::5
 task-sdk/src/airflow/sdk/bases/sensor.py::1
 task-sdk/src/airflow/sdk/bases/skipmixin.py::3
 task-sdk/src/airflow/sdk/crypto.py::1
