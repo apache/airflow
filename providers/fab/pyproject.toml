@@ -77,7 +77,7 @@ dependencies = [
     # Every time we update FAB version here, please make sure that you review the classes and models in
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
-    "flask-appbuilder==5.2.1",  # Whenever updating the version, run test_fab_alignment.py to verify.
+    "flask-appbuilder==5.2.2",  # Whenever updating the version, run test_fab_alignment.py to verify.
     # Transitive via flask-appbuilder -> flask-jwt-extended; pinned here so the FAB
     # provider keeps installing cleanly when paired with older airflow-core releases
     # (the compat-3.0.6 matrix job) whose own pyjwt floor predates `jwt.types.Options`
