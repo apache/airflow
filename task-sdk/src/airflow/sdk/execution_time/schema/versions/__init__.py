@@ -37,11 +37,11 @@ def get_bundle() -> VersionBundle:
     """
     from cadwyn import HeadVersion, Version, VersionBundle
 
-    from airflow.sdk.execution_time.schema.versions.v2026_07_30 import AddStubArgsToTIRunContext
+    from airflow.sdk.execution_time.schema.versions.v2026_07_30 import AddArgBindingsToTIRunContext
 
     return VersionBundle(
         HeadVersion(),
-        Version("2026-07-30", AddStubArgsToTIRunContext),
+        Version("2026-07-30", AddArgBindingsToTIRunContext),
         Version("2026-06-16"),
     )
 

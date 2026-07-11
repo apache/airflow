@@ -393,11 +393,11 @@ class DagRun(StrictBaseModel):
         return values
 
 
-StubArgDataType = Literal["string", "integer", "number", "boolean", "object", "array", "any"]
+ArgBindingDataType = Literal["string", "integer", "number", "boolean", "object", "array", "any"]
 """Language-neutral value type a stub-task argument binds to in the foreign runtime."""
 
 
-class StubTaskArg(BaseModel):
+class TaskArgBinding(BaseModel):
     """
     One positional argument of a stub (foreign-runtime) task, in declaration order.
 
@@ -408,7 +408,7 @@ class StubTaskArg(BaseModel):
     kind: Literal["xcom", "literal"]
     """Whether the value comes from an upstream task's XCom or is a literal from the Dag file."""
 
-    data_type: StubArgDataType = "any"
+    data_type: ArgBindingDataType = "any"
     """Declared type from the stub function's annotation; runtimes type-check against it."""
 
     task_id: str | None = None
@@ -463,7 +463,7 @@ class TIRunContext(BaseModel):
     always reflects when the task *first* started, not when it was rescheduled/resumed.
     """
 
-    stub_args: list[StubTaskArg] | None = None
+    arg_bindings: list[TaskArgBinding] | None = None
     """
     Ordered positional-argument binding spec for stub (foreign-runtime) tasks.
 

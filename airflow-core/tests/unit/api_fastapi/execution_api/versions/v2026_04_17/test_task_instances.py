@@ -86,7 +86,7 @@ class TestTeamNameFieldBackwardCompat:
         assert response.json()["dag_run"]["team_name"] is None
 
 
-class TestStubArgsFieldBackwardCompat:
+class TestArgBindingsFieldBackwardCompat:
     @pytest.fixture(autouse=True)
     def _freeze_time(self, time_machine):
         time_machine.move_to(TIMESTAMP_STR, tick=False)
@@ -105,7 +105,7 @@ class TestStubArgsFieldBackwardCompat:
 
         def transform(country: str, extracted: dict): ...
 
-        with dag_maker("test_stub_args_compat_dag", serialized=True):
+        with dag_maker("test_arg_bindings_compat_dag", serialized=True):
             stub(transform)("uk", stub(extract)())
 
         dr = dag_maker.create_dagrun()
@@ -115,15 +115,15 @@ class TestStubArgsFieldBackwardCompat:
         dag_maker.session.flush()
         return tis["transform"]
 
-    def test_old_version_strips_stub_args_even_when_set(self, old_ver_client, stub_ti):
+    def test_old_version_strips_arg_bindings_even_when_set(self, old_ver_client, stub_ti):
         response = old_ver_client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
-        assert "stub_args" not in response.json()
+        assert "arg_bindings" not in response.json()
 
-    def test_head_version_includes_stub_args(self, client, stub_ti):
+    def test_head_version_includes_arg_bindings(self, client, stub_ti):
         response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
-        assert response.json()["stub_args"] == [
+        assert response.json()["arg_bindings"] == [
             {"kind": "literal", "data_type": "string", "value": "uk"},
             {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
         ]

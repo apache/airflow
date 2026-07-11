@@ -53,7 +53,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
-    StubTaskArg,
+    TaskArgBinding,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
     TIAwaitingInputStatePayload,
@@ -116,11 +116,11 @@ tracer = trace.get_tracer(__name__)
 
 # Task type recorded on the TI row (``TaskInstance.operator``) for
 # ``airflow.providers.standard.decorators.stub._StubOperator``. Used to gate the
-# serialized-dag lookup for ``stub_args`` so regular tasks never pay for it.
+# serialized-dag lookup for ``arg_bindings`` so regular tasks never pay for it.
 _STUB_TASK_TYPE = "_StubOperator"
 
 
-def _get_stub_args(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
+def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
     """Extract the stub task's serialized positional-arg spec from the serialized Dag blob."""
     if dag_version_id is None:
         return None
@@ -133,7 +133,7 @@ def _get_stub_args(dag_version_id: UUID | None, task_id: str, *, session) -> lis
     for task in data.get("dag", {}).get("tasks", []):
         var = task.get(Encoding.VAR) or {}
         if var.get("task_id") == task_id:
-            if encoded := var.get("_stub_args"):
+            if encoded := var.get("_arg_bindings"):
                 return BaseSerialization.deserialize(encoded)
             return None
     return None
@@ -343,9 +343,9 @@ def ti_run(
         # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
         if ti.operator == _STUB_TASK_TYPE and (
-            stub_args := _get_stub_args(ti.dag_version_id, ti.task_id, session=session)
+            arg_bindings := _get_arg_bindings(ti.dag_version_id, ti.task_id, session=session)
         ):
-            context.stub_args = [StubTaskArg.model_validate(arg) for arg in stub_args]
+            context.arg_bindings = [TaskArgBinding.model_validate(arg) for arg in arg_bindings]
 
         # Only set if they are non-null
         if ti.next_method:

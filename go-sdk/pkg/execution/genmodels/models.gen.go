@@ -20,6 +20,8 @@ package genmodels
 
 import "time"
 
+type ArgBindings []TaskArgBinding
+
 // Schema for AssetAliasModel used in AssetEventDagRunReference.
 type AssetAliasReferenceAssetEventDagRun struct {
 	// Name corresponds to the JSON schema field "name".
@@ -1558,46 +1560,6 @@ type StartupDetails struct {
 
 type States []string
 
-type StubArgs []StubTaskArg
-
-// One positional argument of a stub (foreign-runtime) task, in declaration order.
-//
-// A deliberately flat shape (“kind“ discriminates instead of a union) so the
-// JSON schema
-// generates a plain struct in the foreign-language SDKs consuming the supervisor
-// schema.
-type StubTaskArg struct {
-	// DataType corresponds to the JSON schema field "data_type".
-	DataType StubTaskArgDataType `msgpack:"data_type,omitempty"`
-
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key,omitempty"`
-
-	// Kind corresponds to the JSON schema field "kind".
-	Kind StubTaskArgKind `msgpack:"kind"`
-
-	// TaskID corresponds to the JSON schema field "task_id".
-	TaskID interface{} `msgpack:"task_id,omitempty"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value,omitempty"`
-}
-
-type StubTaskArgDataType string
-
-const StubTaskArgDataTypeAny StubTaskArgDataType = "any"
-const StubTaskArgDataTypeArray StubTaskArgDataType = "array"
-const StubTaskArgDataTypeBoolean StubTaskArgDataType = "boolean"
-const StubTaskArgDataTypeInteger StubTaskArgDataType = "integer"
-const StubTaskArgDataTypeNumber StubTaskArgDataType = "number"
-const StubTaskArgDataTypeObject StubTaskArgDataType = "object"
-const StubTaskArgDataTypeString StubTaskArgDataType = "string"
-
-type StubTaskArgKind string
-
-const StubTaskArgKindLiteral StubTaskArgKind = "literal"
-const StubTaskArgKindXcom StubTaskArgKind = "xcom"
-
 // Update a task's state to success. Includes task_outlets and outlet_events for
 // registering asset events.
 type SucceedTask struct {
@@ -1631,6 +1593,9 @@ type TICount struct {
 
 // Response schema for TaskInstance run context.
 type TIRunContext struct {
+	// ArgBindings corresponds to the JSON schema field "arg_bindings".
+	ArgBindings *ArgBindings `msgpack:"arg_bindings,omitempty"`
+
 	// Connections corresponds to the JSON schema field "connections".
 	Connections []ConnectionResponse `msgpack:"connections,omitempty"`
 
@@ -1652,9 +1617,6 @@ type TIRunContext struct {
 	// StartDate corresponds to the JSON schema field "start_date".
 	StartDate interface{} `msgpack:"start_date,omitempty"`
 
-	// StubArgs corresponds to the JSON schema field "stub_args".
-	StubArgs *StubArgs `msgpack:"stub_args,omitempty"`
-
 	// TaskRescheduleCount corresponds to the JSON schema field
 	// "task_reschedule_count".
 	TaskRescheduleCount int `msgpack:"task_reschedule_count,omitempty"`
@@ -1666,74 +1628,43 @@ type TIRunContext struct {
 	XcomKeysToClear []string `msgpack:"xcom_keys_to_clear,omitempty"`
 }
 
-type VersionData map[string]interface{}
+// One positional argument of a stub (foreign-runtime) task, in declaration order.
+//
+// A deliberately flat shape (“kind“ discriminates instead of a union) so the
+// JSON schema
+// generates a plain struct in the foreign-language SDKs consuming the supervisor
+// schema.
+type TaskArgBinding struct {
+	// DataType corresponds to the JSON schema field "data_type".
+	DataType TaskArgBindingDataType `msgpack:"data_type,omitempty"`
 
-type TaskInstanceState string
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key,omitempty"`
 
-const TaskInstanceStateRemoved TaskInstanceState = "removed"
-const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
-const TaskInstanceStateQueued TaskInstanceState = "queued"
-const TaskInstanceStateRunning TaskInstanceState = "running"
-const TaskInstanceStateSuccess TaskInstanceState = "success"
-const TaskInstanceStateRestarting TaskInstanceState = "restarting"
-const TaskInstanceStateFailed TaskInstanceState = "failed"
-
-const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
-const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
-const TaskInstanceStateSkipped TaskInstanceState = "skipped"
-const TaskInstanceStateDeferred TaskInstanceState = "deferred"
-const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
-
-type Warnings []interface{}
-
-// Schema for TaskInstance model with minimal required fields needed for Runtime.
-type TaskInstance struct {
-	// ContextCarrier corresponds to the JSON schema field "context_carrier".
-	ContextCarrier *ContextCarrier `msgpack:"context_carrier,omitempty"`
-
-	// DagID corresponds to the JSON schema field "dag_id".
-	DagID string `msgpack:"dag_id"`
-
-	// DagVersionID corresponds to the JSON schema field "dag_version_id".
-	DagVersionID string `msgpack:"dag_version_id"`
-
-	// Hostname corresponds to the JSON schema field "hostname".
-	Hostname interface{} `msgpack:"hostname,omitempty"`
-
-	// ID corresponds to the JSON schema field "id".
-	ID string `msgpack:"id"`
-
-	// MapIndex corresponds to the JSON schema field "map_index".
-	MapIndex *int `msgpack:"map_index,omitempty"`
-
-	// Queue corresponds to the JSON schema field "queue".
-	Queue string `msgpack:"queue,omitempty"`
-
-	// RunID corresponds to the JSON schema field "run_id".
-	RunID string `msgpack:"run_id"`
+	// Kind corresponds to the JSON schema field "kind".
+	Kind TaskArgBindingKind `msgpack:"kind"`
 
 	// TaskID corresponds to the JSON schema field "task_id".
-	TaskID string `msgpack:"task_id"`
-
-	// TryNumber corresponds to the JSON schema field "try_number".
-	TryNumber int `msgpack:"try_number"`
-}
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
+	TaskID interface{} `msgpack:"task_id,omitempty"`
 
 	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
+	Value interface{} `msgpack:"value,omitempty"`
 }
 
-type TriggerKwargs map[string]JsonValue
+type TaskArgBindingDataType string
 
-type TaskOutlets []AssetProfile
+const TaskArgBindingDataTypeAny TaskArgBindingDataType = "any"
+const TaskArgBindingDataTypeArray TaskArgBindingDataType = "array"
+const TaskArgBindingDataTypeBoolean TaskArgBindingDataType = "boolean"
+const TaskArgBindingDataTypeInteger TaskArgBindingDataType = "integer"
+const TaskArgBindingDataTypeNumber TaskArgBindingDataType = "number"
+const TaskArgBindingDataTypeObject TaskArgBindingDataType = "object"
+const TaskArgBindingDataTypeString TaskArgBindingDataType = "string"
 
-type TaskBreadcrumbsResultBreadcrumbsElem map[string]interface{}
+type TaskArgBindingKind string
+
+const TaskArgBindingKindLiteral TaskArgBindingKind = "literal"
+const TaskArgBindingKindXcom TaskArgBindingKind = "xcom"
 
 type TaskBreadcrumbsResult struct {
 	// Breadcrumbs corresponds to the JSON schema field "breadcrumbs".
@@ -1742,6 +1673,8 @@ type TaskBreadcrumbsResult struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+type TaskBreadcrumbsResultBreadcrumbsElem map[string]interface{}
 
 // Task callback status information.
 //
@@ -1778,6 +1711,59 @@ type TaskCallbackRequest struct {
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
+type TaskIds []string
+
+// Schema for TaskInstance model with minimal required fields needed for Runtime.
+type TaskInstance struct {
+	// ContextCarrier corresponds to the JSON schema field "context_carrier".
+	ContextCarrier *ContextCarrier `msgpack:"context_carrier,omitempty"`
+
+	// DagID corresponds to the JSON schema field "dag_id".
+	DagID string `msgpack:"dag_id"`
+
+	// DagVersionID corresponds to the JSON schema field "dag_version_id".
+	DagVersionID string `msgpack:"dag_version_id"`
+
+	// Hostname corresponds to the JSON schema field "hostname".
+	Hostname interface{} `msgpack:"hostname,omitempty"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID string `msgpack:"id"`
+
+	// MapIndex corresponds to the JSON schema field "map_index".
+	MapIndex *int `msgpack:"map_index,omitempty"`
+
+	// Queue corresponds to the JSON schema field "queue".
+	Queue string `msgpack:"queue,omitempty"`
+
+	// RunID corresponds to the JSON schema field "run_id".
+	RunID string `msgpack:"run_id"`
+
+	// TaskID corresponds to the JSON schema field "task_id".
+	TaskID string `msgpack:"task_id"`
+
+	// TryNumber corresponds to the JSON schema field "try_number".
+	TryNumber int `msgpack:"try_number"`
+}
+
+type TaskInstanceState string
+
+const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
+const TaskInstanceStateDeferred TaskInstanceState = "deferred"
+const TaskInstanceStateFailed TaskInstanceState = "failed"
+const TaskInstanceStateQueued TaskInstanceState = "queued"
+const TaskInstanceStateRemoved TaskInstanceState = "removed"
+const TaskInstanceStateRestarting TaskInstanceState = "restarting"
+const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
+const TaskInstanceStateSkipped TaskInstanceState = "skipped"
+const TaskInstanceStateSuccess TaskInstanceState = "success"
+const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
+const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
+const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
+
+type TaskOutlets []AssetProfile
+
 // Response containing the first reschedule date for a task instance.
 type TaskRescheduleStartDate struct {
 	// StartDate corresponds to the JSON schema field "start_date".
@@ -1786,12 +1772,6 @@ type TaskRescheduleStartDate struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type TaskStateState string
-
-const TaskStateStateFailed TaskStateState = "failed"
-const TaskStateStateSkipped TaskStateState = "skipped"
-const TaskStateStateRemoved TaskStateState = "removed"
 
 // Update a task's state.
 //
@@ -1812,6 +1792,12 @@ type TaskState struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+type TaskStateState string
+
+const TaskStateStateFailed TaskStateState = "failed"
+const TaskStateStateRemoved TaskStateState = "removed"
+const TaskStateStateSkipped TaskStateState = "skipped"
 
 // Response to GetTaskStateStore; wraps the generated API response for supervisor
 // to worker comms.
@@ -1862,7 +1848,7 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type TaskIds []string
+type TriggerKwargs map[string]JsonValue
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
@@ -1878,6 +1864,19 @@ type UpdateHITLDetail struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
+type Warnings []interface{}
+
+type VersionData map[string]interface{}
 
 type ValidateInletsAndOutlets struct {
 	// TIID corresponds to the JSON schema field "ti_id".

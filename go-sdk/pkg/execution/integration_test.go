@@ -230,10 +230,10 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 	assertRetryTask(t, result, "panic: something went wrong")
 }
 
-// TestTaskRunnerBindsStubArgs covers the TaskFlow path through RunTask: the
-// positional-argument spec in ti_context.stub_args binds literals onto the
+// TestTaskRunnerBindsArgs covers the TaskFlow path through RunTask: the
+// positional-argument spec in ti_context.arg_bindings binds literals onto the
 // task function's data parameters.
-func TestTaskRunnerBindsStubArgs(t *testing.T) {
+func TestTaskRunnerBindsArgs(t *testing.T) {
 	var gotCountry string
 	var gotMeta map[string]any
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
@@ -255,7 +255,7 @@ func TestTaskRunnerBindsStubArgs(t *testing.T) {
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
-			StubArgs: &genmodels.StubArgs{
+			ArgBindings: &genmodels.ArgBindings{
 				{Kind: "literal", DataType: "string", Value: "uk"},
 				{Kind: "literal", DataType: "object", Value: map[string]any{"k": "v"}},
 			},
@@ -271,10 +271,10 @@ func TestTaskRunnerBindsStubArgs(t *testing.T) {
 	assert.Equal(t, map[string]any{"k": "v"}, gotMeta)
 }
 
-// TestTaskRunnerStubArgsArityMismatch: an argument spec that does not match
+// TestTaskRunnerArgBindingsArityMismatch: an argument spec that does not match
 // the function's data parameters fails the task loudly instead of running it
 // with zero values.
-func TestTaskRunnerStubArgsArityMismatch(t *testing.T) {
+func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
@@ -294,7 +294,7 @@ func TestTaskRunnerStubArgsArityMismatch(t *testing.T) {
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
-			StubArgs: &genmodels.StubArgs{
+			ArgBindings: &genmodels.ArgBindings{
 				{Kind: "literal", DataType: "string", Value: "uk"},
 			},
 		},
@@ -308,9 +308,9 @@ func TestTaskRunnerStubArgsArityMismatch(t *testing.T) {
 	assert.False(t, ran, "the task body must not run on an arity mismatch")
 }
 
-// TestTaskRunnerStubArgsTypeMismatch: a declared Dag type that cannot bind to
+// TestTaskRunnerArgBindingsTypeMismatch: a declared Dag type that cannot bind to
 // the Go parameter type fails the task loudly before the body runs.
-func TestTaskRunnerStubArgsTypeMismatch(t *testing.T) {
+func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
 			func(count int) error { return nil })
@@ -326,7 +326,7 @@ func TestTaskRunnerStubArgsTypeMismatch(t *testing.T) {
 		},
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
-			StubArgs: &genmodels.StubArgs{
+			ArgBindings: &genmodels.ArgBindings{
 				{Kind: "literal", DataType: "string", Value: "uk"},
 			},
 		},

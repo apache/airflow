@@ -370,7 +370,7 @@ class TestTIRunState:
         assert extras["scope"] == "execution"
         assert extras["sub"] == str(ti.id)
 
-    def test_ti_run_returns_stub_args_for_stub_task(self, client, dag_maker):
+    def test_ti_run_returns_arg_bindings_for_stub_task(self, client, dag_maker):
         """A stub task's TaskFlow arg spec is extracted from the serialized dag and returned."""
         from airflow.providers.standard.decorators.stub import stub
 
@@ -378,7 +378,7 @@ class TestTIRunState:
 
         def transform(country: str, extracted: dict): ...
 
-        with dag_maker("test_stub_args_dag", serialized=True):
+        with dag_maker("test_arg_bindings_dag", serialized=True):
             stub(transform)("uk", stub(extract)())
 
         dr = dag_maker.create_dagrun()
@@ -397,7 +397,7 @@ class TestTIRunState:
 
         response = client.patch(f"/execution/task-instances/{tis['transform'].id}/run", json=payload)
         assert response.status_code == 200
-        assert response.json()["stub_args"] == [
+        assert response.json()["arg_bindings"] == [
             {"kind": "literal", "data_type": "string", "value": "uk"},
             {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
         ]
@@ -405,7 +405,7 @@ class TestTIRunState:
         # An argless stub has no captured spec, so the field stays unset.
         response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=payload)
         assert response.status_code == 200
-        assert "stub_args" not in response.json()
+        assert "arg_bindings" not in response.json()
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""

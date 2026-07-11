@@ -125,14 +125,14 @@ func RunTask(
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 
-	args := convertStubArgs(details.TIContext.StubArgs)
+	args := convertArgBindings(details.TIContext.ArgBindings)
 
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
 }
 
-// convertStubArgs maps the wire-model positional-argument spec (captured from
+// convertArgBindings maps the wire-model positional-argument spec (captured from
 // the Python stub Dag's TaskFlow call) onto the runtime-neutral binding form.
-func convertStubArgs(specsPtr *genmodels.StubArgs) []binding.Arg {
+func convertArgBindings(specsPtr *genmodels.ArgBindings) []binding.Arg {
 	if specsPtr == nil || len(*specsPtr) == 0 {
 		return nil
 	}

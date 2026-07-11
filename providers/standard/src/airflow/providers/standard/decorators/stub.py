@@ -79,7 +79,7 @@ def _data_type_from_annotation(annotation: Any) -> str:
     return "any"
 
 
-def _build_stub_args(
+def _build_arg_bindings(
     python_callable: Callable,
     op_args: Sequence[Any],
     op_kwargs: Mapping[str, Any],
@@ -88,7 +88,7 @@ def _build_stub_args(
     """
     Bind the TaskFlow call arguments to the stub signature and build the ordered arg spec.
 
-    Each spec entry is a plain dict matching the execution API ``StubTaskArg`` shape: an XCom
+    Each spec entry is a plain dict matching the execution API ``TaskArgBinding`` shape: an XCom
     reference (``kind="xcom"``) for upstream TaskFlow outputs, or an inline value
     (``kind="literal"``) for everything else. Returns ``None`` for parameterless stubs.
     """
@@ -212,11 +212,11 @@ class _StubOperator(DecoratedOperator):
         # Bind the TaskFlow call to the *original* signature (DecoratedOperator mangles context
         # key defaults, which stubs reject anyway) and persist the ordered arg spec so the
         # execution API can hand it to the foreign runtime via StartupDetails.
-        self._stub_args = _build_stub_args(python_callable, self.op_args, self.op_kwargs, self.task_id)
+        self._arg_bindings = _build_arg_bindings(python_callable, self.op_args, self.op_kwargs, self.task_id)
 
     @classmethod
     def get_serialized_fields(cls):
-        return super().get_serialized_fields() | {"_stub_args"}
+        return super().get_serialized_fields() | {"_arg_bindings"}
 
     def execute(self, context: Context) -> Any:
         raise RuntimeError(

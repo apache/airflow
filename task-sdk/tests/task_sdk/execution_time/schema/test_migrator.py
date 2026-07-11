@@ -106,8 +106,8 @@ class TestSchemaVersionMigratorDowngrade:
     """
     Drive the downgrade direction against a mock bundle so we can pin
     *field-level* migration behaviour independent of the real bundle's
-    contents. The real bundle's ``stub_args`` migration is covered by
-    :class:`TestRealBundleStubArgsDowngrade` below.
+    contents. The real bundle's ``arg_bindings`` migration is covered by
+    :class:`TestRealBundleArgBindingsDowngrade` below.
     """
 
     @pytest.fixture
@@ -368,11 +368,11 @@ class TestLazyCadwynImport:
         subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
 
 
-class TestRealBundleStubArgsDowngrade:
+class TestRealBundleArgBindingsDowngrade:
     """
-    Drive the *real* supervisor bundle through the ``stub_args`` migration.
+    Drive the *real* supervisor bundle through the ``arg_bindings`` migration.
 
-    ``AddStubArgsToTIRunContext`` is the bundle's first ``schema(...)``
+    ``AddArgBindingsToTIRunContext`` is the bundle's first ``schema(...)``
     instruction on a model *nested* inside a registered body
     (``StartupDetails.ti_context``); this pins that the downgrade
     re-validation strips the nested field on the wire for a runtime
@@ -419,7 +419,7 @@ class TestRealBundleStubArgsDowngrade:
                     consumed_asset_events=[],
                 ),
                 max_tries=1,
-                stub_args=[
+                arg_bindings=[
                     {"kind": "literal", "data_type": "string", "value": "uk"},
                     {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
                 ],
@@ -431,11 +431,11 @@ class TestRealBundleStubArgsDowngrade:
     def real_migrator(self) -> SchemaVersionMigrator:
         return get_schema_version_migrator()
 
-    def test_downgrade_strips_stub_args_for_previous_version(self, real_migrator, startup_details):
+    def test_downgrade_strips_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
-        assert "stub_args" not in out["ti_context"]
+        assert "arg_bindings" not in out["ti_context"]
 
-    def test_head_version_keeps_stub_args(self, real_migrator, startup_details):
+    def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-07-30")
-        assert out.ti_context.stub_args is not None
-        assert [a.kind for a in out.ti_context.stub_args] == ["literal", "xcom"]
+        assert out.ti_context.arg_bindings is not None
+        assert [a.kind for a in out.ti_context.arg_bindings] == ["literal", "xcom"]

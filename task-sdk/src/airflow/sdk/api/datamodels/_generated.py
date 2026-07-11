@@ -246,36 +246,6 @@ class PreviousTIResponse(BaseModel):
     duration: Annotated[float | None, Field(title="Duration")] = None
 
 
-class Kind(str, Enum):
-    XCOM = "xcom"
-    LITERAL = "literal"
-
-
-class DataType(str, Enum):
-    STRING = "string"
-    INTEGER = "integer"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    OBJECT = "object"
-    ARRAY = "array"
-    ANY = "any"
-
-
-class StubTaskArg(BaseModel):
-    """
-    One positional argument of a stub (foreign-runtime) task, in declaration order.
-
-    A deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema
-    generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
-    """
-
-    kind: Annotated[Kind, Field(title="Kind")]
-    data_type: Annotated[DataType | None, Field(title="Data Type")] = DataType.ANY
-    task_id: Annotated[str | None, Field(title="Task Id")] = None
-    key: Annotated[str | None, Field(title="Key")] = "return_value"
-    value: JsonValue | None = None
-
-
 class TIAwaitingInputStatePayload(BaseModel):
     """
     Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger).
@@ -399,6 +369,36 @@ class TITargetStatePayload(BaseModel):
         extra="forbid",
     )
     state: IntermediateTIState
+
+
+class Kind(str, Enum):
+    XCOM = "xcom"
+    LITERAL = "literal"
+
+
+class DataType(str, Enum):
+    STRING = "string"
+    INTEGER = "integer"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    OBJECT = "object"
+    ARRAY = "array"
+    ANY = "any"
+
+
+class TaskArgBinding(BaseModel):
+    """
+    One positional argument of a stub (foreign-runtime) task, in declaration order.
+
+    A deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema
+    generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
+    """
+
+    kind: Annotated[Kind, Field(title="Kind")]
+    data_type: Annotated[DataType | None, Field(title="Data Type")] = DataType.ANY
+    task_id: Annotated[str | None, Field(title="Task Id")] = None
+    key: Annotated[str | None, Field(title="Key")] = "return_value"
+    value: JsonValue | None = None
 
 
 class TaskBreadcrumbsResponse(BaseModel):
@@ -827,4 +827,4 @@ class TIRunContext(BaseModel):
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
     start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
-    stub_args: Annotated[list[StubTaskArg] | None, Field(title="Stub Args")] = None
+    arg_bindings: Annotated[list[TaskArgBinding] | None, Field(title="Arg Bindings")] = None

@@ -245,7 +245,7 @@ export type NextKwargs1 =
 export type XcomKeysToClear = string[];
 export type ShouldRetry = boolean;
 export type StartDate2 = string | null;
-export type StubArgs = StubTaskArg[] | null;
+export type ArgBindings = TaskArgBinding[] | null;
 export type Kind = "xcom" | "literal";
 export type DataType = "string" | "integer" | "number" | "boolean" | "object" | "array" | "any";
 export type TaskId1 = string | null;
@@ -1018,7 +1018,7 @@ export interface TIRunContext {
   xcom_keys_to_clear?: XcomKeysToClear;
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
-  stub_args?: StubArgs;
+  arg_bindings?: ArgBindings;
 }
 /**
  * Variable schema for responses with fields that are needed for Runtime.
@@ -1053,9 +1053,9 @@ export interface ConnectionResponse {
  * generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "StubTaskArg".
+ * via the `definition` "TaskArgBinding".
  */
-export interface StubTaskArg {
+export interface TaskArgBinding {
   kind: Kind;
   data_type?: DataType;
   task_id?: TaskId1;

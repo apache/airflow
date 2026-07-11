@@ -22,9 +22,9 @@ from cadwyn import VersionChange, schema
 from airflow.sdk.api.datamodels._generated import TIRunContext
 
 
-class AddStubArgsToTIRunContext(VersionChange):
-    """Add the ``stub_args`` positional-argument binding spec for stub (foreign-runtime) tasks."""
+class AddArgBindingsToTIRunContext(VersionChange):
+    """Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks."""
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("stub_args").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)

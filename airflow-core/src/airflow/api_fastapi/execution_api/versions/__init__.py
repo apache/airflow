@@ -41,12 +41,12 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     RemoveUpstreamMapIndexesField,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
+    AddArgBindingsToTIRunContext,
     AddAssetsByAliasEndpoint,
     AddAwaitingInputStatePayload,
     AddConnectionTestEndpoint,
     AddPartitionDateField,
     AddRetryPolicyFields,
-    AddStubArgsToTIRunContext,
     AddTaskAndAssetStateStoreEndpoints,
     AddTaskInstanceQueueField,
     AddTeamNameField,
@@ -66,7 +66,7 @@ bundle = VersionBundle(
         AddTaskAndAssetStateStoreEndpoints,
         AddAssetsByAliasEndpoint,
         AddPartitionDateField,
-        AddStubArgsToTIRunContext,
+        AddArgBindingsToTIRunContext,
     ),
     Version(
         "2026-04-06",

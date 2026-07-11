@@ -92,7 +92,7 @@ def fn_context_key(ti): ...
 
 
 class TestStubTaskflowArgs:
-    """The TaskFlow call on a stub captures the ordered positional-arg spec (``_stub_args``)."""
+    """The TaskFlow call on a stub captures the ordered positional-arg spec (``_arg_bindings``)."""
 
     def test_literal_and_xcom_spec(self):
         from airflow.sdk import DAG
@@ -102,7 +102,7 @@ class TestStubTaskflowArgs:
             result = stub(fn_transform)("uk", extracted)
 
         op = result.operator
-        assert op._stub_args == [
+        assert op._arg_bindings == [
             {"kind": "literal", "data_type": "string", "value": "uk"},
             {"kind": "xcom", "data_type": "object", "task_id": "fn_extract", "key": "return_value"},
             {"kind": "literal", "data_type": "integer", "value": 3},
@@ -116,14 +116,14 @@ class TestStubTaskflowArgs:
             extracted = stub(fn_extract)()
             result = stub(fn_transform)(extracted=extracted["part"], country="fr", retries_num=7)
 
-        assert result.operator._stub_args == [
+        assert result.operator._arg_bindings == [
             {"kind": "literal", "data_type": "string", "value": "fr"},
             {"kind": "xcom", "data_type": "object", "task_id": "fn_extract", "key": "part"},
             {"kind": "literal", "data_type": "integer", "value": 7},
         ]
 
     def test_zero_param_stub_has_no_spec(self):
-        assert stub(fn_pass)().operator._stub_args is None
+        assert stub(fn_pass)().operator._arg_bindings is None
 
     def test_untyped_params_degrade_to_any(self):
         from airflow.sdk import DAG
@@ -131,7 +131,7 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d"):
             result = stub(fn_untyped)(1, "x")
 
-        assert result.operator._stub_args == [
+        assert result.operator._arg_bindings == [
             {"kind": "literal", "data_type": "any", "value": 1},
             {"kind": "literal", "data_type": "any", "value": "x"},
         ]
@@ -145,7 +145,7 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d"):
             result = stub(fn)("v")
 
-        assert result.operator._stub_args == [{"kind": "literal", "data_type": "any", "value": "v"}]
+        assert result.operator._arg_bindings == [{"kind": "literal", "data_type": "any", "value": "v"}]
 
     def test_varargs_rejected(self):
         with pytest.raises(ValueError, match="fixed number of parameters"):

@@ -143,14 +143,14 @@ class AddPartitionDateField(VersionChange):
             response.body["dag_run"].pop("partition_date", None)
 
 
-class AddStubArgsToTIRunContext(VersionChange):
-    """Add the ``stub_args`` positional-argument binding spec for stub (foreign-runtime) tasks."""
+class AddArgBindingsToTIRunContext(VersionChange):
+    """Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks."""
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("stub_args").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_stub_args_field(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Strip ``stub_args`` from the run context for older clients."""
-        response.body.pop("stub_args", None)
+    def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``arg_bindings`` from the run context for older clients."""
+        response.body.pop("arg_bindings", None)

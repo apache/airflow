@@ -258,17 +258,6 @@ func (m *RetryTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	return nil
 }
 
-// DecodeMsgpack applies StubTaskArg's schema defaults that msgpack would otherwise skip.
-func (m *StubTaskArg) DecodeMsgpack(dec *msgpack.Decoder) error {
-	type alias StubTaskArg
-	v := alias{DataType: StubTaskArgDataType("any"), Key: "return_value"}
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*m = StubTaskArg(v)
-	return nil
-}
-
 // DecodeMsgpack applies SucceedTask's schema defaults that msgpack would otherwise skip.
 func (m *SucceedTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias SucceedTask
@@ -290,6 +279,17 @@ func (m *SucceedTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 		v.State = "success"
 	}
 	*m = SucceedTask(v)
+	return nil
+}
+
+// DecodeMsgpack applies TaskArgBinding's schema defaults that msgpack would otherwise skip.
+func (m *TaskArgBinding) DecodeMsgpack(dec *msgpack.Decoder) error {
+	type alias TaskArgBinding
+	v := alias{DataType: TaskArgBindingDataType("any"), Key: "return_value"}
+	if err := dec.Decode(&v); err != nil {
+		return err
+	}
+	*m = TaskArgBinding(v)
 	return nil
 }
 
