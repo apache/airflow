@@ -22,19 +22,21 @@ existing ``/assets/by-name`` and ``/assets/by-uri`` pattern.  Callers pass
 whichever identifier their inlet type carries: ``Asset``/``AssetNameRef`` use
 the name routes, ``AssetUriRef`` uses the URI routes.
 
-Per-task asset registration checks are intentionally not implemented here
-(deferred to AIP-93 — see TODO comment below).
+Task tokens must be registered with an asset as an inlet or outlet before
+accessing that asset's state store. Watcher tokens are not backed by task
+instances and are allowed through this route separately.
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Query, status
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import exists, or_, select
 
 from airflow._shared.state import AssetScope, AssetStateStoreWriterKind
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -44,13 +46,19 @@ from airflow.api_fastapi.execution_api.datamodels.asset_state_store import (
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetModel, TaskInletAssetReference, TaskOutletAssetReference
 from airflow.models.taskinstance import TaskInstance
 from airflow.state import get_state_backend
 from airflow.state.metastore import MetastoreBackend
 
 _TIWriterFields = tuple[str, str, str, int]
 NULL_UUID = UUID(int=0)
+
+
+@dataclass(frozen=True)
+class _AssetStateStoreAccess:
+    asset_id: int
+    ti_fields: _TIWriterFields | None
 
 
 def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
@@ -71,12 +79,6 @@ def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFie
     return row.dag_id, row.run_id, row.task_id, row.map_index
 
 
-# TODO(AIP-103): enforce that the requesting task is registered with the asset
-# (via task_inlet_asset_reference or task_outlet_asset_reference) before
-# allowing reads/writes. Currently any task with a valid execution token can
-# access any asset's state store — the same gap exists in /assets and /asset-events.
-# Proper fix is a unified asset-registration check across all asset routes,
-# not just here.
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
     responses={
@@ -106,15 +108,69 @@ def _resolve_asset_id_by_uri(uri: str, session: SessionDep) -> int:
     return asset_id
 
 
+def _authorize_asset_state_store_access(
+    token: TIToken, asset_id: int, session: SessionDep
+) -> _TIWriterFields | None:
+    if token.id == NULL_UUID:
+        return None
+
+    ti_fields = _fetch_ti_writer_fields(token, session)
+    dag_id, _, task_id, _ = ti_fields
+    is_registered = session.scalar(
+        select(
+            or_(
+                exists().where(
+                    TaskInletAssetReference.asset_id == asset_id,
+                    TaskInletAssetReference.dag_id == dag_id,
+                    TaskInletAssetReference.task_id == task_id,
+                ),
+                exists().where(
+                    TaskOutletAssetReference.asset_id == asset_id,
+                    TaskOutletAssetReference.dag_id == dag_id,
+                    TaskOutletAssetReference.task_id == task_id,
+                ),
+            )
+        )
+    )
+    if not is_registered:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "forbidden",
+                "message": "Task is not registered with this asset as an inlet or outlet",
+            },
+        )
+    return ti_fields
+
+
+def _has_asset_state_store_access_by_name(
+    name: Annotated[str, Query(min_length=1)],
+    session: SessionDep,
+    token: TIToken = CurrentTIToken,
+) -> _AssetStateStoreAccess:
+    asset_id = _resolve_asset_id_by_name(name, session)
+    ti_fields = _authorize_asset_state_store_access(token, asset_id, session)
+    return _AssetStateStoreAccess(asset_id=asset_id, ti_fields=ti_fields)
+
+
+def _has_asset_state_store_access_by_uri(
+    uri: Annotated[str, Query(min_length=1)],
+    session: SessionDep,
+    token: TIToken = CurrentTIToken,
+) -> _AssetStateStoreAccess:
+    asset_id = _resolve_asset_id_by_uri(uri, session)
+    ti_fields = _authorize_asset_state_store_access(token, asset_id, session)
+    return _AssetStateStoreAccess(asset_id=asset_id, ti_fields=ti_fields)
+
+
 @router.get("/by-name/value")
 def get_asset_state_store_by_name(
-    name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_name)],
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
+    value = get_state_backend().get(AssetScope(asset_id=access.asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -129,6 +185,7 @@ def _put_asset_state_store(
     body: AssetStateStorePutBody,
     token: TIToken,
     session: SessionDep,
+    ti_fields: _TIWriterFields | None,
 ) -> None:
     backend = get_state_backend()
     if isinstance(backend, MetastoreBackend):
@@ -142,7 +199,8 @@ def _put_asset_state_store(
                 session=session,
             )
         else:
-            ti_fields = _fetch_ti_writer_fields(token, session)
+            if ti_fields is None:
+                ti_fields = _fetch_ti_writer_fields(token, session)
             dag_id, run_id, task_id, map_index = ti_fields
 
             backend.set_asset_state_store(
@@ -162,48 +220,43 @@ def _put_asset_state_store(
 
 @router.put("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
 def set_asset_state_store_by_name(
-    name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     body: AssetStateStorePutBody,
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_name)],
     token: TIToken = CurrentTIToken,
 ) -> None:
     """Set an asset state store value by asset name."""
-    _put_asset_state_store(
-        AssetScope(asset_id=_resolve_asset_id_by_name(name, session)), key, body, token, session
-    )
+    _put_asset_state_store(AssetScope(asset_id=access.asset_id), key, body, token, session, access.ti_fields)
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
 def delete_asset_state_store_by_name(
-    name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_name)],
 ) -> None:
     """Delete a single asset state store key by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    get_state_backend().delete(AssetScope(asset_id=access.asset_id), key, session=session)
 
 
 @router.delete("/by-name/clear", status_code=status.HTTP_204_NO_CONTENT)
 def clear_asset_state_store_by_name(
-    name: Annotated[str, Query(min_length=1)],
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_name)],
 ) -> None:
     """Delete all state store keys for an asset by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    get_state_backend().clear(AssetScope(asset_id=access.asset_id), session=session)
 
 
 @router.get("/by-uri/value")
 def get_asset_state_store_by_uri(
-    uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_uri)],
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
+    value = get_state_backend().get(AssetScope(asset_id=access.asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -214,34 +267,30 @@ def get_asset_state_store_by_uri(
 
 @router.put("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
 def set_asset_state_store_by_uri(
-    uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     body: AssetStateStorePutBody,
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_uri)],
     token: TIToken = CurrentTIToken,
 ) -> None:
     """Set an asset state store value by asset URI."""
-    _put_asset_state_store(
-        AssetScope(asset_id=_resolve_asset_id_by_uri(uri, session)), key, body, token, session
-    )
+    _put_asset_state_store(AssetScope(asset_id=access.asset_id), key, body, token, session, access.ti_fields)
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
 def delete_asset_state_store_by_uri(
-    uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_uri)],
 ) -> None:
     """Delete a single asset state store key by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    get_state_backend().delete(AssetScope(asset_id=access.asset_id), key, session=session)
 
 
 @router.delete("/by-uri/clear", status_code=status.HTTP_204_NO_CONTENT)
 def clear_asset_state_store_by_uri(
-    uri: Annotated[str, Query(min_length=1)],
     session: SessionDep,
+    access: Annotated[_AssetStateStoreAccess, Depends(_has_asset_state_store_access_by_uri)],
 ) -> None:
     """Delete all state store keys for an asset by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    get_state_backend().clear(AssetScope(asset_id=access.asset_id), session=session)
