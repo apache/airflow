@@ -64,10 +64,6 @@ class RemoteLogIO(Protocol):
         """Read logs from the given remote log path."""
         ...
 
-    def close(self) -> None:
-        """Flush and close the remote log handler."""
-        ...
-
 
 @runtime_checkable
 class RemoteLogStreamIO(RemoteLogIO, Protocol):
