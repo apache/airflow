@@ -41,7 +41,7 @@ TimeSensor
 
 Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified. ``TimeSensor`` can be run in deferrable mode, if a Triggerer is available.
 
-Time will be evaluated against ``data_interval_end`` if present for the Dag run, otherwise ``run_after`` will be used.
+Time is evaluated against the wall-clock date in the Dag's timezone at execution time (poke or trigger time), not against ``data_interval_end`` or ``run_after``. For interval-relative behavior, use :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor`.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
