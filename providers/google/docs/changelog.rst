@@ -44,6 +44,16 @@ Changelog
     because a team name may itself contain ``--`` and the resulting name would be ambiguous.
     See :doc:`/secrets-backends/google-cloud-secret-manager-backend` for the full convention.
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* The Evaluation feature of Vertex AI is now optional. ``RunEvaluationOperator``
+  and ``GenerativeModelHook.run_evaluation`` require
+  ``apache-airflow-providers-google[evaluation]`` extra. Previously
+  ``google-cloud-aiplatform[evaluation]`` was installed unconditionally,
+  pulling ``litellm`` and ``scikit-learn`` for all provider users. To
+  restore old behavior, install with ``pip install apache-airflow-providers-google[evaluation]``.
+
 Features
 ~~~~~~~~
 
@@ -90,9 +100,12 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix the google provider dataform system test (#70136)``
    * ``Format Dataflow wordcount system-test resource with gofmt (#70174)``
+<<<<<<< HEAD
    * ``Preserve Dataform workflow invocation config (#53843) (#69161)``
    * ``Revert Dataform workflow invocation dict normalization (#69161) (#70395)``
    * ``Prepare providers release 2026-07-22 (#70256)``
+=======
+>>>>>>> e44b736b76 (Make Vertex AI evaluation optional to avoid litellm bloat)
 
 22.2.2
 ......
