@@ -139,6 +139,7 @@ ENV/
 !.claude/skills/aip-user-stories
 !.claude/skills/airflow-translations
 !.claude/skills/prepare-providers-documentation
+!.claude/skills/upgrade-fab-provider
 !.claude/skills/magpie-setup
 
 # Kiro
