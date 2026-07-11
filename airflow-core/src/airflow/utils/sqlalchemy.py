@@ -68,15 +68,17 @@ def apply_regex_query_timeout(session: Session) -> Generator[None, None, None]:
     Bound the runtime of a user-supplied regex filter, scoped to the wrapped query.
 
     Reads the ``[api] regexp_query_timeout`` config (in seconds, fractional values allowed) and sets
-    a database-side timeout for the duration of the ``with`` block, then clears it so it does not
-    affect any other statement running later in the same transaction/session:
+    a database-side timeout for the duration of the ``with`` block, then restores the previous value
+    so it does not affect any other statement running later in the same transaction/session:
 
     * PostgreSQL: transaction-local ``statement_timeout`` (via ``set_config(..., is_local=True)``).
     * MySQL: session ``max_execution_time`` (applies to read-only ``SELECT`` statements).
 
-    This is a ReDoS safeguard: a malicious pattern is aborted instead of pinning a database backend.
-    No-op on other backends (e.g. SQLite) and when the configured timeout is ``0`` (which also means
-    regexp filtering is disabled).
+    The previous value is captured and restored (rather than reset to ``0``) so a server- or
+    role-level global timeout is preserved instead of being cleared. This is a ReDoS safeguard: a
+    malicious pattern is aborted instead of pinning a database backend. No-op on other backends
+    (e.g. SQLite) and when the configured timeout is ``0`` (which also means regexp filtering is
+    disabled).
     """
     timeout_seconds = conf.getfloat("api", "regexp_query_timeout")
     if timeout_seconds <= 0:
@@ -86,22 +88,28 @@ def apply_regex_query_timeout(session: Session) -> Generator[None, None, None]:
     timeout_ms = int(timeout_seconds * 1000)
     dialect_name = get_dialect_name(session)
     if dialect_name == "postgresql":
+        previous = session.execute(text("SELECT current_setting('statement_timeout')")).scalar()
         session.execute(
             text("SELECT set_config('statement_timeout', :timeout, true)").bindparams(timeout=str(timeout_ms))
         )
         try:
             yield
         finally:
-            # Reset to the default for the remainder of the transaction so the timeout only bounds
-            # the regexp query and not unrelated statements in the same request.
-            session.execute(text("SELECT set_config('statement_timeout', '0', true)"))
+            # Restore the previous value (e.g. a global statement_timeout) instead of clearing it, so
+            # the bound only applies to the regexp query and not later statements in the transaction.
+            session.execute(
+                text("SELECT set_config('statement_timeout', :timeout, true)").bindparams(
+                    timeout=str(previous) if previous is not None else "0"
+                )
+            )
     elif dialect_name == "mysql":
+        previous = session.execute(text("SELECT @@SESSION.max_execution_time")).scalar()
         session.execute(text(f"SET SESSION max_execution_time = {timeout_ms}"))
         try:
             yield
         finally:
-            # Clear the limit so it only bounds the regexp query, not later statements in the session.
-            session.execute(text("SET SESSION max_execution_time = 0"))
+            # Restore the previous value so a global max_execution_time is preserved.
+            session.execute(text(f"SET SESSION max_execution_time = {int(previous or 0)}"))
     else:
         yield
 

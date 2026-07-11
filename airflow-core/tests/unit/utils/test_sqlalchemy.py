@@ -391,34 +391,42 @@ class TestApplyRegexQueryTimeout:
         session.get_bind.return_value.dialect.name = dialect_name
         return session
 
-    def test_sets_and_resets_statement_timeout_on_postgresql(self):
+    def test_sets_and_restores_statement_timeout_on_postgresql(self):
         session = self._mock_session("postgresql")
+        # Pre-existing (e.g. global) statement_timeout captured before we override it.
+        session.execute.return_value.scalar.return_value = "10s"
         with conf_vars({("api", "regexp_query_timeout"): "5"}):
             with apply_regex_query_timeout(session):
-                # Timeout is set on enter.
-                assert session.execute.call_count == 1
-                set_stmt = session.execute.call_args.args[0]
+                # Capture-then-set on enter.
+                assert session.execute.call_count == 2
+                set_stmt = session.execute.call_args_list[1].args[0]
                 # 5 seconds -> 5000 ms, passed as a bound parameter (no SQL injection).
                 assert set_stmt.compile().params == {"timeout": "5000"}
-        # Reset on exit so the timeout does not leak to other statements in the transaction.
-        assert session.execute.call_count == 2
+        # Restored on exit to the previous value (not reset to 0), so a global timeout is preserved.
+        assert session.execute.call_count == 3
+        restore_stmt = session.execute.call_args_list[2].args[0]
+        assert restore_stmt.compile().params == {"timeout": "10s"}
 
-    def test_sets_and_resets_max_execution_time_on_mysql(self):
+    def test_sets_and_restores_max_execution_time_on_mysql(self):
         session = self._mock_session("mysql")
+        # Pre-existing (e.g. global) max_execution_time captured before we override it.
+        session.execute.return_value.scalar.return_value = 1000
         with conf_vars({("api", "regexp_query_timeout"): "5"}):
             with apply_regex_query_timeout(session):
-                # max_execution_time is set (in ms) on enter.
-                assert session.execute.call_count == 1
+                # Capture-then-set on enter (5 seconds -> 5000 ms).
+                assert session.execute.call_count == 2
                 assert "max_execution_time = 5000" in str(session.execute.call_args.args[0])
-        # Cleared on exit so the limit does not leak to other statements in the session.
-        assert session.execute.call_count == 2
-        assert "max_execution_time = 0" in str(session.execute.call_args.args[0])
+        # Restored on exit to the previous value, so a global limit is preserved.
+        assert session.execute.call_count == 3
+        assert "max_execution_time = 1000" in str(session.execute.call_args.args[0])
 
     def test_fractional_seconds_are_converted_to_milliseconds(self):
         session = self._mock_session("postgresql")
+        session.execute.return_value.scalar.return_value = "0"
         with conf_vars({("api", "regexp_query_timeout"): "0.5"}):
             with apply_regex_query_timeout(session):
-                set_stmt = session.execute.call_args.args[0]
+                # Set is the second call (after capturing the previous value).
+                set_stmt = session.execute.call_args_list[1].args[0]
                 # 0.5 seconds -> 500 ms.
                 assert set_stmt.compile().params == {"timeout": "500"}
 
