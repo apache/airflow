@@ -68,7 +68,6 @@ _TOP_LEVEL_ALLOWED_FOLDERS = [
     "chart/tests",
     "airflow-e2e-tests",
     "task-sdk-integration-tests",
-    "providers-e2e-tests/openlineage",
     "docker-tests",
     "kubernetes-tests",
 ]
@@ -128,9 +127,6 @@ exclude_regexps = [
         r"^.*/node_modules/.*",
         r"^.*\\..*",
         r"^.*/src/airflow/__init__.py$",
-        # Generated-at-runtime artifacts of the provider e2e tests (gitignored; not source to check).
-        r"^.*/providers-e2e-tests/[^/]+/dags/.*",
-        r"^.*/providers-e2e-tests/[^/]+/provider_dist/.*",
     ]
 ]
 
