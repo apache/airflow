@@ -419,6 +419,32 @@ class TestDeleteAgentEngineOperator:
         assert result == operation
 
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
+    def test_execute_raises_when_completed_delete_operation_has_error(self, mock_hook, context):
+        operation = {
+            "name": "operations/delete-123",
+            "done": True,
+            "error": {"message": "Permission denied"},
+        }
+        mock_hook.return_value.delete_agent_engine.return_value = FakeModel(operation)
+        op = DeleteAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            agent_engine_id=AGENT_ENGINE_ID,
+            wait_for_completion=True,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match=r"Agent Engine operation operations/delete-123 failed: \{'message': 'Permission denied'\}",
+        ):
+            op.execute(context=context)
+
+        mock_hook.return_value.wait_for_agent_engine_operation.assert_not_called()
+
+    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
     def test_execute_raises_when_delete_operation_has_no_name(self, mock_hook, context):
         mock_hook.return_value.delete_agent_engine.return_value = FakeModel({"done": False})
         op = DeleteAgentEngineOperator(

@@ -427,6 +427,8 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         operation_id = extract_operation_id(operation_name)
 
         if getattr(operation, "done", False):
+            if operation_error := getattr(operation, "error", None):
+                raise RuntimeError(f"Agent Engine operation {operation_name} failed: {operation_error}")
             self.log.info("Agent Engine %s was deleted.", self.agent_engine_id)
             return result
 
