@@ -72,8 +72,7 @@ be written as `custom_sql`.
 - `equal_to` -- exact match. Cannot be combined with any other key below.
 - `greater_than` / `geq_to` -- lower bound, exclusive / inclusive.
 - `less_than` / `leq_to` -- upper bound, exclusive / inclusive.
-- `tolerance` -- a fraction (e.g. `0.1` for 10%) that widens `equal_to` into a range. Only valid
-  together with `equal_to`.
+- `tolerance` -- a fraction (e.g. `0.1` for 10%) that widens the comparison bounds.
 
 Combine `greater_than`/`less_than`/`geq_to`/`leq_to` freely to express a range, e.g.
 `{"geq_to": 0, "leq_to": 100}`. Never combine `equal_to` with another comparison key (other than

@@ -45,7 +45,7 @@ class Condition(BaseModel):
 
     Uses the same grammar as the ``common.sql`` check operators: ``equal_to``,
     ``greater_than``, ``less_than``, ``geq_to``, ``leq_to``, plus a percentage
-    ``tolerance`` that widens ``equal_to`` into a range.
+    ``tolerance`` that widens comparisons.
 
     """
 
@@ -72,8 +72,6 @@ class Condition(BaseModel):
             raise ValueError(f"Condition needs at least one comparison out of: {', '.join(comparisons)}")
         if self.equal_to is not None and len(set_comparisons) > 1:
             raise ValueError("equal_to cannot be combined with other comparisons")
-        if self.tolerance is not None and self.equal_to is None:
-            raise ValueError("tolerance is only supported together with equal_to")
         return self
 
     @classmethod
@@ -97,15 +95,27 @@ class Condition(BaseModel):
         value = float(observed)
         if self.equal_to is not None:
             if self.tolerance is not None:
-                low = self.equal_to * (1 - self.tolerance)
-                high = self.equal_to * (1 + self.tolerance)
-                return min(low, high) <= value <= max(low, high)
+                delta = abs(self.equal_to) * self.tolerance
+                return self.equal_to - delta <= value <= self.equal_to + delta
             return value == self.equal_to
+        geq_to = self.geq_to
+        greater_than = self.greater_than
+        leq_to = self.leq_to
+        less_than = self.less_than
+        if self.tolerance is not None:
+            if geq_to is not None:
+                geq_to -= abs(geq_to) * self.tolerance
+            if greater_than is not None:
+                greater_than -= abs(greater_than) * self.tolerance
+            if leq_to is not None:
+                leq_to += abs(leq_to) * self.tolerance
+            if less_than is not None:
+                less_than += abs(less_than) * self.tolerance
         return (
-            (self.greater_than is None or value > self.greater_than)
-            and (self.less_than is None or value < self.less_than)
-            and (self.geq_to is None or value >= self.geq_to)
-            and (self.leq_to is None or value <= self.leq_to)
+            (greater_than is None or value > greater_than)
+            and (less_than is None or value < less_than)
+            and (geq_to is None or value >= geq_to)
+            and (leq_to is None or value <= leq_to)
         )
 
 
