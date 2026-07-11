@@ -32,8 +32,9 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, false, func, insert, select, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -300,7 +301,9 @@ def _serialize_dag_capturing_errors(
             _sync_dag_perms(dag, session=session)
 
         return []
-    except OperationalError:
+    except (DBAPIError, StaleDataError):
+        # Retryable DB errors (the run_with_db_retries policy) must reach the retry loop in
+        # update_dag_parsing_results_in_db, not be recorded as import errors of this dag.
         raise
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
@@ -516,8 +519,8 @@ def update_dag_parsing_results_in_db(
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
     """
-    # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
-    # of any Operational Errors
+    # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' on the
+    # retryable DB errors from the run_with_db_retries policy (DBAPIError, StaleDataError)
     # In case of failures, provide_session handles rollback
     try:
         duplicate_warnings = _build_duplicate_dag_id_warnings(dags, bundle_name, session)
@@ -558,7 +561,10 @@ def update_dag_parsing_results_in_db(
                             _prefetched=prefetched_metadata.get(dag.dag_id),
                         )
                     )
-            except OperationalError:
+            except (DBAPIError, StaleDataError):
+                # Roll back before run_with_db_retries retries: retrying on a session poisoned by
+                # e.g. an IntegrityError otherwise fails with PendingRollbackError, which is not
+                # retryable and masks the original error.
                 session.rollback()
                 raise
             # Only now we are "complete" do we update import_errors - don't want to record errors from

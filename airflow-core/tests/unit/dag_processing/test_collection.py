@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import delete, func, inspect as sa_inspect, select
-from sqlalchemy.exc import OperationalError, SAWarning
+from sqlalchemy.exc import IntegrityError, OperationalError, SAWarning
 
 import airflow.dag_processing.collection
 from airflow._shared.timezones import timezone as tz
@@ -38,6 +38,7 @@ from airflow.dag_processing.collection import (
     DagModelOperation,
     _get_latest_runs_stmt,
     _get_latest_runs_stmt_partitioned,
+    _serialize_dag_capturing_errors,
     _update_dag_tags,
     update_dag_parsing_results_in_db,
 )
@@ -693,6 +694,46 @@ class TestUpdateDagParsingResults:
         spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
 
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
+
+    @patch.object(SerializedDagModel, "write_dag")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
+    def test_sync_to_db_rolls_back_before_retry_on_integrity_error(
+        self, mock_bulk_write_to_db, mock_s10n_write_dag, testing_dag_bundle, session
+    ):
+        """A retryable IntegrityError (e.g. concurrent dag_tag insert) must roll back the session first.
+
+        Retrying on the poisoned session otherwise raises PendingRollbackError, which is not
+        retryable and masks the original error.
+        """
+        integrity_error = IntegrityError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
+        mock_bulk_write_to_db.side_effect = [integrity_error, mock.ANY]
+
+        mock_session = mock.MagicMock()
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            dags=[mock.MagicMock()],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=mock_session,
+        )
+
+        assert mock_bulk_write_to_db.call_count == 2
+        mock_session.rollback.assert_called_once_with()
+
+    @patch.object(SerializedDagModel, "write_dag")
+    def test_serialize_dag_capturing_errors_reraises_retryable_db_errors(self, mock_s10n_write_dag, session):
+        """Retryable DB errors must reach the retry loop, not be recorded as dag import errors."""
+        mock_s10n_write_dag.side_effect = IntegrityError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
+
+        with pytest.raises(IntegrityError):
+            _serialize_dag_capturing_errors(
+                dag=mock.MagicMock(),
+                bundle_name="testing",
+                bundle_version=None,
+                session=session,
+            )
 
     @patch.object(SerializedDagModel, "write_dag")
     @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
