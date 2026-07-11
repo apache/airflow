@@ -194,7 +194,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
                         conn_id=self.conn_id,
                         batch_id=self.batch_id,
                         poll_interval=60,
-                        end_time=time.time() + self.timeout,
+                        end_time=time.monotonic() + self.timeout,
                     ),
                     method_name="execute_complete",
                 )
