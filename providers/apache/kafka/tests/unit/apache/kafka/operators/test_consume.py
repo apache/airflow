@@ -84,6 +84,33 @@ def create_mock_kafka_consumer(
     return mock_consumer, mock_get_consumer, total_consumed_count  # type: ignore[return-value]
 
 
+def create_mock_kafka_consumer_from_messages(
+    messages: list[Any],
+) -> tuple[mock.MagicMock, mock.MagicMock]:
+    mocked_messages = messages.copy()
+
+    def mock_consume(num_messages=0, timeout=-1):
+        nonlocal mocked_messages
+        if num_messages < 0:
+            raise Exception("Number of messages needs to be positive")
+
+        msg_count = min(num_messages, len(mocked_messages))
+        returned_messages = mocked_messages[:msg_count]
+        mocked_messages = mocked_messages[msg_count:]
+
+        return returned_messages
+
+    mock_consumer = mock.MagicMock()
+    mock_consumer.consume = mock_consume
+
+    mock_get_consumer = mock.patch(
+        "airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer",
+        return_value=mock_consumer,
+    )
+
+    return mock_consumer, mock_get_consumer
+
+
 class TestConsumeFromTopic:
     """
     Test ConsumeFromTopic
@@ -278,4 +305,62 @@ class TestConsumeFromTopic:
             assert mock_consumer.commit.call_count == expected_commit_calls
 
             # Verify consumer was closed
+            mock_consumer.close.assert_called_once()
+
+    def test_apply_function_results_return_none_by_default(self):
+        mock_consumer, mock_get_consumer = create_mock_kafka_consumer_from_messages(["one", "two"])
+
+        with mock_get_consumer:
+            operator = ConsumeFromTopicOperator(
+                kafka_config_id="kafka_d",
+                topics=["test"],
+                task_id="test",
+                poll_timeout=0.0001,
+                max_messages=2,
+                max_batch_size=2,
+                apply_function=lambda message: f"processed-{message}",
+            )
+
+            assert operator.execute(context={}) is None
+            mock_consumer.close.assert_called_once()
+
+    def test_return_apply_function_results_filters_none_and_preserves_order(self):
+        mock_consumer, mock_get_consumer = create_mock_kafka_consumer_from_messages(
+            ["first", "skip", "second"]
+        )
+
+        def apply_function(message):
+            return None if message == "skip" else f"processed-{message}"
+
+        with mock_get_consumer:
+            operator = ConsumeFromTopicOperator(
+                kafka_config_id="kafka_d",
+                topics=["test"],
+                task_id="test",
+                poll_timeout=0.0001,
+                max_messages=3,
+                max_batch_size=2,
+                apply_function=apply_function,
+                return_apply_function_results=True,
+            )
+
+            assert operator.execute(context={}) == ["processed-first", "processed-second"]
+            mock_consumer.close.assert_called_once()
+
+    def test_return_apply_function_results_does_not_change_batch_return_behavior(self):
+        mock_consumer, mock_get_consumer = create_mock_kafka_consumer_from_messages(["one", "two"])
+
+        with mock_get_consumer:
+            operator = ConsumeFromTopicOperator(
+                kafka_config_id="kafka_d",
+                topics=["test"],
+                task_id="test",
+                poll_timeout=0.0001,
+                max_messages=2,
+                max_batch_size=2,
+                apply_function_batch=lambda messages: [f"processed-{message}" for message in messages],
+                return_apply_function_results=True,
+            )
+
+            assert operator.execute(context={}) is None
             mock_consumer.close.assert_called_once()
