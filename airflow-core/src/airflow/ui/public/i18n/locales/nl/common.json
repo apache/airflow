@@ -19,7 +19,7 @@
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
   "assetInactive": {
-    "tooltip": "Upstream asset is gedeactiveerd; de scheduler houdt partitie-evaluatie vast totdat het opnieuw wordt geactiveerd."
+    "tooltip": "Upstream asset is gedeactiveerd; de scheduler houdt partitie-evaluatie vast tot de asset het opnieuw wordt geactiveerd."
   },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
@@ -51,7 +51,7 @@
     "latestDagVersion": "Laatste Dag versie",
     "latestRun": "Laatste Run",
     "maxActiveRuns": "Maximaal aantal actieve Runs",
-    "maxActiveTasks": "Maximaal aantal actieve Tasks",
+    "maxActiveTasks": "Maximaal aantal actieve taken",
     "maxConsecutiveFailedDagRuns": "Maximaal aantal opeenvolgend mislukte Dag Runs",
     "nextRun": "Volgende Run",
     "owner": "Eigenaar",
@@ -183,7 +183,7 @@
     "label": "Notitie",
     "placeholder": "Voeg een notitie toe...",
     "preview": "Voorbeeld",
-    "taskInstance": "Task Instance notitie",
+    "taskInstance": "Taakinstantie notitie",
     "write": "Schrijf"
   },
   "overallStatus": "Algemene status",
@@ -212,8 +212,8 @@
   },
   "search": {
     "advanced": {
-      "description": "Match overal in de waarde (substring zoekopdracht). Langzamer bij grote deployments omdat het de standaard B-tree index niet kan gebruiken. Bekijk de documentatie sectie over aangepaste metadata-indexen voor details.",
-      "title": "Match overal"
+      "description": "Zoek overal in de waarde (substring zoekopdracht). Langzamer bij grote deployments omdat het de standaard B-tree index niet kan gebruiken. Bekijk de documentatie sectie over aangepaste metadata-indexen voor details.",
+      "title": "Zoek overal"
     }
   },
   "security": {
@@ -275,23 +275,23 @@
   },
   "task": {
     "dependsOnPast": "Afhankelijk van vorige",
-    "documentation": "Task documentatie",
-    "lastInstance": "Laatste Task Instance",
+    "documentation": "Taak documentatie",
+    "lastInstance": "Laatste taakinstantie",
     "operator": "Operator",
     "retries": "Pogingen",
     "triggerRule": "Trigger regel",
     "waitForDownstream": "Wacht op downstream"
   },
-  "task_one": "Task",
-  "task_other": "Tasks",
+  "task_one": "Taak",
+  "task_other": "Taken",
   "taskGroup": {
-    "documentation": "Task groep documentatie"
+    "documentation": "Taaakgroep documentatie"
   },
-  "taskGroup_one": "Task groep",
-  "taskGroup_other": "Task groepen",
-  "taskId": "Task ID",
+  "taskGroup_one": "Taakgroep",
+  "taskGroup_other": "Taakgroepen",
+  "taskId": "Taak ID",
   "taskInstance": {
-    "additionalAttributes": "Extra Task Instance attributen",
+    "additionalAttributes": "Extra taakinstantie attributen",
     "dagVersion": "Dag versie",
     "executor": "Executor",
     "executorConfig": "Executor Configuratie",
@@ -318,8 +318,8 @@
     },
     "unixname": "Unix naam"
   },
-  "taskInstance_one": "Task Instance",
-  "taskInstance_other": "Task Instances",
+  "taskInstance_one": "Taakinstantie",
+  "taskInstance_other": "Taakinstanties",
   "timeRange": {
     "last12Hours": "Laatste 12 uur",
     "last24Hours": "Laatste 24 uur",

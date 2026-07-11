@@ -37,7 +37,7 @@
   "code": {
     "bundleUrl": "Bundle URL",
     "noCode": "Geen code gevonden",
-    "parseDuration": "Parse duur:",
+    "parseDuration": "Vewrwerkingsduur:",
     "parsedAt": "Geparsed op:"
   },
   "deadlineAlerts": {
@@ -61,7 +61,7 @@
     "missedCount_one": "{{count}} Gemiste deadline",
     "missedCount_other": "{{count}} Gemiste deadlines",
     "mixedCount": "{{missedCount}} gemist, {{upcomingCount}} opkomend",
-    "stillRunning": "Nog steeds bezig",
+    "stillRunning": "Nog bezig",
     "upcoming": "Opkomend",
     "upcomingCount_one": "{{count}} opkomende deadline",
     "upcomingCount_other": "{{count}} opkomende deadlines"
@@ -104,7 +104,7 @@
   },
   "navigation": {
     "navigation": "Navigatie: {{arrow}}",
-    "openGraphFilters": "Task filters: Ctrl+Shift+F",
+    "openGraphFilters": "Taakfilters: Ctrl+Shift+F",
     "toggleGroup": "Groep in-/uitklappen: Spatie"
   },
   "notFound": {
@@ -117,10 +117,10 @@
     "buttons": {
       "failedRun_one": "Mislukte Run",
       "failedRun_other": "Mislukte Runs",
-      "failedTask_one": "Mislukte Task",
-      "failedTask_other": "Mislukte Tasks",
-      "failedTaskInstance_one": "Mislukte Task Instance",
-      "failedTaskInstance_other": "Mislukte Task Instances"
+      "failedTask_one": "Mislukte taak",
+      "failedTask_other": "Mislukte taken",
+      "failedTaskInstance_one": "Mislukte taakinstantie",
+      "failedTaskInstance_other": "Mislukte taakinstanties"
     },
     "charts": {
       "assetEvent_one": "Aangemaakte Asset Event",
@@ -133,7 +133,7 @@
     "failedLogs": {
       "hideLogs": "Verberg logs",
       "showLogs": "Toon logs",
-      "title": "Recente mislukte Task logs",
+      "title": "Recente mislukte taaklogs",
       "viewFullLogs": "Bekijk volledige logs"
     }
   },
@@ -152,7 +152,7 @@
       "options": {
         "allDagDependencies": "Alle Dag afhankelijkheden",
         "externalConditions": "Externe omstandigheden",
-        "onlyTasks": "Alleen Rasks"
+        "onlyTasks": "Alleen taken"
       },
       "placeholder": "Afhankelijkheden"
     },
@@ -220,21 +220,21 @@
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
-    "mappedTaskInstances_one": "Task Instance [{{count}}]",
-    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "mappedTaskInstances_one": "Taakinstantie [{{count}}]",
+    "mappedTaskInstances_other": "Taakinstanties [{{count}}]",
     "overview": "Overzicht",
     "renderedTemplates": "Gerenderde templates",
     "requiredActions": "Vereiste acties",
     "runs": "Runs",
     "storage": "Opslag",
-    "taskInstances": "Task Instances",
+    "taskInstances": "Taakinstanties",
     "taskStateStore": "Task State Store",
-    "tasks": "Tasks",
+    "tasks": "Taken",
     "xcom": "XCom"
   },
   "taskGroups": {
-    "collapseAll": "Alle Task Groups inklappen",
-    "expandAll": "Alle Task Groups uitklappen"
+    "collapseAll": "Alle taakgroepen inklappen",
+    "expandAll": "Alle taakgroepen uitklappen"
   },
   "taskStateStore": {
     "add": "Voeg Task State Store toe",

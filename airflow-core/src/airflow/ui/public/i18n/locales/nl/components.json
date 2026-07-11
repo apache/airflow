@@ -60,11 +60,11 @@
     }
   },
   "durationChart": {
-    "duration": "Duur (seconds)",
+    "duration": "Duur (seconden)",
     "lastDagRun_one": "Laatste Dag Run",
     "lastDagRun_other": "Laatste {{count}} Dag Runs",
-    "lastTaskInstance_one": "Laatste Task Instance",
-    "lastTaskInstance_other": "Laatste {{count}} Task Instances",
+    "lastTaskInstance_one": "Laatste taakinstantie",
+    "lastTaskInstance_other": "Laatste {{count}} taakinstanties",
     "queuedDuration": "Duur in de wachtrij",
     "runAfter": "Run na",
     "runDuration": "Run duur"
@@ -94,10 +94,10 @@
     "downloadImageError": "Mislukt om de afbeelding van de grafiek te downloaden.",
     "downloadImageErrorTitle": "Download mislukt",
     "otherDagRuns": "+Andere Dag Runs",
-    "taskCount_one": "{{count}} Task",
-    "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Group",
-    "zoomToTask": "Zoom naar geselecteerde Task"
+    "taskCount_one": "{{count}} taak",
+    "taskCount_other": "{{count}} taken",
+    "taskGroup": "Taakgroep",
+    "zoomToTask": "Zoom naar geselecteerde taak"
   },
   "limitedList": "+{{count}} meer",
   "limitedList.allItems": "Alle {{count}} items:",
@@ -116,8 +116,8 @@
   "sortedAscending": "oplopend gesorteerd",
   "sortedDescending": "aflopend gesorteerd",
   "sortedUnsorted": "ongesorteerd",
-  "taskTries": "Task pogingen",
-  "taskTryPlaceholder": "Task poging",
+  "taskTries": "Taakpogingen",
+  "taskTryPlaceholder": "Taakpoging",
   "team": {
     "selector": {
       "helperText": "Optioneel. Beperk het gebruik tot een specifiek team.",
