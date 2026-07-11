@@ -33,6 +33,9 @@ labelPRBasedOnFilePath:
   provider:anthropic:
     - providers/anthropic/**
 
+  provider:apache-arrow:
+    - providers/apache/arrow/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
