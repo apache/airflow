@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-11T02:23:08.217260
+# This constraints file was automatically generated on 2026-07-11T05:28:33.933410
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -642,7 +642,7 @@ simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.43.0
 smart_open==8.0.0
-smbprotocol==1.16.1
+smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.6.0
