@@ -3540,6 +3540,23 @@ class TestInProcessClient:
         assert called == 1
 
 
+def _forget_module(monkeypatch, name: str) -> None:
+    """
+    Drop a module from ``sys.modules`` so the code under test re-imports it fresh.
+
+    Besides the ``sys.modules`` entry, pin the attribute on the parent package so monkeypatch
+    restores it at teardown too: the re-import rebinds it to the fresh module object, and a
+    binding left stale would make later tests' ``mock.patch("<name>.<attr>")`` patch the wrong
+    module object on Python < 3.12, where dotted patch targets resolve through getattr on the
+    parent package rather than through ``sys.modules``.
+    """
+    parent_name, _, attr_name = name.rpartition(".")
+    parent = sys.modules.get(parent_name)
+    if parent is not None and hasattr(parent, attr_name):
+        monkeypatch.setattr(parent, attr_name, getattr(parent, attr_name))
+    monkeypatch.delitem(sys.modules, name, raising=False)
+
+
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
@@ -3555,9 +3572,9 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
     pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
 
     # This test is a little bit overly specific to how the logging is currently configured :/
-    monkeypatch.delitem(sys.modules, "airflow.logging_config")
-    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
-    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+    _forget_module(monkeypatch, "airflow.logging_config")
+    _forget_module(monkeypatch, "airflow.config_templates.airflow_local_settings")
+    _forget_module(monkeypatch, "airflow.sdk.log")
 
     def handle_request(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -3736,9 +3753,9 @@ def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
     from airflow.models.connection import Connection as CoreConnection
     from airflow.sdk.definitions.connection import Connection as SDKConnection
 
-    monkeypatch.delitem(sys.modules, "airflow.logging_config")
-    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
-    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+    _forget_module(monkeypatch, "airflow.logging_config")
+    _forget_module(monkeypatch, "airflow.config_templates.airflow_local_settings")
+    _forget_module(monkeypatch, "airflow.sdk.log")
 
     conn_id = "s3_conn_logs"
     conn_uri = "aws:///?region_name=us-east-1"
@@ -3891,9 +3908,9 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     import gc
     import weakref
 
-    monkeypatch.delitem(sys.modules, "airflow.logging_config")
-    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
-    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+    _forget_module(monkeypatch, "airflow.logging_config")
+    _forget_module(monkeypatch, "airflow.config_templates.airflow_local_settings")
+    _forget_module(monkeypatch, "airflow.sdk.log")
 
     from airflow.sdk.execution_time import supervisor
 
