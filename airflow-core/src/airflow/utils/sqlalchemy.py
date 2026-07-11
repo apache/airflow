@@ -177,11 +177,8 @@ def _default_json_contains(element, compiler, **kw):
 
     clauses = []
     for k, v in element.kv_dict.items():
-        # Quote the key in the JSON path so metacharacters (e.g. "." or "[") match the key
-        # literally, as PostgreSQL ``@>`` and MySQL ``JSON_CONTAINS`` do, instead of being
-        # interpreted as path navigation (an unquoted ``$.a.b`` descends into nested objects,
-        # so it both misses a literal ``"a.b"`` key and wrongly matches ``{"a": {"b": ...}}``).
-        # ``json.dumps`` produces exactly the quoting/escaping the JSON path syntax expects.
+        # Quote the key (json.dumps also covers embedded quotes/backslashes) so metacharacters
+        # like "." match literally, as PostgreSQL ``@>`` and MySQL ``JSON_CONTAINS`` do.
         path = f"$.{json.dumps(k, ensure_ascii=False)}"
         clauses.append(func.json_extract(element.column, literal(path)) == literal(v))
     if len(clauses) == 1:
