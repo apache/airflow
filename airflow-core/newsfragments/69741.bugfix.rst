@@ -1,0 +1,1 @@
+Preserve raw connection extra JSON when editing provider-specific connection fields in the UI.
