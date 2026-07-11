@@ -2,7 +2,7 @@
   "$defs": {
     "Condition": {
       "additionalProperties": false,
-      "description": "Pass/fail condition evaluated against a rule's observed value.\n\nUses the same grammar as the ``common.sql`` check operators: ``equal_to``,\n``greater_than``, ``less_than``, ``geq_to``, ``leq_to``, plus a percentage\n``tolerance`` that widens ``equal_to`` into a range.",
+      "description": "Pass/fail condition evaluated against a rule's observed value.\n\nUses the same grammar as the ``common.sql`` check operators: ``equal_to``,\n``greater_than``, ``less_than``, ``geq_to``, ``leq_to``, plus a percentage\n``tolerance`` that widens comparisons.",
       "properties": {
         "equal_to": {
           "anyOf": [

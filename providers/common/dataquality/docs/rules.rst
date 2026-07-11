@@ -136,8 +136,7 @@ value, using the same grammar as the ``common.sql`` check operators:
 - ``equal_to`` -- exact match. Cannot be combined with any other comparison.
 - ``greater_than`` / ``geq_to`` -- lower bound, exclusive/inclusive.
 - ``less_than`` / ``leq_to`` -- upper bound, exclusive/inclusive.
-- ``tolerance`` -- a percentage that widens ``equal_to`` into a range; only valid together
-  with ``equal_to``.
+- ``tolerance`` -- a percentage that widens the comparison bounds.
 
 ``greater_than``/``less_than``/``geq_to``/``leq_to`` may be combined to express a range
 (e.g. ``{"geq_to": 0, "leq_to": 10}``).
