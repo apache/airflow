@@ -217,16 +217,16 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         start_date: datetime,
         end_date: datetime,
     ) -> bool:
+        found_runs_in_window = False
         for dag_run in dag_runs:
-            if (
-                start_date.timestamp()
-                < parser.parse(
-                    dag_run["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
-                ).timestamp()
-                < end_date.timestamp()
-            ) and dag_run["state"] not in self.allowed_states:
-                return False
-        return True
+            execution_date = parser.parse(
+                dag_run["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
+            )
+            if start_date.timestamp() < execution_date.timestamp() < end_date.timestamp():
+                found_runs_in_window = True
+                if dag_run["state"] not in self.allowed_states:
+                    return False
+        return found_runs_in_window
 
     def _get_composer_airflow_version(self) -> int:
         """Return Composer Airflow version."""
@@ -562,16 +562,16 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         end_date: datetime,
         states: Iterable[str],
     ) -> bool:
+        found_task_instances_in_window = False
         for task_instance in task_instances:
-            if (
-                start_date.timestamp()
-                < parser.parse(
-                    task_instance["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
-                ).timestamp()
-                < end_date.timestamp()
-            ) and task_instance["state"] not in states:
-                return False
-        return True
+            execution_date = parser.parse(
+                task_instance["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
+            )
+            if start_date.timestamp() < execution_date.timestamp() < end_date.timestamp():
+                found_task_instances_in_window = True
+                if task_instance["state"] not in states:
+                    return False
+        return found_task_instances_in_window
 
     def _get_composer_airflow_version(self) -> int:
         """Return Composer Airflow version."""
