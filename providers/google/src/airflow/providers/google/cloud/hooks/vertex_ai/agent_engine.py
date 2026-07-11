@@ -24,7 +24,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import google.auth.transport.requests
-from aiohttp import ClientSession
 from asgiref.sync import sync_to_async
 from vertexai import Client
 
@@ -358,36 +357,6 @@ class AgentEngineAsyncHook(GoogleBaseAsyncHook):
             impersonation_chain=impersonation_chain,
             **kwargs,
         )
-
-    async def get_agent_engine_operation(
-        self,
-        location: str,
-        operation_id: str,
-        request_timeout: float | None = DEFAULT_AGENT_ENGINE_OPERATION_REQUEST_TIMEOUT,
-        project_id: str = PROVIDE_PROJECT_ID,
-    ) -> dict[str, Any]:
-        """Return a Vertex AI Agent Engine long-running operation."""
-        sync_hook = await self.get_sync_hook()
-        project_id = project_id or sync_hook.project_id
-        operation_name = self.sync_hook_class.build_operation_name(project_id, location, operation_id)
-        url = VERTEX_AI_AGENT_ENGINE_OPERATION_URL.format(
-            location=location,
-            api_version=VERTEX_AI_AGENT_ENGINE_API_VERSION,
-            operation_name=operation_name,
-        )
-        credentials = sync_hook.get_credentials()
-
-        if not credentials.valid:
-            credentials.refresh(google.auth.transport.requests.Request())
-
-        async with ClientSession() as session:
-            async with session.get(
-                url,
-                headers={"Authorization": f"Bearer {credentials.token}"},
-                timeout=request_timeout,
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
 
     async def check_query_agent_engine_job(
         self,
