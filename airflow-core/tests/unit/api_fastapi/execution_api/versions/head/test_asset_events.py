@@ -695,47 +695,26 @@ class TestGetAssetEventByAssetPartitionKey:
         assert "disabled" in response.json()["detail"]
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_events")
-    def test_get_by_asset_exact_partition_key(self, client):
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_keys"),
+        [
+            ("2024-01-01", ["2024-01-01"]),
+            ("us|2024-01-01", ["us|2024-01-01"]),
+            ("nonexistent", []),
+        ],
+    )
+    def test_get_by_asset_exact_partition_key(self, client, partition_key, expected_keys):
         response = client.get(
             "/execution/asset-events/by-asset",
             params={
                 "name": "test_get_asset_by_name",
                 "uri": None,
-                "partition_key": "2024-01-01",
+                "partition_key": partition_key,
             },
         )
         assert response.status_code == 200
-        data = response.json()
-        assert len(data["asset_events"]) == 1
-        assert data["asset_events"][0]["partition_key"] == "2024-01-01"
-
-    @pytest.mark.usefixtures("test_asset", "test_partitioned_events")
-    def test_get_by_asset_exact_partition_key_composite(self, client):
-        response = client.get(
-            "/execution/asset-events/by-asset",
-            params={
-                "name": "test_get_asset_by_name",
-                "uri": None,
-                "partition_key": "us|2024-01-01",
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["asset_events"]) == 1
-        assert data["asset_events"][0]["partition_key"] == "us|2024-01-01"
-
-    @pytest.mark.usefixtures("test_asset", "test_partitioned_events")
-    def test_get_by_asset_exact_partition_key_no_match(self, client):
-        response = client.get(
-            "/execution/asset-events/by-asset",
-            params={
-                "name": "test_get_asset_by_name",
-                "uri": None,
-                "partition_key": "nonexistent",
-            },
-        )
-        assert response.status_code == 200
-        assert len(response.json()["asset_events"]) == 0
+        keys = [event["partition_key"] for event in response.json()["asset_events"]]
+        assert keys == expected_keys
 
     @pytest.mark.usefixtures("test_asset", "test_partitioned_events")
     def test_get_by_asset_partition_key_and_pattern_combined(self, client):

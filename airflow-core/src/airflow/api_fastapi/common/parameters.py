@@ -530,7 +530,7 @@ class _RegexParam(BaseParam[str]):
     def __init__(self, attribute: ColumnElement, value: str | None = None, skip_none: bool = True) -> None:
         super().__init__(value=value, skip_none=skip_none)
         self.attribute: ColumnElement = attribute
-        if value is not None and conf.getint("api", "regexp_query_timeout") <= 0:
+        if value is not None and conf.getfloat("api", "regexp_query_timeout") <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Regexp query filters are disabled. "

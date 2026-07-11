@@ -257,7 +257,7 @@ The accessor also supports chaining methods to filter events before fetching the
         for event in us_events:
             print(event.extra, event.partition_key)
 
-For an exact partition key match, use ``.partition_key(value)`` instead. Regexp filtering is opt-in: it is enabled only by setting ``[api] regexp_query_timeout`` to a positive number of seconds, which also bounds the query runtime; see the config for the security trade-off.
+For an exact partition key match, use ``.partition_key(value)`` instead. Regexp filtering is opt-in: it is enabled only by setting :ref:`[api] regexp_query_timeout <config:api__regexp_query_timeout>` to a positive number of seconds, which also bounds the query runtime; see the config for the security trade-off.
 
 You can also filter events by their ``extra`` key-value pairs:
 
@@ -1010,11 +1010,11 @@ Both parameters can be combined; the conditions are applied with AND logic.
 
     ``partition_key_regexp_pattern`` is evaluated by the database's own regular-expression engine,
     which is a Regular expression Denial of Service (ReDoS) surface. For that reason it is **disabled
-    by default**: it is enabled only by setting ``[api] regexp_query_timeout`` to a positive number
-    of seconds, which simultaneously bounds the query runtime (enforced as a ``statement_timeout`` on
-    PostgreSQL; MySQL bounds regex evaluation with its built-in ``regexp_time_limit``). Prefer the
-    exact-match ``partition_key`` (which uses the B-tree index and is always enabled) whenever a full
-    key is known.
+    by default**: it is enabled only by setting :ref:`[api] regexp_query_timeout <config:api__regexp_query_timeout>`
+    to a positive number of seconds (fractional values allowed), which simultaneously bounds the query
+    runtime (enforced as a ``statement_timeout`` on PostgreSQL and as ``max_execution_time`` on MySQL).
+    Prefer the exact-match ``partition_key`` (which uses the B-tree index and is always enabled)
+    whenever a full key is known.
 
 The same filters are available in the ``InletEventsAccessor``:
 

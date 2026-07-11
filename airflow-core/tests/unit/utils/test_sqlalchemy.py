@@ -403,8 +403,27 @@ class TestApplyRegexQueryTimeout:
         # Reset on exit so the timeout does not leak to other statements in the transaction.
         assert session.execute.call_count == 2
 
-    def test_noop_on_non_postgresql(self):
+    def test_sets_and_resets_max_execution_time_on_mysql(self):
         session = self._mock_session("mysql")
+        with conf_vars({("api", "regexp_query_timeout"): "5"}):
+            with apply_regex_query_timeout(session):
+                # max_execution_time is set (in ms) on enter.
+                assert session.execute.call_count == 1
+                assert "max_execution_time = 5000" in str(session.execute.call_args.args[0])
+        # Cleared on exit so the limit does not leak to other statements in the session.
+        assert session.execute.call_count == 2
+        assert "max_execution_time = 0" in str(session.execute.call_args.args[0])
+
+    def test_fractional_seconds_are_converted_to_milliseconds(self):
+        session = self._mock_session("postgresql")
+        with conf_vars({("api", "regexp_query_timeout"): "0.5"}):
+            with apply_regex_query_timeout(session):
+                set_stmt = session.execute.call_args.args[0]
+                # 0.5 seconds -> 500 ms.
+                assert set_stmt.compile().params == {"timeout": "500"}
+
+    def test_noop_on_sqlite(self):
+        session = self._mock_session("sqlite")
         with conf_vars({("api", "regexp_query_timeout"): "5"}):
             with apply_regex_query_timeout(session):
                 pass

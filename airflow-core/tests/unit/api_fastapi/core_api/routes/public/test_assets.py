@@ -1092,8 +1092,8 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
         with conf_vars({("api", "regexp_query_timeout"): "30"}):
             yield
 
-    @provide_session
-    def _create_partition_key_test_data(self, *, session=None):
+    @pytest.fixture(autouse=True)
+    def _create_partition_key_test_data(self, setup, session):
         _create_assets(session=session)
         events = [
             AssetEvent(
@@ -1168,7 +1168,6 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
     def test_partition_key_regexp_pattern_filtering(
         self, test_client, partition_key_regexp_pattern, expected_count
     ):
-        self._create_partition_key_test_data()
         response = test_client.get(
             "/assets/events", params={"partition_key_regexp_pattern": partition_key_regexp_pattern}
         )
@@ -1185,7 +1184,6 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
         ],
     )
     def test_partition_key_regexp_pattern_combined_filters(self, test_client, params, expected_count):
-        self._create_partition_key_test_data()
         response = test_client.get("/assets/events", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_count
@@ -1204,39 +1202,31 @@ class TestGetAssetEventsPartitionKeyRegex(TestAssets):
         assert "disabled" in response.json()["detail"]
 
     def test_exact_match_works_when_regex_disabled(self, test_client):
-        self._create_partition_key_test_data()
         with conf_vars({("api", "regexp_query_timeout"): "0"}):
             response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
         assert response.status_code == 200
         assert response.json()["total_entries"] == 1
 
     def test_partition_key_exact_match_via_regex(self, test_client):
-        self._create_partition_key_test_data()
         response = test_client.get("/assets/events", params={"partition_key_regexp_pattern": "^2024-01-01$"})
         assert response.status_code == 200
         assert response.json()["total_entries"] == 1
 
-    def test_partition_key_exact_match(self, test_client):
-        self._create_partition_key_test_data()
-        response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_count"),
+        [
+            ("2024-01-01", 1),
+            ("us|2024-01-01", 1),
+            ("nonexistent", 0),
+        ],
+    )
+    def test_partition_key_exact_match(self, test_client, partition_key, expected_count):
+        response = test_client.get("/assets/events", params={"partition_key": partition_key})
         assert response.status_code == 200
-        assert response.json()["total_entries"] == 1
-
-    def test_partition_key_exact_match_composite(self, test_client):
-        self._create_partition_key_test_data()
-        response = test_client.get("/assets/events", params={"partition_key": "us|2024-01-01"})
-        assert response.status_code == 200
-        assert response.json()["total_entries"] == 1
-
-    def test_partition_key_exact_match_no_match(self, test_client):
-        self._create_partition_key_test_data()
-        response = test_client.get("/assets/events", params={"partition_key": "nonexistent"})
-        assert response.status_code == 200
-        assert response.json()["total_entries"] == 0
+        assert response.json()["total_entries"] == expected_count
 
     def test_partition_key_and_pattern_combined(self, test_client):
         # Both filters are allowed and combine with AND: a disjoint pair yields no results.
-        self._create_partition_key_test_data()
         response = test_client.get(
             "/assets/events",
             params={"partition_key": "2024-01-01", "partition_key_regexp_pattern": "^2025-"},
