@@ -234,6 +234,9 @@ def _resolve_log_id_template(
     Falls back to the configured template when the DB is not reachable (e.g. on workers, which
     receive the pinned template through ``TIRunContext`` instead).
     """
+    if not hasattr(ti, "get_dagrun"):
+        # A worker-side RuntimeTI: don't even open a session, the metadata DB is out of reach.
+        return default_template, None
     try:
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)  # type: ignore[union-attr]
