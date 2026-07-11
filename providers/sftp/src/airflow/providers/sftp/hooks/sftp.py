@@ -29,6 +29,7 @@ import stat
 import warnings
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager, suppress
+from enum import Enum
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path, PurePosixPath
@@ -52,7 +53,7 @@ if TYPE_CHECKING:
 CHUNK_SIZE = 64 * 1024  # 64KB
 
 
-class SFTPOperation:
+class SFTPOperation(str, Enum):
     """SFTP operation constants."""
 
     GET = "get"
@@ -605,10 +606,11 @@ class SFTPHook(SSHHook):
             return False
         return True
 
-    @staticmethod
+        @staticmethod
     def _validate_within_directory(base: str, target: str) -> str:
         """
         Validate that target path is within the base directory.
+
         Prevents directory traversal attacks.
 
         :param base: The base/destination directory path
