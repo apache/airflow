@@ -190,7 +190,6 @@ providers/databricks/tests/unit/databricks/hooks/test_databricks_base.py::1
 providers/datadog/src/airflow/providers/datadog/hooks/datadog.py::2
 providers/datadog/src/airflow/providers/datadog/sensors/datadog.py::1
 providers/dbt/cloud/src/airflow/providers/dbt/cloud/hooks/dbt.py::3
-providers/dbt/cloud/src/airflow/providers/dbt/cloud/sensors/dbt.py::1
 providers/dingding/src/airflow/providers/dingding/hooks/dingding.py::2
 providers/discord/src/airflow/providers/discord/operators/discord_webhook.py::1
 providers/docker/src/airflow/providers/docker/decorators/docker.py::1
@@ -415,7 +414,7 @@ providers/trino/src/airflow/providers/trino/hooks/trino.py::1
 providers/vespa/src/airflow/providers/vespa/operators/vespa_ingest.py::1
 providers/ydb/src/airflow/providers/ydb/hooks/ydb.py::1
 providers/ydb/src/airflow/providers/ydb/operators/ydb.py::1
-scripts/ci/prek/check_new_airflow_exception_usage.py::5
+scripts/ci/prek/check_new_airflow_exception_usage.py::4
 task-sdk/src/airflow/sdk/bases/sensor.py::1
 task-sdk/src/airflow/sdk/bases/skipmixin.py::3
 task-sdk/src/airflow/sdk/crypto.py::1
