@@ -35,7 +35,7 @@ func sampleManifest() airflowmetadata.Manifest {
 		SDK: airflowmetadata.SDK{
 			Language:                "go",
 			Version:                 "(devel)",
-			SupervisorSchemaVersion: "2026-06-16",
+			SupervisorSchemaVersion: "2026-06-23",
 		},
 		Dags: map[string]airflowmetadata.Dag{
 			"simple_dag": {Tasks: []string{"extract", "transform", "load"}},

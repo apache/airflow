@@ -39,7 +39,7 @@ func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
 		SDK: airflowmetadata.SDK{
 			Language:                "go",
 			Version:                 "0.1.0",
-			SupervisorSchemaVersion: "2026-06-16",
+			SupervisorSchemaVersion: "2026-06-23",
 		},
 		Dags: map[string]airflowmetadata.Dag{
 			"zeta_dag":  {Tasks: []string{"a", "b"}},
@@ -58,7 +58,7 @@ func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
 sdk:
   language: "go"
   version: "0.1.0"
-  supervisor_schema_version: "2026-06-16"
+  supervisor_schema_version: "2026-06-23"
 source: "main.go"
 dags:
   alpha_dag:
@@ -80,7 +80,7 @@ func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
 		SDK: airflowmetadata.SDK{
 			Language:                "go",
 			Version:                 "0.1.0",
-			SupervisorSchemaVersion: "2026-06-16",
+			SupervisorSchemaVersion: "2026-06-23",
 		},
 		Dags: map[string]airflowmetadata.Dag{
 			"my_dag": {Tasks: []string{"123", "true"}},
@@ -104,7 +104,7 @@ func TestRenderManifest_EmptyDags(t *testing.T) {
 		SDK: airflowmetadata.SDK{
 			Language:                "go",
 			Version:                 "0.1.0",
-			SupervisorSchemaVersion: "2026-06-16",
+			SupervisorSchemaVersion: "2026-06-23",
 		},
 		Dags: map[string]airflowmetadata.Dag{},
 	}
@@ -235,7 +235,7 @@ func TestRunPack_RejectsOutputAliasingMetadataFile(t *testing.T) {
 	meta := filepath.Join(dir, "airflow-metadata.json")
 	original := []byte(
 		`{"airflow_bundle_metadata_version":"1.0",` +
-			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},` +
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-23"},` +
 			`"dags":{"my_dag":{"tasks":["t1"]}}}`,
 	)
 	require.NoError(t, os.WriteFile(meta, original, 0o644))
@@ -346,7 +346,7 @@ func TestRunPack_UsesMetadataFile(t *testing.T) {
 	meta := filepath.Join(dir, "airflow-metadata.json")
 	require.NoError(t, os.WriteFile(meta, []byte(
 		`{"airflow_bundle_metadata_version":"1.0",`+
-			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},`+
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-23"},`+
 			`"dags":{"my_dag":{"tasks":["t1"]}}}`,
 	), 0o644))
 	out := filepath.Join(dir, "bundle")
@@ -391,7 +391,7 @@ func TestRunPack_AcceptsYAMLMetadataFile(t *testing.T) {
 			"sdk:\n"+
 			"  language: \"go\"\n"+
 			"  version: \"0.1.0\"\n"+
-			"  supervisor_schema_version: \"2026-06-16\"\n"+
+			"  supervisor_schema_version: \"2026-06-23\"\n"+
 			"dags:\n"+
 			"  yaml_dag:\n"+
 			"    tasks:\n"+
