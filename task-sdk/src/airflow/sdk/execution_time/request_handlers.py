@@ -30,6 +30,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from airflow.sdk import timezone
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
@@ -386,6 +387,7 @@ def handle_get_asset_event_by_asset(
         before=msg.before,
         ascending=msg.ascending,
         limit=msg.limit,
+        extra=msg.extra,
     )
     asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
     return asset_event_result, {"exclude_unset": True}
@@ -401,6 +403,7 @@ def handle_get_asset_event_by_asset_alias(
         before=msg.before,
         ascending=msg.ascending,
         limit=msg.limit,
+        extra=msg.extra,
     )
     asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
     return asset_event_result, {"exclude_unset": True}
