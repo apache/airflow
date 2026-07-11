@@ -101,6 +101,14 @@ class TestFormatDuration:
         assert durations_module.format_duration(60 + 5) == "1m 05s"
 
 
+class TestFormatDurationDelta:
+    def test_positive(self, durations_module):
+        assert durations_module.format_duration_delta(60 + 5) == "+1m 05s"
+
+    def test_negative(self, durations_module):
+        assert durations_module.format_duration_delta(-(60 + 5)) == "-1m 05s"
+
+
 class TestDetectRegression:
     def test_flags_regression_above_both_thresholds(self, durations_module):
         # baseline median ~1800s (30m), latest 2700s (45m) -> +50%, +15m
@@ -238,6 +246,13 @@ class TestGetRunJobs:
                         "conclusion": "success",
                         "startedAt": "2026-06-10T13:00:00Z",
                         "completedAt": "2026-06-10T13:20:00Z",
+                        "steps": [
+                            {
+                                "name": "Prepare breeze & CI image: 3.10",
+                                "startedAt": "2026-06-10T13:00:00Z",
+                                "completedAt": "2026-06-10T13:05:00Z",
+                            }
+                        ],
                     },
                     {
                         "name": "Skipped job",
@@ -251,7 +266,58 @@ class TestGetRunJobs:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
         with patch.object(subprocess, "run", return_value=completed):
             jobs = durations_module.get_run_jobs("apache/airflow", 2)
-        assert jobs == {"Tests": 20 * 60}
+        assert jobs == {"Tests": {"duration": 20 * 60, "prepare_breeze_duration": 5 * 60}}
+
+    def test_omits_prepare_breeze_duration_when_step_missing(self, durations_module):
+        payload = json.dumps(
+            {
+                "jobs": [
+                    {
+                        "name": "Tests",
+                        "conclusion": "success",
+                        "startedAt": "2026-06-10T13:00:00Z",
+                        "completedAt": "2026-06-10T13:20:00Z",
+                        "steps": [],
+                    }
+                ]
+            }
+        )
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
+        with patch.object(subprocess, "run", return_value=completed):
+            jobs = durations_module.get_run_jobs("apache/airflow", 2)
+        assert jobs == {"Tests": {"duration": 20 * 60, "prepare_breeze_duration": None}}
+
+    def test_keeps_longest_duplicate_job_name(self, durations_module):
+        payload = json.dumps(
+            {
+                "jobs": [
+                    {
+                        "name": "Tests",
+                        "conclusion": "success",
+                        "startedAt": "2026-06-10T13:00:00Z",
+                        "completedAt": "2026-06-10T13:10:00Z",
+                        "steps": [],
+                    },
+                    {
+                        "name": "Tests",
+                        "conclusion": "success",
+                        "startedAt": "2026-06-10T13:00:00Z",
+                        "completedAt": "2026-06-10T13:20:00Z",
+                        "steps": [
+                            {
+                                "name": "Prepare breeze & CI image: 3.10",
+                                "startedAt": "2026-06-10T13:00:00Z",
+                                "completedAt": "2026-06-10T13:05:00Z",
+                            }
+                        ],
+                    },
+                ]
+            }
+        )
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=payload, stderr="")
+        with patch.object(subprocess, "run", return_value=completed):
+            jobs = durations_module.get_run_jobs("apache/airflow", 2)
+        assert jobs == {"Tests": {"duration": 20 * 60, "prepare_breeze_duration": 5 * 60}}
 
     def test_empty_on_command_failure(self, durations_module):
         completed = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="boom")
@@ -266,9 +332,16 @@ class TestAnalyzeJobs:
 
         def fake_jobs(_repo, run_id):
             if run_id == 100:
-                return {"slow-job": 2700, "stable-job": 600, "new-job": 999}
+                return {
+                    "slow-job": {"duration": 2700, "prepare_breeze_duration": 900},
+                    "stable-job": {"duration": 600, "prepare_breeze_duration": None},
+                    "new-job": {"duration": 999, "prepare_breeze_duration": 300},
+                }
             # baseline runs
-            return {"slow-job": 1800, "stable-job": 590}
+            return {
+                "slow-job": {"duration": 1800, "prepare_breeze_duration": 300},
+                "stable-job": {"duration": 590, "prepare_breeze_duration": None},
+            }
 
         with patch.object(durations_module, "get_run_jobs", side_effect=fake_jobs):
             regressions = durations_module.analyze_jobs(
@@ -282,6 +355,7 @@ class TestAnalyzeJobs:
         names = [r["job"] for r in regressions]
         # slow-job regressed; stable-job did not; new-job lacks baseline samples
         assert names == ["slow-job"]
+        assert regressions[0]["prepare_breeze"] == {"latest": 900, "baseline": 300, "increase": 600}
 
 
 class TestFormatSlackMessage:
@@ -308,3 +382,42 @@ class TestFormatSlackMessage:
         text_blob = json.dumps(msg)
         assert "Tests" in text_blob
         assert "main" in msg["text"]
+
+    def test_includes_prepare_breeze_timing_when_available(self, durations_module):
+        msg = durations_module.format_slack_message(
+            repo="apache/airflow",
+            workflow="ci-amd.yml",
+            branch="main",
+            overall_regression=None,
+            job_regressions=[
+                {
+                    "job": "Tests",
+                    "latest": 1500,
+                    "baseline": 1000,
+                    "increase": 500,
+                    "rel_increase": 0.5,
+                    "prepare_breeze": {"latest": 600, "baseline": 300, "increase": 300},
+                }
+            ],
+            recent_runs=[{"run_number": 102, "html_url": "https://example/2", "duration": 2700}],
+            rel_threshold=0.25,
+            channel="internal-airflow-ci-cd",
+        )
+        text_blob = json.dumps(msg)
+        assert "Prepare breeze &amp; CI image: 5m 00s" in text_blob
+        assert "10m 00s" in text_blob
+
+    def test_omits_prepare_breeze_timing_when_unavailable(self, durations_module):
+        msg = durations_module.format_slack_message(
+            repo="apache/airflow",
+            workflow="ci-amd.yml",
+            branch="main",
+            overall_regression=None,
+            job_regressions=[
+                {"job": "Tests", "latest": 1500, "baseline": 1000, "increase": 500, "rel_increase": 0.5}
+            ],
+            recent_runs=[{"run_number": 102, "html_url": "https://example/2", "duration": 2700}],
+            rel_threshold=0.25,
+            channel="internal-airflow-ci-cd",
+        )
+        assert "Prepare breeze" not in json.dumps(msg)
