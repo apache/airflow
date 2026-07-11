@@ -113,6 +113,7 @@ dependencies = [
     "langchain>=1.0.0",
 ]
 "llamaindex" = [
+    "dataclasses-json>=0.6.7",
     "llama-index-core>=0.13.0",
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
