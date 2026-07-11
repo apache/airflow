@@ -24,7 +24,9 @@ AdsInsights
 adsinsights
 afterall
 agentcore
+AgentDetails
 agentic
+AgentVersionDetails
 ai
 aio
 aiobotocore
@@ -449,6 +451,8 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+DeleteAgentResponse
+DeleteAgentVersionResponse
 delim
 deliverability
 deltalake
