@@ -79,6 +79,25 @@ class TestCliTeams:
         assert "Team 'test-team' created successfully" in output
         assert str(team.name) in output
 
+    def test_team_create_creates_default_pool(self, stdout_capture):
+        """Test that creating a team also creates its default pool."""
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("multi_team", "default_team_pool_slots"): "128",
+            }
+        ):
+            with stdout_capture:
+                team_command.team_create(self.parser.parse_args(["teams", "create", "team-a"]))
+
+        pool = self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team-a")))
+
+        assert pool is not None
+        assert pool.team_name == "team-a"
+        assert pool.slots == 128
+        assert pool.include_deferred is False
+        assert pool.description == "Default pool for team 'team-a'"
+
     def test_team_create_empty_name(self):
         """Test team creation with empty name."""
         with pytest.raises(SystemExit, match="Team name cannot be empty"):

@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.connection import Connection
 from airflow.models.pool import Pool
@@ -74,8 +75,24 @@ def team_create(args, *, session=NEW_SESSION):
 
     try:
         session.add(new_team)
+        session.flush()
+
+        if conf.getboolean("core", "multi_team"):
+            Pool.create_or_update_pool(
+                name=Pool.get_default_team_pool_name(team_name),
+                slots=conf.getint(
+                    "core",
+                    "default_pool_task_slot_count",
+                ),
+                description=f"Default pool for team '{team_name}'",
+                include_deferred=False,
+                team_name=team_name,
+                session=session,
+            )
+
         session.commit()
         print(f"Team '{team_name}' created successfully.")
+
     except IntegrityError as e:
         session.rollback()
         raise SystemExit(f"Failed to create team '{team_name}': {e}")
