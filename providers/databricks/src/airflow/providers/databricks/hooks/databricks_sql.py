@@ -186,7 +186,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def _resolve_http_path(self, allow_endpoint_lookup: bool = True) -> str | None:
         """
-        Resolve http_path from explicit arg, connection extra, or endpoint name.
+        Resolve http_path from explicit arg, endpoint name, or connection extra.
 
         :param allow_endpoint_lookup: If True, may call API to resolve sql_endpoint_name.
             Set False for offline-safe paths like sqlalchemy_url.
@@ -194,14 +194,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         """
         if self._http_path:
             return self._http_path
-        if "http_path" in self.databricks_conn.extra_dejson:
-            self._http_path = self.databricks_conn.extra_dejson["http_path"]
-            return self._http_path
         if allow_endpoint_lookup and self._sql_endpoint_name:
             endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
-            self._http_path = endpoint["odbc_params"]["path"]
-            return self._http_path
-        return self._http_path
+            return endpoint["odbc_params"]["path"]
+        return self.databricks_conn.extra_dejson.get("http_path")
 
     def get_conn(self) -> AirflowConnection:
         """Return a Databricks SQL connection object."""
