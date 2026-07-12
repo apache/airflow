@@ -27,7 +27,7 @@ Package apache-airflow-providers-islo
 ------------------------------------------------------
 
 `Islo <https://islo.dev/>`__ provider for Apache Airflow. The ``IsloExecutor`` runs each
-task try in its own ephemeral Islo sandbox and supports OCI images and snapshot-based startup.
+task attempt in its own ephemeral Islo sandbox and supports OCI images and snapshot-based startup.
 
 
 This is detailed commit list of changes for versions provider package: ``islo``.

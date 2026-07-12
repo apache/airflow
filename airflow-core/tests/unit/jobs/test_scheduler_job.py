@@ -4029,6 +4029,40 @@ class TestSchedulerJob:
         job_runner._task_queued_timeout = 300
         job_runner._handle_tasks_stuck_in_queued()
 
+    def test_stuck_queued_task_waits_for_conclusive_revocation(self, dag_maker, session, mock_executors):
+        with dag_maker("test_stuck_queued_task_waits_for_revocation"):
+            task = EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
+        queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        ti.state = State.QUEUED
+        ti.queued_dttm = queued_dttm
+        session.commit()
+        mock_executors[0].revoke_task.return_value = False
+
+        scheduler_job = Job()
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        job_runner._task_queued_timeout = 300
+        with _loader_mock(mock_executors), mock.patch.object(session, "commit") as commit:
+            job_runner._handle_tasks_stuck_in_queued(session=session)
+
+        commit.assert_not_called()
+
+        persisted_ti = session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id))
+        assert persisted_ti.state == State.QUEUED
+        assert persisted_ti.queued_dttm == queued_dttm
+        assert (
+            session.scalars(
+                select(Log).where(
+                    Log.run_id == ti.run_id,
+                    Log.event.in_({"stuck in queued reschedule", "stuck in queued tries exceeded"}),
+                )
+            ).all()
+            == []
+        )
+        mock_executors[0].revoke_task.assert_called_once_with(ti=ti)
+
     def test_executor_end_called(self, mock_executors):
         """
         Test to make sure executor.end gets called with a successful scheduler loop run

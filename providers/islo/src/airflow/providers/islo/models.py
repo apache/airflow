@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, ClassVar
 
@@ -34,15 +34,17 @@ class IsloExecutionState(str, Enum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     GONE = "gone"
-    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)
 class IsloExecutionResult:
-    """Status of one Islo command without captured output."""
+    """Complete observation of one Islo command."""
 
     state: IsloExecutionState
     exit_code: int | None = None
+    stdout: str = ""
+    stderr: str = ""
+    truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -59,7 +61,6 @@ class IsloSandboxConfig:
 
     image: str | None = None
     snapshot_name: str | None = None
-    snapshot_url: str | None = None
     vcpus: int | None = None
     memory_mb: int | None = None
     disk_gb: int | None = None
@@ -67,11 +68,9 @@ class IsloSandboxConfig:
     internet_enabled: bool = True
 
     def __post_init__(self) -> None:
-        sources = (self.image, self.snapshot_name, self.snapshot_url)
+        sources = (self.image, self.snapshot_name)
         if sum(source is not None for source in sources) != 1:
-            raise IsloConfigurationError(
-                "exactly one of image, snapshot_name, or snapshot_url must be configured"
-            )
+            raise IsloConfigurationError("exactly one of image or snapshot_name must be configured")
         if any(not isinstance(source, str) or not source.strip() for source in sources if source is not None):
             raise IsloConfigurationError("image and snapshot sources must be non-empty strings")
         for name in ("vcpus", "memory_mb", "disk_gb"):
@@ -93,7 +92,6 @@ class IsloSandboxConfig:
             "internet_enabled": self.internet_enabled,
             "memory_mb": self.memory_mb,
             "snapshot_name": self.snapshot_name,
-            "snapshot_url": self.snapshot_url,
             "vcpus": self.vcpus,
         }
 
@@ -106,7 +104,6 @@ class IsloSandboxConfig:
             "internet_enabled",
             "memory_mb",
             "snapshot_name",
-            "snapshot_url",
             "vcpus",
         }
         if unknown := sorted(set(value) - allowed):
@@ -122,8 +119,6 @@ class IsloSandboxSpec:
     request_id: str
     config: IsloSandboxConfig
     ttl_seconds: int
-    env: dict[str, str] = field(default_factory=dict)
-    workdir: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
@@ -173,6 +168,9 @@ class IsloSandboxHandle:
 
     @classmethod
     def from_common(cls, handle: SandboxHandle) -> IsloSandboxHandle:
+        expected_keys = {"execution_id", "request_id", "sandbox_id", "sandbox_name", "schema_version"}
+        if set(handle.data) != expected_keys:
+            raise IsloConfigurationError("Islo handle fields are invalid")
         try:
             schema_version = handle.data["schema_version"]
             values = {
@@ -189,11 +187,14 @@ class IsloSandboxHandle:
             raise IsloConfigurationError(f"unsupported Islo handle schema version: {schema_version!r}")
         if not all(isinstance(value, str) for value in values.values()):
             raise IsloConfigurationError("Islo handle fields must be strings")
-        return cls(**values)
+        parsed = cls(**values)
+        if handle.display_name is not None and handle.display_name != parsed.sandbox_name:
+            raise IsloConfigurationError("Islo handle display name is inconsistent")
+        return parsed
 
 
 def sandbox_name_from_request_id(request_id: str) -> str:
-    """Build the deterministic Islo sandbox name for an Airflow task try."""
+    """Build the deterministic Islo sandbox name for an Airflow task attempt."""
     if not is_preassigned_executor_id(request_id):
         raise IsloConfigurationError("IsloExecutor requires an Airflow pre-assigned external executor ID")
     return f"airflow-{request_id.lower()}"
@@ -210,12 +211,9 @@ def coerce_islo_executor_config(value: Any) -> dict[str, Any]:
         raise IsloConfigurationError("executor_config['islo'] must be a mapping")
     allowed = {
         "disk_gb",
-        "gateway_profile",
         "image",
-        "internet_enabled",
         "memory_mb",
         "snapshot_name",
-        "snapshot_url",
         "vcpus",
     }
     if unknown := sorted(set(override) - allowed):
@@ -225,9 +223,7 @@ def coerce_islo_executor_config(value: Any) -> dict[str, Any]:
         item = result[key]
         if isinstance(item, bool) or not isinstance(item, int) or item <= 0:
             raise IsloConfigurationError(f"Islo {key} must be a positive integer")
-    if "internet_enabled" in result and not isinstance(result["internet_enabled"], bool):
-        raise IsloConfigurationError("Islo internet_enabled must be a boolean")
-    for key in {"gateway_profile", "image", "snapshot_name", "snapshot_url"} & result.keys():
+    for key in {"image", "snapshot_name"} & result.keys():
         item = result[key]
         if item is not None and (not isinstance(item, str) or not item.strip()):
             raise IsloConfigurationError(f"Islo {key} must be a non-empty string or null")

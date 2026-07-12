@@ -45,6 +45,11 @@ def test_islo_handle_round_trips_through_common_envelope() -> None:
     with pytest.raises(IsloConfigurationError, match="schema version"):
         IsloSandboxHandle.from_common(invalid)
 
+    with pytest.raises(IsloConfigurationError, match="fields"):
+        IsloSandboxHandle.from_common(SandboxHandle({**handle.to_common().data, "unexpected": True}))
+    with pytest.raises(IsloConfigurationError, match="display name"):
+        IsloSandboxHandle.from_common(SandboxHandle(handle.to_common().data, "another-sandbox"))
+
 
 def test_sandbox_name_uses_preassigned_uuid() -> None:
     request_id = str(uuid4())
@@ -85,3 +90,17 @@ def test_islo_executor_config_is_provider_specific_and_allowlisted() -> None:
         coerce_islo_executor_config({"islo": {"command": ["rm", "-rf", "/"]}})
     with pytest.raises(IsloConfigurationError, match="unsupported"):
         coerce_islo_executor_config({"islo": {"timeout_seconds": 10}})
+
+
+@pytest.mark.parametrize("key", ["gateway_profile", "internet_enabled"])
+def test_task_config_cannot_set_deployment_network_policy(key: str) -> None:
+    with pytest.raises(IsloConfigurationError, match="unsupported"):
+        coerce_islo_executor_config({"islo": {key: "value"}})
+
+
+def test_snapshot_url_is_not_an_islo_launch_option() -> None:
+    with pytest.raises(IsloConfigurationError, match="unsupported"):
+        coerce_islo_executor_config({"islo": {"snapshot_url": "oci://runtime"}})
+
+    with pytest.raises(IsloConfigurationError, match="unsupported"):
+        IsloSandboxConfig.from_json({"image": "runtime", "snapshot_url": "oci://runtime"})

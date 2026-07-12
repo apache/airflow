@@ -21,24 +21,38 @@ from datetime import datetime
 
 from airflow.sdk import dag, task
 
-ISLO_SYSTEM_TEST_MARKER = "islo-system-test"
+SYSTEM_TEST_MARKER = "docker-sandbox-system-test"
 
 
-@dag(start_date=datetime(2025, 1, 1), schedule=None, catchup=False, tags=["example", "islo"])
-def example_islo_executor():
-    @task(executor_config={"sandbox": {"env": {"ISLO_SYSTEM_TEST_MARKER": ISLO_SYSTEM_TEST_MARKER}}})
-    def verify_runtime() -> str:
-        """Verify that the task was routed through Islo with its requested environment."""
-        assert os.environ.get("AIRFLOW_SANDBOX_DRIVER") == "islo"
-        assert os.environ.get("ISLO_SYSTEM_TEST_MARKER") == ISLO_SYSTEM_TEST_MARKER
-        return "executed in an Islo sandbox"
+@dag(
+    start_date=datetime(2025, 1, 1),
+    schedule=None,
+    catchup=False,
+    tags=["example", "docker", "sandbox"],
+)
+def example_docker_sandbox_executor():
+    @task(
+        executor_config={
+            "sandbox": {
+                "env": {"DOCKER_SANDBOX_SYSTEM_TEST_MARKER": SYSTEM_TEST_MARKER},
+            }
+        }
+    )
+    def run_in_sandbox() -> dict[str, str]:
+        assert os.environ.get("AIRFLOW_SANDBOX_DRIVER") == "docker-sandbox"
+        assert os.environ.get("DOCKER_SANDBOX_SYSTEM_TEST_MARKER") == SYSTEM_TEST_MARKER
+        return {"driver": "docker-sandbox", "marker": SYSTEM_TEST_MARKER}
 
-    verify_runtime()
+    @task
+    def verify_xcom(result: dict[str, str]) -> None:
+        assert result == {"driver": "docker-sandbox", "marker": SYSTEM_TEST_MARKER}
+
+    verify_xcom(run_in_sandbox())
 
 
-example_islo_executor_dag = example_islo_executor()
+example_docker_sandbox_executor_dag = example_docker_sandbox_executor()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example Dag with pytest (see: contributing-docs/testing/system_tests.rst)
-test_run = get_test_run(example_islo_executor_dag)
+test_run = get_test_run(example_docker_sandbox_executor_dag)

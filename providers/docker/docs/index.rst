@@ -32,11 +32,20 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Docker Sandboxes Executor <docker-sandbox-executor>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Connection types <connections/docker>
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/docker/index>
     Docker Task Decorator <decorators/docker>
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -98,6 +107,42 @@ PIP package                                 Version required
 ``docker``                                  ``>=7.1.0``
 ``python-dotenv``                           ``>=0.21.0``
 ==========================================  ==================
+
+Optional cross provider package dependencies
+--------------------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-docker[common.sandbox]
+
+
+====================================================================================================================  ==================
+Dependent package                                                                                                     Extra
+====================================================================================================================  ==================
+`apache-airflow-providers-common-sandbox <https://airflow.apache.org/docs/apache-airflow-providers-common-sandbox>`_  ``common.sandbox``
+====================================================================================================================  ==================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-docker[common.sandbox]
+
+
+==================  ==================================================
+Extra               Dependencies
+==================  ==================================================
+``common.sandbox``  ``apache-airflow-providers-common-sandbox>=0.1.0``
+==================  ==================================================
 
 Downloading official packages
 -----------------------------

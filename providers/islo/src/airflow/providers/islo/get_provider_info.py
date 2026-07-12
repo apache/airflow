@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-islo",
         "name": "Islo",
-        "description": "`Islo <https://islo.dev/>`__ provider for Apache Airflow. The ``IsloExecutor`` runs each\ntask try in its own ephemeral Islo sandbox and supports OCI images and snapshot-based startup.\n",
+        "description": "`Islo <https://islo.dev/>`__ provider for Apache Airflow. The ``IsloExecutor`` runs each\ntask attempt in its own ephemeral Islo sandbox and supports OCI images and snapshot-based startup.\n",
         "integrations": [
             {
                 "integration-name": "Islo",
@@ -41,15 +41,6 @@ def get_provider_info():
                 "hook-name": "Islo",
                 "connection-type": "islo",
                 "conn-fields": {
-                    "compute_url": {
-                        "label": "Compute API URL",
-                        "schema": {
-                            "type": ["string", "null"],
-                            "format": "url",
-                            "default": "https://ca.compute.islo.dev",
-                        },
-                        "description": "Islo compute-plane API base URL.",
-                    },
                     "request_timeout": {
                         "label": "Request timeout",
                         "schema": {"type": ["number", "null"], "exclusiveMinimum": 0, "default": 30},
@@ -57,17 +48,23 @@ def get_provider_info():
                     },
                     "max_retries": {
                         "label": "Maximum retries",
-                        "schema": {"type": ["integer", "null"], "minimum": 0, "default": 3},
+                        "schema": {"type": ["integer", "null"], "minimum": 0},
+                        "default": 3,
                         "description": "Retries for idempotent API requests after throttling or transient failures.",
+                    },
+                    "max_response_bytes": {
+                        "label": "Maximum response bytes",
+                        "schema": {"type": ["integer", "null"], "minimum": 1, "default": 4194304},
+                        "description": "Maximum decompressed Islo API response size buffered by the scheduler.",
                     },
                 },
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
-                    "relabeling": {"password": "Access Key", "host": "Control API URL"},
+                    "relabeling": {"password": "API Key", "host": "Compute API URL"},
                     "placeholders": {
-                        "host": "https://api.islo.dev",
-                        "password": "ak_...",
-                        "extra": '{"compute_url": "https://ca.compute.islo.dev", "request_timeout": 30, "max_retries": 3}',
+                        "host": "https://ca.compute.islo.dev",
+                        "password": "islo_key_...",
+                        "extra": '{"request_timeout": 30, "max_retries": 3, "max_response_bytes": 4194304}',
                     },
                 },
             }
@@ -78,7 +75,7 @@ def get_provider_info():
                 "description": "IsloExecutor configuration.",
                 "options": {
                     "conn_id": {
-                        "description": "Airflow connection containing the Islo access key and API endpoints.",
+                        "description": "Airflow connection containing the Islo compute API URL and API key.",
                         "type": "string",
                         "version_added": "0.1.0",
                         "example": "islo_default",
@@ -96,13 +93,6 @@ def get_provider_info():
                         "type": "string",
                         "version_added": "0.1.0",
                         "example": "airflow-runtime",
-                        "default": None,
-                    },
-                    "default_snapshot_url": {
-                        "description": "Default OCI-compatible snapshot URL used for sandbox forks.",
-                        "type": "string",
-                        "version_added": "0.1.0",
-                        "example": None,
                         "default": None,
                     },
                     "default_vcpus": {
@@ -148,88 +138,18 @@ def get_provider_info():
                         "default": None,
                     },
                     "default_gateway_profile": {
-                        "description": "Default Islo gateway profile for secret isolation and egress policy.",
+                        "description": "Deployment-controlled Islo gateway profile for secret isolation and egress policy.",
                         "type": "string",
                         "version_added": "0.1.0",
                         "example": "airflow-restricted",
                         "default": None,
                     },
                     "internet_enabled": {
-                        "description": "Whether sandboxes receive network access. The Execution API must be reachable.",
+                        "description": "Deployment-controlled network access policy. The Execution API must remain reachable.",
                         "type": "boolean",
                         "version_added": "0.1.0",
                         "example": None,
                         "default": "True",
-                    },
-                    "creation_batch_size": {
-                        "description": "Maximum launch futures accepted from one scheduler heartbeat.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "128",
-                    },
-                    "launch_concurrency": {
-                        "description": "Maximum concurrent sandbox create, execute, and delete API operations.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "32",
-                    },
-                    "status_batch_size": {
-                        "description": "Maximum outstanding execution status requests.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "1000",
-                    },
-                    "status_concurrency": {
-                        "description": "Maximum concurrent execution status API requests.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "128",
-                    },
-                    "poll_interval": {
-                        "description": "Base execution status polling interval in seconds.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "2",
-                    },
-                    "max_poll_interval": {
-                        "description": "Maximum polling interval after transient API errors.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "30",
-                    },
-                    "check_health_on_startup": {
-                        "description": "Check Islo API credentials before the scheduler starts processing tasks.",
-                        "type": "boolean",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "True",
-                    },
-                    "health_check_timeout": {
-                        "description": "Startup health-check deadline in seconds.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "30",
-                    },
-                    "adoption_timeout": {
-                        "description": "Deadline for concurrently fencing launch-phase sandboxes during adoption.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "30",
-                    },
-                    "shutdown_timeout": {
-                        "description": "Deadline for fencing unfinished launches during executor shutdown.",
-                        "type": "integer",
-                        "version_added": "0.1.0",
-                        "example": None,
-                        "default": "60",
                     },
                 },
             }

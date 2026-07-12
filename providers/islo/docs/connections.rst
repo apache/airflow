@@ -22,27 +22,31 @@ Islo Connection
 
 The Islo hook uses the ``islo_default`` connection by default.
 
-Access Key
-    Store the Islo access key in the connection's Password field.
+API Key
+    Store the Islo API key in the connection's Password field. The hook sends
+    it directly to the compute API as a Bearer credential.
 
-Control API URL
-    Store a custom control-plane URL in Host. The default is
-    ``https://api.islo.dev``.
+Compute API URL
+    Store the Islo compute API base URL in Host. The default is
+    ``https://ca.compute.islo.dev``.
 
 Extra
-    Optional JSON fields are ``compute_url`` (default
-    ``https://ca.compute.islo.dev``), ``request_timeout`` in seconds, and
-    ``max_retries`` for idempotent requests.
+    Optional JSON fields are ``request_timeout`` in seconds and
+    ``max_retries`` for idempotent reads and deletion.
+    ``max_response_bytes`` bounds each decompressed API response buffered by
+    the scheduler and defaults to 4194304 bytes. Sandbox creation and command
+    submission are never retried because a timed-out response may still have
+    created the resource.
 
 For example:
 
 .. code-block:: json
 
     {
-      "compute_url": "https://ca.compute.islo.dev",
       "request_timeout": 30,
-      "max_retries": 3
+      "max_retries": 3,
+      "max_response_bytes": 4194304
     }
 
-Store this connection in an Airflow secrets backend in production. The access
-key stays in the scheduler; it is never injected into task sandboxes.
+Store this connection in an Airflow secrets backend in production. The API key
+stays in the scheduler; it is never injected into task sandboxes.

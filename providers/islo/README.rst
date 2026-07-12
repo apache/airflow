@@ -27,7 +27,7 @@ Release: ``0.1.0``
 
 
 `Islo <https://islo.dev/>`__ provider for Apache Airflow. The ``IsloExecutor`` runs each
-task try in its own ephemeral Islo sandbox and supports OCI images and snapshot-based startup.
+task attempt in its own ephemeral Islo sandbox and supports OCI images and snapshot-based startup.
 
 
 Provider package
@@ -55,7 +55,6 @@ Requirements
 PIP package                                  Version required
 ===========================================  ==================
 ``apache-airflow``                           ``>=3.3.0``
-``apache-airflow-providers-common-compat``   ``>=1.12.0``
 ``apache-airflow-providers-common-sandbox``  ``>=0.1.0``
 ``httpx``                                    ``>=0.27.0``
 ===========================================  ==================

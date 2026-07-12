@@ -19,15 +19,15 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
+import queue
 import random
-import threading
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Coroutine, Sequence
-from concurrent.futures import CancelledError, Future, wait
+from collections.abc import Sequence
+from concurrent.futures import Future, wait
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
+from enum import Enum
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 from airflow.executors.workloads import ExecuteTask, ExecutorWorkload
@@ -35,12 +35,17 @@ from airflow.providers.common.sandbox.exceptions import (
     SandboxConfigurationError,
     SandboxInvalidHandleError,
     SandboxLaunchUnfencedError,
+    SandboxProtocolError,
+)
+from airflow.providers.common.sandbox.executor_runner import (
+    SandboxRunnerOperation,
+    SandboxRunnerResult,
+    _SandboxExecutorRunner,
 )
 from airflow.providers.common.sandbox.models import (
-    RecoveredSandbox,
-    RunningSandbox,
     SandboxExecutionRef,
     SandboxLaunchConfig,
+    SandboxLaunchOutcome,
     SandboxLaunchRequest,
     SandboxOutput,
     SandboxResult,
@@ -52,262 +57,36 @@ from airflow.utils.log.logging_mixin import remove_escape_codes
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.sandbox.driver import SandboxDriver, SandboxDriverFactory
-
-T = TypeVar("T")
+    from airflow.providers.common.sandbox.driver import SandboxDriverFactory
 
 __all__ = ["BaseSandboxExecutor"]
 
 
-@dataclass(frozen=True)
-class _PendingLaunch:
-    key: TaskInstanceKey
-    request_id: str
+class _GenerationPhase(str, Enum):
+    LAUNCHING = "launching"
+    RUNNING = "running"
+    TERMINATING = "terminating"
+    FENCING = "fencing"
+    QUARANTINED = "quarantined"
+    REVOKED = "revoked"
 
 
-@dataclass(frozen=True)
-class _Cleanup:
-    request_id: str
+@dataclass
+class _TaskGeneration:
+    request_id: str | None
+    phase: _GenerationPhase
     ref: SandboxExecutionRef | None = None
-    fail_key: TaskInstanceKey | None = None
+    operation_inflight: bool = False
+    poll_failures: int = 0
+    fence_attempts: int = 0
+    next_action: float = 0.0
     failure_info: str | None = None
-
-
-@dataclass
-class _Fence:
-    request_id: str
-    failure_info: str
-    attempts: int = 0
-    next_attempt: float = 0.0
-
-
-@dataclass
-class _CleanupFence:
-    request_id: str
-    attempts: int = 0
-    next_attempt: float = 0.0
-
-
-class _SandboxExecutorManager:
-    """Own an asyncio loop, one driver, and bounded provider API concurrency."""
-
-    def __init__(
-        self,
-        driver_factory: SandboxDriverFactory,
-        *,
-        expected_driver_id: str,
-        launch_concurrency: int,
-        status_concurrency: int,
-    ) -> None:
-        if launch_concurrency <= 0 or status_concurrency <= 0:
-            raise ValueError("sandbox executor manager concurrency limits must be greater than zero")
-        self._driver_factory = driver_factory
-        self._expected_driver_id = expected_driver_id
-        self._launch_concurrency = launch_concurrency
-        self._status_concurrency = status_concurrency
-        self._thread: threading.Thread | None = None
-        self._loop: asyncio.AbstractEventLoop | None = None
-        self._driver: SandboxDriver | None = None
-        self._launch_semaphore: asyncio.Semaphore | None = None
-        self._status_semaphore: asyncio.Semaphore | None = None
-        self._ready = threading.Event()
-        self._start_error: BaseException | None = None
-        self._closed = False
-
-    def start(self) -> None:
-        if self._closed:
-            raise RuntimeError("sandbox executor manager is closed")
-        if self._thread is not None:
-            return
-        self._thread = threading.Thread(target=self._run, name="sandbox-executor-manager", daemon=True)
-        self._thread.start()
-        if not self._ready.wait(timeout=15):
-            raise RuntimeError("timed out starting sandbox executor manager")
-        if self._start_error is not None:
-            raise RuntimeError("failed to start sandbox executor manager") from self._start_error
-
-    def _run(self) -> None:
-        loop: asyncio.AbstractEventLoop | None = None
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            self._loop = loop
-            self._driver = self._driver_factory()
-            if self._driver.driver_id != self._expected_driver_id:
-                raise SandboxConfigurationError(
-                    f"sandbox driver id {self._driver.driver_id!r} does not match "
-                    f"executor driver id {self._expected_driver_id!r}"
-                )
-            self._launch_semaphore = asyncio.Semaphore(self._launch_concurrency)
-            self._status_semaphore = asyncio.Semaphore(self._status_concurrency)
-        except BaseException as error:
-            self._start_error = error
-            if loop is not None:
-                if self._driver is not None:
-                    with contextlib.suppress(Exception):
-                        loop.run_until_complete(self._driver.close())
-                loop.close()
-            self._driver = None
-            self._loop = None
-            self._ready.set()
-            return
-        self._ready.set()
-        if self._closed:
-            loop.run_until_complete(self._driver.close())
-            loop.close()
-            return
-        loop.run_forever()
-        loop.close()
-
-    def _submit(self, coroutine: Coroutine[Any, Any, T]) -> Future[T]:
-        if self._closed or self._loop is None:
-            coroutine.close()
-            raise RuntimeError("sandbox executor manager is not running")
-        try:
-            return asyncio.run_coroutine_threadsafe(coroutine, self._loop)
-        except Exception:
-            coroutine.close()
-            raise
-
-    async def _health_check(self) -> None:
-        await cast("SandboxDriver", self._driver).health_check()
-
-    def submit_health_check(self) -> Future[None]:
-        return self._submit(self._health_check())
-
-    async def _launch(self, request: SandboxLaunchRequest) -> RunningSandbox:
-        driver = cast("SandboxDriver", self._driver)
-        semaphore = cast("asyncio.Semaphore", self._launch_semaphore)
-        async with semaphore:
-            try:
-                handle = await driver.launch(request)
-                driver.validate_handle(handle, request_id=request.request_id)
-                running = RunningSandbox(
-                    ref=SandboxExecutionRef(
-                        driver=driver.driver_id,
-                        request_id=request.request_id,
-                        handle=handle,
-                        keep=request.keep,
-                    )
-                )
-            except SandboxLaunchUnfencedError:
-                raise
-            except BaseException as launch_error:
-                try:
-                    await driver.fence(request.request_id)
-                except BaseException as fence_error:
-                    raise SandboxLaunchUnfencedError(
-                        request.request_id, launch_error, fence_error
-                    ) from launch_error
-                raise
-            return running
-
-    def submit_launch(self, request: SandboxLaunchRequest) -> Future[RunningSandbox]:
-        return self._submit(self._launch(request))
-
-    async def _status(self, ref: SandboxExecutionRef) -> SandboxResult:
-        driver = cast("SandboxDriver", self._driver)
-        semaphore = cast("asyncio.Semaphore", self._status_semaphore)
-        async with semaphore:
-            driver.validate_handle(ref.handle, request_id=ref.request_id)
-            return await driver.get_status(ref.handle)
-
-    def submit_status(self, ref: SandboxExecutionRef) -> Future[SandboxResult]:
-        return self._submit(self._status(ref))
-
-    async def _terminate(self, ref: SandboxExecutionRef) -> None:
-        driver = cast("SandboxDriver", self._driver)
-        semaphore = cast("asyncio.Semaphore", self._launch_semaphore)
-        async with semaphore:
-            await driver.terminate(ref.handle)
-
-    def submit_terminate(self, ref: SandboxExecutionRef) -> Future[None]:
-        return self._submit(self._terminate(ref))
-
-    async def _fence(self, request_id: str) -> None:
-        driver = cast("SandboxDriver", self._driver)
-        semaphore = cast("asyncio.Semaphore", self._launch_semaphore)
-        async with semaphore:
-            await driver.fence(request_id)
-
-    def submit_fence(self, request_id: str) -> Future[None]:
-        return self._submit(self._fence(request_id))
-
-    async def _validate(self, ref: SandboxExecutionRef) -> None:
-        driver = cast("SandboxDriver", self._driver)
-        driver.validate_handle(ref.handle, request_id=ref.request_id)
-
-    def submit_validate(self, ref: SandboxExecutionRef) -> Future[None]:
-        return self._submit(self._validate(ref))
-
-    async def _recover(self, request_id: str) -> RunningSandbox | None:
-        driver = cast("SandboxDriver", self._driver)
-        semaphore = cast("asyncio.Semaphore", self._launch_semaphore)
-        async with semaphore:
-            recovered = await driver.recover(request_id)
-            if recovered is None:
-                return None
-            if not isinstance(recovered, RecoveredSandbox):
-                raise SandboxInvalidHandleError("sandbox driver returned an invalid recovery result")
-            try:
-                driver.validate_handle(recovered.handle, request_id=request_id)
-                return RunningSandbox(
-                    SandboxExecutionRef(
-                        driver=driver.driver_id,
-                        request_id=request_id,
-                        handle=recovered.handle,
-                        keep=recovered.keep,
-                    )
-                )
-            except BaseException as recovery_error:
-                try:
-                    await driver.fence(request_id)
-                except BaseException as fence_error:
-                    raise SandboxLaunchUnfencedError(
-                        request_id,
-                        recovery_error,
-                        fence_error,
-                    ) from recovery_error
-                return None
-
-    def submit_recover(self, request_id: str) -> Future[RunningSandbox | None]:
-        return self._submit(self._recover(request_id))
-
-    def close(self, timeout: float = 10.0) -> None:
-        if self._closed:
-            return
-        self._closed = True
-        loop = self._loop
-        driver = self._driver
-        if loop is not None and not loop.is_closed() and driver is not None:
-
-            async def shutdown() -> None:
-                current = asyncio.current_task()
-                tasks = [task for task in asyncio.all_tasks() if task is not current]
-                for task in tasks:
-                    task.cancel()
-                if tasks:
-                    await asyncio.gather(*tasks, return_exceptions=True)
-                await driver.close()
-
-            shutdown_coroutine = shutdown()
-            shutdown_future: Future[None] | None = None
-            try:
-                shutdown_future = asyncio.run_coroutine_threadsafe(shutdown_coroutine, loop)
-                shutdown_future.result(timeout=timeout)
-            except Exception:
-                if shutdown_future is None:
-                    shutdown_coroutine.close()
-                else:
-                    shutdown_future.cancel()
-            with contextlib.suppress(RuntimeError):
-                loop.call_soon_threadsafe(loop.stop)
-        if self._thread is not None:
-            self._thread.join(timeout=timeout)
+    revoked: bool = False
+    terminal_succeeded: bool = False
 
 
 class BaseSandboxExecutor(BaseExecutor, ABC):
-    """Reusable executor state machine for a concrete provider-owned sandbox executor."""
+    """Run task attempts through a concrete provider's sandbox driver."""
 
     is_local = False
     is_production = True
@@ -315,50 +94,51 @@ class BaseSandboxExecutor(BaseExecutor, ABC):
     supports_ad_hoc_ti_run = False
     supports_multi_team = True
     pre_assigns_external_executor_id: ClassVar[bool] = True
+    requires_terminal_cleanup: ClassVar[bool] = False
 
     driver_id: ClassVar[str]
-    config_section: ClassVar[str]
+    _CONFIG_SECTION = "common.sandbox"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if not getattr(type(self), "driver_id", "") or not getattr(type(self), "config_section", ""):
-            raise TypeError("concrete sandbox executors must define driver_id and config_section")
-        self._manager: _SandboxExecutorManager | None = None
-        self._launch_futures: dict[Future, _PendingLaunch] = {}
-        self._status_futures: dict[Future, tuple[TaskInstanceKey, SandboxExecutionRef]] = {}
-        self._cleanup_futures: dict[Future, _Cleanup] = {}
-        self._cleanup_fences: dict[str, _CleanupFence] = {}
-        self._active: dict[TaskInstanceKey, RunningSandbox] = {}
-        self._fences: dict[TaskInstanceKey, _Fence] = {}
-        self._revoked: set[TaskInstanceKey] = set()
-        self._next_poll: dict[TaskInstanceKey, float] = {}
-        self._poll_failures: dict[TaskInstanceKey, int] = {}
+        if not getattr(type(self), "driver_id", ""):
+            raise TypeError("concrete sandbox executors must define driver_id")
+        self._result_queue: queue.SimpleQueue[SandboxRunnerResult] = queue.SimpleQueue()
+        self._runner: _SandboxExecutorRunner | None = None
+        self._generations: dict[TaskInstanceKey, _TaskGeneration] = {}
         self._closing = False
-        section = self.config_section
+        section = self._CONFIG_SECTION
         self._poll_interval = self.conf.getint(section, "poll_interval", fallback=2)
         self._max_poll_interval = self.conf.getint(section, "max_poll_interval", fallback=30)
         self._creation_batch_size = self.conf.getint(section, "creation_batch_size", fallback=128)
         self._status_batch_size = self.conf.getint(section, "status_batch_size", fallback=1000)
+        self._max_status_errors = self.conf.getint(section, "max_status_errors", fallback=10)
+        self._max_ttl_seconds = self.conf.getint(section, "max_ttl_seconds", fallback=86400)
+        self._allow_keep = self.conf.getboolean(section, "allow_keep", fallback=False)
         self._shutdown_timeout = self.conf.getint(section, "shutdown_timeout", fallback=60)
         self._adoption_timeout = self.conf.getint(section, "adoption_timeout", fallback=30)
         self._health_check_timeout = self.conf.getint(section, "health_check_timeout", fallback=30)
         self._launch_concurrency = self.conf.getint(section, "launch_concurrency", fallback=32)
         self._status_concurrency = self.conf.getint(section, "status_concurrency", fallback=128)
+        self._cleanup_concurrency = self.conf.getint(section, "cleanup_concurrency", fallback=32)
         self._validate_configuration()
 
     def _validate_configuration(self) -> None:
-        positive_options = {
+        options = {
             "adoption_timeout": self._adoption_timeout,
+            "cleanup_concurrency": self._cleanup_concurrency,
             "creation_batch_size": self._creation_batch_size,
             "health_check_timeout": self._health_check_timeout,
             "launch_concurrency": self._launch_concurrency,
             "max_poll_interval": self._max_poll_interval,
+            "max_status_errors": self._max_status_errors,
+            "max_ttl_seconds": self._max_ttl_seconds,
             "poll_interval": self._poll_interval,
             "shutdown_timeout": self._shutdown_timeout,
             "status_batch_size": self._status_batch_size,
             "status_concurrency": self._status_concurrency,
         }
-        if invalid := sorted(name for name, value in positive_options.items() if value <= 0):
+        if invalid := sorted(name for name, value in options.items() if value <= 0):
             raise SandboxConfigurationError(
                 f"sandbox executor configuration must be greater than zero: {', '.join(invalid)}"
             )
@@ -369,52 +149,69 @@ class BaseSandboxExecutor(BaseExecutor, ABC):
 
     @abstractmethod
     def get_driver_factory(self) -> SandboxDriverFactory:
-        """Resolve credentials synchronously and return a thread-safe driver factory."""
+        """Resolve credentials and return a driver factory."""
 
     @abstractmethod
-    def build_launch_config(self, workload: ExecuteTask, request_id: str) -> SandboxLaunchConfig:
+    def build_launch_config(self, workload: ExecuteTask) -> SandboxLaunchConfig:
         """Validate provider task configuration and prepare one launch."""
 
     def start(self) -> None:
+        if self._closing:
+            raise RuntimeError("a closed sandbox executor cannot be restarted")
         if not self.conf.getboolean("logging", "remote_logging", fallback=False):
             raise SandboxConfigurationError(
                 f"{type(self).__name__} requires [logging] remote_logging=True because completed "
                 "sandboxes are ephemeral"
             )
-        if self._manager is None:
-            self._manager = _SandboxExecutorManager(
-                self.get_driver_factory(),
-                expected_driver_id=self.driver_id,
-                launch_concurrency=self._launch_concurrency,
-                status_concurrency=self._status_concurrency,
-            )
+        if self._runner is not None:
+            return
+        runner = _SandboxExecutorRunner(
+            self.get_driver_factory(),
+            self._result_queue,
+            expected_driver_id=self.driver_id,
+            launch_concurrency=self._launch_concurrency,
+            status_concurrency=self._status_concurrency,
+            cleanup_concurrency=self._cleanup_concurrency,
+        )
+        self._runner = runner
         try:
-            self._manager.start()
-            if self.conf.getboolean(self.config_section, "check_health_on_startup", fallback=True):
-                self._manager.submit_health_check().result(timeout=self._health_check_timeout)
+            runner.start()
+            if self.conf.getboolean(self._CONFIG_SECTION, "check_health_on_startup", fallback=True):
+                runner.submit_health_check().result(timeout=self._health_check_timeout)
         except Exception:
-            self._manager.close()
+            runner.close(timeout=self._shutdown_timeout)
+            self._runner = None
             raise
 
     def _process_workloads(self, workload_items: Sequence[ExecutorWorkload]) -> None:
         if self._closing:
             return
-        if self._manager is None:
-            raise RuntimeError(f"{type(self).__name__}.start() must be called before processing workloads")
-        capacity = max(0, self._creation_batch_size - len(self._launch_futures))
-        for workload in workload_items[:capacity]:
+        runner = self._require_runner()
+        pending_launches = sum(
+            generation.phase is _GenerationPhase.LAUNCHING for generation in self._generations.values()
+        )
+        launch_capacity = min(
+            self._creation_batch_size,
+            max(0, self._launch_concurrency - pending_launches),
+        )
+        submitted = 0
+        for workload in workload_items:
+            if submitted >= launch_capacity:
+                break
             if not isinstance(workload, ExecuteTask):
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             key = workload.ti.key
-            del self.queued_tasks[key]
-            self.running.add(key)
+            if key in self._generations:
+                continue
+            self.queued_tasks.pop(key, None)
+            request_id = workload.ti.external_executor_id
             try:
-                request_id = workload.ti.external_executor_id
                 if not is_preassigned_executor_id(request_id):
                     raise SandboxConfigurationError(
                         "task has no pre-assigned external executor ID; sandbox executors require Airflow 3.3+"
                     )
-                launch_config = self.build_launch_config(workload, request_id)
+                launch_config = self.build_launch_config(workload)
+                self._validate_launch_policy(launch_config)
                 request = SandboxLaunchRequest(
                     request_id=request_id,
                     command=tuple(self._workload_command(workload)),
@@ -425,11 +222,28 @@ class BaseSandboxExecutor(BaseExecutor, ABC):
                     ttl_seconds=launch_config.ttl_seconds,
                     keep=launch_config.keep,
                 )
-                future = self._manager.submit_launch(request)
-                self._launch_futures[future] = _PendingLaunch(key=key, request_id=request_id)
+                generation = _TaskGeneration(
+                    request_id=request_id,
+                    phase=_GenerationPhase.LAUNCHING,
+                    operation_inflight=True,
+                )
+                self._generations[key] = generation
+                self.running.add(key)
+                runner.submit_launch(key, request)
             except Exception as error:
-                self.log.exception("Unable to configure sandbox for %s", key)
+                self._generations.pop(key, None)
+                self.log.exception("Unable to submit sandbox launch for %s", key)
                 self.fail(key, info=str(error))
+            else:
+                submitted += 1
+
+    def _validate_launch_policy(self, launch_config: SandboxLaunchConfig) -> None:
+        if launch_config.ttl_seconds > self._max_ttl_seconds:
+            raise SandboxConfigurationError(
+                f"sandbox ttl_seconds cannot exceed the deployment maximum of {self._max_ttl_seconds}"
+            )
+        if launch_config.keep and not self._allow_keep:
+            raise SandboxConfigurationError("sandbox keep=True requires [common.sandbox] allow_keep=True")
 
     @staticmethod
     def _workload_command(workload: ExecuteTask) -> list[str]:
@@ -446,346 +260,537 @@ class BaseSandboxExecutor(BaseExecutor, ABC):
         env.update(
             {
                 "AIRFLOW_IS_EXECUTOR_CONTAINER": "true",
+                "AIRFLOW_SANDBOX_DRIVER": self.driver_id,
                 "AIRFLOW__CORE__EXECUTION_API_SERVER_URL": get_execution_api_server_url(self.conf),
                 "AIRFLOW__LOGGING__REMOTE_LOGGING": "True",
             }
         )
-        for option in ("remote_base_log_folder", "remote_log_conn_id", "remote_task_handler_kwargs"):
+        for option in ("remote_base_log_folder", "remote_log_conn_id"):
             if value := self.conf.get("logging", option, fallback=None):
                 env[f"AIRFLOW__LOGGING__{option.upper()}"] = str(value)
         return env
 
     def sync(self) -> None:
-        self._drain_launches()
-        self._drain_statuses()
-        self._drain_cleanups()
+        if self._runner is None:
+            return
+        self._drain_runner_results()
         self._schedule_fences()
+        self._schedule_terminations()
         self._schedule_statuses()
 
-    def _drain_launches(self) -> None:
-        for future, pending in list(self._launch_futures.items()):
-            if not future.done():
-                continue
-            del self._launch_futures[future]
+    def _drain_runner_results(self) -> None:
+        while True:
             try:
-                running = future.result()
-            except CancelledError:
-                if pending.key not in self._revoked:
-                    self.fail(pending.key, info="sandbox launch was cancelled")
-                else:
-                    self._maybe_finish_revocation(pending.key)
-            except SandboxLaunchUnfencedError as error:
-                self.log.error(
-                    "Launch for %s became ambiguous; fencing request %s before reporting failure",
-                    pending.key,
-                    error.request_id,
-                )
-                self._fences[pending.key] = _Fence(
-                    request_id=error.request_id,
-                    failure_info=str(error.launch_error),
-                )
-            except Exception as error:
-                self.log.exception("Sandbox launch failed for %s", pending.key)
-                self.fail(pending.key, info=str(error))
-            else:
-                if pending.key in self._revoked:
-                    self._submit_cleanup(
-                        running.ref,
-                        fail_key=pending.key,
-                        failure_info="sandbox task was revoked during launch",
-                    )
-                    self.running.discard(pending.key)
-                    continue
-                self._active[pending.key] = running
-                self._next_poll[pending.key] = 0.0
-                self.running_state(pending.key, info=running.external_executor_id)
+                result = self._result_queue.get_nowait()
+            except queue.Empty:
+                return
+            self._handle_runner_result(result)
 
-    def _drain_statuses(self) -> None:
-        for future, (key, ref) in list(self._status_futures.items()):
-            if not future.done():
-                continue
-            del self._status_futures[future]
-            current = self._active.get(key)
-            if current is None or current.ref != ref:
-                continue
-            try:
-                result = future.result()
-            except SandboxInvalidHandleError as error:
-                del self._active[key]
-                self._next_poll.pop(key, None)
-                self._poll_failures.pop(key, None)
-                self._fence_request(key, ref.request_id, str(error))
-                continue
-            except Exception:
-                self.log.warning("Transient sandbox status error for %s", key, exc_info=True)
-                self._defer_poll(key, failed=True)
-                continue
-            if result.state in {SandboxState.PENDING, SandboxState.RUNNING}:
-                self._defer_poll(key, failed=False, retry_after=result.retry_after)
-                continue
-            del self._active[key]
-            self._next_poll.pop(key, None)
-            self._poll_failures.pop(key, None)
-            if result.state is SandboxState.SUCCEEDED:
-                self.success(key)
-            elif result.state is SandboxState.GONE:
-                self.fail(key, info=result.message or f"sandbox {self._display_name(ref)} no longer exists")
-            else:
-                self.fail(
-                    key,
-                    info=result.message or f"sandbox workload exited with code {result.exit_code}",
+    def _handle_runner_result(self, result: SandboxRunnerResult) -> None:
+        if result.key is None:
+            if result.error is not None:
+                self.log.warning(
+                    "Best-effort sandbox cleanup failed for request %s: %s",
+                    result.request_id,
+                    result.error,
                 )
-            if not current.keep:
-                self._submit_cleanup(ref)
+            return
+        key = result.key
+        generation = self._generations.get(key)
+        if generation is None or generation.request_id != result.request_id:
+            self._cleanup_stale_launch(result)
+            return
+        generation.operation_inflight = False
+        if result.operation is SandboxRunnerOperation.LAUNCH:
+            self._handle_launch_result(key, generation, result)
+        elif result.operation is SandboxRunnerOperation.STATUS:
+            self._handle_status_result(key, generation, result)
+        elif result.operation is SandboxRunnerOperation.TERMINATE:
+            self._handle_terminate_result(key, generation, result)
+        elif result.operation is SandboxRunnerOperation.FENCE:
+            self._handle_fence_result(key, generation, result)
+
+    def _cleanup_stale_launch(self, result: SandboxRunnerResult) -> None:
+        if result.operation is not SandboxRunnerOperation.LAUNCH:
+            return
+        if not isinstance(result.value, SandboxLaunchOutcome) or self._runner is None:
+            return
+        try:
+            accepted = self._runner.submit_terminate(result.value.ref, required=False)
+        except Exception:
+            accepted = False
+        if not accepted:
+            self.log.warning(
+                "Could not schedule cleanup for stale sandbox launch %s; provider TTL remains active",
+                result.request_id,
+            )
+
+    def _handle_launch_result(
+        self,
+        key: TaskInstanceKey,
+        generation: _TaskGeneration,
+        result: SandboxRunnerResult,
+    ) -> None:
+        if generation.phase is not _GenerationPhase.LAUNCHING:
+            self._cleanup_stale_launch(result)
+            return
+        if result.error is not None:
+            if isinstance(result.error, SandboxLaunchUnfencedError):
+                self.log.error(
+                    "Sandbox launch for %s is ambiguous; fencing request %s",
+                    key,
+                    result.request_id,
+                )
+                self._begin_fence(generation, str(result.error.launch_error))
+            else:
+                self._finish_generation(key, generation, failure_info=str(result.error))
+            return
+        if not isinstance(result.value, SandboxLaunchOutcome):
+            self._begin_fence(generation, "sandbox runner returned an invalid launch result")
+            return
+        generation.ref = result.value.ref
+        if generation.revoked:
+            generation.phase = _GenerationPhase.TERMINATING
+            generation.next_action = 0.0
+            return
+        generation.phase = _GenerationPhase.RUNNING
+        generation.next_action = 0.0
+        self.running_state(key, info=result.value.external_executor_id)
+
+    def _handle_status_result(
+        self,
+        key: TaskInstanceKey,
+        generation: _TaskGeneration,
+        result: SandboxRunnerResult,
+    ) -> None:
+        if generation.phase is not _GenerationPhase.RUNNING:
+            return
+        if result.error is not None:
+            self._handle_status_error(generation, result.error)
+            return
+        if not isinstance(result.value, SandboxResult):
+            self._begin_fence(generation, "sandbox runner returned an invalid status result")
+            return
+        status = result.value
+        if status.state in {SandboxState.PENDING, SandboxState.RUNNING}:
+            generation.poll_failures = 0
+            self._defer_poll(generation, retry_after=status.retry_after)
+            return
+        ref = generation.ref
+        if status.state is SandboxState.SUCCEEDED:
+            succeeded = True
+            failure_info = None
+        elif status.state is SandboxState.GONE:
+            display_name = self._display_name(ref) if ref is not None else result.request_id
+            succeeded = False
+            failure_info = status.message or f"sandbox {display_name} no longer exists"
+        else:
+            default_message = (
+                f"sandbox workload exited with code {status.exit_code}"
+                if status.exit_code is not None
+                else "sandbox workload failed"
+            )
+            succeeded = False
+            failure_info = status.message or default_message
+        if ref is None or not ref.keep:
+            if self.requires_terminal_cleanup:
+                generation.phase = _GenerationPhase.TERMINATING
+                generation.terminal_succeeded = succeeded
+                generation.failure_info = failure_info
+                generation.next_action = 0.0
+                return
+            if ref is not None:
+                self._submit_best_effort_cleanup(ref)
+        self._finish_generation(key, generation, succeeded=succeeded, failure_info=failure_info)
+
+    def _handle_status_error(self, generation: _TaskGeneration, error: BaseException) -> None:
+        if isinstance(error, SandboxProtocolError):
+            self._begin_fence(generation, f"sandbox status protocol error: {error}")
+            return
+        generation.poll_failures += 1
+        if generation.poll_failures >= self._max_status_errors:
+            self._begin_fence(
+                generation,
+                f"sandbox status failed {generation.poll_failures} consecutive times: {error}",
+            )
+            return
+        self.log.warning(
+            "Transient sandbox status error for request %s (%s/%s): %s",
+            generation.request_id,
+            generation.poll_failures,
+            self._max_status_errors,
+            error,
+        )
+        self._defer_poll(generation, failed=True)
+
+    def _handle_terminate_result(
+        self,
+        key: TaskInstanceKey,
+        generation: _TaskGeneration,
+        result: SandboxRunnerResult,
+    ) -> None:
+        if generation.phase is not _GenerationPhase.TERMINATING:
+            return
+        if result.error is not None:
+            self._begin_fence(
+                generation, generation.failure_info or f"sandbox termination failed: {result.error}"
+            )
+            return
+        self._finish_generation(
+            key,
+            generation,
+            succeeded=generation.terminal_succeeded,
+            failure_info=generation.failure_info,
+        )
+
+    def _handle_fence_result(
+        self,
+        key: TaskInstanceKey,
+        generation: _TaskGeneration,
+        result: SandboxRunnerResult,
+    ) -> None:
+        if generation.phase is not _GenerationPhase.FENCING:
+            return
+        if result.error is not None:
+            generation.fence_attempts += 1
+            generation.next_action = time.monotonic() + self._retry_delay(generation.fence_attempts)
+            self.log.warning(
+                "Unable to fence sandbox request %s; retrying: %s",
+                generation.request_id,
+                result.error,
+            )
+            return
+        self._finish_generation(
+            key,
+            generation,
+            succeeded=generation.terminal_succeeded,
+            failure_info=generation.failure_info,
+        )
+
+    def _finish_generation(
+        self,
+        key: TaskInstanceKey,
+        generation: _TaskGeneration,
+        *,
+        succeeded: bool = False,
+        failure_info: str | None = None,
+    ) -> None:
+        if self._generations.get(key) is not generation:
+            return
+        if generation.revoked:
+            generation.phase = _GenerationPhase.REVOKED
+            generation.operation_inflight = False
+            self.running.discard(key)
+            return
+        del self._generations[key]
+        if succeeded:
+            self.success(key)
+        else:
+            self.fail(key, info=failure_info)
+
+    def _begin_fence(self, generation: _TaskGeneration, failure_info: str) -> None:
+        if generation.request_id is None:
+            generation.phase = _GenerationPhase.QUARANTINED
+            generation.failure_info = failure_info
+            return
+        generation.phase = _GenerationPhase.FENCING
+        generation.failure_info = failure_info
+        generation.fence_attempts = 0
+        generation.next_action = 0.0
 
     def _defer_poll(
         self,
-        key: TaskInstanceKey,
+        generation: _TaskGeneration,
         *,
-        failed: bool,
+        failed: bool = False,
         retry_after: float | None = None,
     ) -> None:
-        failures = self._poll_failures.get(key, 0) + 1 if failed else 0
-        self._poll_failures[key] = failures
-        interval = retry_after or self._poll_interval * (2 ** min(failures, 8))
-        interval = min(interval, self._max_poll_interval)
-        self._next_poll[key] = time.monotonic() + interval + random.uniform(0, min(interval / 5, 1.0))
-
-    def _schedule_statuses(self) -> None:
-        if self._manager is None or self._closing:
-            return
-        capacity = max(0, self._status_batch_size - len(self._status_futures))
-        now = time.monotonic()
-        in_progress = {key for key, _ in self._status_futures.values()}
-        due = [
-            (key, running)
-            for key, running in self._active.items()
-            if key not in in_progress and self._next_poll.get(key, 0.0) <= now
-        ]
-        due.sort(key=lambda item: self._next_poll.get(item[0], 0.0))
-        for key, running in due[:capacity]:
-            try:
-                future = self._manager.submit_status(running.ref)
-            except Exception:
-                self.log.warning("Unable to submit sandbox status request for %s", key, exc_info=True)
-                self._defer_poll(key, failed=True)
-            else:
-                self._status_futures[future] = (key, running.ref)
-
-    def _submit_cleanup(
-        self,
-        ref: SandboxExecutionRef | None = None,
-        *,
-        request_id: str | None = None,
-        fail_key: TaskInstanceKey | None = None,
-        failure_info: str | None = None,
-    ) -> Future | None:
-        if self._manager is None:
-            return None
-        if ref is None and request_id is None:
-            raise ValueError("cleanup requires a sandbox reference or request ID")
-        cleanup_request_id = ref.request_id if ref is not None else cast("str", request_id)
-        try:
-            future = (
-                self._manager.submit_terminate(ref)
-                if ref is not None
-                else self._manager.submit_fence(cleanup_request_id)
+        if retry_after is not None:
+            interval = min(retry_after, self._max_poll_interval)
+        elif failed:
+            interval = min(
+                self._poll_interval * (2 ** min(generation.poll_failures, 8)),
+                self._max_poll_interval,
             )
-        except Exception:
-            self.log.warning("Unable to submit sandbox cleanup for %s", cleanup_request_id, exc_info=True)
-            if fail_key is not None:
-                fence = self._fences.setdefault(
-                    fail_key,
-                    _Fence(cleanup_request_id, failure_info or "ambiguous sandbox launch"),
-                )
-                fence.attempts += 1
-                fence.next_attempt = time.monotonic() + min(2**fence.attempts, 30)
-            else:
-                self._defer_cleanup_fence(cleanup_request_id)
-            return None
-        self._cleanup_futures[future] = _Cleanup(
-            request_id=cleanup_request_id,
-            ref=ref,
-            fail_key=fail_key,
-            failure_info=failure_info,
+        else:
+            interval = self._poll_interval
+        generation.next_action = (
+            time.monotonic()
+            + interval
+            + random.uniform(
+                0,
+                min(interval / 5, 1.0),
+            )
         )
-        return future
 
-    def _drain_cleanups(self) -> None:
-        for future, cleanup in list(self._cleanup_futures.items()):
-            if not future.done():
-                continue
-            del self._cleanup_futures[future]
-            try:
-                future.result()
-            except Exception:
-                self.log.warning("Unable to clean up sandbox request %s", cleanup.request_id, exc_info=True)
-                if cleanup.fail_key is not None:
-                    fence = self._fences.setdefault(
-                        cleanup.fail_key,
-                        _Fence(
-                            cleanup.request_id,
-                            cleanup.failure_info or "ambiguous sandbox launch",
-                        ),
-                    )
-                    fence.attempts += 1
-                    fence.next_attempt = time.monotonic() + min(2**fence.attempts, 30)
-                else:
-                    self._defer_cleanup_fence(cleanup.request_id)
-            else:
-                if cleanup.fail_key is not None:
-                    self._fences.pop(cleanup.fail_key, None)
-                    if cleanup.fail_key in self._revoked:
-                        self.running.discard(cleanup.fail_key)
-                        self._maybe_finish_revocation(cleanup.fail_key)
-                    else:
-                        self.fail(cleanup.fail_key, info=cleanup.failure_info)
-                else:
-                    self._cleanup_fences.pop(cleanup.request_id, None)
-
-    def _defer_cleanup_fence(self, request_id: str) -> None:
-        fence = self._cleanup_fences.setdefault(request_id, _CleanupFence(request_id))
-        fence.attempts += 1
-        fence.next_attempt = time.monotonic() + min(2**fence.attempts, 30)
+    def _retry_delay(self, attempts: int) -> float:
+        interval = min(2 ** min(attempts, 8), self._max_poll_interval)
+        return interval + random.uniform(0, min(interval / 5, 1.0))
 
     def _schedule_fences(self) -> None:
-        if self._manager is None:
+        if self._runner is None:
             return
-        pending_keys = {
-            cleanup.fail_key for cleanup in self._cleanup_futures.values() if cleanup.fail_key is not None
-        }
-        pending_request_ids = {
-            cleanup.request_id for cleanup in self._cleanup_futures.values() if cleanup.fail_key is None
-        }
         now = time.monotonic()
-        for key, fence in list(self._fences.items()):
-            if key in pending_keys or fence.next_attempt > now:
+        for key, generation in self._generations.items():
+            if (
+                generation.phase is not _GenerationPhase.FENCING
+                or generation.operation_inflight
+                or generation.next_action > now
+                or generation.request_id is None
+            ):
                 continue
-            self._submit_cleanup(
-                request_id=fence.request_id,
-                fail_key=key,
-                failure_info=fence.failure_info,
-            )
-        for request_id, cleanup_fence in list(self._cleanup_fences.items()):
-            if request_id in pending_request_ids or cleanup_fence.next_attempt > now:
-                continue
-            self._submit_cleanup(request_id=request_id)
+            try:
+                self._runner.submit_fence(key, generation.request_id)
+            except Exception as error:
+                generation.fence_attempts += 1
+                generation.next_action = time.monotonic() + self._retry_delay(generation.fence_attempts)
+                self.log.warning(
+                    "Unable to submit fence for sandbox request %s: %s",
+                    generation.request_id,
+                    error,
+                )
+            else:
+                generation.operation_inflight = True
 
-    def _fence_request(self, key: TaskInstanceKey, request_id: str, failure_info: str) -> None:
-        """Retry fencing until a sandbox that must not keep running is confirmed gone."""
-        self._fences[key] = _Fence(request_id=request_id, failure_info=failure_info)
-        if not any(cleanup.fail_key == key for cleanup in self._cleanup_futures.values()):
-            self._submit_cleanup(
-                request_id=request_id,
-                fail_key=key,
-                failure_info=failure_info,
+    def _schedule_terminations(self) -> None:
+        if self._runner is None:
+            return
+        now = time.monotonic()
+        for key, generation in self._generations.items():
+            if (
+                generation.phase is not _GenerationPhase.TERMINATING
+                or generation.operation_inflight
+                or generation.next_action > now
+            ):
+                continue
+            if generation.ref is None:
+                self._begin_fence(
+                    generation, generation.failure_info or "sandbox termination lacked a handle"
+                )
+                continue
+            try:
+                self._runner.submit_terminate(generation.ref, key=key, required=True)
+            except Exception as error:
+                self._begin_fence(
+                    generation,
+                    generation.failure_info or f"unable to submit sandbox termination: {error}",
+                )
+            else:
+                generation.operation_inflight = True
+
+    def _schedule_statuses(self) -> None:
+        if self._runner is None or self._closing:
+            return
+        inflight = sum(
+            generation.operation_inflight
+            for generation in self._generations.values()
+            if generation.phase is _GenerationPhase.RUNNING
+        )
+        capacity = max(0, self._status_batch_size - inflight)
+        now = time.monotonic()
+        due = sorted(
+            (
+                (key, generation)
+                for key, generation in self._generations.items()
+                if generation.phase is _GenerationPhase.RUNNING
+                and not generation.operation_inflight
+                and generation.next_action <= now
+            ),
+            key=lambda item: item[1].next_action,
+        )
+        for key, generation in due[:capacity]:
+            ref = generation.ref
+            if ref is None:
+                self._begin_fence(generation, "running sandbox generation has no handle")
+                continue
+            try:
+                self._runner.submit_status(key, ref)
+            except Exception as error:
+                self._handle_status_error(generation, error)
+            else:
+                generation.operation_inflight = True
+
+    def _submit_best_effort_cleanup(self, ref: SandboxExecutionRef) -> None:
+        if self._runner is None:
+            return
+        try:
+            accepted = self._runner.submit_terminate(ref, required=False)
+        except Exception:
+            accepted = False
+        if not accepted:
+            self.log.warning(
+                "Cleanup capacity is full for sandbox request %s; provider TTL remains active",
+                ref.request_id,
             )
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
-        if self._manager is None:
-            raise RuntimeError(f"{type(self).__name__}.start() must be called before adoption")
-        not_adopted: list[TaskInstance] = []
-        validation_phase: dict[Future, tuple[TaskInstance, SandboxExecutionRef]] = {}
-        recovery_phase: dict[Future, tuple[TaskInstance, str]] = {}
+        runner = self._require_runner()
+        not_adopted: set[TaskInstanceKey] = set()
+        validations: dict[Future[None], tuple[TaskInstance, SandboxExecutionRef]] = {}
+        recoveries: dict[Future[SandboxLaunchOutcome | None], tuple[TaskInstance, str]] = {}
         for ti in tis:
-            if ref := SandboxExecutionRef.decode(
-                ti.external_executor_id,
-                expected_driver=self.driver_id,
-            ):
-                validation_phase[self._manager.submit_validate(ref)] = (ti, ref)
-            elif is_preassigned_executor_id(ti.external_executor_id):
-                request_id = str(ti.external_executor_id)
-                recovery_phase[self._manager.submit_recover(request_id)] = (ti, request_id)
-            else:
-                not_adopted.append(ti)
-        all_futures = [*validation_phase, *recovery_phase]
-        done, _ = wait(all_futures, timeout=self._adoption_timeout) if all_futures else (set(), set())
-        for future, (ti, ref) in validation_phase.items():
-            if future in done:
+            if ti.key in self._generations:
+                self.running.add(ti.key)
+                continue
+            external_id = ti.external_executor_id
+            if SandboxExecutionRef.has_envelope(external_id):
                 try:
-                    future.result()
-                    running = RunningSandbox(ref)
+                    ref = SandboxExecutionRef.decode(external_id, strict=True)
+                except SandboxInvalidHandleError as error:
+                    self._quarantine(ti, f"persisted sandbox reference is malformed: {error}")
+                    continue
+                if ref is None or ref.driver != self.driver_id:
+                    owner = ref.driver if ref is not None else "unknown"
+                    self._quarantine(ti, f"persisted sandbox reference belongs to driver {owner!r}")
+                    continue
+                try:
+                    validations[runner.submit_validate(ref)] = (ti, ref)
                 except Exception as error:
-                    failure_info = f"persisted sandbox handle is invalid: {error}"
-                else:
-                    self._active[ti.key] = running
-                    self.running.add(ti.key)
-                    self._next_poll[ti.key] = 0.0
-                    continue
-            else:
-                future.cancel()
-                failure_info = "sandbox handle validation timed out during scheduler adoption"
-            self.running.add(ti.key)
-            self._fence_request(ti.key, ref.request_id, failure_info)
-        for future, (ti, request_id) in recovery_phase.items():
-            if future in done:
+                    self._adopt_fence(ti, ref.request_id, f"sandbox handle validation failed: {error}")
+            elif is_preassigned_executor_id(external_id):
+                request_id = str(external_id)
                 try:
-                    running = future.result()
-                except Exception:
-                    pass
-                else:
-                    if running is None:
-                        not_adopted.append(ti)
-                    else:
-                        self._active[ti.key] = running
-                        self.running.add(ti.key)
-                        self._next_poll[ti.key] = 0.0
-                        self.running_state(ti.key, info=running.external_executor_id)
+                    recoveries[runner.submit_recover(request_id)] = (ti, request_id)
+                except Exception as error:
+                    self._adopt_fence(ti, request_id, f"sandbox recovery could not start: {error}")
+            elif external_id:
+                self._quarantine(ti, "persisted sandbox reference has an unknown format")
+            else:
+                not_adopted.add(ti.key)
+        pending_futures: list[Future[Any]] = [*validations, *recoveries]
+        done, _ = wait(pending_futures, timeout=self._adoption_timeout) if pending_futures else (set(), set())
+        for validation_future, (ti, ref) in validations.items():
+            if validation_future not in done:
+                validation_future.cancel()
+                self._adopt_fence(
+                    ti,
+                    ref.request_id,
+                    "sandbox handle validation timed out during scheduler adoption",
+                )
+                continue
+            try:
+                validation_future.result()
+            except Exception as error:
+                self._adopt_fence(ti, ref.request_id, f"persisted sandbox handle is invalid: {error}")
+            else:
+                self._generations[ti.key] = _TaskGeneration(
+                    request_id=ref.request_id,
+                    phase=_GenerationPhase.RUNNING,
+                    ref=ref,
+                )
+                self.running.add(ti.key)
+        for recovery_future, (ti, request_id) in recoveries.items():
+            if recovery_future not in done:
+                recovery_future.cancel()
+                self._adopt_fence(
+                    ti,
+                    request_id,
+                    "sandbox recovery timed out during scheduler adoption",
+                )
+                continue
+            try:
+                outcome = recovery_future.result()
+            except Exception as error:
+                self._adopt_fence(ti, request_id, f"sandbox recovery failed: {error}")
+            else:
+                if outcome is None:
+                    not_adopted.add(ti.key)
                     continue
-            future.cancel()
-            self.running.add(ti.key)
-            self._fence_request(
-                ti.key,
-                request_id,
-                "fenced an ambiguous sandbox launch after scheduler restart",
-            )
-        return not_adopted
+                if not isinstance(outcome, SandboxLaunchOutcome):
+                    self._adopt_fence(ti, request_id, "sandbox driver returned an invalid recovery result")
+                    continue
+                self._generations[ti.key] = _TaskGeneration(
+                    request_id=request_id,
+                    phase=_GenerationPhase.RUNNING,
+                    ref=outcome.ref,
+                )
+                self.running.add(ti.key)
+                self.running_state(ti.key, info=outcome.external_executor_id)
+        self._schedule_fences()
+        return [ti for ti in tis if ti.key in not_adopted]
 
-    def revoke_task(self, *, ti: TaskInstance) -> None:
+    def _quarantine(self, ti: TaskInstance, reason: str) -> None:
+        self._generations[ti.key] = _TaskGeneration(
+            request_id=None,
+            phase=_GenerationPhase.QUARANTINED,
+            failure_info=reason,
+        )
+        self.running.add(ti.key)
+        self.log.error("Quarantining %s instead of resetting it: %s", ti.key, reason)
+
+    def _adopt_fence(self, ti: TaskInstance, request_id: str, failure_info: str) -> None:
+        self._generations[ti.key] = _TaskGeneration(
+            request_id=request_id,
+            phase=_GenerationPhase.FENCING,
+            failure_info=failure_info,
+        )
+        self.running.add(ti.key)
+
+    def revoke_task(self, *, ti: TaskInstance) -> bool:
         key = ti.key
-        self._revoked.add(key)
         self.queued_tasks.pop(key, None)
-        self.running.discard(key)
-        self._next_poll.pop(key, None)
-        self._poll_failures.pop(key, None)
-        for future, (status_key, _) in list(self._status_futures.items()):
-            if status_key == key:
-                future.cancel()
-                del self._status_futures[future]
-        refs: list[SandboxExecutionRef] = []
-        request_ids: set[str] = set()
-        if running := self._active.pop(key, None):
-            refs.append(running.ref)
-        for future, pending in list(self._launch_futures.items()):
-            if pending.key == key:
-                future.cancel()
-                request_ids.add(pending.request_id)
-        if ref := SandboxExecutionRef.decode(
-            ti.external_executor_id,
-            expected_driver=self.driver_id,
-        ):
-            if all(existing != ref for existing in refs):
-                refs.append(ref)
-        elif is_preassigned_executor_id(ti.external_executor_id):
-            request_ids.add(str(ti.external_executor_id))
-        for ref in refs:
-            self._submit_cleanup(
-                ref,
-                fail_key=key,
-                failure_info="sandbox task was revoked",
+        self._drain_runner_results()
+        generation = self._generations.get(key)
+        if generation is None:
+            generation = self._generation_from_external_id(ti.external_executor_id)
+            if generation is None:
+                self.running.discard(key)
+                return True
+            self._generations[key] = generation
+            self.running.add(key)
+        if generation.phase is _GenerationPhase.REVOKED:
+            del self._generations[key]
+            return True
+        if generation.phase is _GenerationPhase.QUARANTINED:
+            self.log.warning(
+                "Cannot clean up quarantined sandbox task %s without an owned reference: %s",
+                key,
+                generation.failure_info,
             )
-        for request_id in request_ids:
-            self._fence_request(key, request_id, "sandbox task was revoked")
-        self._maybe_finish_revocation(key)
+            return False
+        generation.revoked = True
+        generation.failure_info = "sandbox task was revoked"
+        if generation.phase is _GenerationPhase.RUNNING:
+            generation.phase = _GenerationPhase.TERMINATING
+            generation.next_action = 0.0
+        self._schedule_terminations()
+        self._schedule_fences()
+        return False
 
-    def _maybe_finish_revocation(self, key: TaskInstanceKey) -> None:
-        if key not in self._revoked or key in self._active or key in self._fences:
-            return
-        if any(pending.key == key for pending in self._launch_futures.values()):
-            return
-        if any(cleanup.fail_key == key for cleanup in self._cleanup_futures.values()):
-            return
-        self._revoked.discard(key)
+    def _generation_from_external_id(self, external_id: str | None) -> _TaskGeneration | None:
+        if SandboxExecutionRef.has_envelope(external_id):
+            try:
+                ref = SandboxExecutionRef.decode(external_id, strict=True)
+            except SandboxInvalidHandleError as error:
+                return _TaskGeneration(
+                    request_id=None,
+                    phase=_GenerationPhase.QUARANTINED,
+                    failure_info=f"persisted sandbox reference is malformed: {error}",
+                )
+            if ref is None or ref.driver != self.driver_id:
+                owner = ref.driver if ref is not None else "unknown"
+                return _TaskGeneration(
+                    request_id=None,
+                    phase=_GenerationPhase.QUARANTINED,
+                    failure_info=f"persisted sandbox reference belongs to driver {owner!r}",
+                )
+            return _TaskGeneration(
+                request_id=ref.request_id,
+                phase=_GenerationPhase.RUNNING,
+                ref=ref,
+            )
+        if is_preassigned_executor_id(external_id):
+            return _TaskGeneration(
+                request_id=str(external_id),
+                phase=_GenerationPhase.FENCING,
+            )
+        if external_id:
+            return _TaskGeneration(
+                request_id=None,
+                phase=_GenerationPhase.QUARANTINED,
+                failure_info="persisted sandbox reference has an unknown format",
+            )
+        return None
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         del try_number
@@ -826,56 +831,62 @@ class BaseSandboxExecutor(BaseExecutor, ABC):
         return ref.handle.display_name or ref.request_id
 
     def end(self) -> None:
+        if self._runner is None:
+            return
         self._closing = True
         deadline = time.monotonic() + self._shutdown_timeout
-        while self._launch_futures and time.monotonic() < deadline:
-            self._drain_launches()
-            self._drain_cleanups()
-            self._schedule_fences()
-            time.sleep(0.1)
-        for future, pending in list(self._launch_futures.items()):
-            self._revoked.add(pending.key)
-            future.cancel()
-            self._fence_request(
-                pending.key,
-                pending.request_id,
-                "sandbox launch was interrupted by executor shutdown",
-            )
-        self._drain_launches()
-        self._wait_for_cleanups(time.monotonic() + self._shutdown_timeout)
-        self._close_manager()
+        self._wait_for_safety(deadline)
+        self._close_runner(deadline)
 
     def terminate(self) -> None:
+        if self._runner is None:
+            return
         self._closing = True
-        for key in cast("set[TaskInstanceKey]", self.running):
-            self._revoked.add(key)
-        for future, pending in list(self._launch_futures.items()):
-            future.cancel()
-            self._fence_request(pending.key, pending.request_id, "sandbox executor was terminated")
-        for key, running in list(self._active.items()):
-            self._fence_request(key, running.ref.request_id, "sandbox executor was terminated")
-        for key, fence in list(self._fences.items()):
-            self._revoked.add(key)
-            self._fence_request(key, fence.request_id, fence.failure_info)
-        self.running.clear()
-        self._wait_for_cleanups(time.monotonic() + self._shutdown_timeout)
-        self._close_manager()
+        self.queued_tasks.clear()
+        for key, generation in list(self._generations.items()):
+            generation.revoked = True
+            generation.failure_info = "sandbox executor was terminated"
+            if generation.phase is _GenerationPhase.RUNNING:
+                generation.phase = _GenerationPhase.FENCING
+                generation.next_action = 0.0
+            elif generation.phase is _GenerationPhase.QUARANTINED:
+                self.log.warning(
+                    "Cannot clean up quarantined sandbox task %s without an owned reference", key
+                )
+        deadline = time.monotonic() + self._shutdown_timeout
+        self._wait_for_safety(deadline)
+        self._close_runner(deadline)
 
-    def _wait_for_cleanups(self, deadline: float) -> None:
-        while (self._cleanup_futures or self._cleanup_fences or self._fences) and time.monotonic() < deadline:
-            self._drain_cleanups()
-            self._schedule_fences()
-            time.sleep(0.1)
-        if self._cleanup_futures or self._cleanup_fences or self._fences:
+    def _wait_for_safety(self, deadline: float) -> None:
+        while self._has_unsettled_safety_work() and time.monotonic() < deadline:
+            self.sync()
+            time.sleep(0.05)
+        if self._has_unsettled_safety_work():
             self.log.warning(
-                "Timed out shutting down sandboxes; provider lifecycle TTLs and scheduler adoption remain active"
+                "Timed out settling sandbox lifecycle operations; the runner will continue and provider TTLs remain active"
             )
 
-    def _close_manager(self) -> None:
-        for future in self._status_futures:
-            future.cancel()
-        if self._manager is not None:
-            self._manager.close()
+    def _has_unsettled_safety_work(self) -> bool:
+        return any(
+            generation.phase
+            in {_GenerationPhase.LAUNCHING, _GenerationPhase.TERMINATING, _GenerationPhase.FENCING}
+            for generation in self._generations.values()
+        )
+
+    def _close_runner(self, deadline: float) -> None:
+        runner = self._runner
+        if runner is None:
+            return
+        completed = runner.close(timeout=max(0.0, deadline - time.monotonic()))
+        self._drain_runner_results()
+        if not completed:
+            self.log.warning("Sandbox runner is still completing required lifecycle operations")
+        self._runner = None
+
+    def _require_runner(self) -> _SandboxExecutorRunner:
+        if self._runner is None:
+            raise RuntimeError(f"{type(self).__name__}.start() must be called first")
+        return self._runner
 
     @staticmethod
     def get_cli_commands() -> list:

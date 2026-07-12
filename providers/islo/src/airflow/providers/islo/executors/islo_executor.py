@@ -36,10 +36,9 @@ if TYPE_CHECKING:
 
 
 class IsloExecutor(BaseSandboxExecutor):
-    """Run every task try in an isolated, ephemeral Islo sandbox."""
+    """Run every task attempt in an isolated, ephemeral Islo sandbox."""
 
     driver_id = "islo"
-    config_section = "islo"
 
     def get_driver_factory(self) -> SandboxDriverFactory:
         conn_id = self.conf.get("islo", "conn_id", fallback=IsloHook.default_conn_name)
@@ -56,15 +55,13 @@ class IsloExecutor(BaseSandboxExecutor):
         value = self.conf.get("islo", option, fallback=None)
         return str(value) if value not in (None, "") else None
 
-    def build_launch_config(self, workload: ExecuteTask, request_id: str) -> SandboxLaunchConfig:
-        del request_id
+    def build_launch_config(self, workload: ExecuteTask) -> SandboxLaunchConfig:
         executor_config = workload.ti.executor_config
         sandbox_override = coerce_sandbox_executor_config(executor_config)
         islo_override = coerce_islo_executor_config(executor_config)
         defaults = {
             "image": self._optional_str("default_image"),
             "snapshot_name": self._optional_str("default_snapshot_name"),
-            "snapshot_url": self._optional_str("default_snapshot_url"),
         }
         if any(key in islo_override for key in defaults):
             sources = {key: islo_override.get(key) for key in defaults}
@@ -75,14 +72,8 @@ class IsloExecutor(BaseSandboxExecutor):
             vcpus=islo_override.get("vcpus", self._optional_int("default_vcpus")),
             memory_mb=islo_override.get("memory_mb", self._optional_int("default_memory_mb")),
             disk_gb=islo_override.get("disk_gb", self._optional_int("default_disk_gb")),
-            gateway_profile=islo_override.get(
-                "gateway_profile",
-                self._optional_str("default_gateway_profile"),
-            ),
-            internet_enabled=islo_override.get(
-                "internet_enabled",
-                self.conf.getboolean("islo", "internet_enabled", fallback=True),
-            ),
+            gateway_profile=self._optional_str("default_gateway_profile"),
+            internet_enabled=self.conf.getboolean("islo", "internet_enabled", fallback=True),
         )
         return SandboxLaunchConfig(
             provider_config=provider_config.to_json(),

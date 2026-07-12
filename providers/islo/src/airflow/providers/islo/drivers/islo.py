@@ -61,8 +61,6 @@ class IsloSandboxDriver(SandboxDriver):
             request_id=request.request_id,
             config=config,
             ttl_seconds=request.ttl_seconds,
-            env=request.env,
-            workdir=request.workdir,
         )
         sandbox_name, sandbox_id = await self._client.create_sandbox(spec)
         self._fence_targets.setdefault(request.request_id, set()).add(sandbox_name)
@@ -108,20 +106,23 @@ class IsloSandboxDriver(SandboxDriver):
 
     async def get_status(self, handle: SandboxHandle) -> SandboxResult:
         result = await self._client.execution_result(IsloSandboxHandle.from_common(handle))
-        if result.state is IsloExecutionState.PENDING:
-            return SandboxResult(SandboxState.PENDING)
-        if result.state is IsloExecutionState.RUNNING:
-            return SandboxResult(SandboxState.RUNNING)
-        if result.state is IsloExecutionState.SUCCEEDED:
-            return SandboxResult(SandboxState.SUCCEEDED, result.exit_code)
-        if result.state is IsloExecutionState.FAILED:
-            return SandboxResult(SandboxState.FAILED, result.exit_code)
-        if result.state is IsloExecutionState.GONE:
-            return SandboxResult(SandboxState.GONE)
-        raise IsloProtocolError("Islo returned an unknown execution status")
+        state = SandboxState(result.state.value)
+        exit_code = (
+            result.exit_code
+            if result.state in {IsloExecutionState.SUCCEEDED, IsloExecutionState.FAILED}
+            else None
+        )
+        return SandboxResult(state, exit_code)
 
     async def terminate(self, handle: SandboxHandle) -> None:
         ref = IsloSandboxHandle.from_common(handle)
+        sandbox_id = await self._client.get_sandbox_id(ref.sandbox_name)
+        if sandbox_id is None:
+            return
+        if sandbox_id != ref.sandbox_id:
+            raise IsloProtocolError(
+                "refusing to delete an Islo sandbox whose stable ID does not match the handle"
+            )
         await self._client.delete_sandbox(ref.sandbox_name)
 
     async def fence(self, request_id: str) -> None:
@@ -132,8 +133,12 @@ class IsloSandboxDriver(SandboxDriver):
         getattr(self, "_fence_targets", {}).pop(request_id, None)
 
     async def get_output(self, handle: SandboxHandle) -> SandboxOutput:
-        stdout, stderr, truncated = await self._client.execution_output(IsloSandboxHandle.from_common(handle))
-        return SandboxOutput(stdout=stdout, stderr=stderr, truncated=truncated)
+        result = await self._client.execution_result(IsloSandboxHandle.from_common(handle))
+        return SandboxOutput(
+            stdout=result.stdout,
+            stderr=result.stderr,
+            truncated=result.truncated,
+        )
 
     async def close(self) -> None:
         await self._client.close()

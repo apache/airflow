@@ -27,7 +27,10 @@ from enum import Enum
 from typing import Any, TypeGuard
 from uuid import UUID
 
-from airflow.providers.common.sandbox.exceptions import SandboxConfigurationError
+from airflow.providers.common.sandbox.exceptions import (
+    SandboxConfigurationError,
+    SandboxInvalidHandleError,
+)
 
 
 def _copy_json_object(value: dict[str, Any], *, field_name: str) -> dict[str, Any]:
@@ -36,7 +39,7 @@ def _copy_json_object(value: dict[str, Any], *, field_name: str) -> dict[str, An
     try:
         encoded = json.dumps(value, allow_nan=False, separators=(",", ":"), sort_keys=True)
         copied = json.loads(encoded)
-    except (TypeError, ValueError) as error:
+    except (RecursionError, TypeError, ValueError) as error:
         raise SandboxConfigurationError(f"{field_name} must contain only JSON values") from error
     if not isinstance(copied, dict):
         raise SandboxConfigurationError(f"{field_name} must be a string-keyed JSON object")
@@ -89,6 +92,15 @@ class SandboxResult:
             or self.retry_after <= 0
         ):
             raise SandboxConfigurationError("sandbox result retry_after must be a finite positive number")
+        if self.state in {SandboxState.PENDING, SandboxState.RUNNING, SandboxState.GONE}:
+            if self.exit_code is not None:
+                raise SandboxConfigurationError(f"sandbox result {self.state.value} cannot have an exit code")
+        if self.state is SandboxState.SUCCEEDED and self.exit_code not in {None, 0}:
+            raise SandboxConfigurationError("a successful sandbox result cannot have a non-zero exit code")
+        if self.state is SandboxState.FAILED and self.exit_code == 0:
+            raise SandboxConfigurationError("a failed sandbox result cannot have a zero exit code")
+        if self.state not in {SandboxState.PENDING, SandboxState.RUNNING} and self.retry_after is not None:
+            raise SandboxConfigurationError("only non-terminal sandbox results can specify retry_after")
 
 
 @dataclass(frozen=True)
@@ -123,7 +135,7 @@ class SandboxHandle:
 
 @dataclass(frozen=True)
 class SandboxLaunchConfig:
-    """Configuration prepared by one concrete provider executor for a task try."""
+    """Configuration prepared by one concrete provider executor for a task attempt."""
 
     provider_config: dict[str, Any]
     env: dict[str, str] = field(default_factory=dict)
@@ -260,57 +272,75 @@ class SandboxExecutionRef:
         value: str | None,
         *,
         expected_driver: str | None = None,
+        strict: bool = False,
     ) -> SandboxExecutionRef | None:
         if not value or len(value) > cls._MAX_ENCODED_LENGTH or not value.startswith(cls._PREFIX):
             return None
-        token = value.removeprefix(cls._PREFIX)
-        token += "=" * (-len(token) % 4)
         try:
-            payload = json.loads(base64.urlsafe_b64decode(token).decode())
+            token = value.removeprefix(cls._PREFIX).encode("ascii")
+            padded_token = token + b"=" * (-len(token) % 4)
+            decoded = base64.b64decode(padded_token, altchars=b"-_", validate=True)
+            if base64.urlsafe_b64encode(decoded).rstrip(b"=") != token:
+                raise binascii.Error("sandbox execution reference is not canonical base64")
+            payload = json.loads(decoded.decode())
+            expected_fields = {"display_name", "driver", "handle", "keep", "request_id"}
+            if not isinstance(payload, dict) or set(payload) != expected_fields:
+                raise SandboxConfigurationError("sandbox execution reference fields are invalid")
             driver = payload["driver"]
             request_id = payload["request_id"]
             handle_data = payload["handle"]
-            display_name = payload.get("display_name")
-            keep = payload.get("keep", False)
+            display_name = payload["display_name"]
+            keep = payload["keep"]
             if not isinstance(driver, str) or not isinstance(request_id, str):
-                return None
+                raise SandboxConfigurationError("sandbox execution reference identity is invalid")
             if expected_driver is not None and driver != expected_driver:
-                return None
+                raise SandboxInvalidHandleError(
+                    f"sandbox execution reference belongs to driver {driver!r}, expected {expected_driver!r}"
+                )
             if not isinstance(handle_data, dict) or not isinstance(keep, bool):
-                return None
+                raise SandboxConfigurationError("sandbox execution reference handle is invalid")
             return cls(
                 driver=driver,
                 request_id=request_id,
                 handle=SandboxHandle(data=handle_data, display_name=display_name),
                 keep=keep,
             )
+        except SandboxInvalidHandleError:
+            if strict:
+                raise
+            return None
         except (
             binascii.Error,
             json.JSONDecodeError,
             SandboxConfigurationError,
             KeyError,
             TypeError,
+            UnicodeEncodeError,
             UnicodeDecodeError,
             ValueError,
-        ):
+            RecursionError,
+        ) as error:
+            if strict:
+                raise SandboxInvalidHandleError("sandbox execution reference is malformed") from error
             return None
+
+    @classmethod
+    def has_envelope(cls, value: str | None) -> bool:
+        """Return whether ``value`` claims to be a common sandbox reference."""
+        return bool(value and value.startswith(cls._PREFIX))
 
 
 @dataclass(frozen=True)
-class RunningSandbox:
-    """Executor bookkeeping for one launched task."""
+class SandboxLaunchOutcome:
+    """Validated launch identity ready to persist in Airflow."""
 
     ref: SandboxExecutionRef
     external_executor_id: str = field(init=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.ref, SandboxExecutionRef):
-            raise SandboxConfigurationError("running sandbox ref must be a SandboxExecutionRef")
+            raise SandboxConfigurationError("sandbox launch outcome ref must be a SandboxExecutionRef")
         object.__setattr__(self, "external_executor_id", self.ref.encode())
-
-    @property
-    def keep(self) -> bool:
-        return self.ref.keep
 
 
 def coerce_sandbox_executor_config(value: Any) -> dict[str, Any]:

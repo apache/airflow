@@ -5131,11 +5131,17 @@ dependencies = [
     { name = "python-dotenv" },
 ]
 
+[package.optional-dependencies]
+common-sandbox = [
+    { name = "apache-airflow-providers-common-sandbox" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sandbox" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -5146,15 +5152,18 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sandbox", marker = "extra == 'common-sandbox'", editable = "providers/common/sandbox" },
     { name = "docker", specifier = ">=7.1.0" },
     { name = "python-dotenv", specifier = ">=0.21.0" },
 ]
+provides-extras = ["common-sandbox"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sandbox", editable = "providers/common/sandbox" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -6183,7 +6192,6 @@ version = "0.1.0"
 source = { editable = "providers/islo" }
 dependencies = [
     { name = "apache-airflow" },
-    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sandbox" },
     { name = "httpx" },
 ]
@@ -6192,7 +6200,6 @@ dependencies = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sandbox" },
     { name = "apache-airflow-task-sdk" },
 ]
@@ -6203,7 +6210,6 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow", editable = "." },
-    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sandbox", editable = "providers/common/sandbox" },
     { name = "httpx", specifier = ">=0.27.0" },
 ]
@@ -6212,7 +6218,6 @@ requires-dist = [
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sandbox", editable = "providers/common/sandbox" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]

@@ -38,6 +38,7 @@ standalone executor or select providers dynamically.
 
     Architecture <architecture>
     Implement a driver <driver>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:

@@ -59,6 +59,8 @@ def test_islo_executor_is_thin_common_engine_binding(monkeypatch) -> None:
 
 def test_launch_config_separates_portable_and_islo_options(monkeypatch) -> None:
     monkeypatch.setenv("AIRFLOW__ISLO__DEFAULT_SNAPSHOT_NAME", "default-runtime")
+    monkeypatch.setenv("AIRFLOW__ISLO__DEFAULT_GATEWAY_PROFILE", "airflow-restricted")
+    monkeypatch.setenv("AIRFLOW__ISLO__INTERNET_ENABLED", "false")
     instance = IsloExecutor(parallelism=4)
     workload = make_workload(
         {
@@ -77,7 +79,7 @@ def test_launch_config_separates_portable_and_islo_options(monkeypatch) -> None:
         }
     )
 
-    launch = instance.build_launch_config(workload, str(workload.ti.external_executor_id))
+    launch = instance.build_launch_config(workload)
     provider = IsloSandboxConfig.from_json(launch.provider_config)
 
     assert launch.env == {"MODEL": "small"}
@@ -88,3 +90,5 @@ def test_launch_config_separates_portable_and_islo_options(monkeypatch) -> None:
     assert provider.snapshot_name == "genomics-runtime"
     assert provider.vcpus == 8
     assert provider.memory_mb == 32768
+    assert provider.gateway_profile == "airflow-restricted"
+    assert provider.internet_enabled is False

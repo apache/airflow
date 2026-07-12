@@ -19,12 +19,10 @@ Islo Executor
 =============
 
 The :class:`~airflow.providers.islo.executors.islo_executor.IsloExecutor`
-creates one Islo sandbox for each task try, starts the standard Airflow Task SDK
-workload entrypoint in that sandbox, reports the terminal exit state, and deletes
-the sandbox. This is the same executor-level separation used by
-``KubernetesExecutor`` for worker pods, with Islo sandboxes as the compute unit.
-It binds the provider-neutral state machine from the Common Sandbox provider to
-the Islo API; no dynamic provider selector is involved.
+creates one Islo sandbox for each task attempt and runs the standard Airflow Task
+SDK command in it. It is a thin binding between the shared Common Sandbox
+executor engine and the Islo API, analogous to ``KubernetesExecutor`` using a
+provider-specific API behind the Airflow executor lifecycle.
 
 Requirements
 ------------
@@ -34,9 +32,9 @@ Requirements
 * Remote task logging. Sandboxes are deleted after terminal state, so their local
   files are not a durable log store.
 * An OCI image or Islo snapshot containing the same Airflow Task SDK version as
-  the scheduler, the Dag bundle dependencies, and the task's Python dependencies.
+  the scheduler, the Dag bundle dependencies, and the task dependencies.
 * Network reachability from the sandbox to Airflow's Execution API and the remote
-  log store. Use an Islo gateway profile when egress must be restricted.
+  log store. Configure an Islo gateway profile when egress must be restricted.
 
 Configure Airflow
 -----------------
@@ -53,13 +51,17 @@ Configure Airflow
     [islo]
     conn_id = islo_default
     default_snapshot_name = airflow-runtime
+
+    [common.sandbox]
     launch_concurrency = 32
     status_concurrency = 128
 
 Use ``default_image`` instead of ``default_snapshot_name`` to start from an OCI
-image. Configure exactly one of ``default_image``, ``default_snapshot_name``, or
-``default_snapshot_url``. Snapshots are useful when a prepared filesystem and
-dependencies should be forked for many task variations.
+image. Configure exactly one default source. The ``[islo]`` section contains
+only the Islo connection, image or snapshot, resource, workdir, timeout, TTL,
+gateway, and network defaults. Polling, batching, error limits, concurrency,
+health checks, adoption, and shutdown are configured once in
+``[common.sandbox]`` for every sandbox driver.
 
 To keep a lower-latency executor as the default and route only selected tasks to
 Islo, configure an executor alias:
@@ -109,22 +111,25 @@ required:
 
 Portable ``sandbox`` keys are ``timeout_seconds``, ``ttl_seconds``, ``env``,
 ``workdir``, and ``keep``. Islo-specific keys are ``image``, ``snapshot_name``,
-``snapshot_url``, ``vcpus``, ``memory_mb``, ``disk_gb``, ``gateway_profile``,
-and ``internet_enabled``. Both namespaces are allowlisted. Task overrides cannot
-replace Airflow runtime environment variables. Setting ``keep`` skips deletion
-at terminal state for debugging, but the hard ``ttl_seconds`` lifecycle policy
-still applies.
+``vcpus``, ``memory_mb``, and ``disk_gb``. Both namespaces are allowlisted. Task
+overrides cannot replace Airflow runtime environment variables or alter
+``default_gateway_profile`` and ``internet_enabled``. Egress is deployment
+policy, not Dag author policy. Setting ``keep`` skips terminal deletion for
+debugging, but the provider-enforced ``ttl_seconds`` still applies. Deployments
+bound task-requested TTLs with ``[common.sandbox] max_ttl_seconds`` and must
+explicitly enable ``allow_keep`` before Dag code can retain a sandbox.
 
-Islo currently documents ``timeout_secs`` as an API compatibility hint rather
-than a server-enforced command deadline. Airflow task cancellation fences the
-whole sandbox, and ``ttl_seconds`` remains the hard provider-side cleanup bound.
-Set both values for the workload and quota policy you need; do not rely on the
-Islo timeout hint alone to stop a hung process.
+Islo treats the command timeout as a compatibility hint rather than a hard
+deadline. Airflow cancellation fences the sandbox, and ``ttl_seconds`` remains
+the provider-side cleanup bound. Configure both for the workload and quota
+policy; do not rely on the command timeout alone to stop a hung process. The
+client accepts only the API's documented ``201 Created`` response as proof that
+the create request, including ``lifecycle.delete_after``, was accepted.
 
 Security considerations
 -----------------------
 
-The Islo access key is resolved from an Airflow connection by the scheduler and
+The Islo API key is resolved from an Airflow connection by the scheduler and
 is never sent to a task sandbox. Store the connection in an Airflow secrets
 backend and scope the Islo tenant credentials to the required project.
 
@@ -134,28 +139,24 @@ submitted command. Use TLS endpoints, limit Execution API token lifetime, and
 restrict Islo administrative access.
 
 Generated or untrusted code can still make outbound requests with credentials
-explicitly supplied to the task. Prefer a gateway profile with an allowlisted
-egress policy, and use an image or snapshot without embedded secrets. The
-executor rejects task attempts to override ``AIRFLOW_*`` runtime variables.
+explicitly supplied to the task. Set ``default_gateway_profile`` and
+``internet_enabled`` in deployment configuration, and use an image or snapshot
+without embedded secrets. Dag code cannot weaken those controls. The executor
+also rejects attempts to override ``AIRFLOW_*`` runtime variables.
 
 Scheduling, recovery, and scale
 -------------------------------
 
-Airflow pre-assigns a UUID before dispatch; the executor uses it as Islo's
-request ID and deterministic sandbox name. After command acceptance, a versioned
-Common Sandbox reference containing the Islo sandbox and command IDs is persisted
-in ``external_executor_id`` so a replacement scheduler can adopt the task. If a
-scheduler dies during command submission, the Islo driver fences the whole named
-sandbox before allowing a retry. This avoids two copies of generated or untrusted
-code running concurrently even though Islo does not currently expose idempotent
-command submission.
+Airflow preassigns a request UUID before dispatch. Islo uses it as the request ID
+and deterministic sandbox name. After command acceptance, the executor persists
+a versioned reference containing the sandbox and command IDs. A replacement
+scheduler can adopt that exact generation. An incomplete launch is fenced by
+request ID before a successor may start.
 
-Sandbox creation and status requests run on a dedicated asynchronous I/O loop with
-separate concurrency bounds. Throttling and transient server failures use bounded
-backoff. Status polling errors do not become a synthetic task failure; only a
-confirmed missing sandbox or a terminal Islo execution state changes a task that
-has already launched.
-
-Islo currently exposes per-execution status requests rather than a batch status
-stream. Size ``status_concurrency``, ``status_batch_size``, and Airflow
-``parallelism`` for the service quota and measured polling latency.
+The shared runner performs bounded asynchronous launches, observations, and
+cleanup. A terminal Islo status or conclusive absence may finish a task attempt;
+transport errors, malformed responses, and an execution lookup that leaves the
+sandbox state uncertain may not. Tune ``[common.sandbox]`` concurrency and batch
+sizes against Islo quotas and measured latency. The connection's
+``max_response_bytes`` setting also bounds the command-result response buffered
+by each observation.

@@ -32,3 +32,92 @@ integrations:
       - /docs/apache-airflow-providers-common-sandbox/architecture.rst
       - /docs/apache-airflow-providers-common-sandbox/driver.rst
     tags: [software]
+
+config:
+  common.sandbox:
+    description: Shared sandbox executor engine configuration.
+    options:
+      poll_interval:
+        description: Base interval in seconds between observations of an active task attempt.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '2'
+      max_poll_interval:
+        description: Maximum observation interval in seconds after transient driver errors.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '30'
+      creation_batch_size:
+        description: Maximum queued launches submitted by one scheduler heartbeat.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '128'
+      status_batch_size:
+        description: Maximum active task attempts selected for observation by one scheduler heartbeat.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '1000'
+      max_status_errors:
+        description: Maximum consecutive observation errors before the engine fences a task attempt.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '10'
+      max_ttl_seconds:
+        description: Deployment maximum for the provider-enforced sandbox lifetime requested by a task.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '86400'
+      allow_keep:
+        description: Allow Dag code to retain a terminal sandbox until its provider-enforced TTL expires.
+        type: boolean
+        version_added: 0.1.0
+        example: ~
+        default: 'False'
+      shutdown_timeout:
+        description: Deadline in seconds for fencing and runner shutdown.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '60'
+      adoption_timeout:
+        description: Deadline in seconds for recovering or fencing task attempts during adoption.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '30'
+      health_check_timeout:
+        description: Startup driver health-check deadline in seconds.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '30'
+      launch_concurrency:
+        description: Maximum concurrent driver launch operations.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '32'
+      status_concurrency:
+        description: Maximum concurrent driver observation operations.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '128'
+      cleanup_concurrency:
+        description: Maximum concurrent driver terminate and fence operations.
+        type: integer
+        version_added: 0.1.0
+        example: ~
+        default: '32'
+      check_health_on_startup:
+        description: Check driver credentials and control-plane availability when the executor starts.
+        type: boolean
+        version_added: 0.1.0
+        example: ~
+        default: 'True'

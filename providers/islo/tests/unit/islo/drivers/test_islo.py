@@ -74,7 +74,6 @@ async def test_launch_maps_portable_request_to_islo_api() -> None:
     assert spec.config.snapshot_name == "runtime"
     assert spec.config.vcpus == 4
     assert spec.ttl_seconds == 600
-    assert spec.workdir == "/workspace"
     client.execute.assert_awaited_once_with(
         sandbox_name,
         list(request.command),
@@ -100,7 +99,7 @@ async def test_launch_rejects_mismatched_exec_sandbox() -> None:
 def test_handle_validation_checks_vendor_schema_and_request_id() -> None:
     driver, _ = make_driver()
     request = make_request()
-    with pytest.raises(SandboxInvalidHandleError, match="schema_version"):
+    with pytest.raises(SandboxInvalidHandleError, match="fields"):
         driver.validate_handle(
             SandboxHandle({"request_id": request.request_id}), request_id=request.request_id
         )
@@ -118,16 +117,18 @@ def test_handle_validation_checks_vendor_schema_and_request_id() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("islo_state", "sandbox_state"),
+    ("islo_state", "sandbox_state", "exit_code"),
     [
-        (IsloExecutionState.PENDING, SandboxState.PENDING),
-        (IsloExecutionState.RUNNING, SandboxState.RUNNING),
-        (IsloExecutionState.SUCCEEDED, SandboxState.SUCCEEDED),
-        (IsloExecutionState.FAILED, SandboxState.FAILED),
-        (IsloExecutionState.GONE, SandboxState.GONE),
+        (IsloExecutionState.PENDING, SandboxState.PENDING, 7),
+        (IsloExecutionState.RUNNING, SandboxState.RUNNING, 7),
+        (IsloExecutionState.SUCCEEDED, SandboxState.SUCCEEDED, 0),
+        (IsloExecutionState.FAILED, SandboxState.FAILED, 7),
+        (IsloExecutionState.GONE, SandboxState.GONE, 7),
     ],
 )
-async def test_status_mapping(islo_state: IsloExecutionState, sandbox_state: SandboxState) -> None:
+async def test_status_mapping(
+    islo_state: IsloExecutionState, sandbox_state: SandboxState, exit_code: int
+) -> None:
     driver, client = make_driver()
     request = make_request()
     handle = IsloSandboxHandle(
@@ -136,13 +137,13 @@ async def test_status_mapping(islo_state: IsloExecutionState, sandbox_state: San
         "sandbox-id",
         "exec-id",
     ).to_common()
-    client.execution_result.return_value = IsloExecutionResult(islo_state, 7)
+    client.execution_result.return_value = IsloExecutionResult(islo_state, exit_code)
 
     assert (await driver.get_status(handle)).state is sandbox_state
 
 
 @pytest.mark.asyncio
-async def test_unknown_status_is_protocol_error() -> None:
+async def test_failure_status_does_not_copy_task_output_into_scheduler_info() -> None:
     driver, client = make_driver()
     request = make_request()
     handle = IsloSandboxHandle(
@@ -151,10 +152,41 @@ async def test_unknown_status_is_protocol_error() -> None:
         "sandbox-id",
         "exec-id",
     ).to_common()
-    client.execution_result.return_value = IsloExecutionResult(IsloExecutionState.UNKNOWN)
+    client.execution_result.return_value = IsloExecutionResult(
+        IsloExecutionState.FAILED,
+        7,
+        stdout="possibly sensitive output",
+        stderr="possibly sensitive error",
+    )
 
-    with pytest.raises(IsloProtocolError, match="unknown"):
-        await driver.get_status(handle)
+    result = await driver.get_status(handle)
+
+    assert result.message is None
+
+
+@pytest.mark.asyncio
+async def test_output_reuses_full_execution_result() -> None:
+    driver, client = make_driver()
+    request = make_request()
+    handle = IsloSandboxHandle(
+        request.request_id,
+        sandbox_name_from_request_id(request.request_id),
+        "sandbox-id",
+        "exec-id",
+    ).to_common()
+    client.execution_result.return_value = IsloExecutionResult(
+        IsloExecutionState.RUNNING,
+        stdout="task output",
+        stderr="task error",
+        truncated=True,
+    )
+
+    output = await driver.get_output(handle)
+
+    assert output.stdout == "task output"
+    assert output.stderr == "task error"
+    assert output.truncated is True
+    client.execution_result.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -187,6 +219,7 @@ async def test_terminate_and_fence_are_idempotent_delete_operations() -> None:
         "sandbox-id",
         "exec-id",
     ).to_common()
+    client.get_sandbox_id.return_value = "sandbox-id"
 
     await driver.terminate(handle)
     await driver.fence(request.request_id)
@@ -196,3 +229,38 @@ async def test_terminate_and_fence_are_idempotent_delete_operations() -> None:
         expected_name,
         expected_name,
     ]
+
+
+@pytest.mark.asyncio
+async def test_terminate_refuses_a_reused_sandbox_name() -> None:
+    driver, client = make_driver()
+    request = make_request()
+    handle = IsloSandboxHandle(
+        request.request_id,
+        sandbox_name_from_request_id(request.request_id),
+        "original-id",
+        "exec-id",
+    ).to_common()
+    client.get_sandbox_id.return_value = "replacement-id"
+
+    with pytest.raises(IsloProtocolError, match="stable ID does not match"):
+        await driver.terminate(handle)
+
+    client.delete_sandbox.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_terminate_is_idempotent_when_sandbox_is_absent() -> None:
+    driver, client = make_driver()
+    request = make_request()
+    handle = IsloSandboxHandle(
+        request.request_id,
+        sandbox_name_from_request_id(request.request_id),
+        "sandbox-id",
+        "exec-id",
+    ).to_common()
+    client.get_sandbox_id.return_value = None
+
+    await driver.terminate(handle)
+
+    client.delete_sandbox.assert_not_awaited()
