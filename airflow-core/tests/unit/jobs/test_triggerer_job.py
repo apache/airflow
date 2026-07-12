@@ -1583,7 +1583,7 @@ class TestTriggerRunner:
         runner.to_create.append(workload)
 
         with patch(
-            "airflow.jobs.triggerer_job_runner.time.monotonic",
+            "airflow.jobs.triggerer_job_runner.time.time",
             return_value=101.5,
         ):
             await runner.create_triggers()

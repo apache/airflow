@@ -979,7 +979,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         if new_trigger_ids:
             workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
 
-            queued_at = time.monotonic()
+            queued_at = time.time()
 
             for workload in workloads_to_create:
                 workload.queued_at = queued_at
@@ -1403,7 +1403,7 @@ class TriggerRunner:
             if workload.queued_at is not None:
                 stats.timing(
                     "triggerer.trigger_queue_delay",
-                    int((time.monotonic() - workload.queued_at) * 1000),
+                    int((time.time() - workload.queued_at) * 1000),
                     tags=prune_dict({"team_name": self.team_name}),
                 )
 
