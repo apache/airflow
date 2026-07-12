@@ -35,7 +35,7 @@ from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventsResponse,
 )
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
-from airflow.utils.sqlalchemy import JsonContains, apply_regex_query_timeout
+from airflow.utils.sqlalchemy import JsonContains
 
 router = APIRouter(
     responses={
@@ -60,9 +60,9 @@ def _get_asset_events_through_sql_clauses(
         asset_events_query = filter_.to_orm(asset_events_query)
     if limit:
         asset_events_query = asset_events_query.limit(limit)
-    # Bound the runtime of any user-supplied regex filter to guard against ReDoS, scoped to this query.
-    with apply_regex_query_timeout(session):
-        asset_events = session.scalars(asset_events_query).all()
+    # A regexp partition-key filter bounds the query runtime automatically (its dependency applies
+    # apply_regex_query_timeout to this request's session), so no explicit wrapping is needed here.
+    asset_events = session.scalars(asset_events_query).all()
     return AssetEventsResponse.model_validate(
         {
             "asset_events": [

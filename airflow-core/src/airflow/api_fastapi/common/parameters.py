@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import datetime
 from enum import Enum
 from typing import (
@@ -42,6 +42,7 @@ from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
@@ -69,7 +70,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
-from airflow.utils.sqlalchemy import JsonContains
+from airflow.utils.sqlalchemy import JsonContains, apply_regex_query_timeout
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -525,6 +526,11 @@ class _RegexParam(BaseParam[str]):
     ``regexp_match``), so this filter is gated behind the ``[api] regexp_query_timeout``
     setting to contain the ReDoS attack surface: it cannot be instantiated with a value
     unless a positive timeout is configured (which both enables the feature and bounds it).
+
+    Use :func:`regex_param_factory` to build the FastAPI dependency for this filter. That
+    dependency also applies :func:`airflow.utils.sqlalchemy.apply_regex_query_timeout` to the
+    request's session, so the query runtime is bounded automatically and callers never need to
+    remember to do it in the view.
     """
 
     def __init__(self, attribute: ColumnElement, value: str | None = None, skip_none: bool = True) -> None:
@@ -555,10 +561,11 @@ def regex_param_factory(
     pattern_name: str,
     skip_none: bool = True,
     description: str = _DEFAULT_REGEX_DESCRIPTION,
-) -> Callable[[str | None], _RegexParam]:
+) -> Callable[..., Generator[_RegexParam, None, None]]:
     def depends_regex(
+        session: SessionDep,
         value: str | None = Query(alias=pattern_name, default=None, description=description),
-    ) -> _RegexParam:
+    ) -> Generator[_RegexParam, None, None]:
         if value is not None:
             try:
                 re.compile(value)
@@ -567,7 +574,15 @@ def regex_param_factory(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid regular expression: {e}",
                 )
-        return _RegexParam(attribute, value, skip_none)
+        # ``__init__`` rejects the request (400) when a pattern is supplied while the feature is off.
+        param = _RegexParam(attribute, value, skip_none)
+        if value is None:
+            yield param
+            return
+        # Bound the query runtime for the whole request so a view can never forget to do it; the
+        # previous timeout is restored on teardown (after the response) before the session closes.
+        with apply_regex_query_timeout(session):
+            yield param
 
     return depends_regex
 
@@ -1748,7 +1763,9 @@ QueryAssetEventPartitionKeyFilter = Annotated[
     Depends(filter_param_factory(AssetEvent.partition_key, str | None, filter_name="partition_key")),
 ]
 QueryAssetEventPartitionKeyRegex = Annotated[
-    _RegexParam, Depends(regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern"))
+    _RegexParam,
+    # ``function`` scope so the dependency can depend on the (function-scoped) session it bounds.
+    Depends(regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern"), scope="function"),
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
