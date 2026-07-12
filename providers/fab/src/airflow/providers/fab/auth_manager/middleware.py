@@ -23,7 +23,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+from airflow.api_fastapi.core_api import security as core_api_security
+
+_USER_INJECTED_BY_TRUSTED_MIDDLEWARE = getattr(
+    core_api_security,
+    "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
+    None,
+)
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -48,7 +54,12 @@ class FabAuthRolePublicMiddleware(BaseHTTPMiddleware):
             public_user = auth_manager.build_public_user()
             if public_user is not None:
                 request.state.user = public_user
-                request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+
+                if _USER_INJECTED_BY_TRUSTED_MIDDLEWARE is not None:
+                    request.state.user_authenticated_via = (
+                        _USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+                    )
+
         return await call_next(request)
 
     @staticmethod
