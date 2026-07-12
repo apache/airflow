@@ -38,6 +38,7 @@ from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 IDEMPOTENT_METHODS = {"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"}
+NON_IDEMPOTENT_METHOD_WARNING_PATTERN = ".*may send duplicate requests.*"
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger
@@ -61,6 +62,28 @@ def deserialize_auth_type(path: str | None) -> type | None:
         return None
     module_path, cls_name = path.rsplit(".", 1)
     return getattr(import_module(module_path), cls_name)
+
+
+def warn_if_method_not_idempotent(
+    method: str,
+    *,
+    subject: str,
+    execution_context: str,
+    alternative: str,
+    method_connector: str = "with",
+    stacklevel: int = 2,
+) -> None:
+    if method.upper() in IDEMPOTENT_METHODS:
+        return
+
+    warnings.warn(
+        f"{subject} {method_connector} method={method} may send duplicate requests if the Triggerer restarts. "
+        f"{execution_context}, which may be re-run on restart. "
+        f"Use only with idempotent methods or use {alternative} for polling. "
+        "See https://github.com/apache/airflow/issues/67945",
+        UserWarning,
+        stacklevel=stacklevel,
+    )
 
 
 class HttpResponseSerializer:
@@ -144,16 +167,13 @@ class HttpTrigger(BaseTrigger):
         self.headers = headers
         self.data = data
         self.extra_options = extra_options
-        if self.method.upper() not in IDEMPOTENT_METHODS:
-            warnings.warn(
-                f"HttpTrigger with method={self.method} may send duplicate requests if the "
-                "Triggerer restarts. The trigger executes the request in the Triggerer, which "
-                "may be re-run on restart. Use only with idempotent methods or use "
-                "HttpSensorTrigger/HttpEventTrigger for polling. "
-                "See https://github.com/apache/airflow/issues/67945",
-                UserWarning,
-                stacklevel=2,
-            )
+        warn_if_method_not_idempotent(
+            self.method,
+            subject="HttpTrigger",
+            execution_context="The trigger executes the request in the Triggerer",
+            alternative="HttpSensorTrigger/HttpEventTrigger",
+            stacklevel=2,
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
