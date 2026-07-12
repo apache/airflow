@@ -26,7 +26,7 @@ from contextlib import closing
 from functools import cached_property
 from typing import Any
 
-import importlib_resources
+from importlib import resources as importlib_resources
 from adbc_driver_manager.dbapi import Connection, connect
 from more_itertools import chunked
 from pyarrow import RecordBatch, Schema, array, schema
