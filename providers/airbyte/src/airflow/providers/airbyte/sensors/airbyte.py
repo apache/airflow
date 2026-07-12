@@ -126,15 +126,16 @@ class AirbyteJobSensor(BaseSensorOperator):
                 )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
-        """
-        Invoke this callback when the trigger fires; return immediately.
-
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
+        """Invoke this callback when the trigger fires and fail unless the job succeeded."""
         if event["status"] == "error":
             self.log.debug("An error occurred with context: %s", context)
             raise AirflowException(event["message"])
+
+        if event["status"] != "success":
+            # A cancelled job must fail the sensor, matching the poke() behavior;
+            # fail closed on any status this sensor does not recognize.
+            self.log.debug("Job did not succeed, context: %s", context)
+            raise RuntimeError(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)
         return None
