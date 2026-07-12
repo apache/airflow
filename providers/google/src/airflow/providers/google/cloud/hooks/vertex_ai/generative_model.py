@@ -33,16 +33,16 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from vertexai.preview.evaluation import EvalResult, EvalTask
 
-try:
-    from vertexai.preview.evaluation import EvalResult, EvalTask
-except ImportError as e:
-    _evaluation_import_error = e
-    # Fallback for mypy: use Any so that calls like EvalTask(...) don't error at type-check time.
-    # At runtime, guard checks _evaluation_import_error and raises before using these.
-    EvalResult = Any  # type: ignore[no-redef]
-    EvalTask = Any  # type: ignore[no-redef]
-else:
-    _evaluation_import_error = None
+_evaluation_import_error: ImportError | None = None
+
+if not TYPE_CHECKING:
+    try:
+        from vertexai.preview.evaluation import EvalResult, EvalTask
+    except ImportError as e:
+        _evaluation_import_error = e
+        # Runtime fallback: guard checks _evaluation_import_error and raises before using these.
+        EvalResult = Any
+        EvalTask = Any
 
 
 class GenerativeModelHook(GoogleBaseHook):
