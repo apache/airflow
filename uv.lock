@@ -5520,7 +5520,7 @@ dependencies = [
     { name = "google-api-python-client" },
     { name = "google-auth" },
     { name = "google-auth-httplib2" },
-    { name = "google-cloud-aiplatform", extra = ["evaluation"] },
+    { name = "google-cloud-aiplatform" },
     { name = "google-cloud-alloydb" },
     { name = "google-cloud-automl" },
     { name = "google-cloud-batch" },
@@ -5590,6 +5590,9 @@ cncf-kubernetes = [
 ]
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
+]
+evaluation = [
+    { name = "google-cloud-aiplatform", extra = ["evaluation"] },
 ]
 fab = [
     { name = "apache-airflow-providers-fab" },
@@ -5713,7 +5716,8 @@ requires-dist = [
     { name = "google-api-python-client", specifier = ">=2.0.2" },
     { name = "google-auth", specifier = ">=2.29.0" },
     { name = "google-auth-httplib2", specifier = ">=0.0.1" },
-    { name = "google-cloud-aiplatform", extras = ["evaluation"], specifier = ">=1.155.0" },
+    { name = "google-cloud-aiplatform", specifier = ">=1.155.0" },
+    { name = "google-cloud-aiplatform", extras = ["evaluation"], marker = "extra == 'evaluation'", specifier = ">=1.155.0" },
     { name = "google-cloud-alloydb", specifier = ">=0.4.0" },
     { name = "google-cloud-automl", specifier = ">=2.12.0" },
     { name = "google-cloud-batch", specifier = ">=0.13.0" },
@@ -5777,7 +5781,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=8.3.0" },
     { name = "types-protobuf", specifier = ">=5.27.0,!=5.29.1.20250402" },
 ]
-provides-extras = ["cncf-kubernetes", "fab", "leveldb", "oracle", "facebook", "amazon", "apache-cassandra", "microsoft-azure", "microsoft-mssql", "mongo", "mysql", "openlineage", "postgres", "presto", "salesforce", "sftp", "ssh", "trino", "http", "standard", "common-messaging"]
+provides-extras = ["evaluation", "cncf-kubernetes", "fab", "leveldb", "oracle", "facebook", "amazon", "apache-cassandra", "microsoft-azure", "microsoft-mssql", "mongo", "mysql", "openlineage", "postgres", "presto", "salesforce", "sftp", "ssh", "trino", "http", "standard", "common-messaging"]
 
 [package.metadata.requires-dev]
 dev = [
