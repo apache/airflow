@@ -389,6 +389,10 @@ def get_provider_info():
                         "label": "Workload Identity Tenant ID",
                         "schema": {"type": ["string", "null"]},
                     },
+                    "cloud_environment": {
+                        "label": "Azure Cloud Environment",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
             },
             {

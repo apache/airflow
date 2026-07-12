@@ -402,6 +402,10 @@ connection-types:
         label: Workload Identity Tenant ID
         schema:
           type: ["string", "null"]
+      cloud_environment:
+        label: Azure Cloud Environment
+        schema:
+          type: ["string", "null"]
   - hook-class-name: airflow.providers.microsoft.azure.hooks.compute.AzureComputeHook
     hook-name: "Azure Compute"
     connection-type: azure_compute
