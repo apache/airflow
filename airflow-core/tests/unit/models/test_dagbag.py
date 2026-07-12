@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
@@ -259,14 +260,24 @@ class TestDBDagBagCache:
         assert isinstance(dag_bag._dags, LRUCache)
 
     def test_ttl_cache_enabled_with_cache_size_and_ttl(self):
-        """Test that TTL cache is enabled when both cache_size and cache_ttl are provided."""
+        """Test that a bounded TTL cache is used when both cache_size and cache_ttl are provided."""
         dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
         assert dag_bag._use_cache is True
         assert isinstance(dag_bag._dags, TTLCache)
+        assert dag_bag._dags.maxsize == 10
 
-    def test_zero_cache_size_uses_unbounded_dict(self):
-        """Test that cache_size=0 uses unbounded dict (same as no caching)."""
-        dag_bag = DBDagBag(cache_size=0, cache_ttl=60)
+    @pytest.mark.parametrize("cache_size", [0, None])
+    def test_ttl_only_without_size_cap(self, cache_size):
+        """Test that a positive cache_ttl with no size cap gives a TTL cache with maxsize=inf."""
+        dag_bag = DBDagBag(cache_size=cache_size, cache_ttl=60)
+        assert dag_bag._use_cache is True
+        assert isinstance(dag_bag._dags, TTLCache)
+        assert dag_bag._dags.maxsize == math.inf
+
+    @pytest.mark.parametrize("cache_ttl", [None, 0])
+    def test_zero_cache_size_uses_unbounded_dict(self, cache_ttl):
+        """Test that cache_size=0 without a TTL uses an unbounded dict (same as no caching)."""
+        dag_bag = DBDagBag(cache_size=0, cache_ttl=cache_ttl)
         assert dag_bag._use_cache is False
         assert isinstance(dag_bag._dags, dict)
 
@@ -309,6 +320,21 @@ class TestDBDagBagCache:
         # Jump ahead beyond TTL
         with time_machine.travel("2025-01-01 00:00:02", tick=False):
             assert dag_bag._dags.get("test_version_id") is None
+
+    def test_ttl_only_evicts_by_ttl_not_size(self):
+        """An unbounded (maxsize=inf) TTL cache keeps every entry until it expires by age."""
+        dag_bag = DBDagBag(cache_size=0, cache_ttl=1)
+        assert dag_bag._dags.maxsize == math.inf
+        dag_bag._dags = TTLCache(maxsize=math.inf, ttl=1, timer=time.time)
+
+        with time_machine.travel("2025-01-01 00:00:00", tick=False):
+            for i in range(500):
+                dag_bag._dags[f"version_{i}"] = MagicMock()
+            assert len(dag_bag._dags) == 500
+
+        with time_machine.travel("2025-01-01 00:00:02", tick=False):
+            assert dag_bag._dags.get("version_0") is None
+            assert len(dag_bag._dags) == 0
 
     def test_lru_eviction(self):
         """Test that LRU eviction works when cache is full."""
