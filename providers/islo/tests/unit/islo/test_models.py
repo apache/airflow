@@ -20,27 +20,30 @@ from uuid import uuid4
 
 import pytest
 
+from airflow.providers.common.sandbox.models import SandboxHandle
 from airflow.providers.islo.exceptions import IsloConfigurationError
 from airflow.providers.islo.models import (
-    IsloExecutionRef,
+    IsloSandboxConfig,
+    IsloSandboxHandle,
     IsloSandboxSpec,
     coerce_islo_executor_config,
     sandbox_name_from_request_id,
 )
 
 
-def test_execution_ref_round_trip() -> None:
-    ref = IsloExecutionRef("request", "sandbox", "sandbox-id", "exec-id", keep=True)
-    assert IsloExecutionRef.decode(ref.encode()) == ref
-    assert IsloExecutionRef.decode("islo:v1:not-base64") is None
+def test_islo_handle_round_trips_through_common_envelope() -> None:
+    request_id = str(uuid4())
+    handle = IsloSandboxHandle(
+        request_id,
+        sandbox_name_from_request_id(request_id),
+        "sandbox-id",
+        "exec-id",
+    )
+    assert IsloSandboxHandle.from_common(handle.to_common()) == handle
 
-
-def test_execution_ref_decodes_legacy_value_without_keep() -> None:
-    ref = IsloExecutionRef("request", "sandbox", "sandbox-id", "exec-id")
-    encoded = ref.encode()
-    decoded = IsloExecutionRef.decode(encoded)
-    assert decoded is not None
-    assert decoded.keep is False
+    invalid = SandboxHandle({**handle.to_common().data, "schema_version": 2})
+    with pytest.raises(IsloConfigurationError, match="schema version"):
+        IsloSandboxHandle.from_common(invalid)
 
 
 def test_sandbox_name_uses_preassigned_uuid() -> None:
@@ -53,21 +56,32 @@ def test_sandbox_name_uses_preassigned_uuid() -> None:
     [
         {},
         {"image": "image", "snapshot_name": "snapshot"},
-        {"image": "image", "timeout_seconds": 0},
-        {"image": "image", "timeout_seconds": 10, "ttl_seconds": 9},
+        {"image": ""},
+        {"image": "image", "vcpus": 0},
     ],
 )
-def test_invalid_sandbox_specs_are_rejected(kwargs) -> None:
+def test_invalid_islo_configs_are_rejected(kwargs) -> None:
     with pytest.raises(IsloConfigurationError):
-        IsloSandboxSpec(name="sandbox", request_id=str(uuid4()), **kwargs)
+        IsloSandboxConfig(**kwargs)
 
 
-def test_executor_config_rejects_unknown_and_reserved_values() -> None:
+def test_sandbox_spec_requires_positive_ttl() -> None:
+    request_id = str(uuid4())
+    with pytest.raises(IsloConfigurationError, match="ttl_seconds"):
+        IsloSandboxSpec(
+            name=sandbox_name_from_request_id(request_id),
+            request_id=request_id,
+            config=IsloSandboxConfig(image="image"),
+            ttl_seconds=0,
+        )
+
+
+def test_islo_executor_config_is_provider_specific_and_allowlisted() -> None:
+    assert coerce_islo_executor_config({"islo": {"snapshot_name": "runtime", "vcpus": 8}}) == {
+        "snapshot_name": "runtime",
+        "vcpus": 8,
+    }
     with pytest.raises(IsloConfigurationError, match="unsupported"):
         coerce_islo_executor_config({"islo": {"command": ["rm", "-rf", "/"]}})
-    with pytest.raises(IsloConfigurationError, match="reserved"):
-        coerce_islo_executor_config({"islo": {"env": {"AIRFLOW__CORE__FERNET_KEY": "secret"}}})
-    with pytest.raises(IsloConfigurationError, match="positive integer"):
-        coerce_islo_executor_config({"islo": {"vcpus": True}})
-    with pytest.raises(IsloConfigurationError, match="boolean"):
-        coerce_islo_executor_config({"islo": {"internet_enabled": "false"}})
+    with pytest.raises(IsloConfigurationError, match="unsupported"):
+        coerce_islo_executor_config({"islo": {"timeout_seconds": 10}})

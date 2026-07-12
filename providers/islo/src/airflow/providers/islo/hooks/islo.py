@@ -32,9 +32,10 @@ from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.islo import __version__
 from airflow.providers.islo.exceptions import IsloConfigurationError, IsloProtocolError
 from airflow.providers.islo.models import (
-    IsloExecutionRef,
     IsloExecutionResult,
+    IsloExecutionStart,
     IsloExecutionState,
+    IsloSandboxHandle,
     IsloSandboxSpec,
 )
 
@@ -189,19 +190,20 @@ class AsyncIsloClient:
         response.raise_for_status()
 
     async def create_sandbox(self, spec: IsloSandboxSpec) -> tuple[str, str]:
+        config = spec.config
         payload: dict[str, Any] = {
-            "disk_gb": spec.disk_gb,
+            "disk_gb": config.disk_gb,
             "env": spec.env or None,
-            "gateway_profile": spec.gateway_profile,
-            "image": spec.image,
-            "internet_enabled": spec.internet_enabled,
+            "gateway_profile": config.gateway_profile,
+            "image": config.image,
+            "internet_enabled": config.internet_enabled,
             "lifecycle": {"delete_after": spec.ttl_seconds},
-            "memory_mb": spec.memory_mb,
+            "memory_mb": config.memory_mb,
             "name": spec.name,
             "request_id": spec.request_id,
-            "snapshot_name": spec.snapshot_name,
-            "snapshot_url": spec.snapshot_url,
-            "vcpus": spec.vcpus,
+            "snapshot_name": config.snapshot_name,
+            "snapshot_url": config.snapshot_url,
+            "vcpus": config.vcpus,
             "workdir": spec.workdir,
         }
         response = await self._request(
@@ -230,7 +232,7 @@ class AsyncIsloClient:
         *,
         workdir: str | None,
         timeout_seconds: int,
-    ) -> str:
+    ) -> IsloExecutionStart:
         response = await self._request(
             "POST",
             f"sandboxes/{quote(sandbox_name, safe='')}/exec",
@@ -244,14 +246,28 @@ class AsyncIsloClient:
         )
         response.raise_for_status()
         data = response.json()
-        if not isinstance(data, dict) or not isinstance(data.get("exec_id"), str) or not data["exec_id"]:
+        if not isinstance(data, dict):
+            raise IsloProtocolError("Islo exec response was not a JSON object")
+        exec_id = data.get("exec_id")
+        sandbox_id = data.get("sandbox_id")
+        status = data.get("status")
+        if not isinstance(exec_id, str) or not exec_id:
             raise IsloProtocolError("Islo exec response did not contain exec_id")
-        return data["exec_id"]
+        if not isinstance(sandbox_id, str) or not sandbox_id:
+            raise IsloProtocolError("Islo exec response did not contain sandbox_id")
+        if not isinstance(status, str) or status.lower() not in {
+            "pending",
+            "queued",
+            "running",
+            "started",
+        }:
+            raise IsloProtocolError(f"Islo exec response contained unexpected status: {status!r}")
+        return IsloExecutionStart(execution_id=exec_id, sandbox_id=sandbox_id)
 
-    async def execution_result(self, ref: IsloExecutionRef) -> IsloExecutionResult:
+    async def execution_result(self, handle: IsloSandboxHandle) -> IsloExecutionResult:
         response = await self._request(
             "GET",
-            f"sandboxes/{quote(ref.sandbox_name, safe='')}/exec/{quote(ref.execution_id, safe='')}",
+            f"sandboxes/{quote(handle.sandbox_name, safe='')}/exec/{quote(handle.execution_id, safe='')}",
             retryable=True,
         )
         if response.status_code == 404:
@@ -274,14 +290,14 @@ class AsyncIsloClient:
             return IsloExecutionResult(state, exit_code)
         if status in {"pending", "queued", "starting", "created"}:
             return IsloExecutionResult(IsloExecutionState.PENDING)
-        if status in {"running", "executing", "in_progress"}:
+        if status in {"running", "started", "executing", "in_progress"}:
             return IsloExecutionResult(IsloExecutionState.RUNNING)
         return IsloExecutionResult(IsloExecutionState.UNKNOWN)
 
-    async def execution_output(self, ref: IsloExecutionRef) -> tuple[str, str, bool]:
+    async def execution_output(self, handle: IsloSandboxHandle) -> tuple[str, str, bool]:
         response = await self._request(
             "GET",
-            f"sandboxes/{quote(ref.sandbox_name, safe='')}/exec/{quote(ref.execution_id, safe='')}",
+            f"sandboxes/{quote(handle.sandbox_name, safe='')}/exec/{quote(handle.execution_id, safe='')}",
             retryable=True,
         )
         response.raise_for_status()

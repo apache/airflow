@@ -403,6 +403,8 @@ pre-installed when Airflow is installed.
 +---------------------+------------------------------------------------------+--------------------------------------+--------------+
 | common-messaging    | ``pip install 'apache-airflow[common-messaging]'``   | Core Messaging Operators             |              |
 +---------------------+------------------------------------------------------+--------------------------------------+--------------+
+| common-sandbox      | ``pip install 'apache-airflow[common-sandbox]'``     | Sandbox executor engine              |              |
++---------------------+------------------------------------------------------+--------------------------------------+--------------+
 | common-sql          | ``pip install 'apache-airflow[common-sql]'``         | Core SQL Operators                   |      *       |
 +---------------------+------------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``                | FTP hooks and operators              |      *       |

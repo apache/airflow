@@ -23,6 +23,8 @@ creates one Islo sandbox for each task try, starts the standard Airflow Task SDK
 workload entrypoint in that sandbox, reports the terminal exit state, and deletes
 the sandbox. This is the same executor-level separation used by
 ``KubernetesExecutor`` for worker pods, with Islo sandboxes as the compute unit.
+It binds the provider-neutral state machine from the Common Sandbox provider to
+the Islo API; no dynamic provider selector is involved.
 
 Requirements
 ------------
@@ -32,7 +34,7 @@ Requirements
 * Remote task logging. Sandboxes are deleted after terminal state, so their local
   files are not a durable log store.
 * An OCI image or Islo snapshot containing the same Airflow Task SDK version as
-  the scheduler, the DAG bundle dependencies, and the task's Python dependencies.
+  the scheduler, the Dag bundle dependencies, and the task's Python dependencies.
 * Network reachability from the sandbox to Airflow's Execution API and the remote
   log store. Use an Islo gateway profile when egress must be restricted.
 
@@ -91,23 +93,33 @@ required:
 
     @task(
         executor_config={
+            "sandbox": {
+                "timeout_seconds": 21600,
+                "ttl_seconds": 21600,
+            },
             "islo": {
                 "snapshot_name": "genomics-runtime",
                 "vcpus": 8,
                 "memory_mb": 32768,
-                "ttl_seconds": 21600,
-            }
+            },
         }
     )
     def simulate(initial_condition: float) -> float:
         return run_simulation(initial_condition)
 
-The supported keys are ``image``, ``snapshot_name``, ``snapshot_url``,
-``vcpus``, ``memory_mb``, ``disk_gb``, ``timeout_seconds``, ``ttl_seconds``,
-``env``, ``workdir``, ``gateway_profile``, ``internet_enabled``, and ``keep``.
-Task overrides cannot replace Airflow runtime environment variables.
-Setting ``keep`` skips deletion at terminal state for debugging, but the hard
-``ttl_seconds`` lifecycle policy still applies.
+Portable ``sandbox`` keys are ``timeout_seconds``, ``ttl_seconds``, ``env``,
+``workdir``, and ``keep``. Islo-specific keys are ``image``, ``snapshot_name``,
+``snapshot_url``, ``vcpus``, ``memory_mb``, ``disk_gb``, ``gateway_profile``,
+and ``internet_enabled``. Both namespaces are allowlisted. Task overrides cannot
+replace Airflow runtime environment variables. Setting ``keep`` skips deletion
+at terminal state for debugging, but the hard ``ttl_seconds`` lifecycle policy
+still applies.
+
+Islo currently documents ``timeout_secs`` as an API compatibility hint rather
+than a server-enforced command deadline. Airflow task cancellation fences the
+whole sandbox, and ``ttl_seconds`` remains the hard provider-side cleanup bound.
+Set both values for the workload and quota policy you need; do not rely on the
+Islo timeout hint alone to stop a hung process.
 
 Security considerations
 -----------------------
@@ -130,12 +142,13 @@ Scheduling, recovery, and scale
 -------------------------------
 
 Airflow pre-assigns a UUID before dispatch; the executor uses it as Islo's
-request ID and deterministic sandbox name. After command acceptance, the sandbox and command
-IDs are persisted together in ``external_executor_id`` so a replacement scheduler
-can adopt the task. If a scheduler dies during command submission, the replacement
-scheduler fences the whole named sandbox before allowing a retry. This avoids two
-copies of generated or untrusted code running concurrently even though Islo does
-not currently expose idempotent command submission.
+request ID and deterministic sandbox name. After command acceptance, a versioned
+Common Sandbox reference containing the Islo sandbox and command IDs is persisted
+in ``external_executor_id`` so a replacement scheduler can adopt the task. If a
+scheduler dies during command submission, the Islo driver fences the whole named
+sandbox before allowing a retry. This avoids two copies of generated or untrusted
+code running concurrently even though Islo does not currently expose idempotent
+command submission.
 
 Sandbox creation and status requests run on a dedicated asynchronous I/O loop with
 separate concurrency bounds. Throttling and transient server failures use bounded

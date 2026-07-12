@@ -24,9 +24,9 @@ requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "apache-airflow-providers-islo"
+name = "apache-airflow-providers-common-sandbox"
 version = "0.1.0"
-description = "Provider package apache-airflow-providers-islo for Apache Airflow"
+description = "Provider package apache-airflow-providers-common-sandbox for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
 license-files = ['LICENSE', 'NOTICE']
@@ -36,7 +36,7 @@ authors = [
 maintainers = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
-keywords = [ "airflow-provider", "islo", "airflow", "integration" ]
+keywords = [ "airflow-provider", "common.sandbox", "airflow", "integration" ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -60,9 +60,6 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.3.0",
-    "apache-airflow-providers-common-compat>=1.12.0",
-    "apache-airflow-providers-common-sandbox>=0.1.0",
-    "httpx>=0.27.0",
 ]
 
 [dependency-groups]
@@ -70,8 +67,6 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
-    "apache-airflow-providers-common-compat",
-    "apache-airflow-providers-common-sandbox",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
@@ -101,8 +96,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-islo/0.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-islo/0.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sandbox/0.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sandbox/0.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -110,10 +105,10 @@ apache-airflow-providers-standard = {workspace = true}
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
-provider_info = "airflow.providers.islo.get_provider_info:get_provider_info"
+provider_info = "airflow.providers.common.sandbox.get_provider_info:get_provider_info"
 
 [tool.flit.module]
-name = "airflow.providers.islo"
+name = "airflow.providers.common.sandbox"
 
 # Explicit sdist contents so the build does not rely on VCS information
 # (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
@@ -123,5 +118,6 @@ include = [
     "provider.yaml",
     "src/airflow/__init__.py",
     "src/airflow/providers/__init__.py",
+    "src/airflow/providers/common/__init__.py",
     "tests/",
 ]

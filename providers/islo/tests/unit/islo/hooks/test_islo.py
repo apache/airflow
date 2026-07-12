@@ -24,10 +24,19 @@ import pytest
 
 from airflow.providers.islo.hooks.islo import AsyncIsloClient, IsloClientConfig, IsloHook
 from airflow.providers.islo.models import (
-    IsloExecutionRef,
     IsloExecutionState,
+    IsloSandboxConfig,
+    IsloSandboxHandle,
     IsloSandboxSpec,
+    sandbox_name_from_request_id,
 )
+
+REQUEST_ID = "00000000-0000-0000-0000-000000000001"
+SANDBOX_NAME = sandbox_name_from_request_id(REQUEST_ID)
+
+
+def make_handle() -> IsloSandboxHandle:
+    return IsloSandboxHandle(REQUEST_ID, SANDBOX_NAME, "sandbox-id", "exec-id")
 
 
 @pytest.mark.asyncio
@@ -39,32 +48,38 @@ async def test_client_create_execute_status_and_delete() -> None:
         if request.url.path == "/auth/token":
             return httpx.Response(200, json={"session_token": "jwt", "cookie_max_age": 600})
         if request.url.path == "/sandboxes" and request.method == "POST":
-            return httpx.Response(200, json={"name": "airflow-id", "id": "sandbox-id"})
-        if request.url.path == "/sandboxes/airflow-id/exec" and request.method == "POST":
-            return httpx.Response(200, json={"exec_id": "exec-id"})
-        if request.url.path == "/sandboxes/airflow-id/exec/exec-id":
+            return httpx.Response(200, json={"name": SANDBOX_NAME, "id": "sandbox-id"})
+        if request.url.path == f"/sandboxes/{SANDBOX_NAME}/exec" and request.method == "POST":
+            return httpx.Response(
+                200,
+                json={"exec_id": "exec-id", "sandbox_id": "sandbox-id", "status": "started"},
+            )
+        if request.url.path == f"/sandboxes/{SANDBOX_NAME}/exec/exec-id":
             return httpx.Response(200, json={"status": "completed", "exit_code": 0})
-        if request.url.path == "/sandboxes/airflow-id" and request.method == "DELETE":
+        if request.url.path == f"/sandboxes/{SANDBOX_NAME}" and request.method == "DELETE":
             return httpx.Response(204)
         return httpx.Response(500)
 
     async_http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncIsloClient(IsloClientConfig(access_key="ak_test"), http_client=async_http)
     spec = IsloSandboxSpec(
-        name="airflow-id",
-        request_id="00000000-0000-0000-0000-000000000001",
-        snapshot_name="airflow-runtime",
+        name=SANDBOX_NAME,
+        request_id=REQUEST_ID,
+        config=IsloSandboxConfig(snapshot_name="airflow-runtime"),
+        ttl_seconds=86400,
     )
 
     sandbox_name, sandbox_id = await client.create_sandbox(spec)
-    execution_id = await client.execute(
+    started = await client.execute(
         sandbox_name,
         ["python", "-m", "airflow.sdk.execution_time.execute_workload"],
         {},
         workdir=None,
         timeout_seconds=3600,
     )
-    ref = IsloExecutionRef(spec.request_id, sandbox_name, sandbox_id, execution_id)
+    ref = IsloSandboxHandle(spec.request_id, sandbox_name, sandbox_id, started.execution_id)
+
+    assert started.sandbox_id == sandbox_id
 
     assert (await client.execution_result(ref)).state is IsloExecutionState.SUCCEEDED
     await client.delete_sandbox(sandbox_name)
@@ -98,7 +113,7 @@ async def test_terminal_failure_without_exit_code_is_not_treated_as_running(stat
 
     async_http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncIsloClient(IsloClientConfig(access_key="ak_test"), http_client=async_http)
-    ref = IsloExecutionRef("request", "sandbox", "sandbox-id", "exec-id")
+    ref = make_handle()
 
     result = await client.execution_result(ref)
 
@@ -115,7 +130,7 @@ async def test_only_404_is_confirmed_gone() -> None:
 
     async_http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncIsloClient(IsloClientConfig(access_key="ak_test"), http_client=async_http)
-    ref = IsloExecutionRef("request", "sandbox", "sandbox-id", "exec-id")
+    ref = make_handle()
 
     assert (await client.execution_result(ref)).state is IsloExecutionState.GONE
     await async_http.aclose()
@@ -164,10 +179,24 @@ async def test_unauthorized_response_refreshes_token_only_once() -> None:
 
     async_http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncIsloClient(IsloClientConfig(access_key="ak_test"), http_client=async_http)
-    ref = IsloExecutionRef("request", "sandbox", "sandbox-id", "exec-id")
+    ref = make_handle()
 
     assert (await client.execution_result(ref)).state is IsloExecutionState.RUNNING
     assert token_calls == 2
+    await async_http.aclose()
+
+
+@pytest.mark.asyncio
+async def test_started_status_is_running() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/token":
+            return httpx.Response(200, json={"session_token": "jwt"})
+        return httpx.Response(200, json={"status": "started", "exit_code": None})
+
+    async_http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    client = AsyncIsloClient(IsloClientConfig(access_key="ak_test"), http_client=async_http)
+
+    assert (await client.execution_result(make_handle())).state is IsloExecutionState.RUNNING
     await async_http.aclose()
 
 
@@ -186,7 +215,7 @@ async def test_token_exchange_retries_transient_failure() -> None:
 
     async_http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncIsloClient(IsloClientConfig(access_key="ak_test"), http_client=async_http)
-    ref = IsloExecutionRef("request", "sandbox", "sandbox-id", "exec-id")
+    ref = make_handle()
 
     with patch("airflow.providers.islo.hooks.islo.asyncio.sleep"):
         assert (await client.execution_result(ref)).state is IsloExecutionState.RUNNING

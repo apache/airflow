@@ -21,6 +21,9 @@
 The Islo provider supplies an executor for running ordinary Airflow tasks in
 short-lived, isolated sandboxes. It does not introduce an operator or TaskFlow
 annotation: selecting the execution environment is an executor concern.
+The concrete executor uses the reusable engine from
+``apache-airflow-providers-common-sandbox``; future sandbox services can bind
+their own drivers and executors without depending on Islo.
 
 .. toctree::
     :hidden:
@@ -94,13 +97,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.3.0``.
 
-==========================================  ==================
-PIP package                                 Version required
-==========================================  ==================
-``apache-airflow``                          ``>=3.3.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``httpx``                                   ``>=0.27.0``
-==========================================  ==================
+===========================================  ==================
+PIP package                                  Version required
+===========================================  ==================
+``apache-airflow``                           ``>=3.3.0``
+``apache-airflow-providers-common-compat``   ``>=1.12.0``
+``apache-airflow-providers-common-sandbox``  ``>=0.1.0``
+``httpx``                                    ``>=0.27.0``
+===========================================  ==================
 
 Downloading official packages
 -----------------------------

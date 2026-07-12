@@ -16,15 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.islo.exceptions import IsloError, IsloUnfencedLaunchError
+from airflow.providers.common.sandbox.exceptions import (
+    SandboxConfigurationError,
+    SandboxProtocolError,
+)
+from airflow.providers.islo.exceptions import (
+    IsloConfigurationError,
+    IsloError,
+    IsloProtocolError,
+)
 
 
-def test_unfenced_launch_error_preserves_reconciliation_context() -> None:
-    launch_error = TimeoutError("response lost")
-    delete_error = OSError("delete failed")
-    error = IsloUnfencedLaunchError("sandbox", launch_error, delete_error)
-
-    assert isinstance(error, IsloError)
-    assert error.sandbox_name == "sandbox"
-    assert error.launch_error is launch_error
-    assert error.delete_error is delete_error
+def test_islo_exceptions_preserve_common_sandbox_categories() -> None:
+    assert issubclass(IsloConfigurationError, IsloError)
+    assert issubclass(IsloConfigurationError, SandboxConfigurationError)
+    assert issubclass(IsloProtocolError, IsloError)
+    assert issubclass(IsloProtocolError, SandboxProtocolError)

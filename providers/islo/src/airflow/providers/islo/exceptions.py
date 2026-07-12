@@ -18,24 +18,20 @@
 
 from __future__ import annotations
 
+from airflow.providers.common.sandbox.exceptions import (
+    SandboxConfigurationError,
+    SandboxError,
+    SandboxProtocolError,
+)
 
-class IsloError(RuntimeError):
+
+class IsloError(SandboxError):
     """Base exception for Islo provider failures."""
 
 
-class IsloConfigurationError(IsloError):
+class IsloConfigurationError(SandboxConfigurationError, IsloError):
     """Raised when executor or connection configuration is invalid."""
 
 
-class IsloProtocolError(IsloError):
+class IsloProtocolError(SandboxProtocolError, IsloError):
     """Raised when the Islo API returns an invalid response."""
-
-
-class IsloUnfencedLaunchError(IsloError):
-    """A launch became ambiguous and its sandbox could not yet be deleted."""
-
-    def __init__(self, sandbox_name: str, launch_error: BaseException, delete_error: BaseException) -> None:
-        super().__init__(f"launch outcome for sandbox {sandbox_name!r} is unknown and fencing failed")
-        self.sandbox_name = sandbox_name
-        self.launch_error = launch_error
-        self.delete_error = delete_error

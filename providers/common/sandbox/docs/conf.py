@@ -1,3 +1,5 @@
+# Disable Flake8 because of all the sphinx imports
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,26 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Configuration of Providers docs building."""
+
 from __future__ import annotations
 
-from datetime import datetime
+import os
 
-from airflow.sdk import dag, task
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-common-sandbox"
 
-
-@dag(start_date=datetime(2025, 1, 1), schedule=None, catchup=False, tags=["example", "islo"])
-def example_islo_executor():
-    @task
-    def verify_runtime() -> str:
-        """Run as an ordinary task; deployment-level executor routing supplies the sandbox."""
-        return "executed in an Islo sandbox"
-
-    verify_runtime()
-
-
-example_islo_executor_dag = example_islo_executor()
-
-from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
-
-# Needed to run the example Dag with pytest (see: contributing-docs/testing/system_tests.rst)
-test_run = get_test_run(example_islo_executor_dag)
+from docs.provider_conf import *  # noqa: F403

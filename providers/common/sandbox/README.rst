@@ -21,44 +21,40 @@
 .. IF YOU WANT TO MODIFY TEMPLATE FOR THIS FILE, YOU SHOULD MODIFY THE TEMPLATE
    ``PROVIDER_README_TEMPLATE.rst.jinja2`` IN the ``dev/breeze/src/airflow_breeze/templates`` DIRECTORY
 
-Package ``apache-airflow-providers-islo``
+Package ``apache-airflow-providers-common-sandbox``
 
 Release: ``0.1.0``
 
 
-`Islo <https://islo.dev/>`__ provider for Apache Airflow. The ``IsloExecutor`` runs each
-task try in its own ephemeral Islo sandbox and supports OCI images and snapshot-based startup.
+Shared executor engine and driver contract for provider-owned ephemeral sandbox executors.
 
 
 Provider package
 ----------------
 
-This is a provider package for ``islo`` provider. All classes for this provider package
-are in ``airflow.providers.islo`` python package.
+This is a provider package for ``common.sandbox`` provider. All classes for this provider package
+are in ``airflow.providers.common.sandbox`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-islo/0.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sandbox/0.1.0/>`_.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-islo``
+``pip install apache-airflow-providers-common-sandbox``
 
 The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-===========================================  ==================
-PIP package                                  Version required
-===========================================  ==================
-``apache-airflow``                           ``>=3.3.0``
-``apache-airflow-providers-common-compat``   ``>=1.12.0``
-``apache-airflow-providers-common-sandbox``  ``>=0.1.0``
-``httpx``                                    ``>=0.27.0``
-===========================================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=3.3.0``
+==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-islo/0.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sandbox/0.1.0/changelog.html>`_.
