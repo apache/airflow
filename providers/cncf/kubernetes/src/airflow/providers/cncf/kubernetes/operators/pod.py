@@ -205,8 +205,7 @@ class KubernetesPodOperator(BaseOperator):
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
     :param xcom_sidecar_container_security_context: security options the xcom sidecar container should
-        run with. Overrides the value configured on the Kubernetes connection. Useful for clusters that
-        enforce Pod Security Standards or admission policies (e.g. OPA/Gatekeeper) on the injected sidecar.
+        run with. Overrides the value configured on the Kubernetes connection. 
     :param dnspolicy: dnspolicy for the pod.
     :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
     :param hostname: hostname for the pod. (templated)
