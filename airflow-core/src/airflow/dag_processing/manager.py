@@ -1056,23 +1056,6 @@ class DagFileProcessorManager(LoggingMixin):
         file_infos = [info for info, ts in sorted(files_with_mtime.items(), key=itemgetter(1), reverse=True)]
         return file_infos, changed_recently
 
-    def processed_recently(self, now, file):
-        stat = next(
-            (
-                stat
-                for tracked_file, stat in self._file_stats.items()
-                if tracked_file.presence_key == file.presence_key
-            ),
-            None,
-        )
-        last_time = stat.last_finish_time if stat else None
-        if not last_time:
-            return False
-        elapsed_ss = (now - last_time).total_seconds()
-        if elapsed_ss < self._file_process_interval:
-            return True
-        return False
-
     def prepare_file_queue(self, known_files: dict[str, set[DagFileInfo]]):
         """
         Scan dags dir to generate more file paths to process.

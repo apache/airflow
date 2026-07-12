@@ -266,9 +266,9 @@ class TestDagFileProcessorManager:
         file = DagFileInfo(bundle_name=bundle_name, rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
 
         with (
-            mock.patch.object(manager, "purge_removed_files_from_queue") as purge_queue,
-            mock.patch.object(manager, "terminate_orphan_processes") as terminate_processors,
-            mock.patch.object(manager, "remove_orphaned_file_stats") as remove_stats,
+            mock.patch.object(manager, "purge_removed_files_from_queue", autospec=True) as purge_queue,
+            mock.patch.object(manager, "terminate_orphan_processes", autospec=True) as terminate_processors,
+            mock.patch.object(manager, "remove_orphaned_file_stats", autospec=True) as remove_stats,
         ):
             manager.handle_removed_files(known_files={bundle_name: {file}})
 
@@ -303,7 +303,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("callbacks.py")
         present_file = _get_file_infos(["callbacks.py"])[0]
-        processor = MagicMock()
+        processor = MagicMock(spec=DagFileProcessorProcess)
 
         manager._processors[versioned_file] = processor
 
@@ -315,7 +315,7 @@ class TestDagFileProcessorManager:
     def test_terminate_orphan_processes_kills_processor_when_file_is_truly_absent(self):
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("callbacks.py")
-        processor = MagicMock()
+        processor = MagicMock(spec=DagFileProcessorProcess)
 
         manager._processors[versioned_file] = processor
 
@@ -485,7 +485,7 @@ class TestDagFileProcessorManager:
         new_file = _get_file_infos(["file_2.py"])[0]
 
         manager._file_queue = deque([queued_versioned_file])
-        manager._processors[processed_versioned_file] = MagicMock()
+        manager._processors[processed_versioned_file] = MagicMock(spec=DagFileProcessorProcess)
         manager._file_stats[parsed_versioned_file] = DagFileStat(num_dags=1)
 
         known_files = {
@@ -633,7 +633,7 @@ class TestDagFileProcessorManager:
         versioned_file = _get_versioned_file_info("file_1.py")
         known_file = _get_file_infos(["file_1.py"])[0]
 
-        manager._processors[versioned_file] = MagicMock()
+        manager._processors[versioned_file] = MagicMock(spec=DagFileProcessorProcess)
 
         manager.prepare_file_queue(known_files={"testing": {known_file}})
 
@@ -653,16 +653,18 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_prepare_file_queue_skips_recently_processed_file_with_versioned_stats(self):
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
         manager = DagFileProcessorManager(max_runs=3)
         versioned_file = _get_versioned_file_info("file_1.py")
         known_file = _get_file_infos(["file_1.py"])[0]
 
         manager._file_stats[versioned_file] = DagFileStat(
-            last_finish_time=timezone.utcnow() - timedelta(seconds=10),
+            last_finish_time=freezed_base_time - timedelta(seconds=10),
             run_count=1,
         )
 
-        manager.prepare_file_queue(known_files={"testing": {known_file}})
+        with time_machine.travel(freezed_base_time):
+            manager.prepare_file_queue(known_files={"testing": {known_file}})
 
         assert manager._file_queue == deque()
 
