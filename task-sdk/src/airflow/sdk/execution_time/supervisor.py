@@ -1385,7 +1385,12 @@ class ActivitySubprocess(WatchedSubprocess):
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            ti_context = self.client.task_instances.start(
+                ti.id,
+                self.pid,
+                datetime.now(tz=timezone.utc),
+                getattr(ti, "external_executor_id", None),
+            )
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:

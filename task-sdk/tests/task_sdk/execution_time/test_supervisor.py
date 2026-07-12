@@ -957,6 +957,8 @@ class TestWatchedSubprocess:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == f"/task-instances/{ti_id}/run":
+                body = json.loads(request.read())
+                assert body["external_executor_id"] == "launch-token"
                 return httpx.Response(
                     409,
                     json={
@@ -985,6 +987,7 @@ class TestWatchedSubprocess:
                     try_number=1,
                     dag_version_id=uuid7(),
                     queue="default",
+                    external_executor_id="launch-token",
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,
