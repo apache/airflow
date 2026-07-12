@@ -26,6 +26,7 @@ from jwt import InvalidTokenError
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -41,7 +42,6 @@ from tests_common.test_utils.config import conf_vars
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
-        AccessView,
         AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
@@ -156,6 +156,22 @@ def auth_manager():
 class TestBaseAuthManager:
     def test_init_non_multi_team_mode(self, auth_manager):
         assert auth_manager.init() is None
+
+    @patch.object(EmptyAuthManager, "is_authorized_view")
+    def test_is_authorized_view_for_team_defaults_to_is_authorized_view(
+        self, mock_is_authorized_view, auth_manager
+    ):
+        # Managers that do not override the team-aware variant (including
+        # out-of-tree ones) must keep working: the default ignores team_name and
+        # falls back to is_authorized_view.
+        mock_is_authorized_view.return_value = True
+
+        result = auth_manager.is_authorized_view_for_team(
+            access_view=AccessView.DOCS, user=None, team_name="team_a"
+        )
+
+        assert result is True
+        mock_is_authorized_view.assert_called_once_with(access_view=AccessView.DOCS, user=None)
 
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.parametrize(
