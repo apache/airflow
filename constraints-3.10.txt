@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-11T22:09:16.020895
+# This constraints file was automatically generated on 2026-07-12T08:17:15.557115
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -306,10 +306,10 @@ facebook_business==25.0.2
 fastapi-cli==0.0.28
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.14.3
+fastcore==1.14.5
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.29.6
+filelock==3.29.7
 flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
@@ -569,9 +569,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.5.1
+pydantic-ai-slim==2.6.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.5.1
+pydantic-graph==2.6.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -697,7 +697,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.11.27
+uv==0.11.28
 uvicorn==0.50.2
 uvloop==0.22.1
 validators==0.35.0
