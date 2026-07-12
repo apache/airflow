@@ -45,7 +45,7 @@ class TaskInstanceDTO(TaskInstance):
     pool_slots: int
     priority_weight: int
 
-    external_executor_id: str | None = Field(default=None, exclude=True)
+    external_executor_id: str | None = None
     executor_config: dict | None = Field(default=None, exclude=True)
 
     # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
