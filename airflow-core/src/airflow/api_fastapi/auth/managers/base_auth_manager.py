@@ -365,6 +365,28 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user to performing the action
         """
 
+    def is_authorized_view_for_team(
+        self,
+        *,
+        access_view: AccessView,
+        user: T,
+        team_name: str | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to access a read-only view, scoped to a team.
+
+        This is the team-aware variant of :meth:`is_authorized_view`. Auth managers that
+        support multi-team isolation override it to restrict access to users belonging to
+        ``team_name``. The default implementation ignores ``team_name`` and falls back to
+        :meth:`is_authorized_view`, so auth managers (including out-of-tree ones) that do
+        not implement it keep working unchanged.
+
+        :param access_view: the specific read-only view/state the authorization request is about.
+        :param user: the user performing the action
+        :param team_name: team the view is scoped to, if any
+        """
+        return self.is_authorized_view(access_view=access_view, user=user)
+
     @abstractmethod
     def is_authorized_custom_view(self, *, method: ResourceMethod, resource_name: str, user: T) -> bool:
         """

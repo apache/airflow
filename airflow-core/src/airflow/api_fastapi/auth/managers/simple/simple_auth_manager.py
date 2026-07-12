@@ -37,7 +37,7 @@ from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, TeamDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
-        AccessView,
         AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
@@ -353,7 +352,19 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         )
 
     def is_authorized_view(self, *, access_view: AccessView, user: SimpleAuthManagerUser) -> bool:
-        return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
+        return self.is_authorized_view_for_team(access_view=access_view, user=user)
+
+    def is_authorized_view_for_team(
+        self, *, access_view: AccessView, user: SimpleAuthManagerUser, team_name: str | None = None
+    ) -> bool:
+        # Import errors for files with no registered Dag are admin-only (there is no
+        # per-Dag key to authorize on); every other view stays readable by viewers.
+        allow_role = (
+            SimpleAuthManagerRole.ADMIN
+            if access_view == AccessView.IMPORT_ERRORS_ALL
+            else SimpleAuthManagerRole.VIEWER
+        )
+        return self._is_authorized(method="GET", allow_role=allow_role, user=user, team_name=team_name)
 
     def is_authorized_custom_view(
         self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser

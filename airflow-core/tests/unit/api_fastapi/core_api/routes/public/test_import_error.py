@@ -21,19 +21,22 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy import delete
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagDetails
 from airflow.api_fastapi.core_api.routes.public.import_error import REDACTED_STACKTRACE
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
@@ -150,6 +153,14 @@ def set_mock_auth_manager__batch_is_authorized_dag(
     return mock_batch_is_authorized_dag
 
 
+def set_mock_auth_manager__is_authorized_view_for_team(
+    mock_auth_manager: mock.Mock, is_authorized_view_for_team_return_value: bool = False
+) -> mock.Mock:
+    mock_method = mock_auth_manager.return_value.is_authorized_view_for_team
+    mock_method.return_value = is_authorized_view_for_team_return_value
+    return mock_method
+
+
 class TestGetImportError:
     @pytest.mark.parametrize(
         ("prepared_import_error_idx", "expected_status_code", "expected_body"),
@@ -259,28 +270,49 @@ class TestGetImportError:
             "bundle_name": BUNDLE_NAME,
         }
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_status_code"),
+        [
+            pytest.param(True, 200, id="with-IMPORT_ERRORS_ALL-sees-raw"),
+            pytest.param(False, 403, id="without-IMPORT_ERRORS_ALL-forbidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_get_import_error__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
-        """Import error is returned with the raw stacktrace when no Dag exists
-        in ``DagModel`` for the file.
-
-        Proper handling of unregistered files (separate admin-only permission,
-        multi-team isolation) is tracked as follow-up work; for now the endpoint
-        returns the raw error rather than redacting it.
+    def test_get_import_error__no_dag_in_dagmodel(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+        can_view_all_import_errors,
+        expected_status_code,
+    ):
+        """A file with no registered Dag has no per-Dag key to authorize on, so
+        visibility is gated on the dedicated ``IMPORT_ERRORS_ALL`` view: callers
+        holding it (admins by default) see the raw stacktrace, everyone else is
+        denied (403) rather than the endpoint failing open or leaking the row.
         """
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        mock_method = set_mock_auth_manager__is_authorized_view_for_team(
+            mock_get_auth_manager, can_view_all_import_errors
+        )
 
         response = test_client.get(f"/importErrors/{import_error_id}")
 
-        assert response.status_code == 200
-        assert response.json() == {
-            "import_error_id": import_error_id,
-            "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
-            "filename": FILENAME1,
-            "stack_trace": STACKTRACE1,
-            "bundle_name": BUNDLE_NAME,
-        }
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
+            assert response.json() == {
+                "import_error_id": import_error_id,
+                "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
+                "filename": FILENAME1,
+                "stack_trace": STACKTRACE1,
+                "bundle_name": BUNDLE_NAME,
+            }
+        # The unregistered-file view is what gates access, scoped to the file's
+        # team (None for the un-teamed "testing" bundle).
+        mock_method.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
+        )
 
 
 class TestGetImportErrors:
@@ -373,7 +405,10 @@ class TestGetImportErrors:
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
         set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
 
-        with assert_queries_count(5):
+        # One extra query vs. the has-Dag path: the list endpoint probes for
+        # import errors of files with no registered Dag so it can authorize them
+        # on the IMPORT_ERRORS_ALL view before building the main query.
+        with assert_queries_count(6):
             response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
@@ -686,29 +721,45 @@ class TestGetImportErrors:
         assert response_json2["total_entries"] == 0
         assert response_json2["import_errors"] == []
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_total_entries", "expected_stacktraces"),
+        [
+            pytest.param(
+                True,
+                3,
+                {FILENAME1: STACKTRACE1, FILENAME2: STACKTRACE2, FILENAME3: STACKTRACE3},
+                id="with-IMPORT_ERRORS_ALL-sees-raw",
+            ),
+            pytest.param(False, 0, {}, id="without-IMPORT_ERRORS_ALL-hidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_get_import_errors__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
-        """Import errors are returned with their raw stacktraces when no Dag
-        exists in ``DagModel`` for the file.
-
-        Proper handling of unregistered files is deferred to a follow-up issue
-        that introduces a dedicated permission and respects multi-team isolation.
+    def test_get_import_errors__no_dag_in_dagmodel(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+        can_view_all_import_errors,
+        expected_total_entries,
+        expected_stacktraces,
+    ):
+        """List endpoint gates unregistered-file import errors on the dedicated
+        ``IMPORT_ERRORS_ALL`` view: callers holding it see the raw stacktrace,
+        callers without it do not see the rows at all (excluded from both the
+        results and ``total_entries``, so the file's existence does not leak).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__is_authorized_view_for_team(mock_get_auth_manager, can_view_all_import_errors)
 
         response = test_client.get("/importErrors")
 
         assert response.status_code == 200
         response_json = response.json()
-        assert response_json["total_entries"] == 3
+        assert response_json["total_entries"] == expected_total_entries
         stacktrace_by_filename = {
             error["filename"]: error["stack_trace"] for error in response_json["import_errors"]
         }
-        assert stacktrace_by_filename == {
-            FILENAME1: STACKTRACE1,
-            FILENAME2: STACKTRACE2,
-            FILENAME3: STACKTRACE3,
-        }
+        assert stacktrace_by_filename == expected_stacktraces
 
 
 class TestImportErrorFileAuthorization:
@@ -838,25 +889,35 @@ class TestImportErrorFileAuthorization:
         response = test_client.get(f"/importErrors/{lonely_file_import_error.id}")
         assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_status_code"),
+        [
+            pytest.param(True, 200, id="with-IMPORT_ERRORS_ALL-sees-raw"),
+            pytest.param(False, 403, id="without-IMPORT_ERRORS_ALL-forbidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_single_endpoint_returns_raw_stacktrace_when_file_has_no_known_dags(
+    def test_single_endpoint_gates_unregistered_file_stacktrace_on_import_errors_all(
         self,
         mock_get_auth_manager,
         test_client,
         import_errors,
+        can_view_all_import_errors,
+        expected_status_code,
     ):
-        """Single endpoint returns the raw stacktrace when the
-        ``ParseImportError`` refers to a file with no matching ``DagModel``
-        rows at all -- for example a file that failed to parse before any
-        Dag was defined. Proper handling of this case (dedicated permission,
-        multi-team isolation) is tracked as follow-up work.
+        """Single endpoint gates a file with no matching ``DagModel`` rows (for
+        example a file that failed to parse before any Dag was defined) on the
+        dedicated ``IMPORT_ERRORS_ALL`` view instead of failing open. Callers
+        holding it see the raw stacktrace; others are denied (403).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__is_authorized_view_for_team(mock_get_auth_manager, can_view_all_import_errors)
         response = test_client.get(f"/importErrors/{import_errors[0].id}")
-        assert response.status_code == 200
-        body = response.json()
-        assert body["filename"] == FILENAME1
-        assert body["stack_trace"] == STACKTRACE1
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
+            body = response.json()
+            assert body["filename"] == FILENAME1
+            assert body["stack_trace"] == STACKTRACE1
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_list_endpoint_redacts_mixed_file_with_colocated_dag_outside_callers_scope(
@@ -894,26 +955,86 @@ class TestImportErrorFileAuthorization:
         assert len(mixed_entries) == 1
         assert mixed_entries[0]["stack_trace"] == REDACTED_STACKTRACE
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_total_entries", "expected_stacktraces"),
+        [
+            pytest.param(
+                True,
+                3,
+                {FILENAME1: STACKTRACE1, FILENAME2: STACKTRACE2, FILENAME3: STACKTRACE3},
+                id="with-IMPORT_ERRORS_ALL-sees-raw",
+            ),
+            pytest.param(False, 0, {}, id="without-IMPORT_ERRORS_ALL-hidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_list_endpoint_returns_raw_stacktrace_when_file_has_no_known_dags(
+    def test_list_endpoint_gates_unregistered_file_stacktrace_on_import_errors_all(
         self,
         mock_get_auth_manager,
         test_client,
         import_errors,
+        can_view_all_import_errors,
+        expected_total_entries,
+        expected_stacktraces,
     ):
-        """List endpoint returns the raw stacktrace for import errors whose
-        file has no matching ``DagModel`` rows. Proper handling of this case
-        (dedicated permission, multi-team isolation) is tracked as follow-up
-        work.
+        """List endpoint gates import errors whose file has no matching
+        ``DagModel`` rows on the dedicated ``IMPORT_ERRORS_ALL`` view instead of
+        failing open. Callers holding it see the raw stacktrace; callers without
+        it do not see the rows at all (excluded from results and
+        ``total_entries``).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__is_authorized_view_for_team(mock_get_auth_manager, can_view_all_import_errors)
         response = test_client.get("/importErrors")
         assert response.status_code == 200
         body = response.json()
-        assert body["total_entries"] == 3
+        assert body["total_entries"] == expected_total_entries
         stacktrace_by_filename = {entry["filename"]: entry["stack_trace"] for entry in body["import_errors"]}
-        assert stacktrace_by_filename == {
-            FILENAME1: STACKTRACE1,
-            FILENAME2: STACKTRACE2,
-            FILENAME3: STACKTRACE3,
-        }
+        assert stacktrace_by_filename == expected_stacktraces
+
+    @pytest.fixture
+    def team_scoped_unregistered_import_error(self) -> Generator[ParseImportError, None, None]:
+        """An import error for a file with no registered Dag, whose bundle is
+        mapped to a team, so the endpoint must scope the ``IMPORT_ERRORS_ALL``
+        check to that team."""
+        from airflow.models.team import Team
+
+        with create_session() as session:
+            team = Team(name="team_b")
+            bundle = DagBundleModel(name="team_b_bundle")
+            bundle.teams = [team]
+            session.add_all([team, bundle])
+            error = ParseImportError(
+                bundle_name="team_b_bundle",
+                filename="team_b_unregistered.py",
+                stacktrace="team b stack trace",
+                timestamp=TIMESTAMP1,
+            )
+            session.add(error)
+            session.commit()
+            session.refresh(error)
+            session.expunge(error)
+        yield error
+        with create_session() as cleanup_session:
+            cleanup_session.execute(delete(Team).where(Team.name == "team_b"))
+            cleanup_session.commit()
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_single_endpoint_scopes_unregistered_file_view_to_bundle_team(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        team_scoped_unregistered_import_error,
+    ):
+        """The ``IMPORT_ERRORS_ALL`` check for an unregistered file is scoped to
+        the file's team, resolved from its bundle. A caller not in that team is
+        denied (403)."""
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        mock_method = set_mock_auth_manager__is_authorized_view_for_team(mock_get_auth_manager, False)
+
+        response = test_client.get(f"/importErrors/{team_scoped_unregistered_import_error.id}")
+
+        assert response.status_code == 403
+        mock_method.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name="team_b"
+        )

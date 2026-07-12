@@ -55,6 +55,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_view,
 )
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 
 REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all Dags in the file"
@@ -101,10 +102,23 @@ def get_import_error(
 
     # No Dags matched for this file -- either the file genuinely contains
     # no Dags (parse failed before any Dag was defined), or the name keys
-    # did not resolve. Return the raw error in this case; a proper
-    # admin-only path for unregistered files is tracked in a follow-up
-    # issue (see https://github.com/apache/airflow/issues/67461).
+    # did not resolve. There is no per-Dag key to authorize on, so gate
+    # visibility on the dedicated ``IMPORT_ERRORS_ALL`` view (admin by
+    # default), scoped to the file's team via its bundle. Deny access
+    # entirely for callers without it rather than failing open -- returning
+    # the row would leak the file's existence (and, for team-scoped bundles,
+    # cross-team repository structure).
     if not file_dag_ids:
+        team_name = (
+            DagBundleModel.get_team_name(error.bundle_name, session=session) if error.bundle_name else None
+        )
+        if not auth_manager.is_authorized_view_for_team(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=user, team_name=team_name
+        ):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "You do not have permission to view import errors for files with no registered Dag",
+            )
         return error
 
     # Can the user read any Dags in the file?
@@ -159,6 +173,31 @@ def get_import_errors(
     # Subquery for files that have any Dags
     files_with_any_dags = select(DagModel.relative_fileloc).distinct().subquery()
 
+    # Import errors for files that have **no** registered Dag have no per-Dag
+    # key to authorize on. Authorize them on the dedicated ``IMPORT_ERRORS_ALL``
+    # view (admin by default), scoped to the file's team via its bundle, and
+    # keep only the ones the caller may see. Filtering here (rather than
+    # redacting in the loop) also excludes unauthorized rows from the count and
+    # pagination, so their existence -- and, for team-scoped bundles, the
+    # cross-team file/bundle names -- does not leak.
+    unregistered_errors = session.execute(
+        select(ParseImportError.id, ParseImportError.bundle_name)
+        .outerjoin(files_with_any_dags, ParseImportError.filename == files_with_any_dags.c.relative_fileloc)
+        .where(files_with_any_dags.c.relative_fileloc.is_(None))
+    ).all()
+    team_name_by_bundle = DagBundleModel.get_team_names(
+        {bundle_name for _, bundle_name in unregistered_errors if bundle_name}, session=session
+    )
+    authorized_unregistered_ids = {
+        error_id
+        for error_id, bundle_name in unregistered_errors
+        if auth_manager.is_authorized_view_for_team(
+            access_view=AccessView.IMPORT_ERRORS_ALL,
+            user=user,
+            team_name=team_name_by_bundle.get(bundle_name) if bundle_name else None,
+        )
+    }
+
     # Files (identified by ``(relative_fileloc, bundle_name)``) where the
     # user can read at least one Dag. Used to decide which import errors
     # the user is allowed to see at all.
@@ -206,7 +245,9 @@ def get_import_errors(
         )
         .where(
             or_(
-                files_with_any_dags.c.relative_fileloc.is_(None),
+                # Unregistered-file errors the caller is authorized to see.
+                ParseImportError.id.in_(authorized_unregistered_ids),
+                # Files where the caller can read at least one Dag.
                 file_dags_cte.c.dag_id.isnot(None),
             )
         )
@@ -259,12 +300,10 @@ def get_import_errors(
     for import_error, file_dag_ids_iter in import_errors_result:
         dag_ids = [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None]
 
-        # No Dags matched for this file -- either the file genuinely has
-        # no Dags yet (parse failed before any Dag was defined), or the
-        # name keys did not resolve. Append the raw error in this case;
-        # a proper admin-only path for unregistered files is tracked in
-        # a follow-up issue
-        # (see https://github.com/apache/airflow/issues/67461).
+        # No Dags matched for this file. Only unregistered-file errors the
+        # caller is authorized to see reach this point (unauthorized ones are
+        # excluded by the ``authorized_unregistered_ids`` filter above), so
+        # return the raw stacktrace.
         if not dag_ids:
             import_errors.append(import_error)
             continue
