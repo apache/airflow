@@ -20,8 +20,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 
+from airflow.partition_mappers.wait_policy import WaitForAll, WaitPolicy
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
     from airflow.partition_mappers.window import Window
 
@@ -34,6 +37,21 @@ class PartitionMapper(ABC):
     """
 
     is_rollup: ClassVar[bool] = False
+
+    max_downstream_keys: int | None = None
+
+    # Declared result type of decode_downstream; RollupMapper rejects windows
+    # whose expected_decoded_type does not match. Temporal mappers use datetime.
+    expected_decoded_type: ClassVar[type] = str
+
+    def __init__(self, *, max_downstream_keys: int | None = None) -> None:
+        if max_downstream_keys is not None and (
+            not isinstance(max_downstream_keys, int) or max_downstream_keys < 1
+        ):
+            raise ValueError(
+                f"max_downstream_keys must be a positive integer or None, got {max_downstream_keys!r}"
+            )
+        self.max_downstream_keys = max_downstream_keys
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -92,40 +110,80 @@ class PartitionMapper(ABC):
         """
         return decoded
 
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        """
+        Return the temporal anchor (period-start datetime) for *downstream_key*.
+
+        The scheduler stamps this on the asset-triggered Dag run as its
+        ``partition_date``. The base implementation returns ``None`` — a plain
+        partition key carries no temporal meaning. Temporal mappers override to
+        decode the key into its window anchor; composite mappers
+        (:class:`RollupMapper`, :class:`~airflow.partition_mappers.temporal.FanOutMapper`)
+        delegate to whichever child owns the downstream key's identity.
+        """
+        return None
+
+    def carry_partition_date(self, source_partition_date: datetime | None) -> datetime | None:
+        """
+        Return the producer's ``partition_date`` to carry onto the consumer APDR.
+
+        Captured at queue time as an asset event arrives, *source_partition_date*
+        is the producing run's ``partition_date``. The base implementation returns
+        ``None``: for most mappers the consumer's date is derived from its own
+        downstream key by :meth:`to_partition_date` at run creation, not carried
+        from the producer.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper` overrides to
+        pass it through, since the consumer's key equals the producer's and the
+        key carries no temporal meaning to decode.
+        """
+        return None
+
     def serialize(self) -> dict[str, Any]:
-        return {}
+        if self.max_downstream_keys is None:
+            return {}
+        return {"max_downstream_keys": self.max_downstream_keys}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
-        return cls()
+        return cls(max_downstream_keys=data.get("max_downstream_keys"))
 
 
 class RollupMapper(PartitionMapper):
     """
     Partition mapper that rolls up many upstream keys into one downstream key.
 
-    Compose a ``upstream_mapper`` (which normalizes each upstream key to the
+    Compose an ``upstream_mapper`` (which normalizes each upstream key to the
     downstream granularity) with a ``window`` that declares the full set of
-    upstream keys required for a given downstream key. The scheduler holds
-    the Dag run until every upstream key in the window has arrived.
+    upstream keys required for a given downstream key, and a
+    ``wait_policy`` that decides when the downstream Dag run fires given
+    the expected window and the upstream keys that have actually arrived.
+    The default policy waits for every expected upstream key.
     """
 
     is_rollup: ClassVar[bool] = True
 
-    def __init__(self, *, upstream_mapper: PartitionMapper, window: Window) -> None:
-        decode_overridden = type(upstream_mapper).decode_downstream is not PartitionMapper.decode_downstream
-        if not decode_overridden and window.expected_decoded_type is not str:
+    def __init__(
+        self,
+        *,
+        upstream_mapper: PartitionMapper,
+        window: Window,
+        wait_policy: WaitPolicy | None = None,
+        max_downstream_keys: int | None = None,
+    ) -> None:
+        if upstream_mapper.expected_decoded_type is not window.expected_decoded_type:
             raise TypeError(
                 f"{type(window).__name__} expects decoded values of type "
                 f"{window.expected_decoded_type.__name__!r}, but "
-                f"{type(upstream_mapper).__name__} does not override "
-                f"'decode_downstream' (base default returns str). Pair the window "
-                f"with an upstream mapper that decodes to "
-                f"{window.expected_decoded_type.__name__}, or use a window whose "
-                f"'expected_decoded_type' accepts str."
+                f"{type(upstream_mapper).__name__} decodes to "
+                f"{upstream_mapper.expected_decoded_type.__name__!r}. Pair a window and an "
+                f"upstream mapper whose 'expected_decoded_type' match."
             )
+        if wait_policy is None:
+            wait_policy = WaitForAll()
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.upstream_mapper = upstream_mapper
         self.window = window
+        self.wait_policy = wait_policy
 
     def to_downstream(self, key: str) -> str | Iterable[str]:
         return self.upstream_mapper.to_downstream(key)
@@ -138,21 +196,44 @@ class RollupMapper(PartitionMapper):
             for expected_upstream in self.window.to_upstream(decoded)
         )
 
-    def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_partition_mapper, encode_window
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # The downstream key is in upstream_mapper's format (to_downstream delegates
+        # to it), so the anchor is the upstream_mapper's to resolve.
+        return self.upstream_mapper.to_partition_date(downstream_key)
 
-        return {
+    def serialize(self) -> dict[str, Any]:
+        # Builtin RollupMappers serialize through ``encode_partition_mapper``
+        # (encoders.py), not this method. Keep the two in sync: a new field must
+        # be added there (and to ``encode_wait_policy``) too, or it is silently
+        # dropped for builtin instances.
+        from airflow.serialization.encoders import (
+            encode_partition_mapper,
+            encode_wait_policy,
+            encode_window,
+        )
+
+        data: dict[str, Any] = {
             "upstream_mapper": encode_partition_mapper(self.upstream_mapper),
             "window": encode_window(self.window),
+            "wait_policy": encode_wait_policy(self.wait_policy),
         }
+        if self.max_downstream_keys is not None:
+            data["max_downstream_keys"] = self.max_downstream_keys
+        return data
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
-        from airflow.serialization.decoders import decode_partition_mapper, decode_window
+        from airflow.serialization.decoders import (
+            decode_partition_mapper,
+            decode_wait_policy,
+            decode_window,
+        )
 
         return cls(
             upstream_mapper=decode_partition_mapper(data["upstream_mapper"]),
             window=decode_window(data["window"]),
+            wait_policy=decode_wait_policy(data["wait_policy"]),
+            max_downstream_keys=data.get("max_downstream_keys"),
         )
 
 

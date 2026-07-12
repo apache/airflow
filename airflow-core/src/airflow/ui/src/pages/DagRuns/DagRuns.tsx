@@ -47,12 +47,14 @@ import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
+import BulkMarkDagRunsAsButton from "./BulkMarkDagRunsAsButton";
 import { DagRunsFilters } from "./DagRunsFilters";
 import DeleteRunButton from "./DeleteRunButton";
+import RunNoteButton from "./RunNoteButton";
 
 // Matches the identifier the bulk Dag Run endpoint echoes back in its ``success`` /
 // ``errors`` lists, so the bulk response can deselect rows directly.
@@ -202,6 +204,7 @@ const runColumns = ({ dagId, translate }: ColumnProps): Array<ColumnDef<DAGRunRe
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
+        <RunNoteButton dagRun={row.original} />
         <ClearRunButton dagRun={row.original} />
         <MarkRunAsButton dagRun={row.original} />
         <DeleteRunButton dagRun={row.original} />
@@ -218,11 +221,14 @@ const runColumns = ({ dagId, translate }: ColumnProps): Array<ColumnDef<DAGRunRe
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
   const { dagId } = useParams();
+
+  // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:dagRun_other") : undefined);
+
   const [searchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
-      conf: false,
       dag_version: false,
       end_date: false,
       partition_key: false,
@@ -360,6 +366,7 @@ export const DagRuns = () => {
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
+          <BulkMarkDagRunsAsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
           <BulkDeleteDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>

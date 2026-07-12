@@ -40,6 +40,8 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import os
+import signal
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -50,14 +52,14 @@ from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Generator, Mapping
     from os import PathLike
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 __all__ = [
     "BaseCoordinator",
@@ -89,7 +91,7 @@ class BaseCoordinator:
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | PathLike[str],
         bundle_info,
         client: Client,
@@ -109,6 +111,46 @@ class BaseCoordinator:
 class _CoordinatorSpec(pydantic.BaseModel):
     classpath: str
     kwargs: dict[str, Any] = pydantic.Field(default_factory=dict)
+    # Optional metadata read by other components; kept separate from ``kwargs``
+    # so it is never passed to the coordinator constructor.
+    extra: dict[str, Any] | None = None
+
+
+@contextlib.contextmanager
+def _warm_shutdown_signals() -> Generator[None, None, None]:
+    """
+    Install SIGTERM/SIGINT warm-shutdown handlers for the duration of task supervision.
+
+    While supervising a task the supervisor must not be torn down by a
+    termination signal; instead it keeps running so the task can finish (or be
+    shut down gracefully) and its terminal state and logs are reported. The
+    handlers are installed around BOTH ``start()`` (which transitions the TI to
+    RUNNING) and ``wait()`` (which runs the task and then reports the terminal
+    state / uploads logs), so there is no window where Python's default SIGTERM
+    disposition could kill the supervisor and tear the just-started task down
+    with it.
+
+    The previous dispositions are restored on exit so a long-lived supervisor
+    process (e.g. a reused Celery prefork worker) does not leak the handler into
+    later tasks or clobber the worker's own signal handling.
+    """
+
+    def _warm_shutdown(signum, frame):
+        log.info(
+            "Received signal; warm shutdown in progress, waiting for the running task to complete.",
+            signal=signal.Signals(signum).name,
+            pid=os.getpid(),
+        )
+
+    prev_sigterm = signal.getsignal(signal.SIGTERM)
+    prev_sigint = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGTERM, _warm_shutdown)
+    signal.signal(signal.SIGINT, _warm_shutdown)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, prev_sigterm)
+        signal.signal(signal.SIGINT, prev_sigint)
 
 
 class _PythonCoordinator(BaseCoordinator):
@@ -122,7 +164,7 @@ class _PythonCoordinator(BaseCoordinator):
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | PathLike[str],
         bundle_info,
         client: Client,
@@ -137,17 +179,22 @@ class _PythonCoordinator(BaseCoordinator):
         # process handling.
         from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
-        process = ActivitySubprocess.start(
-            dag_rel_path=dag_rel_path,
-            what=what,
-            client=client,
-            logger=logger,
-            bundle_info=bundle_info,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-        )
-        exit_code = process.wait()
-        return self.ExecutionResult(exit_code, process.final_state)
+        # Keep the warm-shutdown handlers installed across both start() (which
+        # transitions the TI to RUNNING) and wait() (which runs the task and
+        # reports its terminal state / uploads logs) so a SIGTERM at any point
+        # in this window can't kill the supervisor and tear the task down.
+        with _warm_shutdown_signals():
+            process = ActivitySubprocess.start(
+                dag_rel_path=dag_rel_path,
+                what=what,
+                client=client,
+                logger=logger,
+                bundle_info=bundle_info,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=sentry_integration,
+            )
+            exit_code = process.wait()
+            return self.ExecutionResult(exit_code, process.final_state)
 
 
 @functools.cache
@@ -183,6 +230,18 @@ class CoordinatorManager:
     a specific coordinator instance (for example, a ``"legacy-java"`` queue
     routed to a JDK 11 coordinator, and a ``"modern-java"`` queue routed to a
     JDK 17 coordinator).
+
+    A coordinator entry may also carry an optional ``extra`` mapping: metadata
+    that other components read as needed. It is kept separate from ``kwargs`` and
+    never passed to the coordinator constructor::
+
+        {
+            "java": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {...},
+                "extra": {"pod_template_file": "/opt/airflow/pod_templates/java.yaml"},
+            }
+        }
 
     :meta private:
     """
@@ -233,6 +292,20 @@ class CoordinatorManager:
             raise InvalidCoordinatorError(f"Cannot instantiate coordinator {key!r}")
         log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
         return coordinator
+
+    def extra_for_queue(self, queue: str) -> dict[str, Any] | None:
+        """
+        Return the optional ``extra`` mapping configured for *queue*'s coordinator.
+
+        Returns ``None`` when the queue is not routed to a coordinator or its
+        coordinator declares no ``extra``. Only the declarative spec is read; the
+        coordinator is never instantiated.
+        """
+        if (key := self._queue_to_coordinator.get(queue)) is None:
+            return None
+        if (spec := self._coordinator_specs.get(key)) is None:
+            return None
+        return spec.extra
 
 
 @functools.cache

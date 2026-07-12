@@ -121,16 +121,6 @@ class TestKerberosCommand:
 
     @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
-    def test_run_command_with_mode_standard(self, mock_krb):
-        args = self.parser.parse_args(["kerberos", "PRINCIPAL", "--keytab", "/tmp/airflow.keytab"])
-
-        kerberos_command.kerberos(args)
-        mock_krb.run.assert_called_once_with(
-            keytab="/tmp/airflow.keytab", principal="PRINCIPAL", mode=KerberosMode.STANDARD
-        )
-
-    @mock.patch("airflow.cli.commands.kerberos_command.krb")
-    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command_with_mode_one_time(self, mock_krb):
         args = self.parser.parse_args(
             ["kerberos", "PRINCIPAL", "--keytab", "/tmp/airflow.keytab", "--one-time"]

@@ -83,7 +83,7 @@ Communication
 --------------
 
 Airflow executes tasks of a Dag on different servers in case you are using :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>` or :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
-Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
+Therefore, you should not store any file or config in the local filesystem as the downstream task is likely to run on a different server without access to it — for example, a task that downloads the data file that the downstream task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in Dag.
 
@@ -319,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.15"
+      pip install "ruff>=0.15.20"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -355,6 +355,16 @@ Running ``ruff`` will produce:
    dags/legacy_dag.py:19:5: AIR303 airflow.sensors.filesystem.FileSensor is moved into ``standard`` provider in Airflow 3.0
 
 By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
+
+.. _best_practices/static_type_checking:
+
+Static Type Checking for Dags
+-----------------------------
+
+If you type-check your Dags with ``mypy``, the optional
+`apache-airflow-mypy <https://pypi.org/project/apache-airflow-mypy/>`_ plugins give accurate results for
+Airflow-specific patterns such as typed decorators and operator outputs. See
+:doc:`/howto/static-type-checking` for installation and configuration.
 
 .. _best_practices/dynamic_dag_generation:
 
@@ -805,7 +815,7 @@ Self-Checks
 ------------
 
 You can also implement checks in a Dag to make sure the tasks are producing the results as expected.
-As an example, if you have a task that pushes data to S3, you can implement a check in the next task. For example, the check could
+As an example, if you have a task that pushes data to S3, you can implement a check in the downstream task. For example, the check could
 make sure that the partition is created in S3 and perform some simple checks to determine if the data is correct.
 
 
@@ -842,7 +852,7 @@ You can use environment variables to parameterize the Dag.
 Mocking variables and connections
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When you write tests for code that uses variables or a connection, you must ensure that they exist when you run the tests. The obvious solution is to save these objects to the database so they can be read while your code is executing. However, reading and writing objects to the database are burdened with additional time overhead. In order to speed up the test execution, it is worth simulating the existence of these objects without saving them to the database. For this, you can create environment variables with mocking :any:`os.environ` using :meth:`unittest.mock.patch.dict`.
+When you write tests for code that uses variables or a connection, you must ensure that they exist when you run the tests. The obvious solution is to save these objects to the database so they can be read while your code is executing. However, reading and writing objects to the database are burdened with additional time overhead. In order to speed up the test execution, it is worth simulating the existence of these objects without saving them to the database. For this, you can create environment variables with mocking :data:`os.environ` using :meth:`unittest.mock.patch.dict`.
 
 For variable, use :envvar:`AIRFLOW_VAR_{KEY}`.
 

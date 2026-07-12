@@ -78,7 +78,7 @@ apache-airflow-providers-microsoft-mssql package
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 
-Release: 4.6.1
+Release: 4.7.0
 
 Provider package
 ----------------
@@ -109,8 +109,8 @@ PIP package                                 Version required
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -119,16 +119,31 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-microsoft-mssql[common.compat]
+    pip install apache-airflow-providers-microsoft-mssql[openlineage]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-microsoft-mssql[openlineage]
+
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+===============  ========================================
 
 Downloading official packages
 -----------------------------
@@ -136,5 +151,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-mssql 4.6.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.6.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.6.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.6.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-mssql 4.6.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.6.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.6.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.6.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.0-py3-none-any.whl.sha512>`__)

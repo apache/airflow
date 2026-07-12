@@ -106,24 +106,22 @@ PIP package                                 Version required
 ``akeyless``                                ``>=5.0.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional dependencies
+---------------------
 
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-akeyless[common.compat]
+    pip install apache-airflow-providers-akeyless[cloud_id]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
+============  =====================
+Extra         Dependencies
+============  =====================
+``cloud_id``  ``akeyless_cloud_id``
+============  =====================
 
 Downloading official packages
 -----------------------------

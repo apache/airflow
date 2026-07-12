@@ -31,12 +31,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.base import Base
 from airflow.models.callback import (
     Callback,
     ExecutorCallback,
     TriggererCallback,
 )
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
@@ -173,6 +175,7 @@ class Deadline(Base):
         :param session: Session to use.
         """
         from airflow.models import DagRun  # Avoids circular import
+        from airflow.models.dag import DagModel
 
         # Assemble the filter conditions.
         filter_conditions = [column == value for column, value in conditions.items()]
@@ -199,9 +202,16 @@ class Deadline(Base):
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
+                team_name = (
+                    DagModel.get_team_name(dagrun.dag_id, session=session)
+                    if conf.getboolean("core", "multi_team")
+                    else None
+                )
                 stats.incr(
                     "deadline_alerts.deadline_not_missed",
-                    tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
+                    tags=prune_dict(
+                        {"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id, "team_name": team_name}
+                    ),
                 )
                 deleted_count += 1
                 dagruns_to_refresh.add(dagrun)
@@ -217,6 +227,7 @@ class Deadline(Base):
 
     def handle_miss(self, session: Session):
         """Handle a missed deadline by queueing the callback."""
+        from airflow.models.dag import DagModel  # Avoids circular import
 
         def get_simple_context():
             from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
@@ -231,30 +242,29 @@ class Deadline(Base):
 
             return {
                 "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
-                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
+                "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
             }
 
+        def callback_data_with_context():
+            data = self.callback.data.copy()
+            kwargs = dict(data.get("kwargs") or {})
+            kwargs["context"] = get_simple_context()
+            data["kwargs"] = kwargs
+            return data
+
         if isinstance(self.callback, TriggererCallback):
-            # Update the callback with context before queuing
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
-            }
+            self.callback.data = callback_data_with_context()
 
             self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
         elif isinstance(self.callback, ExecutorCallback):
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
-            }
-            self.callback.data["deadline_id"] = str(self.id)
-            self.callback.data["dag_run_id"] = str(self.dagrun.id)
-            self.callback.data["dag_id"] = self.dagrun.dag_id
+            data = callback_data_with_context()
+            data["deadline_id"] = str(self.id)
+            data["dag_run_id"] = str(self.dagrun.id)
+            data["dag_id"] = self.dagrun.dag_id
+            self.callback.data = data
 
             self.callback.state = CallbackState.PENDING
             session.add(self.callback)
@@ -265,9 +275,17 @@ class Deadline(Base):
 
         self.missed = True
         session.add(self)
+
+        team_name = (
+            DagModel.get_team_name(self.dagrun.dag_id, session=session)
+            if conf.getboolean("core", "multi_team")
+            else None
+        )
         stats.incr(
             "deadline_alerts.deadline_missed",
-            tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
+            tags=prune_dict(
+                {"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id, "team_name": team_name}
+            ),
         )
 
 

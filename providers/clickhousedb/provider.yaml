@@ -22,7 +22,7 @@ description: |
     `ClickHouse <https://clickhouse.com/>`__
 
 state: ready
-lifecycle: production
+lifecycle: incubation
 source-date-epoch: 1710000000
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.

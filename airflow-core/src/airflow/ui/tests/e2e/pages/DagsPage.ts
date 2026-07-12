@@ -17,6 +17,7 @@
  * under the License.
  */
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
+import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -31,15 +32,14 @@ export class DagsPage extends BasePage {
 
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
-  public readonly failedFilter: Locator;
+  public readonly hitlReviewModal: HITLReviewModal;
+  public readonly lastRunStateFilter: Locator;
+  public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
-  public readonly queuedFilter: Locator;
   public readonly retriesFilter: Locator;
-  public readonly runningFilter: Locator;
   public readonly searchBox: Locator;
   public readonly searchInput: Locator;
-  public readonly successFilter: Locator;
   public readonly tableViewButton: Locator;
   public readonly triggerButton: Locator;
   public readonly triggerRuleFilter: Locator;
@@ -61,10 +61,9 @@ export class DagsPage extends BasePage {
     this.retriesFilter = page.getByTestId("retries-filter");
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
-    this.successFilter = page.getByRole("button", { name: "Success" });
-    this.failedFilter = page.getByRole("button", { name: "Failed" });
-    this.runningFilter = page.getByRole("button", { name: "Running" });
-    this.queuedFilter = page.getByRole("button", { name: "Queued" });
+    this.lastRunStateFilter = page.getByTestId("dags-last-run-state-filter");
+    this.hitlReviewModal = new HITLReviewModal(page);
+    this.needsReviewBadges = page.getByTestId("needs-review-badge");
     // Uses testId because this button's text is driven by an i18n key.
     this.needsReviewFilter = page.getByTestId("dags-needs-review-filter");
   }
@@ -113,14 +112,6 @@ export class DagsPage extends BasePage {
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
   ): Promise<void> {
-    const filterMap: Record<typeof status, Locator> = {
-      failed: this.failedFilter,
-      needs_review: this.needsReviewFilter,
-      queued: this.queuedFilter,
-      running: this.runningFilter,
-      success: this.successFilter,
-    };
-
     // Set up response listener before the click so we don't miss a fast response.
     const responsePromise = this.page
       .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
@@ -132,7 +123,13 @@ export class DagsPage extends BasePage {
         }
       });
 
-    await filterMap[status].click();
+    if (status === "needs_review") {
+      await this.needsReviewFilter.click();
+    } else {
+      // Run-state filters live in the "Last run" dropdown.
+      await this.lastRunStateFilter.getByRole("combobox").click();
+      await this.page.getByTestId(`dags-last-run-state-filter-${status}`).click();
+    }
     await responsePromise;
   }
 
@@ -193,6 +190,22 @@ export class DagsPage extends BasePage {
     const texts = await dagLinks.allTextContents();
 
     return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  public async getDagNeedsReviewBadgeOnCard(dagId: string): Promise<Locator> {
+    const dagCard = this.page.getByTestId("dag-card").filter({ hasText: dagId });
+
+    await expect(dagCard).toBeVisible({ timeout: 60_000 });
+
+    return dagCard.getByTestId("needs-review-badge");
+  }
+
+  public async getDagNeedsReviewBadgeOnTable(dagId: string): Promise<Locator> {
+    const dagRow = this.page.getByTestId("table-list").getByRole("row").filter({ hasText: dagId });
+
+    await expect(dagRow).toBeVisible({ timeout: 60_000 });
+
+    return dagRow.getByTestId("needs-review-badge");
   }
 
   /**

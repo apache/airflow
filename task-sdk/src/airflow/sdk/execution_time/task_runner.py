@@ -122,14 +122,15 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStoreAccessors,
+    AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
-    TaskStoreAccessor,
+    TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
+    _get_worker_state_store_backend,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -251,6 +252,14 @@ class RuntimeTaskInstance(TaskInstance):
 
     sentry_integration: str = ""
 
+    @property
+    def stats_tags(self) -> dict[str, str]:
+        """Metric tags for this task instance, including team_name when available."""
+        tags: dict[str, str] = {"dag_id": self.dag_id, "task_id": self.task_id}
+        if self._ti_context_from_server and self._ti_context_from_server.dag_run.team_name:
+            tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+        return tags
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -300,7 +309,7 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_store": TaskStoreAccessor(
+                "task_state_store": TaskStateStoreAccessor(
                     ti_id=self.id,
                     scope=TaskScope(
                         dag_id=self.dag_id,
@@ -312,7 +321,7 @@ class RuntimeTaskInstance(TaskInstance):
             }
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_store"] = AssetStoreAccessors(
+                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
                     self.task.inlets, self.task.outlets
                 )
                 # AssetAlias inlets are resolved to their concrete assets at context build time via
@@ -326,6 +335,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
                 "partition_key": dag_run.partition_key,
+                "partition_date": coerce_datetime(dag_run.partition_date),
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
@@ -412,6 +422,57 @@ class RuntimeTaskInstance(TaskInstance):
         self.is_mapped = original_task.is_mapped
         return original_task
 
+    def _normalize_xcom_pull_params(
+        self,
+        task_ids: str | Iterable[str] | None,
+        dag_id: str | None,
+        map_indexes: int | Iterable[int] | None | ArgNotSet,
+        run_id: str | None,
+    ) -> tuple[str, str, list[str], bool, bool, Iterable[int | None] | ArgNotSet]:
+        """
+        Normalize and validate the parameters shared by ``xcom_pull`` and ``axcom_pull``.
+
+        :returns: A tuple of ``(dag_id, run_id, task_ids, single_task_requested,
+            single_map_index_requested, map_indexes_iterable)``.  When
+            ``map_indexes_iterable`` is ``NOTSET`` the caller should fetch *all*
+            map-indexes (i.e. use ``get_all`` / ``aget_all``); otherwise it is an
+            iterable of explicit map indexes to fetch one-by-one.
+        """
+        if dag_id is None:
+            dag_id = self.dag_id
+        if run_id is None:
+            run_id = self.run_id
+
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
+
+        if task_ids is None:
+            task_ids = [self.task_id]
+        elif isinstance(task_ids, str):
+            task_ids = [task_ids]
+        else:
+            task_ids = list(task_ids)
+
+        if not is_arg_set(map_indexes):
+            map_indexes_iterable: Iterable[int | None] | ArgNotSet = NOTSET
+        elif isinstance(map_indexes, int) or map_indexes is None:
+            map_indexes_iterable = [map_indexes]
+        elif isinstance(map_indexes, Iterable):
+            map_indexes_iterable = map_indexes
+        else:
+            raise TypeError(
+                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
+            )
+
+        return (
+            dag_id,
+            run_id,
+            task_ids,
+            single_task_requested,
+            single_map_index_requested,
+            map_indexes_iterable,
+        )
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -463,23 +524,14 @@ class RuntimeTaskInstance(TaskInstance):
         a non-str iterable), a list of matching XComs is returned. Elements in
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
-        if dag_id is None:
-            dag_id = self.dag_id
-        if run_id is None:
-            run_id = self.run_id
+        dag_id, run_id, task_ids, single_task_requested, single_map_index_requested, map_indexes_iterable = (
+            self._normalize_xcom_pull_params(task_ids, dag_id, map_indexes, run_id)
+        )
 
-        single_task_requested = isinstance(task_ids, (str, type(None)))
-        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
+        xcoms: list[Any] = []
 
-        if task_ids is None:
-            # default to the current task if not provided
-            task_ids = [self.task_id]
-        elif isinstance(task_ids, str):
-            task_ids = [task_ids]
-
-        # If map_indexes is not specified, pull xcoms from all map indexes for each task
-        if not is_arg_set(map_indexes):
-            xcoms: list[Any] = []
+        if not is_arg_set(map_indexes_iterable):
+            # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = XCom.get_all(
                     run_id=run_id,
@@ -488,28 +540,12 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-
-                if values is None:
-                    xcoms.append(None)
-                else:
-                    xcoms.extend(values)
-            # For single task pulling from unmapped task, return single value
+                xcoms.append(None) if values is None else xcoms.extend(values)
+            # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
             return xcoms
 
-        # Original logic when map_indexes is explicitly specified
-        map_indexes_iterable: Iterable[int | None] = []
-        if isinstance(map_indexes, int) or map_indexes is None:
-            map_indexes_iterable = [map_indexes]
-        elif isinstance(map_indexes, Iterable):
-            map_indexes_iterable = map_indexes
-        else:
-            raise TypeError(
-                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
-            )
-
-        xcoms = []
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
             value = XCom.get_one(
                 run_id=run_id,
@@ -519,10 +555,56 @@ class RuntimeTaskInstance(TaskInstance):
                 map_index=m_idx,
                 include_prior_dates=include_prior_dates,
             )
-            if value is None:
-                xcoms.append(default)
-            else:
-                xcoms.append(value)
+            xcoms.append(default if value is None else value)
+
+        if single_task_requested and single_map_index_requested:
+            return xcoms[0]
+        return xcoms
+
+    async def axcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        """Async version of :meth:`xcom_pull`; see that method for full documentation."""
+        dag_id, run_id, task_ids, single_task_requested, single_map_index_requested, map_indexes_iterable = (
+            self._normalize_xcom_pull_params(task_ids, dag_id, map_indexes, run_id)
+        )
+
+        xcoms: list[Any] = []
+
+        if not is_arg_set(map_indexes_iterable):
+            # map_indexes was not specified — fetch all map indexes for each task
+            for t_id in task_ids:
+                values = await XCom.aget_all(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                xcoms.append(None) if values is None else xcoms.extend(values)
+            # For a single task pulling from an unmapped task, return a single value
+            if single_task_requested and len(xcoms) == 1:
+                return xcoms[0]
+            return xcoms
+
+        for t_id, m_idx in product(task_ids, map_indexes_iterable):
+            value = await XCom.aget_one(
+                run_id=run_id,
+                key=key,
+                task_id=t_id,
+                dag_id=dag_id,
+                map_index=m_idx,
+                include_prior_dates=include_prior_dates,
+            )
+            xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
             return xcoms[0]
@@ -537,6 +619,15 @@ class RuntimeTaskInstance(TaskInstance):
         :param value: Value to store. Only be JSON-serializable values may be used.
         """
         _xcom_push(self, key, value)
+
+    async def axcom_push(self, key: str, value: Any):
+        """
+        Make an XCom available for tasks to pull asynchronously.
+
+        :param key: Key to store the value under.
+        :param value: Value to store. Only be JSON-serializable values may be used.
+        """
+        await _axcom_push(self, key, value)
 
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
@@ -801,6 +892,29 @@ def _xcom_push(
     )
 
 
+async def _axcom_push(
+    ti: RuntimeTaskInstance,
+    key: str,
+    value: Any,
+    *,
+    mapped_length: int | None = None,
+) -> None:
+    """Push a XCom through XCom.aset, which pushes to XCom Backend if configured."""
+    # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
+    # consumers
+
+    await XCom.aset(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        dag_result=ti.task.returns_dag_result,
+        _mapped_length=mapped_length,
+    )
+
+
 def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     """Push a XCom directly to metadata DB, bypassing custom xcom_backend."""
     XCom._set_xcom_in_db(
@@ -887,6 +1001,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
+        version_data=bundle_info.version_data,
     )
     bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
@@ -1434,7 +1549,7 @@ def run(
     state: TaskInstanceState | None = None
     error: BaseException | None = None
 
-    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    stats_tags = ti.stats_tags
     stats.incr("ti.start", tags=stats_tags)
 
     try:
@@ -1613,7 +1728,7 @@ def _handle_current_task_success(
 
     # Record operator and task instance success metrics
     operator = ti.task.__class__.__name__
-    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    stats_tags = ti.stats_tags
 
     stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
     stats.incr("ti_successes", tags=stats_tags)
@@ -1621,11 +1736,11 @@ def _handle_current_task_success(
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
 
-    if conf.getboolean("state_store", "clear_on_success"):
+    if conf.getboolean("state_store", "clear_on_success") and _get_worker_state_store_backend() is not None:
         log.info(
             "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
         )
-        context["task_store"]._clear_backend_only()
+        context["task_state_store"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,
@@ -1720,7 +1835,7 @@ def _finalize_task_failure(
 
     # Record operator and task instance failed metrics
     operator = ti.task.__class__.__name__
-    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    stats_tags = ti.stats_tags
 
     stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
     stats.incr("ti_failures", tags=stats_tags)
@@ -1950,6 +2065,43 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
+@detail_span("task.execute")
+def _run_execute_callable(
+    context: Context,
+    execute: Callable[..., Any] | functools.partial[Any],
+    task: BaseOperator,
+) -> Any:
+    """
+    Run the task's execute callable, applying the execution timeout if one is set.
+
+    The contextvars snapshot is taken here, after the ``task.execute`` span is
+    current, so spans the operator emits during ``execute`` nest under it rather
+    than under the caller. ``ExecutorSafeguard``'s tracker is set into that copy
+    so the operator's ``execute`` passes the safeguard check, while the copy keeps
+    the change from leaking into the surrounding context.
+    """
+    ctx = contextvars.copy_context()
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+    if task.execution_timeout:
+        from airflow.sdk.execution_time.timeout import timeout
+
+        # TODO: handle timeout in case of deferral
+        timeout_seconds = task.execution_timeout.total_seconds()
+        try:
+            # It's possible we're already timed out, so fast-fail if true
+            if timeout_seconds <= 0:
+                raise AirflowTaskTimeout()
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = ctx.run(execute, context=context)
+        except AirflowTaskTimeout:
+            task.on_kill()
+            raise
+    else:
+        result = ctx.run(execute, context=context)
+    return result
+
+
 @detail_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
@@ -1973,10 +2125,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    ctx = contextvars.copy_context()
-    # Populate the context var so ExecutorSafeguard doesn't complain
-    ctx.run(ExecutorSafeguard.tracker.set, task)
-
     # Export context in os.environ to make it available for operators to use.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
     os.environ.update(airflow_context_vars)
@@ -1992,23 +2140,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
-
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+    result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
@@ -2085,9 +2217,7 @@ def finalize(
     # Record task duration metrics for all terminal states
     if ti.start_date and ti.end_date:
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
-        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
-
-        stats.timing("task.duration", duration_ms, tags=stats_tags)
+        stats.timing("task.duration", duration_ms, tags=ti.stats_tags)
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
@@ -2191,13 +2321,6 @@ def main():
                 log.info("::group::Pre Execute")
                 startup_details = get_startup_details()
 
-                # On macOS fork+exec path, the structured log channel wasn't
-                # inherited (exec replaces the address space). Request it from
-                # the supervisor using the existing ResendLoggingFD mechanism.
-                # Must happen after get_startup_details() so we don't read the
-                # startup message as a ResendLoggingFD response.
-                if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
-                    reinit_supervisor_comms()
                 span_ctx_mgr = _make_task_span(msg=startup_details)
                 span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)
@@ -2220,6 +2343,15 @@ def main():
             ):
                 state, _, error = run(ti, context, log)
                 context["exception"] = error
+                # run() funnels every failure path into `error` rather than
+                # re-raising, so the worker span never sees the exception via
+                # propagation. Mark it here, where the worker span is in scope
+                # regardless of trace detail level.
+                if error is not None:
+                    span.record_exception(error)
+                    span.set_status(
+                        Status(StatusCode.ERROR, description=f"Exception: {type(error).__name__}")
+                    )
                 finalize(ti, state, context, log, error)
                 # If run() couldn't deliver a FAILED / UP_FOR_RETRY terminal
                 # state to the supervisor, fail closed now — finalize() has

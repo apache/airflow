@@ -78,6 +78,14 @@ def test_get_task_log():
     assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 
+def test_get_streaming_task_log_not_implemented():
+    executor = BaseExecutor()
+    ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
+
+    with pytest.raises(NotImplementedError):
+        executor.get_streaming_task_log(ti=ti, try_number=1)
+
+
 def test_serve_logs_default_value():
     assert not BaseExecutor.serve_logs
 
@@ -174,30 +182,32 @@ def test_fail_and_success():
     assert len(executor.get_event_buffer()) == 3
 
 
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param(None, {"status": "open", "executor_class_name": "BaseExecutor"}, id="without_team"),
+        pytest.param(
+            "team_a",
+            {"status": "open", "executor_class_name": "BaseExecutor", "team_name": "team_a"},
+            id="with_team",
+        ),
+    ],
+)
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.stats.gauge")
-def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
-    executor = BaseExecutor()
+def test_gauge_executor_metrics_single_executor(
+    mock_stats_gauge, mock_trigger_tasks, mock_sync, team_name, expected_tags
+):
+    executor = BaseExecutor(team_name=team_name)
     executor.heartbeat()
-    calls = [
-        mock.call(
-            "executor.open_slots",
-            value=mock.ANY,
-            tags={"status": "open", "executor_class_name": "BaseExecutor"},
-        ),
-        mock.call(
-            "executor.queued_tasks",
-            value=mock.ANY,
-            tags={"status": "queued", "executor_class_name": "BaseExecutor"},
-        ),
-        mock.call(
-            "executor.running_tasks",
-            value=mock.ANY,
-            tags={"status": "running", "executor_class_name": "BaseExecutor"},
-        ),
-    ]
-    mock_stats_gauge.assert_has_calls(calls)
+    # Verify all three gauges use the expected tag structure
+    for metric, status in [
+        ("executor.open_slots", "open"),
+        ("executor.queued_tasks", "queued"),
+        ("executor.running_tasks", "running"),
+    ]:
+        mock_stats_gauge.assert_any_call(metric, value=mock.ANY, tags={**expected_tags, "status": status})
 
 
 @pytest.mark.parametrize(
@@ -445,16 +455,6 @@ def test_state_queued():
     assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
 
 
-def test_state_generic():
-    executor = BaseExecutor()
-    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
-    executor.running.add(key)
-    info = "info"
-    executor.queued(key, info=info)
-    assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
-
-
 def test_state_running():
     executor = BaseExecutor()
     key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
@@ -648,11 +648,6 @@ class TestCallbackSupport:
     def test_supports_callbacks_flag_default_false(self):
         executor = BaseExecutor()
         assert executor.supports_callbacks is False
-
-    def test_local_executor_supports_callbacks_true(self):
-        """Test that LocalExecutor sets supports_callbacks to True."""
-        executor = LocalExecutor()
-        assert executor.supports_callbacks is True
 
     @pytest.mark.db_test
     def test_queue_callback_without_support_raises_error(self, dag_maker, session):

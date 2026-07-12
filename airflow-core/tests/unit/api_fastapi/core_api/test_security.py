@@ -23,6 +23,7 @@ import pytest
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
+from airflow import settings
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -38,6 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    _build_dag_run_access_requests,
     get_user,
     is_safe_url,
     requires_access_backfill,
@@ -53,9 +55,48 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_batches_team_lookup():
+    """The bulk dag-run team resolution must be a single query regardless of Dag count (no N+1)."""
+    entity_methods = [(f"dag_{i}", "GET") for i in range(25)]
+    with assert_queries_count(1):
+        requests = _build_dag_run_access_requests(entity_methods)
+    assert len(requests) == 25
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_empty_skips_query():
+    with assert_queries_count(0):
+        assert _build_dag_run_access_requests([]) == []
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_includes_team_name(testing_team):
+    """A team-owned Dag must surface its team name in the generated access request."""
+    session = settings.Session()
+    bundle = DagBundleModel(name="team-owned-bundle")
+    bundle.teams.append(testing_team)
+    session.add(bundle)
+    session.flush()
+    session.add(DagModel(dag_id="team_owned_dag", bundle_name="team-owned-bundle", is_stale=False))
+    session.flush()
+    try:
+        requests = _build_dag_run_access_requests([("team_owned_dag", "GET")])
+    finally:
+        clear_db_dags()
+        clear_db_dag_bundles()
+
+    assert len(requests) == 1
+    assert requests[0]["details"].id == "team_owned_dag"
+    assert requests[0]["details"].team_name == "testing"
 
 
 @pytest.mark.asyncio
@@ -1221,6 +1262,105 @@ class TestFastApiSecurity:
                     "method": "PUT",
                     "details": PoolDetails(name="pool4", team_name="team1"),
                 },
+            ],
+            user=user,
+        )
+
+    @patch.object(Pool, "get_name_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_requires_access_pool_bulk_checks_destination_team(
+        self, mock_get_auth_manager, mock_get_name_to_team_name_mapping
+    ):
+        """Bulk UPDATE that changes team_name must authorize the destination team."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_pool.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_name_to_team_name_mapping.return_value = {"pool1": "team_b"}
+
+        request = BulkBody[PoolBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"pool": "pool1", "slots": 5, "team_name": "team_a"}],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_pool_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_pool.assert_called_once_with(
+            requests=[
+                {"method": "PUT", "details": PoolDetails(name="pool1", team_name="team_b")},
+                {"method": "PUT", "details": PoolDetails(name="pool1", team_name="team_a")},
+            ],
+            user=user,
+        )
+
+    @patch.object(Connection, "get_conn_id_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_requires_access_connection_bulk_checks_destination_team(
+        self, mock_get_auth_manager, mock_get_conn_id_to_team_name_mapping
+    ):
+        """Bulk UPDATE that changes team_name must authorize the destination team."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_connection.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_conn_id_to_team_name_mapping.return_value = {"conn1": "team_b"}
+
+        request = BulkBody[ConnectionBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"connection_id": "conn1", "conn_type": "http", "team_name": "team_a"}],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_connection_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_connection.assert_called_once_with(
+            requests=[
+                {"method": "PUT", "details": ConnectionDetails(conn_id="conn1", team_name="team_b")},
+                {"method": "PUT", "details": ConnectionDetails(conn_id="conn1", team_name="team_a")},
+            ],
+            user=user,
+        )
+
+    @patch.object(Variable, "get_key_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_requires_access_variable_bulk_checks_destination_team(
+        self, mock_get_auth_manager, mock_get_key_to_team_name_mapping
+    ):
+        """Bulk UPDATE that changes team_name must authorize the destination team."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_variable.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_key_to_team_name_mapping.return_value = {"var1": "team_b"}
+
+        request = BulkBody[VariableBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"key": "var1", "value": "val", "team_name": "team_a"}],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_variable_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_variable.assert_called_once_with(
+            requests=[
+                {"method": "PUT", "details": VariableDetails(key="var1", team_name="team_b")},
+                {"method": "PUT", "details": VariableDetails(key="var1", team_name="team_a")},
             ],
             user=user,
         )

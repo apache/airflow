@@ -54,7 +54,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         self,
         conn_id: str,
         input_text: str | list[str] | list[int] | list[list[int]],
-        model: str = "text-embedding-ada-002",
+        model: str = "text-embedding-3-small",
         embedding_kwargs: dict | None = None,
         **kwargs: Any,
     ):
@@ -78,6 +78,61 @@ class OpenAIEmbeddingOperator(BaseOperator):
         embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_kwargs)
         self.log.info("Generated embeddings for %d items", len(embeddings))
         return embeddings
+
+
+class OpenAIResponseOperator(BaseOperator):
+    """
+    Operator that generates a model response using the OpenAI Responses API.
+
+    The operator is synchronous and returns the response's aggregated output text. For
+    ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
+    structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
+
+    :param conn_id: The OpenAI connection ID to use.
+    :param input_text: The input prompt for the model. This can be a string or a structured list of
+        input items.
+    :param model: The OpenAI model to use.
+    :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
+        method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpenAIResponseOperator`
+        For possible options, see:
+        https://platform.openai.com/docs/api-reference/responses/create
+    """
+
+    template_fields: Sequence[str] = ("input_text",)
+
+    def __init__(
+        self,
+        conn_id: str,
+        input_text: str | list[Any],
+        model: str = "gpt-4o-mini",
+        response_kwargs: dict | None = None,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.input_text = input_text
+        self.model = model
+        self.response_kwargs = response_kwargs or {}
+
+    @cached_property
+    def hook(self) -> OpenAIHook:
+        """Return an instance of the OpenAIHook."""
+        return OpenAIHook(conn_id=self.conn_id)
+
+    def execute(self, context: Context) -> str:
+        response = self.hook.create_response(input=self.input_text, model=self.model, **self.response_kwargs)
+        if response.status != "completed":
+            self.log.warning(
+                "Response %s ended with status %s; the returned output text may be empty.",
+                response.id,
+                response.status,
+            )
+        self.log.info("Generated response %s", response.id)
+        return response.output_text
 
 
 class OpenAITriggerBatchOperator(BaseOperator):

@@ -69,8 +69,8 @@ export type CalendarScale = {
     | string
     | { _dark: string; _light: string }
     | {
-        actual: string | { _dark: string; _light: string };
-        planned: string | { _dark: string; _light: string };
+        primary: string | { _dark: string; _light: string };
+        secondary: string | { _dark: string; _light: string };
       };
   readonly legendItems: Array<LegendItem>;
   readonly type: CalendarScaleType;
