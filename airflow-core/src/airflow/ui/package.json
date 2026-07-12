@@ -35,7 +35,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.5",
     "@visx/group": "^3.12.0",
-    "@visx/shape": "^3.12.0",
+    "@visx/shape": "^4.0.0",
     "@xyflow/react": "^12.11.1",
     "anser": "^2.3.5",
     "axios": "^1.18.1",
