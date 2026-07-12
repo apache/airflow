@@ -30,7 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache Arrow",
                 "external-doc-url": "https://arrow.apache.org/",
-                "logo": "/docs/integration-logos/arrow-inverse.png",
+                "logo": "/docs/integration-logos/apache-arrow.png",
                 "tags": ["apache"],
             }
         ],
