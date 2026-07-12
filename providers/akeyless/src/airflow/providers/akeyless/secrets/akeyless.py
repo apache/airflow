@@ -69,8 +69,8 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
     * ``uid`` -- use a pre-existing Universal Identity token.
     * ``aws_iam`` -- authenticate using the host's AWS IAM role (ideal for
       Amazon MWAA and EC2/ECS/EKS workloads).
-    * ``gcp`` -- authenticate using GCP workload identity (ideal for Cloud
-      Composer and GCE/GKE workloads).
+    * ``gcp`` -- authenticate using GCP workload identity (ideal for Google
+      Managed Service for Apache Airflow and GCE/GKE workloads).
     * ``azure_ad`` -- authenticate using Azure AD identity (ideal for Azure
       workloads).
 

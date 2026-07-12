@@ -113,8 +113,9 @@ The secrets backend supports the following authentication types:
      - Authenticate using the host's AWS IAM role. Ideal for **Amazon MWAA**,
        EC2, ECS, and EKS workloads. No static credentials required.
    * - ``gcp``
-     - Authenticate using GCP workload identity. Ideal for **Cloud Composer**
-       and GCE/GKE workloads.
+     - Authenticate using GCP workload identity. Ideal for **Google Managed
+       Service for Apache Airflow** (formerly Cloud Composer) and GCE/GKE
+       workloads.
    * - ``azure_ad``
      - Authenticate using Azure AD identity. Ideal for Azure-hosted workloads.
 
@@ -154,8 +155,8 @@ Akeyless -- no static API keys needed.
 4. Create an Akeyless ``aws_iam`` Auth Method associated with the MWAA
    execution role ARN.
 
-Using with GCP Cloud Composer
-"""""""""""""""""""""""""""""
+Using with Google Managed Service for Apache Airflow
+""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 .. code-block:: ini
 
