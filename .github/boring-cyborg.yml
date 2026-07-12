@@ -192,6 +192,9 @@ labelPRBasedOnFilePath:
   provider:informatica:
     - providers/informatica/**
 
+  provider:islo:
+    - providers/islo/**
+
   provider:jdbc:
     - providers/jdbc/**
 
@@ -272,9 +275,6 @@ labelPRBasedOnFilePath:
 
   provider:samba:
     - providers/samba/**
-
-  provider:sandbox:
-    - providers/sandbox/**
 
   provider:segment:
     - providers/segment/**

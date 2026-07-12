@@ -97,6 +97,7 @@ services:
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/informatica/tests:/opt/airflow/providers/informatica/tests
+      - ../../../providers/islo/tests:/opt/airflow/providers/islo/tests
       - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/keycloak/tests:/opt/airflow/providers/keycloak/tests

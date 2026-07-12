@@ -169,6 +169,7 @@ body:
         - imap
         - influxdb
         - informatica
+        - islo
         - jdbc
         - jenkins
         - keycloak
