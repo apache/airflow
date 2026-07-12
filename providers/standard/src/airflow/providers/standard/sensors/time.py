@@ -35,7 +35,7 @@ class TimeSensor(BaseSensorOperator):
 
     The time is evaluated against the current date in the Dag's timezone
     at execution time (poke or deferral), not at Dag-parse time. This avoids
-    dag_version churn that previously occurred when target_datetime was
+    Dag version churn that previously occurred when target_datetime was
     baked into serialized start_trigger_args.
 
     :param target_time: time after which the job succeeds
@@ -56,14 +56,12 @@ class TimeSensor(BaseSensorOperator):
         trigger_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        # Backwards compatibility: previously supported start_from_trigger which caused dag_version churn.
-        # Pop it if present and warn, instead of failing on unexpected kwarg.
         start_from_trigger = kwargs.pop("start_from_trigger", None)
         if start_from_trigger is not None:
             warnings.warn(
                 "start_from_trigger is deprecated and no longer supported for TimeSensor. "
                 "It has been ignored. Target time is now always evaluated at execution time. "
-                "If you need trigger-time evaluation optimization, please open an issue.",
+                "Use deferrable=True to defer the sensor instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -71,29 +69,16 @@ class TimeSensor(BaseSensorOperator):
         self.target_time = target_time
         self.deferrable = deferrable
         self.end_from_trigger = end_from_trigger
-        # Store trigger_kwargs for API compatibility but not used for hash
-        self._trigger_kwargs = trigger_kwargs
+        # Accepted for compatibility only; storing it would reintroduce serialized Dag hash churn.
+        del trigger_kwargs
 
     def _get_target_datetime(self) -> datetime.datetime:
         """Compute target datetime at execution time, not parse time."""
-        # Use Dag timezone if available, else UTC; matches prior coerce logic
-        dag_timezone = None
-        try:
-            if hasattr(self, "dag") and self.dag is not None:
-                dag_timezone = self.dag.timezone
-        except Exception:
-            dag_timezone = None
-        # Fallback: if dag timezone not set, coerce_datetime will handle via default
-        if dag_timezone is None:
-            # timezone.coerce_datetime expects a tzinfo, but when None it will use default
-            # Use UTC as safe fallback for datetime.now()
-            now_date = datetime.datetime.now(timezone.utc).date()
-            # combine with target_time, let coerce handle tz conversion
-            aware_time = timezone.coerce_datetime(datetime.datetime.combine(now_date, self.target_time))
-        else:
-            aware_time = timezone.coerce_datetime(
-                datetime.datetime.combine(datetime.datetime.now(dag_timezone), self.target_time, dag_timezone)
-            )
+        dag_timezone = getattr(getattr(self, "dag", None), "timezone", None) or timezone.utc
+        now_date = datetime.datetime.now(dag_timezone).date()
+        aware_time = timezone.coerce_datetime(
+            datetime.datetime.combine(now_date, self.target_time, dag_timezone)
+        )
         return timezone.convert_to_utc(aware_time)
 
     @property
