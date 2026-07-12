@@ -22,7 +22,6 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient
-from azure.mgmt.datafactory.models import FactoryListResponse
 
 from airflow.models.connection import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -522,7 +521,7 @@ def test_cancel_trigger(hook: AzureDataFactoryHook):
 
 @pytest.mark.parametrize(
     argnames="factory_list_result",
-    argvalues=[iter([FactoryListResponse]), iter([])],
+    argvalues=[iter([object()]), iter([])],
     ids=["factory_exists", "factory_does_not_exist"],
 )
 def test_connection_success(hook, factory_list_result):
