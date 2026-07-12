@@ -1417,6 +1417,8 @@ class TriggerRunner:
             trigger_id, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             failures_to_send.append((trigger_id, tb))
+            if trigger_id not in self.triggers:
+                finished_ids.append(trigger_id)
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,

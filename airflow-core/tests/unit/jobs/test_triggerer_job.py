@@ -2639,3 +2639,45 @@ class TestCheckForUnhandledTriggers:
 
         assert jobless_supervisor.stop is False
         assert jobless_supervisor.running_triggers == {2, 3}
+
+    def test_creation_failure_reported_in_finished(self, jobless_supervisor, mocker):
+        """A creation failure appears in both failures and finished, so running_triggers stays in sync."""
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        jobless_supervisor.running_triggers = {1, 2, 3}
+
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(
+                events=None,
+                failures=[(3, ["Traceback..."])],
+                finished=[3],
+                num_running=2,
+            ),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+        assert jobless_supervisor.stop is False
+        assert 3 not in jobless_supervisor.running_triggers
+
+
+class TestCreationFailureInFinished:
+    """Tests that creation failures (not in self.triggers) are included in finished_ids."""
+
+    def test_creation_failure_included_in_finished(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+
+        msg = runner.process_trigger_events(finished_ids=[10])
+
+        assert msg.finished == [10, 42]
+        assert msg.num_running == 0
+
+    def test_serialization_failure_not_in_finished(self):
+        runner = TriggerRunner()
+        runner.triggers = {42: {"task": MagicMock(), "is_watcher": False, "name": "t", "events": 0}}
+        runner.failed_triggers.append((42, ValueError("not serializable")))
+
+        msg = runner.process_trigger_events(finished_ids=[])
+
+        assert msg.finished is None
+        assert msg.num_running == 1
