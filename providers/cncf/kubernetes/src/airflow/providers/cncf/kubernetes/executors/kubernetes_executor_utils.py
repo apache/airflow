@@ -575,11 +575,13 @@ class AirflowKubernetesScheduler(LoggingMixin):
         kube_image = next_job.kube_image or self.kube_config.kube_image
 
         dag_id, task_id, run_id, try_number, map_index = key
+        external_executor_id = None
         if len(command) == 1:
             from airflow.executors.workloads import ExecuteTask
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
+                external_executor_id = workload.ti.external_executor_id
                 command = workload_to_command_args(workload)
             else:
                 raise ValueError(
@@ -606,6 +608,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             map_index=map_index,
             date=None,
             run_id=run_id,
+            external_executor_id=external_executor_id,
             args=list(command),
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,

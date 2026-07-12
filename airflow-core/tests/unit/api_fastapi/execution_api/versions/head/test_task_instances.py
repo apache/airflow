@@ -322,6 +322,35 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
+    def test_ti_run_rejects_stale_external_executor_id(self, client, session, create_task_instance):
+        """A worker can only start the launch token currently assigned to the queued TI."""
+        ti = create_task_instance(
+            task_id="test_ti_run_rejects_stale_external_executor_id",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        ti.external_executor_id = "current-launch-token"
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+                "external_executor_id": "stale-launch-token",
+            },
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "stale_executor_launch"
+        session.refresh(ti)
+        assert ti.state == State.QUEUED
+
     def test_ti_run_returns_execution_token(
         self, client, exec_app, session, create_task_instance, time_machine
     ):

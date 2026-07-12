@@ -247,9 +247,17 @@ class TaskInstanceOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def start(self, id: uuid.UUID, pid: int, when: datetime) -> TIRunContext:
+    def start(
+        self, id: uuid.UUID, pid: int, when: datetime, external_executor_id: str | None = None
+    ) -> TIRunContext:
         """Tell the API server that this TI has started running."""
-        body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
+        body = TIEnterRunningPayload(
+            pid=pid,
+            hostname=get_hostname(),
+            unixname=getuser(),
+            start_date=when,
+            external_executor_id=external_executor_id,
+        )
 
         try:
             resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())

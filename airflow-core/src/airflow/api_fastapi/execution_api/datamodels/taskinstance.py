@@ -64,6 +64,8 @@ class TIEnterRunningPayload(StrictBaseModel):
     """Process Identifier on `hostname`"""
     start_date: UtcDateTime
     """When the task started executing"""
+    external_executor_id: str | None = None
+    """Executor launch token assigned when the task was queued"""
 
 
 # Create an enum to give a nice name in the generated datamodels
@@ -290,6 +292,7 @@ class TaskInstance(BaseModel):
     # hand-built instances (tests, dry runs) valid; the executor workload
     # always sends the real value.
     queue: str = "default"
+    external_executor_id: str | None = None
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
