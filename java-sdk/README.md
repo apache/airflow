@@ -29,7 +29,8 @@ See also Airflow documentation on Java SDK under *Authoring and Scheduling* for
 more details on using the Java SDK.
 
 The SDK requires Java 11 or later at runtime. Optional components and
-development tools may have further requirements.
+development tools may have further requirements (see the toolchain in
+`buildSrc/src/main/kotlin/airflow-jvm-conventions.gradle.kts`).
 
 ## Building the SDK
 
