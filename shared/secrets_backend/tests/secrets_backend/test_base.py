@@ -124,6 +124,39 @@ class TestBaseSecretsBackend:
         assert conn.conn_id == "test_conn"
         assert conn._kwargs["conn_type"] == "mysql"
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            '{"host": "example.com"}',
+            '{"conn_type": null}',
+            '{"conn_type": ""}',
+            '{"conn_type": "   "}',
+        ],
+    )
+    def test_deserialize_connection_json_requires_conn_type(self, value):
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnection)
+
+        with pytest.raises(
+            ValueError, match="Connection secret JSON must include a non-empty 'conn_type' or 'uri'."
+        ):
+            backend.deserialize_connection("test_conn", value)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            '{"uri": "http://example.com"}',
+            '{"conn_type": null, "uri": "http://example.com"}',
+        ],
+    )
+    def test_deserialize_connection_json_with_uri_does_not_require_conn_type(self, value):
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnection)
+
+        conn = backend.deserialize_connection("test_conn", value)
+
+        assert conn.uri == "http://example.com"
+
     def test_deserialize_connection_uri(self, sample_conn_uri):
         """Test deserialize_connection with URI format through _TestBackend."""
         backend = _TestBackend()
