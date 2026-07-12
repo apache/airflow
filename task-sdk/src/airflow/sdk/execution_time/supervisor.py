@@ -1704,8 +1704,6 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
-        elif isinstance(msg, GetXComCount):
-            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
             resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
@@ -1773,6 +1771,8 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetPrevSuccessfulDagRun):
             resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
+        elif isinstance(msg, GetXComCount):
+            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
                 msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
@@ -2396,7 +2396,8 @@ def _close_remote_log_handler(handler: RemoteLogIO) -> None:
     if this is not done before process exit.
     """
     try:
-        handler.close()
+        if hasattr(handler, "close"):
+            handler.close()
     except Exception:
         log.warning("Failed to close remote log handler", exc_info=True)
 
@@ -2439,8 +2440,9 @@ def _configure_logging(log_path: str, client: Client) -> Generator[FilteringBoun
         # logger will emit:
 
         # WatchtowerWarning: "Received message after logging system shutdown"
-        remote_handler = load_remote_log_handler()
-        if remote_handler is not None:
+
+        # TODO: Use logging providers to handle the chunked upload for us etc.
+        if (remote_handler := load_remote_log_handler()) is not None:
             _close_remote_log_handler(remote_handler)
 
         if log_file_descriptor is not None:
