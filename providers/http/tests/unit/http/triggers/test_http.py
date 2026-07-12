@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from asyncio import Future
 from http.cookies import SimpleCookie
 from typing import Any
@@ -134,6 +135,17 @@ class TestHttpTrigger:
             "data": TEST_DATA,
             "extra_options": TEST_EXTRA_OPTIONS,
         }
+
+    def test_warns_for_non_idempotent_method(self):
+        with pytest.warns(UserWarning, match="HttpTrigger with method=POST") as warns:
+            HttpTrigger(method="POST")
+
+        assert len(warns) == 1
+
+    def test_does_not_warn_for_idempotent_method(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            HttpTrigger(method="GET")
 
     @pytest.mark.asyncio
     @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
