@@ -22,7 +22,7 @@ import inspect
 import json
 import types
 import typing
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Union
 
 from airflow.providers.common.compat.sdk import (
@@ -32,11 +32,14 @@ from airflow.providers.common.compat.sdk import (
 )
 
 try:
-    from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
     from airflow.sdk.definitions.xcom_arg import PlainXComArg, XComArg
 except ImportError:  # Airflow 2
-    from airflow.models.xcom_arg import PlainXComArg, XComArg  # type: ignore[no-redef]
-    from airflow.utils.context import KNOWN_CONTEXT_KEYS  # type: ignore[no-redef]
+    from airflow.models.xcom_arg import PlainXComArg, XComArg  # type: ignore[attr-defined,no-redef]
+
+try:
+    from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
+except ImportError:  # Airflow 2, and 3.0 where the SDK does not export it yet
+    from airflow.utils.context import KNOWN_CONTEXT_KEYS  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -81,7 +84,7 @@ def _data_type_from_annotation(annotation: Any) -> str:
 
 def _build_arg_bindings(
     python_callable: Callable,
-    op_args: Sequence[Any],
+    op_args: Collection[Any],
     op_kwargs: Mapping[str, Any],
     task_id: str,
 ) -> list[dict[str, Any]] | None:
@@ -103,8 +106,8 @@ def _build_arg_bindings(
         if param.name in KNOWN_CONTEXT_KEYS:
             raise ValueError(
                 f"@task.stub task {task_id!r} parameter {param.name!r} is an Airflow context key; "
-                "context injection does not happen in a foreign runtime, so pass the value "
-                "explicitly under a different parameter name"
+                "stub signatures declare only data parameters -- the lang-SDK runtime injects its "
+                "own task context natively (e.g. the Go SDK's sdk.TIRunContext parameter)"
             )
 
     if not signature.parameters:

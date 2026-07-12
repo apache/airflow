@@ -22,9 +22,10 @@ from typing import Any
 
 import pytest
 
+from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.standard.decorators.stub import _data_type_from_annotation, stub
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 
 def fn_ellipsis(): ...
@@ -95,8 +96,6 @@ class TestStubTaskflowArgs:
     """The TaskFlow call on a stub captures the ordered positional-arg spec (``_arg_bindings``)."""
 
     def test_literal_and_xcom_spec(self):
-        from airflow.sdk import DAG
-
         with DAG(dag_id="d"):
             extracted = stub(fn_extract)()
             result = stub(fn_transform)("uk", extracted)
@@ -110,8 +109,6 @@ class TestStubTaskflowArgs:
         assert op.upstream_task_ids == {"fn_extract"}
 
     def test_kwargs_normalize_to_declaration_order(self):
-        from airflow.sdk import DAG
-
         with DAG(dag_id="d"):
             extracted = stub(fn_extract)()
             result = stub(fn_transform)(extracted=extracted["part"], country="fr", retries_num=7)
@@ -126,8 +123,6 @@ class TestStubTaskflowArgs:
         assert stub(fn_pass)().operator._arg_bindings is None
 
     def test_untyped_params_degrade_to_any(self):
-        from airflow.sdk import DAG
-
         with DAG(dag_id="d"):
             result = stub(fn_untyped)(1, "x")
 
@@ -140,8 +135,6 @@ class TestStubTaskflowArgs:
         def fn(x): ...
 
         fn.__annotations__ = {"x": "NotARealType"}
-        from airflow.sdk import DAG
-
         with DAG(dag_id="d"):
             result = stub(fn)("v")
 
@@ -160,22 +153,19 @@ class TestStubTaskflowArgs:
             stub(fn_context_key)(1)
 
     def test_non_json_literal_rejected(self):
-        from airflow.sdk import DAG
-
         with DAG(dag_id="d"), pytest.raises(ValueError, match="not JSON-serializable"):
             stub(fn_transform)("uk", object())
 
     def test_mapped_xcom_arg_rejected(self):
-        from airflow.sdk import DAG
-
         with DAG(dag_id="d"):
             extracted = stub(fn_extract)()
             with pytest.raises(ValueError, match="MapXComArg"):
                 stub(fn_transform)("uk", extracted.map(lambda v: v))
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="task-sdk honors the supports_expand opt-out from Airflow 3.4"
+    )
     def test_expand_rejected_at_parse_time(self):
-        from airflow.sdk import DAG
-
         with DAG(dag_id="d"):
             with pytest.raises(TypeError, match="do not support dynamic task mapping"):
                 stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
