@@ -17,9 +17,8 @@
 """
 Drive all OpenLineage Dags in the deployed stack and collect their final run state.
 
-Adapted from the OpenLineage dags-dashboard ``trigger_dag.py`` integration harness: it talks to a
-local Airflow REST API v2 (rather than an Astro deployment), authenticates with a SimpleAuthManager
-bearer token, and reports through logs only. The actual OpenLineage event validation happens inside
+Talks to the local Airflow REST API v2 through the shared ``AirflowClient`` (same auth and retry
+setup as the other airflow-e2e-tests suites). The actual OpenLineage event validation happens inside
 each Dag's terminal ``OpenLineageTestOperator`` task, so a run that ends ``success`` means its
 emitted events matched the expected templates.
 """
@@ -30,11 +29,15 @@ import datetime as dt
 import re
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import requests
-from constants import console
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from rich.console import Console
+
+if TYPE_CHECKING:
+    from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+
+console = Console(width=400, color_system="standard")
 
 WARMUP_DAG_ID = "openlineage_warmup_dag"
 TRIGGER_DELAY_SECONDS = 2
@@ -67,59 +70,25 @@ def discover_expected_dag_ids(dags_folder: Path) -> set[str]:
     return dag_ids
 
 
-def _session_with_retries() -> requests.Session:
-    retry = Retry(
-        total=10,
-        connect=5,
-        read=10,
-        backoff_factor=2,
-        raise_on_status=False,
-        allowed_methods=["GET", "POST", "PATCH", "DELETE"],
-        status_forcelist=[429, 500, 502, 503, 504],
-    )
-    session = requests.Session()
-    session.mount("http://", HTTPAdapter(max_retries=retry))
-    session.mount("https://", HTTPAdapter(max_retries=retry))
-    return session
-
-
 class OpenLineageE2ERunner:
     """Triggers all OpenLineage Dags against a running deployment and collects their final states."""
 
-    def __init__(self, api_base_url: str, headers: dict[str, str]):
-        self.api_url = f"{api_base_url}/api/v2"
-        self.headers = headers
-        self.session = _session_with_retries()
+    def __init__(self, client: AirflowClient):
+        self.client = client
         now = dt.datetime.now(tz=dt.timezone.utc)
         self.run_id = f"ci_triggered_{now.isoformat()}"
         self.retry_run_id = f"{self.run_id}_retry1"
         # dag_id -> whether its final state came from retry_run_id rather than run_id; populated by run().
         self.retried_dag_ids: set[str] = set()
 
-    def wait_for_airflow_api(self, max_attempts: int = 30, poll_interval: int = 10) -> None:
-        for attempt in range(1, max_attempts + 1):
-            try:
-                response = requests.get(f"{self.api_url}/dags?limit=1", headers=self.headers, timeout=15)
-                if response.status_code < 500:
-                    console.print(f"[green]Airflow API ready after {attempt} attempt(s)")
-                    return
-            except requests.exceptions.RequestException as exc:
-                console.print(f"[yellow]Airflow API not ready (attempt {attempt}/{max_attempts}): {exc}")
-            time.sleep(poll_interval)
-        raise RuntimeError(f"Airflow API did not become ready after {max_attempts} attempts.")
-
     def list_dags(self) -> list[str]:
-        response = self.session.get(f"{self.api_url}/dags?limit=500", headers=self.headers)
-        response.raise_for_status()
-        return [dag["dag_id"] for dag in response.json()["dags"]]
+        response = self.client._make_request(method="GET", endpoint="dags?limit=500")
+        return [dag["dag_id"] for dag in response["dags"]]
 
     def get_task_states(self, dag_id: str, run_id: str) -> dict[str, str]:
         """task_id -> state for every task instance in a dag run."""
-        response = self.session.get(
-            f"{self.api_url}/dags/{dag_id}/dagRuns/{run_id}/taskInstances", headers=self.headers
-        )
-        response.raise_for_status()
-        return {ti["task_id"]: ti["state"] for ti in response.json()["task_instances"]}
+        response = self.client.get_task_instances(dag_id, run_id)
+        return {ti["task_id"]: ti["state"] for ti in response["task_instances"]}
 
     def wait_for_dags_loaded(self, timeout: int = 60, poll_interval: int = 3) -> list[str]:
         """Poll until the dag-processor has parsed the Dags (the warmup Dag is the readiness marker)."""
@@ -135,31 +104,27 @@ class OpenLineageE2ERunner:
         raise RuntimeError(f"Dags did not load within {timeout}s (warmup Dag missing; have {dag_ids}).")
 
     def unpause_dag(self, dag_id: str) -> None:
-        response = self.session.patch(
-            f"{self.api_url}/dags/{dag_id}", headers=self.headers, json={"is_paused": False}
-        )
-        if response.status_code != 200:
-            console.print(f"[red]Failed to unpause Dag `{dag_id}`: {response.text}")
+        try:
+            self.client._make_request(method="PATCH", endpoint=f"dags/{dag_id}", json={"is_paused": False})
+        except requests.HTTPError as exc:
+            console.print(f"[red]Failed to unpause Dag `{dag_id}`: {exc}")
 
     def trigger_dag_run(self, dag_id: str, run_id: str) -> bool:
         now = dt.datetime.now(tz=dt.timezone.utc).isoformat()
         payload = {"dag_run_id": run_id, "logical_date": now, "conf": {}}
-        response = self.session.post(
-            f"{self.api_url}/dags/{dag_id}/dagRuns", headers=self.headers, json=payload
-        )
-        if response.status_code not in (200, 201):
-            console.print(f"[red]Failed to trigger Dag `{dag_id}`: {response.text}")
+        try:
+            self.client._make_request(method="POST", endpoint=f"dags/{dag_id}/dagRuns", json=payload)
+        except requests.HTTPError as exc:
+            console.print(f"[red]Failed to trigger Dag `{dag_id}`: {exc}")
             return False
         return True
 
     def wait_for_dag_run_to_complete(self, dag_id: str, run_id: str, timeout: int = 300) -> str:
-        url = f"{self.api_url}/dags/{dag_id}/dagRuns/{run_id}"
         deadline = time.monotonic() + timeout
         state = "unknown"
         while time.monotonic() < deadline:
-            response = self.session.get(url, headers=self.headers)
-            response.raise_for_status()
-            state = response.json()["state"]
+            response = self.client._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
+            state = response["state"]
             if state not in ("running", "queued"):
                 break
             time.sleep(5)
@@ -167,11 +132,10 @@ class OpenLineageE2ERunner:
         return state
 
     def clear_airflow_variables(self) -> None:
-        response = self.session.get(f"{self.api_url}/variables?limit=500", headers=self.headers)
-        response.raise_for_status()
-        keys = [variable["key"] for variable in response.json()["variables"]]
+        response = self.client._make_request(method="GET", endpoint="variables?limit=500")
+        keys = [variable["key"] for variable in response["variables"]]
         for key in keys:
-            self.session.delete(f"{self.api_url}/variables/{key}", headers=self.headers)
+            self.client._make_request(method="DELETE", endpoint=f"variables/{key}")
 
     def warmup(self, dag_ids: list[str]) -> None:
         """Unpause all Dags and run the warmup Dag so the worker is confirmed ready."""
@@ -210,7 +174,6 @@ class OpenLineageE2ERunner:
 
     def run(self, expected_dag_ids: set[str]) -> dict[str, str]:
         """Run the full cycle and return ``{dag_id: final_state}`` for every triggered Dag."""
-        self.wait_for_airflow_api()
         dag_ids = self.wait_for_dags_loaded()
         if not dag_ids:
             raise ValueError("No Dags found in the deployment.")

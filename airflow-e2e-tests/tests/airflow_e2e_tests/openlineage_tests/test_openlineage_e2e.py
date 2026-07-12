@@ -16,14 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 import requests
-from constants import API_BASE_URL, DAGS_FOLDER, LOGS_FOLDER, console
-from harness import OpenLineageE2ERunner, discover_expected_dag_ids
-from task_logs import find_log_paths, print_task_log
+
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+from airflow_e2e_tests.openlineage_tests.harness import (
+    OpenLineageE2ERunner,
+    console,
+    discover_expected_dag_ids,
+)
+from airflow_e2e_tests.openlineage_tests.task_logs import find_log_paths, print_task_log
 
 
-def _print_failure_logs(runner: OpenLineageE2ERunner, failed: dict[str, str]) -> None:
+def _print_failure_logs(runner: OpenLineageE2ERunner, logs_folder: Path, failed: dict[str, str]) -> None:
     """Print the relevant task logs for each failed DAG, so CI output doesn't require the log artifact."""
     for dag_id, state in failed.items():
         if state == "missing":
@@ -44,29 +51,29 @@ def _print_failure_logs(runner: OpenLineageE2ERunner, failed: dict[str, str]) ->
         for task_id, ti_state in task_states.items():
             if ti_state == "success" or task_id in tasks_to_show:
                 continue
-            if ti_state == "skipped" and not find_log_paths(LOGS_FOLDER, dag_id, run_id, task_id):
+            if ti_state == "skipped" and not find_log_paths(logs_folder, dag_id, run_id, task_id):
                 continue
             tasks_to_show.add(task_id)
         for task_id in sorted(tasks_to_show):
-            print_task_log(console, LOGS_FOLDER, dag_id, run_id, task_id)
+            print_task_log(console, logs_folder, dag_id, run_id, task_id)
 
 
 @pytest.mark.execution_timeout(900)  # 15 min
-def test_all_openlineage_dags_succeed(auth_headers):
+def test_all_openlineage_dags_succeed(compose_instance, airflow_dags_path, airflow_logs_path):
     """
     Trigger every OpenLineage system-test DAG in the deployment and require each run to succeed.
 
     The terminal ``OpenLineageTestOperator`` task inside each DAG validates the emitted OpenLineage
     events against the expected templates, so a ``success`` run state means the lineage matched.
     """
-    expected_dag_ids = discover_expected_dag_ids(DAGS_FOLDER)
+    expected_dag_ids = discover_expected_dag_ids(airflow_dags_path)
     assert expected_dag_ids, "No expected OpenLineage DAG ids were discovered from the prepared dags"
 
-    runner = OpenLineageE2ERunner(API_BASE_URL, auth_headers)
+    runner = OpenLineageE2ERunner(AirflowClient())
     statuses = runner.run(expected_dag_ids)
 
     console.print(f"[blue]OpenLineage e2e results ({len(statuses)} DAGs): {statuses}")
     failed = {dag_id: state for dag_id, state in sorted(statuses.items()) if state != "success"}
     if failed:
-        _print_failure_logs(runner, failed)
+        _print_failure_logs(runner, airflow_logs_path, failed)
     assert not failed, f"OpenLineage e2e DAG runs were not successful: {failed}"
