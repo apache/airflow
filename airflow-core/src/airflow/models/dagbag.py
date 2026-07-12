@@ -90,7 +90,7 @@ class DBDagBag:
 
         self._revalidation_interval = conf.getint("core", "min_serialized_dag_update_interval")
 
-        # Initialize bounded cache if cache_size is provided and > 0
+        # Initialize a TTL cache if configured, otherwise a bounded LRU cache.
         if cache_ttl and cache_ttl > 0:
             maxsize = cache_size if cache_size and cache_size > 0 else math.inf
             self._dags = TTLCache(maxsize=maxsize, ttl=cache_ttl)
