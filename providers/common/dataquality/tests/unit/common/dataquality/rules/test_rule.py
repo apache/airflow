@@ -117,6 +117,18 @@ class TestDQRule:
         rule = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0})
         assert isinstance(rule.condition, Condition)
 
+    @pytest.mark.parametrize(
+        "condition",
+        [
+            {"nonsense": 1},
+            {"tolerance": 0.1},
+            {"equal_to": 1, "greater_than": 0},
+        ],
+    )
+    def test_malformed_condition_dict_rejected_at_construction(self, condition):
+        with pytest.raises(ValidationError):
+            DQRule(name="r", check="null_count", column="c", condition=condition)
+
     def test_rule_uid_is_stable_across_severity(self):
         base = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0})
         tweaked = DQRule(
@@ -154,6 +166,50 @@ class TestDQRule:
             previous_name="old_name",
         )
         assert renamed.rule_uid == old.rule_uid
+
+    def test_previous_name_can_collide_with_another_rules_identity(self):
+        """
+        Documents the known collision this ``rule_uid`` scheme can produce.
+
+        A rule renamed away from ``old_name`` derives the same uid as another, unrelated rule
+        that is still actually named ``old_name`` with the same check/column/condition. Set an
+        explicit ``id`` on one of them to avoid this (see ``test_explicit_id_avoids_collision``).
+        """
+        renamed = DQRule(
+            name="new_name",
+            check="null_count",
+            column="c",
+            condition={"equal_to": 0},
+            previous_name="old_name",
+        )
+        unrelated = DQRule(name="old_name", check="null_count", column="c", condition={"equal_to": 0})
+        assert renamed.rule_uid == unrelated.rule_uid
+
+    def test_explicit_id_is_used_verbatim_as_rule_uid(self):
+        rule = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0}, id="my-stable-id")
+        assert rule.rule_uid == "my-stable-id"
+
+    def test_explicit_id_avoids_collision(self):
+        renamed = DQRule(
+            name="new_name",
+            check="null_count",
+            column="c",
+            condition={"equal_to": 0},
+            previous_name="old_name",
+            id="renamed-rule",
+        )
+        unrelated = DQRule(name="old_name", check="null_count", column="c", condition={"equal_to": 0})
+        assert renamed.rule_uid != unrelated.rule_uid
+
+    def test_explicit_id_survives_condition_and_previous_name_changes(self):
+        first = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0}, id="stable")
+        tightened = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 5}, id="stable")
+        assert first.rule_uid == tightened.rule_uid
+
+    def test_id_is_serialized_and_round_trips(self):
+        rule = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0}, id="my-stable-id")
+        assert rule.to_dict()["id"] == "my-stable-id"
+        assert DQRule.from_dict(rule.to_dict()) == rule
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -257,6 +313,18 @@ class TestRuleSet:
         rule = DQRule(name="r", check="row_count", condition={"greater_than": 0})
         with pytest.raises(ValidationError, match="Duplicate rule names"):
             RuleSet(name="s", rules=(rule, rule))
+
+    def test_colliding_rule_uids_rejected(self):
+        renamed = DQRule(
+            name="new_name",
+            check="null_count",
+            column="c",
+            condition={"equal_to": 0},
+            previous_name="old_name",
+        )
+        unrelated = DQRule(name="old_name", check="null_count", column="c", condition={"equal_to": 0})
+        with pytest.raises(ValidationError, match="collide on rule_uid"):
+            RuleSet(name="s", rules=(renamed, unrelated))
 
     def test_from_dict_round_trip(self):
         ruleset = RuleSet(

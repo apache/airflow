@@ -104,8 +104,17 @@ def _quality_score_passes(
     asset: Asset,
     min_score: float,
     triggering_asset_events: Mapping[Asset, Sequence[AssetEventDagRunReferenceResult]],
+    *,
+    require_all: bool = True,
 ) -> bool:
-    """Pure decision logic behind :func:`require_quality`, kept separate so it is testable without a Dag."""
+    """
+    Pure decision logic behind :func:`require_quality`, kept separate so it is testable without a Dag.
+
+    ``consumed_asset_events`` carries no ordering guarantee, so the triggering event is never
+    picked positionally. By default every triggering event must pass, since several producer
+    runs can coalesce into one consumer run; pass ``require_all=False`` to gate on the single
+    most recent event (by ``timestamp``) instead.
+    """
     events = triggering_asset_events.get(asset, [])
     if not events:
         log.warning(
@@ -114,23 +123,26 @@ def _quality_score_passes(
         )
         return False
 
-    summary = events[-1].extra.get(DQ_RESULT_EXTRA_KEY)
-    score = summary.get("score") if isinstance(summary, dict) else None
-    if not isinstance(score, (int, float)) or isinstance(score, bool):
-        log.warning(
-            "require_quality(%s): triggering event has no data quality summary; skipping downstream tasks",
-            asset.name,
-        )
-        return False
+    events_to_check = events if require_all else [max(events, key=lambda event: event.timestamp)]
 
-    if score < min_score:
-        log.warning(
-            "require_quality(%s): score %s below required minimum %s; skipping downstream tasks",
-            asset.name,
-            score,
-            min_score,
-        )
-        return False
+    for event in events_to_check:
+        summary = event.extra.get(DQ_RESULT_EXTRA_KEY)
+        score = summary.get("score") if isinstance(summary, dict) else None
+        if not isinstance(score, (int, float)) or isinstance(score, bool):
+            log.warning(
+                "require_quality(%s): triggering event has no data quality summary; skipping downstream tasks",
+                asset.name,
+            )
+            return False
+
+        if score < min_score:
+            log.warning(
+                "require_quality(%s): score %s below required minimum %s; skipping downstream tasks",
+                asset.name,
+                score,
+                min_score,
+            )
+            return False
 
     return True
 
@@ -140,9 +152,10 @@ def require_quality(
     *,
     min_score: float,
     task_id: str | None = None,
+    require_all: bool = True,
 ) -> Any:
     """
-    Gate a Dag run on the data quality score attached to one of its triggering asset events.
+    Gate a Dag run on the data quality score attached to its triggering asset event(s).
 
     Reads the summary a :class:`~airflow.providers.common.dataquality.operators.dq_check.DQCheckOperator`
     attaches to ``asset``'s outlet event, under ``asset_event.extra["airflow.dataquality.result"]``
@@ -154,12 +167,15 @@ def require_quality(
             start = require_quality(orders, min_score=0.95)
             start >> process_orders()
 
-    :param asset: The asset whose triggering event carries the quality summary.
+    :param asset: The asset whose triggering event(s) carry the quality summary.
     :param min_score: Minimum required score in ``[0, 1]``; the run proceeds only when the
-        triggering event's score is at least this value.
+        checked event(s)' score is at least this value.
     :param task_id: Task id for the generated gate task. Defaults to
         ``f"require_quality_{asset.name}"`` so gating on several assets in one Dag doesn't
         collide on task id.
+    :param require_all: When ``True`` (default), every asset event that triggered this run must
+        pass ``min_score`` — the safe default when several producer runs coalesce into one
+        consumer run. Set to ``False`` to gate on only the most recent triggering event instead.
     """
     if not 0 <= min_score <= 1:
         raise ValueError(f"min_score must be between 0 and 1, got {min_score!r}")
@@ -167,6 +183,8 @@ def require_quality(
 
     @task.short_circuit(task_id=gate_task_id)
     def _require_quality(**context: Any) -> bool:
-        return _quality_score_passes(asset, min_score, context["triggering_asset_events"])
+        return _quality_score_passes(
+            asset, min_score, context["triggering_asset_events"], require_all=require_all
+        )
 
     return _require_quality()

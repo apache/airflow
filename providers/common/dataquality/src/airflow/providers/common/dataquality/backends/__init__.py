@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.dataquality.backends.object_storage import ObjectStorageResultsBackend
+from typing import TYPE_CHECKING
 
-__all__ = ["ObjectStorageResultsBackend", "get_backend_from_config"]
+if TYPE_CHECKING:
+    from airflow.providers.common.dataquality.backends.object_storage import ObjectStorageResultsBackend
+
+__all__ = ["get_backend_from_config"]
 
 
 def get_backend_from_config() -> ObjectStorageResultsBackend | None:
@@ -28,5 +31,10 @@ def get_backend_from_config() -> ObjectStorageResultsBackend | None:
     results_path = conf.get("common.dataquality", "results_path", fallback=None)
     if not results_path:
         return None
+
+    # Imported lazily: ObjectStoragePath pulls in fsspec/upath, which shouldn't be paid at
+    # Dag-parse time (this module is imported eagerly by the operator) when results_path unset.
+    from airflow.providers.common.dataquality.backends.object_storage import ObjectStorageResultsBackend
+
     conn_id = conf.get("common.dataquality", "results_conn_id", fallback=None)
     return ObjectStorageResultsBackend(results_path=results_path, conn_id=conn_id or None)

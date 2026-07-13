@@ -82,7 +82,7 @@
     },
     "DQRule": {
       "additionalProperties": false,
-      "description": "A single, named data quality rule.\n\n:param name: Rule name, unique within its ruleset.\n:param check: One of the built-in checks (see ``CHECK_SPECS``) or ``custom_sql``. Built-in\n    checks are plain ANSI SQL and are not guaranteed to work against every ``DbApiHook``;\n    see \"Supported checks and databases\" in the provider docs. Use ``custom_sql`` if a\n    built-in check doesn't fit your database's dialect.\n:param condition: Pass condition for the observed value (``Condition`` or its dict form).\n    Optional only for checks whose ``CheckSpec.default_condition`` is set; every current\n    built-in check requires one explicitly.\n:param column: Target column; required for column-level built-in checks.\n:param sql: SQL statement returning a single scalar; required for ``custom_sql``.\n    May reference the target table as ``{table}``.\n:param severity: ``error`` (fails the task by default) or ``warn`` (recorded only).\n:param partition_clause: Extra predicate ANDed into the check's WHERE clause.\n:param previous_name: Set when renaming a rule, to keep its history continuous.\n:param description: Human-readable description shown in results and the UI. When omitted,\n    the provider generates a short default description from the rule and condition.\n\nInvalid input raises pydantic's own :class:`~pydantic.ValidationError`.",
+      "description": "A single, named data quality rule.\n\n:param name: Rule name, unique within its ruleset.\n:param check: One of the built-in checks (see ``CHECK_SPECS``) or ``custom_sql``. Built-in\n    checks are plain ANSI SQL and are not guaranteed to work against every ``DbApiHook``;\n    see \"Supported checks and databases\" in the provider docs. Use ``custom_sql`` if a\n    built-in check doesn't fit your database's dialect.\n:param condition: Pass condition for the observed value (``Condition`` or its dict form).\n    Optional only for checks whose ``CheckSpec.default_condition`` is set; every current\n    built-in check requires one explicitly.\n:param column: Target column; required for column-level built-in checks.\n:param sql: SQL statement returning a single scalar; required for ``custom_sql``.\n    May reference the target table as ``{table}``.\n:param severity: ``error`` (fails the task by default) or ``warn`` (recorded only).\n:param partition_clause: Extra predicate ANDed into the check's WHERE clause.\n:param previous_name: Set when renaming a rule, to keep its history continuous. A rule whose\n    ``previous_name`` happens to match another rule's identity (same check/column/condition)\n    collides on ``rule_uid``; set an explicit ``id`` on one of them to avoid this.\n:param description: Human-readable description shown in results and the UI. When omitted,\n    the provider generates a short default description from the rule and condition.\n:param id: Explicit, stable identity for this rule's history. When set, it is used verbatim\n    as the ``rule_uid`` instead of the derived hash, so it survives ``previous_name`` chains\n    and sidesteps any collision between rules that would otherwise hash the same.\n\nInvalid input raises pydantic's own :class:`~pydantic.ValidationError`.",
       "properties": {
         "name": {
           "title": "Name",
@@ -99,15 +99,10 @@
               "$ref": "#/$defs/Condition"
             },
             {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Condition"
+          "default": null
         },
         "column": {
           "anyOf": [
@@ -160,6 +155,19 @@
           ],
           "default": null,
           "title": "Previous Name"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Explicit, stable identity for this rule's history, used verbatim as rule_uid instead of a derived hash.",
+          "title": "Id"
         },
         "description": {
           "anyOf": [

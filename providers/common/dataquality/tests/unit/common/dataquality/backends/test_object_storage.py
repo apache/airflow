@@ -80,7 +80,7 @@ class TestObjectStorageResultsBackend:
             / "dag_id=orders_pipeline"
             / "task_id=dq"
             / "date=2026-07-04"
-            / "abc123.json"
+            / "2026-07-04T06_00_00_00_00__abc123.json"
         )
         payload = json.loads(path.read_text())
 
@@ -306,9 +306,26 @@ class TestObjectStorageResultsBackend:
 
         result = backend.read_task_runs("orders_pipeline", "dq", limit=1)
 
-        assert len(result["items"]) == 1
-        assert result["next_cursor"] is not None
+        assert [r["run"]["run_uid"] for r in result["items"]] == ["run4"]
+        assert result["next_cursor"] == "2026-07-04T06:00:04+00:00|run4"
         assert len(read_paths) == 2
+
+    def test_read_task_runs_within_partition_returns_newest_first_regardless_of_write_order(self, backend):
+        """More than limit+1 runs in one date partition must still surface the true newest ones.
+
+        Filenames are random run_uids with no ordering guarantee from iterdir(), so this only
+        passes when the partition is sorted by its started_at-prefixed filename before scanning.
+        """
+        for index in (3, 1, 4, 2):
+            backend.write_run(
+                make_run(run_uid=f"run{index}", started_at=f"2026-07-04T06:00:0{index}+00:00"),
+                [make_result()],
+            )
+
+        result = backend.read_task_runs("orders_pipeline", "dq", limit=2)
+
+        assert [r["run"]["run_uid"] for r in result["items"]] == ["run4", "run3"]
+        assert result["next_cursor"] == "2026-07-04T06:00:03+00:00|run3"
 
     def test_read_task_rule_history_filters_to_task(self, backend):
         backend.write_run(make_run(run_uid="run1"), [make_result()])

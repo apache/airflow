@@ -77,16 +77,63 @@ class TestMeasure:
         assert by_name["volume"].sql == SQLDQEngine(hook).build_rule_sql(VOLUME, "orders")
         assert all(obs.error_message is None for obs in observations)
 
-    def test_query_failure_yields_error_observations(self, hook):
+    def test_builds_each_rules_sql_exactly_once_on_success(self, hook):
+        hook.get_records.return_value = [(NULLS.rule_uid, 0), (VOLUME.rule_uid, 42)]
+        ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
+        engine = SQLDQEngine(hook)
+
+        with mock.patch.object(engine, "build_rule_sql", wraps=engine.build_rule_sql) as build_rule_sql:
+            engine.measure(ruleset, "orders")
+
+        assert build_rule_sql.call_count == 2
+
+    def test_builds_each_rules_sql_exactly_once_on_batch_failure(self, hook):
         hook.get_records.side_effect = RuntimeError("connection refused")
+        hook.get_first.return_value = (0,)
+        ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
+        engine = SQLDQEngine(hook)
+
+        with mock.patch.object(engine, "build_rule_sql", wraps=engine.build_rule_sql) as build_rule_sql:
+            engine.measure(ruleset, "orders")
+
+        assert build_rule_sql.call_count == 2
+
+    def test_batch_failure_falls_back_to_per_rule_queries(self, hook):
+        hook.get_records.side_effect = RuntimeError("connection refused")
+        hook.get_first.return_value = (0,)
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
 
         observations = SQLDQEngine(hook).measure(ruleset, "orders")
 
+        assert hook.get_first.call_count == 2
         assert len(observations) == 2
-        assert all(obs.error_message == "connection refused" for obs in observations)
-        assert all(obs.observed_value is None for obs in observations)
+        assert all(obs.error_message is None for obs in observations)
+        assert all(obs.observed_value == 0 for obs in observations)
         assert all(obs.sql for obs in observations)
+
+    def test_batch_failure_fallback_isolates_a_single_bad_rule(self, hook):
+        """One rule's query failing in the per-rule fallback must not fail the other rules."""
+        hook.get_records.side_effect = RuntimeError("connection refused")
+        hook.get_first.side_effect = [(0,), RuntimeError("no such column: no_such_column")]
+        ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
+
+        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+
+        by_name = {obs.rule.name: obs for obs in observations}
+        assert by_name["nulls"].observed_value == 0
+        assert by_name["nulls"].error_message is None
+        assert by_name["volume"].observed_value is None
+        assert by_name["volume"].error_message == "no such column: no_such_column"
+
+    def test_per_rule_fallback_query_with_no_rows_is_an_error(self, hook):
+        hook.get_records.side_effect = RuntimeError("connection refused")
+        hook.get_first.return_value = None
+        ruleset = RuleSet(name="s", rules=(NULLS,))
+
+        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+
+        assert observations[0].error_message == "No result returned for rule"
+        assert observations[0].observed_value is None
 
     def test_missing_rule_in_result_is_an_error(self, hook):
         hook.get_records.return_value = [(NULLS.rule_uid, 0)]
