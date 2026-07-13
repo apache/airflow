@@ -1038,6 +1038,7 @@ class TestKubernetesExecutor:
             workload = ExecuteTask.make(ti)
             executor.queue_workload(workload, session=session)
             executor._process_workloads([workload])
+            assert executor.event_buffer[ti.key] == (TaskInstanceState.QUEUED, "current-launch-token")
 
             # The DB token is left untouched, so the queued workload still owns the launch.
             assert executor.kube_scheduler is not None

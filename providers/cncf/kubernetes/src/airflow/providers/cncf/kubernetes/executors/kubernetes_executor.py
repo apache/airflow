@@ -361,9 +361,18 @@ class KubernetesExecutor(BaseExecutor):
                     queue,
                 )
 
-        self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
         self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
+        event_info = self.scheduler_job_id
+        try:
+            from airflow.executors.workloads import ExecuteTask
+
+            if len(command) == 1 and isinstance(command[0], ExecuteTask):
+                event_info = command[0].ti.external_executor_id or self.scheduler_job_id
+        except (ImportError, TypeError):
+            pass
+
+        self.event_buffer[key] = (TaskInstanceState.QUEUED, event_info)
         self.task_queue.put(job)
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
@@ -468,7 +477,8 @@ class KubernetesExecutor(BaseExecutor):
         Failing it here would clobber that newer launch.
         """
         self.running.discard(task.key)
-        if self.event_buffer.get(task.key) == (TaskInstanceState.QUEUED, self.scheduler_job_id):
+        queued_event = self.event_buffer.get(task.key)
+        if queued_event is not None and queued_event[0] == TaskInstanceState.QUEUED:
             self.event_buffer.pop(task.key, None)
         self.task_publish_retries.pop(task.key, None)
         Stats.incr(
