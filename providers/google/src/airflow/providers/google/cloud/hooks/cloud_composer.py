@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
 
 from aiohttp import ClientSession
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.auth.transport.requests import AuthorizedSession, Request
 from google.cloud.orchestration.airflow.service_v1 import (
@@ -62,14 +61,12 @@ from airflow.providers.google.common.hooks.operation_helpers import OperationHel
 class CloudComposerHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Composer APIs."""
 
-    client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
-
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieve client library object that allow access Environments service."""
         return EnvironmentsClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=self.client_options,
+            client_options=self.get_client_options(),
         )
 
     def get_image_versions_client(self) -> ImageVersionsClient:
@@ -77,7 +74,7 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         return ImageVersionsClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=self.client_options,
+            client_options=self.get_client_options(),
         )
 
     def make_composer_airflow_api_request(
@@ -564,15 +561,13 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
 
     sync_hook_class = CloudComposerHook
 
-    client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
-
     async def get_environment_client(self) -> EnvironmentsAsyncClient:
         """Retrieve client library object that allow access Environments service."""
         sync_hook = await self.get_sync_hook()
         return EnvironmentsAsyncClient(
             credentials=sync_hook.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=self.client_options,
+            client_options=sync_hook.get_client_options(),
         )
 
     async def make_composer_airflow_api_request(

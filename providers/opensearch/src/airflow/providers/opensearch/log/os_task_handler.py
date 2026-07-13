@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
@@ -38,6 +39,7 @@ from opensearchpy.exceptions import NotFoundError
 from sqlalchemy import select
 
 import airflow.logging_config as alc
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, conf
@@ -47,6 +49,7 @@ from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRF
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -380,8 +383,31 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
 
                 if get_remote_task_log() is None:
+                    # stacklevel=1 keeps the warning attributed to this airflow.providers
+                    # module so module-based deprecation filters still match; dictConfig
+                    # is in stdlib and would otherwise hide the warning at stacklevel=2.
+                    warnings.warn(
+                        "Implicit REMOTE_TASK_LOG registration by OpensearchTaskHandler during "
+                        "dictConfig is deprecated and will be removed in a future provider "
+                        "release. Set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at "
+                        "module scope in your ``[logging] logging_config_class`` module. See "
+                        "the OpenSearch provider logging documentation for the updated "
+                        "override example.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=1,
+                    )
                     _ActiveLoggingConfig.set(self.io, None)
             elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                warnings.warn(
+                    "Implicit REMOTE_TASK_LOG registration by OpensearchTaskHandler during "
+                    "dictConfig is deprecated and will be removed in a future provider "
+                    "release. Set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at "
+                    "module scope in your ``[logging] logging_config_class`` module. See "
+                    "the OpenSearch provider logging documentation for the updated "
+                    "override example.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
                 alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
@@ -525,6 +551,16 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
+        # In Airflow 3 logs reach OpenSearch only after the task finishes, so a running task has
+        # nothing to read there yet. Defer to the base handler for live worker/executor logs, as
+        # S3/GCS do.
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and ti.try_number == try_number
+            and ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        ):
+            return super()._read(ti, try_number, metadata)  # type: ignore[return-value]
+
         if not metadata:
             # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
@@ -593,10 +629,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
 
                 header = [
-                    StructuredLogMessage(
-                        event="::group::Log message source details",
-                        sources=[host for host in logs_by_host.keys()],
-                    ),  # type: ignore[call-arg]
+                    StructuredLogMessage(event="::group::Log message source details"),
+                    *[StructuredLogMessage(event=host) for host in logs_by_host.keys()],
                     StructuredLogMessage(event="::endgroup::"),
                 ]
 
@@ -830,8 +864,11 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Emit structured task logs to stdout and/or write them directly to OpenSearch."""
+        if ti is None:
+            return
+
         path = Path(path)
         local_loc = path if path.is_absolute() else self.base_log_folder.joinpath(path)
         if not local_loc.is_file():

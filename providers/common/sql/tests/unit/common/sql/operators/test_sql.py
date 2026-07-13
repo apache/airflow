@@ -35,6 +35,7 @@ from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
     BranchSQLOperator,
     SQLCheckOperator,
+    SQLCheckResult,
     SQLColumnCheckOperator,
     SQLExecuteQueryOperator,
     SQLInsertRowsOperator,
@@ -1620,6 +1621,1268 @@ class TestBaseSQLOperatorSubClass:
         mock_get_connection.return_value.get_hook.return_value = MagicMock(spec=DbApiHook)
         op.get_db_hook()
         mock_get_connection.assert_called_once_with("test_conn")
+
+
+class TestSQLColumnCheckOperatorBuildCheckResults:
+    @staticmethod
+    def _make_operator(column_mapping, **kwargs):
+        return SQLColumnCheckOperator(
+            task_id="test_task", table="test_table", column_mapping=column_mapping, **kwargs
+        )
+
+    def test_not_null_check(self):
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0}}})
+        op.column_mapping["col"]["null_check"]["result"] = 0
+        op.column_mapping["col"]["null_check"]["success"] = True
+        results = op._build_check_results()
+        assert len(results) == 1
+        r = results[0]
+        assert r.name == "col.null_check"
+        assert r.check_type == "not_null"
+        assert r.success is True
+        assert r.column == "col"
+        assert r.table == "test_table"
+        assert r.expected == "0"
+        assert r.actual == "0"
+        assert r.content == "SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)"
+        assert r.description == "Column-level statistical check against the configured threshold"
+        assert r.severity == "error"
+        assert r.params == {"equal_to": 0, "accept_none": True}
+
+    def test_unique_check(self):
+        op = self._make_operator({"col": {"unique_check": {"equal_to": 0}}})
+        op.column_mapping["col"]["unique_check"]["result"] = 0
+        op.column_mapping["col"]["unique_check"]["success"] = True
+        results = op._build_check_results()
+        assert len(results) == 1
+        r = results[0]
+        assert r.check_type == "unique"
+        assert r.content == "COUNT(col) - COUNT(DISTINCT(col))"
+        assert r.params == {"equal_to": 0, "accept_none": True}
+
+    def test_accepted_range_with_tolerance(self):
+        op = self._make_operator({"col": {"distinct_check": {"equal_to": 10, "tolerance": 0.1}}})
+        op.column_mapping["col"]["distinct_check"]["result"] = 10
+        op.column_mapping["col"]["distinct_check"]["success"] = True
+        results = op._build_check_results()
+        assert len(results) == 1
+        r = results[0]
+        assert r.check_type == "accepted_range"
+        assert r.expected == ">= 9.0, <= 11.0"
+        assert r.actual == "10"
+        assert r.content == "COUNT(DISTINCT(col))"
+        assert r.params == {"equal_to": 10, "tolerance": 0.1, "accept_none": True}
+
+    def test_accepted_range_geq_leq(self):
+        op = self._make_operator({"col": {"min": {"geq_to": 1, "leq_to": 100}}})
+        op.column_mapping["col"]["min"]["result"] = 50
+        op.column_mapping["col"]["min"]["success"] = True
+        results = op._build_check_results()
+        assert len(results) == 1
+        r = results[0]
+        assert r.check_type == "accepted_range"
+        assert r.expected == ">=1, <=100"
+        assert r.params == {"geq_to": 1, "leq_to": 100, "accept_none": True}
+
+    def test_multiple_checks_correct_names_and_order(self):
+        op = self._make_operator(
+            {
+                "col_a": {
+                    "null_check": {"equal_to": 0, "result": 0, "success": True},
+                    "min": {"geq_to": 1, "result": 5, "success": True},
+                },
+                "col_b": {
+                    "max": {"less_than": 100, "result": 50, "success": True},
+                },
+            }
+        )
+        results = op._build_check_results()
+        assert len(results) == 3
+        assert results[0].name == "col_a.null_check"
+        assert results[1].name == "col_a.min"
+        assert results[2].name == "col_b.max"
+
+    def test_failing_check_recorded_correctly(self):
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0}}})
+        op.column_mapping["col"]["null_check"]["result"] = 5
+        op.column_mapping["col"]["null_check"]["success"] = False
+        results = op._build_check_results()
+        assert len(results) == 1
+        assert results[0].success is False
+        assert results[0].actual == "5"
+
+    def test_partition_clause_in_params(self):
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0, "partition_clause": "year=2024"}}})
+        op.partition_clause = "region=us"
+        op.column_mapping["col"]["null_check"]["result"] = 0
+        op.column_mapping["col"]["null_check"]["success"] = True
+        results = op._build_check_results()
+        assert len(results) == 1
+        assert results[0].params == {
+            "equal_to": 0,
+            "accept_none": True,
+            "partition_clause": "region=us",
+            "check_partition_clause": "year=2024",
+        }
+
+    def test_build_check_results_failure_returns_empty_list(self):
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0, "result": 0, "success": True}}})
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom")
+        ):
+            results = op._build_check_results()
+        assert results == []
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom"))
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_execute_unaffected_when_build_check_results_raises(self, mock_hook, _):
+        mock_hook.return_value.get_records.return_value = [("col", "null_check", 0)]
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0}}})
+        op.execute(MagicMock())
+        assert op.check_results == []
+
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_execute_populates_check_results(self, mock_hook):
+        # Records returned by the DB: (column, check_name, result)
+        mock_hook.return_value.get_records.return_value = [("col", "null_check", 0)]
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0}}})
+        op.execute(MagicMock())
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "col.null_check"
+        assert r.check_type == "not_null"
+        assert r.success is True
+        assert r.severity == "error"
+        assert r.column == "col"
+        assert r.table == "test_table"
+        assert r.expected == "0"
+        assert r.actual == "0"
+        assert r.content == "SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)"
+        assert r.description == "Column-level statistical check against the configured threshold"
+        assert r.params == {"equal_to": 0, "accept_none": True}
+
+    @pytest.mark.parametrize("operator", ["greater_than", "geq_to", "less_than", "leq_to", "equal_to"])
+    def test_known_comparison_operators_produce_expected_string(self, operator):
+        """Regression guard for existing operators. Does NOT detect new operators being added —
+        when adding a new comparison operator, add a case to this parametrize list manually."""
+        result = SQLColumnCheckOperator._format_column_expected({operator: 5})
+        assert result != ""
+
+    @pytest.mark.parametrize(
+        ("check", "check_values", "expected_type"),
+        [
+            # Range operators always win
+            ("null_check", {"greater_than": 0}, "accepted_range"),
+            ("col_count", {"geq_to": 10}, "accepted_range"),
+            ("max", {"less_than": 100}, "accepted_range"),
+            ("min", {"leq_to": 5}, "accepted_range"),
+            # equal_to + non-zero tolerance → range (tolerance expands to bounds)
+            ("distinct_check", {"equal_to": 10, "tolerance": 0.1}, "accepted_range"),
+            # equal_to without tolerance → semantic names for standard zero-value checks
+            ("null_check", {"equal_to": 0}, "not_null"),
+            ("unique_check", {"equal_to": 0}, "unique"),
+            # equal_to=0 with tolerance: condition requires equal_to != 0, so falls through
+            ("null_check", {"equal_to": 0, "tolerance": 0.1}, "not_null"),
+            ("distinct_check", {"equal_to": 0, "tolerance": 0.1}, "accepted_values"),
+            # equal_to with non-zero value on standard check names
+            ("null_check", {"equal_to": 5}, "accepted_values"),
+            ("unique_check", {"equal_to": 5}, "accepted_values"),
+            # generic check name with no comparison operators → returned unchanged
+            ("custom_metric", {}, "custom_metric"),
+            # equal_to on a non-null/unique check name
+            ("distinct_check", {"equal_to": 10}, "accepted_values"),
+        ],
+    )
+    def test_get_column_check_type(self, check, check_values, expected_type):
+        assert SQLColumnCheckOperator._get_column_check_type(check, check_values) == expected_type
+
+    @pytest.mark.parametrize(
+        ("check_values", "expected"),
+        [
+            ({"equal_to": 0}, "0"),
+            ({"equal_to": 5}, "5"),
+            ({"greater_than": 5}, ">5"),
+            ({"geq_to": 5}, ">=5"),
+            ({"less_than": 10}, "<10"),
+            ({"leq_to": 10}, "<=10"),
+            ({"greater_than": 0, "less_than": 100}, ">0, <100"),
+            ({"geq_to": 5, "leq_to": 10}, ">=5, <=10"),
+        ],
+    )
+    def test_format_column_expected_no_tolerance(self, check_values, expected):
+        assert SQLColumnCheckOperator._format_column_expected(check_values) == expected
+
+    @pytest.mark.parametrize(
+        ("check_values", "expected"),
+        [
+            ({"equal_to": 5, "tolerance": 0.1}, ">= 4.5, <= 5.5"),
+            ({"equal_to": 10, "tolerance": 0.5}, ">= 5.0, <= 15.0"),
+            ({"greater_than": 10, "tolerance": 0.1}, "> 9.0"),
+            ({"geq_to": 10, "tolerance": 0.1}, ">= 9.0"),
+            ({"less_than": 10, "tolerance": 0.1}, "< 11.0"),
+            ({"leq_to": 10, "tolerance": 0.1}, "<= 11.0"),
+            ({"geq_to": 10, "leq_to": 20, "tolerance": 0.1}, ">= 9.0, <= 22.0"),
+        ],
+    )
+    def test_format_column_expected_with_tolerance(self, check_values, expected):
+        assert SQLColumnCheckOperator._format_column_expected(check_values) == expected
+
+
+class TestSQLTableCheckOperatorBuildCheckResults:
+    @staticmethod
+    def _make_operator(checks, **kwargs):
+        return SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks, **kwargs)
+
+    def test_passing_check(self):
+        checks = {"row_count_check": {"check_statement": "COUNT(*) >= 3"}}
+        op = self._make_operator(checks)
+        op.checks["row_count_check"]["result"] = "1"
+        op.checks["row_count_check"]["success"] = True
+        records = [("row_count_check", 1)]
+        results = op._build_check_results(records)
+        assert len(results) == 1
+        r = results[0]
+        assert r.name == "row_count_check"
+        assert r.check_type == "expression_is_true"
+        assert r.success is True
+        assert r.table == "test_table"
+        assert r.content == "COUNT(*) >= 3"
+        assert r.expected == "all truthy"
+        assert r.actual == "1"
+        assert r.severity == "error"
+        assert r.params == {"accept_none": False}
+
+    def test_failing_check(self):
+        checks = {"row_count_check": {"check_statement": "COUNT(*) >= 3"}}
+        op = self._make_operator(checks)
+        op.checks["row_count_check"]["result"] = "0"
+        op.checks["row_count_check"]["success"] = False
+        results = op._build_check_results([("row_count_check", 0)])
+        assert len(results) == 1
+        assert results[0].success is False
+        assert results[0].actual == "0"
+
+    def test_accept_none_severity_warn_when_empty_records(self):
+        checks = {"row_count_check": {"check_statement": "COUNT(*) >= 3"}}
+        op = self._make_operator(checks, accept_none=True)
+        op.checks["row_count_check"]["success"] = False
+        results = op._build_check_results([])
+        assert len(results) == 1
+        assert results[0].severity == "warn"
+
+    def test_severity_error_when_records_present(self):
+        checks = {"row_count_check": {"check_statement": "COUNT(*) >= 3"}}
+        op = self._make_operator(checks, accept_none=True)
+        op.checks["row_count_check"]["result"] = "1"
+        op.checks["row_count_check"]["success"] = True
+        results = op._build_check_results([("row_count_check", 1)])
+        assert results[0].severity == "error"
+
+    def test_multiple_checks(self):
+        checks = {
+            "count_check": {"check_statement": "COUNT(*) > 0"},
+            "sum_check": {"check_statement": "SUM(val) > 0"},
+        }
+        op = self._make_operator(checks)
+        op.checks["count_check"].update({"result": "1", "success": True})
+        op.checks["sum_check"].update({"result": "1", "success": True})
+        results = op._build_check_results([("count_check", 1), ("sum_check", 1)])
+        assert len(results) == 2
+        assert results[0].name == "count_check"
+        assert results[1].name == "sum_check"
+
+    def test_build_check_results_failure_returns_empty_list(self):
+        checks = {"row_count_check": {"check_statement": "COUNT(*) >= 3"}}
+        op = self._make_operator(checks)
+        op.checks["row_count_check"].update({"result": "1", "success": True})
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom")
+        ):
+            results = op._build_check_results([("row_count_check", 1)])
+        assert results == []
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom"))
+    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
+    def test_execute_unaffected_when_build_check_results_raises(self, mock_hook, _):
+        mock_hook.return_value.get_records.return_value = [("row_count_check", 1)]
+        op = self._make_operator({"row_count_check": {"check_statement": "COUNT(*) >= 1"}})
+        op.execute(MagicMock())
+        assert op.check_results == []
+
+    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
+    def test_execute_populates_check_results(self, mock_hook):
+        mock_hook.return_value.get_records.return_value = [("row_count_check", "1")]
+        op = self._make_operator({"row_count_check": {"check_statement": "COUNT(*) >= 1"}})
+        op.execute(MagicMock())
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "row_count_check"
+        assert r.check_type == "expression_is_true"
+        assert r.success is True
+        assert r.severity == "error"
+        assert r.column is None
+        assert r.table == "test_table"
+        assert r.expected == "all truthy"
+        assert r.actual == "1"
+        assert r.content == "COUNT(*) >= 1"
+        assert r.description == "User-defined SQL expression must evaluate to true"
+        assert r.params == {"accept_none": False}
+
+
+class TestSQLCheckOperatorBuildCheckResults:
+    @staticmethod
+    def _make_operator(**kwargs):
+        return SQLCheckOperator(task_id="test_task", sql="SELECT 1", **kwargs)
+
+    def test_all_truthy_records(self):
+        op = self._make_operator()
+        results = op._build_check_results([1, 1, 1])
+        assert len(results) == 1
+        r = results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "expression_is_true"
+        assert r.success is True
+        assert r.expected == "all truthy"
+        assert r.actual == "[1, 1, 1]"
+        assert r.content == "SELECT 1"
+        assert r.params is None
+
+    def test_falsy_value_in_records(self):
+        op = self._make_operator()
+        results = op._build_check_results([1, 0, 1])
+        assert len(results) == 1
+        assert results[0].success is False
+
+    def test_empty_records(self):
+        op = self._make_operator()
+        results = op._build_check_results([])
+        assert len(results) == 1
+        r = results[0]
+        assert r.success is False
+        assert r.actual is None
+
+    def test_dict_records_all_true(self):
+        op = self._make_operator()
+        results = op._build_check_results({"A": True, "B": True})
+        assert len(results) == 1
+        assert results[0].success is True
+
+    def test_dict_records_not_all_true(self):
+        op = self._make_operator()
+        results = op._build_check_results({"A": True, "B": False})
+        assert len(results) == 1
+        assert results[0].success is False
+
+    def test_parameters_in_params(self):
+        op = self._make_operator(parameters="my_params")
+        results = op._build_check_results([1])
+        assert len(results) == 1
+        assert results[0].params == {"parameters": "my_params"}
+
+    def test_build_check_results_failure_returns_empty_list(self):
+        op = self._make_operator()
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom")
+        ):
+            results = op._build_check_results([1])
+        assert results == []
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom"))
+    @mock.patch.object(SQLCheckOperator, "get_db_hook")
+    def test_execute_unaffected_when_build_check_results_raises(self, mock_hook, _):
+        mock_hook.return_value.get_first.return_value = [1]
+        op = self._make_operator()
+        op.execute(MagicMock())
+        assert op.check_results == []
+
+    @mock.patch.object(SQLCheckOperator, "get_db_hook")
+    def test_execute_populates_check_results(self, mock_hook):
+        mock_hook.return_value.get_first.return_value = [1, 2, 3]
+        op = self._make_operator()
+        op.execute(MagicMock())
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "expression_is_true"
+        assert r.success is True
+        assert r.severity == "error"
+        assert r.column is None
+        assert r.table is None
+        assert r.expected == "all truthy"
+        assert r.actual == "[1, 2, 3]"
+        assert r.content == "SELECT 1"
+        assert r.description == "All values in the first returned row must evaluate to true"
+        assert r.params is None
+
+
+class TestSQLValueCheckOperatorBuildCheckResults:
+    @staticmethod
+    def _make_operator(pass_value, tolerance=None):
+        return SQLValueCheckOperator(
+            task_id="test_task", sql="SELECT val FROM t", pass_value=pass_value, tolerance=tolerance
+        )
+
+    def test_exact_match_no_tolerance(self):
+        op = self._make_operator(pass_value="5")
+        results = op._build_check_results([5])
+        assert len(results) == 1
+        r = results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "accepted_values"
+        assert r.success is True
+        assert r.expected == "5"
+        assert r.actual == "[5]"
+        assert r.content == "SELECT val FROM t"
+        assert r.params == {"pass_value": "5"}
+
+    def test_numeric_tolerance_produces_accepted_range(self):
+        op = self._make_operator(pass_value=5, tolerance=0.1)
+        results = op._build_check_results([5])
+        assert len(results) == 1
+        r = results[0]
+        assert r.check_type == "accepted_range"
+        assert r.expected == ">= 4.5, <= 5.5"
+        assert r.params == {"pass_value": "5", "tolerance": 0.1}
+
+    def test_non_numeric_pass_value_is_accepted_values(self):
+        op = self._make_operator(pass_value="hello")
+        results = op._build_check_results(["hello"])
+        assert len(results) == 1
+        assert results[0].check_type == "accepted_values"
+        assert results[0].expected == "hello"
+
+    def test_failing_check(self):
+        op = self._make_operator(pass_value="10")
+        results = op._build_check_results([99])
+        assert len(results) == 1
+        assert results[0].success is False
+
+    def test_parameters_in_params(self):
+        op = self._make_operator(pass_value="5")
+        op.parameters = {"key": "val"}
+        results = op._build_check_results([5])
+        assert len(results) == 1
+        assert results[0].params == {"pass_value": "5", "parameters": {"key": "val"}}
+
+    def test_build_check_results_failure_returns_empty_list(self):
+        op = self._make_operator(pass_value="5")
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom")
+        ):
+            results = op._build_check_results([5])
+        assert results == []
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom"))
+    @mock.patch.object(SQLValueCheckOperator, "get_db_hook")
+    def test_execute_unaffected_when_build_check_results_raises(self, mock_hook, _):
+        mock_hook.return_value.get_first.return_value = [5]
+        op = self._make_operator(pass_value="5")
+        op.execute(MagicMock())
+        assert op.check_results == []
+
+    @mock.patch.object(SQLValueCheckOperator, "get_db_hook")
+    def test_execute_populates_check_results(self, mock_hook):
+        mock_hook.return_value.get_first.return_value = [5]
+        op = self._make_operator(pass_value="5")
+        op.execute(MagicMock())
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "accepted_values"
+        assert r.success is True
+        assert r.severity == "error"
+        assert r.column is None
+        assert r.table is None
+        assert r.expected == "5"
+        assert r.actual == "[5]"
+        assert r.content == "SELECT val FROM t"
+        assert r.description == "All values in the first returned row must match the expected value"
+        assert r.params == {"pass_value": "5"}
+
+    @mock.patch.object(SQLValueCheckOperator, "get_db_hook")
+    def test_execute_populates_check_results_with_tolerance(self, mock_hook):
+        mock_hook.return_value.get_first.return_value = [5]
+        op = self._make_operator(pass_value=5, tolerance=0.1)
+        op.execute(MagicMock())
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "accepted_range"
+        assert r.success is True
+        assert r.severity == "error"
+        assert r.column is None
+        assert r.table is None
+        assert r.expected == ">= 4.5, <= 5.5"
+        assert r.actual == "[5]"
+        assert r.content == "SELECT val FROM t"
+        assert r.description == "All values in the first returned row must match the expected value"
+        assert r.params == {"pass_value": "5", "tolerance": 0.1}
+
+
+class TestSQLIntervalCheckOperatorBuildCheckResults:
+    @staticmethod
+    def _make_operator(metrics_thresholds, **kwargs):
+        return SQLIntervalCheckOperator(
+            task_id="test_task",
+            table="test_table",
+            metrics_thresholds=metrics_thresholds,
+            ratio_formula="max_over_min",
+            ignore_zero=True,
+            **kwargs,
+        )
+
+    def _make_all_tests_results(self, metric, current, past, threshold, ratio, success):
+        return {
+            metric: {
+                "metric": metric,
+                "current_metric": current,
+                "past_metric": past,
+                "threshold": threshold,
+                "ignore_zero": True,
+                "ratio": ratio,
+                "success": success,
+            }
+        }
+
+    def test_passing_metric(self):
+        op = self._make_operator({"f1": 1.5})
+        all_tests_results = self._make_all_tests_results("f1", 10, 9, 1.5, 1.1, True)
+        results = op._build_check_results(all_tests_results)
+        assert len(results) == 1
+        r = results[0]
+        assert r.name == "interval_f1"
+        assert r.check_type == "accepted_range"
+        assert r.success is True
+        assert r.table == "test_table"
+        assert r.expected == "< 1.5"
+        assert r.actual == "1.1"
+        assert r.content == "max(10, 9) / min(10, 9)"
+        assert r.description == "Ratio of current metric to historical baseline must be below the threshold"
+        assert r.params == {
+            "threshold": 1.5,
+            "days_back": -7,
+            "ratio_formula_name": "max_over_min",
+            "ratio_formula": "max({current}, {past}) / min({current}, {past})",
+            "date_filter_column": "ds",
+            "ignore_zero": True,
+            "current_metric": 10,
+            "past_metric": 9,
+        }
+
+    def test_failing_metric(self):
+        op = self._make_operator({"f1": 1.5})
+        all_tests_results = self._make_all_tests_results("f1", 10, 2, 1.5, 5.0, False)
+        results = op._build_check_results(all_tests_results)
+        assert len(results) == 1
+        assert results[0].success is False
+        assert results[0].actual == "5.0"
+
+    def test_zero_ratio_none(self):
+        op = self._make_operator({"f1": 1.5})
+        all_tests_results = self._make_all_tests_results("f1", 0, 10, 1.5, None, True)
+        results = op._build_check_results(all_tests_results)
+        assert len(results) == 1
+        assert results[0].actual == "0"
+        assert results[0].success is True
+
+    def test_multiple_metrics(self):
+        op = self._make_operator({"f1": 1.5, "f2": 2.0})
+        all_tests_results = {
+            "f1": {
+                "metric": "f1",
+                "current_metric": 10,
+                "past_metric": 9,
+                "threshold": 1.5,
+                "ignore_zero": True,
+                "ratio": 1.1,
+                "success": True,
+            },
+            "f2": {
+                "metric": "f2",
+                "current_metric": 10,
+                "past_metric": 2,
+                "threshold": 2.0,
+                "ignore_zero": True,
+                "ratio": 5.0,
+                "success": False,
+            },
+        }
+        results = op._build_check_results(all_tests_results)
+        assert len(results) == 2
+        assert results[0].name == "interval_f1"
+        assert results[0].success is True
+        assert results[1].name == "interval_f2"
+        assert results[1].success is False
+
+    def test_build_check_results_failure_returns_empty_list(self):
+        op = self._make_operator({"f1": 1.5})
+        all_tests_results = self._make_all_tests_results("f1", 10, 9, 1.5, 1.1, True)
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom")
+        ):
+            results = op._build_check_results(all_tests_results)
+        assert results == []
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom"))
+    @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
+    def test_execute_unaffected_when_build_check_results_raises(self, mock_hook, _):
+        mock_hook.return_value.get_first.side_effect = [[10], [10]]
+        op = self._make_operator({"f1": 1.5})
+        op.execute(MagicMock())
+        assert op.check_results == []
+
+    @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
+    def test_execute_populates_check_results(self, mock_hook):
+        # execute() fetches sql2 (past/reference) first, then sql1 (current)
+        mock_hook.return_value.get_first.side_effect = [[9], [10]]
+        op = self._make_operator({"f1": 1.5})
+        op.execute(MagicMock())
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "interval_f1"
+        assert r.check_type == "accepted_range"
+        assert r.success is True
+        assert r.severity == "error"
+        assert r.column is None
+        assert r.table == "test_table"
+        assert r.expected == "< 1.5"
+        # ratio = max(10, 9) / min(10, 9) = 10/9 ≈ 1.111, content substitutes actual values
+        assert r.content == "max(10, 9) / min(10, 9)"
+        assert r.actual == str(10 / 9)
+        assert r.description == "Ratio of current metric to historical baseline must be below the threshold"
+        assert r.params == {
+            "threshold": 1.5,
+            "days_back": -7,
+            "ratio_formula_name": "max_over_min",
+            "ratio_formula": "max({current}, {past}) / min({current}, {past})",
+            "date_filter_column": "ds",
+            "ignore_zero": True,
+            "current_metric": 10,
+            "past_metric": 9,
+        }
+
+    def test_all_ratio_formulas_have_content_expressions(self):
+        """Fails if a new ratio formula is added to ratio_formulas without a matching expression entry."""
+        op = self._make_operator({"f1": 1.5})
+        assert set(op.ratio_formulas.keys()) == set(op.ratio_formula_expressions.keys())
+
+
+class TestSQLThresholdCheckOperatorBuildCheckResults:
+    @staticmethod
+    def _make_operator(min_threshold=1, max_threshold=100):
+        return SQLThresholdCheckOperator(
+            task_id="test_task",
+            sql="SELECT val FROM t",
+            min_threshold=min_threshold,
+            max_threshold=max_threshold,
+        )
+
+    def test_within_threshold(self):
+        op = self._make_operator(min_threshold=1, max_threshold=100)
+        meta_data = {"within_threshold": True, "min_threshold": 1.0, "max_threshold": 100.0}
+        results = op._build_check_results(50, meta_data)
+        assert len(results) == 1
+        r = results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "accepted_range"
+        assert r.success is True
+        assert r.expected == ">= 1.0, <= 100.0"
+        assert r.actual == "50"
+        assert r.content == "SELECT val FROM t"
+        assert r.description == "SQL result must fall within the configured bounds"
+        assert r.params == {"min_threshold": "1", "max_threshold": "100"}
+
+    def test_outside_threshold(self):
+        op = self._make_operator(min_threshold=20, max_threshold=100)
+        meta_data = {"within_threshold": False, "min_threshold": 20.0, "max_threshold": 100.0}
+        results = op._build_check_results(10, meta_data)
+        assert len(results) == 1
+        assert results[0].success is False
+        assert results[0].actual == "10"
+        assert results[0].expected == ">= 20.0, <= 100.0"
+
+    def test_sql_threshold_raw_strings_preserved_in_params(self):
+        op = self._make_operator(min_threshold="SELECT MIN(val) FROM ref", max_threshold=100)
+        meta_data = {"within_threshold": True, "min_threshold": 5.0, "max_threshold": 100.0}
+        results = op._build_check_results(50, meta_data)
+        assert len(results) == 1
+        assert results[0].params == {
+            "min_threshold": "SELECT MIN(val) FROM ref",
+            "max_threshold": "100",
+        }
+
+    def test_build_check_results_failure_returns_empty_list(self):
+        op = self._make_operator()
+        meta_data = {"within_threshold": True, "min_threshold": 1.0, "max_threshold": 100.0}
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom")
+        ):
+            results = op._build_check_results(50, meta_data)
+        assert results == []
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom"))
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
+    def test_execute_unaffected_when_build_check_results_raises(self, mock_hook, _):
+        mock_hook.return_value.get_first.return_value = (50,)
+        op = self._make_operator(min_threshold=1, max_threshold=100)
+        op.execute(MagicMock())
+        assert op.check_results == []
+
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
+    def test_execute_populates_check_results(self, mock_hook):
+        mock_hook.return_value.get_first.return_value = (50,)
+        op = self._make_operator(min_threshold=1, max_threshold=100)
+        op.execute(MagicMock())
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "accepted_range"
+        assert r.success is True
+        assert r.severity == "error"
+        assert r.column is None
+        assert r.table is None
+        assert r.expected == ">= 1.0, <= 100.0"
+        assert r.actual == "50"
+        assert r.content == "SELECT val FROM t"
+        assert r.description == "SQL result must fall within the configured bounds"
+        assert r.params == {"min_threshold": "1", "max_threshold": "100"}
+
+
+class TestBranchSQLOperatorBuildCheckResults:
+    @staticmethod
+    def _make_operator(**kwargs):
+        return BranchSQLOperator(
+            task_id="test_task",
+            sql="SELECT 1",
+            follow_task_ids_if_true=["branch_true"],
+            follow_task_ids_if_false=["branch_false"],
+            **kwargs,
+        )
+
+    def test_true_branch(self):
+        op = self._make_operator()
+        op.follow_branch = ["branch_true"]
+        results = op._build_check_results(1)
+        assert len(results) == 1
+        r = results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "expression_is_true"
+        assert r.success is True
+        assert r.severity == "info"
+        assert r.expected == "truthy"
+        assert r.actual == "1"
+        assert r.content == "SELECT 1"
+        assert r.description == "SQL result is evaluated as boolean to determine the execution branch"
+        assert r.params == {
+            "follow_task_ids_if_true": ["branch_true"],
+            "follow_task_ids_if_false": ["branch_false"],
+            "follow_branch": ["branch_true"],
+        }
+
+    def test_false_branch(self):
+        op = self._make_operator()
+        op.follow_branch = ["branch_false"]
+        results = op._build_check_results(0)
+        assert len(results) == 1
+        r = results[0]
+        assert r.success is False
+        assert r.actual == "0"
+        assert r.params == {
+            "follow_task_ids_if_true": ["branch_true"],
+            "follow_task_ids_if_false": ["branch_false"],
+            "follow_branch": ["branch_false"],
+        }
+
+    def test_parameters_included_when_set(self):
+        op = self._make_operator(parameters={"key": "val"})
+        op.follow_branch = ["branch_true"]
+        results = op._build_check_results(1)
+        assert len(results) == 1
+        assert results[0].params == {
+            "follow_task_ids_if_true": ["branch_true"],
+            "follow_task_ids_if_false": ["branch_false"],
+            "follow_branch": ["branch_true"],
+            "parameters": {"key": "val"},
+        }
+
+    def test_build_check_results_failure_returns_empty_list(self):
+        op = self._make_operator()
+        op.follow_branch = ["branch_true"]
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom")
+        ):
+            results = op._build_check_results(1)
+        assert results == []
+
+    @mock.patch.object(BranchSQLOperator, "skip_all_except")
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLCheckResult", side_effect=RuntimeError("boom"))
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_execute_unaffected_when_build_check_results_raises(self, mock_hook, _, mock_skip):
+        mock_hook.return_value.get_first.return_value = 1
+        op = self._make_operator()
+        op.execute({"ti": MagicMock()})
+        assert op.check_results == []
+        mock_skip.assert_called_once()
+
+    @mock.patch.object(BranchSQLOperator, "skip_all_except")
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_execute_populates_check_results(self, mock_hook, mock_skip):
+        mock_hook.return_value.get_first.return_value = 1
+        op = self._make_operator()
+        op.execute({"ti": MagicMock()})
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
+        assert r.name == "test_task"
+        assert r.check_type == "expression_is_true"
+        assert r.success is True
+        assert r.severity == "info"
+        assert r.column is None
+        assert r.table is None
+        assert r.expected == "truthy"
+        assert r.actual == "1"
+        assert r.content == "SELECT 1"
+        assert r.description == "SQL result is evaluated as boolean to determine the execution branch"
+        assert r.params == {
+            "follow_task_ids_if_true": ["branch_true"],
+            "follow_task_ids_if_false": ["branch_false"],
+            "follow_branch": ["branch_true"],
+        }
+        mock_skip.assert_called_once()
+
+
+class TestSqlBaseOperatorAttachCheckFacets:
+    """Tests for BaseSQLOperator._attach_check_facets."""
+
+    @staticmethod
+    def _make_operator():
+        return SQLCheckOperator(task_id="test_task", sql="SELECT 1")
+
+    @staticmethod
+    def _dataset(name):
+        from openlineage.client.event_v2 import Dataset
+
+        return Dataset(namespace="default", name=name)
+
+    def test_empty_check_results_returns_lineage_unchanged(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        result = op._attach_check_facets(OperatorLineage())
+        assert result == OperatorLineage()
+        assert result.run_facets == {}
+
+    def test_old_openlineage_client_raises_optional_feature_exception(self):
+        try:
+            from airflow.providers.openlineage.extractors import OperatorLineage
+        except ImportError:
+            pytest.skip("openlineage provider not installed")
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+        op = self._make_operator()
+        op.check_results = [SQLCheckResult(name="t", check_type="expr", success=True)]
+        with mock.patch(
+            "airflow.providers.common.compat.openlineage.check.metadata.version", return_value="1.46.0"
+        ):
+            with pytest.raises(AirflowOptionalProviderFeatureException):
+                op._attach_check_facets(OperatorLineage())
+
+    def test_run_facet_all_fields_populated(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            SQLCheckResult(
+                name="my_check",
+                check_type="expression_is_true",
+                success=True,
+                severity="warn",
+                column="col_a",
+                table=None,  # no table → run facet
+                expected="all truthy",
+                actual="[1, 1]",
+                content="SELECT col_a FROM t",
+                description="All values must be truthy",
+                params={"custom_key": "custom_val"},
+            )
+        ]
+        result = op._attach_check_facets(OperatorLineage())
+
+        facet = result.run_facets.get("test")
+        assert facet is not None
+        assert len(facet.tests) == 1
+        t = facet.tests[0]
+        assert t.name == "my_check"
+        assert t.status == "pass"
+        assert t.severity == "warn"
+        assert t.type == "expression_is_true"
+        assert t.description == "All values must be truthy"
+        assert t.expected == "all truthy"
+        assert t.actual == "[1, 1]"
+        assert t.content == "SELECT col_a FROM t"
+        assert t.contentType == "sql"
+        # params merges tested_column / tested_table with the SQLCheckResult params
+        assert t.params == {
+            "tested_column": "col_a",
+            "tested_table": None,
+            "custom_key": "custom_val",
+        }
+
+    def test_run_facet_failing_check_has_fail_status(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [SQLCheckResult(name="bad_check", check_type="not_null", success=False)]
+        result = op._attach_check_facets(OperatorLineage())
+
+        facet = result.run_facets.get("test")
+        assert facet is not None
+        assert facet.tests[0].status == "fail"
+
+    def test_dataset_facet_all_fields_populated(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            SQLCheckResult(
+                name="col.null_check",
+                check_type="not_null",
+                success=True,
+                severity="error",
+                column="col",
+                table="test_table",
+                expected="0 nulls",
+                actual="0",
+                content="SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)",
+                description="Column must contain no nulls",
+                params={"accept_none": False},
+            )
+        ]
+        lineage = OperatorLineage(inputs=[self._dataset("myschema.test_table")])
+        result = op._attach_check_facets(lineage)
+
+        assert result.run_facets == {}
+        dq_facet = result.inputs[0].facets.get("dataQualityAssertions")
+        assert dq_facet is not None
+        assert len(dq_facet.assertions) == 1
+        a = dq_facet.assertions[0]
+        assert a.assertion == "not_null"
+        assert a.success is True
+        assert a.severity == "error"
+        assert a.column == "col"
+        assert a.name == "col.null_check"
+        assert a.description == "Column must contain no nulls"
+        assert a.expected == "0 nulls"
+        assert a.actual == "0"
+        assert a.content == "SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)"
+        assert a.contentType == "sql"
+        assert a.params == {"accept_none": False}
+
+    def test_dataset_facet_multiple_assertions_same_table(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            SQLCheckResult(
+                name="col_a.null_check",
+                check_type="not_null",
+                success=True,
+                column="col_a",
+                table="test_table",
+                expected="0 nulls",
+                actual="0",
+            ),
+            SQLCheckResult(
+                name="col_b.unique_check",
+                check_type="unique",
+                success=False,
+                column="col_b",
+                table="test_table",
+                expected="0 duplicates",
+                actual="3",
+            ),
+            SQLCheckResult(
+                name="row_count_check",
+                check_type="expression_is_true",
+                success=True,
+                column=None,
+                table="test_table",
+                expected="all truthy",
+                actual="1",
+                content="COUNT(*) > 0",
+            ),
+        ]
+        lineage = OperatorLineage(inputs=[self._dataset("myschema.test_table")])
+        result = op._attach_check_facets(lineage)
+
+        assert result.run_facets == {}
+        dq_facet = result.inputs[0].facets.get("dataQualityAssertions")
+        assert dq_facet is not None
+        assert len(dq_facet.assertions) == 3
+
+        a0 = dq_facet.assertions[0]
+        assert a0.name == "col_a.null_check"
+        assert a0.assertion == "not_null"
+        assert a0.success is True
+        assert a0.column == "col_a"
+        assert a0.expected == "0 nulls"
+        assert a0.actual == "0"
+
+        a1 = dq_facet.assertions[1]
+        assert a1.name == "col_b.unique_check"
+        assert a1.assertion == "unique"
+        assert a1.success is False
+        assert a1.column == "col_b"
+        assert a1.expected == "0 duplicates"
+        assert a1.actual == "3"
+
+        a2 = dq_facet.assertions[2]
+        assert a2.name == "row_count_check"
+        assert a2.assertion == "expression_is_true"
+        assert a2.success is True
+        assert a2.column is None
+        assert a2.content == "COUNT(*) > 0"
+
+    def test_dataset_facet_attached_to_output_all_fields_populated(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            SQLCheckResult(
+                name="col.null_check",
+                check_type="not_null",
+                success=True,
+                severity="error",
+                column="col",
+                table="target_table",
+                expected="0 nulls",
+                actual="0",
+                content="SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)",
+                description="Column must contain no nulls",
+                params={"accept_none": False},
+            )
+        ]
+        # table appears only in outputs (e.g. a post-write quality check)
+        lineage = OperatorLineage(outputs=[self._dataset("myschema.target_table")])
+        result = op._attach_check_facets(lineage)
+
+        assert result.run_facets == {}
+        dq_facet = result.outputs[0].facets.get("dataQualityAssertions")
+        assert dq_facet is not None
+        assert len(dq_facet.assertions) == 1
+        a = dq_facet.assertions[0]
+        assert a.assertion == "not_null"
+        assert a.success is True
+        assert a.severity == "error"
+        assert a.column == "col"
+        assert a.name == "col.null_check"
+        assert a.description == "Column must contain no nulls"
+        assert a.expected == "0 nulls"
+        assert a.actual == "0"
+        assert a.content == "SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)"
+        assert a.contentType == "sql"
+        assert a.params == {"accept_none": False}
+
+    def test_unmatched_table_falls_back_to_run_facet_with_table_context_in_params(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            SQLCheckResult(
+                name="col.null_check",
+                check_type="not_null",
+                success=False,
+                severity="error",
+                column="col",
+                table="other_table",
+                expected="0 nulls",
+                actual="5",
+                content="SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)",
+                description="Column must contain no nulls",
+                params={"accept_none": False},
+            )
+        ]
+        lineage = OperatorLineage(inputs=[self._dataset("myschema.test_table")])
+        result = op._attach_check_facets(lineage)
+
+        assert result.inputs[0].facets == {}
+        facet = result.run_facets.get("test")
+        assert facet is not None
+        assert len(facet.tests) == 1
+        t = facet.tests[0]
+        assert t.name == "col.null_check"
+        assert t.status == "fail"
+        assert t.severity == "error"
+        assert t.type == "not_null"
+        assert t.description == "Column must contain no nulls"
+        assert t.expected == "0 nulls"
+        assert t.actual == "5"
+        assert t.content == "SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END)"
+        assert t.contentType == "sql"
+        # tested_column / tested_table are injected alongside the SQLCheckResult params
+        assert t.params == {
+            "tested_column": "col",
+            "tested_table": "other_table",
+            "accept_none": False,
+        }
+
+    def test_exact_match_preferred_over_suffix_match(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            SQLCheckResult(
+                name="col.null_check",
+                check_type="not_null",
+                success=True,
+                column="col",
+                table="orders",
+            )
+        ]
+        suffix_match = self._dataset("schema.orders")  # endswith match — listed first
+        exact_match = self._dataset("orders")  # exact match — listed second
+        lineage = OperatorLineage(inputs=[suffix_match, exact_match])
+        result = op._attach_check_facets(lineage)
+
+        assert result.run_facets == {}
+        # confirm ordering is preserved so index assertions below are unambiguous
+        assert result.inputs[0].name == "schema.orders"
+        assert result.inputs[1].name == "orders"
+        # suffix-match dataset must not receive the facet
+        assert result.inputs[0].facets == {}
+        # exact-match dataset must receive it
+        dq_facet = result.inputs[1].facets.get("dataQualityAssertions")
+        assert dq_facet is not None
+        assert dq_facet.assertions[0].name == "col.null_check"
+
+    def test_same_table_in_inputs_and_outputs_both_receive_assertions(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            SQLCheckResult(
+                name="col.null_check",
+                check_type="not_null",
+                success=True,
+                column="col",
+                table="orders",
+                expected="0 nulls",
+                actual="0",
+            )
+        ]
+        input_ds = self._dataset("schema.orders")
+        output_ds = self._dataset("schema.orders")
+        lineage = OperatorLineage(inputs=[input_ds], outputs=[output_ds])
+        result = op._attach_check_facets(lineage)
+
+        assert result.run_facets == {}
+        assert len(result.inputs) == 1
+        assert len(result.outputs) == 1
+
+        for ds in (result.inputs[0], result.outputs[0]):
+            dq_facet = ds.facets.get("dataQualityAssertions")
+            assert dq_facet is not None, f"missing facet on {ds.name}"
+            assert len(dq_facet.assertions) == 1
+            a = dq_facet.assertions[0]
+            assert a.name == "col.null_check"
+            assert a.assertion == "not_null"
+            assert a.success is True
+            assert a.column == "col"
+
+    def test_mixed_results_dataset_facet_and_run_facet_populated_correctly(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op.check_results = [
+            # matched input dataset → DataQualityAssertionsDatasetFacet
+            SQLCheckResult(
+                name="col_a.null_check",
+                check_type="not_null",
+                success=True,
+                column="col_a",
+                table="known_table",
+                expected="0 nulls",
+                actual="0",
+            ),
+            # table not in any dataset → falls back to TestRunFacet
+            SQLCheckResult(
+                name="col_b.null_check",
+                check_type="not_null",
+                success=False,
+                column="col_b",
+                table="unknown_table",
+                expected="0 nulls",
+                actual="2",
+            ),
+            # no table at all → directly to TestRunFacet
+            SQLCheckResult(
+                name="row_count_check",
+                check_type="expression_is_true",
+                success=True,
+                table=None,
+                expected="all truthy",
+                actual="1",
+                content="COUNT(*) > 0",
+            ),
+        ]
+        lineage = OperatorLineage(inputs=[self._dataset("myschema.known_table")])
+        result = op._attach_check_facets(lineage)
+
+        # matched check lands on the input dataset facet
+        dq_facet = result.inputs[0].facets.get("dataQualityAssertions")
+        assert dq_facet is not None
+        assert len(dq_facet.assertions) == 1
+        a = dq_facet.assertions[0]
+        assert a.name == "col_a.null_check"
+        assert a.assertion == "not_null"
+        assert a.success is True
+        assert a.column == "col_a"
+
+        # unmatched-table check and no-table check both land in the run facet
+        run_facet = result.run_facets.get("test")
+        assert run_facet is not None
+        assert len(run_facet.tests) == 2
+
+        t0 = run_facet.tests[0]
+        assert t0.name == "row_count_check"
+        assert t0.status == "pass"
+        assert t0.params["tested_column"] is None
+        assert t0.params["tested_table"] is None
+
+        t1 = run_facet.tests[1]
+        assert t1.name == "col_b.null_check"
+        assert t1.status == "fail"
+        assert t1.params["tested_column"] == "col_b"
+        assert t1.params["tested_table"] == "unknown_table"
 
 
 class TestSQLInsertRowsOperator:

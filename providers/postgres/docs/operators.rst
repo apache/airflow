@@ -55,7 +55,7 @@ Dumping SQL statements into your operator isn't quite appealing and will create 
 down to the road. To prevent this, Airflow offers an elegant solution. This is how it works: you simply create
 a directory inside the Dag folder called ``sql`` and then put all the SQL files containing your SQL queries inside it.
 
-Your ``dags/sql/pet_schema.sql`` should like this:
+Your ``dags/sql/pet_schema.sql`` should look like this:
 
 ::
 

@@ -22,6 +22,7 @@ import pytest
 from pydantic import ValidationError
 from registry_contract_models import (
     build_openapi_document,
+    validate_modules_catalog,
     validate_provider_parameters,
     validate_provider_version_metadata,
     validate_provider_versions,
@@ -73,6 +74,30 @@ def test_validate_provider_parameters_preserves_mro_alias():
     class_entry = validated["classes"]["airflow.providers.test.mod.Example"]
     assert "mro" in class_entry
     assert "mro_chain" not in class_entry
+
+
+def _module_payload(**overrides):
+    payload = {
+        "name": "Example",
+        "type": "operator",
+        "import_path": "airflow.providers.test.mod.Example",
+        "short_description": "Example module.",
+        "docs_url": "https://example.invalid/docs",
+        "source_url": "https://example.invalid/source",
+        "category": "test",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_module_contract_accepts_legacy_modules_without_supports_durable_execution():
+    validated = validate_modules_catalog({"modules": [_module_payload()]})
+    assert "supports_durable_execution" not in validated["modules"][0]
+
+
+def test_module_contract_preserves_supports_durable_execution_true():
+    validated = validate_modules_catalog({"modules": [_module_payload(supports_durable_execution=True)]})
+    assert validated["modules"][0]["supports_durable_execution"] is True
 
 
 def test_validate_version_metadata_accepts_legacy_version_modules_without_ids():

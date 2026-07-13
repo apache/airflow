@@ -470,6 +470,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_execution_date",
         "prev_execution_date_success",
     }
+    if AIRFLOW_V_3_3_PLUS:
+        PENDULUM_SERIALIZABLE_CONTEXT_KEYS.add("partition_date")
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
@@ -954,7 +956,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             "requirements_list": self._requirements_list(exclude_cloudpickle=exclude_cloudpickle),
             "pip_install_options": self.pip_install_options,
             "index_urls": self.index_urls,
-            "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
+            "cache_key": str(Variable.get("python_virtualenv_operator_cache_key", "")),
             "python_version": self.python_version,
             "system_site_packages": self.system_site_packages,
         }

@@ -24,7 +24,7 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-openlineage",
-        "name": "OpenLineage Airflow",
+        "name": "OpenLineage",
         "description": "`OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.\nAt its core it is an extensible specification that systems can use to interoperate with lineage metadata.\n",
         "integrations": [
             {
@@ -50,6 +50,13 @@ def get_provider_info():
             "openlineage": {
                 "description": "This section applies settings for OpenLineage integration.\n",
                 "options": {
+                    "config_conn_id": {
+                        "description": "Specify a Generic Airflow connection ID that contains OpenLineage configuration in connection\nextra. This can be used to keep the OpenLineage transport configuration, including auth settings,\noutside of the Airflow configuration file.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "openlineage_default",
+                        "default": "",
+                    },
                     "config_path": {
                         "description": "Specify the path to the YAML configuration file.\nThis ensures backwards compatibility with passing config through the `openlineage.yml` file.\n",
                         "version_added": None,
@@ -79,7 +86,7 @@ def get_provider_info():
                         "version_added": "1.11.0",
                     },
                     "disable_source_code": {
-                        "description": "Disable the inclusion of source code in OpenLineage events by setting this to `true`.\nBy default, several Operators (e.g. Python, Bash) will include their source code in the events\nunless disabled.\n",
+                        "description": "Deprecated. Use ``emission_policy`` instead.\n\nDisable the inclusion of source code in OpenLineage events by setting this to `true`.\nBy default, several Operators (e.g. Python, Bash) will include their source code in the events\nunless disabled.\n",
                         "default": "False",
                         "example": None,
                         "type": "boolean",
@@ -93,11 +100,18 @@ def get_provider_info():
                         "version_added": None,
                     },
                     "disabled_for_operators": {
-                        "description": "Exclude some Operators from emitting OpenLineage events by passing a string of semicolon separated\nfull import paths of Operators to disable.\n",
+                        "description": "Deprecated. Use ``emission_policy`` instead.\n\nExclude some Operators from emitting OpenLineage events by passing a string of semicolon separated\nfull import paths of Operators to disable.\n",
                         "type": "string",
                         "example": "airflow.providers.standard.operators.bash.BashOperator; airflow.providers.standard.operators.python.PythonOperator",
                         "default": "",
                         "version_added": "1.1.0",
+                    },
+                    "emission_policy": {
+                        "description": "Unified per-scope control over what OpenLineage emits. See the `Emission policy documentation page\n<https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/emission_policy.html>`_\nfor the full schema, examples, the dag authoring API, and migration from the legacy options.\n",
+                        "type": "string",
+                        "example": '[{"scope": {"dag_id": "expensive_dag"}, "controls": {"extract_operator_metadata": false}}]',
+                        "default": "[]",
+                        "version_added": "2.18.0",
                     },
                     "execution_timeout": {
                         "description": "Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction for\ntask (on worker). Note that other configurations, sometimes with higher priority, such as\n`[core] task_success_overtime\n<https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#task-success-overtime>`_,\nmay also affect how much time OpenLineage has for execution.\n",
@@ -114,7 +128,7 @@ def get_provider_info():
                         "version_added": None,
                     },
                     "include_full_task_info": {
-                        "description": "If true, OpenLineage task events include full serialized task (operator) information.\nBy default, the AirflowRunFacet attached to task events contains only a selected subset\nof task parameters. With this flag on, all serializable task parameters are sent\n(excluding known non-serializable elements), which may significantly increase event size.\n\nWarning: By setting this variable to true, OpenLineage event can potentially include elements that\nare megabytes in size or larger, depending on the size of data you pass to the task.\n",
+                        "description": "Deprecated. Use ``emission_policy`` instead.\n\nIf true, OpenLineage task events include full serialized task (operator) information.\nBy default, the AirflowRunFacet attached to task events contains only a selected subset\nof task parameters. With this flag on, all serializable task parameters are sent\n(excluding known non-serializable elements), which may significantly increase event size.\n\nWarning: By setting this variable to true, OpenLineage event can potentially include elements that\nare megabytes in size or larger, depending on the size of data you pass to the task.\n",
                         "default": "False",
                         "example": None,
                         "type": "boolean",
@@ -128,7 +142,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "selective_enable": {
-                        "description": "If this setting is enabled, OpenLineage integration won't collect and emit metadata,\nunless you explicitly enable it per `DAG` or `Task` using  `enable_lineage` method.\n",
+                        "description": "Deprecated. Use ``emission_policy`` instead.\n\nIf this setting is enabled, OpenLineage integration won't collect and emit metadata,\nunless you explicitly enable it per `DAG` or `Task` using  `enable_lineage` method.\n",
                         "type": "boolean",
                         "default": "False",
                         "example": None,

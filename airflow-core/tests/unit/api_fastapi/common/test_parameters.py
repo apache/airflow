@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -27,11 +28,18 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
+    NullableDatetimeRangeFilter,
+    RangeFilter,
     SortParam,
+    _AssetDependencyFilter,
+    _ConsumingAssetFilter,
+    _escape_like_pattern,
+    _OwnersFilter,
     _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
     _TaskDisplayNamePrefixPatternParam,
+    datetime_range_filter_factory,
     filter_param_factory,
 )
 from airflow.models import DagModel, DagRun, Log
@@ -127,23 +135,56 @@ class TestSortParam:
         assert param.row_value(row, "dag_run_id") == "manual__2026-04-22"
         assert param.row_value(row, "id") == 42
 
-    def test_row_value_raises_on_column_form_to_replace(self):
+    def test_row_value_column_form_to_replace_resolves_via_row_attribute(self):
         """
-        Column-form ``to_replace`` is not supported by cursor encoding. The helper must
-        fail loudly so a future endpoint doesn't silently ship ``None`` cursor tokens.
+        Column-form ``to_replace`` resolves through the primary model's attribute so
+        association proxies (e.g. ``TaskInstance.run_after``) are usable for cursor encoding.
         """
         param = SortParam(["dag_id"], DagModel, {"last_run_state": DagRun.state}).set_value(
             ["last_run_state"]
         )
-        row = SimpleNamespace(id="test_dag")
-        with pytest.raises(NotImplementedError, match="column-form ``to_replace``"):
-            param.row_value(row, "last_run_state")
+        row = SimpleNamespace(id="test_dag", last_run_state="success")
+        assert param.row_value(row, "last_run_state") == "success"
+
+    def test_row_value_column_form_to_replace_raises_when_attribute_absent(self):
+        """
+        Column-form ``to_replace`` must raise ``NotImplementedError`` (not return ``None``)
+        when the primary model exposes no such attribute. A ``None`` cursor token would cause
+        the next-page ``WHERE`` to compare against ``NULL`` and silently drop rows.
+        """
+        param = SortParam(
+            ["dag_id"], DagModel, {"data_interval_start": DagRun.data_interval_start}
+        ).set_value(["data_interval_start"])
+        row = SimpleNamespace(id="test_dag")  # deliberately no data_interval_start attribute
+        with pytest.raises(NotImplementedError, match="data_interval_start"):
+            param.row_value(row, "data_interval_start")
 
     def test_primary_key_is_not_duplicated_when_alias_maps_to_pk(self):
         """Sorting by an alias that resolves to the PK must not append the PK a second time."""
         param = SortParam(["id"], ParseImportError, {"import_error_id": "id"}).set_value(["import_error_id"])
         resolved = param.get_resolved_columns()
         assert [name for name, _col, _desc in resolved] == ["import_error_id"]
+
+    def test_dynamic_depends_returns_independent_instances(self):
+        """Each call to the inner closure must produce a separate SortParam instance.
+
+        Two concurrent requests with different order_by values must not share state —
+        a mutation on one must not affect the other.
+        """
+        sort_param = SortParam(["id", "run_id", "logical_date"], DagRun, {"dag_run_id": "run_id"})
+        inner = sort_param.dynamic_depends(default="id")
+
+        instance_a = inner(order_by=["logical_date"])
+        instance_b = inner(order_by=["run_id"])
+
+        assert instance_a is not instance_b
+        assert instance_a.value == ["logical_date"]
+        assert instance_b.value == ["run_id"]
+        # Resolving one must not affect the other.
+        cols_a = [name for name, _col, _desc in instance_a.get_resolved_columns()]
+        cols_b = [name for name, _col, _desc in instance_b.get_resolved_columns()]
+        assert cols_a[0] == "logical_date"
+        assert cols_b[0] == "run_id"
 
 
 def _compile(statement):
@@ -214,6 +255,87 @@ class TestSearchParam:
         sql = _compile(statement)
         assert _has_ilike(sql, "example_bash")
         assert " or " not in sql
+
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is passed through literally."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "2026-01-01|us")
+        assert " or " not in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → ``%`` alias."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "%")
+
+
+class TestEscapeLikePattern:
+    """The escape helper turns user input into a literal substring pattern.
+
+    Filter parameters that do *not* document wildcard semantics must call this so a user-supplied
+    ``%`` or ``_`` does not widen the match beyond the filter's intent. Search parameters that
+    explicitly expose wildcard semantics (see ``_SearchParam``) deliberately do not call it.
+    """
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("plain", "plain"),
+            ("a%b", r"a\%b"),
+            ("a_b", r"a\_b"),
+            (r"a\b", r"a\\b"),
+            (r"a\%b", r"a\\\%b"),
+            ("%_\\", r"\%\_\\"),
+            ("", ""),
+        ],
+    )
+    def test_escapes_metacharacters(self, raw, expected):
+        assert _escape_like_pattern(raw) == expected
+
+
+class TestNonSearchFilterEscaping:
+    """``_OwnersFilter`` / ``_AssetDependencyFilter`` / ``_ConsumingAssetFilter`` escape ``%`` and ``_``.
+
+    Compile-time check: the rendered SQL must wrap the *escaped* user value in ``%...%`` and
+    declare an ``ESCAPE`` clause so the database treats user-supplied wildcards literally.
+    """
+
+    def test_owners_filter_escapes_user_wildcards(self):
+        param = _OwnersFilter().set_value(["100%_alice"])
+        statement = param.to_orm(select(DagModel))
+        sql = _compile(statement)
+        assert r"'%100\%\_alice%'" in sql
+        assert "escape" in sql
+
+    def test_asset_dependency_filter_escapes_user_wildcards(self):
+        param = _AssetDependencyFilter().set_value("ledger_%")
+        statement = param.to_orm(select(DagModel))
+        sql = _compile(statement)
+        assert r"'%ledger\_\%%'" in sql
+        assert "escape" in sql
+
+    def test_consuming_asset_filter_escapes_user_wildcards(self):
+        param = _ConsumingAssetFilter().set_value("foo_%bar")
+        statement = param.to_orm(select(DagRun))
+        sql = _compile(statement)
+        assert r"'%foo\_\%bar%'" in sql
+        assert "escape" in sql
+
+    def test_search_param_does_not_escape_user_wildcards(self):
+        """Counter-test: ``_SearchParam`` deliberately passes wildcards through."""
+        param = _SearchParam(DagModel.dag_id).set_value("foo_%bar")
+        statement = param.to_orm(select(DagModel))
+        sql = _compile(statement)
+        # Raw user wildcards are present, not the escaped form.
+        assert "'%foo_%bar%'" in sql
 
 
 class TestPrefixSearchParam:
@@ -313,6 +435,28 @@ class TestPrefixSearchParam:
         result = param.to_orm(statement)
         assert result is statement
 
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is part of the prefix and not an OR delimiter."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        # Use " or " (with spaces) to avoid false positives from column-name substrings like "owners".
+        assert " or " not in sql
+        # Range scan uses the full composite-key value as the lower bound.
+        assert "2026-01-01|us" in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert "is not null" in sql
+
 
 class TestTaskDisplayNamePrefixPatternParam:
     """Prefix filter splits on NULL override so ``task_id`` can use indexes."""
@@ -335,3 +479,61 @@ class TestTaskDisplayNamePrefixPatternParam:
 
         sql = _compile(statement)
         assert "true" in sql or "1 = 1" in sql
+
+
+def _make_datetime_filter(filter_name, model=TaskInstance, attribute_name=None, **kwargs):
+    """Call datetime_range_filter_factory outside FastAPI by supplying None for all omitted bounds."""
+    defaults = dict(lower_bound_gte=None, lower_bound_gt=None, upper_bound_lte=None, upper_bound_lt=None)
+    defaults.update(kwargs)
+    return datetime_range_filter_factory(filter_name, model, attribute_name)(**defaults)
+
+
+class TestDatetimeRangeFilterFactory:
+    """datetime_range_filter_factory dispatches to NullableDatetimeRangeFilter for start/end dates."""
+
+    def test_start_date_returns_nullable_filter(self):
+        rf = _make_datetime_filter("start_date")
+        assert isinstance(rf, NullableDatetimeRangeFilter)
+
+    def test_end_date_returns_nullable_filter(self):
+        rf = _make_datetime_filter("end_date")
+        assert isinstance(rf, NullableDatetimeRangeFilter)
+
+    def test_aliased_filter_name_returns_plain_filter(self):
+        """dag_run_start_date uses attribute_name='start_date' via outer join; NULL means 'no run',
+        not 'currently running', so it must return a plain RangeFilter to avoid inflating counts."""
+        rf = _make_datetime_filter("dag_run_start_date", model=DagRun, attribute_name="start_date")
+        assert type(rf) is RangeFilter
+
+    def test_aliased_end_date_returns_plain_filter(self):
+        """dag_run_end_date uses attribute_name='end_date' via outer join; must return plain RangeFilter."""
+        rf = _make_datetime_filter("dag_run_end_date", model=DagRun, attribute_name="end_date")
+        assert type(rf) is RangeFilter
+
+    def test_other_column_returns_plain_filter(self):
+        rf = _make_datetime_filter("queued_dttm")
+        assert type(rf) is RangeFilter
+
+    def test_lower_bound_does_not_include_now(self):
+        """NULL branch on lower bounds passes unconditionally — no now() call."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        rf = _make_datetime_filter("start_date", lower_bound_gte=bound)
+        sql = _compile(rf.to_orm(select(TaskInstance)))
+        assert "is null" in sql
+        assert "now()" not in sql
+        assert "coalesce" not in sql
+
+    def test_upper_bound_includes_now_for_running_tasks(self):
+        """NULL branch on upper bounds uses now() to proxy the in-progress task's current time."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        rf = _make_datetime_filter("end_date", upper_bound_lte=bound)
+        sql = _compile(rf.to_orm(select(TaskInstance)))
+        assert "is null" in sql
+        assert "now()" in sql
+        assert "coalesce" not in sql
+
+    def test_no_coalesce_for_start_date(self):
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
+        sql = _compile(rf.to_orm(select(TaskInstance)))
+        assert "coalesce" not in sql

@@ -43,13 +43,12 @@ To use instance metadata, make sure to set the Cloud OS Login argument to False 
 
 Please note that the target instance must allow tcp traffic on port 22.
 
-Trusted Partner Cloud (TPC) guidance
+Sovereign Cloud from Google guidance
 """"""""""""""""""""""""""""""""""""
 
-``TPC`` stands for ``Trusted Partner Cloud``. In these environments, the practical question for Compute
-Engine SSH is which hook parameters to set.
+In these environments, the practical question for Compute Engine SSH is which hook parameters to set.
 
-Use these settings for direct SSH in TPC:
+Use these settings for direct SSH in Sovereign Cloud from Google:
 
 .. code-block:: python
 
@@ -59,7 +58,7 @@ Use these settings for direct SSH in TPC:
         use_iap_tunnel=False,
     )
 
-Use these settings for SSH over IAP in TPC:
+Use these settings for SSH over IAP in Sovereign Cloud from Google:
 
 .. code-block:: python
 
@@ -73,7 +72,7 @@ For the IAP case, the caller must also have the IAM permissions required to open
 Cloud deployments, this is typically the ``IAP-secured Tunnel User`` role
 (``roles/iap.tunnelResourceAccessor``).
 
-Avoid this setting in the tested TPC environment:
+Avoid this setting in the tested Sovereign Cloud from Google environment:
 
 .. code-block:: python
 
@@ -82,10 +81,10 @@ Avoid this setting in the tested TPC environment:
         use_oslogin=True,
     )
 
-In the tested TPC environment, the OS Login SSH flow was not available for this hook. For users, the
+In the tested Sovereign Cloud from Google environment, the OS Login SSH flow was not available for this hook. For users, the
 practical guidance is to use metadata-managed SSH keys and set ``use_oslogin=False``.
 
-When you use metadata-managed SSH keys in TPC:
+When you use metadata-managed SSH keys in Sovereign Cloud from Google:
 
 * set ``use_oslogin=False``,
 * do not enable instance metadata ``enable-oslogin=TRUE`` for that SSH path,

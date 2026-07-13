@@ -65,7 +65,6 @@ export const ErrorPage = () => {
 
           <HStack gap={4}>
             <Button
-              colorPalette="brand"
               onClick={() => {
                 void Promise.resolve(navigate(-1));
               }}
@@ -74,7 +73,6 @@ export const ErrorPage = () => {
               {translate("error.back")}
             </Button>
             <Button
-              colorPalette="brand"
               onClick={() => {
                 void Promise.resolve(navigate("/"));
               }}

@@ -39,22 +39,11 @@ export class VariablePage extends BasePage {
     this.selectAllCheckbox = page.locator("thead input[type='checkbox']");
   }
 
-  public async getVariableKeys(): Promise<Array<string>> {
-    await this.waitForLoad();
-    const count = await this.tableRows.count();
-
-    if (count === 0) {
-      return [];
-    }
-    const keys = await this.tableRows.locator("td:nth-child(2)").allTextContents();
-
-    return keys.map((key) => key.trim()).filter(Boolean);
-  }
-
   public async navigate(): Promise<void> {
     await expect(async () => {
       await this.navigateTo("/variables");
       await this.page.waitForURL(/.*variables/, { timeout: 10_000 });
+      await this.waitForLoad();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 

@@ -19,7 +19,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import type { HttpHandler } from "msw";
-import { setupServer, type SetupServerApi } from "msw/node";
+import { setupServer, type SetupServer } from "msw/node";
 import { beforeEach, beforeAll, afterAll, afterEach, vi } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
@@ -28,7 +28,6 @@ import { handlers } from "src/mocks/handlers";
 // happy-dom. Mock useGraphLayout so the Worker is never constructed. Any
 // test that specifically exercises graph layout should override this mock.
 vi.mock("src/components/Graph/useGraphLayout", () => ({
-  directionOptions: () => ({ items: [] }),
   useGraphLayout: vi.fn().mockReturnValue({ data: undefined, isPending: false }),
 }));
 
@@ -72,7 +71,7 @@ vi.mock("chart.js", () => ({
   Tooltip: vi.fn(),
 }));
 
-let server: SetupServerApi;
+let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...(handlers as Array<HttpHandler>));

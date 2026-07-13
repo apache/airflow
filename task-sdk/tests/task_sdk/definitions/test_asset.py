@@ -56,10 +56,10 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
         pytest.param("sqlite:///:memory:", "\n\t", True, id="sqlite-whitespace"),
         pytest.param("sqlite:///:memory:", "a" * 1501, True, id="sqlite-too-long"),
         pytest.param("sqlite:///:memory:", "😊", False, id="sqlite-non-ascii"),
-        pytest.param("postgresql://localhost/db", "", True, id="postgres-empty"),
-        pytest.param("postgresql://localhost/db", "\n\t", True, id="postgres-whitespace"),
-        pytest.param("postgresql://localhost/db", "a" * 1501, True, id="postgres-too-long"),
-        pytest.param("postgresql://localhost/db", "😊", False, id="postgres-non-ascii"),
+        pytest.param("postgresql+psycopg2://localhost/db", "", True, id="postgres-empty"),
+        pytest.param("postgresql+psycopg2://localhost/db", "\n\t", True, id="postgres-whitespace"),
+        pytest.param("postgresql+psycopg2://localhost/db", "a" * 1501, True, id="postgres-too-long"),
+        pytest.param("postgresql+psycopg2://localhost/db", "😊", False, id="postgres-non-ascii"),
     ],
 )
 def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
@@ -84,13 +84,16 @@ def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
         pytest.param("sqlite:///:memory:", "a" * 1501, True, id="sqlite-too-long"),
         pytest.param("sqlite:///:memory:", "airflow://xcom/dag/task", True, id="sqlite-reserved-scheme"),
         pytest.param("sqlite:///:memory:", "😊", False, id="sqlite-non-ascii"),
-        pytest.param("postgresql://localhost/db", "", True, id="postgres-empty"),
-        pytest.param("postgresql://localhost/db", "\n\t", True, id="postgres-whitespace"),
-        pytest.param("postgresql://localhost/db", "a" * 1501, True, id="postgres-too-long"),
+        pytest.param("postgresql+psycopg2://localhost/db", "", True, id="postgres-empty"),
+        pytest.param("postgresql+psycopg2://localhost/db", "\n\t", True, id="postgres-whitespace"),
+        pytest.param("postgresql+psycopg2://localhost/db", "a" * 1501, True, id="postgres-too-long"),
         pytest.param(
-            "postgresql://localhost/db", "airflow://xcom/dag/task", True, id="postgres-reserved-scheme"
+            "postgresql+psycopg2://localhost/db",
+            "airflow://xcom/dag/task",
+            True,
+            id="postgres-reserved-scheme",
         ),
-        pytest.param("postgresql://localhost/db", "😊", False, id="postgres-non-ascii"),
+        pytest.param("postgresql+psycopg2://localhost/db", "😊", False, id="postgres-non-ascii"),
     ],
 )
 def test_invalid_uris(sql_conn_value, uri, should_raise, monkeypatch):
@@ -152,8 +155,8 @@ def test_uri_with_password() -> None:
         "An Asset URI should not contain a password. User info has been automatically dropped."
     )
     EmptyOperator(task_id="task1", outlets=[asset])
-    assert asset.uri == "ftp://localhost/foo.txt"
-    assert os.fspath(asset) == "ftp://localhost/foo.txt"
+    assert asset.uri == "ftp://localhost:21/foo.txt"
+    assert os.fspath(asset) == "ftp://localhost:21/foo.txt"
 
 
 def test_uri_without_password() -> None:
@@ -459,49 +462,21 @@ class TestAssetSubclasses:
         assert obj.group == group
 
 
-class TestAllowProducerTeamsValidationProperty:
-    @pytest.mark.parametrize(
-        "teams",
-        [
-            [""],
-            ["  "],
-            ["\t"],
-            ["\n"],
-            [123],
-            [None],
-            [True],
-            [{}],
-            ["team_a", "  ", "team_b"],
-        ],
-    )
-    def test_rejects_lists_with_invalid_entries(self, teams):
-        with pytest.raises(ValueError, match="allow_producer_teams"):
-            Asset(name="test_asset", allow_producer_teams=teams)
+class TestAssetAccessControl:
+    def test_sets_access_control_correctly(self):
+        from airflow.sdk.definitions.asset.access_control import AssetAccessControl
 
-    @pytest.mark.parametrize(
-        "teams",
-        [
-            [],
-            ["team_a"],
-            ["team_a", "team_b"],
-            ["team-with-dashes"],
-            ["team_with_underscores"],
-        ],
-    )
-    def test_accepts_valid_allow_producer_teams(self, teams):
-        asset = Asset(name="test_asset", allow_producer_teams=teams)
-        assert asset.allow_producer_teams == teams
+        ac = AssetAccessControl(producer_teams=["team_a"], allow_global=False)
+        asset = Asset(name="x", access_control=ac)
+        assert asset.access_control.producer_teams == ["team_a"]
+        assert asset.access_control.allow_global is False
 
-
-class TestAllowProducerTeamsField:
-    def test_sets_field_correctly(self):
-        asset = Asset(name="x", allow_producer_teams=["team_a"])
-        assert asset.allow_producer_teams == ["team_a"]
-
-    def test_defaults_to_empty_list(self):
+    def test_defaults_to_default_access_control(self):
         asset = Asset(name="x")
-        assert asset.allow_producer_teams == []
+        assert asset.access_control.producer_teams == []
+        assert asset.access_control.allow_global is True
 
-    def test_explicit_empty_list(self):
-        asset = Asset(name="x", allow_producer_teams=[])
-        assert asset.allow_producer_teams == []
+    def test_explicit_none_uses_default(self):
+        asset = Asset(name="x", access_control=None)
+        assert asset.access_control.producer_teams == []
+        assert asset.access_control.allow_global is True

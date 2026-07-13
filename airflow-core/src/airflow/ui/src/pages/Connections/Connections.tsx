@@ -26,17 +26,23 @@ import { useSearchParams } from "react-router-dom";
 import { useConnectionServiceGetConnections } from "openapi/queries";
 import type { ConnectionResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
-import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
+import {
+  SelectionHeaderCheckbox,
+  SelectionProvider,
+  SelectionRowCheckbox,
+  useRowSelection,
+  type GetColumnsParams,
+} from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
+import { useDocumentTitle } from "src/utils";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
@@ -59,34 +65,20 @@ export type ConnectionBody = {
 };
 
 const getColumns = ({
-  allRowsSelected,
+  hasSelection,
   multiTeam,
-  onRowSelect,
-  onSelectAll,
-  selectedRows,
   translate,
-}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => {
+}: {
+  hasSelection: boolean;
+  translate: TFunction;
+} & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => {
   const columns: Array<ColumnDef<ConnectionResponse>> = [
     {
       accessorKey: "select",
-      cell: ({ row }) => (
-        <Checkbox
-          borderWidth={1}
-          checked={selectedRows.get(row.original.connection_id)}
-          colorPalette="brand"
-          onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
-        />
-      ),
+      cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.connection_id} />,
       enableHiding: false,
       enableSorting: false,
-      header: () => (
-        <Checkbox
-          borderWidth={1}
-          checked={allRowsSelected}
-          colorPalette="brand"
-          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-        />
-      ),
+      header: () => <SelectionHeaderCheckbox />,
       meta: {
         skeletonWidth: 10,
       },
@@ -124,8 +116,8 @@ const getColumns = ({
       cell: ({ row: { original } }) => (
         <Flex justifyContent="end">
           <TestConnectionButton connection={original} />
-          <EditConnectionButton connection={original} disabled={selectedRows.size > 0} />
-          <DeleteConnectionButton connectionId={original.connection_id} disabled={selectedRows.size > 0} />
+          <EditConnectionButton connection={original} disabled={hasSelection} />
+          <DeleteConnectionButton connectionId={original.connection_id} disabled={hasSelection} />
         </Flex>
       ),
       enableSorting: false,
@@ -141,6 +133,9 @@ const getColumns = ({
 
 export const Connections = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
+  useDocumentTitle(translate("common:admin.Connections"));
+
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
@@ -168,11 +163,8 @@ export const Connections = () => {
     });
 
   const columns = getColumns({
-    allRowsSelected,
+    hasSelection: selectedRows.size > 0,
     multiTeam: multiTeamEnabled,
-    onRowSelect: handleRowSelect,
-    onSelectAll: handleSelectAll,
-    selectedRows,
     translate,
   });
 
@@ -192,7 +184,12 @@ export const Connections = () => {
   };
 
   return (
-    <>
+    <SelectionProvider
+      allRowsSelected={allRowsSelected}
+      onRowSelect={handleRowSelect}
+      onSelectAll={handleSelectAll}
+      selectedRows={selectedRows}
+    >
       <VStack alignItems="none">
         <SearchBar
           advancedSearch={advancedSearch}
@@ -233,6 +230,6 @@ export const Connections = () => {
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
-    </>
+    </SelectionProvider>
   );
 };

@@ -88,6 +88,40 @@ def test_parse_log_line():
     assert line == log_message
 
 
+@pytest.mark.parametrize(
+    ("raw_line", "expected_ts"),
+    [
+        pytest.param(
+            "2026-05-28T13:07:57.030578889Z \n",
+            "2026-05-28T13:07:57.030578889Z",
+            id="trailing-space-and-newline",
+        ),
+        pytest.param(
+            "2026-05-28T13:07:57.030581518Z\n",
+            "2026-05-28T13:07:57.030581518Z",
+            id="newline-only",
+        ),
+        pytest.param(
+            "2026-05-28T13:07:57.030642740Z ",
+            "2026-05-28T13:07:57.030642740Z",
+            id="trailing-space-no-newline",
+        ),
+    ],
+)
+def test_parse_log_line_handles_empty_container_writes(raw_line, expected_ts):
+    """
+    Regression for #36571: an empty container write (just ``\\n``) is streamed
+    back by kubelet as ``"<rfc3339-ts> \\n"`` when ``timestamps=True``. The
+    parser must recognise it as a real (empty) log line rather than as a
+    continuation of the previous one, otherwise the bare timestamp is appended
+    onto the previous buffered message and emitted unformatted into task logs.
+    """
+    timestamp, message = parse_log_line(raw_line)
+
+    assert timestamp == pendulum.parse(expected_ts)
+    assert message == ""
+
+
 def test_log_pod_event():
     """Test logging a pod event."""
     mock_pod_manager = mock.Mock()
@@ -483,6 +517,51 @@ class TestPodManager:
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_watch_pod_events_tracks_resource_version_when_first_response_has_no_events(
+        self, mock_sleep
+    ):
+        """Test that watch_pod_events uses list metadata resource version when no events are returned."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        mock_events_1 = mock.Mock()
+        mock_events_1.items = []
+        mock_events_1.metadata = mock.Mock(resource_version="100")
+
+        mock_event_2 = mock.Mock()
+        mock_event_2.metadata.uid = "event-uid-2"
+        mock_event_2.metadata.resource_version = "101"
+        mock_event_2.message = "Event 2"
+        mock_event_2.involved_object.field_path = "spec"
+
+        mock_events_2 = mock.Mock()
+        mock_events_2.items = [mock_event_2]
+        mock_events_2.metadata = mock.Mock(resource_version="101")
+
+        self.mock_kube_client.list_namespaced_event.side_effect = [mock_events_1, mock_events_2]
+        self.pod_manager.stop_watching_events = False
+
+        call_count = 0
+
+        async def side_effect_sleep(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                self.pod_manager.stop_watching_events = True
+
+        mock_sleep.side_effect = side_effect_sleep
+
+        await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
+
+        calls = self.mock_kube_client.list_namespaced_event.call_args_list
+        assert len(calls) == 2
+        assert calls[0][1]["resource_version"] is None
+        assert calls[1][1]["resource_version"] == "100"
+        assert calls[1][1]["resource_version_match"] == "NotOlderThan"
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
     async def test_watch_pod_events_deduplicates_events(self, mock_sleep):
         """Test that watch_pod_events deduplicates events."""
         mock_pod = mock.Mock()
@@ -739,6 +818,41 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_empty_container_lines_do_not_pollute_previous_message(
+        self, mock_read_pod_logs, mock_container_is_running, caplog
+    ):
+        """
+        Regression for #36571: when a container writes empty lines, kubelet
+        returns them as ``"<ts> \\n"`` rows. Previously these slipped through
+        ``parse_log_line`` as "no timestamp" and were appended as continuations
+        onto the previous buffered message, which then emitted multi-line
+        records where only the first line carried the Airflow log prefix --
+        leaving bare ``<ts>`` rows in task logs that downstream pendulum-based
+        parsers ``(file_task_handler._parse_timestamp)`` then choked on.
+        """
+        log = (
+            "2026-05-28T13:07:50.160Z first test line\n"
+            "2026-05-28T13:07:57.030578889Z \n"
+            "2026-05-28T13:07:57.030581518Z\n"
+            "2026-05-28T13:07:57.030642740Z \n"
+            "2026-05-28T13:07:57.034Z last test line\n"
+        )
+        mock_read_pod_logs.return_value = [bytes(line, "utf-8") for line in log.split("\n")]
+        mock_container_is_running.return_value = False
+
+        with caplog.at_level(logging.INFO):
+            self.pod_manager.fetch_container_logs(mock.MagicMock(), "base", follow=True)
+
+        assert "first test line" in caplog.text
+        assert "last test line" in caplog.text
+        # The empty-line timestamps must not leak into the previous message and
+        # must not be emitted as orphan rows.
+        assert "2026-05-28T13:07:57.030578889Z" not in caplog.text
+        assert "2026-05-28T13:07:57.030581518Z" not in caplog.text
+        assert "2026-05-28T13:07:57.030642740Z" not in caplog.text
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
     def test_container_log_times_tracks_last_timestamp(self, mock_read_pod_logs, mock_container_is_running):
         """Test that container_log_times dictionary tracks the last log timestamp for each container."""
         timestamp_string = "2020-10-08T14:16:17.793417674Z"
@@ -926,9 +1040,31 @@ class TestPodManager:
             assert self.pod_manager.stop_watching_events is True
             assert mock_time_sleep.call_count == 3
             mock_log_info.assert_any_call(
-                "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+                "::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout
             )
             mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
+
+    @pytest.mark.asyncio
+    async def test_start_pod_preemption_raises_error(self):
+        """After a pod is scheduled on a node, it is possible that it gets preempted by another pod, such as a daemonset on a new node, it is possible this happens before
+        any containers are created.  In that case airflow needs to recreate the pod.
+        """
+
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Failed"
+        pod_response.status.container_statuses = None
+        pod_response.status.message = "Pod was rejected: Node didn't have enough resource: memory, requested: 547356672, used: 14813233152, capacity: 15334334464"
+        pod_response.status.reason = "OutOfmemory"
+
+        self.mock_kube_client.read_namespaced_pod.return_value = pod_response
+        expected_msg = "Pod failed before containers started"
+        mock_pod = MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=60,
+                startup_timeout=60,
+            )
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):
@@ -1549,7 +1685,7 @@ class TestAsyncPodManager:
         )
         assert mock_time_sleep.call_count == 3
         mock_log_info.assert_any_call(
-            "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+            "::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout
         )
         mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
         assert self.async_pod_manager.stop_watching_events is True
@@ -1585,54 +1721,33 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("log_lines", "now", "expected_log_messages", "not_expected_log_messages"),
+        ("log_line_offsets", "expected_log_messages", "not_expected_log_messages"),
         [
             # Case 1: No logs
-            ([], pendulum.now(), [], []),
+            ([], [], []),
             # Case 2: One log line with timestamp before now
-            (
-                [f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} message"],
-                pendulum.now(),
-                ["message"],
-                [],
-            ),
+            ([(-2, "message")], ["message"], []),
             # Case 3: Log line with timestamp equal to now (should be skipped, so last_time is None)
-            ([f"{pendulum.now().to_iso8601_string()} message"], pendulum.now(), [], ["message"]),
+            ([(0, "message")], [], ["message"]),
             # Case 4: Multiple log lines, last before now
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=3).to_iso8601_string()} msg1",
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1", "msg2"],
-                [],
-            ),
+            ([(-3, "msg1"), (-2, "msg2")], ["msg1", "msg2"], []),
             # Case 5: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    "continued line",
-                ],
-                pendulum.now(),
-                ["msg1\ncontinued line"],
-                [],
-            ),
-            # Case 6: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    f"{pendulum.now().to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1"],
-                ["msg2"],
-            ),
+            ([(-2, "msg1"), (None, "continued line")], ["msg1\ncontinued line"], []),
+            # Case 6: Log line followed by one at the current second (the latter should be skipped)
+            ([(-2, "msg1"), (0, "msg2")], ["msg1"], ["msg2"]),
         ],
     )
     async def test_fetch_container_logs_before_current_sec_various_logs(
-        self, log_lines, now, expected_log_messages, not_expected_log_messages
+        self, log_line_offsets, expected_log_messages, not_expected_log_messages
     ):
+        # Use a fixed reference instant instead of real wall-clock time: building the
+        # log-line timestamps from separate `pendulum.now()` calls made the "equal to
+        # the current second" cases flaky whenever those calls straddled a second boundary.
+        now = pendulum.datetime(2024, 1, 1, 12, 0, 0)
+        log_lines = [
+            message if offset is None else f"{now.add(seconds=offset).to_iso8601_string()} {message}"
+            for offset, message in log_line_offsets
+        ]
         pod = mock.MagicMock()
         container_name = "base"
         since_time = now.subtract(minutes=1)

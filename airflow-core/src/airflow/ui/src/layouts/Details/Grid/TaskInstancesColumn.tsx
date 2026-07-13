@@ -152,6 +152,7 @@ export const TaskInstancesColumn = ({
             )}
             <GridTI
               dagId={dagId}
+              hasNote={taskInstance.has_note ?? false}
               instance={taskInstance}
               isGroup={node.isGroup}
               isMapped={node.is_mapped}

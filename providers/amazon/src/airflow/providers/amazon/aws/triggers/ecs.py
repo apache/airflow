@@ -18,15 +18,17 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError, WaiterError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher, _parse_log_level
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -125,7 +127,10 @@ class TaskDoneTrigger(BaseTrigger):
     :param waiter_max_attempts: The number of times to ping for status.
         Will fail after that many unsuccessful attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: The AWS region where the cluster is located.
+    :param region_name: The AWS region where the cluster is located. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
+    :param region: (deprecated) use ``region_name`` instead.
     """
 
     def __init__(
@@ -135,17 +140,30 @@ class TaskDoneTrigger(BaseTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region: str | None,
+        region_name: str | None = None,
         log_group: str | None = None,
         log_stream: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+        region: str | None = None,
     ):
+        if region is not None:
+            warnings.warn(
+                "`region` is deprecated and will be removed in a future release. "
+                "Please use `region_name` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            region_name = region
         self.cluster = cluster
         self.task_arn = task_arn
 
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
-        self.region = region
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
 
         self.log_group = log_group
         self.log_stream = log_stream
@@ -159,19 +177,27 @@ class TaskDoneTrigger(BaseTrigger):
                 "waiter_delay": self.waiter_delay,
                 "waiter_max_attempts": self.waiter_max_attempts,
                 "aws_conn_id": self.aws_conn_id,
-                "region": self.region,
+                "region_name": self.region_name,
                 "log_group": self.log_group,
                 "log_stream": self.log_stream,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         async with (
             await EcsHook(
-                aws_conn_id=self.aws_conn_id, region_name=self.region
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                config=self.botocore_config,
             ).get_async_conn() as ecs_client,
             await AwsLogsHook(
-                aws_conn_id=self.aws_conn_id, region_name=self.region
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                config=self.botocore_config,
             ).get_async_conn() as logs_client,
         ):
             waiter = ecs_client.get_waiter("tasks_stopped")
@@ -228,7 +254,8 @@ class TaskDoneTrigger(BaseTrigger):
 
             events = response["events"]
             for log_event in events:
-                self.log.info(AwsTaskLogFetcher.event_to_str(log_event))
+                level = _parse_log_level(log_event["message"])
+                self.log.log(level, AwsTaskLogFetcher.event_to_str(log_event))
 
             if len(events) == 0 or next_token == response["nextForwardToken"]:
                 return response["nextForwardToken"]

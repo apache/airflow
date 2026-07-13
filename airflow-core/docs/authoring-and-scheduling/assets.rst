@@ -188,6 +188,8 @@ Declaring an ``@asset`` automatically creates:
 * A ``DAG`` with *dag_id* set to the function name.
 * A task inside the ``DAG`` with *task_id* set to the function name, and *outlet* to the created ``Asset``.
 
+The parameter names ``self``, ``context``, and ``outlet_events`` are **reserved** in an ``@asset`` function: they are populated by Airflow at runtime (with the asset itself, the execution context, and the outlet event accessor respectively) and are never treated as inlet asset references.
+
 Attaching extra information to an emitting asset event
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -244,6 +246,26 @@ Inlet asset events can be read with the ``inlet_events`` accessor in the executi
         last_row_count = events[-1].extra["row_count"]
 
 Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given asset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
+
+The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events where specific ``extra`` keys match given values:
+
+.. code-block:: python
+
+    @task(inlets=[regional_sales])
+    def process_high_priority(*, inlet_events):
+        events = inlet_events[regional_sales].extra("region", "us").extra("env", "prod")
+        for event in events:
+            print(event.extra)
+
+The ``.extra(key, value)`` method can be chained multiple times; all conditions are combined with AND logic. Other chaining methods include ``.after(timestamp)``, ``.before(timestamp)``, ``.ascending()``, and ``.limit(n)``.
+
+The REST API also supports filtering asset events by extra key-value pairs using the ``extra`` query parameter (repeat for multiple conditions):
+
+.. code-block:: bash
+
+    curl "http://<airflow-host>/api/v2/assets/events?extra=region%3Dus&extra=env%3Dprod"
+
+Each ``extra`` value uses ``key=value`` format. Multiple entries are combined with AND logic.
 
 Dependency between ``@asset``, ``@task``, and classic operators
 ---------------------------------------------------------------
@@ -402,6 +424,97 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
+Cross-team asset event filtering with ``producer_teams``
+--------------------------------------------------------
+
+.. versionadded:: 3.3.0
+
+When :doc:`Multi-Team mode </core-concepts/multi-team>` is enabled, asset events are filtered by team
+membership. By default, a consuming Dag only receives asset events produced by Dags within the same team
+or by global (teamless) Dags. This prevents unintended cross-team triggers.
+
+To configure cross-team access, use the ``access_control`` parameter on the ``Asset`` definition with an
+``AssetAccessControl`` instance:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, AssetAccessControl
+
+    shared_data = Asset(
+        name="my_data",
+        uri="s3://bucket/shared/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics", "team_ml"],
+        ),
+    )
+
+In this example, asset events produced by Dags belonging to ``team_analytics`` or ``team_ml`` will be
+accepted by any consuming Dag that schedules on ``shared_data``, in addition to events from the consuming
+Dag's own team.
+
+``AssetAccessControl`` parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``AssetAccessControl`` class accepts the following parameters:
+
+- **producer_teams** (``list[str]``, default ``[]``): List of team names allowed to produce events
+  consumed by this asset's consumers, in addition to the consumer's own team.
+- **consumer_teams** (``list[str] | None``, default ``None``): List of team names allowed to consume
+  events produced by this asset's producers. See
+  :ref:`Cross-team asset event filtering with consumer_teams <asset_consumer_teams>`.
+- **allow_global** (``bool``, default ``True``): Whether teamless (global) Dags can participate in
+  cross-team event delivery. See :doc:`/core-concepts/multi-team` for the full semantics on both
+  consumer-side and producer-side assets.
+
+Blocking global producers
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, global (teamless) Dags can trigger any consumer. In strict team isolation scenarios, you
+may want to block teamless producers:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, AssetAccessControl
+
+    strict_data = Asset(
+        name="strict_data",
+        uri="s3://bucket/strict/data.csv",
+        access_control=AssetAccessControl(
+            producer_teams=["team_analytics"],
+            allow_global=False,
+        ),
+    )
+
+With ``allow_global=False``, only Dags belonging to the consumer's own team or to ``team_analytics`` can
+trigger consumers of ``strict_data``. Teamless Dag producers are blocked.
+
+.. note::
+
+   The ``allow_global`` flag only affects Dag producers. Teamless API users are always restricted to
+   triggering teamless consumers only, regardless of this setting.
+
+Default behavior
+~~~~~~~~~~~~~~~~
+
+When ``access_control`` is not specified, a default ``AssetAccessControl()`` is used (empty
+``producer_teams``, ``consumer_teams=None``, and ``allow_global=True``). See
+:doc:`/core-concepts/multi-team` for the complete behavioral rules table. In summary, the rules
+depend on whether the producer and consumer have a team association:
+
+- **Both have the same team**: The event is always delivered.
+- **Producer has a team, consumer has a different team**: The event is blocked (unless the
+  producer's team is in the asset's ``producer_teams``).
+- **Producer has no team (global Dag)**: The event is delivered to all consumers whose asset has
+  ``allow_global=True`` (the default). Global Dags act as shared infrastructure that any team can
+  depend on.
+- **Consumer has no team (global Dag)**: The consumer accepts events from any source,
+  regardless of the producer's team. Teamless consumers act as shared infrastructure that any
+  team can feed into.
+- **Neither has a team**: The event is delivered (both are global).
+
+When Multi-Team mode is disabled, ``access_control`` is ignored and all asset events are delivered to all
+consuming Dags, preserving backward compatibility.
+
 Asset partitions
 ----------------
 
@@ -429,6 +542,33 @@ creates asset events with a partition key on each run.
 
 Partitioned events are intended for partition-aware downstream scheduling, and
 do not trigger non-partition-aware Dags.
+
+Pre-determined vs runtime partitioning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both kinds attach a partition key to a Dag run — the difference is *when* and
+*by whom* the key is decided:
+
+* **Pre-determined partitioning** — the partition key is worked out before the
+  task runs, using the timetable's schedule cadence and partition mappers to match
+  upstream keys to downstream keys and trigger partition-based Dag runs.
+  :class:`~airflow.sdk.CronPartitionTimetable` uses this kind as a producer;
+  :class:`~airflow.sdk.PartitionedAssetTimetable` uses it as a consumer.
+
+* **Runtime partitioning** — the partition key is deferred to task runtime:
+  the producing task records key(s) via ``outlet_events[self].add_partitions(...)``.
+  :class:`~airflow.sdk.PartitionedAtRuntime` uses this kind and never schedules on its
+  own (``can_be_scheduled=False``); a schedulable timetable can also defer to runtime
+  by subclassing :class:`~airflow.timetables.trigger.CronTriggerTimetable` and setting
+  ``partitioned_at_runtime = True`` (see the custom plugin example below).
+
+A timetable uses one kind or the other, not both: it either resolves partitions
+ahead of the run or defers them to task runtime.
+
+**Practical rule:** use :class:`~airflow.sdk.CronPartitionTimetable` when the
+partition key follows from the schedule cadence; use :class:`~airflow.sdk.PartitionedAtRuntime`
+when the key is only known once the task runs (e.g. a watermark from source data);
+use :class:`~airflow.sdk.PartitionedAssetTimetable` downstream to consume either kind.
 
 For downstream partition-aware scheduling, use ``PartitionedAssetTimetable``:
 
@@ -474,6 +614,12 @@ downstream Dag partition key:
   passes the key through unchanged if valid.
   For example, ``AllowedKeyMapper(["us", "eu", "apac"])`` accepts only those
   region keys and rejects all others.
+* ``FixedKeyMapper`` collapses every upstream key onto a fixed downstream key,
+  regardless of the upstream value.
+* ``SegmentWindow`` declares a fixed categorical set of string keys (e.g. regions,
+  tenants) that constitute one downstream period; paired with ``FixedKeyMapper``
+  inside a ``RollupMapper`` it holds the downstream run until every declared segment
+  has arrived (see :ref:`segment-rollup <segment-categorical-rollup>`).
 
 Example of per-asset mapper configuration and composite-key mapping:
 
@@ -532,7 +678,19 @@ partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
 Inside partitioned Dag runs, access the resolved partition through
-``dag_run.partition_key``.
+``dag_run.partition_key``. When the consumer's partition mapper can
+resolve the key to a ``datetime``, that value is also available as
+``dag_run.partition_date``, so templates can use
+``{{ partition_date | ds }}``. This covers the ``StartOf*Mapper`` family
+(which decode the key directly), ``IdentityMapper`` (which carries the
+producer's ``partition_date`` through), and composite mappers —
+``RollupMapper``, ``ChainMapper`` and ``FanOutMapper`` — whose effective
+child mapper is temporal (they delegate the anchor to that child).
+Mappers whose key carries no temporal meaning (``ProductMapper``,
+``AllowedKeyMapper`` and custom mappers that do not implement
+``to_partition_date``) leave ``partition_date`` ``None`` even when the
+resulting key is date-shaped, so those consumers should keep parsing
+``partition_key``.
 
 You can also trigger a DagRun manually with a partition key (for example,
 through the Trigger Dag window in the UI, or through the REST API by
@@ -546,6 +704,460 @@ including ``partition_key`` in the request body):
         "logical_date": "2026-03-10T00:00:00Z",
         "partition_key": "us|2026-03-10T09:00:00"
       }'
+
+Rollup mappers
+~~~~~~~~~~~~~~
+
+.. versionadded:: 3.3.0
+
+The mappers shown above match upstream keys to a single downstream key one-for-one.
+For a coarser downstream period made up of many upstream events — an hourly upstream
+that drives a daily summary, daily inputs that compose a weekly report — use
+:class:`~airflow.sdk.RollupMapper`. :class:`~airflow.sdk.RollupMapper` composes an
+upstream mapper (which normalizes each upstream key to the downstream granularity)
+with a :class:`~airflow.sdk.Window` that declares the full set of upstream keys
+required for one downstream key. The scheduler holds the Dag run until every upstream
+key in the window has arrived; partial windows stay pending on the next-run-assets
+view so operators can see progress.
+
+The shipped windows are :class:`~airflow.sdk.HourWindow` (sixty minutes per hour),
+:class:`~airflow.sdk.DayWindow` (twenty-four hours per day),
+:class:`~airflow.sdk.WeekWindow` (seven days per week),
+:class:`~airflow.sdk.MonthWindow`, :class:`~airflow.sdk.QuarterWindow`, and
+:class:`~airflow.sdk.YearWindow`. Pair each window with an upstream mapper that
+decodes to the same temporal grain — for example
+:class:`~airflow.sdk.StartOfHourMapper` with :class:`~airflow.sdk.DayWindow`.
+
+Each upstream asset event carries a fine-grained partition key such as
+``2026-03-10T09:00:00`` (second precision). :class:`~airflow.sdk.StartOfHourMapper`
+normalizes that key to the hour boundary ``2026-03-10T09``, which is the format
+it encodes each expected member in — the same
+strings the scheduler matches against the twenty-four required members of
+:class:`~airflow.sdk.DayWindow`.
+
+The following hourly-to-daily example produces a daily summary once all twenty-four
+upstream hourly partitions for a calendar day have arrived:
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        Asset,
+        CronPartitionTimetable,
+        DayWindow,
+        PartitionedAssetTimetable,
+        RollupMapper,
+        StartOfHourMapper,
+        task,
+    )
+
+    hourly_sales = Asset(uri="file://incoming/sales/hourly.csv", name="hourly_sales")
+
+    # Producer: emits one partitioned event per hour (key looks like 2026-03-10T09:00:00).
+    with DAG(
+        dag_id="ingest_hourly_sales",
+        schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    ):
+
+        @task(outlets=[hourly_sales])
+        def ingest():
+            pass
+
+        ingest()
+
+    # Consumer: fires once a day's twenty-four hourly partitions are all in.
+    with DAG(
+        dag_id="daily_sales_summary",
+        schedule=PartitionedAssetTimetable(
+            assets=hourly_sales,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=DayWindow(),
+            ),
+        ),
+        catchup=False,
+    ):
+
+        @task
+        def summarize(dag_run=None):
+            # dag_run.partition_key is the day, e.g. "2026-03-10".
+            print(dag_run.partition_key)
+
+        summarize()
+
+A misconfigured ``RollupMapper`` — e.g. pairing an identity-decoding upstream mapper
+with a ``DayWindow`` — raises ``TypeError`` at Dag parse so the misconfiguration
+surfaces immediately instead of silently holding every downstream run forever. The
+error is a type mismatch: an identity-decoding mapper's ``expected_decoded_type`` is
+``str``, but temporal windows such as :class:`~airflow.sdk.DayWindow` require
+``datetime``; ``RollupMapper`` detects the mismatch at construction time and
+raises before the Dag is scheduled.
+
+``DayWindow`` always enumerates twenty-four hourly steps. With an upstream mapper
+configured for a local timezone that observes daylight-saving time, the spring-forward
+day has only twenty-three real hours (one window member never has a matching event,
+so the run is held indefinitely) and the fall-back day has twenty-five (the repeated
+hour is dropped). Use a UTC-based upstream mapper for any rollup that crosses a DST
+boundary; see the ``DayWindow`` class docstring for the full discussion.
+
+Wait policies
+~~~~~~~~~~~~~
+
+:class:`~airflow.sdk.RollupMapper` accepts an optional ``wait_policy`` argument
+that decides when the downstream Dag run fires given the expected window vs the
+upstream keys that have actually arrived.
+
+* :class:`~airflow.sdk.WaitForAll` (the default) holds the run until every expected
+  upstream key in the window has arrived.
+* :class:`~airflow.sdk.MinimumCount` ``(n)`` fires early once at least ``n`` of the
+  expected keys have arrived — useful to tolerate a slow or missing upstream partition
+  rather than holding the run indefinitely.
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        Asset,
+        FixedKeyMapper,
+        MinimumCount,
+        PartitionedAtRuntime,
+        PartitionedAssetTimetable,
+        RollupMapper,
+        SegmentWindow,
+        asset,
+    )
+
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionedAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+
+    # Consumer: fires once at least two of the three declared region partitions arrive.
+    with DAG(
+        dag_id="segment_region_stats_early_rollup",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset.ref(name="multi_region_player_stats"),
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=FixedKeyMapper("all_regions"),
+                window=SegmentWindow(["us", "eu", "apac"]),
+                wait_policy=MinimumCount(2),
+            ),
+        ),
+        catchup=False,
+    ):
+        ...
+
+``MinimumCount(-1)`` is the relative spelling of the same threshold — "at most one
+missing" — and is equivalent to ``MinimumCount(2)`` for a three-member window.
+Pass :class:`~airflow.sdk.WaitForAll` explicitly when you want to document intent
+rather than relying on the default.
+
+.. _segment-categorical-rollup:
+
+Segment (categorical) rollup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.3.0
+
+For categorical partitioning — regions, tenants, experiment variants — compose a
+``RollupMapper`` from two primitives:
+
+* ``SegmentWindow(["us", "eu", "apac"])`` declares the fixed set of string keys
+  that constitute one downstream period; ``to_upstream`` returns the full set
+  regardless of the downstream anchor.
+* ``FixedKeyMapper("all_regions")`` collapses every upstream key onto the single
+  downstream partition key ``"all_regions"``.
+
+The scheduler holds the downstream Dag run until every declared segment has arrived
+from the upstream producer, then fires once. All the segment events accumulate into
+one ``AssetPartitionDagRun``; the fired run's ``partition_key`` is the value passed
+to ``FixedKeyMapper``. This composition only makes sense under ``WAIT_FOR_ALL``
+semantics (the default).
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        Asset,
+        FixedKeyMapper,
+        PartitionedAtRuntime,
+        PartitionedAssetTimetable,
+        RollupMapper,
+        SegmentWindow,
+        asset,
+        task,
+    )
+
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionedAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        # Emit one event per region in a single run.
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+
+    # Consumer: fires once all three region partitions have arrived.
+    with DAG(
+        dag_id="segment_region_stats_rollup",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset.ref(name="multi_region_player_stats"),
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=FixedKeyMapper("all_regions"),
+                window=SegmentWindow(["us", "eu", "apac"]),
+            ),
+        ),
+        catchup=False,
+    ):
+
+        @task
+        def aggregate_all_regions(dag_run=None):
+            # dag_run.partition_key is the downstream key once all segments arrive.
+            print(dag_run.partition_key)
+
+        aggregate_all_regions()
+
+Construction validates both components: ``SegmentWindow`` raises ``ValueError`` for
+an empty list, non-string items, or empty-string keys; duplicate entries are silently
+deduplicated. ``FixedKeyMapper`` raises ``ValueError`` if its argument is not a
+non-empty string. Pass a distinct ``FixedKeyMapper`` key when one consumer Dag rolls
+up more than one asset, so each rollup uses a distinct bucket and they do not collide
+on the same ``(target_dag_id, partition_key)``.
+
+For a segment set that must be computed at runtime, do not encode it here — evaluate
+completeness in a consumer-side task instead (the scheduler must not run user code to
+decide a partition set).
+
+Setting partition keys at runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the partition key is not known ahead of time (for example, a watermark
+discovered from the source data, a late-arriving file, or a backfill request),
+let the producing task decide it while it runs. Schedule the producer with
+``PartitionedAtRuntime()`` and record the key(s) on the emitted event with
+``outlet_events[self].add_partitions(...)``:
+
+.. code-block:: python
+
+    from airflow.sdk import PartitionedAtRuntime, asset
+
+
+    @asset(
+        uri="file://incoming/player-stats/live-region.csv",
+        schedule=PartitionedAtRuntime(),
+    )
+    def live_region_player_stats(self, outlet_events):
+        # The key is only known once the task runs.
+        outlet_events[self].add_partitions("us")
+
+Inside an ``@asset`` function, ``self`` (the emitted ``Asset``) and
+``outlet_events`` (the outlet event accessor) are reserved parameter names that
+Airflow populates at runtime. Pass a single key, or a list to fan out to several
+partitions in one run. Each key produces its own asset event, and duplicate
+keys collapse to a single event:
+
+.. code-block:: python
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionedAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+When a runtime run emits exactly one partition key, the producing
+``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume
+these events the same way as timetable-produced partitions, through
+``PartitionedAssetTimetable``.
+
+Fan-out mappers
+~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.3.0
+
+:class:`~airflow.sdk.FanOutMapper` is the mirror of :class:`~airflow.sdk.RollupMapper`:
+instead of holding many upstream events until one downstream run can fire, a single
+upstream event fans *out* to one downstream Dag run per window member. It composes an
+``upstream_mapper`` (which normalizes the upstream key to the window anchor) with a
+:class:`~airflow.sdk.Window` that enumerates the downstream period, and an optional
+``downstream_mapper`` that converts each window member into a downstream partition key
+string.
+
+For temporal windows (:class:`~airflow.sdk.WeekWindow`, :class:`~airflow.sdk.MonthWindow`,
+etc.) a default ``downstream_mapper`` is applied automatically — for example
+:class:`~airflow.sdk.WeekWindow` defaults to :class:`~airflow.sdk.StartOfDayMapper`,
+so each of the seven daily members is encoded as a ``YYYY-MM-DD`` string. For
+:class:`~airflow.sdk.SegmentWindow` there is no default-table entry, so an explicit
+``downstream_mapper`` is required.
+
+The following example fans a weekly model artifact out to seven daily inference runs —
+one Dag run per day in the week:
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        Asset,
+        CronPartitionTimetable,
+        FanOutMapper,
+        PartitionedAssetTimetable,
+        StartOfWeekMapper,
+        WeekWindow,
+        task,
+    )
+
+    weekly_model_artifact = Asset(uri="file://artifacts/models/weekly.bin", name="weekly_model_artifact")
+
+    # Producer: emits one partitioned event per week (key is the Monday date).
+    with DAG(
+        dag_id="train_weekly_model",
+        schedule=CronPartitionTimetable("0 0 * * 1", timezone="UTC"),
+        catchup=False,
+    ):
+
+        @task(outlets=[weekly_model_artifact])
+        def train_model():
+            pass
+
+        train_model()
+
+
+    # Consumer: one Dag run per day derived from the weekly upstream event.
+    with DAG(
+        dag_id="daily_inference",
+        schedule=PartitionedAssetTimetable(
+            assets=weekly_model_artifact,
+            default_partition_mapper=FanOutMapper(
+                upstream_mapper=StartOfWeekMapper(),
+                window=WeekWindow(),
+                max_downstream_keys=7,
+            ),
+        ),
+        catchup=False,
+    ):
+
+        @task
+        def run_inference(dag_run=None):
+            # dag_run.partition_key is one daily key, e.g. "2026-03-10".
+            print(dag_run.partition_key)
+
+        run_inference()
+
+``max_downstream_keys`` caps how many downstream Dag runs one upstream event may
+create. When exceeded, the runs for that event are **not** queued and a "partition
+fan-out exceeded" audit-log entry is recorded instead. Omitting it falls back to the
+global ``[scheduler] partition_mapper_max_downstream_keys`` config (default 1000).
+Set it explicitly to document intent and guard against accidental fan-out explosions.
+
+Window direction: FORWARD and BACKWARD
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every :class:`~airflow.sdk.Window` supports a ``direction`` parameter that controls
+which period the window enumerates relative to its anchor.
+
+* ``Window.Direction.FORWARD`` (the default) — yields the period *starting* at the
+  upstream key. For a weekly upstream key ``"2026-03-09"`` (Monday),
+  ``WeekWindow()`` yields the seven days ``2026-03-09`` through ``2026-03-15``.
+* ``Window.Direction.BACKWARD`` — yields the trailing period *ending* at the key.
+  The same ``"2026-03-09"`` key with ``WeekWindow(direction=Window.Direction.BACKWARD)``
+  yields the seven days ending on that Monday (``2026-03-03`` through ``2026-03-09``).
+
+.. code-block:: python
+
+    from airflow.sdk import FanOutMapper, PartitionedAssetTimetable, StartOfWeekMapper, WeekWindow, Window
+
+    PartitionedAssetTimetable(
+        assets=weekly_model_artifact,
+        default_partition_mapper=FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=Window.Direction.BACKWARD),
+        ),
+    )
+
+Direction applies to rollup windows too — ``RollupMapper`` uses the same window
+classes, so ``DayWindow(direction=Window.Direction.BACKWARD)`` holds a downstream
+run until the twenty-four hours *preceding* midnight of the downstream key have
+all arrived.
+
+Custom partition mappers, windows, and timetables in plugins
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Custom :class:`~airflow.partition_mappers.base.PartitionMapper`,
+:class:`~airflow.partition_mappers.window.Window`, and partition-aware
+:class:`Timetable <airflow.timetables.base.Timetable>` classes can be shipped as
+Airflow plugins by listing them in ``AirflowPlugin.partition_mappers``,
+``.windows``, and ``.timetables`` respectively.  Once a plugin is installed,
+these classes become usable in :class:`~airflow.sdk.PartitionedAssetTimetable`
+and :class:`~airflow.partition_mappers.base.RollupMapper` without modifying core
+Airflow.
+
+**Custom partition mapper** — strip a namespace prefix so that upstream keys
+like ``"eu::daily-sales"`` and ``"us::daily-sales"`` both collapse to the
+downstream key ``"daily-sales"``:
+
+.. exampleinclude:: /../src/airflow/example_dags/plugins/custom_partition_mapper.py
+    :language: python
+    :start-after: [START custom_partition_mapper]
+    :end-before: [END custom_partition_mapper]
+
+**Custom rollup window** — yield only weekday period-starts from a calendar
+month so a downstream asset waits only for business-day upstream partitions:
+
+.. exampleinclude:: /../src/airflow/example_dags/plugins/business_day_window.py
+    :language: python
+    :start-after: [START custom_window]
+    :end-before: [END custom_window]
+
+**Custom runtime-partitioned timetable** — a schedulable cron timetable that
+defers the partition key to task runtime, so the producing task can check whether
+the period's data exists before emitting a partition:
+
+.. exampleinclude:: /../src/airflow/example_dags/plugins/custom_partition_timetable.py
+    :language: python
+    :start-after: [START custom_partition_timetable]
+    :end-before: [END custom_partition_timetable]
+
+A producer Dag schedules on the timetable's cron cadence and decides the
+partition key at runtime — emitting it only when the period's upstream data is
+present. If the data has not arrived, the task simply does not call
+``add_partitions`` (an empty or ``None`` key is rejected anyway), so no
+partitioned event — and therefore no downstream ``PartitionedAssetTimetable``
+run — is produced for that period:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Asset, task
+
+    # ScheduledRuntimePartitionTimetable is provided by the plugin registered above.
+    from my_plugin.plugins import ScheduledRuntimePartitionTimetable
+
+    daily_export = Asset(uri="file://exports/daily.csv", name="daily_export")
+
+    with DAG(
+        dag_id="export_when_ready",
+        schedule=ScheduledRuntimePartitionTimetable("0 6 * * *", timezone="UTC"),
+        catchup=False,
+    ):
+
+        @task(outlets=[daily_export])
+        def export(*, outlet_events):
+            # Fires every day at 06:00 UTC. The partition key is not fixed by the
+            # schedule — decide it at runtime from the data itself: find which
+            # day's source file has actually landed.
+            partition_key = latest_ready_day("s3://raw")  # your own check; e.g. "2026-06-23" or None
+            if partition_key:
+                build_export(partition_key)
+                outlet_events[daily_export].add_partitions(partition_key)
+            # If nothing is ready, emit nothing: with no partition key recorded,
+            # no partitioned event is produced and no downstream
+            # PartitionedAssetTimetable run is triggered for this period.
+
+        export()
 
 For complete runnable examples, see
 ``airflow-core/src/airflow/example_dags/example_asset_partition.py``.

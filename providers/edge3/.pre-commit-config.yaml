@@ -30,6 +30,15 @@ repos:
         entry: ../../scripts/ci/prek/generate_openapi_spec_providers.py edge
         pass_filenames: false
         files: ^src/airflow/providers/edge3/worker_api/.*\.py$
+      - id: check-http-exception-import-from-fastapi
+        name: Check HTTPException is imported from fastapi
+        entry: ../../scripts/ci/prek/check_http_exception_import_from_fastapi.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^src/airflow/providers/edge3/(worker_api|plugins)/.*\.py$|
+          ^tests/unit/edge3/(worker_api|plugins)/.*\.py$
       - id: ts-compile-lint-edge-ui
         name: Compile / format / lint edge UI
         description: TS types generation / ESLint / Prettier new UI files in Edge Provider

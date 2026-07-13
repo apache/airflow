@@ -42,11 +42,12 @@ export class ConfigurationPage extends BasePage {
     await expect(async () => {
       await this.navigateTo("/configs");
       await this.page.waitForURL(/.*configs/, { timeout: 10_000 });
+      await this.waitForLoad();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.rows.first().waitFor({ state: "visible", timeout: 30_000 });
+    await expect(this.table).toBeVisible();
+    await expect(this.rows.first()).toBeVisible();
   }
 }

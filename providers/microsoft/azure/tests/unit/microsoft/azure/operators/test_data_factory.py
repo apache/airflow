@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import functools
+import itertools
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -142,11 +143,20 @@ class TestAzureDataFactoryRunPipelineOperator:
                     operator.execute(context=self.mock_context)
             else:
                 # Demonstrating the operator timing out after surpassing the configured timeout value.
-                with pytest.raises(
-                    AzureDataFactoryPipelineRunException,
-                    match=(
-                        f"Pipeline run {PIPELINE_RUN_RESPONSE['run_id']} has not reached a terminal status "
-                        f"after {self.config['timeout']} seconds."
+                # Mock time.monotonic and time.sleep so the poll count is deterministic regardless of
+                # CI load; real sleep durations can vary enough to change how many iterations complete.
+                with (
+                    patch(
+                        "airflow.providers.microsoft.azure.hooks.data_factory.time.monotonic",
+                        side_effect=itertools.count(0.0, 1.0),
+                    ),
+                    patch("airflow.providers.microsoft.azure.hooks.data_factory.time.sleep"),
+                    pytest.raises(
+                        AzureDataFactoryPipelineRunException,
+                        match=(
+                            f"Pipeline run {PIPELINE_RUN_RESPONSE['run_id']} has not reached a terminal status "
+                            f"after {self.config['timeout']} seconds."
+                        ),
                     ),
                 ):
                     operator.execute(context=self.mock_context)

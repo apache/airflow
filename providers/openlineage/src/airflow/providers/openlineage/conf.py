@@ -55,6 +55,12 @@ def config_path(check_legacy_env_var: bool = True) -> str:
 
 
 @cache
+def config_conn_id() -> str:
+    """[openlineage] config_conn_id."""
+    return conf.get(_CONFIG_SECTION, "config_conn_id", fallback="")
+
+
+@cache
 def is_source_enabled() -> bool:
     """[openlineage] disable_source_code."""
     option = conf.getboolean(_CONFIG_SECTION, "disable_source_code", fallback="False")
@@ -136,6 +142,8 @@ def is_disabled() -> bool:
     if _is_true(os.getenv("OPENLINEAGE_DISABLED", "")):  # Check legacy variable
         return True
 
+    if config_conn_id():  # Check if config connection is present
+        return False
     if transport():  # Check if transport is present
         return False
     if config_path(True):  # Check if config file is present
@@ -171,3 +179,12 @@ def include_full_task_info() -> bool:
 def debug_mode() -> bool:
     """[openlineage] debug_mode."""
     return conf.getboolean(_CONFIG_SECTION, "debug_mode", fallback="False")
+
+
+@cache
+def emission_policy() -> list[dict]:
+    """[openlineage] emission_policy."""
+    option = conf.getjson(_CONFIG_SECTION, "emission_policy", fallback=[])
+    if not isinstance(option, list):
+        raise ValueError(f"[openlineage] emission_policy must be a JSON array, got: {type(option).__name__}")
+    return option

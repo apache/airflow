@@ -26,7 +26,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Generator
 from functools import cache, partial
-from multiprocessing import Pool
+from multiprocessing import get_context
 from pathlib import Path
 from threading import Lock
 from typing import NamedTuple
@@ -39,7 +39,13 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions, get_tag_date
+from airflow_breeze.utils.github import (
+    download_constraints_file,
+    format_github_token_scope_guidance,
+    get_active_airflow_versions,
+    get_tag_date,
+    retrieve_github_token,
+)
 from airflow_breeze.utils.packages import get_provider_distributions_metadata
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
@@ -48,7 +54,6 @@ from airflow_breeze.utils.path_utils import (
     PROVIDER_DEPENDENCIES_JSON_HASH_PATH,
     PROVIDER_DEPENDENCIES_JSON_PATH,
 )
-from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 
 _regenerate_provider_deps_lock = Lock()
@@ -174,7 +179,7 @@ def _calculate_provider_deps_hash():
 def get_provider_dependencies() -> dict:
     if not PROVIDER_DEPENDENCIES_JSON_PATH.exists():
         calculated_hash = _calculate_provider_deps_hash()
-        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash)
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash + "\n")
         # We use regular print there as rich console might not be initialized yet here
         print("Regenerating provider dependencies file")
         regenerate_provider_dependencies_once()
@@ -248,18 +253,16 @@ def get_all_constraint_files_and_airflow_releases(
         shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
     if not CONSTRAINTS_CACHE_PATH.exists():
         if not github_token:
-            gh_auth_command = run_command(
-                ["gh", "auth", "token"], check=False, capture_output=True, text=True
+            github_token = retrieve_github_token(
+                description="airflow-refresh-constraints", scopes="public_repo"
             )
-            if gh_auth_command.returncode == 0:
-                console_print("\n[info]Retrieved GitHub token from gh auth token command[/]\n")
-                github_token = gh_auth_command.stdout.strip()
+            if github_token:
+                console_print("\n[info]Resolved GitHub token for constraints refresh[/]\n")
             else:
                 console_print(
                     "[error]You need to provide GITHUB_TOKEN to generate providers metadata.[/]\n\n"
-                    "You can generate it with this URL: "
-                    "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
-                    "the URL:\n\n"
+                    f"{format_github_token_scope_guidance(description='airflow-refresh-constraints', scopes='public_repo')} "
+                    "You can create one by clicking the URL:\n\n"
                     "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-refresh-constraints\n\n"
                     "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
                     "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
@@ -273,7 +276,12 @@ def get_all_constraint_files_and_airflow_releases(
         airflow_release_dates_path.write_text(json.dumps(airflow_release_dates, indent=2))
         console_print(f"[info]Airflow release dates saved in: {airflow_release_dates_path}[/]")
         with ci_group("Downloading constraints for all Airflow versions for all historical Python versions"):
-            with Pool() as pool:
+            # Use the "spawn" start method rather than the platform default: GitPython
+            # (used in the workers via get_tag_date) opens persistent `git cat-file --batch`
+            # subprocesses and is not fork-safe, and the parent already holds open network
+            # sockets from the version/constraints downloads. Forking that state into workers
+            # deadlocks; spawn gives each worker a clean interpreter.
+            with get_context("spawn").Pool() as pool:
                 # We use partial to pass the common parameters to the function
                 get_constraints_for_python_version_partial = partial(
                     get_constraints_for_python_version,

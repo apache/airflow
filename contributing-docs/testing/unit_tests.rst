@@ -218,6 +218,17 @@ rerun in Breeze as needed (``-n auto`` will parallelize tests using the ``pytest
     breeze shell --backend none --python 3.10
     > pytest airflow-core/tests --skip-db-tests -n auto
 
+.. AGENT-SKILL-START
+   type: agents-md-commands
+   order: 10
+   lines:
+     - "- **Run a single test:** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`"
+     - "- **Run a test file:** `uv run --project <PROJECT> pytest path/to/test.py -xvs`"
+     - "- **Run all tests in package:** `uv run --project <PROJECT> pytest path/to/package -xvs`"
+     - "- **If uv tests fail with missing system dependencies, run the tests with breeze**: `breeze run pytest <tests> -xvs`"
+     - "- **Run a Python script:** `uv run --project <PROJECT> python dev/my_script.py`"
+.. AGENT-SKILL-END
+
 Airflow DB tests
 ................
 
@@ -277,6 +288,22 @@ As explained before, you cannot run DB tests in parallel using the ``pytest-xdis
 .. code-block:: bash
 
     breeze testing core-tests --run-db-tests-only --backend postgres --python 3.10 --run-in-parallel
+
+.. AGENT-SKILL-START
+   type: agents-md-commands
+   order: 20
+   lines:
+     - "- **Run core or provider tests suite in parallel:** `breeze testing <test_group> --run-in-parallel` (test groups: `core-tests`, `providers-tests`)"
+     - "- **Run core or provider db tests suite in parallel:** `breeze testing <test_group> --run-db-tests-only --run-in-parallel` (test groups: `core-tests`, `providers-tests`)"
+     - "- **Run core or provider non-db tests suite in parallel:** `breeze testing <test_group> --skip-db-tests --use-xdist` (test groups: `core-tests`, `providers-tests`)"
+     - "- **Run single provider complete test suite:** `breeze testing providers-tests --test-type \"Providers[PROVIDERS_LIST]\"` (e.g., `Providers[google]` or `Providers[amazon]` or \"Providers[amazon,google]\")"
+     - "- **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`"
+     - "- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`"
+     - "- **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)"
+     - "- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)"
+     - "- **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`"
+     - "- **Run Airflow CLI:** `breeze run airflow dags list`"
+.. AGENT-SKILL-END
 
 Examples of marking test as DB test
 ...................................
@@ -631,7 +658,7 @@ You can make the code conditional and mock out ``Variable`` to avoid hitting the
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Handle collection of the test by non-db case
-        Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
+        Variable = mock.MagicMock(spec=Variable)  # type: ignore[misc] # noqa: F811
     else:
         initial_db_init()
 
@@ -693,6 +720,66 @@ You can also use a fixture to create an object that needs the database.
     def test_as_json_from_connection(self, conn: Connection):
         conn = request.getfixturevalue(conn)
         ...
+
+Database fixtures and test isolation
+------------------------------------
+
+Database tests must not leak rows into the database that other tests can see. A test that
+depends on rows left behind by an earlier test, or that breaks because of them, is
+order-dependent and flaky. The shared fixtures below own their rows and remove them when the
+test finishes, so individual tests should not need defensive pre-cleaning such as
+``clear_db_dag_bundles()`` or ``clear_db_teams()`` at the top of a test.
+
+Why these fixtures exist
+........................
+
+``dag_maker`` provides one consistent way to create a Dag in the database and remove it again. A
+Dag spans several foreign-key-linked rows (``DagModel``, ``SerializedDagModel``, ``DagVersion``,
+``DagRun``, ``TaskInstance``, and the ``DagBundleModel`` it belongs to), so creating or deleting
+them by hand is error-prone, and a missed row leaks into later tests. ``dag_maker`` keeps that
+setup and teardown in one place.
+
+Bundles and teams were added later with their own ``clear_db_*`` helpers rather than through
+``dag_maker``, which left cleanup to each caller and led tests to add defensive
+``clear_db_dag_bundles()`` / ``clear_db_teams()`` calls against leaked rows. The fixtures now clean
+up after themselves, so that pre-cleaning is no longer required.
+
+``dag_maker``
+.............
+
+``dag_maker`` is the primary fixture for tests that need a Dag in the database. It is a context
+manager that builds a Dag, serializes it, and writes the ``DagModel``, ``DagRun``,
+``SerializedDagModel``, and ``DagVersion`` rows for you:
+
+.. code-block:: python
+
+    def test_something(dag_maker):
+        with dag_maker("my_dag") as dag:
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ...
+
+On teardown ``dag_maker`` removes everything it created. Because the ``dag_maker`` bundle is shared
+across tests, it drops that ``DagBundleModel`` row only once no Dag still references it
+(``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action, so deleting a referenced
+bundle would fail). Prefer ``dag_maker`` over constructing ``DagBag``, ``DagBundleModel``, or
+``DagModel`` rows by hand.
+
+``testing_dag_bundle`` and ``testing_team``
+...........................................
+
+For tests that need a bundle or a team but do not go through ``dag_maker``, use the
+``testing_dag_bundle`` and ``testing_team`` fixtures. Each one lazily creates a shared
+``"testing"`` row only if it does not already exist, and tears that row down on exit only when
+this fixture is the one that created it, so overlapping usage does not delete a row another
+fixture still needs. ``testing_dag_bundle`` drops the ``"testing"`` bundle only once nothing
+references it, leaving the cleanup of the test's own dags to whichever fixture owns them.
+``testing_team`` deletes its row directly, because every foreign key to ``team.name`` is
+``ON DELETE CASCADE`` or ``ON DELETE SET NULL``.
+
+If you find yourself adding ``clear_db_*`` calls at the start of a test to work around rows left
+by another test, that is a sign the other test's fixture is not cleaning up after itself. Fix the
+fixture rather than spreading defensive cleanup across tests.
 
 Running Unit tests
 ------------------

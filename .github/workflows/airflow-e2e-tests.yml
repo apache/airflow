@@ -49,7 +49,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
         required: true
       e2e_test_mode:
-        description: "Test mode - basic, remote_log, remote_log_elasticsearch, remote_log_opensearch, or xcom_object_storage"  # yamllint disable-line rule:line-length
+        description: "Test mode - basic, remote_log, remote_log_elasticsearch, remote_log_opensearch, xcom_object_storage, event_driven, java_sdk, or go_sdk"  # yamllint disable-line rule:line-length
         type: string
         default: "basic"
 
@@ -80,7 +80,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
         default: ""
       e2e_test_mode:
-        description: "Test mode - basic, remote_log, remote_log_elasticsearch, remote_log_opensearch, or xcom_object_storage"  # yamllint disable-line rule:line-length
+        description: "Test mode - basic, remote_log, remote_log_elasticsearch, remote_log_opensearch, xcom_object_storage, event_driven, java_sdk, or go_sdk"  # yamllint disable-line rule:line-length
         type: string
         default: "basic"
 
@@ -98,9 +98,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -113,11 +113,43 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
         id: breeze
+      - name: "Restore Java SDK Gradle dependency cache"
+        # Only the java_sdk mode runs the Gradle builds; every other e2e mode skips
+        # this. Without it each java_sdk run re-downloads the example bundles' full
+        # dependency tree (Spark alone is ~1GB) into a fresh GRADLE_USER_HOME.
+        # runner.arch keys the cache per architecture: .gradle/jdks holds
+        # arch-specific auto-provisioned JDKs and this job runs on amd64 and arm64.
+        if: inputs.e2e_test_mode == 'java_sdk'
+        id: gradle-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            java-sdk/.gradle/caches
+            java-sdk/.gradle/wrapper
+            java-sdk/.gradle/jdks
+            !java-sdk/.gradle/caches/*.lock
+            !java-sdk/.gradle/caches/journal-1
+          key: java-sdk-gradle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('java-sdk/**/*.gradle*', 'java-sdk/**/gradle.properties', 'java-sdk/gradle/wrapper/gradle-wrapper.properties', 'java-sdk/gradle/libs.versions.toml') }}  # yamllint disable-line rule:line-length
+          restore-keys: |
+            java-sdk-gradle-${{ runner.os }}-${{ runner.arch }}-
       - name: "Test e2e integration tests"
         run: breeze testing airflow-e2e-tests
         env:
           DOCKER_IMAGE: "${{ inputs.docker-image-tag }}"
           E2E_TEST_MODE: "${{ inputs.e2e_test_mode }}"
+      - name: "Save Java SDK Gradle dependency cache"
+        # Saved even when the e2e tests fail: the Gradle warm-up is independent of
+        # test outcome, and actions/cache's post step would drop it on every red run.
+        if: always() && inputs.e2e_test_mode == 'java_sdk' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            java-sdk/.gradle/caches
+            java-sdk/.gradle/wrapper
+            java-sdk/.gradle/jdks
+            !java-sdk/.gradle/caches/*.lock
+            !java-sdk/.gradle/caches/journal-1
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
       - name: Zip logs
         run: |
           cd ./airflow-e2e-tests && zip -r logs.zip logs

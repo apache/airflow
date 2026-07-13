@@ -379,6 +379,27 @@ How to avoid version inflation
           bash_command="echo {{ var.value.my_variable }}",
       )
 
+How to diagnose version inflation yourself
+""""""""""""""""""""""""""""""""""""""""""
+
+If your Dag version keeps increasing and it is not obvious which constructor argument is to blame, you
+can identify the changing field by inspecting the serialized Dag rows directly.
+
+The most reliable way is to query the ``serialized_dag`` table in the metadata database and compare how
+the serialized payload differs between two consecutive versions of the same Dag. The column that stores
+the serialized Dag holds the structured data that Airflow hashes to decide whether a new version is
+needed, so diffing two rows shows you exactly which field changed between parses.
+
+Once you spot the changing field, trace it back to the place in your Dag file where it is set, and
+replace the dynamic value with a deterministic one — for example, a fixed ``datetime`` literal, a Jinja
+template evaluated at execution time, or an Airflow Variable resolved via template. See
+`How to avoid version inflation`_ for concrete patterns.
+
+If you cannot tie the changing field to anything in your Dag code, and the value appears to come from
+Airflow itself (for example, an internal attribute that should be stable across parses), please report
+it as a bug at https://github.com/apache/airflow/issues. Include both serialized Dag payloads (or the
+relevant diff) and the Airflow version so maintainers can reproduce the issue.
+
 Dag version inflation detection
 """"""""""""""""""""""""""""""""
 
@@ -398,6 +419,23 @@ Additionally, you can catch these issues earlier in your development workflow by
 `AIR302 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
 dynamic values in Dag and Task constructors as part of static linting. See
 :ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
+
+.. _faq:duplicate-dag-id-warning:
+
+Why do I see a "duplicate dag id" warning?
+------------------------------------------
+
+The Dag processor recognizes each Dag by its ``dag_id``, not by its file path. If two files define a
+Dag with the same ``dag_id``, only one of them is shown in the UI at a time — whichever file was parsed
+most recently — and Airflow records a **Dag warning** naming the other, overwritten file.
+
+This is expected in one common case: you renamed or moved a Dag file. The old file's row is not removed
+from the database until it goes unobserved for
+:ref:`stale_dag_threshold <config:dag_processor__stale_dag_threshold>`, so the warning briefly
+appears for both the old and new paths and then clears on its own once the old file stops being parsed.
+
+If the warning does not clear, two files with the same ``dag_id`` genuinely coexist. Which one "wins" is
+not guaranteed to stay stable across parses, so rename one of them to give each Dag a unique ``dag_id``.
 
 
 Dag construction

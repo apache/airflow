@@ -17,9 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow_shared.listeners import hookimpl
+from unittest import mock
+
+import pytest
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+from airflow_shared.listeners import hookimpl, listener as listener_module
 from airflow_shared.listeners.listener import ListenerManager
 from airflow_shared.listeners.spec import lifecycle, taskinstance
+from airflow_shared.observability.traces import new_dagrun_trace_carrier
 
 
 class TestListenerManager:
@@ -162,3 +172,96 @@ class TestListenerManager:
             ("success", mock_ti),
             ("failed", mock_ti, "test error"),
         ]
+
+
+@pytest.fixture
+def test_tracer():
+    """Patch the listener module's tracer with one backed by an in-memory exporter."""
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider.get_tracer("test")
+    with (
+        mock.patch.object(listener_module, "tracer", tracer),
+        # new_dagrun_trace_carrier consults the global provider's sampler to set the
+        # carrier's SAMPLED flag. In tests the global provider is a no-op
+        # ProxyTracerProvider (no sampler) -> unsampled carrier -> ParentBased drops
+        # the spans. Point the lookup at a real sampling provider so spans record.
+        mock.patch(
+            "airflow_shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ),
+    ):
+        yield tracer, exporter
+
+
+def _parent_span_ctx(detail_level: int):
+    carrier = new_dagrun_trace_carrier(task_span_detail_level=detail_level)
+    return TraceContextTextMapPropagator().extract(carrier)
+
+
+class _StartingListener:
+    @hookimpl
+    def on_starting(self, component):
+        pass
+
+
+class _RaisingListener:
+    @hookimpl
+    def on_starting(self, component):
+        raise RuntimeError("boom")
+
+
+class TestListenerSpan:
+    """Span emitted around every listener hook call when detail level > 1."""
+
+    def test_emits_span_when_detail_level_above_1(self, test_tracer):
+        tracer, exporter = test_tracer
+        lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
+        lm.add_listener(_StartingListener())
+
+        with tracer.start_as_current_span("parent", context=_parent_span_ctx(2)):
+            lm.hook.on_starting(component="x")
+
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "listener.on_starting" in names
+
+    def test_no_span_at_default_detail_level(self, test_tracer):
+        tracer, exporter = test_tracer
+        lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
+        lm.add_listener(_StartingListener())
+
+        with tracer.start_as_current_span("parent", context=_parent_span_ctx(1)):
+            lm.hook.on_starting(component="x")
+
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "listener.on_starting" not in names
+
+    def test_no_span_when_no_impls_registered(self, test_tracer):
+        tracer, exporter = test_tracer
+        lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
+        # No listeners added — pluggy still fires monitoring around the call.
+
+        with tracer.start_as_current_span("parent", context=_parent_span_ctx(2)):
+            lm.hook.on_starting(component="x")
+
+        names = [s.name for s in exporter.get_finished_spans()]
+        assert "listener.on_starting" not in names
+
+    def test_records_exception_on_listener_error(self, test_tracer):
+        tracer, exporter = test_tracer
+        lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
+        lm.add_listener(_RaisingListener())
+
+        with tracer.start_as_current_span("parent", context=_parent_span_ctx(2)):
+            with pytest.raises(RuntimeError):
+                lm.hook.on_starting(component="x")
+
+        spans = {s.name: s for s in exporter.get_finished_spans()}
+        listener_span = spans["listener.on_starting"]
+        assert listener_span.status.status_code == StatusCode.ERROR
+        assert any(ev.name == "exception" for ev in listener_span.events)

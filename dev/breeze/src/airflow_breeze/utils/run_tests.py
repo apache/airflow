@@ -62,6 +62,11 @@ IGNORE_WARNING_OUTPUT_FOR_TEST_GROUPS = [
     GroupOfTests.PYTHON_API_CLIENT,
 ]
 
+# Floor for pytest setup/teardown timeouts. Container-backed fixtures (testcontainers) pull an image
+# and boot a container during setup; on slower runners this can exceed the regular per-test timeout.
+# Execution-timeout is kept at the per-test value so hung tests are still caught quickly.
+MIN_SETUP_TEARDOWN_TIMEOUT = 180
+
 
 def verify_an_image(
     image_name: str,
@@ -319,7 +324,7 @@ TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task-sdk/tests"],
     GroupOfTests.CTL: ["airflow-ctl/tests"],
-    GroupOfTests.HELM: ["helm-tests"],
+    GroupOfTests.HELM: ["chart/tests"],
     GroupOfTests.INTEGRATION_CORE: ["airflow-core/tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
     GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
@@ -365,6 +370,27 @@ PROVIDERS_LIST_PREFIX = "Providers["
 PROVIDERS_LIST_EXCLUDE_PREFIX = "Providers[-"
 
 
+def is_provider_selected_in_test_types(provider_id: str, test_types: list[str]) -> bool:
+    """Whether a provider's tests are included by any of the given pytest test-type selectors.
+
+    A bare selector such as ``Providers`` (no bracket) runs every provider; ``Providers[a,b]`` runs
+    only the listed ones; ``Providers[-a,b]`` runs all except the listed ones.
+    """
+    for test_type in test_types:
+        if test_type.startswith(PROVIDERS_LIST_EXCLUDE_PREFIX):
+            excluded = test_type[len(PROVIDERS_LIST_EXCLUDE_PREFIX) : -1].split(",")
+            if provider_id not in excluded:
+                return True
+        elif test_type.startswith(PROVIDERS_LIST_PREFIX):
+            included = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
+            if provider_id in included:
+                return True
+        else:
+            # A non-bracketed selector (e.g. "Providers", "All") runs every provider.
+            return True
+    return False
+
+
 def convert_test_type_to_pytest_args(
     *,
     test_group: GroupOfTests,
@@ -398,7 +424,7 @@ def convert_test_type_to_pytest_args(
             sys.exit(1)
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
-            return [f"{helm_folder}/tests/helm_tests/{test_type}"]
+            return [f"{helm_folder}/helm_tests/{test_type}"]
         return [helm_folder]
     if test_type == SelectiveCoreTestType.OTHER.value and test_group == GroupOfTests.CORE:
         return find_all_other_tests()
@@ -475,6 +501,12 @@ def generate_args_for_pytest(
     integration: tuple | None = None,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend)
+    # Container-backed fixtures (e.g. the testcontainers MongoDB used by provider tests) pull their
+    # image and boot the container in the *setup* phase of the first test that uses them. On slower
+    # runners -- notably the GitHub-hosted ARM canary, where the image cache is cold -- that can exceed
+    # the regular per-test timeout. Give setup/teardown a higher floor so the bring-up fits, while
+    # keeping execution-timeout tight so a genuinely hung test is still caught quickly.
+    setup_teardown_timeout = max(test_timeout, MIN_SETUP_TEARDOWN_TIMEOUT)
     if skip_db_tests and parallel_test_types_list:
         args = convert_parallel_types_to_folders(
             test_group=test_group,
@@ -496,9 +528,9 @@ def generate_args_for_pytest(
             f"--junitxml={result_log_file}",
             # timeouts in seconds for individual tests
             "--timeouts-order=moi",
-            f"--setup-timeout={test_timeout}",
+            f"--setup-timeout={setup_teardown_timeout}",
             f"--execution-timeout={test_timeout}",
-            f"--teardown-timeout={test_timeout}",
+            f"--teardown-timeout={setup_teardown_timeout}",
             "--disable-warnings",
             # Only display summary for non-expected cases
             #

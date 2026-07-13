@@ -27,6 +27,76 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+    On Airflow 3.4.0 and later, the default async metadata-database driver becomes
+    ``psycopg`` (psycopg3): the derived async connection URL changes from
+    ``postgresql+asyncpg://`` to ``postgresql+psycopg_async://``, which is safe behind
+    transaction-mode PgBouncer with no extra configuration. ``psycopg[binary]`` is now
+    installed by default to serve it.
+
+    ``asyncpg`` remains installed by default as well. This provider still supports Airflow
+    cores older than 3.4.0, which derive the async URL as ``postgresql+asyncpg://``
+    unconditionally and have no psycopg fallback — so asyncpg must stay present for them to
+    work. It will become opt-in-only (via the existing ``[asyncpg]`` extra) in a future
+    release once the minimum supported Airflow is 3.4.0.
+
+    To keep using asyncpg on Airflow 3.4.0+, set
+    ``[database] sql_alchemy_conn_async = postgresql+asyncpg://...`` explicitly.
+
+* ``Switch the default async Postgres driver from asyncpg to psycopg3 (#69089)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add configurable UPSERT update fields to PostgresHook (#67045)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use execute_values instead of execute_batch for better bulk insert performance with PostgresHook (#68207)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.7.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor PostgresHook and associated runtime tests (#66893)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 6.6.3
 .....
 

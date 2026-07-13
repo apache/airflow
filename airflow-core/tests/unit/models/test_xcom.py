@@ -26,7 +26,6 @@ import pytest
 from sqlalchemy import delete, func, select
 
 from airflow._shared.timezones import timezone
-from airflow.configuration import conf
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunType
@@ -57,6 +56,7 @@ class CustomXCom(BaseXCom): ...
 @pytest.fixture(autouse=True)
 def reset_db():
     """Reset XCom entries."""
+    yield
     clear_db_dags()
     clear_db_runs()
     clear_db_xcom()
@@ -65,13 +65,14 @@ def reset_db():
 
 @pytest.fixture
 def task_instance_factory(request, session: Session):
-    def func(*, dag_id, task_id, logical_date, run_after=None):
+    def func(*, dag_id, task_id, logical_date, run_after=None, run_id=None):
         sync_dag_to_db(DAG(dag_id=dag_id))
-        run_id = DagRun.generate_run_id(
-            run_type=DagRunType.SCHEDULED,
-            logical_date=logical_date,
-            run_after=run_after if run_after is not None else logical_date,
-        )
+        if run_id is None:
+            run_id = DagRun.generate_run_id(
+                run_type=DagRunType.SCHEDULED,
+                logical_date=logical_date,
+                run_after=run_after if run_after is not None else logical_date,
+            )
         interval = (logical_date, logical_date) if logical_date else None
         run = DagRun(
             dag_id=dag_id,
@@ -154,16 +155,6 @@ class TestXCom:
 
     @conf_vars({("core", "xcom_backend"): ""})
     def test_resolve_xcom_class_fallback_to_basexcom(self):
-        cls = resolve_xcom_backend()
-        assert issubclass(cls, BaseXCom)
-        assert cls.serialize_value([1]) == [1]
-
-    @conf_vars({("core", "xcom_backend"): "to be removed"})
-    def test_resolve_xcom_class_fallback_to_basexcom_no_config(self):
-        from airflow.sdk.configuration import conf as sdk_conf
-
-        conf.remove_option("core", "xcom_backend")
-        sdk_conf.remove_option("core", "xcom_backend")
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
         assert cls.serialize_value([1]) == [1]
@@ -378,6 +369,46 @@ class TestXComGet:
             map(lambda j: json.dumps(j), [{"key2": "value2"}, {"key1": "value1"}])
         )
         assert [x.logical_date for x in stored_xcoms] == [ti2.logical_date, ti1.logical_date]
+
+    def test_xcom_get_many_from_prior_dates_scopes_run_id_to_dag(
+        self, session, task_instance_factory, push_simple_json_xcom
+    ):
+        shared_run_id = "manual__shared_run"
+        ti_earlier = task_instance_factory(
+            dag_id="dag_1",
+            task_id="task_1",
+            logical_date=timezone.datetime(2021, 12, 1, 4, 56),
+        )
+        ti_target = task_instance_factory(
+            dag_id="dag_1",
+            task_id="task_1",
+            logical_date=timezone.datetime(2021, 12, 3, 4, 56),
+            run_id=shared_run_id,
+        )
+        task_instance_factory(
+            dag_id="dag_2",
+            task_id="task_1",
+            logical_date=timezone.datetime(2021, 12, 2, 4, 56),
+            run_id=shared_run_id,
+        )
+
+        push_simple_json_xcom(ti=ti_earlier, key="xcom_1", value={"key": "dag_1_earlier"})
+        push_simple_json_xcom(ti=ti_target, key="xcom_1", value={"key": "dag_1_target"})
+
+        stored_xcoms = session.scalars(
+            XComModel.get_many(
+                run_id=shared_run_id,
+                key="xcom_1",
+                dag_ids="dag_1",
+                task_ids="task_1",
+                include_prior_dates=True,
+            )
+        ).all()
+
+        assert [x.value for x in stored_xcoms] == [
+            json.dumps({"key": "dag_1_target"}),
+            json.dumps({"key": "dag_1_earlier"}),
+        ]
 
     def test_xcom_get_invalid_key(self, session, task_instance):
         """Test that getting an XCom with an invalid key raises a ValueError."""

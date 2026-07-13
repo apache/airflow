@@ -77,7 +77,7 @@ apache-airflow-providers-apache-spark package
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 6.0.1
+Release: 6.2.0
 
 Provider package
 ----------------
@@ -104,10 +104,12 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``pyspark-client``                          ``>=4.0.0``
 ``grpcio-status``                           ``>=1.67.0``
+``requests``                                ``>=2.32.0``
+``tenacity``                                ``>=8.3.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -123,8 +125,26 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 ======================================================================================================================  ===================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-spark[cncf.kubernetes]
+
+
+===================  ===================================================
+Extra                Dependencies
+===================  ===================================================
+``cncf.kubernetes``  ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
+``openlineage``      ``apache-airflow-providers-openlineage``
+``pyspark``          ``pyspark>=4.0.0``
+===================  ===================================================
 
 Downloading official packages
 -----------------------------
@@ -132,5 +152,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-spark 6.0.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.0.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.0.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.0.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-spark 6.0.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.0.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.0.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.0.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-spark 6.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-spark 6.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-6.2.0-py3-none-any.whl.sha512>`__)

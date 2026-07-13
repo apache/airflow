@@ -22,7 +22,7 @@ test.describe("Events Page", () => {
   test("verify events page displays correctly", async ({ eventsPage }) => {
     await eventsPage.navigate();
 
-    await expect(eventsPage.eventsPageTitle).toBeVisible({ timeout: 10_000 });
+    await expect(eventsPage.eventsPageTitle).toBeVisible();
     await expect(eventsPage.eventsTable).toBeVisible();
     await eventsPage.verifyTableColumns();
   });
@@ -31,7 +31,7 @@ test.describe("Events Page", () => {
     await eventsPage.navigate();
     await eventsPage.waitForEventsTable();
 
-    await expect(eventsPage.filterBar).toBeVisible({ timeout: 10_000 });
+    await expect(eventsPage.filterBar).toBeVisible();
     await eventsPage.verifyFilterMenuHasOptions();
   });
 });

@@ -53,12 +53,14 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annota
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from multiprocessing.managers import SyncManager
 
     from kubernetes import client
     from kubernetes.client import models as k8s
@@ -101,21 +103,29 @@ class KubernetesExecutor(BaseExecutor):
         # Override parallelism with team-aware config value
         self.parallelism = self.kube_config.parallelism
 
-        self._manager = multiprocessing.Manager()
-        self.task_queue: Queue[KubernetesJob] = self._manager.JoinableQueue()
-        self.result_queue: Queue[KubernetesResults] = self._manager.JoinableQueue()
+        # The multiprocessing.Manager() (and the queues it backs) is only needed once the
+        # scheduler actually runs the executor, so it is created lazily in start(). Constructing
+        # the executor without starting it -- as the API server does to call get_task_log() for a
+        # RUNNING task -- must not spawn a Manager process, otherwise that serve_forever child is
+        # orphaned and leaks (one per API-server worker).
+        self._manager: SyncManager | None = None
+        self.task_queue: Queue[KubernetesJob] | None = None
+        self.result_queue: Queue[KubernetesResults] | None = None
         self.kube_scheduler: AirflowKubernetesScheduler | None = None
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
         self._last_completed_pod_adoption = 0.0
-        self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = self.conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
-        self.completed: set[KubernetesResults] = set()
+        self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
+
+        # Maintain compatibility with older Airflow releases that do not define team_name.
+        if not hasattr(self, "team_name"):
+            self.team_name = None
 
     def _list_pods(self, query_kwargs):
         query_kwargs["header_params"] = {
@@ -184,6 +194,9 @@ class KubernetesExecutor(BaseExecutor):
     def start(self) -> None:
         """Start the executor."""
         self.log.info("Start Kubernetes executor")
+        self._manager = multiprocessing.Manager()
+        self.task_queue = self._manager.JoinableQueue()
+        self.result_queue = self._manager.JoinableQueue()
         self.scheduler_job_id = str(self.job_id)
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
@@ -197,7 +210,62 @@ class KubernetesExecutor(BaseExecutor):
             result_queue=self.result_queue,
             kube_client=self.kube_client,
             scheduler_job_id=self.scheduler_job_id,
+            team_name=self.team_name,
         )
+
+    def _coordinator_extra(self, queue: str | None) -> dict[str, Any] | None:
+        """
+        Return the ``extra`` mapping a coordinator declares for *queue*, if any.
+
+        Read from the coordinator's declarative ``[sdk]`` config without importing
+        or instantiating the coordinator. The coordinator manager only exists on
+        Airflow 3.3+; on older Task SDKs the import fails and we fall back to no
+        extra. A malformed ``[sdk] coordinators`` / ``queue_to_coordinator`` config
+        must not crash the scheduler on this first lookup either, so an invalid
+        config also falls back to no extra. The exception types are imported from
+        ``airflow.sdk`` so they match whatever Task SDK actually raised them.
+        """
+        if not queue:
+            return None
+        try:
+            from airflow.sdk.exceptions import AirflowConfigException
+            from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+        except ImportError:
+            return None
+        try:
+            return get_coordinator_manager().extra_for_queue(queue)
+        except (AirflowConfigException, ValueError):
+            self.log.warning(
+                "Ignoring coordinator config for queue %s: invalid [sdk] coordinator config",
+                queue,
+                exc_info=True,
+            )
+            return None
+
+    def _coordinator_pod_template_file(self, extra: dict[str, Any]) -> str | None:
+        """
+        Return the pod template declared in a coordinator's *extra* mapping, if any.
+
+        Lets a queue routed to a non-Python coordinator (via ``[sdk]
+        queue_to_coordinator``) launch its worker pod from a coordinator-specific
+        template — for example an image carrying the JVM for a Java coordinator.
+        """
+        return extra.get("pod_template_file")
+
+    def _coordinator_kube_image(self, extra: dict[str, Any]) -> str | None:
+        """
+        Return the worker base image declared in a coordinator's *extra* mapping, if any.
+
+        The base container image is never taken from a pod template; it comes
+        from ``kube_image`` (``worker_container_repository:worker_container_tag``)
+        or a per-task ``pod_override``. A coordinator may declare its own
+        ``worker_container_repository`` and ``worker_container_tag`` in ``extra``
+        (e.g. a JRE-bearing image for a Java coordinator); both are required to
+        compose an override, otherwise the executor default applies.
+        """
+        if (repo := extra.get("worker_container_repository")) and (tag := extra.get("worker_container_tag")):
+            return f"{repo}:{tag}"
+        return None
 
     def execute_async(
         self,
@@ -226,11 +294,34 @@ class KubernetesExecutor(BaseExecutor):
             pod_template_file = executor_config.get("pod_template_file", None)
         else:
             pod_template_file = None
+
+        coordinator_kube_image: str | None = None
+        if (coordinator_extra := self._coordinator_extra(queue)) is not None:
+            # A coordinator-level pod_template wins (e.g. a JVM image for JavaCoordinator)
+            coordinator_pod_template_file = self._coordinator_pod_template_file(coordinator_extra)
+            if coordinator_pod_template_file is not None:
+                self.log.debug(
+                    "Using coordinator-declared pod template %s for task %s in queue %s",
+                    coordinator_pod_template_file,
+                    key,
+                    queue,
+                )
+                pod_template_file = coordinator_pod_template_file
+
+            # The base image is not carried by a pod template, so a coordinator routes
+            # its worker base image separately (e.g. a JRE image for a Java queue).
+            if (coordinator_kube_image := self._coordinator_kube_image(coordinator_extra)) is not None:
+                self.log.debug(
+                    "Using coordinator-declared base image %s for task %s in queue %s",
+                    coordinator_kube_image,
+                    key,
+                    queue,
+                )
+
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
-        self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
-        # We keep a temporary local record that we've handled this so we don't
-        # try and remove it from the QUEUED state while we process it
-        self.last_handled[key] = time.time()
+        self.task_queue.put(
+            KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
+        )
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -300,8 +391,18 @@ class KubernetesExecutor(BaseExecutor):
                 finally:
                     self.result_queue.task_done()
 
-                for result in self.completed:
+        if self.completed:
+            still_pending: dict[tuple[str, str], KubernetesResults] = {}
+            for pod_key, result in self.completed.items():
+                try:
                     self._change_state(result)
+                except Exception:
+                    self.log.exception(
+                        "Exception when attempting to change state of adopted completed pod %s, will retry.",
+                        result,
+                    )
+                    still_pending[pod_key] = result
+            self.completed = still_pending
 
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
@@ -402,6 +503,7 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         results: KubernetesResults,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """Change state of the task based on KubernetesResults."""
@@ -552,7 +654,10 @@ class KubernetesExecutor(BaseExecutor):
         return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
-        with Stats.timer("kubernetes_executor.adopt_task_instances.duration"):
+        with Stats.timer(
+            "kubernetes_executor.adopt_task_instances.duration",
+            tags=prune_dict({"team_name": self.team_name}),
+        ):
             # Always flush TIs without queued_by_job_id
             tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
             scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
@@ -681,22 +786,120 @@ class KubernetesExecutor(BaseExecutor):
         del tis_to_flush_by_key[ti_key]
         self.running.add(ti_key)
 
+    def _alive_other_scheduler_job_ids(self) -> set[int]:
+        """
+        Return job IDs of every SchedulerJob that is currently alive — excluding self.
+
+        "Alive" means ``Job.state == RUNNING`` AND its ``latest_heartbeat`` is
+        within ``[scheduler] scheduler_health_check_threshold``.
+
+        Used by ``_adopt_completed_pods`` to scope cross-scheduler pod
+        adoption to pods owned by no-longer-alive schedulers (#66396).
+        With a single scheduler the returned set is always empty — the
+        original "exclude self only" behavior is preserved. With multiple
+        schedulers each one only adopts pods whose owning scheduler is gone,
+        eliminating the relabel-thrash that PR #61839 introduced.
+
+        Returns an empty set on any DB error so the caller falls back to
+        the pre-#61839 "exclude self only" selector — a transient DB issue
+        must not break completed-pod cleanup.
+        """
+        if TYPE_CHECKING:
+            assert self.scheduler_job_id
+
+        try:
+            self_id = int(self.scheduler_job_id)
+        except (TypeError, ValueError):
+            # Tests sometimes set scheduler_job_id to a non-numeric string.
+            # In production it's always Job.id (int), but be defensive.
+            return set()
+
+        try:
+            from datetime import timedelta
+
+            from sqlalchemy import select
+
+            from airflow.jobs.job import Job
+            from airflow.utils import timezone
+            from airflow.utils.session import create_session
+            from airflow.utils.state import JobState
+
+            timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
+            cutoff = timezone.utcnow() - timedelta(seconds=timeout)
+            # Must be an *independent* (non-scoped) session. try_adopt_task_instances runs
+            # inside the scheduler's own transaction (adopt_or_reset_orphaned_tasks); a scoped
+            # session here would resolve to that same thread-local session, and the context
+            # manager's commit()/close() on exit would commit the scheduler's in-flight work
+            # early (releasing its FOR UPDATE SKIP LOCKED row locks) and detach the orphaned
+            # TaskInstances it still holds, crashing the reset path (#67813).
+            with create_session(scoped=False) as session:
+                # Iterate the scalar cursor straight into the set so we never
+                # materialize an intermediate list — keeps the memory
+                # footprint flat regardless of how many sibling schedulers
+                # are alive
+                return {
+                    jid
+                    for jid in session.scalars(
+                        select(Job.id).where(
+                            Job.job_type == "SchedulerJob",
+                            Job.state == JobState.RUNNING,
+                            Job.latest_heartbeat >= cutoff,
+                            Job.id != self_id,
+                        )
+                    )
+                }
+        except Exception as exc:
+            self.log.warning(
+                "Could not query alive SchedulerJobs for completed-pod adoption "
+                "scoping: %s. Falling back to exclude-self-only.",
+                exc,
+            )
+            return set()
+
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
-        Patch completed pods so that the KubernetesJobWatcher can delete them.
+        Patch completed pods owned by no-longer-alive schedulers so this scheduler's watcher can delete them.
+
+        Originally this method patched every Succeeded pod that did not carry
+        THIS scheduler's ``airflow-worker`` label. With multi-scheduler
+        deployments that caused thrashing — every scheduler relabeled every
+        other scheduler's completed pods on each interval tick, fighting over
+        ownership and burning kube-API and watcher cycles (see #66396).
+
+        The fix scopes the selector to also exclude pods owned by every
+        currently-alive sibling scheduler. With one scheduler, behavior is
+        unchanged (no siblings → original "exclude self only" selector). With
+        multiple schedulers, each one only adopts pods whose owning scheduler
+        is gone — preserving the original goal of #61839 (cleanup after a
+        scheduler restart) without the multi-scheduler regression.
 
         :param kube_client: kubernetes client for speaking to kube API
         """
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
+        self_label = self._make_safe_label_value(self.scheduler_job_id)
+        excluded_labels = sorted(
+            {
+                self_label,
+                *(self._make_safe_label_value(str(jid)) for jid in self._alive_other_scheduler_job_ids()),
+            }
+        )
+
+        if len(excluded_labels) == 1:
+            # Equality-based selector — preserves the pre-fix label_selector
+            # exactly when no sibling scheduler is alive, so single-scheduler
+            # deployments see no behavior change.
+            worker_filter = f"airflow-worker!={excluded_labels[0]}"
+        else:
+            # Set-based requirement: K8s parses `notin (a,b,c)` as "label
+            # value is none of these". Mixed with the surrounding
+            # equality-based requirements via comma separator.
+            worker_filter = f"airflow-worker notin ({','.join(excluded_labels)})"
+
         query_kwargs = {
             "field_selector": "status.phase=Succeeded",
-            "label_selector": (
-                "kubernetes_executor=True,"
-                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}!=True"
-            ),
+            "label_selector": (f"kubernetes_executor=True,{worker_filter},{POD_EXECUTOR_DONE_KEY}!=True"),
         }
         pod_list = self._list_pods(query_kwargs)
         for pod in pod_list:
@@ -707,22 +910,22 @@ class KubernetesExecutor(BaseExecutor):
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
-                    body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
+                    body={"metadata": {"labels": {"airflow-worker": self_label}}},
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
                 continue
 
             ti_id = annotations_to_key(pod.metadata.annotations)
-            self.completed.add(
-                KubernetesResults(
-                    key=ti_id,
-                    state="completed",
-                    pod_name=pod.metadata.name,
-                    namespace=pod.metadata.namespace,
-                    resource_version=pod.metadata.resource_version,
-                    failure_details=None,
-                )
+            pod_name = pod.metadata.name
+            namespace = pod.metadata.namespace
+            self.completed[(namespace, pod_name)] = KubernetesResults(
+                key=ti_id,
+                state="completed",
+                pod_name=pod_name,
+                namespace=namespace,
+                resource_version=pod.metadata.resource_version,
+                failure_details=None,
             )
 
     def _flush_task_queue(self) -> None:
@@ -767,10 +970,15 @@ class KubernetesExecutor(BaseExecutor):
 
     def end(self) -> None:
         """Shut down the executor."""
+        if self._manager is None:
+            # start() was never called (e.g. the executor was only constructed to read task
+            # logs), so there is no Manager process or queues to shut down.
+            return
         if TYPE_CHECKING:
             assert self.task_queue
             assert self.result_queue
             assert self.kube_scheduler
+            assert self._manager
 
         self.log.info("Shutting down Kubernetes executor")
         try:
@@ -791,6 +999,11 @@ class KubernetesExecutor(BaseExecutor):
             except Exception:
                 self.log.exception("Unknown error while flushing task queue and result queue.")
         self._manager.shutdown()
+        # Return to the unstarted state so a second end() is a no-op (the guard above) and the
+        # Manager/queues are recreated cleanly if start() is ever called again.
+        self._manager = None
+        self.task_queue = None
+        self.result_queue = None
 
     def terminate(self):
         """Terminate the executor is not doing anything."""

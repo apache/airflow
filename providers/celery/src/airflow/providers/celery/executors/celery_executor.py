@@ -44,6 +44,7 @@ from airflow.providers.celery.executors import (
 )
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
+from airflow.utils.helpers import prune_dict
 from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
@@ -173,7 +174,7 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_workloads(task_tuples_to_send)
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
+    def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3.
         from airflow.executors.workloads import ExecuteTask
 
@@ -181,7 +182,7 @@ class CeleryExecutor(BaseExecutor):
             from airflow.executors.workloads import ExecuteCallback
 
         workloads_to_be_sent: list[WorkloadInCelery] = []
-        for workload in workloads:
+        for workload in workload_items:
             if isinstance(workload, ExecuteTask):
                 workloads_to_be_sent.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
             elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
@@ -210,7 +211,7 @@ class CeleryExecutor(BaseExecutor):
             ):
                 retries = self.workload_publish_retries[key]
                 if retries < self.workload_publish_max_retries:
-                    Stats.incr("celery.task_timeout_error")
+                    Stats.incr("celery.task_timeout_error", tags=prune_dict({"team_name": self.team_name}))
                     self.log.info(
                         "[Try %s of %s] Celery Task Timeout Error for Workload: (%s).",
                         self.workload_publish_retries[key] + 1,

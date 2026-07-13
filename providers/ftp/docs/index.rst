@@ -84,7 +84,7 @@ apache-airflow-providers-ftp package
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.14.3
+Release: 3.15.2
 
 Provider package
 ----------------
@@ -111,8 +111,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -121,15 +121,31 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-ftp[common.compat]
+    pip install apache-airflow-providers-ftp[openlineage]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-ftp[openlineage]
+
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+===============  ========================================
 
 Downloading official packages
 -----------------------------
@@ -137,5 +153,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-ftp 3.14.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.14.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.14.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.14.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-ftp 3.14.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.14.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.14.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.14.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-ftp 3.15.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.15.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.15.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.15.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ftp 3.15.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.15.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.15.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.15.2-py3-none-any.whl.sha512>`__)

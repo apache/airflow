@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import re
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
@@ -38,12 +39,19 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
     _optionally_suppress,
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
-from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
+from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    OnFinishAction,
+    PodLaunchTimeoutException,
+    PodLoggingStatus,
+    PodNotFoundException,
+    PodPhase,
+)
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.common.compat.sdk import (
     XCOM_RETURN_KEY,
     AirflowException,
+    AirflowNotFoundException,
     AirflowSkipException,
     TaskDeferred,
 )
@@ -875,7 +883,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     def test_xcom_sidecar_container_image_custom(self):
-        image = "private.repo/alpine:3.13"
+        image = "private.repo/alpine:3.24.1"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
             k = KubernetesPodOperator(
                 name="test",
@@ -892,7 +900,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine"
+        assert pod.spec.containers[1].image == "alpine:3.24.1"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
@@ -1159,6 +1167,25 @@ class TestKubernetesPodOperator:
             delete_pod_mock.assert_called_with(find_pod_mock.return_value)
         else:
             delete_pod_mock.assert_not_called()
+
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.await_init_containers_completion")
+    def test_execute_sync_checks_pod_start_before_following_init_container_logs(
+        self, await_init_mock, find_pod_mock, delete_pod_mock
+    ):
+        """Pod start is awaited before following init-container logs, so a Pending pod hits the
+        startup timeout instead of blocking forever in the init-log wait loop."""
+        find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
+        self.await_start_mock.side_effect = PodLaunchTimeoutException("Pod took too long to start")
+        k = KubernetesPodOperator(task_id="task", init_container_logs=["init-container"])
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(PodLaunchTimeoutException, match="too long to start"):
+            k.execute(context=context)
+
+        await_init_mock.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("should_fail", [True, False])
@@ -1878,6 +1905,33 @@ class TestKubernetesPodOperator:
 
         context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
 
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    def test_xcom_push_failed_pod_fans_out_for_multiple_outputs(
+        self, remote_pod, mock_await, mock_extract_xcom
+    ):
+        """On the sync failure path, ``multiple_outputs=True`` must fan the sidecar dict out
+        into per-key XComs in addition to the ``return_value`` push — matching the task runner
+        behaviour applied on the success path.
+        """
+        k = KubernetesPodOperator(
+            task_id="task", on_finish_action="delete_pod", do_xcom_push=True, multiple_outputs=True
+        )
+
+        remote_pod.return_value.status.phase = "Failed"
+        sidecar_output = {"export_arn": "arn:aws:dynamodb:::export/x", "s3_uri": "s3://b/p"}
+        mock_extract_xcom.return_value = json.dumps(sidecar_output)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(AirflowException):
+            k.execute(context=context)
+
+        context["ti"].xcom_push.assert_any_call("export_arn", "arn:aws:dynamodb:::export/x")
+        context["ti"].xcom_push.assert_any_call("s3_uri", "s3://b/p")
+        context["ti"].xcom_push.assert_any_call(XCOM_RETURN_KEY, sidecar_output)
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("kwargs", "actual_exit_code", "expected_exc"),
@@ -2529,10 +2583,10 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
-    @patch(f"{TRIGGER_CLASS}.define_container_state")
+    @patch(f"{TRIGGER_CLASS}.define_pod_container_state")
     def test_async_create_pod_should_execute_successfully(
         self,
-        mocked_container_state,
+        mocked_pod_container_state,
         mocked_get_connection,
         mocked_pod,
         mocked_pod_obj,
@@ -2621,6 +2675,185 @@ class TestKubernetesPodOperatorAsync:
 
         log_message = "Trigger emitted an %s event, failing the task: %s"
         mocked_log.error.assert_called_once_with(log_message, status, message)
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    def test_invoke_defer_method_passes_execution_deadline_when_execution_timeout_set(
+        self, mocked_get_connection, mocked_convert_config
+    ):
+        """
+        ``execution_timeout`` is converted into an absolute ``_execution_deadline``
+        anchored on ``ti.start_date`` and propagated to the trigger via
+        ``trigger_kwargs``. ``defer.timeout`` covers the remaining budget plus
+        a poll-interval buffer so the framework backstop doesn't race the
+        trigger.
+        """
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+
+        execution_timeout = datetime.timedelta(seconds=300)
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            on_finish_action="keep_pod",
+            in_cluster=True,
+            deferrable=True,
+            execution_timeout=execution_timeout,
+        )
+        # Skip the pod-creation path and pretend it's already running.
+        k.pod = MagicMock()
+        k.pod.metadata.name = TEST_NAME
+        k.pod.metadata.namespace = TEST_NAMESPACE
+
+        ti_mock = MagicMock()
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_mock.start_date = ti_start
+        context = {"ti": ti_mock}
+
+        # Freeze at ``ti_start + 30s`` → remaining=270s. ``defer.timeout`` =
+        # remaining + max(60, poll_interval * 2) = 270 + 60 = 330s for default
+        # poll_interval=2.
+        elapsed = datetime.timedelta(seconds=30)
+        with (
+            time_machine.travel(ti_start + elapsed, tick=False),
+            patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            k.invoke_defer_method(context=context)
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, KubernetesPodTrigger)
+        expected_deadline = int((ti_start + execution_timeout).timestamp())
+        assert trigger.trigger_kwargs["_execution_deadline"] == expected_deadline
+        assert exc.value.timeout == datetime.timedelta(seconds=270 + 60)
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    def test_invoke_defer_method_pads_defer_timeout_for_slow_poll_interval(
+        self, mocked_get_connection, mocked_convert_config
+    ):
+        """
+        With a slow ``poll_interval`` (e.g. 60s), ``defer.timeout`` is padded
+        by ``poll_interval * 2`` so the framework backstop doesn't preempt the
+        trigger before it can emit its own ``status="timeout"`` event from the
+        next poll cycle.
+        """
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+
+        execution_timeout = datetime.timedelta(seconds=30)
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            on_finish_action="keep_pod",
+            in_cluster=True,
+            deferrable=True,
+            execution_timeout=execution_timeout,
+            poll_interval=60,
+        )
+        k.pod = MagicMock()
+        k.pod.metadata.name = TEST_NAME
+        k.pod.metadata.namespace = TEST_NAMESPACE
+
+        ti_mock = MagicMock()
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_mock.start_date = ti_start
+        context = {"ti": ti_mock}
+
+        # Freeze at ``ti_start`` → remaining=30s. ``defer.timeout`` =
+        # remaining + max(60, poll_interval * 2) = 30 + 120 = 150s.
+        with (
+            time_machine.travel(ti_start, tick=False),
+            patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            k.invoke_defer_method(context=context)
+
+        assert exc.value.timeout == datetime.timedelta(seconds=30 + 120)
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    def test_invoke_defer_method_floors_defer_timeout_when_deadline_already_past(
+        self, mocked_get_connection, mocked_convert_config
+    ):
+        """
+        When the deadline is already past (re-defer after deadline elapsed),
+        the negative remaining is floored to zero and ``defer.timeout`` falls
+        back to the pure poll-interval buffer.
+        """
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+
+        execution_timeout = datetime.timedelta(seconds=300)
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            on_finish_action="keep_pod",
+            in_cluster=True,
+            deferrable=True,
+            execution_timeout=execution_timeout,
+        )
+        k.pod = MagicMock()
+        k.pod.metadata.name = TEST_NAME
+        k.pod.metadata.namespace = TEST_NAMESPACE
+
+        ti_mock = MagicMock()
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_mock.start_date = ti_start
+        context = {"ti": ti_mock}
+
+        # Freeze well past the deadline (ti_start + 600s, deadline at +300s)
+        # so remaining is negative; floor + 60s default buffer = 60s.
+        with (
+            time_machine.travel(ti_start + datetime.timedelta(seconds=600), tick=False),
+            patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            k.invoke_defer_method(context=context)
+
+        assert exc.value.timeout == datetime.timedelta(seconds=60)
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    def test_invoke_defer_method_passes_no_deadline_when_execution_timeout_not_set(
+        self, mocked_get_connection, mocked_convert_config
+    ):
+        """
+        Without ``execution_timeout``, ``_execution_deadline`` is absent from
+        ``trigger_kwargs`` and ``defer.timeout`` is ``None`` — preserving
+        pre-fix behaviour for tasks that don't opt in.
+        """
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            on_finish_action="keep_pod",
+            in_cluster=True,
+            deferrable=True,
+        )
+        k.pod = MagicMock()
+        k.pod.metadata.name = TEST_NAME
+        k.pod.metadata.namespace = TEST_NAMESPACE
+
+        ti_mock = MagicMock()
+        ti_mock.start_date = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        context = {"ti": ti_mock}
+
+        with (
+            patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            k.invoke_defer_method(context=context)
+
+        trigger = exc.value.trigger
+        assert "_execution_deadline" not in trigger.trigger_kwargs
+        assert exc.value.timeout is None
 
     @pytest.mark.parametrize(
         ("kwargs", "actual_exit_code", "expected_exc", "pod_status", "event_status"),
@@ -2741,7 +2974,7 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine"
+        assert pod.spec.containers[1].image == "alpine:3.24.1"
 
     def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(
@@ -3007,6 +3240,229 @@ class TestKubernetesPodOperatorAsync:
                 },
             )
 
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(HOOK_CLASS)
+    def test_redefer_when_pod_still_running(self, mocked_hook, mock_invoke_defer):
+        """When trigger returns error but pod container is still running, re-defer the task."""
+        mock_invoke_defer.side_effect = TaskDeferred(trigger=MagicMock(), method_name="trigger_reentry")
+
+        base_container = MagicMock()
+        base_container.name = "base"
+        base_container.state.running = MagicMock()
+        base_container.state.terminated = None
+        base_container.state.waiting = None
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Running"
+        remote_pod.status.container_statuses = [base_container]
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", deferrable=True)
+        context = create_context(op)
+        event = {
+            "status": "error",
+            "message": "some transient error",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(context, event)
+
+        mock_invoke_defer.assert_called_once()
+        assert op.trigger_kwargs["_redefer_count"] == 1
+
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(HOOK_CLASS)
+    def test_redefer_when_pod_pending(self, mocked_hook, mock_invoke_defer):
+        """When trigger returns error but pod is still Pending (no container status yet), re-defer."""
+        mock_invoke_defer.side_effect = TaskDeferred(trigger=MagicMock(), method_name="trigger_reentry")
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Pending"
+        remote_pod.status.container_statuses = None
+        remote_pod.status.init_container_statuses = None
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", deferrable=True)
+        context = create_context(op)
+        event = {
+            "status": "error",
+            "message": "some transient error",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(context, event)
+
+        mock_invoke_defer.assert_called_once()
+
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(HOOK_CLASS)
+    def test_redefer_when_pod_waiting(self, mocked_hook, mock_invoke_defer):
+        """When trigger returns error but container is in waiting state, re-defer."""
+        mock_invoke_defer.side_effect = TaskDeferred(trigger=MagicMock(), method_name="trigger_reentry")
+
+        base_container = MagicMock()
+        base_container.name = "base"
+        base_container.state.running = None
+        base_container.state.terminated = None
+        base_container.state.waiting = MagicMock()
+        base_container.state.waiting.reason = "ContainerCreating"
+        base_container.state.waiting.message = None
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Pending"
+        remote_pod.status.container_statuses = [base_container]
+        remote_pod.status.init_container_statuses = None
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", deferrable=True)
+        context = create_context(op)
+        event = {
+            "status": "error",
+            "message": "some transient error",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(context, event)
+
+        mock_invoke_defer.assert_called_once()
+
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(HOOK_CLASS)
+    def test_no_redefer_when_detect_pod_terminate_early_issues(self, mocked_hook, mock_invoke_defer):
+        """When pod has fatal image pull error, do not re-defer even if container is waiting."""
+        base_container = MagicMock()
+        base_container.name = "base"
+        base_container.state.running = None
+        base_container.state.terminated = None
+        base_container.state.waiting = MagicMock()
+        base_container.state.waiting.reason = "InvalidImageName"
+        base_container.state.waiting.message = "invalid image"
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Pending"
+        remote_pod.status.container_statuses = [base_container]
+        remote_pod.status.init_container_statuses = None
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", deferrable=True)
+        context = create_context(op)
+        event = {
+            "status": "error",
+            "message": "some error",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+
+        with pytest.raises(AirflowException):
+            op.trigger_reentry(context, event)
+
+        mock_invoke_defer.assert_not_called()
+
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(HOOK_CLASS)
+    def test_no_redefer_when_max_attempts_exceeded(self, mocked_hook, mock_invoke_defer):
+        """When re-defer attempts are exhausted, fail the task instead of re-deferring."""
+        base_container = MagicMock()
+        base_container.name = "base"
+        base_container.state.running = MagicMock()
+        base_container.state.terminated = None
+        base_container.state.waiting = None
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Running"
+        remote_pod.status.container_statuses = [base_container]
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", deferrable=True)
+        context = create_context(op)
+        event = {
+            "status": "error",
+            "message": "some transient error",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+            "_redefer_count": op.MAX_REDEFER_ATTEMPTS,
+        }
+
+        with pytest.raises(AirflowException):
+            op.trigger_reentry(context, event)
+
+        mock_invoke_defer.assert_not_called()
+
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(HOOK_CLASS)
+    def test_redefer_increments_count(self, mocked_hook, mock_invoke_defer):
+        """Re-defer count is incremented in trigger_kwargs for each re-defer."""
+        mock_invoke_defer.side_effect = TaskDeferred(trigger=MagicMock(), method_name="trigger_reentry")
+
+        base_container = MagicMock()
+        base_container.name = "base"
+        base_container.state.running = MagicMock()
+        base_container.state.terminated = None
+        base_container.state.waiting = None
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Running"
+        remote_pod.status.container_statuses = [base_container]
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", deferrable=True)
+        context = create_context(op)
+        event = {
+            "status": "error",
+            "message": "transient error",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+            "_redefer_count": 2,
+        }
+
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(context, event)
+
+        assert op.trigger_kwargs["_redefer_count"] == 3
+        mock_invoke_defer.assert_called_once()
+
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("pod_manager"))
+    @patch(HOOK_CLASS)
+    def test_error_event_treated_as_success_when_container_succeeded(
+        self, mocked_hook, mock_manager, mock_post_complete
+    ):
+        """When trigger emits error but container actually exited 0, treat as success."""
+        base_container = MagicMock()
+        base_container.name = "base"
+        base_container.state.terminated = MagicMock()
+        base_container.state.terminated.exit_code = 0
+        base_container.state.running = None
+        base_container.state.waiting = None
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Succeeded"
+        remote_pod.status.container_statuses = [base_container]
+        remote_pod.status.init_container_statuses = None
+        mocked_hook.return_value.get_pod.return_value = remote_pod
+        mock_manager.await_pod_completion.return_value = remote_pod
+
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", deferrable=True, get_logs=False)
+        context = create_context(op)
+        context["ti"] = MagicMock()
+        event = {
+            "status": "error",
+            "message": "API timeout",
+            "name": TEST_NAME,
+            "namespace": TEST_NAMESPACE,
+        }
+
+        # Should NOT raise — treated as success
+        op.trigger_reentry(context, event)
+
+        mock_post_complete.assert_called_once()
+
     @patch(HOOK_CLASS)
     def test_execute_async_callbacks(self, mocked_hook):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
@@ -3123,6 +3579,71 @@ class TestKubernetesPodOperatorAsync:
         k.execute(context)
         mocked_trigger_reentry.assert_called_once()
 
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_returns_when_pod_gcd_on_success(self, mocked_hook, mock_manager):
+        """Pod GC'd between trigger firing and reentry should not fail a successful task."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        # Should return cleanly without raising
+        result = k.trigger_reentry(
+            context=context,
+            event={
+                "status": "success",
+                "message": TEST_SUCCESS_MESSAGE,
+                "name": TEST_NAME,
+                "namespace": TEST_NAMESPACE,
+            },
+        )
+
+        assert result is None
+        # await_pod_completion in _clean must not be called with self.pod=None
+        mock_manager.return_value.await_pod_completion.assert_not_called()
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_raises_pod_not_found_on_failure(self, mocked_hook, mock_manager):
+        """Pod GC'd before reentry on a failed event surfaces as PodNotFoundException."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(PodNotFoundException):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "failed",
+                    "message": "Some failure",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_propagates_non_404_api_exception(self, mocked_hook, mock_manager):
+        """Non-404 ApiException from get_pod should propagate unchanged."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=500, reason="Server Error")
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(ApiException) as exc_info:
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "success",
+                    "message": TEST_SUCCESS_MESSAGE,
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
+        assert exc_info.value.status == 500
+
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
 @patch(KUB_OP_PATH.format("extract_xcom"))
@@ -3158,13 +3679,14 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
 
-    # assert that the xcom are extracted/not extracted
     if do_xcom_push:
         mock_extract_xcom.assert_called_once()
-        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, mock_extract_xcom.return_value)
+        assert result == mock_extract_xcom.return_value
+        context["ti"].xcom_push.assert_not_called()
     else:
         mock_extract_xcom.assert_not_called()
         assert result is None
+        context["ti"].xcom_push.assert_not_called()
 
     # check if it waits for the pod to complete
     assert read_pod_mock.call_count == 3
@@ -3205,22 +3727,85 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
 
-    # assert that it does not push the xcom
-    ti_mock.xcom_push.assert_not_called()
-
+    # The failure-path push happens before the ``finally``-block ``_clean`` runs,
+    # so even a failing cleanup (simulated here via side_effect) doesn't suppress it.
     if do_xcom_push:
-        # assert that the xcom are not extracted if do_xcom_push is False
         mock_extract_xcom.assert_called_once()
+        ti_mock.xcom_push.assert_called_once_with(XCOM_RETURN_KEY, mock_extract_xcom.return_value)
     else:
-        # but that it is extracted when do_xcom_push is true because the sidecare
-        # needs to be terminated
         mock_extract_xcom.assert_not_called()
+        ti_mock.xcom_push.assert_not_called()
 
     # check if it waits for the pod to complete
     assert read_pod_mock.call_count == 3
 
     # assert that the cleanup is called
     post_complete_action.assert_called_once()
+
+
+@patch(KUB_OP_PATH.format("extract_xcom"))
+@patch(KUB_OP_PATH.format("post_complete_action"))
+@patch(HOOK_CLASS)
+def test_async_trigger_reentry_returns_sidecar_output_for_multiple_outputs(
+    mocked_hook, post_complete_action, mock_extract_xcom
+):
+    """On the success path with ``multiple_outputs=True``, ``trigger_reentry`` returns the
+    sidecar dict and does not push ``return_value`` itself — the task runner's
+    ``_push_xcom_if_needed`` handles both the ``return_value`` push and the per-key fan-out.
+    """
+    metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+    succeeded_state = mock.MagicMock(**metadata, **{"status.phase": "Succeeded"})
+    mocked_hook.return_value.get_pod.return_value = succeeded_state
+    mocked_hook.return_value.core_v1_client.read_namespaced_pod.return_value = succeeded_state
+
+    sidecar_output = {"export_arn": "arn:aws:dynamodb:::export/x", "s3_uri": "s3://b/p"}
+    mock_extract_xcom.return_value = sidecar_output
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=True, multiple_outputs=True)
+    context = create_context(k)
+    context["ti"].xcom_push = MagicMock()
+
+    success_event = {
+        "status": "success",
+        "message": TEST_SUCCESS_MESSAGE,
+        "name": TEST_NAME,
+        "namespace": TEST_NAMESPACE,
+    }
+
+    result = k.trigger_reentry(context, success_event)
+
+    assert result == sidecar_output
+    context["ti"].xcom_push.assert_not_called()
+
+
+@patch(KUB_OP_PATH.format("extract_xcom"))
+@patch(KUB_OP_PATH.format("post_complete_action"))
+@patch(HOOK_CLASS)
+def test_async_trigger_reentry_failure_fans_out_for_multiple_outputs(
+    mocked_hook, post_complete_action, mock_extract_xcom
+):
+    """On the async failure path with ``multiple_outputs=True``, ``trigger_reentry`` must fan
+    the partial sidecar dict out into per-key XComs before raising — matching the sync failure
+    path so behaviour is consistent regardless of execution mode.
+    """
+    metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+    failed_state = mock.MagicMock(**metadata, **{"status.phase": "Failed"})
+    mocked_hook.return_value.get_pod.return_value = failed_state
+    mocked_hook.return_value.core_v1_client.read_namespaced_pod.return_value = failed_state
+
+    sidecar_output = {"export_arn": "arn:aws:dynamodb:::export/x", "s3_uri": "s3://b/p"}
+    mock_extract_xcom.return_value = sidecar_output
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=True, multiple_outputs=True)
+    ti_mock = MagicMock()
+    failure_event = {"status": "failed", "message": "error", "name": TEST_NAME, "namespace": TEST_NAMESPACE}
+
+    with pytest.raises(AirflowException):
+        k.trigger_reentry({"ti": ti_mock}, failure_event)
+
+    ti_mock.xcom_push.assert_any_call("export_arn", "arn:aws:dynamodb:::export/x")
+    ti_mock.xcom_push.assert_any_call("s3_uri", "s3://b/p")
+    ti_mock.xcom_push.assert_any_call(XCOM_RETURN_KEY, sidecar_output)
 
 
 def test_default_container_logs():

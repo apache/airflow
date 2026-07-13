@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, IconButton, Input, Text } from "@chakra-ui/react";
+import { Box, Input, Text } from "@chakra-ui/react";
 import React from "react";
 import { MdClose } from "react-icons/md";
 
+import { IconButton } from "src/components/ui";
 import type { ValidationError } from "src/hooks/useDateRangeFilter";
 
 type DateInputProps = {
@@ -84,7 +85,6 @@ export const DateInput = ({
             size="2xs"
             top="50%"
             transform="translateY(-50%)"
-            variant="ghost"
           >
             <MdClose size={12} />
           </IconButton>

@@ -97,7 +97,8 @@ class OSSHook(BaseHook):
     def _get_client(self) -> oss.Client:
         config = oss.config.load_default()
         config.region = self.region
-        config.endpoint = f"oss-{self.region}.aliyuncs.com"
+        extra_config = self.oss_conn.extra_dejson
+        config.endpoint = extra_config.get("endpoint", f"oss-{self.region}.aliyuncs.com")
         config.credentials_provider = self.get_credential()
         return oss.Client(config)
 

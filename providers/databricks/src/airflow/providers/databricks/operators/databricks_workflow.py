@@ -158,7 +158,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         self.python_params = python_params or []
         self.spark_submit_params = spark_submit_params or []
         self.tasks_to_convert = tasks_to_convert or {}
-        self.relevant_upstreams = [task_id]
+        self.relevant_upstreams: list[str] = []
         self.workflow_run_metadata: WorkflowRunMetadata | None = None
         super().__init__(task_id=task_id, **kwargs)
 
@@ -393,20 +393,30 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
             spark_submit_params=self.spark_submit_params,
         )
 
-        for task in tasks:
-            if not (
-                hasattr(task, "_convert_to_databricks_workflow_task")
-                and callable(task._convert_to_databricks_workflow_task)
-            ):
-                raise AirflowException(
-                    f"Task {task.task_id} does not support conversion to databricks workflow task."
-                )
+        try:
+            for task in tasks:
+                if not (
+                    hasattr(task, "_convert_to_databricks_workflow_task")
+                    and callable(task._convert_to_databricks_workflow_task)
+                ):
+                    raise AirflowException(
+                        f"Task {task.task_id} does not support conversion to databricks workflow task."
+                    )
 
-            task.workflow_run_metadata = create_databricks_workflow_task.output
-            create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
-            create_databricks_workflow_task.add_task(task.task_id, task)
+                task.workflow_run_metadata = create_databricks_workflow_task.output
+                create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
+                create_databricks_workflow_task.add_task(task.task_id, task)
 
-        for root_task in roots:
-            root_task.set_upstream(create_databricks_workflow_task)
+            for root_task in roots:
+                root_task.set_upstream(create_databricks_workflow_task)
 
-        super().__exit__(_type, _value, _tb)
+            # When ``>>`` is called before the ``with`` block, the dependency is
+            # recorded on the task group but the launch/leaf tasks don't exist yet.
+            # Transfer those task-group-level dependencies now that the tasks are created.
+            for upstream_id in self.upstream_task_ids:
+                create_databricks_workflow_task.set_upstream(self.dag.get_task(upstream_id))
+            for downstream_id in self.downstream_task_ids:
+                for leaf_task in self.get_leaves():
+                    leaf_task.set_downstream(self.dag.get_task(downstream_id))
+        finally:
+            super().__exit__(_type, _value, _tb)
