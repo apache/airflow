@@ -25,8 +25,6 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.core_api import security as core_api_security
 
-
-
 if TYPE_CHECKING:
     from fastapi import Request
 
