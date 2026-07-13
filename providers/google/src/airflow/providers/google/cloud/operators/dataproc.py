@@ -84,6 +84,15 @@ class PreemptibilityType(Enum):
     NON_PREEMPTIBLE = "NON_PREEMPTIBLE"
 
 
+class ConfidentialInstanceType(Enum):
+    """Contains possible Type values of Confidential Instance applicable for every secondary worker of Cluster."""
+
+    CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED = "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED"
+    SEV = "SEV"
+    SEV_SNP = "SEV_SNP"
+    TDX = "TDX"
+
+
 @dataclass
 class InstanceSelection:
     """
@@ -97,10 +106,12 @@ class InstanceSelection:
         Dataproc will first try to create a VM based on the machine-type with priority rank and fallback
         to next rank based on availability. Machine types and instance selections with the same priority have
         the same preference.
+    :param disk_config: Disk config for the instance selection.
     """
 
     machine_types: list[str]
     rank: int = 0
+    disk_config: dict | None = None
 
 
 @dataclass
@@ -115,6 +126,21 @@ class InstanceFlexibilityPolicy:
     """
 
     instance_selection_list: list[InstanceSelection]
+
+
+@dataclass
+class ConfidentialInstanceConfig:
+    """
+    Confidential instance configuration.
+
+    Representation for google.cloud.dataproc.v1#google.cloud.dataproc.v1.ConfidentialInstanceConfig.
+
+    :param enable_confidential_compute: Whether to enable confidential compute.
+    :param confidential_instance_type: Confidential instance type.
+    """
+
+    enable_confidential_compute: bool
+    confidential_instance_type: str = ConfidentialInstanceType.CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED.value
 
 
 class ClusterGenerator:
@@ -194,6 +220,7 @@ class ClusterGenerator:
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param service_account: The service account of the dataproc instances.
     :param service_account_scopes: The URIs of service account scopes to be included.
+    :param confidential_instance_config: Confidential instance config for the cluster.
     :param idle_delete_ttl: The longest duration that cluster would keep alive while
         staying idle. Passing this threshold will cause cluster to be auto-deleted.
         A duration in seconds.
@@ -212,6 +239,7 @@ class ClusterGenerator:
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa
     :param enable_component_gateway: Provides access to the web interfaces of default and selected optional
         components on the cluster.
+    :param confidential_instance_config: Confidential compute instance config for the cluster.
     :param driver_pool_size: The number of driver nodes in the node group.
     :param driver_pool_id: The ID for the driver pool. Must be unique within the cluster. Use this ID to
         identify the driver group in future operations, such as resizing the node group.
@@ -269,6 +297,7 @@ class ClusterGenerator:
         idle_stop_ttl: int | None = None,
         auto_stop_time: datetime | None = None,
         auto_stop_ttl: int | None = None,
+        confidential_instance_config: dict | ConfidentialInstanceConfig | None = None,
         customer_managed_key: str | None = None,
         enable_component_gateway: bool | None = False,
         driver_pool_size: int = 0,
@@ -324,6 +353,7 @@ class ClusterGenerator:
         self.idle_stop_ttl = idle_stop_ttl
         self.auto_stop_time = auto_stop_time
         self.auto_stop_ttl = auto_stop_ttl
+        self.confidential_instance_config = confidential_instance_config
         self.customer_managed_key = customer_managed_key
         self.enable_component_gateway = enable_component_gateway
         self.single_node = num_workers == 0
@@ -407,6 +437,11 @@ class ClusterGenerator:
         if self.service_account_scopes:
             cluster_data[config]["service_account_scopes"] = self.service_account_scopes
 
+        if self.confidential_instance_config:
+            if isinstance(self.confidential_instance_config, ConfidentialInstanceConfig):
+                cluster_data[config]["confidential_instance_config"] = vars(self.confidential_instance_config)
+            else:
+                cluster_data[config]["confidential_instance_config"] = self.confidential_instance_config
         return cluster_data
 
     def _build_lifecycle_config(self, cluster_data):
@@ -532,7 +567,7 @@ class ClusterGenerator:
             if self.secondary_worker_instance_flexibility_policy:
                 cluster_data["secondary_worker_config"]["instance_flexibility_policy"] = {
                     "instance_selection_list": [
-                        vars(s)
+                        {k: v for k, v in vars(s).items() if v is not None}
                         for s in self.secondary_worker_instance_flexibility_policy.instance_selection_list
                     ]
                 }
