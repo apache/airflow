@@ -52,13 +52,13 @@ class FabAuthRolePublicMiddleware(BaseHTTPMiddleware):
             if public_user is not None:
                 request.state.user = public_user
 
-            user_injected = getattr(
-                core_api_security,
-                "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
-                None,
-            )
-            if user_injected is not None:
-                request.state.user_authenticated_via = user_injected
+                user_injected = getattr(
+                    core_api_security,
+                    "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
+                    None,
+                )
+                if user_injected is not None:
+                    request.state.user_authenticated_via = user_injected
 
         return await call_next(request)
 
