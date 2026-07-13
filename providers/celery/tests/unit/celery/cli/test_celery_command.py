@@ -669,6 +669,36 @@ class TestRemoteCeleryControlCommands:
             assert key in celery_workers[0]
         assert any("celery@host_1" in h["worker_name"] for h in celery_workers)
 
+    @pytest.mark.parametrize(
+        "active_queues",
+        [
+            None,
+            {},
+            {"celery@other_host": [{"name": "default"}]},
+            {"celery@host_1": []},
+        ],
+    )
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_check_worker_fails_when_worker_is_not_consuming(self, mock_inspect, active_queues):
+        mock_inspect.return_value.active_queues.return_value = active_queues
+        args = self.parser.parse_args(["celery", "check-worker", "-H", "celery@host_1"])
+
+        with pytest.raises(SystemExit, match="celery@host_1 is not consuming from any queues"):
+            celery_command.check_worker(args)
+
+        mock_inspect.assert_called_once_with(destination=["celery@host_1"])
+
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_check_worker_succeeds_when_worker_is_consuming(self, mock_inspect):
+        mock_inspect.return_value.active_queues.return_value = {
+            "celery@host_1": [{"name": "default"}],
+        }
+        args = self.parser.parse_args(["celery", "check-worker", "-H", "celery@host_1"])
+
+        celery_command.check_worker(args)
+
+        mock_inspect.assert_called_once_with(destination=["celery@host_1"])
+
     @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.shutdown")
     def test_shutdown_worker(self, mock_shutdown):
         args = self.parser.parse_args(["celery", "shutdown-worker", "-H", "celery@host_1"])

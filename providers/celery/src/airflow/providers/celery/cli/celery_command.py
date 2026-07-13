@@ -415,6 +415,18 @@ def list_workers(args):
     AirflowConsole().print_as(data=workers, output=args.output)
 
 
+@_providers_configuration_loaded
+def check_worker(args):
+    """Check that a Celery worker is consuming from at least one queue."""
+    # This needs to be imported locally to not trigger Providers Manager initialization
+    from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    inspect = celery_app.control.inspect(destination=[args.celery_hostname])
+    active_workers = inspect.active_queues()
+    if not active_workers or not active_workers.get(args.celery_hostname):
+        raise SystemExit(f"Error: {args.celery_hostname} is not consuming from any queues!")
+
+
 @cli_utils.action_cli(check_db=False)
 @_providers_configuration_loaded
 def shutdown_worker(args):

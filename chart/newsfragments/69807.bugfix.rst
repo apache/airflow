@@ -1,0 +1,1 @@
+Detect Celery workers that are no longer consuming queues in the default liveness probe.
