@@ -19,10 +19,10 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
-import warnings
 
 from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage

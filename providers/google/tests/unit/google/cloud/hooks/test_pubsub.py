@@ -28,9 +28,12 @@ from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1.types import PublisherOptions, ReceivedMessage
 from googleapiclient.errors import HttpError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook, PubSubException, PubSubHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version
+
+pytestmark = pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 PUBSUB_STRING = "airflow.providers.google.cloud.hooks.pubsub.{}"
@@ -648,6 +651,17 @@ class TestPubSubHook:
             PubSubHook._validate_messages(messages)
         assert str(ctx.value) == error_message
 
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.subscriber_client")
+    def test_pull_deprecation_warning(self, mock_subscriber_client):
+        hook = PubSubHook()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately"):
+            hook.pull(
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+                max_messages=10,
+                return_immediately=False,
+            )
+
 
 class TestPubSubAsyncHook:
     @pytest.fixture
@@ -696,3 +710,14 @@ class TestPubSubAsyncHook:
             timeout=None,
             metadata=(),
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook._get_subscriber_client")
+    async def test_pull_deprecation_warning(self, mock_get_subscriber_client, hook):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately"):
+            await hook.pull(
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+                max_messages=10,
+                return_immediately=False,
+            )

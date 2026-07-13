@@ -25,6 +25,7 @@ from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator,
@@ -35,6 +36,8 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPullOperator,
 )
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+
+pytestmark = pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 TASK_ID = "test-task-id"
 TEST_PROJECT = "test-project"
@@ -548,6 +551,26 @@ class TestPubSubPullOperator:
         assert isinstance(exc.value.trigger, PubsubPullTrigger)
         assert exc.value.trigger.return_immediately is True
 
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_execute_deferred_with_return_immediately_false(self, mock_hook):
+        """
+        Asserts that a task is deferred and a PubSubPullOperator will be fired
+        when the PubSubPullOperator is executed with deferrable=True.
+        """
+        task = PubSubPullOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            return_immediately=False,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(mock.MagicMock())
+
+        assert isinstance(exc.value.trigger, PubsubPullTrigger)
+        assert exc.value.trigger.return_immediately is False
+
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_get_openlineage_facets(self, mock_hook):
         operator = PubSubPullOperator(
@@ -650,3 +673,12 @@ class TestPubSubPullOperator:
             resp = operator.execute_complete(context={}, event={"status": "success", "message": test_message})
         mock_log_info.assert_called_with("Sensor pulls messages: %s", test_message)
         assert resp == [ReceivedMessage.to_dict(m) for m in received_messages]
+
+    def test_pubsub_pull_operator_deprecation_warning(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately"):
+            PubSubPullOperator(
+                task_id=TASK_ID,
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+                return_immediately=False,
+            )

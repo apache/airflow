@@ -22,8 +22,11 @@ import pytest
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.triggers.base import TriggerEvent
+
+pytestmark = pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 TEST_POLL_INTERVAL = 10
 TEST_GCP_CONN_ID = "google_cloud_default"
@@ -198,3 +201,16 @@ class TestPubsubPullTrigger:
 
         with pytest.raises(GoogleAPICallError, match="Acknowledgement failed"):
             await trigger.run().asend(None)
+
+    def test_pubsub_pull_trigger_deprecation_warning(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately"):
+            PubsubPullTrigger(
+                project_id=PROJECT_ID,
+                subscription="subscription",
+                max_messages=MAX_MESSAGES,
+                ack_messages=ACK_MESSAGES,
+                poke_interval=TEST_POLL_INTERVAL,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=None,
+                return_immediately=False,
+            )
