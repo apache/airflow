@@ -151,6 +151,29 @@ describe("Test SearchBar", () => {
     expect(screen.queryByTestId("advanced-search-toggle")).toBeNull();
   });
 
+  it("supports custom input presentation", () => {
+    render(
+      <SearchBar
+        clearButtonAriaLabel="Clear timetable type"
+        clearButtonTestId="clear-timetable-type"
+        defaultValue="CronTriggerTimetable"
+        hotkeyDisabled
+        inputAriaLabel="Timetable type"
+        inputTestId="timetable-type"
+        onChange={vi.fn()}
+        placeholder="Timetable type"
+        startElement={<span data-testid="timetable-icon" />}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByTestId("timetable-type").getAttribute("aria-label")).toBe("Timetable type");
+    expect(screen.getByTestId("timetable-icon").isConnected).toBe(true);
+    expect(screen.getByTestId("clear-timetable-type").getAttribute("aria-label")).toBe(
+      "Clear timetable type",
+    );
+  });
+
   it("renders advanced toggle and reflects enabled state", () => {
     const onToggle = vi.fn();
 
