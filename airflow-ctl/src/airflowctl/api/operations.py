@@ -204,15 +204,13 @@ class BaseOperations:
             if callable(value):
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
-    def execute_list(self, *, path, data_model, offset=0, limit=3, params=None):
-        print("limit", limit, "offset", offset)
-        limit = params.pop("limit", limit)
-        offset = params.pop("offset", offset)
-        if limit <= 0:
+    def execute_list(self, *, path, data_model, offset=0, limit=None, params=None):
+        page_size = 50
+        if params:
+            limit = params.pop("limit", limit)
+            offset = params.pop("offset", offset)
+        if limit is not None and limit <= 0:
             raise ValueError(f"limit must be a positive integer, got {limit}")
-
-        shared_params = {"limit": limit, "offset": offset, **(params or {})}
-        print("shared_params", shared_params)
 
         def safe_validate(content: bytes) -> BaseModel:
             try:
@@ -221,15 +219,12 @@ class BaseOperations:
                 raw = fill_missing_fields(json.loads(content), data_model)
                 return data_model.model_validate(raw)  # type: ignore[union-attr]
 
-        print("execute_list params", params)
+        first_size = page_size if limit is None else min(limit, page_size)
+        shared_params = {"limit": first_size, "offset": offset, **(params or {})}
         self.response = self.client.get(path, params=shared_params)
         first_pass = safe_validate(self.response.content)
-        # total_entries = first_pass.total_entries  # type: ignore[attr-defined]
-        # print("total_entries",total_entries)
-        total_entries = 12
-        print("totoal_entries ", total_entries, "limit", limit)
-        if total_entries < limit:
-            print("first pass limit", limit, "total_entries", total_entries)
+        total_entries = first_pass.total_entries  # type: ignore[attr-defined]
+        if first_size < page_size:
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
@@ -237,13 +232,16 @@ class BaseOperations:
                 found_key = key
                 break
         entry_list = getattr(first_pass, found_key)
-        print("check total_entries", total_entries)
-        offset = offset + limit
+        if limit:
+            total_entries = min(limit, total_entries) + offset
+        offset = offset + first_size
         while offset < total_entries:
-            print("limit", limit, "offset", offset)
-            self.response = self.client.get(path, params={**shared_params, "offset": offset})
+            self.response = self.client.get(
+                path,
+                params={**shared_params, "limit": min(page_size, (total_entries - offset)), "offset": offset},
+            )
             entry = safe_validate(self.response.content)
-            offset = offset + limit
+            offset = offset + page_size
             entry_list.extend(getattr(entry, found_key))
         obj = data_model(**{found_key: entry_list, "total_entries": total_entries})
         return data_model.model_validate(obj.model_dump())  # type: ignore[union-attr]
@@ -696,9 +694,27 @@ class JobsOperations(BaseOperations):
         job_type: str | None = None,
         hostname: str | None = None,
         is_alive: bool | None = None,
+        dag_id: str | None = None,
+        state: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        order_by: str | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params = _build_query_params(job_type=job_type or None, hostname=hostname or None, is_alive=is_alive)
+        params = _build_query_params(
+            job_type=job_type or None,
+            hostname=hostname or None,
+            is_alive=is_alive,
+            dag_id=dag_id or None,
+            job_state=state or None,
+            order_by=order_by or ("-start_date" if limit is not None else None),
+            limit=limit,
+            offset=offset,
+        )
+
+        """if limit is not None or offset is not None:
+            self.response = self.client.get("jobs", params=params)
+            return JobCollectionResponse.model_validate_json(self.response.content)"""
 
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
