@@ -14,43 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Toolsets for exposing Airflow hooks as pydantic-ai agent tools."""
+"""Isolated sandbox backends for the SandboxToolset."""
 
 from __future__ import annotations
 
-from airflow.providers.common.ai.toolsets.hook import HookToolset
-from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
+from airflow.providers.common.ai.sandbox.base import SandboxBackend, SandboxResult
 
-__all__ = [
-    "HookToolset",
-    "MCPToolset",
-    "SQLToolset",
-    "SandboxToolset",
-    "airflow_toolset_to_langchain_tools",
-]
+# SbxSandboxBackend only shells out to the `sbx` CLI (stdlib imports), so it is
+# always importable; IsloSandboxBackend needs the optional `islo` SDK.
+from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
+
+__all__ = ["IsloSandboxBackend", "SandboxBackend", "SandboxResult", "SbxSandboxBackend"]
 
 
 def __getattr__(name: str):
-    if name == "airflow_toolset_to_langchain_tools":
-        from airflow.providers.common.ai.toolsets.langchain_bridge import (
-            airflow_toolset_to_langchain_tools,
-        )
-
-        return airflow_toolset_to_langchain_tools
-    if name == "SQLToolset":
+    if name == "IsloSandboxBackend":
         try:
-            from airflow.providers.common.ai.toolsets.sql import SQLToolset
+            from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
         except ImportError as e:
             from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
-        return SQLToolset
-    if name == "MCPToolset":
-        try:
-            from airflow.providers.common.ai.toolsets.mcp import MCPToolset
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-            raise AirflowOptionalProviderFeatureException(e)
-        return MCPToolset
+        return IsloSandboxBackend
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
