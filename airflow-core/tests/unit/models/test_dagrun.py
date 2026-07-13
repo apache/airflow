@@ -142,7 +142,6 @@ def deadline_test_dag(session):
 class TestDagRun:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
-        self._clean_db()
         yield
         self._clean_db()
 

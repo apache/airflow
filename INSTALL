@@ -14,11 +14,31 @@ Linux (Debian Bookworm):
     sudo apt install -y --no-install-recommends apt-transport-https apt-utils ca-certificates \
     curl dumb-init freetds-bin krb5-user libgeos-dev \
     ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales libffi8 libldap-2.5-0 libssl3 netcat-openbsd \
-    lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc
+    lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc python3-dev \
+    libkrb5-dev gcc libldap2-dev libsasl2-dev
+
+Linux (Ubuntu Noble):
+
+    sudo apt install -y --no-install-recommends apt-transport-https apt-utils ca-certificates \
+    curl dumb-init freetds-bin krb5-user libgeos-dev \
+    ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales libffi8 libldap2 libssl3 netcat-openbsd \
+    lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc python3-dev \
+    libkrb5-dev gcc libldap2-dev libsasl2-dev
+
 
 You might need to install MariaDB development headers to build some of the dependencies
 
     sudo apt-get install libmariadb-dev libmariadbclient-dev
+
+or
+    sudo apt-get install libmariadb-dev libmariadb-dev-compat
+
+
+On Linux you might also want to install postgres and mysql servers:
+
+
+   sudo apt install postgresql mysql-server
+
 
 MacOS (Mojave/Catalina) you might need to install XCode command line tools and brew and those packages:
 

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
-# verify — health check of the steward integration + drift detection
+# verify — health check of the magpie integration + drift detection
 
 Confirms the framework is wired in correctly so the rest of
 the framework's skills resolve from the right paths, and
@@ -156,7 +156,7 @@ Check that the entries from
   settings — written to by
   [`sandbox-add-project-root.sh`](../../tools/agent-isolation/sandbox-add-project-root.sh)
   as the per-worktree sandbox-allowlist defense for
-  [issue #197](https://github.com/apache/airflow-steward/issues/197);
+  [issue #197](https://github.com/apache/magpie/issues/197);
   must never be committed since the content is machine-specific
   absolute paths)
 - `__pycache__/` and `*.pyc` (byte-compiled artefacts emitted when
@@ -275,7 +275,7 @@ snapshot's `.apache-magpie/skills/setup/`.
     adopter modified the bootstrap skill directly; an
     anti-pattern per the framework's hard rule). The
     framework-side fix is to upstream the modifications as
-    a PR against `apache/airflow-steward`; the local fix
+    a PR against `apache/magpie`; the local fix
     is to revert the modifications and use
     `.apache-magpie-overrides/` instead.
 
@@ -284,12 +284,18 @@ snapshot's `.apache-magpie/skills/setup/`.
 Two sub-checks on `<repo-root>/.git/hooks/post-checkout`:
 
 1. **Presence + executable.** File exists, is executable,
-   and contains the
-   `/magpie-setup verify --auto-fix-symlinks` recipe.
-   - ⚠ if missing — strictly optional, but worktrees off
-     this repo will need a manual
-     `/magpie-setup verify --auto-fix-symlinks` after
-     checkout. Print the install recipe.
+   and carries the current hook body — the sandbox-allowlist
+   helper chain **and** the agent-guard seeding block (see
+   [`adopt.md` Step 10](adopt.md#step-10--worktree-aware-post-checkout-hook-fresh-only)).
+   It must **not** contain the long-removed
+   `/magpie-setup verify --auto-fix-symlinks` line (a slash
+   command is not shell-callable; it printed a spurious error on
+   every checkout).
+   - ⚠ if missing — strictly optional, but worktrees off this
+     repo will then not get their sandbox allowlist or
+     agent-guard seeded automatically on `git worktree add`
+     (they fall back to `/magpie-setup worktree-init`). Print
+     the install recipe.
 
 2. **Content drift vs the framework's expected.** Diff the
    installed hook against the framework's expected hook
@@ -334,10 +340,24 @@ Three sub-checks for the deterministic guard
      [`adopt.md` Step 12](adopt.md#step-12--post-install-sync--worktree-propagation--sandbox-allowlist--sanity-check))
      for the maintainer to apply (settings.json is agent-edit-denied).
 
+The script + `guards.d` are **gitignored** framework code
+([`adopt.md` Step 7](adopt.md#step-7--gitignore-entries-fresh-only)),
+synced from the snapshot rather than committed — so a *missing*
+script is the expected state of a fresh checkout, not a defect, and
+the fix is always a re-sync (never `git add`). When this check runs
+**inside a worktree**, the script + `guards.d` are per-worktree
+files (the `settings.json` wiring resolves
+`$CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py` against the
+worktree root). The remediation for a *missing* script in a worktree
+is not the main-checkout sync but
+[`worktree-init.md` Step 1d](worktree-init.md#step-1d--seed-the-worktrees-agent-guard-pretooluse-hook)
+(or the post-checkout hook on the next `git worktree add`), which
+seeds it from the main checkout's already-synced copy.
+
 ### 8b. Sandbox-allowlist coverage of the current worktree
 
 Defensive cross-check for
-[issue #197](https://github.com/apache/airflow-steward/issues/197):
+[issue #197](https://github.com/apache/magpie/issues/197):
 `sandbox.filesystem.allowRead: ["."]` does not in practice cover
 CWD under the harness, so `/magpie-setup` (adopt, upgrade,
 worktree-init) chains into
@@ -530,6 +550,7 @@ adopter opted into via
   - `mcp__claude_ai_Gmail__search_threads`
   - `mcp__claude_ai_Gmail__list_drafts`
   - `mcp__claude_ai_Gmail__list_labels`
+  - `mcp__gmail-plaintext__create_draft`
   - `mcp__ponymail__search_list`
   - `mcp__ponymail__auth_status`
   - `mcp__ponymail__get_thread`
@@ -544,7 +565,7 @@ adopter opted into via
 
   (The `mcp__apache-projects__*` read tools back the roster /
   affiliation lookups — also used by `contributor-nomination`,
-  the maintainer-side PMC/committer assessment skill. Both MCP
+  the maintainer-side <governance-body>/committer assessment skill. Both MCP
   servers are installed from the latest `main` of `apache/comdev`;
   see [`tools/apache-projects/tool.md`](../../tools/apache-projects/tool.md)
   and [`tools/ponymail/tool.md`](../../tools/ponymail/tool.md).)
@@ -662,15 +683,15 @@ Two files to check (per
 
 - **`<repo-root>/README.md`** — should have a contributor-facing
   section (typically `## Agent-assisted contribution
-  (apache-steward)`) that mentions the snapshot mechanism, the
+  (apache-magpie)`) that mentions the snapshot mechanism, the
   `/magpie-setup` invocation for fresh clones, the
   `.apache-magpie.lock` pin, and `.apache-magpie-overrides/`.
-  Grep for `apache-steward` and `/magpie-setup` together as a
+  Grep for `apache-magpie` and `/magpie-setup` together as a
   proxy. ⚠ if either token is absent.
 - **`<repo-root>/AGENTS.md`** — if the file exists, it should
-  have an `## apache-steward framework` section that
+  have an `## apache-magpie framework` section that
   cross-references the README section. Grep for
-  `apache-steward` and a link to the README anchor. ⚠ if the
+  `apache-magpie` and a link to the README anchor. ⚠ if the
   file exists but lacks the section; not applicable if the
   file does not exist (do not create one just to satisfy
   the check).
@@ -679,6 +700,35 @@ Cheap to skip if both are absent on a minimal repo — surface
 as ⚠ overall only, never ✗. `CONTRIBUTING.md` counts as a
 fallback for `README.md` if the adopter declared it so during
 adoption.
+
+### 10. Trusted external source snapshots + symlinks
+
+Only when `<project-config>/skill-sources.md` (the trust list)
+lists at least one source — otherwise skip this check silently
+(the adopter runs in-tree skills only). For each trusted source
+([`skill-sources.md`](skill-sources.md)):
+
+- **Committed pin present.** The source has a block in
+  `.apache-magpie.sources.lock` (`method`/`url`/`ref` + anchor).
+  Missing ⇒ ✗: the trust list vouches for a source that was never
+  pinned — run `/magpie-setup skill-sources`.
+- **Snapshot present.** `.apache-magpie-sources/<id>/` exists on
+  disk with the source's `skills_root`. Missing ⇒ ✗ with the
+  remediation `/magpie-setup skill-sources` (the fetch is
+  gitignored, so a fresh clone has none — expected, same as the
+  framework snapshot).
+- **Source drift.** The source's committed block vs its
+  `.apache-magpie.sources.local.lock` block — a mismatch ⇒ ⚠ and
+  proposes `/magpie-setup upgrade`, exactly like framework drift
+  (check 3).
+- **Symlinks live.** Every `magpie-<name>` the source `provides`
+  resolves through the canonical
+  `.agents/skills/magpie-<name>` → `../../.apache-magpie-sources/<id>/skills/<name>/`
+  and its relays (same rule as check 5). Dangling / misdirected ⇒
+  ✗ with `/magpie-setup verify --auto-fix-symlinks`.
+- **No name collision.** No `magpie-<name>` provided by a source
+  shadows a framework skill or another source's skill. Collision
+  ⇒ ✗ (surface, do not auto-resolve).
 
 ## After the report
 

@@ -28,6 +28,7 @@ from sqlalchemy.orm import Mapped
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -156,6 +157,7 @@ def set_metrics(
     free_concurrency: int,
     queues: list[str] | None,
     sysinfo: dict[str, str | int | float | datetime],
+    team_name: str | None = None,
 ) -> None:
     """Set metric of edge worker."""
     queues = queues if queues else []
@@ -178,30 +180,31 @@ def set_metrics(
         "concurrency",
         "free_concurrency",
     }
+    metric_tags = prune_dict({"worker_name": worker_name, "team_name": team_name})
 
     Stats.gauge(
         "edge_worker.status",
         sysinfo.get("status", logging.NOTSET),  # type: ignore
-        tags={"worker_name": worker_name},
+        tags=metric_tags,
     )
-    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.connected", int(connected), tags=metric_tags)
+    Stats.gauge("edge_worker.maintenance", int(maintenance), tags=metric_tags)
+    Stats.gauge("edge_worker.jobs_active", jobs_active, tags=metric_tags)
+    Stats.gauge("edge_worker.concurrency", concurrency, tags=metric_tags)
+    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags=metric_tags)
     Stats.gauge(
         "edge_worker.num_queues",
         len(queues),
-        tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        tags={**metric_tags, "queues": ",".join(queues)},
     )
 
     for key in additional_keys:
         value = sysinfo.get(key)
         if isinstance(value, (int, float)):
-            Stats.gauge(f"edge_worker.{key}", value, tags={"worker_name": worker_name})
+            Stats.gauge(f"edge_worker.{key}", value, tags=metric_tags)
 
 
-def reset_metrics(worker_name: str) -> None:
+def reset_metrics(worker_name: str, team_name: str | None = None) -> None:
     """Reset metrics of worker."""
     set_metrics(
         worker_name=worker_name,
@@ -213,6 +216,7 @@ def reset_metrics(worker_name: str) -> None:
         sysinfo={
             "status": logging.NOTSET,
         },
+        team_name=team_name,
     )
 
 
