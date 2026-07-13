@@ -15,10 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Python stub Dag mirroring the Go SDK example bundle (``go-sdk/example/bundle``).
+Python stub Dags mirroring the Go SDK example bundle (``go-sdk/example/bundle``).
 
-The graph sandwiches the Go tasks between two native Python tasks so the run
-exercises XCom across the language boundary, the same way
+Two Dags, both backed by the same Go bundle: ``simple_dag`` (extract/transform/
+load, below) and ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
+timing sequential vs goroutine XCom pulls).
+
+``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
+run exercises XCom across the language boundary, the same way
 ``java-sdk/dags/java_examples.py`` does for the Java SDK::
 
     python_task_1 >> extract >> transform >> [load, python_task_2]
@@ -91,3 +95,15 @@ def simple_dag():
 
 
 simple_dag()
+
+
+@task.stub(queue="golang")
+def pull_xcoms_concurrently(): ...
+
+
+@dag(dag_id="concurrent_xcom_dag")
+def concurrent_xcom_dag():
+    pull_xcoms_concurrently()
+
+
+concurrent_xcom_dag()

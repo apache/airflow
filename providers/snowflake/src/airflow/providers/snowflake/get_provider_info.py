@@ -33,6 +33,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-snowflake/operators/snowflake.rst",
                     "/docs/apache-airflow-providers-snowflake/operators/snowpark.rst",
+                    "/docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst",
                 ],
                 "logo": "/docs/integration-logos/Snowflake.png",
                 "tags": ["service"],
@@ -44,6 +45,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.snowflake.operators.snowflake",
                     "airflow.providers.snowflake.operators.snowpark",
+                    "airflow.providers.snowflake.operators.snowpark_containers",
                 ],
             }
         ],
@@ -75,6 +77,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.snowflake.hooks.snowflake",
                     "airflow.providers.snowflake.hooks.snowflake_sql_api",
+                    "airflow.providers.snowflake.hooks.snowflake_cortex_agent",
                 ],
             }
         ],

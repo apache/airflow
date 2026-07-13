@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkResponse,
@@ -97,7 +98,7 @@ def _ensure_executor_is_configured(executor: str | None) -> None:
         executor in (name.alias, name.module_path, name.module_path.split(".")[-1]) for name in configured
     ):
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
             f"Executor '{executor}' is not configured. "
             f"Configured executors: {[name.alias or name.module_path for name in configured]}",
         )
@@ -371,7 +372,7 @@ def test_connection(
         [
             status.HTTP_403_FORBIDDEN,
             status.HTTP_409_CONFLICT,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(action_logging())],

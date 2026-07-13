@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "全部執行類型",
     "allStates": "全部狀態",
+    "anyRunState": "全部執行",
     "favorite": {
       "all": "全部",
       "favorite": "已加為最愛",
       "unfavorite": "未加為最愛"
     },
+    "lastRunState": "最後執行狀態",
     "paused": {
       "active": "啟用中",
       "all": "全部",
@@ -75,6 +77,11 @@
       "runOnLatestVersion": "執行最新套件包版本",
       "upstream": "上游"
     }
+  },
+  "runStateCounts": {
+    "label": "執行狀態",
+    "loading": "正在載入執行狀態數量",
+    "tooltip": "{{state}}：{{formattedCount}} — 點選以篩選執行"
   },
   "search": {
     "advanced": "進階搜尋",

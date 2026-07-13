@@ -376,6 +376,7 @@ class SerializedDagModel(Base):
         # bundle_path and relative fileloc more correctly determines the
         # dag file location.
         data_["dag"].pop("fileloc", None)
+        data_["dag"].pop("bundle_name", None)
         data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
