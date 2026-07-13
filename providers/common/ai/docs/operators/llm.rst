@@ -186,6 +186,11 @@ to process a list of items in parallel:
     :start-after: [START howto_decorator_llm_pipeline]
     :end-before: [END howto_decorator_llm_pipeline]
 
+.. seealso::
+    :ref:`Dynamic System Prompt <howto/operator:agent-dynamic-system-prompt>` --
+    ``system_prompt`` is templated identically on ``@task.llm``, so the same
+    upstream-XCom pattern applies here.
+
 Human-in-the-Loop Approval
 --------------------------
 

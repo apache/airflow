@@ -26,7 +26,7 @@ from airflow._shared.timezones import timezone
 from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterable, Iterator, Sequence
 
     from pendulum import DateTime
 
@@ -143,8 +143,8 @@ class DagRunInfo(NamedTuple):
     data_interval: DataInterval | None
     """The data interval this DagRun to operate over."""
 
-    partition_date: DateTime | None
-    partition_key: str | None
+    partition_date: DateTime | None = None
+    partition_key: str | None = None
 
     @classmethod
     def exact(cls, at: DateTime) -> DagRunInfo:
@@ -240,7 +240,7 @@ class Timetable(Protocol):
     partitioned_at_runtime: bool = False
     """Whether this timetable defers partition selection to task runtime.
 
-    *True* for :class:`~airflow.timetables.simple.PartitionAtRuntime`;
+    *True* for :class:`~airflow.timetables.simple.PartitionedAtRuntime`;
     downstream code can branch on this flag instead of using ``isinstance``.
     """
 
@@ -258,20 +258,85 @@ class Timetable(Protocol):
         )
         raise NotImplementedError(msg)
 
-    def resolve_day_bound(self, day: datetime.date) -> DateTime:
+    def iter_partition_dagrun_infos(
+        self,
+        *,
+        earliest: datetime.datetime,
+        latest: datetime.datetime,
+    ) -> Iterable[DagRunInfo]:
         """
-        Return the UTC instant of *day*'s start (midnight).
+        Yield one DagRunInfo per partition whose ``partition_date`` lies in ``[earliest, latest]`` (both inclusive).
 
-        By default a calendar day starts at midnight UTC. Timetables with a local
-        timezone (e.g. :class:`~airflow.timetables._cron.CronMixin` subclasses)
-        override this to anchor at local midnight in their timezone, converted to
-        UTC. Callers pass *day* for an inclusive lower bound and
-        ``day + timedelta(days=1)`` for a half-open upper bound (e.g. ``dag_clear``
-        uses it to bound ``partition_date`` queries).
+        The iteration granularity follows the timetable's own partition cadence
+        (e.g. one tick per hour for ``CronPartitionTimetable("0 * * * *")``), so a
+        sub-day window yields only the partitions inside it rather than every
+        partition of the surrounding calendar day.
+
+        Only called for partitioned timetables (``partitioned is True``). The default
+        implementation raises :exc:`NotImplementedError`; timetables that set
+        ``partitioned = True`` must override this.
         """
-        return timezone.coerce_datetime(
-            datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
-        )
+        if self.partitioned:
+            msg = f"{type(self).__name__} is partitioned but does not implement iter_partition_dagrun_infos."
+        else:
+            msg = f"{type(self).__name__} is not partitioned"
+        raise NotImplementedError(msg)
+
+    def localize_partition_datetime(self, dt: datetime.datetime) -> DateTime:
+        """
+        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
+
+        The base implementation treats the timetable as UTC: the wall-clock is kept
+        as-is and the result is simply a timezone-aware UTC instant (a no-op for
+        already-UTC inputs). Timetables with a local timezone (e.g.
+        :class:`~airflow.timetables._cron.CronMixin` subclasses) override this to
+        re-localize the wall-clock to their own timezone before converting to UTC,
+        preserving sub-day precision for narrow windows on sub-daily schedules.
+
+        Used by :meth:`~airflow.models.dagrun.DagRun.apply_partition_date_window` to
+        convert user-supplied ``partition_date`` filter bounds without truncating the
+        time component.
+        """
+        return timezone.coerce_datetime(dt)
+
+    def resolve_partition_date(self, partition_key: str | None) -> datetime.datetime | None:
+        """
+        Decode *partition_key* into the period-start datetime it represents.
+
+        Returns the timezone-aware datetime that was used to format *partition_key*
+        when the timetable originally created the run, or ``None`` when no temporal
+        meaning can be derived from the key. ``None`` is returned without decoding
+        when *partition_key* is ``None``, when this timetable is not ``partitioned``,
+        or when it defers partition selection to runtime (``partitioned_at_runtime``).
+
+        Partitioned timetables whose keys carry a temporal structure override
+        :meth:`_decode_partition_date`:
+
+        - :class:`~airflow.timetables.trigger.CronPartitionTimetable` parses the
+          key with ``strptime`` using its ``key_format`` and localizes with its
+          timezone.
+        - :class:`~airflow.timetables.simple.PartitionedAssetTimetable` delegates
+          to each asset's partition mapper; when the mappers agree on the same
+          instant it is returned, otherwise ``None`` is returned.
+
+        :param partition_key: The partition key string to decode, or ``None``.
+        :returns: The period-start datetime, or ``None`` if not resolvable.
+        :raises InvalidPartitionKeyError: When *partition_key* is syntactically
+            invalid for this timetable's key format (e.g. ``strptime`` fails).
+        """
+        if partition_key is None or not self.partitioned or self.partitioned_at_runtime:
+            return None
+        return self._decode_partition_date(partition_key)
+
+    def _decode_partition_date(self, partition_key: str) -> datetime.datetime | None:
+        """
+        Decode a non-empty *partition_key* into its period-start datetime.
+
+        Called by :meth:`resolve_partition_date` only after the partitioned-state
+        guards pass. The default returns ``None``; partitioned timetables whose
+        keys carry temporal structure override this.
+        """
+        return None
 
     @property
     def partition_mapper_info(self) -> list[PartitionMapperInfo]:
@@ -379,6 +444,9 @@ class Timetable(Protocol):
 
         :param last_automated_data_interval: The data interval of the associated
             DAG's last scheduled or backfilled run (manual runs not considered).
+            This is only ``None`` when the Dag is being scheduled for the first
+            time, which happens when the Dag processor first parses the Dag --
+            before any Dag run exists.
         :param restriction: Restriction to apply when scheduling the DAG run.
             See documentation of :class:`TimeRestriction` for details.
 

@@ -1721,54 +1721,33 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("log_lines", "now", "expected_log_messages", "not_expected_log_messages"),
+        ("log_line_offsets", "expected_log_messages", "not_expected_log_messages"),
         [
             # Case 1: No logs
-            ([], pendulum.now(), [], []),
+            ([], [], []),
             # Case 2: One log line with timestamp before now
-            (
-                [f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} message"],
-                pendulum.now(),
-                ["message"],
-                [],
-            ),
+            ([(-2, "message")], ["message"], []),
             # Case 3: Log line with timestamp equal to now (should be skipped, so last_time is None)
-            ([f"{pendulum.now().to_iso8601_string()} message"], pendulum.now(), [], ["message"]),
+            ([(0, "message")], [], ["message"]),
             # Case 4: Multiple log lines, last before now
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=3).to_iso8601_string()} msg1",
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1", "msg2"],
-                [],
-            ),
+            ([(-3, "msg1"), (-2, "msg2")], ["msg1", "msg2"], []),
             # Case 5: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    "continued line",
-                ],
-                pendulum.now(),
-                ["msg1\ncontinued line"],
-                [],
-            ),
-            # Case 6: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    f"{pendulum.now().to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1"],
-                ["msg2"],
-            ),
+            ([(-2, "msg1"), (None, "continued line")], ["msg1\ncontinued line"], []),
+            # Case 6: Log line followed by one at the current second (the latter should be skipped)
+            ([(-2, "msg1"), (0, "msg2")], ["msg1"], ["msg2"]),
         ],
     )
     async def test_fetch_container_logs_before_current_sec_various_logs(
-        self, log_lines, now, expected_log_messages, not_expected_log_messages
+        self, log_line_offsets, expected_log_messages, not_expected_log_messages
     ):
+        # Use a fixed reference instant instead of real wall-clock time: building the
+        # log-line timestamps from separate `pendulum.now()` calls made the "equal to
+        # the current second" cases flaky whenever those calls straddled a second boundary.
+        now = pendulum.datetime(2024, 1, 1, 12, 0, 0)
+        log_lines = [
+            message if offset is None else f"{now.add(seconds=offset).to_iso8601_string()} {message}"
+            for offset, message in log_line_offsets
+        ]
         pod = mock.MagicMock()
         container_name = "base"
         since_time = now.subtract(minutes=1)

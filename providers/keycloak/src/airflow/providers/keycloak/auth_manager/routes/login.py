@@ -65,7 +65,7 @@ def login(request: Request) -> RedirectResponse:
     state = secrets.token_urlsafe(32)
     auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid", state=state)
     response = RedirectResponse(auth_url)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     cookie_path = get_cookie_path()
     response.set_cookie(
         COOKIE_NAME_OAUTH_STATE, state, max_age=300, path=cookie_path, httponly=True, secure=secure
@@ -105,7 +105,7 @@ def login_callback(request: Request):
     token = get_auth_manager().generate_jwt(user)
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
     # See https://github.com/apache/airflow/pull/55506
     cookie_path = get_cookie_path()

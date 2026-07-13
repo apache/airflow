@@ -23,11 +23,132 @@ Common Data Models for Airflow REST API.
 from __future__ import annotations
 
 import enum
+import logging
 from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
-from pydantic import Discriminator, Field, Tag
+from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, ValidationError
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+
+log = logging.getLogger(__name__)
+
+# Asset Scheduling Expression Data Models
+#
+# These mirror the JSON produced by ``BaseAsset.as_expression()`` (see
+# ``airflow.serialization.definitions.assets``), which is stored verbatim in
+# ``DagModel.asset_expression``. Declaring them gives the REST API -- and the
+# TypeScript client generated from its OpenAPI spec -- a real type instead of an
+# opaque ``dict``. The shape is a recursive boolean tree whose leaves are assets,
+# asset aliases, or asset references.
+
+
+class AssetExpressionAssetInfo(BaseModel):
+    """
+    Body of an ``asset`` leaf node.
+
+    ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+    persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+    optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+    degrades gracefully instead of failing response validation.
+    """
+
+    uri: str
+    name: str
+    group: str
+    id: int | None = None
+
+
+class AssetExpressionAliasInfo(BaseModel):
+    """Body of an ``alias`` leaf node."""
+
+    name: str
+    group: str
+
+
+class AssetExpressionAsset(BaseModel):
+    """An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``."""
+
+    asset: AssetExpressionAssetInfo
+
+
+class AssetExpressionAlias(BaseModel):
+    """An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``."""
+
+    alias: AssetExpressionAliasInfo
+
+
+class AssetExpressionRef(BaseModel):
+    """An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``."""
+
+    asset_ref: dict[str, str]
+
+
+class AssetExpressionAny(BaseModel):
+    """An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied."""
+
+    any: list[AssetExpression]
+
+
+class AssetExpressionAll(BaseModel):
+    """An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied."""
+
+    all: list[AssetExpression]
+
+
+def _asset_expression_discriminator(value: Any) -> str | None:
+    """Select an expression variant by the single key that is present."""
+    keys = ("asset", "alias", "asset_ref", "any", "all")
+    if isinstance(value, dict):
+        present = [key for key in keys if key in value]
+    else:
+        present = [key for key in keys if getattr(value, key, None) is not None]
+    return present[0] if len(present) == 1 else None
+
+
+AssetExpression = Annotated[
+    Union[
+        Annotated[AssetExpressionAsset, Tag("asset")],
+        Annotated[AssetExpressionAlias, Tag("alias")],
+        Annotated[AssetExpressionRef, Tag("asset_ref")],
+        Annotated[AssetExpressionAny, Tag("any")],
+        Annotated[AssetExpressionAll, Tag("all")],
+    ],
+    Discriminator(_asset_expression_discriminator),
+]
+"""A nested asset scheduling expression; see ``BaseAsset.as_expression()``."""
+
+AssetExpressionAny.model_rebuild()
+AssetExpressionAll.model_rebuild()
+
+_asset_expression_adapter: TypeAdapter = TypeAdapter(AssetExpression)
+
+
+def _coerce_unrecognized_expression_to_none(value: Any) -> Any:
+    """
+    Degrade an unrecognized ``asset_expression`` to ``None`` instead of failing response validation.
+
+    ``DagModel.asset_expression`` is stored verbatim from ``BaseAsset.as_expression()`` and is rewritten
+    to the current shape whenever a Dag is parsed (``DagModelOperation.update_dag_asset_expression``). A
+    row written by the pre-3.0 dataset scheduler and not yet re-parsed can still hold a legacy shape --
+    a bare uri string, ``{"any": ["s3://..."]}``, or ``{"alias": "<name>"}`` -- that the typed model does
+    not recognise. Serving such a row as ``None`` reproduces the blank render the UI showed while this
+    field was an untyped ``dict``, rather than turning stored data into an HTTP 500.
+    """
+    if value is None:
+        return None
+    try:
+        _asset_expression_adapter.validate_python(value)
+    except ValidationError:
+        log.warning("Dropping unrecognized asset_expression shape to None: %r", value)
+        return None
+    return value
+
+
+MaybeAssetExpression = Annotated[
+    Union[AssetExpression, None],
+    BeforeValidator(_coerce_unrecognized_expression_to_none),
+]
+"""``AssetExpression | None`` that degrades a legacy/unrecognized stored shape to ``None``."""
 
 # Common Bulk Data Models
 T = TypeVar("T")

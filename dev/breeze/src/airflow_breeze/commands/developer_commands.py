@@ -107,6 +107,7 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
+    get_java_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
@@ -348,7 +349,6 @@ option_load_default_connections = click.option(
 @option_providers_skip_constraints
 @option_python
 @option_restart
-@option_sdk
 @option_run_db_tests_only
 @option_skip_db_tests
 @option_skip_environment_initialization
@@ -411,7 +411,6 @@ def shell(
     python: str,
     quiet: bool,
     restart: bool,
-    sdk: tuple[str, ...],
     run_db_tests_only: bool,
     skip_environment_initialization: bool,
     skip_db_tests: bool,
@@ -488,7 +487,6 @@ def shell(
         python=python,
         quiet=quiet,
         restart=restart,
-        sdk=sdk,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
         skip_image_upgrade_check=skip_image_upgrade_check,
@@ -581,7 +579,6 @@ option_executor_start_airflow = click.option(
 @option_providers_skip_constraints
 @option_python
 @option_restart
-@option_sdk
 @option_standalone_dag_processor
 @option_terminal_multiplexer
 @option_use_uv
@@ -632,7 +629,6 @@ def start_airflow(
     providers_skip_constraints: bool,
     python: str,
     restart: bool,
-    sdk: tuple[str, ...],
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     terminal_multiplexer: str,
@@ -720,7 +716,6 @@ def start_airflow(
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         worker_type=worker_type,
-        sdk=sdk,
         integration=integration,
         install_selected_providers=install_selected_providers,
         install_airflow_with_constraints=install_airflow_with_constraints,
@@ -757,15 +752,6 @@ def start_airflow(
         )
 
     sys.exit(result.returncode)
-
-
-def _get_java_sdk_version() -> str:
-    """Read the Java SDK version from 'java-sdk/gradle.properties'."""
-    props_path = AIRFLOW_ROOT_PATH / "java-sdk" / "gradle.properties"
-    for line in props_path.read_text().splitlines():
-        if match := re.match(r"^sdkVersion\s*=\s*(\S+)$", line.strip()):
-            return match.group(1)
-    raise RuntimeError(f"Java SDK version not found in {props_path}")
 
 
 def _build_java_sdk_docs(generated_path: Path) -> int:
@@ -817,7 +803,7 @@ def _build_java_sdk_docs(generated_path: Path) -> int:
 
     # Write stable.txt so breeze release-management publish-docs treats this as a
     # versioned package and places it at docs-archive/java-sdk/{version}/.
-    sdk_version = _get_java_sdk_version()
+    sdk_version = get_java_sdk_version()
     stable_txt = generated_path / "_build" / "docs" / "java-sdk" / "stable.txt"
     stable_txt.write_text(sdk_version + "\n")
     console_print(f"[success]Java SDK docs staged at {dst}  (version: {sdk_version})")

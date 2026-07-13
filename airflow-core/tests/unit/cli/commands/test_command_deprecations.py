@@ -18,55 +18,76 @@
 """
 Single source of truth for the ``airflow`` CLI commands deprecated in favour of ``airflowctl``.
 
-Every command decorated with ``deprecated_for_airflowctl`` must have one entry below. When a new
-command is migrated and deprecated, add a row to ``DEPRECATED_CLI_COMMANDS`` -- the test then
-verifies it emits ``RemovedInAirflow4Warning`` pointing at the right ``airflowctl`` command.
+Every command decorated with ``deprecated_for_airflowctl`` must have one entry below. When a
+command is deprecated, add a row to ``MIGRATED_CLI_COMMANDS`` -- the test then verifies the decorator
+recorded the right ``airflowctl`` replacement for maintainers. The commands stay in the ``airflow``
+CLI as supported entry points, so they emit no user-facing deprecation warning; they are simply no
+longer developed here -- new work belongs in ``airflowctl``. See
+``contributing-docs/27_cli_implementation_guide.rst`` for the CLI / ``airflowctl`` direction.
 """
 
 from __future__ import annotations
 
-import contextlib
-import re
-
 import pytest
 
-from airflow.cli.commands import asset_command, dag_command, pool_command
-from airflow.exceptions import RemovedInAirflow4Warning
+from airflow.cli.commands import (
+    asset_command,
+    config_command,
+    connection_command,
+    dag_command,
+    pool_command,
+    provider_command,
+    variable_command,
+)
 
-# (command callable, argv to parse, expected airflowctl replacement named in the warning)
-DEPRECATED_CLI_COMMANDS = [
-    (dag_command.dag_trigger, ["dags", "trigger", "example_dag", "--run-id=x"], "airflowctl dags trigger"),
-    (dag_command.dag_delete, ["dags", "delete", "example_dag", "--yes"], "airflowctl dags delete"),
-    (pool_command.pool_list, ["pools", "list"], "airflowctl pools list"),
-    (pool_command.pool_get, ["pools", "get", "foo"], "airflowctl pools get"),
-    (pool_command.pool_set, ["pools", "set", "foo", "1", "desc"], "airflowctl pools create"),
-    (pool_command.pool_delete, ["pools", "delete", "foo"], "airflowctl pools delete"),
-    (pool_command.pool_import, ["pools", "import", "/nonexistent.json"], "airflowctl pools import"),
-    (
-        pool_command.pool_export,
-        ["pools", "export", "/tmp/airflow_pools_export.json"],
-        "airflowctl pools export",
-    ),
-    (
-        asset_command.asset_materialize,
-        ["assets", "materialize", "--name=foo"],
-        "airflowctl assets materialize",
-    ),
+# (command callable, expected airflowctl replacement recorded by the decorator)
+MIGRATED_CLI_COMMANDS = [
+    (connection_command.connections_list, "airflowctl connections list"),
+    (connection_command.connections_add, "airflowctl connections create"),
+    (connection_command.connections_delete, "airflowctl connections delete"),
+    (connection_command.connections_import, "airflowctl connections import"),
+    (connection_command.connections_test, "airflowctl connections test"),
+    (connection_command.create_default_connections, "airflowctl connections create-defaults"),
+    (dag_command.dag_trigger, "airflowctl dags trigger"),
+    (dag_command.dag_delete, "airflowctl dags delete"),
+    (dag_command.dag_list_dags, "airflowctl dags list"),
+    (dag_command.dag_details, "airflowctl dags get-details"),
+    (dag_command.dag_list_import_errors, "airflowctl dags list-import-errors"),
+    (dag_command.dag_pause, "airflowctl dags pause"),
+    (dag_command.dag_unpause, "airflowctl dags unpause"),
+    (dag_command.dag_list_dag_runs, "airflowctl dagrun list"),
+    (pool_command.pool_list, "airflowctl pools list"),
+    (pool_command.pool_get, "airflowctl pools get"),
+    (pool_command.pool_set, "airflowctl pools create"),
+    (pool_command.pool_delete, "airflowctl pools delete"),
+    (pool_command.pool_import, "airflowctl pools import"),
+    (pool_command.pool_export, "airflowctl pools export"),
+    (variable_command.variables_list, "airflowctl variables list"),
+    (variable_command.variables_get, "airflowctl variables get"),
+    (variable_command.variables_set, "airflowctl variables create"),
+    (variable_command.variables_delete, "airflowctl variables delete"),
+    (variable_command.variables_import, "airflowctl variables import"),
+    (asset_command.asset_materialize, "airflowctl assets materialize"),
+    (asset_command.asset_list, "airflowctl assets list / airflowctl assets list-aliases"),
+    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-by-alias"),
+    (provider_command.provider_get, "airflowctl providers get"),
+    (provider_command.providers_list, "airflowctl providers list"),
+    (config_command.get_value, "airflowctl config get"),
+    (config_command.show_config, "airflowctl config list"),
 ]
 
 
 @pytest.mark.parametrize(
-    ("command", "argv", "replacement"),
-    DEPRECATED_CLI_COMMANDS,
-    ids=[argv[0] + "-" + argv[1] for _, argv, _ in DEPRECATED_CLI_COMMANDS],
+    ("command", "replacement"),
+    MIGRATED_CLI_COMMANDS,
+    ids=[replacement for _, replacement in MIGRATED_CLI_COMMANDS],
 )
-def test_deprecated_cli_command_points_to_airflowctl(command, argv, replacement, parser, mock_cli_api_client):
-    """Each migrated command warns it will become an alias for its ``airflowctl`` counterpart.
+def test_migrated_cli_command_records_airflowctl_replacement(command, replacement):
+    """Each migrated command records its ``airflowctl`` counterpart for maintainers.
 
-    We only assert the deprecation warning fires (and names the right replacement); the command
-    body itself is exercised by the per-command test modules, so any error it raises against the
-    bare mocked client is irrelevant here and suppressed.
+    The marker is the maintainer-facing trace of the migration; users see no runtime deprecation
+    warning. The command body itself is exercised by the per-command test modules.
+    ``functools.wraps`` on the outer ``action_cli`` decorator propagates the attribute up to the
+    command object imported here.
     """
-    with pytest.warns(RemovedInAirflow4Warning, match=re.escape(replacement)):
-        with contextlib.suppress(Exception, SystemExit):
-            command(parser.parse_args(argv))
+    assert getattr(command, "_migrated_to_airflowctl", None) == replacement

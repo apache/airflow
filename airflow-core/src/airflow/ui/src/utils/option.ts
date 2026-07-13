@@ -16,9 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { DagRunState } from "openapi/requests/types.gen";
 
 export type Option = {
   readonly disabled?: boolean;
   readonly label: string;
   readonly value: string;
 };
+
+export type DagSearchOption = {
+  readonly state: DagRunState | null;
+} & Option;

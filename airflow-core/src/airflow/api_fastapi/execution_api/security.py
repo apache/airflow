@@ -274,3 +274,18 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
     )
+
+
+def _team_name_for_dag_stmt(dag_id):
+    """Build the select statement resolving ``DagModel.dag_id -> Team.name``."""
+    from airflow.models import DagModel
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+
+    return (
+        select(Team.name)
+        .select_from(DagModel)
+        .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
+        .join(DagBundleModel.teams)
+        .where(DagModel.dag_id == dag_id)
+    )

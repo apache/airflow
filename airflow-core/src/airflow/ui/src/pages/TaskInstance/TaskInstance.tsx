@@ -30,13 +30,16 @@ import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
   const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+
+  useDocumentTitle(taskId);
+
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
@@ -52,7 +55,7 @@ export const TaskInstance = () => {
       icon: <MdOutlineStorage />,
       label: translate("tabs.storage"),
       matchPaths: ["task-store", "xcom"],
-      value: "task-store",
+      value: "task-state-store",
     },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
@@ -89,21 +92,20 @@ export const TaskInstance = () => {
   const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
-  let newTabs = tabs;
-
-  if (taskInstance && taskInstance.map_index > -1) {
-    newTabs = [
-      ...tabs.slice(0, 1),
-      {
-        icon: <MdOutlineTask />,
-        label: translate("tabs.mappedTaskInstances_other", {
-          count: Number(taskCount),
-        }),
-        value: "task_instances",
-      },
-      ...tabs.slice(1),
-    ];
-  }
+  const newTabs =
+    taskInstance && taskInstance.map_index > -1
+      ? [
+          ...tabs.slice(0, 1),
+          {
+            icon: <MdOutlineTask />,
+            label: translate("tabs.mappedTaskInstances_other", {
+              count: Number(taskCount),
+            }),
+            value: "task_instances",
+          },
+          ...tabs.slice(1),
+        ]
+      : tabs;
 
   const { tabs: requiredActionTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
     autoRedirect: true,

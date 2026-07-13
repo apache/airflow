@@ -128,16 +128,24 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             self.log.exception("Could not verify previous log to append")
             return False
 
+        bucket, key = self.hook.parse_s3_url(remote_log_location)
+        # Upload the log via the boto3 client directly instead of S3Hook.load_string. The hook's
+        # upload helpers report the object to the hook lineage collector, which would make task
+        # logs show up as task outputs in OpenLineage events. Logs are not task data assets.
+        extra_args = {}
+        if conf.getboolean("logging", "ENCRYPT_S3_LOGS"):
+            extra_args["ServerSideEncryption"] = "AES256"
+
         # Default to a single retry attempt because s3 upload failures are
         # rare but occasionally occur.  Multiple retry attempts are unlikely
         # to help as they usually indicate non-ephemeral errors.
         for try_num in range(1 + max_retry):
             try:
-                self.hook.load_string(
-                    log,
-                    key=remote_log_location,
-                    replace=True,
-                    encrypt=conf.getboolean("logging", "ENCRYPT_S3_LOGS"),
+                self.hook.get_conn().put_object(
+                    Bucket=bucket,
+                    Key=key,
+                    Body=log.encode("utf-8"),
+                    **extra_args,
                 )
                 break
             except Exception:

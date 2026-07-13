@@ -17,9 +17,35 @@
 
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+import functools
+from typing import TYPE_CHECKING, Any
 
-bundle = VersionBundle(
-    HeadVersion(),
-    Version("2026-06-16"),
-)
+if TYPE_CHECKING:
+    from cadwyn import VersionBundle
+
+
+@functools.cache
+def get_bundle() -> VersionBundle:
+    """
+    Build the supervisor schema ``VersionBundle`` lazily.
+
+    The ``cadwyn`` import is deferred to here so importing this module -- and the parent ``schema``
+    package, which the Task SDK supervisor pulls in on every worker -- does not import ``cadwyn``,
+    which drags in FastAPI/Starlette/Jinja2. The bundle (and its cadwyn machinery) is only needed on
+    the foreign-language-SDK migration path; a pure-Python worker never builds it. Cached so the
+    bundle is constructed once per process.
+    """
+    from cadwyn import HeadVersion, Version, VersionBundle
+
+    return VersionBundle(
+        HeadVersion(),
+        Version("2026-06-16"),
+    )
+
+
+def __getattr__(name: str) -> Any:
+    # Keep ``from ...versions import bundle`` working for existing callers without forcing the
+    # cadwyn import at module load (only resolves the bundle when ``bundle`` is actually accessed).
+    if name == "bundle":
+        return get_bundle()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

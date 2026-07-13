@@ -69,7 +69,7 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
 - [Community standards](#community-standards)
-- [Agent-assisted contribution (apache-steward)](#agent-assisted-contribution-apache-steward)
+- [Agent-assisted contribution (apache-magpie)](#agent-assisted-contribution-apache-magpie)
 - [Voting Policy](#voting-policy)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -99,7 +99,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                 | Stable version (3.2.0)              | Stable version (2.11.2)      |
+|            | Main version (dev)                 | Stable version (3.3.0)              | Deprecate version (2.11.2)   |
 |------------|------------------------------------|-------------------------------------|------------------------------|
 | Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13, 3.14        | 3.10, 3.11, 3.12             |
 | Platform   | AMD64/ARM64                        | AMD64/ARM64                         | AMD64/ARM64(\*)              |
@@ -172,15 +172,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==3.2.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.2.0/constraints-3.10.txt"
+pip install 'apache-airflow==3.3.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.10.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==3.2.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.2.0/constraints-3.10.txt"
+pip install 'apache-airflow[postgres,google]==3.3.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.10.txt"
 ```
 
 For information on installing provider distributions, check
@@ -294,7 +294,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State       | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-------------|-----------------|-----------------------|------------------|
-| 3         | 3.2.2                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.3.0                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.2                | EOL         | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL         | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL         | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
@@ -449,9 +449,9 @@ blocks and reporting accounts to GitHub — and how affected
 contributors can appeal a decision by emailing the PMC at
 `private@airflow.apache.org`.
 
-## Agent-assisted contribution (apache-steward)
+## Agent-assisted contribution (apache-magpie)
 
-This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
 framework via a snapshot mechanism. The framework provides
 maintainer-facing PR-management skills (`pr-management-triage`,
 `pr-management-code-review`, `pr-management-stats`, `pr-management-mentor`)
@@ -479,7 +479,7 @@ each worktree checkout.
 Adopter-specific modifications to framework workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) (committed) —
 never edit the snapshot directly. Framework changes go via PR to
-[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+[`apache/magpie`](https://github.com/apache/magpie).
 
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 

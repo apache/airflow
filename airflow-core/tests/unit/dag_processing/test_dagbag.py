@@ -360,6 +360,29 @@ class TestDagBag:
         dagbag2 = DagBag(dag_folder=os.fspath(tmp_path))
         assert dagbag2.bundle_name is None
 
+    def test_dag_with_bundle_name(self, tmp_path):
+        """Test that bundle_name is attached to each Dag in the DagBag."""
+        dag_file = tmp_path / "test_dag.py"
+        dag_file.write_text(
+            "from airflow.sdk import dag\n\n"
+            "@dag(schedule=None)\n"
+            "def test_bundle_dag(): pass\n\n"
+            "test_bundle_dag()\n"
+        )
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_name="test_bundle")
+
+        assert len(dagbag.dags) > 0
+
+        for dag in dagbag.dags.values():
+            assert dag.bundle_name == "test_bundle"
+
+        dagbag2 = DagBag(dag_folder=os.fspath(tmp_path))
+
+        assert len(dagbag2.dags) > 0
+
+        for dag in dagbag2.dags.values():
+            assert dag.bundle_name is None
+
     def test_get_existing_dag(self, tmp_path, standard_example_dags_folder):
         """
         Test that we're able to parse some example DAGs and retrieve them
