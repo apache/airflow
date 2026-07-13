@@ -607,11 +607,6 @@ class JobsOperations(BaseOperations):
         job_type: str | None = None,
         hostname: str | None = None,
         is_alive: bool | None = None,
-        dag_id: str | None = None,
-        state: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-        order_by: str | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
         params = _build_query_params(
