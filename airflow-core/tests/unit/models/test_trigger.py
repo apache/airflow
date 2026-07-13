@@ -20,7 +20,7 @@ import datetime
 import json
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -48,7 +48,7 @@ from airflow.triggers.base import (
     TriggerEvent,
 )
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -296,11 +296,15 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # Make a trigger
     trigger = Trigger(classpath="does.not.matter", kwargs={})
     session.add(trigger)
-    # Make a TaskInstance that's deferred and waiting on it
+    # Make a TaskInstance that's deferred and waiting on it. A deferred task has
+    # already started running, so it has a start_date; set one so duration can be
+    # computed. Unlike set_state, handle_failure (used by the FAILED path) does not
+    # synthesize a missing start_date, matching the scheduler executor-event path.
     task_instance = create_task_instance(
         session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
     )
     task_instance.trigger_id = trigger.id
+    task_instance.start_date = now.subtract(seconds=10)
     session.commit()
 
     def get_xcoms(ti):
@@ -360,6 +364,63 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     request = mock_send.call_args.kwargs["callback"]
     assert request.bundle_version == "some_hash"
     assert request.version_data == version_data
+
+
+@pytest.mark.parametrize(
+    ("retries", "expected_state", "expected_callback_type"),
+    [
+        (1, TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RETRY),
+        (0, TaskInstanceState.FAILED, TaskInstanceState.FAILED),
+    ],
+)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_failed_respects_retries(
+    mock_send, session, create_task_instance, retries, expected_state, expected_callback_type
+):
+    """A trigger-emitted TaskFailedEvent should respect retry-eligibility: a deferred task with
+    retries remaining goes UP_FOR_RETRY (on_retry_callback), not straight to FAILED.
+
+    Failures are routed through ``TaskInstance.handle_failure`` (mirroring the scheduler
+    executor-event path), so the ``on_task_instance_failed`` listener fires in both cases.
+    """
+    from airflow.listeners.listener import get_listener_manager
+
+    listener_callback = MagicMock()
+    get_listener_manager().pm.hook.on_task_instance_failed = listener_callback
+    try:
+        trigger = Trigger(classpath="does.not.matter", kwargs={})
+        session.add(trigger)
+        task_instance = create_task_instance(
+            session=session,
+            logical_date=timezone.utcnow(),
+            state=State.DEFERRED,
+            default_args={"retries": retries},
+        )
+        task_instance.trigger_id = trigger.id
+        task_instance.try_number = 1
+        task_instance.max_tries = retries
+        session.commit()
+
+        Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
+        session.flush()
+
+        ti = session.scalar(select(TaskInstance))
+        assert ti.state == expected_state
+
+        mock_send.assert_called_once()
+        request = mock_send.call_args.kwargs["callback"]
+        assert request.task_callback_type == expected_callback_type
+
+        # handle_failure clears next_method args and sets end_date on both the retry and
+        # the terminal-failure paths.
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.end_date is not None
+
+        # The canonical failure path fires the on_task_instance_failed listener.
+        listener_callback.assert_called_once()
+    finally:
+        get_listener_manager().clear()
 
 
 @pytest.fixture

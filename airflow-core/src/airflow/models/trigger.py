@@ -561,13 +561,42 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
     from airflow.utils.state import TaskInstanceState
 
-    # Mark the task with terminal state and prevent it from resuming on worker
+    # Prevent the task from resuming on a worker.
     task_instance.trigger_id = None
-    task_instance.set_state(event.task_instance_state, session=session)
+
+    callback_type = event.task_instance_state
+    handle_via_failure = False
+
+    if event.task_instance_state == TaskInstanceState.FAILED:
+        # Load the serialized task: needed both for is_eligible_to_retry() and for
+        # handle_failure() (which asserts self.task / self.task.dag). Mirrors the
+        # scheduler executor-event path (see is_eligible_to_retry / PR #56586).
+        try:
+            from airflow.models.dagbag import DBDagBag
+
+            dag = DBDagBag().get_dag_for_run(dag_run=task_instance.dag_run, session=session)
+            if dag is not None:
+                task_instance.task = dag.get_task(task_instance.task_id)
+                handle_via_failure = True
+        except Exception:
+            log.exception(
+                "Could not load task for %s; failing terminally without retry routing", task_instance
+            )
+        if handle_via_failure and task_instance.is_eligible_to_retry():
+            callback_type = TaskInstanceState.UP_FOR_RETRY
+
+    # Persist trigger_id=None before handle_failure: fetch_handle_failure_context calls
+    # refresh_from_db(keep_local_changes=False), which would otherwise reload the old trigger_id.
+    if handle_via_failure:
+        session.flush()
 
     def _submit_callback_if_necessary() -> None:
-        """Submit a callback request if the task state is SUCCESS or FAILED."""
-        if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
+        """Submit a callback request if the task state is SUCCESS, FAILED, or UP_FOR_RETRY."""
+        if callback_type in (
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.UP_FOR_RETRY,
+        ):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
             from airflow.models.dag_version import _resolve_version_data
@@ -591,7 +620,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
-                task_callback_type=event.task_instance_state,
+                task_callback_type=callback_type,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
                 version_data=version_data,
@@ -604,10 +633,21 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
 
     def _push_xcoms_if_necessary() -> None:
         """Pushes XComs to the database if they are provided."""
-        if event.xcoms:
+        if event.xcoms and callback_type != TaskInstanceState.UP_FOR_RETRY:
             for key, value in event.xcoms.items():
                 task_instance.xcom_push(key=key, value=value)
 
+    # Send the callback before handle_failure (mirrors the scheduler executor-event ordering):
+    # handle_failure -> save_to_db commits, which also persists the DatabaseCallbackSink row atomically.
     _submit_callback_if_necessary()
+
+    if handle_via_failure:
+        # Canonical failure handling: sets UP_FOR_RETRY/FAILED by retry-eligibility, fires the
+        # on_task_instance_failed listener + failure metrics + Log audit row, and clears
+        # next_method args. Mirrors the scheduler executor-event path (PR #56586).
+        task_instance.handle_failure(error="Task failed via trigger event", session=session)
+    else:
+        task_instance.set_state(event.task_instance_state, session=session)
+
     _push_xcoms_if_necessary()
     session.flush()
