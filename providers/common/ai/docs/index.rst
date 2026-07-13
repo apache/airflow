@@ -210,9 +210,9 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-common-ai[anthropic]
 
 
-==============  ==========================================================================================================
+==============  =======================================================================================================================================
 Extra           Dependencies
-==============  ==========================================================================================================
+==============  =======================================================================================================================================
 ``anthropic``   ``pydantic-ai-slim[anthropic]``
 ``bedrock``     ``pydantic-ai-slim[bedrock]``
 ``google``      ``pydantic-ai-slim[google]``
@@ -225,11 +225,11 @@ Extra           Dependencies
 ``sql``         ``apache-airflow-providers-common-sql``, ``sqlglot>=30.0.0``
 ``common.sql``  ``apache-airflow-providers-common-sql``
 ``langchain``   ``langchain>=1.0.0``
-``llamaindex``  ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
+``llamaindex``  ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
 ``pdf``         ``pypdf>=4.0.0``
 ``docx``        ``python-docx>=1.0.0``
 ``git``         ``apache-airflow-providers-git``
-==============  ==========================================================================================================
+==============  =======================================================================================================================================
 
 Downloading official packages
 -----------------------------
