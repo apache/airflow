@@ -101,7 +101,8 @@ run — from the UI/API "Trigger with config" dialog, the ``airflow dags trigger
     Only an explicit boolean is honored.
 
 ``airflow/task_span_detail_level``
-    Integer detail level controlling how many spans task execution emits for this run.
+    To enable detailed spans, set detail level greater than 1.  This is intended as a debug-supporting feature as
+    such it is subject to change or removal at any time.
 
 ``airflow/dagrun_parent_trace_context``
     Embed this run in an **external** trace instead of it being a root trace. Supply a W3C
@@ -109,7 +110,7 @@ run — from the UI/API "Trigger with config" dialog, the ``airflow dags trigger
     from the system that triggered the run — an upstream orchestrator, event pipeline, CI job, or
     another Airflow deployment. The whole run (the ``dag_run`` span and all task/worker spans) then
     lives inside that trace, and parent-based samplers inherit the external sampling decision. When
-    the key is absent the run is a root trace, which is the default. A missing or malformed value is
+    the key is absent (default), the run is a root trace. A missing or malformed value is
     ignored (the run stays a root) rather than failing run creation.
 
     .. code-block:: json
