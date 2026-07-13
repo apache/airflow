@@ -58,6 +58,20 @@ specify the OpenAI connection to use, and ``response_kwargs`` to pass through op
     :start-after: [START howto_operator_openai_response]
     :end-before: [END howto_operator_openai_response]
 
+Structured outputs (Pydantic models)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To request a structured response, pass a Pydantic ``BaseModel`` subclass as ``text_format``. The
+operator then calls the Responses API's structured-output path (``responses.parse``) and returns
+the parsed model as a ``dict`` (via ``model_dump()``), which is safe to push to XCom. This requires
+a model that supports structured outputs (``gpt-4o-2024-08-06`` or later). If the model refuses or
+returns non-parseable content, the operator raises ``ValueError``.
+
+.. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
+    :language: python
+    :start-after: [START howto_operator_openai_response_structured]
+    :end-before: [END howto_operator_openai_response_structured]
+
 Using the OpenAIHook for Responses and Conversations
 =====================================================
 
