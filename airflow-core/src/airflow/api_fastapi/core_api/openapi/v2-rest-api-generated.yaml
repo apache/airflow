@@ -10755,6 +10755,91 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}:
+    get:
+      tags:
+      - DagVersion
+      summary: Get Dag Version Diff
+      description: Compare two currently stored Dag versions.
+      operationId: get_dag_version_diff
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: base_version_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          title: Base Version Number
+      - name: target_version_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          title: Target Version Number
+      - name: include_values
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Values
+      - name: include_source
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Source
+      - name: max_changes
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          exclusiveMinimum: 0
+          default: 500
+          title: Max Changes
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionDiffResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagVersions:
     get:
       tags:
@@ -14520,6 +14605,178 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
+    DagVersionDiffChange:
+      properties:
+        path:
+          type: string
+          title: Path
+        operation:
+          type: string
+          enum:
+          - added
+          - removed
+          - changed
+          title: Operation
+        category:
+          type: string
+          enum:
+          - task
+          - dependency
+          - schedule
+          - param
+          - asset
+          - callback
+          - deadline
+          - metadata
+          - provenance
+          - unknown
+          title: Category
+        impact:
+          type: string
+          enum:
+          - execution
+          - metadata
+          - provenance
+          - unknown
+          title: Impact
+        before_digest:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before Digest
+        after_digest:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: After Digest
+        before_value:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Before Value
+        after_value:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: After Value
+      type: object
+      required:
+      - path
+      - operation
+      - category
+      - impact
+      title: DagVersionDiffChange
+      description: One observed-state change between two serialized Dag versions.
+    DagVersionDiffResponse:
+      properties:
+        diff_schema_version:
+          type: integer
+          title: Diff Schema Version
+        serialized_dag_schema_versions:
+          additionalProperties:
+            anyOf:
+            - type: integer
+            - type: 'null'
+          type: object
+          title: Serialized Dag Schema Versions
+        mode:
+          type: string
+          enum:
+          - observed_state
+          - unavailable
+          title: Mode
+        changes:
+          items:
+            $ref: '#/components/schemas/DagVersionDiffChange'
+          type: array
+          title: Changes
+        source:
+          $ref: '#/components/schemas/DagVersionDiffSource'
+        values:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionDiffValues'
+          - type: 'null'
+        truncated:
+          type: boolean
+          title: Truncated
+        unavailable_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unavailable Reason
+      type: object
+      required:
+      - diff_schema_version
+      - serialized_dag_schema_versions
+      - mode
+      - changes
+      - source
+      - truncated
+      title: DagVersionDiffResponse
+      description: Observed-state diff response for two Dag versions.
+    DagVersionDiffSource:
+      properties:
+        status:
+          type: string
+          enum:
+          - current_stored_code
+          - redacted
+          - unavailable
+          title: Status
+        fidelity:
+          type: string
+          enum:
+          - current_stored_code
+          - redacted
+          - unavailable
+          title: Fidelity
+        changed:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Changed
+        base:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionDiffSourceSide'
+          - type: 'null'
+        target:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionDiffSourceSide'
+          - type: 'null'
+      type: object
+      required:
+      - status
+      - fidelity
+      title: DagVersionDiffSource
+      description: Source comparison metadata.
+    DagVersionDiffSourceSide:
+      properties:
+        digest:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Digest
+        content:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Content
+      type: object
+      title: DagVersionDiffSourceSide
+      description: Source metadata for one side of a Dag version comparison.
+    DagVersionDiffValues:
+      properties:
+        status:
+          type: string
+          enum:
+          - available
+          - unavailable
+          title: Status
+      type: object
+      required:
+      - status
+      title: DagVersionDiffValues
+      description: Visibility metadata for raw serialized Dag values.
     DagVersionResponse:
       properties:
         id:

@@ -245,6 +245,37 @@ ARG_OUTPUT = Arg(
     choices=("table", "json", "yaml", "plain"),
     default="table",
 )
+ARG_DAG_VERSION_FROM = Arg(
+    ("--from-version",),
+    help="The base Dag version number",
+    type=positive_int(allow_zero=False),
+)
+ARG_DAG_VERSION_TO = Arg(
+    ("--to-version",),
+    help="The target Dag version number",
+    type=positive_int(allow_zero=False),
+)
+ARG_PREVIOUS_TO_LATEST = Arg(
+    ("--previous-to-latest",),
+    help="Compare the previous Dag version with the latest Dag version",
+    action="store_true",
+)
+ARG_INCLUDE_VALUES = Arg(
+    ("--include-values",),
+    help="Include currently stored values in changes",
+    action="store_true",
+)
+ARG_INCLUDE_SOURCE = Arg(
+    ("--include-source",),
+    help="Include currently stored source code when available",
+    action="store_true",
+)
+ARG_MAX_CHANGES = Arg(
+    ("--max-changes",),
+    help="Maximum number of changes to return (default: 500, maximum: 5000)",
+    type=positive_int(allow_zero=False),
+    default=500,
+)
 ARG_COLOR = Arg(
     ("--color",),
     help="Do emit colored output (default: auto)",
@@ -1191,7 +1222,34 @@ BACKFILL_COMMANDS = (
         ),
     ),
 )
+DAG_VERSION_COMMANDS = (
+    ActionCommand(
+        name="diff",
+        help="Compare two stored Dag versions",
+        description=(
+            "Compare the currently stored serialized state of two Dag versions. "
+            "This CLI command runs with operator-level authority and is not an API-user authorization boundary."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_command.dag_version_diff"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_VERSION_FROM,
+            ARG_DAG_VERSION_TO,
+            ARG_PREVIOUS_TO_LATEST,
+            ARG_INCLUDE_VALUES,
+            ARG_INCLUDE_SOURCE,
+            ARG_MAX_CHANGES,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
+    ),
+)
 DAGS_COMMANDS = (
+    GroupCommand(
+        name="versions",
+        help="Inspect Dag versions",
+        subcommands=DAG_VERSION_COMMANDS,
+    ),
     ActionCommand(
         name="details",
         help="Get DAG details given a DAG id",
@@ -2350,7 +2408,8 @@ dag_cli_commands: list[CLICommand] = [
         subcommands=[
             _remove_dag_id_opt(sp)
             for sp in DAGS_COMMANDS
-            if sp.name in ["backfill", "list-runs", "pause", "unpause", "test"]
+            if isinstance(sp, ActionCommand)
+            and sp.name in ["backfill", "list-runs", "pause", "unpause", "test"]
         ],
     ),
     GroupCommand(

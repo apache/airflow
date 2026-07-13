@@ -1739,6 +1739,27 @@ export const ensureUseDagVersionServiceGetDagVersionData = (queryClient: QueryCl
   versionNumber: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }), queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) });
 /**
+* Get Dag Version Diff
+* Compare two currently stored Dag versions.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber
+* @param data.targetVersionNumber
+* @param data.includeValues
+* @param data.includeSource
+* @param data.maxChanges
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagVersionServiceGetDagVersionDiffData = (queryClient: QueryClient, { baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  includeSource?: boolean;
+  includeValues?: boolean;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagVersionServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }), queryFn: () => DagVersionService.getDagVersionDiff({ baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }) });
+/**
 * Get Dag Versions
 * Get all Dag Versions.
 *

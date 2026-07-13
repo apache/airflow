@@ -4506,6 +4506,235 @@ export const $DagTagResponse = {
     description: 'Dag Tag serializer for responses.'
 } as const;
 
+export const $DagVersionDiffChange = {
+    properties: {
+        path: {
+            type: 'string',
+            title: 'Path'
+        },
+        operation: {
+            type: 'string',
+            enum: ['added', 'removed', 'changed'],
+            title: 'Operation'
+        },
+        category: {
+            type: 'string',
+            enum: ['task', 'dependency', 'schedule', 'param', 'asset', 'callback', 'deadline', 'metadata', 'provenance', 'unknown'],
+            title: 'Category'
+        },
+        impact: {
+            type: 'string',
+            enum: ['execution', 'metadata', 'provenance', 'unknown'],
+            title: 'Impact'
+        },
+        before_digest: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Before Digest'
+        },
+        after_digest: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'After Digest'
+        },
+        before_value: {
+            anyOf: [
+                {},
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Before Value'
+        },
+        after_value: {
+            anyOf: [
+                {},
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'After Value'
+        }
+    },
+    type: 'object',
+    required: ['path', 'operation', 'category', 'impact'],
+    title: 'DagVersionDiffChange',
+    description: 'One observed-state change between two serialized Dag versions.'
+} as const;
+
+export const $DagVersionDiffResponse = {
+    properties: {
+        diff_schema_version: {
+            type: 'integer',
+            title: 'Diff Schema Version'
+        },
+        serialized_dag_schema_versions: {
+            additionalProperties: {
+                anyOf: [
+                    {
+                        type: 'integer'
+                    },
+                    {
+                        type: 'null'
+                    }
+                ]
+            },
+            type: 'object',
+            title: 'Serialized Dag Schema Versions'
+        },
+        mode: {
+            type: 'string',
+            enum: ['observed_state', 'unavailable'],
+            title: 'Mode'
+        },
+        changes: {
+            items: {
+                '$ref': '#/components/schemas/DagVersionDiffChange'
+            },
+            type: 'array',
+            title: 'Changes'
+        },
+        source: {
+            '$ref': '#/components/schemas/DagVersionDiffSource'
+        },
+        values: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagVersionDiffValues'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        truncated: {
+            type: 'boolean',
+            title: 'Truncated'
+        },
+        unavailable_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Unavailable Reason'
+        }
+    },
+    type: 'object',
+    required: ['diff_schema_version', 'serialized_dag_schema_versions', 'mode', 'changes', 'source', 'truncated'],
+    title: 'DagVersionDiffResponse',
+    description: 'Observed-state diff response for two Dag versions.'
+} as const;
+
+export const $DagVersionDiffSource = {
+    properties: {
+        status: {
+            type: 'string',
+            enum: ['current_stored_code', 'redacted', 'unavailable'],
+            title: 'Status'
+        },
+        fidelity: {
+            type: 'string',
+            enum: ['current_stored_code', 'redacted', 'unavailable'],
+            title: 'Fidelity'
+        },
+        changed: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Changed'
+        },
+        base: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagVersionDiffSourceSide'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        target: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagVersionDiffSourceSide'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['status', 'fidelity'],
+    title: 'DagVersionDiffSource',
+    description: 'Source comparison metadata.'
+} as const;
+
+export const $DagVersionDiffSourceSide = {
+    properties: {
+        digest: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Digest'
+        },
+        content: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Content'
+        }
+    },
+    type: 'object',
+    title: 'DagVersionDiffSourceSide',
+    description: 'Source metadata for one side of a Dag version comparison.'
+} as const;
+
+export const $DagVersionDiffValues = {
+    properties: {
+        status: {
+            type: 'string',
+            enum: ['available', 'unavailable'],
+            title: 'Status'
+        }
+    },
+    type: 'object',
+    required: ['status'],
+    title: 'DagVersionDiffValues',
+    description: 'Visibility metadata for raw serialized Dag values.'
+} as const;
+
 export const $DagVersionResponse = {
     properties: {
         id: {

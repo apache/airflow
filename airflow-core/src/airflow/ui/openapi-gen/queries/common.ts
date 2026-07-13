@@ -859,6 +859,17 @@ export const UseDagVersionServiceGetDagVersionKeyFn = ({ dagId, versionNumber }:
   dagId: string;
   versionNumber: number;
 }, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionKey, ...(queryKey ?? [{ dagId, versionNumber }])];
+export type DagVersionServiceGetDagVersionDiffDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersionDiff>>;
+export type DagVersionServiceGetDagVersionDiffQueryResult<TData = DagVersionServiceGetDagVersionDiffDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagVersionServiceGetDagVersionDiffKey = "DagVersionServiceGetDagVersionDiff";
+export const UseDagVersionServiceGetDagVersionDiffKeyFn = ({ baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  includeSource?: boolean;
+  includeValues?: boolean;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionDiffKey, ...(queryKey ?? [{ baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }])];
 export type DagVersionServiceGetDagVersionsDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersions>>;
 export type DagVersionServiceGetDagVersionsQueryResult<TData = DagVersionServiceGetDagVersionsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagVersionServiceGetDagVersionsKey = "DagVersionServiceGetDagVersions";

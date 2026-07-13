@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import AliasPath, Field
@@ -44,3 +45,63 @@ class DAGVersionCollectionResponse(BaseModel):
 
     dag_versions: Iterable[DagVersionResponse]
     total_entries: int
+
+
+class DagVersionDiffChange(BaseModel):
+    """One observed-state change between two serialized Dag versions."""
+
+    path: str
+    operation: Literal["added", "removed", "changed"]
+    category: Literal[
+        "task",
+        "dependency",
+        "schedule",
+        "param",
+        "asset",
+        "callback",
+        "deadline",
+        "metadata",
+        "provenance",
+        "unknown",
+    ]
+    impact: Literal["execution", "metadata", "provenance", "unknown"]
+    before_digest: str | None = None
+    after_digest: str | None = None
+    before_value: Any | None = None
+    after_value: Any | None = None
+
+
+class DagVersionDiffSourceSide(BaseModel):
+    """Source metadata for one side of a Dag version comparison."""
+
+    digest: str | None = None
+    content: str | None = None
+
+
+class DagVersionDiffSource(BaseModel):
+    """Source comparison metadata."""
+
+    status: Literal["current_stored_code", "redacted", "unavailable"]
+    fidelity: Literal["current_stored_code", "redacted", "unavailable"]
+    changed: bool | None = None
+    base: DagVersionDiffSourceSide | None = None
+    target: DagVersionDiffSourceSide | None = None
+
+
+class DagVersionDiffValues(BaseModel):
+    """Visibility metadata for raw serialized Dag values."""
+
+    status: Literal["available", "unavailable"]
+
+
+class DagVersionDiffResponse(BaseModel):
+    """Observed-state diff response for two Dag versions."""
+
+    diff_schema_version: int
+    serialized_dag_schema_versions: dict[str, int | None]
+    mode: Literal["observed_state", "unavailable"]
+    changes: list[DagVersionDiffChange]
+    source: DagVersionDiffSource
+    values: DagVersionDiffValues | None = None
+    truncated: bool
+    unavailable_reason: str | None = None

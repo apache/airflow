@@ -55,6 +55,34 @@ cli_args = {k: v for k, v in cli_parser.__dict__.items() if k.startswith("ARG_")
 
 
 class TestCli:
+    def test_dag_version_diff_parser(self):
+        args = cli_parser.get_parser().parse_args(
+            [
+                "dags",
+                "versions",
+                "diff",
+                "example",
+                "--from-version",
+                "12",
+                "--to-version",
+                "13",
+                "--include-values",
+                "--include-source",
+                "--max-changes",
+                "25",
+                "--output",
+                "json",
+            ]
+        )
+
+        assert args.dag_id == "example"
+        assert args.from_version == 12
+        assert args.to_version == 13
+        assert args.include_values is True
+        assert args.include_source is True
+        assert args.max_changes == 25
+        assert args.output == "json"
+
     def test_arg_option_long_only(self):
         """
         Test if the name of cli.args long option valid

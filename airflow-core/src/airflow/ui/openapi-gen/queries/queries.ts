@@ -1739,6 +1739,27 @@ export const useDagVersionServiceGetDagVersion = <TData = Common.DagVersionServi
   versionNumber: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) as TData, ...options });
 /**
+* Get Dag Version Diff
+* Compare two currently stored Dag versions.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber
+* @param data.targetVersionNumber
+* @param data.includeValues
+* @param data.includeSource
+* @param data.maxChanges
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const useDagVersionServiceGetDagVersionDiff = <TData = Common.DagVersionServiceGetDagVersionDiffDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  includeSource?: boolean;
+  includeValues?: boolean;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersionDiff({ baseVersionNumber, dagId, includeSource, includeValues, maxChanges, targetVersionNumber }) as TData, ...options });
+/**
 * Get Dag Versions
 * Get all Dag Versions.
 *

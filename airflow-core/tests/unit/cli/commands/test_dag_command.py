@@ -30,6 +30,8 @@ import pendulum
 import pytest
 import time_machine
 from sqlalchemy import func, select
+from sqlalchemy.engine import ScalarResult
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -78,6 +80,264 @@ pytestmark = pytest.mark.db_test
 jan_1 = DEFAULT_DATE
 jan_6 = DEFAULT_DATE + timedelta(days=5)
 dec_27 = DEFAULT_DATE + timedelta(days=-5)
+
+
+class TestDagVersionDiffCommand:
+    @pytest.fixture
+    def parser(self):
+        return cli_parser.get_parser()
+
+    @mock.patch("airflow.cli.commands.dag_command._print_dag_version_diff", autospec=True)
+    @mock.patch("airflow.cli.commands.dag_command.get_dag_version_diff", autospec=True)
+    def test_explicit_versions(self, mock_get_dag_version_diff, mock_print, parser):
+        result = {"mode": "observed_state"}
+        mock_get_dag_version_diff.return_value = result
+        session = MagicMock(spec=Session)
+        args = parser.parse_args(
+            [
+                "dags",
+                "versions",
+                "diff",
+                "example",
+                "--from-version",
+                "2",
+                "--to-version",
+                "4",
+                "--include-values",
+                "--include-source",
+                "--max-changes",
+                "25",
+                "--output",
+                "json",
+            ]
+        )
+
+        dag_command.dag_version_diff(args, session=session)
+
+        mock_get_dag_version_diff.assert_called_once_with(
+            "example",
+            2,
+            4,
+            include_values=True,
+            include_source=True,
+            max_changes=25,
+            session=session,
+        )
+        mock_print.assert_called_once_with(
+            result,
+            dag_id="example",
+            base_version_number=2,
+            target_version_number=4,
+            output="json",
+        )
+
+    @mock.patch("airflow.cli.commands.dag_command._print_dag_version_diff", autospec=True)
+    @mock.patch("airflow.cli.commands.dag_command.get_dag_version_diff", autospec=True)
+    def test_previous_to_latest(self, mock_get_dag_version_diff, mock_print, parser):
+        result = {"mode": "observed_state"}
+        mock_get_dag_version_diff.return_value = result
+        scalar_result = MagicMock(spec=ScalarResult)
+        scalar_result.all.return_value = [5, 3]
+        session = MagicMock(spec=Session)
+        session.scalars.return_value = scalar_result
+        args = parser.parse_args(["dags", "versions", "diff", "example", "--previous-to-latest"])
+
+        dag_command.dag_version_diff(args, session=session)
+
+        mock_get_dag_version_diff.assert_called_once_with(
+            "example",
+            3,
+            5,
+            include_values=False,
+            include_source=False,
+            max_changes=500,
+            session=session,
+        )
+        mock_print.assert_called_once_with(
+            result,
+            dag_id="example",
+            base_version_number=3,
+            target_version_number=5,
+            output="table",
+        )
+
+    @pytest.mark.parametrize(
+        ("options", "message"),
+        [
+            (["--from-version", "1"], "Provide both --from-version and --to-version"),
+            (
+                ["--previous-to-latest", "--from-version", "1", "--to-version", "2"],
+                "--previous-to-latest cannot be combined",
+            ),
+        ],
+    )
+    def test_rejects_invalid_version_options(self, parser, options, message):
+        session = MagicMock(spec=Session)
+        args = parser.parse_args(["dags", "versions", "diff", "example", *options])
+
+        with pytest.raises(SystemExit, match=message):
+            dag_command.dag_version_diff(args, session=session)
+
+    def test_previous_to_latest_requires_two_versions(self, parser):
+        scalar_result = MagicMock(spec=ScalarResult)
+        scalar_result.all.return_value = [1]
+        session = MagicMock(spec=Session)
+        session.scalars.return_value = scalar_result
+        args = parser.parse_args(["dags", "versions", "diff", "example", "--previous-to-latest"])
+
+        with pytest.raises(SystemExit, match="must have at least two versions"):
+            dag_command.dag_version_diff(args, session=session)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            dag_command.DagVersionNotFoundError("missing version"),
+            ValueError("invalid maximum"),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.dag_command.get_dag_version_diff", autospec=True)
+    def test_translates_service_errors(self, mock_get_dag_version_diff, parser, error):
+        mock_get_dag_version_diff.side_effect = error
+        session = MagicMock(spec=Session)
+        args = parser.parse_args(
+            [
+                "dags",
+                "versions",
+                "diff",
+                "example",
+                "--from-version",
+                "1",
+                "--to-version",
+                "2",
+            ]
+        )
+
+        with pytest.raises(SystemExit, match=str(error)):
+            dag_command.dag_version_diff(args, session=session)
+
+    @pytest.mark.parametrize("output", ["table", "plain"])
+    def test_human_output_includes_values_and_truncation(self, stdout_capture, output):
+        result = {
+            "mode": "observed_state",
+            "changes": [
+                {
+                    "path": "/dag/value",
+                    "operation": "changed",
+                    "category": "unknown",
+                    "impact": "unknown",
+                    "before_value": 1,
+                    "after_value": None,
+                },
+                {
+                    "path": "/dag/added",
+                    "operation": "added",
+                    "category": "unknown",
+                    "impact": "unknown",
+                    "after_value": "new",
+                },
+            ],
+            "source": {"status": "unavailable", "fidelity": "unavailable"},
+            "values": {"status": "available"},
+            "truncated": True,
+        }
+
+        with stdout_capture as stdout:
+            dag_command._print_dag_version_diff(
+                result,
+                dag_id="example",
+                base_version_number=1,
+                target_version_number=2,
+                output=output,
+            )
+
+        rendered = stdout.getvalue()
+        assert "before_value" in rendered
+        assert "after_value" in rendered
+        assert "null" in rendered
+        assert "<missing>" in rendered
+        assert "new" in rendered
+        assert "Changes truncated" in rendered
+
+    def test_human_output_reports_unavailable_reason(self, stdout_capture):
+        result = {
+            "mode": "unavailable",
+            "changes": [],
+            "source": {"status": "unavailable", "fidelity": "unavailable"},
+            "truncated": False,
+            "unavailable_reason": "serialized_dag_missing",
+        }
+
+        with stdout_capture as stdout:
+            dag_command._print_dag_version_diff(
+                result,
+                dag_id="example",
+                base_version_number=1,
+                target_version_number=2,
+                output="plain",
+            )
+
+        rendered = stdout.getvalue()
+        assert "No changes" in rendered
+        assert "Source: unavailable" in rendered
+        assert "Unavailable reason: serialized_dag_missing" in rendered
+
+    def test_human_output_without_values_includes_source(self, stdout_capture):
+        result = {
+            "mode": "observed_state",
+            "changes": [
+                {
+                    "path": "/dag/value",
+                    "operation": "changed",
+                    "category": "unknown",
+                    "impact": "unknown",
+                }
+            ],
+            "source": {
+                "status": "current_stored_code",
+                "fidelity": "current_stored_code",
+                "base": {"content": "base source"},
+                "target": {"content": "target source"},
+            },
+            "truncated": False,
+        }
+
+        with stdout_capture as stdout:
+            dag_command._print_dag_version_diff(
+                result,
+                dag_id="example",
+                base_version_number=1,
+                target_version_number=2,
+                output="plain",
+            )
+
+        rendered = stdout.getvalue()
+        assert "before_value" not in rendered
+        assert "after_value" not in rendered
+        assert "Base source:\nbase source" in rendered
+        assert "Target source:\ntarget source" in rendered
+
+    @pytest.mark.parametrize(
+        ("output", "renderer_name"),
+        [("json", "print_as_json"), ("yaml", "print_as_yaml")],
+    )
+    @mock.patch("airflow.cli.commands.dag_command.AirflowConsole", autospec=True)
+    def test_structured_output(self, mock_console, output, renderer_name):
+        result = {
+            "mode": "observed_state",
+            "changes": [],
+            "source": {"status": "unavailable", "fidelity": "unavailable"},
+            "truncated": False,
+        }
+
+        dag_command._print_dag_version_diff(
+            result,
+            dag_id="example",
+            base_version_number=1,
+            target_version_number=2,
+            output=output,
+        )
+
+        getattr(mock_console.return_value, renderer_name).assert_called_once_with(result)
 
 
 class TestCliDags:

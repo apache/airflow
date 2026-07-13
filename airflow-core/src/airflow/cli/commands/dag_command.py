@@ -28,7 +28,7 @@ import operator
 import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import func, select
 
@@ -43,6 +43,8 @@ from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.dag_version_diff import DagVersionNotFoundError, get_dag_version_diff
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import clear_task_instances
@@ -78,6 +80,113 @@ log = logging.getLogger(__name__)
 
 # Chunk size for bulk delete.
 _RUN_CHUNK_SIZE = 500
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def dag_version_diff(args, *, session: Session = NEW_SESSION) -> None:
+    """Compare the currently stored state of two Dag versions."""
+    if args.previous_to_latest:
+        if args.from_version is not None or args.to_version is not None:
+            raise SystemExit("--previous-to-latest cannot be combined with --from-version or --to-version.")
+        version_numbers = session.scalars(
+            select(DagVersion.version_number)
+            .where(DagVersion.dag_id == args.dag_id)
+            .order_by(DagVersion.version_number.desc())
+            .limit(2)
+        ).all()
+        if len(version_numbers) < 2:
+            raise SystemExit(f"Dag {args.dag_id!r} must have at least two versions for --previous-to-latest.")
+        base_version_number, target_version_number = version_numbers[1], version_numbers[0]
+    elif args.from_version is None or args.to_version is None:
+        raise SystemExit("Provide both --from-version and --to-version, or use --previous-to-latest.")
+    else:
+        base_version_number, target_version_number = args.from_version, args.to_version
+
+    try:
+        result = get_dag_version_diff(
+            args.dag_id,
+            base_version_number,
+            target_version_number,
+            include_values=args.include_values,
+            include_source=args.include_source,
+            max_changes=args.max_changes,
+            session=session,
+        )
+    except DagVersionNotFoundError as error:
+        raise SystemExit(str(error)) from error
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+
+    _print_dag_version_diff(
+        result,
+        dag_id=args.dag_id,
+        base_version_number=base_version_number,
+        target_version_number=target_version_number,
+        output=args.output,
+    )
+
+
+def _print_dag_version_diff(
+    result: dict[str, Any],
+    *,
+    dag_id: str,
+    base_version_number: int,
+    target_version_number: int,
+    output: str,
+) -> None:
+    """Render a Dag version diff in the requested CLI format."""
+    console = AirflowConsole()
+    if output == "json":
+        console.print_as_json(result)
+        return
+    if output == "yaml":
+        console.print_as_yaml(result)
+        return
+
+    print(f"Dag: {dag_id}")
+    print(f"Versions: {base_version_number} -> {target_version_number}")
+    print(f"Mode: {result['mode']}")
+    print()
+    print("Changes")
+    include_values = result.get("values", {}).get("status") == "available"
+    changes = []
+    for change in result["changes"]:
+        rendered_change = {
+            "path": change["path"],
+            "operation": change["operation"],
+            "category": change["category"],
+            "impact": change["impact"],
+        }
+        if include_values:
+            rendered_change["before_value"] = _format_dag_version_diff_value(change, "before_value")
+            rendered_change["after_value"] = _format_dag_version_diff_value(change, "after_value")
+        changes.append(rendered_change)
+    if changes:
+        console.print_as(data=changes, output=output)
+    else:
+        print("No changes")
+    if result.get("truncated"):
+        print("\nChanges truncated at the configured maximum.")
+
+    source = result["source"]
+    print(f"\nSource: {source['status']}")
+    if source.get("status") == "current_stored_code":
+        for label, key in (("Base", "base"), ("Target", "target")):
+            content = source.get(key, {}).get("content")
+            if content is not None:
+                print(f"\n{label} source:\n{content}")
+    if result.get("unavailable_reason"):
+        print(f"Unavailable reason: {result['unavailable_reason']}")
+
+
+def _format_dag_version_diff_value(change: dict[str, Any], key: str) -> Any:
+    if key not in change:
+        return "<missing>"
+    if change[key] is None:
+        return "null"
+    return change[key]
 
 
 @deprecated_for_airflowctl("airflowctl dags trigger")

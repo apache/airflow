@@ -1197,6 +1197,76 @@ export type DagTagResponse = {
 };
 
 /**
+ * One observed-state change between two serialized Dag versions.
+ */
+export type DagVersionDiffChange = {
+    path: string;
+    operation: 'added' | 'removed' | 'changed';
+    category: 'task' | 'dependency' | 'schedule' | 'param' | 'asset' | 'callback' | 'deadline' | 'metadata' | 'provenance' | 'unknown';
+    impact: 'execution' | 'metadata' | 'provenance' | 'unknown';
+    before_digest?: string | null;
+    after_digest?: string | null;
+    before_value?: unknown | null;
+    after_value?: unknown | null;
+};
+
+export type operation = 'added' | 'removed' | 'changed';
+
+export type category = 'task' | 'dependency' | 'schedule' | 'param' | 'asset' | 'callback' | 'deadline' | 'metadata' | 'provenance' | 'unknown';
+
+export type impact = 'execution' | 'metadata' | 'provenance' | 'unknown';
+
+/**
+ * Observed-state diff response for two Dag versions.
+ */
+export type DagVersionDiffResponse = {
+    diff_schema_version: number;
+    serialized_dag_schema_versions: {
+        [key: string]: (number | null);
+    };
+    mode: 'observed_state' | 'unavailable';
+    changes: Array<DagVersionDiffChange>;
+    source: DagVersionDiffSource;
+    values?: DagVersionDiffValues | null;
+    truncated: boolean;
+    unavailable_reason?: string | null;
+};
+
+export type mode = 'observed_state' | 'unavailable';
+
+/**
+ * Source comparison metadata.
+ */
+export type DagVersionDiffSource = {
+    status: 'current_stored_code' | 'redacted' | 'unavailable';
+    fidelity: 'current_stored_code' | 'redacted' | 'unavailable';
+    changed?: boolean | null;
+    base?: DagVersionDiffSourceSide | null;
+    target?: DagVersionDiffSourceSide | null;
+};
+
+export type status = 'current_stored_code' | 'redacted' | 'unavailable';
+
+export type fidelity = 'current_stored_code' | 'redacted' | 'unavailable';
+
+/**
+ * Source metadata for one side of a Dag version comparison.
+ */
+export type DagVersionDiffSourceSide = {
+    digest?: string | null;
+    content?: string | null;
+};
+
+/**
+ * Visibility metadata for raw serialized Dag values.
+ */
+export type DagVersionDiffValues = {
+    status: 'available' | 'unavailable';
+};
+
+export type status2 = 'available' | 'unavailable';
+
+/**
  * Dag Version serializer for responses.
  */
 export type DagVersionResponse = {
@@ -2790,7 +2860,7 @@ export type UIAlert = {
     category: 'info' | 'warning' | 'error';
 };
 
-export type category = 'info' | 'warning' | 'error';
+export type category2 = 'info' | 'warning' | 'error';
 
 export type GetAssetsData = {
     dagIds?: Array<(string)>;
@@ -4524,6 +4594,17 @@ export type GetDagVersionData = {
 };
 
 export type GetDagVersionResponse = DagVersionResponse;
+
+export type GetDagVersionDiffData = {
+    baseVersionNumber: number;
+    dagId: string;
+    includeSource?: boolean;
+    includeValues?: boolean;
+    maxChanges?: number;
+    targetVersionNumber: number;
+};
+
+export type GetDagVersionDiffResponse = DagVersionDiffResponse;
 
 export type GetDagVersionsData = {
     bundleName?: string;
@@ -8218,6 +8299,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DagVersionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}': {
+        get: {
+            req: GetDagVersionDiffData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagVersionDiffResponse;
                 /**
                  * Unauthorized
                  */

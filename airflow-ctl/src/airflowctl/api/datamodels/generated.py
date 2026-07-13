@@ -622,6 +622,86 @@ class DagTagResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
+class Operation(str, Enum):
+    ADDED = "added"
+    REMOVED = "removed"
+    CHANGED = "changed"
+
+
+class Category(str, Enum):
+    TASK = "task"
+    DEPENDENCY = "dependency"
+    SCHEDULE = "schedule"
+    PARAM = "param"
+    ASSET = "asset"
+    CALLBACK = "callback"
+    DEADLINE = "deadline"
+    METADATA = "metadata"
+    PROVENANCE = "provenance"
+    UNKNOWN = "unknown"
+
+
+class Impact(str, Enum):
+    EXECUTION = "execution"
+    METADATA = "metadata"
+    PROVENANCE = "provenance"
+    UNKNOWN = "unknown"
+
+
+class DagVersionDiffChange(BaseModel):
+    """
+    One observed-state change between two serialized Dag versions.
+    """
+
+    path: Annotated[str, Field(title="Path")]
+    operation: Annotated[Operation, Field(title="Operation")]
+    category: Annotated[Category, Field(title="Category")]
+    impact: Annotated[Impact, Field(title="Impact")]
+    before_digest: Annotated[str | None, Field(title="Before Digest")] = None
+    after_digest: Annotated[str | None, Field(title="After Digest")] = None
+    before_value: Annotated[Any, Field(title="Before Value")] = None
+    after_value: Annotated[Any, Field(title="After Value")] = None
+
+
+class Mode(str, Enum):
+    OBSERVED_STATE = "observed_state"
+    UNAVAILABLE = "unavailable"
+
+
+class Status(str, Enum):
+    CURRENT_STORED_CODE = "current_stored_code"
+    REDACTED = "redacted"
+    UNAVAILABLE = "unavailable"
+
+
+class Fidelity(str, Enum):
+    CURRENT_STORED_CODE = "current_stored_code"
+    REDACTED = "redacted"
+    UNAVAILABLE = "unavailable"
+
+
+class DagVersionDiffSourceSide(BaseModel):
+    """
+    Source metadata for one side of a Dag version comparison.
+    """
+
+    digest: Annotated[str | None, Field(title="Digest")] = None
+    content: Annotated[str | None, Field(title="Content")] = None
+
+
+class Status1(str, Enum):
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+
+
+class DagVersionDiffValues(BaseModel):
+    """
+    Visibility metadata for raw serialized Dag values.
+    """
+
+    status: Annotated[Status1, Field(title="Status")]
+
+
 class DagVersionResponse(BaseModel):
     """
     Dag Version serializer for responses.
@@ -1907,6 +1987,18 @@ class DagStatsResponse(BaseModel):
     stats: Annotated[list[DagStatsStateResponse], Field(title="Stats")]
 
 
+class DagVersionDiffSource(BaseModel):
+    """
+    Source comparison metadata.
+    """
+
+    status: Annotated[Status, Field(title="Status")]
+    fidelity: Annotated[Fidelity, Field(title="Fidelity")]
+    changed: Annotated[bool | None, Field(title="Changed")] = None
+    base: DagVersionDiffSourceSide | None = None
+    target: DagVersionDiffSourceSide | None = None
+
+
 class DryRunBackfillCollectionResponse(BaseModel):
     """
     Backfill collection serializer for responses in dry-run mode.
@@ -2373,6 +2465,23 @@ class DagStatsCollectionResponse(BaseModel):
 
     dags: Annotated[list[DagStatsResponse], Field(title="Dags")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class DagVersionDiffResponse(BaseModel):
+    """
+    Observed-state diff response for two Dag versions.
+    """
+
+    diff_schema_version: Annotated[int, Field(title="Diff Schema Version")]
+    serialized_dag_schema_versions: Annotated[
+        dict[str, int | None], Field(title="Serialized Dag Schema Versions")
+    ]
+    mode: Annotated[Mode, Field(title="Mode")]
+    changes: Annotated[list[DagVersionDiffChange], Field(title="Changes")]
+    source: DagVersionDiffSource
+    values: DagVersionDiffValues | None = None
+    truncated: Annotated[bool, Field(title="Truncated")]
+    unavailable_reason: Annotated[str | None, Field(title="Unavailable Reason")] = None
 
 
 class HITLDetail(BaseModel):

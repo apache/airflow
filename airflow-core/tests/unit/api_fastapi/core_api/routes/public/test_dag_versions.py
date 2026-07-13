@@ -19,7 +19,11 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from sqlalchemy import event, select, update
 
+from airflow import settings
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -207,6 +211,269 @@ class TestGetDagVersion(TestDagVersionEndpoint):
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags/dag_with_multiple_versions/dagVersions/99", params={})
+        assert response.status_code == 403
+
+
+class TestGetDagVersionDiff(TestDagVersionEndpoint):
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_get_dag_version_diff(self, test_client):
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"include_values": True},
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["diff_schema_version"] == 1
+        assert response_data["serialized_dag_schema_versions"] == {"base": 3, "target": 3}
+        assert response_data["mode"] == "observed_state"
+        assert response_data["truncated"] is False
+        assert response_data["values"] == {"status": "available"}
+        assert response_data["source"] == {"status": "unavailable", "fidelity": "unavailable"}
+        assert any(
+            change["path"] == "/dag/tasks/task2"
+            and change["operation"] == "added"
+            and change["category"] == "task"
+            for change in response_data["changes"]
+        )
+        assert any("after_value" in change for change in response_data["changes"])
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager", autospec=True)
+    def test_get_dag_version_diff_redacts_values_without_code_access(
+        self, mock_get_auth_manager, test_client
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"include_values": True},
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["values"] == {"status": "unavailable"}
+        assert all(
+            "before_value" not in change and "after_value" not in change
+            for change in response_data["changes"]
+        )
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dag_versions.build_dag_version_diff", autospec=True
+    )
+    def test_get_dag_version_diff_preserves_explicit_null_values(
+        self, mock_build_dag_version_diff, test_client
+    ):
+        mock_build_dag_version_diff.return_value = {
+            "diff_schema_version": 1,
+            "serialized_dag_schema_versions": {"base": 3, "target": 3},
+            "mode": "observed_state",
+            "changes": [
+                {
+                    "path": "/dag/value",
+                    "operation": "added",
+                    "category": "unknown",
+                    "impact": "unknown",
+                    "before_digest": None,
+                    "after_digest": "sha256:null",
+                    "after_value": None,
+                }
+            ],
+            "source": {"status": "unavailable", "fidelity": "unavailable"},
+            "values": {"status": "available"},
+            "truncated": False,
+        }
+
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"include_values": True},
+        )
+
+        assert response.status_code == 200
+        change = response.json()["changes"][0]
+        assert "before_value" not in change
+        assert "after_value" in change
+        assert change["after_value"] is None
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_get_dag_version_diff_truncates(self, test_client):
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"max_changes": 1},
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["truncated"] is True
+        assert "values" not in response_data
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_get_dag_version_diff_marks_values_unavailable_when_diff_is_unavailable(
+        self, test_client, session
+    ):
+        serialized_dag = session.scalar(
+            select(SerializedDagModel)
+            .join(DagVersion)
+            .where(
+                DagVersion.dag_id == "dag_with_multiple_versions",
+                DagVersion.version_number == 1,
+            )
+        )
+        assert serialized_dag is not None
+        serialized_data = serialized_dag.data
+        assert serialized_data is not None
+        session.execute(
+            update(SerializedDagModel)
+            .where(SerializedDagModel.id == serialized_dag.id)
+            .values(
+                {
+                    SerializedDagModel._data: {**serialized_data, "__version": 99},
+                    SerializedDagModel._data_compressed: None,
+                }
+            )
+        )
+        session.commit()
+        session.expunge_all()
+
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"include_values": True},
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["mode"] == "unavailable"
+        assert response_data["values"] == {"status": "unavailable"}
+
+    def test_get_dag_version_diff_rejects_excessive_change_limit(self, test_client):
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"max_changes": 5001},
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_get_dag_version_diff_includes_current_source(self, test_client):
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"include_source": True},
+        )
+
+        assert response.status_code == 200
+        source = response.json()["source"]
+        assert source["status"] == "current_stored_code"
+        assert source["fidelity"] == "current_stored_code"
+        assert source["changed"] is False
+        assert source["base"]["content"]
+        assert source["base"]["content"] == source["target"]["content"]
+        assert source["base"]["digest"].startswith("sha256:")
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager", autospec=True)
+    def test_get_dag_version_diff_redacts_unreadable_colocated_source(
+        self, mock_get_auth_manager, test_client
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = set()
+
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"include_source": True},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["source"] == {"status": "redacted", "fidelity": "redacted"}
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager", autospec=True)
+    def test_get_dag_version_diff_redacts_source_without_code_access(
+        self, mock_get_auth_manager, test_client
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+        executed_statements = []
+
+        def capture_statement(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(settings.engine, "before_cursor_execute", capture_statement)
+        try:
+            response = test_client.get(
+                "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+                params={"include_source": True},
+            )
+        finally:
+            event.remove(settings.engine, "before_cursor_execute", capture_statement)
+
+        assert response.status_code == 200
+        assert response.json()["source"] == {"status": "redacted", "fidelity": "redacted"}
+        assert all("DAG_CODE" not in statement for statement in executed_statements)
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dag_versions._get_bundle_team_names",
+        autospec=True,
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager", autospec=True)
+    def test_get_dag_version_diff_authorizes_raw_data_against_historical_bundle(
+        self,
+        mock_get_auth_manager,
+        mock_get_bundle_team_names,
+        test_client,
+        session,
+    ):
+        base_version = session.scalar(
+            select(DagVersion).where(
+                DagVersion.dag_id == "dag_with_multiple_versions",
+                DagVersion.version_number == 1,
+            )
+        )
+        base_version.bundle_name = "another_bundle_name"
+        session.commit()
+        mock_get_bundle_team_names.return_value = {
+            "another_bundle_name": "old-team",
+            "dag_maker": "new-team",
+        }
+        auth_manager = mock_get_auth_manager.return_value
+        auth_manager.is_authorized_dag.side_effect = lambda **kwargs: (
+            kwargs["details"].team_name == "new-team"
+        )
+
+        response = test_client.get(
+            "/dags/dag_with_multiple_versions/dagVersions/1/diff/3",
+            params={"include_values": True, "include_source": True},
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["values"] == {"status": "unavailable"}
+        assert response_data["source"] == {"status": "redacted", "fidelity": "redacted"}
+        assert all(
+            "before_value" not in change and "after_value" not in change
+            for change in response_data["changes"]
+        )
+        assert [
+            call.kwargs["details"].team_name for call in auth_manager.is_authorized_dag.call_args_list
+        ] == ["old-team"]
+
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_get_dag_version_diff_404(self, test_client):
+        response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/1/diff/99")
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": "The DagVersion with dag_id: `dag_with_multiple_versions` and version_number: `99` was not found",
+        }
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags/dag_with_multiple_versions/dagVersions/1/diff/2")
+
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags/dag_with_multiple_versions/dagVersions/1/diff/2")
+
         assert response.status_code == 403
 
 
