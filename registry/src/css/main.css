@@ -3252,6 +3252,19 @@ main {
   margin-bottom: var(--space-1);
 }
 
+.provider-detail-page .modules .module .content h3 .durable-badge {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: var(--space-2);
+  padding: 0.1rem var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-teal-500) 15%, transparent);
+  color: var(--color-teal-400);
+}
+
 .provider-detail-page .modules .module .content p {
   font-size: var(--text-sm);
   color: var(--text-secondary);
