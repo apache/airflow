@@ -726,13 +726,17 @@ this in the ``[api]`` section:
     dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = no TTL)
 
 ``dag_cache_size`` is the only hard ceiling on memory. An entry's TTL is refreshed only when the entry is
-checked against the database after ``[core] min_serialized_dag_update_interval``, not on every request.
-With a shorter TTL, even frequently requested entries can expire and reload between checks. Setting both
+checked against the database: on every lookup by Dag ID, or after
+``[core] min_serialized_dag_update_interval`` for version-specific lookups.
+With a shorter TTL, even frequently requested versions can expire and reload between checks. Setting both
 options to 0 disables eviction, so the API server retains every deserialized Dag it loads until restart,
 matching the behavior before 3.2.2.
 
-The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
-previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
+The cache is keyed by Dag version ID. Lookups by Dag ID always check the latest serialized row,
+reusing the cached deserialized Dag when its version ID and hash are unchanged. Version-specific
+lookups are periodically checked against the database according to
+``[core] min_serialized_dag_update_interval``. The ``dag_cache_ttl`` setting controls eviction and
+memory usage independently of these freshness checks.
 
 See :ref:`config:api__dag_cache_size` and :ref:`config:api__dag_cache_ttl` for the full configuration
 reference. The scheduler has the same pair of options under ``[scheduler]`` (see :ref:`faq:scheduler-memory-growth`).
@@ -798,7 +802,7 @@ Neither option affects how quickly the scheduler picks up a Dag change. A Dag up
 version is seen immediately, because the new version is a different cache key. A version rewritten in place
 is re-checked against its current hash once :ref:`config:core__min_serialized_dag_update_interval` has elapsed since the entry was last validated,
 so that option, not ``dag_cache_ttl``, bounds how long a rewritten version can be served stale.
-The same applies to the API server.
+The same applies to version-specific lookups in the API server.
 
 See :ref:`config:scheduler__dag_cache_size` and :ref:`config:scheduler__dag_cache_ttl` for the full configuration reference.
 
