@@ -165,9 +165,7 @@ export const getGatePathEdgeIdsForSelection = (
   edges: Array<SelectionGraphEdge>,
   isNodeSelected: (nodeId: string) => boolean,
 ): Set<string> => {
-  const gateNodeIds = new Set(
-    nodes.filter((node) => node.type === "asset-condition").map((node) => node.id),
-  );
+  const gateNodeIds = new Set(nodes.filter((node) => node.type === "asset-condition").map((node) => node.id));
 
   if (gateNodeIds.size === 0) {
     return new Set();
