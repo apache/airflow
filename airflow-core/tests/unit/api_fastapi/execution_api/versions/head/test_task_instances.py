@@ -351,6 +351,66 @@ class TestTIRunState:
         session.refresh(ti)
         assert ti.state == State.QUEUED
 
+    def test_ti_run_accepts_matching_external_executor_id(self, client, session, create_task_instance):
+        """A worker presenting the launch token currently assigned to the TI can start it."""
+        ti = create_task_instance(
+            task_id="test_ti_run_accepts_matching_external_executor_id",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        ti.external_executor_id = "current-launch-token"
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+                "external_executor_id": "current-launch-token",
+            },
+        )
+
+        assert response.status_code == 200
+        session.refresh(ti)
+        assert ti.state == State.RUNNING
+        # The launch token is preserved; matching it must not clear or overwrite the field.
+        assert ti.external_executor_id == "current-launch-token"
+
+    def test_ti_run_allows_missing_external_executor_id_for_old_clients(
+        self, client, session, create_task_instance
+    ):
+        """An older worker that omits the launch token must not be fenced out (rolling upgrade)."""
+        ti = create_task_instance(
+            task_id="test_ti_run_allows_missing_external_executor_id_for_old_clients",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        ti.external_executor_id = "current-launch-token"
+        session.commit()
+
+        # Payload deliberately omits ``external_executor_id`` entirely, as a pre-token Task SDK would.
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        session.refresh(ti)
+        assert ti.state == State.RUNNING
+
     def test_ti_run_returns_execution_token(
         self, client, exec_app, session, create_task_instance, time_machine
     ):

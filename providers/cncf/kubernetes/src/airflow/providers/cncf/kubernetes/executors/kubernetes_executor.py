@@ -458,7 +458,15 @@ class KubernetesExecutor(BaseExecutor):
         return False
 
     def _discard_stale_pod_creation_task(self, task: KubernetesJob) -> None:
-        """Remove executor bookkeeping for a stale job that will not create a pod."""
+        """
+        Remove executor bookkeeping for a stale job that will not create a pod.
+
+        We intentionally do not fail the task instance here. Dropping the pod creation leaves the
+        row in its current DB state (typically still QUEUED under the *newer* launch that replaced
+        this workload). The newer launch owns the task from now on: either its own workload creates
+        the pod, or the scheduler's queued-task timeout / task-instance adoption reclaims the row.
+        Failing it here would clobber that newer launch.
+        """
         self.running.discard(task.key)
         if self.event_buffer.get(task.key) == (TaskInstanceState.QUEUED, self.scheduler_job_id):
             self.event_buffer.pop(task.key, None)
