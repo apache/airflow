@@ -1416,7 +1416,7 @@ def _dag_version_config_without_row_exclusion():
     """Live dag_version cleanup config with row-exclusion filters disabled.
 
     The backend regression tests above pin ``_do_delete``'s rollback-before-drop
-    behaviour (the MySQL metadata-lock hang from #66177), which requires the
+    behaviour, which requires the
     DELETE to actually hit the ``task_instance.dag_version_id`` FK violation.
     The live config may exclude FK-pinned rows from the deletion query (see
     PR #68339), which would turn these tests into no-ops -- so strip any such
