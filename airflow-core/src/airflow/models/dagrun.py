@@ -209,14 +209,20 @@ def parent_trace_context(conf) -> context.Context | None:
     """
     if not conf:
         return None
-    raw = conf.get(DAGRUN_PARENT_TRACE_CONTEXT_KEY)
-    if isinstance(raw, str):
-        carrier = {"traceparent": raw}
-    elif isinstance(raw, dict) and isinstance(raw.get("traceparent"), str):
-        carrier = {k: raw[k] for k in ("traceparent", "tracestate") if isinstance(raw.get(k), str)}
-    else:
+    match conf.get(DAGRUN_PARENT_TRACE_CONTEXT_KEY):
+        case str() as traceparent:
+            carrier = {"traceparent": traceparent}
+        case {"traceparent": str()} as raw:
+            # Keep only str members: a non-str tracestate reaches TraceState.from_header
+            # unvalidated and raises TypeError, which would drop the otherwise-valid parent.
+            carrier = {k: raw[k] for k in ("traceparent", "tracestate") if isinstance(raw.get(k), str)}
+        case _:
+            return None
+    try:
+        ctx = TraceContextTextMapPropagator().extract(carrier)
+    except Exception:
+        # Never let a malformed conf value fail run creation; fall back to a root trace.
         return None
-    ctx = TraceContextTextMapPropagator().extract(carrier)
     if not trace.get_current_span(ctx).get_span_context().is_valid:
         return None
     return ctx
@@ -1186,7 +1192,7 @@ class DagRun(Base, LoggingMixin):
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
-                context=parent_ctx if parent_ctx is not None else context.Context(),
+                context=parent_ctx or context.Context(),
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
