@@ -191,6 +191,13 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         :param allow_endpoint_lookup: If True, may call API to resolve sql_endpoint_name.
             Set False for offline-safe paths like sqlalchemy_url.
         :return: resolved http_path or None if not found.
+
+        When allow_endpoint_lookup=False (used by sqlalchemy_url etc.),
+        sql_endpoint_name is ignored and we fall back to http_path from the
+        connection extra. This keeps the property fully offline. If both
+        sql_endpoint_name and an extra http_path are set, sqlalchemy_url may
+        therefore point at a different warehouse than the one get_conn() will
+        actually connect to. This asymmetry is intentional.
         """
         if self._http_path:
             return self._http_path
@@ -203,12 +210,12 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         """Return a Databricks SQL connection object."""
         if not self._http_path:
             self._http_path = self._resolve_http_path(allow_endpoint_lookup=True)
-            if not self._http_path:
-                raise AirflowException(
-                    "http_path should be provided either explicitly, "
-                    "or in extra parameter of Databricks connection, "
-                    "or sql_endpoint_name should be specified"
-                )
+        if not self._http_path:
+            raise AirflowException(
+                "http_path should be provided either explicitly, "
+                "or in extra parameter of Databricks connection, "
+                "or sql_endpoint_name should be specified"
+            )
 
         prev_token = self._token
         new_token = self._get_token(raise_error=True)
