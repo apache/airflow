@@ -191,6 +191,12 @@ def ti_run(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
+    # Only fence on the launch token when the worker actually presented one. Older Task SDK
+    # clients (e.g. mid rolling-upgrade, before this field existed) omit it entirely; treating
+    # that as a stale launch would 409 every task start for pre-assigning executors
+    # (KubernetesExecutor, CeleryExecutor) until every worker is upgraded. When it is absent we
+    # fall back to state-based validation, matching the pre-token behavior.
+    payload_has_external_executor_id = "external_executor_id" in data
     payload_external_executor_id = data.pop("external_executor_id", None)
 
     # don't update start date when resuming from deferral
@@ -210,7 +216,11 @@ def ti_run(
         ti_run_payload.pid,
     ):
         log.info("Duplicate start request received", hostname=ti_run_payload.hostname)
-    elif ti.external_executor_id is not None and ti.external_executor_id != payload_external_executor_id:
+    elif (
+        payload_has_external_executor_id
+        and ti.external_executor_id is not None
+        and ti.external_executor_id != payload_external_executor_id
+    ):
         log.warning(
             "Cannot start Task Instance with stale executor launch token",
             expected_external_executor_id=ti.external_executor_id,
