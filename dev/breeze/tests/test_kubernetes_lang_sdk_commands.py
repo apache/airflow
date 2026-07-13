@@ -25,7 +25,14 @@ from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
     _lang_sdk_build_java_jar,
     _lang_sdk_fetch_upstream_sdk_sources,
+    _lang_sdk_upload_artifacts,
 )
+from airflow_breeze.utils import shared_options
+
+
+@pytest.fixture
+def dry_run(monkeypatch):
+    monkeypatch.setattr(shared_options._SharedOptions, "dry_run_value", True)
 
 
 @pytest.fixture
@@ -262,6 +269,39 @@ class TestLangSdkFetchUpstreamSdkSources:
             ["git", "show", "deadbeef:java-sdk/gradlew.bat"],
             ["git", "show", "deadbeef:java-sdk/gradle/wrapper/gradle-wrapper.jar"],
         ]
+
+
+class TestLangSdkDryRun:
+    """Dry-run skips the commands, so the filesystem work depending on their outputs must not run."""
+
+    def test_fetch_upstream_sdk_sources_does_not_crash_on_str_stdout(self, dry_run, tmp_path, monkeypatch):
+        monkeypatch.setattr(kubernetes_commands, "AIRFLOW_ROOT_PATH", tmp_path / "repo")
+
+        _, java_sdk = _lang_sdk_fetch_upstream_sdk_sources(tmp_path, None)
+
+        # Regression: dry-run run_command returns stdout="" (str) and write_bytes("") raised TypeError.
+        assert (java_sdk / "gradlew").read_bytes() == b""
+
+    def test_build_go_bundle_skips_copies_of_never_built_artifacts(self, dry_run, tmp_path, go_example):
+        _lang_sdk_build_go_bundle(tmp_path, tmp_path / "missing_upstream_go_sdk", None, native=True)
+
+        assert not (tmp_path / "go-artifacts" / kubernetes_commands.LANG_SDK_GO_BUNDLE_NAME).exists()
+
+    def test_build_java_jar_skips_jar_copy(self, dry_run, tmp_path, java_example, upstream_java_sdk):
+        (java_example / "build" / "bundle" / "app.jar").unlink()
+
+        _lang_sdk_build_java_jar(tmp_path, upstream_java_sdk, None, native=True)
+
+        assert not (tmp_path / "java-artifacts" / "app.jar").exists()
+
+    @mock.patch.object(kubernetes_commands, "run_command_with_k8s_env")
+    def test_upload_artifacts_uses_placeholder_for_never_built_jar(self, mock_run, dry_run, tmp_path):
+        mock_run.return_value = mock.Mock(stdout="")
+
+        _lang_sdk_upload_artifacts(tmp_path, "3.10", "v1.35.0", None)
+
+        cp_sources = [call.args[0][2] for call in mock_run.call_args_list if call.args[0][1] == "cp"]
+        assert str(tmp_path / "java-artifacts" / "app.jar") in cp_sources
 
 
 class TestSetupLangSdkTestNativeSelection:

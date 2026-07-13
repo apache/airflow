@@ -100,6 +100,7 @@ from airflow_breeze.utils.run_utils import (
     check_if_image_exists,
     run_command,
 )
+from airflow_breeze.utils.shared_options import get_dry_run
 
 KUBERNETES_PYTEST_ARGS = [
     "--strict-markers",
@@ -2573,6 +2574,7 @@ def _lang_sdk_fetch_upstream_sdk_sources(staging: Path, output: Output | None) -
                 capture_output=True,
                 check=True,
             ).stdout
+            or b""
         )
         restored.chmod(mode)
     (extracted / "task-sdk").symlink_to(AIRFLOW_ROOT_PATH / "task-sdk")
@@ -2600,7 +2602,10 @@ def _lang_sdk_build_go_bundle(
     example_path = workspace / example_rel
     example_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(LANG_SDK_GO_EXAMPLE_PATH, example_path, ignore=shutil.ignore_patterns(".home"))
-    shutil.copytree(upstream_go_sdk, workspace / "go-sdk")
+    # In dry-run the fetch/extract commands are skipped, so the upstream copy and build outputs
+    # never materialize -- skip the filesystem work that depends on them.
+    if not get_dry_run():
+        shutil.copytree(upstream_go_sdk, workspace / "go-sdk")
     output_bin = example_path / "bin" / LANG_SDK_GO_BUNDLE_NAME
     output_bin.parent.mkdir(parents=True, exist_ok=True)
 
@@ -2653,7 +2658,8 @@ def _lang_sdk_build_go_bundle(
             output=output,
             check=True,
         )
-    shutil.copy(output_bin, go_dir / LANG_SDK_GO_BUNDLE_NAME)
+    if not get_dry_run():
+        shutil.copy(output_bin, go_dir / LANG_SDK_GO_BUNDLE_NAME)
 
 
 def _lang_sdk_build_java_jar(
@@ -2753,6 +2759,8 @@ def _lang_sdk_build_java_jar(
             output=output,
             check=True,
         )
+    if get_dry_run():
+        return
     jars = list((LANG_SDK_JAVA_EXAMPLE_PATH / "build" / "bundle").glob("*.jar"))
     if not jars:
         get_console(output=output).print("[error]No jar produced by the Java bundle build")
@@ -2813,7 +2821,11 @@ def _lang_sdk_upload_artifacts(
     ).stdout.strip()
 
     go_bundle = staging / "go-artifacts" / "lang_sdk_combined"
-    java_jar = next((staging / "java-artifacts").glob("*.jar"))
+    if get_dry_run():
+        # The dry-run build steps produce no jar; use the placeholder name so the commands still print.
+        java_jar = staging / "java-artifacts" / "app.jar"
+    else:
+        java_jar = next((staging / "java-artifacts").glob("*.jar"))
     stub_dag = LANG_SDK_PATH / "dags" / "lang_sdk_combined.py"
 
     for src, dest in (
