@@ -177,6 +177,7 @@ class SerializedDAG:
                 "max_active_runs",
                 "max_active_tasks",
                 "max_consecutive_failed_dag_runs",
+                "outlets",
                 "owner_links",
                 "relative_fileloc",
                 "render_template_as_native_obj",
