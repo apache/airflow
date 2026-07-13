@@ -193,29 +193,41 @@ def get_dag_structure(
     _merge_node_dicts(merged_nodes, nodes)
     del latest_dag
 
-    # Process serdags one by one and merge immediately to reduce memory usage.
-    # Use yield_per() for streaming results and expunge each serdag after processing
-    # to allow garbage collection and prevent memory buildup in the session identity map.
-    serdags_query = (
-        select(SerializedDagModel)
-        .where(
-            # Even though dag_id is filtered in base_query,
-            # adding this line here can improve the performance of this endpoint
-            SerializedDagModel.dag_id == dag_id,
-            SerializedDagModel.id != latest_serdag_id,
-            SerializedDagModel.dag_version_id.in_(
-                select(TaskInstance.dag_version_id)
-                .join(TaskInstance.dag_run)
-                .where(
-                    DagRun.id.in_(run_ids),
-                )
-                .distinct()
-            ),
-        )
-        .execution_options(yield_per=5)  # balance between peak memory usage and round trips
+    # Fetch the historical serialized Dags for the visible runs, then detach them
+    # and release the DB connection *before* the CPU-bound deserialization + merge
+    # below. Deserializing (``serdag.dag``) and merging a large DAG's task groups is
+    # expensive; doing it while a server-side cursor (``yield_per``) is open keeps the
+    # transaction — and, under PgBouncer transaction pooling, the pooled server
+    # connection — pinned for the entire render. At scale that exhausts the pool and
+    # starves task-instance heartbeats, so the connection must not be held across the
+    # deserialization. See https://github.com/apache/airflow/issues/65712.
+    #
+    # ``SerializedDagModel.dag`` only reads the already-loaded ``data`` column, so it
+    # works on detached instances after the session is released. The result set is
+    # bounded by this endpoint's page of runs (one DAG's versions), so materializing
+    # it is a safe trade for not holding the connection open.
+    serdags_query = select(SerializedDagModel).where(
+        # Even though dag_id is filtered in base_query,
+        # adding this line here can improve the performance of this endpoint
+        SerializedDagModel.dag_id == dag_id,
+        SerializedDagModel.id != latest_serdag_id,
+        SerializedDagModel.dag_version_id.in_(
+            select(TaskInstance.dag_version_id)
+            .join(TaskInstance.dag_run)
+            .where(
+                DagRun.id.in_(run_ids),
+            )
+            .distinct()
+        ),
     )
+    serdags = session.scalars(serdags_query).all()
+    for serdag in serdags:
+        session.expunge(serdag)  # detach so `.dag` deserializes without the session
+    # End the read transaction so the connection returns to the pool during the
+    # deserialization/merge below instead of sitting idle-in-transaction.
+    session.commit()
 
-    for serdag in session.scalars(serdags_query):
+    for serdag in serdags:
         filtered_dag = serdag.dag
         # Apply the same filtering to historical Dag versions
         if root:
@@ -228,8 +240,6 @@ def get_dag_structure(
         # Merge immediately instead of collecting all Dags in memory
         nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
-
-        session.expunge(serdag)  # to allow garbage collection
 
     return [GridNodeResponse(**n) for n in merged_nodes]
 
