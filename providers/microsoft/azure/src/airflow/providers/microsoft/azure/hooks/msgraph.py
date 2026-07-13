@@ -221,6 +221,7 @@ class KiotaRequestAdapterHook(BaseHook):
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
         self.api_version = self.resolve_api_version_from_value(api_version)
+        self.allowed_netloc: str | None = None
 
     def _ensure_protocol(self, host: str | None, schema: str = "https") -> str | None:
         """Ensure URL has http:// or https:// protocol prefix."""
@@ -490,6 +491,12 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
+        # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
+        # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
+        # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
+        # response could redirect the token off-host. Pin follow-up requests to the configured
+        # endpoint's host (CWE-918).
+        self.allowed_netloc = urlparse(request_adapter.base_url).netloc
         return request_adapter
 
     def get_proxies(self, config: dict) -> dict | None:
@@ -633,13 +640,6 @@ class KiotaRequestAdapterHook(BaseHook):
             url: str = "",
             query_parameters: dict[str, Any] | None = None,
         ):
-            # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
-            # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
-            # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
-            # response could redirect the token off-host. Pin follow-up requests to the configured
-            # endpoint's host (CWE-918).
-            allowed_netloc = urlparse((await self.get_async_conn()).base_url).netloc
-
             while url:
                 response = await self.run(
                     url=url,
@@ -670,11 +670,11 @@ class KiotaRequestAdapterHook(BaseHook):
                         if (
                             next_url
                             and next_url.startswith("http")
-                            and urlparse(next_url).netloc != allowed_netloc
+                            and urlparse(next_url).netloc != self.allowed_netloc
                         ):
                             raise ValueError(
                                 f"Refusing to follow pagination link {next_url!r}: its host differs "
-                                f"from the configured Microsoft Graph endpoint {allowed_netloc!r}."
+                                f"from the configured Microsoft Graph endpoint {self.allowed_netloc!r}."
                             )
                         url = next_url
                 else:

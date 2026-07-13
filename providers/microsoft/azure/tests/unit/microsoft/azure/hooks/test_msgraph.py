@@ -607,6 +607,7 @@ class TestKiotaRequestAdapterHook:
 
             fresh_adapter = Mock(spec=HttpxRequestAdapter)
             fresh_adapter._http_client = Mock(is_closed=False)
+            fresh_adapter.base_url = "https://graph.microsoft.com/v1.0"
 
             with patch.object(hook, "_build_request_adapter", return_value=("v1.0", fresh_adapter)):
                 result = await hook.get_async_conn()
@@ -626,6 +627,7 @@ class TestKiotaRequestAdapterHook:
 
             fresh_adapter = Mock(spec=HttpxRequestAdapter)
             fresh_adapter._http_client = Mock(is_closed=False)
+            fresh_adapter.base_url = "https://graph.microsoft.com/v1.0"
 
             with patch.object(hook, "_build_request_adapter", return_value=("v1.0", fresh_adapter)):
                 result = await hook.get_async_conn()
@@ -641,6 +643,7 @@ class TestKiotaRequestAdapterHook:
             adapter = Mock(spec=HttpxRequestAdapter)
             adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
             adapter._authentication_provider = mock_authentication_provider()
+            adapter.base_url = "https://graph.microsoft.com/v1.0"
             hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
 
             result = await hook.get_async_conn()
@@ -656,6 +659,7 @@ class TestKiotaRequestAdapterHook:
             adapter = Mock(spec=HttpxRequestAdapter)
             adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
             adapter._authentication_provider = mock_authentication_provider(closed=False)
+            adapter.base_url = "https://graph.microsoft.com/v1.0"
             adapter.send_no_response_content_async = AsyncMock(side_effect=RuntimeError("some error"))
             hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
 
