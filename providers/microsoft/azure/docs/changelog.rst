@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+13.5.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``refactor: Fix _is_http_client_closed returning True for a transport that was never opened (#69329)``
+* ``Invalidate cached RequestAdapter of KiotaRequestAdapterHook if session of AuthenticationProvider is closed (#69128)``
+* ``Fix msgraph/Power BI auth failure from empty allowed_hosts list (#69014)``
+* ``MSgraph: fix UnicodeDecodeError in DefaultResponseHandler when response content is binary (#68495)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 13.5.0
 ......
 

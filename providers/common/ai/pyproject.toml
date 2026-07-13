@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "0.5.0"
+version = "0.6.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -113,6 +113,7 @@ dependencies = [
     "langchain>=1.0.0",
 ]
 "llamaindex" = [
+    "dataclasses-json>=0.6.7",
     "llama-index-core>=0.13.0",
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
@@ -169,8 +170,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.6.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.6.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -409,17 +409,35 @@ class AnthropicHook(BaseHook):
             params["system"] = system
         return self.conn.messages.count_tokens(**params).input_tokens
 
-    def create_batch(self, requests: list[dict[str, Any]]) -> MessageBatch:
+    @staticmethod
+    def _apply_default_model(request: dict[str, Any], default_model: str) -> dict[str, Any]:
+        """
+        Fill ``params['model']`` from ``default_model`` when the request omits it.
+
+        The input dict is never mutated, and a request that sets its own ``model`` is
+        returned unchanged, so a single batch can still mix models across requests.
+        """
+        params = request.get("params")
+        if not isinstance(params, dict) or params.get("model"):
+            return request
+        return {**request, "params": {**params, "model": default_model}}
+
+    def create_batch(self, requests: list[dict[str, Any]], model: str | None = None) -> MessageBatch:
         """
         Submit a Message Batch.
 
         :param requests: A list of ``{"custom_id": str, "params": {...}}`` dicts, where
             ``params`` is a ``messages.create`` payload (``model``, ``max_tokens``,
-            ``messages``, ...).
+            ``messages``, ...). A request that omits ``model`` inherits ``model`` below,
+            or the connection's ``default_model`` (``extra['model']``) when that is unset too.
+        :param model: Default model id for requests that do not set their own. Falls back
+            to the connection's :attr:`default_model`.
         """
         self._require_first_party("The Message Batches API")
+        default_model = model or self.default_model
+        prepared = [self._apply_default_model(request, default_model) for request in requests]
         # ``Request`` is a TypedDict, so the plain dicts callers build match structurally.
-        return self.conn.messages.batches.create(requests=cast("Iterable[Request]", requests))
+        return self.conn.messages.batches.create(requests=cast("Iterable[Request]", prepared))
 
     def get_batch(self, batch_id: str) -> MessageBatch:
         """Retrieve a Message Batch by ID."""

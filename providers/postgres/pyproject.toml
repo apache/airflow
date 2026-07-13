@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-postgres"
-version = "6.8.0"
+version = "7.0.0"
 description = "Provider package apache-airflow-providers-postgres for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -68,6 +68,13 @@ dependencies = [
     "psycopg2-binary>=2.9.10; python_version >= '3.13'",
     "psycopg[binary]>=3.2.9; python_version < '3.14'",
     "psycopg[binary]>=3.3.3; python_version >= '3.14'",
+    # asyncpg must stay a default dependency while this provider still supports Airflow
+    # cores older than 3.4.0: those cores derive the async metadata-DB URL as
+    # ``postgresql+asyncpg://`` unconditionally and have no psycopg_async fallback, so
+    # dropping asyncpg breaks their async engine. Make it opt-in-only (via the ``[asyncpg]``
+    # extra) only once the minimum supported Airflow is >= 3.4.0; tracked at
+    # https://github.com/apache/airflow/issues/68453
+    "asyncpg>=0.30.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -140,8 +147,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.8.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.8.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/7.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-postgres/7.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

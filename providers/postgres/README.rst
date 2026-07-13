@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-postgres``
 
-Release: ``6.8.0``
+Release: ``7.0.0``
 
 
 `PostgreSQL <https://www.postgresql.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``postgres`` provider. All classes for this provi
 are in ``airflow.providers.postgres`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.8.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-postgres/7.0.0/>`_.
 
 Installation
 ------------
@@ -60,6 +60,7 @@ PIP package                                 Version required
 ``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
 ``psycopg[binary]``                         ``>=3.2.9; python_version < "3.14"``
 ``psycopg[binary]``                         ``>=3.3.3; python_version >= "3.14"``
+``asyncpg``                                 ``>=0.30.0``
 ==========================================  ======================================
 
 Optional cross provider package dependencies
@@ -99,4 +100,4 @@ Extra                Dependencies
 ===================  ============================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/6.8.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-postgres/7.0.0/changelog.html>`_.
