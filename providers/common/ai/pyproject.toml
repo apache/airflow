@@ -96,6 +96,10 @@ dependencies = [
     "apache-airflow-providers-git>=0.4.0",
     "pydantic-ai-skills>=1.2.0",
 ]
+# Isolated sandbox code execution for agents (SandboxToolset). The islo backend
+# needs its SDK; the sbx backend only shells out to the `sbx` CLI, so it needs
+# no Python dependency and has no extra.
+"sandbox-islo" = ["islo>=0.3.9"]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
     'fastavro>=1.12.1; python_version >= "3.14"',
@@ -153,6 +157,7 @@ dev = [
     "llama-index-core>=0.13.0",
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
+    "islo>=0.3.9",
 ]
 
 # To build docs:

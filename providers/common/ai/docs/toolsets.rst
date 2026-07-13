@@ -24,7 +24,7 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Four toolsets are included:
+The toolsets include:
 
 - :class:`~airflow.providers.common.ai.toolsets.aws.AWSToolset` — configured
   AWS services toolset for agent access to AWS APIs through Airflow-managed
@@ -36,8 +36,10 @@ Four toolsets are included:
   connections.
 - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
   4-tool database toolset.
+- :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` —
+  execute agent-written Python in an isolated sandbox, off the Airflow worker.
 
-All four implement pydantic-ai's
+All of them implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -538,6 +540,164 @@ resolves sources to local ``SKILL.md`` directories that any loader accepts:
 ``resolve_skills`` needs the Git provider (for ``GitSkills``) but not pydantic-ai,
 and removes any cloned directories when the ``with`` block exits.
 
+
+``SandboxToolset``
+------------------
+
+:class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` gives the
+agent one tool, ``run_code``, that executes agent-written Python in a
+disposable sandbox provisioned by a
+:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` — off the Airflow
+worker process. Airflow does not inject its context, connections, credentials,
+or worker environment into the sandbox. Custom images can still contain
+credentials, and hosted backends can provide their own identity, so image and
+backend configuration remain the Deployment Manager's responsibility.
+
+It is the counterpart to :ref:`code mode <code-mode>`. Code mode's ``run_code``
+executes in-process on the worker via the Monty interpreter: it is glue between
+tool calls, restricted to a subset of Python with no third-party imports.
+``SandboxToolset`` instead ships the code to a real Python interpreter in an
+isolated environment, so the agent can crunch data with the full language and
+whatever the sandbox image provides — at the cost of provisioning a microVM
+per run.
+
+The sandbox is created lazily on the first ``run_code`` call, shared by every
+call within the agent run, and destroyed when the run ends. Each call runs a
+fresh interpreter (``python3 -c``), so files written by earlier calls persist
+in the sandbox while in-memory variables do not. A nonzero exit code or a
+timeout is normal tool output — the model reads ``stderr`` and fixes its own
+code. If a backend cannot confirm that timed-out code stopped, it destroys the
+sandbox and returns ``sandbox_terminated: true``; the next call receives a
+fresh sandbox and files from earlier calls are no longer available. Only
+infrastructure errors (the ``sbx`` CLI missing, the islo API unreachable) fail
+the task.
+
+sbx backend (Docker Sandboxes)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.SbxSandboxBackend` runs each
+sandbox in a `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__
+microVM by driving the ``sbx`` CLI (``create`` / ``exec`` / ``rm``). Each
+sandbox is a genuine microVM with its own kernel, so agent code is isolated by
+a hardware boundary rather than a shared kernel. Command output is capped at
+the first 64 KiB of each stream, and the microVM is torn down when the run
+ends.
+
+It is a Deployment Manager prerequisite to install the ``sbx`` binary
+(``brew install docker/tap/sbx`` / ``winget install Docker.sbx``) and run
+``sbx policy init`` once on the worker host; the backend needs no Python
+dependency. The template image must provide the GNU ``timeout`` utility, which
+enforces the per-command timeout (any Debian/Ubuntu-based image, including
+``python:*-slim``, does).
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.operators.agent import AgentOperator
+    from airflow.providers.common.ai.sandbox import SbxSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    AgentOperator(
+        task_id="sandboxed_analyst",
+        prompt="Estimate pi with a Monte Carlo simulation of one million points.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[SandboxToolset(SbxSandboxBackend())],
+    )
+
+Constructor parameters:
+
+- ``image``: Container image for the sandbox (``sbx --template``).
+  Default ``"python:3.12-slim"``.
+- ``memory``: Memory limit in binary units (e.g. ``"2g"``). ``sbx`` enforces a
+  1 GiB minimum. Default ``"2g"``.
+- ``cpus``: Number of CPUs to allocate. ``None`` (default) uses the ``sbx``
+  default.
+- ``sbx_path``: Path to the ``sbx`` binary. Default ``"sbx"``.
+- ``create_timeout``: Seconds allowed for provisioning (first-run microVM boot
+  plus image pull can be slow). Default ``600``.
+
+islo backend
+^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend` runs each
+sandbox in an `islo.dev <https://islo.dev>`__ microVM — hardware-level
+isolation with no local Docker daemon required.
+
+Requires the ``sandbox-islo`` extra:
+``pip install "apache-airflow-providers-common-ai[sandbox-islo]"``
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import IsloSandboxBackend
+
+    SandboxToolset(IsloSandboxBackend(islo_conn_id="islo_default"))
+
+Credentials come from a generic Airflow connection (no custom connection type
+is needed):
+
+- ``password``: the islo API key. Required.
+- ``host``: the compute URL. Optional.
+- Extra: optional ``base_url`` and ``timeout`` (request timeout in seconds)
+  keys.
+
+Constructor parameters:
+
+- ``islo_conn_id``: Airflow connection ID for islo. Default ``"islo_default"``.
+  ``None`` lets the SDK resolve credentials from its environment variables
+  (``ISLO_API_KEY`` etc.).
+- ``image``, ``vcpus``, ``memory_mb``: sandbox image and sizing. ``None``
+  (default) uses the server default for each.
+- ``internet_enabled``: outbound internet access. Default ``False`` (no egress);
+  ``None`` defers to the server default.
+- ``delete_after``: Server-side TTL in seconds after which the sandbox is
+  deleted even if the worker never got to destroy it (killed mid-run).
+  Default ``3600``.
+
+The command timeout is also sent to Islo for server-side enforcement. If the
+API does not report a terminal command state within a short grace period, the
+backend deletes the microVM before returning the timeout and marks the sandbox
+as terminated.
+
+Parameters
+^^^^^^^^^^
+
+- ``backend``: The :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`
+  that provisions and runs the sandbox.
+- ``timeout``: Timeout in seconds for a single ``run_code`` call.
+  Default ``300``.
+- ``python_command``: Python executable inside the sandbox.
+  Default ``"python3"``.
+
+Bringing your own backend
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any vendor that can create a sandbox, run a command in it, and destroy it can
+plug in: subclass
+:class:`~airflow.providers.common.ai.sandbox.SandboxBackend` in your own
+package and pass an instance to ``SandboxToolset``:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import SandboxBackend, SandboxResult
+
+
+    class AcmeSandboxBackend(SandboxBackend):
+        name = "acme"
+
+        def create(self) -> str:
+            return acme_sdk.create_sandbox().id
+
+        def run(self, sandbox: str, command: list[str], *, timeout: float) -> SandboxResult:
+            r = acme_sdk.exec(sandbox, command, timeout=timeout)
+            return SandboxResult(exit_code=r.exit_code, stdout=r.stdout, stderr=r.stderr)
+
+        def destroy(self, sandbox: str) -> None:
+            acme_sdk.delete_sandbox(sandbox)
+
+Constructors run at Dag-parse time, so resolve credentials lazily, on first
+use, and make ``destroy`` idempotent (destroying an already-gone sandbox must
+not raise).
+
+
 Working with LangChain
 ----------------------
 
@@ -686,6 +846,16 @@ No single layer is sufficient — they work together.
      - Does **not** constrain what those tools do. An MCP server can expose
        shell, filesystem, or network access. Run only trusted servers and
        audit the tools they expose.
+   * - **SandboxToolset: off-worker execution**
+     - Executes agent-written code in a disposable sandbox, never in the
+       worker process. Airflow does not inject its context, connections,
+       credentials, or worker environment. The Docker backend applies
+       network, privilege, filesystem, memory, CPU, process-count, output,
+       and lifetime limits by default.
+     - Does not sanitize what the code computes or returns. The Docker
+       backend isolates at the container level, not in a microVM. Custom
+       images can contain secrets, hosted backends can expose their own
+       identity, and network access follows the backend's settings.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.

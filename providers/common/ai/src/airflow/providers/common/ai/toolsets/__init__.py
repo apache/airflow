@@ -19,8 +19,16 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
+from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 
-__all__ = ["AWSToolset", "HookToolset", "MCPToolset", "SQLToolset", "airflow_toolset_to_langchain_tools"]
+__all__ = [
+    "AWSToolset",
+    "HookToolset",
+    "MCPToolset",
+    "SQLToolset",
+    "SandboxToolset",
+    "airflow_toolset_to_langchain_tools",
+]
 
 
 def __getattr__(name: str):
