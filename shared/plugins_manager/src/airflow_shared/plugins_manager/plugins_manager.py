@@ -30,6 +30,8 @@ import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
+from typing_extensions import NotRequired
+
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):
         from importlib import metadata
@@ -85,20 +87,17 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
-class _ExternalViewDictRequired(TypedDict):
-    name: str
-    href: str
-
-
-class ExternalViewDict(_ExternalViewDictRequired, total=False):
+class ExternalViewDict(TypedDict):
     """Dictionary structure for entries in AirflowPlugin.external_views."""
 
-    icon: str
-    icon_dark_mode: str
-    url_route: str
-    category: str
-    destination: Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]
-    nav_top_level: bool
+    name: str
+    href: str
+    icon: NotRequired[str]
+    icon_dark_mode: NotRequired[str]
+    url_route: NotRequired[str]
+    category: NotRequired[str]
+    destination: NotRequired[Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]]
+    nav_top_level: NotRequired[bool]
 
 
 class AirflowPlugin:
