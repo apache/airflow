@@ -451,10 +451,11 @@ class SSHRemoteJobOperator(BaseOperator):
         leave the directory rather than failing the (already finished) task.
         """
         self.log.info("Cleaning up remote job directory: %s", job_dir)
+        expected_base = self._paths.base_dir if self._paths else self.remote_base_dir
         if remote_os == "posix":
-            cleanup_cmd = build_posix_cleanup_command(job_dir)
+            cleanup_cmd = build_posix_cleanup_command(job_dir, expected_base=expected_base)
         else:
-            cleanup_cmd = build_windows_cleanup_command(job_dir)
+            cleanup_cmd = build_windows_cleanup_command(job_dir, expected_base=expected_base)
 
         last_error: Exception | None = None
         for attempt in range(1, self.cleanup_retries + 1):

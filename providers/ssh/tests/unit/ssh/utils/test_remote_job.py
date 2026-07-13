@@ -394,6 +394,14 @@ class TestCleanupCommands:
         assert "rm -rf" in cmd
         assert "/tmp/airflow-ssh-jobs/job_123" in cmd
 
+    def test_posix_cleanup_with_custom_base(self):
+        """Test POSIX cleanup under a custom base directory."""
+        cmd = build_posix_cleanup_command(
+            "/tmp-data/airflow-ssh-jobs/job_123", expected_base="/tmp-data/airflow-ssh-jobs"
+        )
+        assert "rm -rf" in cmd
+        assert "/tmp-data/airflow-ssh-jobs/job_123" in cmd
+
     def test_windows_cleanup(self):
         """Test Windows cleanup command."""
         cmd = build_windows_cleanup_command("$env:TEMP\\airflow-ssh-jobs\\job_123")
@@ -408,6 +416,13 @@ class TestCleanupCommands:
         """Test POSIX cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_posix_cleanup_command("/tmp/other_dir")
+
+    def test_posix_cleanup_rejects_path_outside_custom_base(self):
+        """Test POSIX cleanup rejects paths outside a custom base directory."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_posix_cleanup_command(
+                "/tmp/airflow-ssh-jobs/job_123", expected_base="/tmp-data/airflow-ssh-jobs"
+            )
 
     def test_windows_cleanup_rejects_invalid_path(self):
         """Test Windows cleanup rejects paths outside expected base directory."""
