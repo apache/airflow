@@ -28,10 +28,10 @@ export const LOG_SHOW_TIMESTAMP_KEY = "log_show_timestamp";
 export const LOG_SHOW_SOURCE_KEY = "log_show_source";
 export const VERSION_INDICATOR_DISPLAY_MODE_KEY = "version_indicator_display_mode";
 export const COLLAPSED_UI_ALERTS_KEY = "collapsed_ui_alerts";
+export const SHOW_ALL_DEPENDENCIES_KEY = "show_all_dependencies";
 
 // Dag-scoped keys
 export const dagRunsLimitKey = (dagId: string) => `dag_runs_limit-${dagId}`;
-export const dependenciesKey = (dagId: string) => `dependencies-${dagId}`;
 export const directionKey = (dagId: string) => `direction-${dagId}`;
 export const openGroupsKey = (dagId: string) => `${dagId}/open-groups`;
 export const allGroupsKey = (dagId: string) => `${dagId}/all-groups`;

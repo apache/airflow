@@ -143,13 +143,7 @@
       "label": "Number of Dag Runs"
     },
     "dependencies": {
-      "label": "Dependencies",
-      "options": {
-        "allDagDependencies": "All Dag Dependencies",
-        "externalConditions": "External conditions",
-        "onlyTasks": "Only tasks"
-      },
-      "placeholder": "Dependencies"
+      "allDagDependencies": "All Dag Dependencies"
     },
     "graphDirection": {
       "label": "Graph Direction"

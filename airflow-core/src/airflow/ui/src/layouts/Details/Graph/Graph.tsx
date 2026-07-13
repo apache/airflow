@@ -27,9 +27,12 @@ import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "ope
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
-import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
+import {
+  getGatePathEdgeIdsForSelection,
+  type CustomNodeProps,
+} from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
-import { dependenciesKey, directionKey } from "src/constants/localStorage";
+import { SHOW_ALL_DEPENDENCIES_KEY, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useGroups } from "src/context/groups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -70,7 +73,7 @@ export const Graph = () => {
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useGroups();
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
+  const [showAllDependencies] = useLocalStorage<boolean>(SHOW_ALL_DEPENDENCIES_KEY, false);
   const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
@@ -78,7 +81,6 @@ export const Graph = () => {
     {
       dagId,
       depth,
-      externalDependencies: dependencies === "immediate",
       includeDownstream,
       includeUpstream,
       root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
@@ -100,17 +102,17 @@ export const Graph = () => {
   }, [allGroupIds, graphData.nodes, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
-    enabled: dependencies === "all",
+    enabled: showAllDependencies,
   });
 
-  const dagDepEdges = dependencies === "all" ? dagDependencies.edges : [];
-  const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
+  const dagDepEdges = showAllDependencies ? dagDependencies.edges : [];
+  const dagDepNodes = showAllDependencies ? dagDependencies.nodes : [];
 
   const layoutEdges = [...graphData.edges, ...dagDepEdges];
   const layoutNodes = dagDepNodes.length
     ? dagDepNodes.map((node) => (node.id === `dag:${dagId}` ? { ...node, children: graphData.nodes } : node))
     : graphData.nodes;
-  const layoutOpenGroupIds = [...openGroupIds, ...(dependencies === "all" ? [`dag:${dagId}`] : [])];
+  const layoutOpenGroupIds = [...openGroupIds, ...(showAllDependencies ? [`dag:${dagId}`] : [])];
 
   const { data, isPending } = useGraphLayout({
     direction,
@@ -131,6 +133,9 @@ export const Graph = () => {
   });
   const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
+  const isNodeSelected = (nodeId: string) =>
+    nodeId === taskId || nodeId === groupId || nodeId === `dag:${dagId}`;
+
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodesWithTI = data?.nodes.map((node) => {
     const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
@@ -139,7 +144,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId || node.id === groupId || node.id === `dag:${dagId}`,
+        isSelected: isNodeSelected(node.id),
         taskInstance,
       },
     };
@@ -147,13 +152,25 @@ export const Graph = () => {
 
   const baseFilteredNodes = useGraphFilteredNodes(nodesWithTI, graphFilters);
 
-  const { edges, nodes } = useFilteredNodesAndEdges({
+  const { edges: filteredEdges, nodes } = useFilteredNodesAndEdges({
     baseFilteredNodes,
     dagId,
     groupId,
     layoutEdges: data?.edges ?? [],
     taskId,
   });
+
+  const gatePathEdgeIds = data
+    ? getGatePathEdgeIdsForSelection(data.nodes, data.edges, isNodeSelected)
+    : new Set<string>();
+  const edges =
+    gatePathEdgeIds.size > 0
+      ? filteredEdges.map((edge) =>
+          gatePathEdgeIds.has(edge.id)
+            ? { ...edge, data: { ...edge.data, rest: { ...edge.data?.rest, isSelected: true } } }
+            : edge,
+        )
+      : filteredEdges;
 
   const selectedNodeId = taskId ?? groupId;
 
