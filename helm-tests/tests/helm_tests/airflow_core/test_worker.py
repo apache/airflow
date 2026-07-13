@@ -1032,6 +1032,7 @@ class TestWorker:
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
         assert "airflow.providers.celery.executors.celery_executor.app" in livenessprobe_cmd[-1]
+        assert "socket.gethostname()" in livenessprobe_cmd[-1]
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -2800,6 +2801,26 @@ class TestWorkerNetworkPolicy:
         labels = jmespath.search("metadata.labels", docs[0])
         assert labels["test_label"] == "test_label_value"
         assert "key" not in labels
+
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
+    @pytest.mark.parametrize(
+        ("airflow_version", "expected_component"),
+        [("3.0.0", "api-server"), ("2.11.0", "webserver")],
+    )
+    def test_should_allow_log_server_to_read_worker_logs(self, executor, airflow_version, expected_component):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "networkPolicies": {"enabled": True},
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == expected_component
+        )
 
 
 class TestWorkerService:

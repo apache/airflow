@@ -253,6 +253,70 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if .Values.createUserJob.securityContext }}
+
+ DEPRECATION WARNING:
+    `createUserJob.securityContext` has been renamed to `createUserJob.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.migrateDatabaseJob.securityContext }}
+
+ DEPRECATION WARNING:
+    `migrateDatabaseJob.securityContext` has been renamed to `migrateDatabaseJob.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.triggerer.securityContext }}
+
+ DEPRECATION WARNING:
+    `triggerer.securityContext` has been renamed to `triggerer.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.dagProcessor.securityContext }}
+
+ DEPRECATION WARNING:
+    `dagProcessor.securityContext` has been renamed to `dagProcessor.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.flower.securityContext }}
+
+ DEPRECATION WARNING:
+    `flower.securityContext` has been renamed to `flower.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.redis.securityContext }}
+
+ DEPRECATION WARNING:
+    `redis.securityContext` has been renamed to `redis.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.cleanup.securityContext }}
+
+ DEPRECATION WARNING:
+    `cleanup.securityContext` has been renamed to `cleanup.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.dags.gitSync.securityContext }}
+
+ DEPRECATION WARNING:
+    `dags.gitSync.securityContext` {{ .Values.dags.gitSync.securityContext }} has been renamed to `dags.gitSync.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if ne (int .Values.workers.replicas) 1 }}
 
  DEPRECATION WARNING:
@@ -978,6 +1042,14 @@ DEPRECATION WARNING:
  DEPRECATION WARNING:
     Dags Git-Sync bevaiour with `dags.gitSync.recommendedProbeSetting` equal `false` is deprecated and will be removed in future.
     Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if (eq .Values.enableServiceLinks nil) }}
+
+  DEPRECATION WARNING:
+    The default for `enableServiceLinks` will become False in Chart 2.0.
+    If you relied on these environment variables, explicitly set ``enableServiceLinks: true``, or migrate your code to use dns based service lookups.
 
 {{- end }}
 

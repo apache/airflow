@@ -331,6 +331,7 @@ repos:
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
           ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^helm-tests/tests/chart_utils/gateway.networking.k8s.io_httproutes\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|

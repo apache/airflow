@@ -1065,6 +1065,25 @@ class TestSchedulerNetworkPolicy:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    @pytest.mark.parametrize(
+        ("airflow_version", "expected_component"),
+        [("3.0.0", "api-server"), ("2.11.0", "webserver")],
+    )
+    def test_should_allow_log_server_to_read_scheduler_logs(self, airflow_version, expected_component):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "executor": "LocalExecutor",
+                "networkPolicies": {"enabled": True},
+            },
+            show_only=["templates/scheduler/scheduler-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == expected_component
+        )
+
 
 class TestSchedulerLogGroomer(LogGroomerTestBase):
     """Scheduler log groomer."""

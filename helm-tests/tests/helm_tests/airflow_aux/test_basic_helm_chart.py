@@ -33,7 +33,6 @@ OBJECTS_STD_NAMING = {
     ("ServiceAccount", "test-basic-airflow-redis"),
     ("ServiceAccount", "test-basic-airflow-scheduler"),
     ("ServiceAccount", "test-basic-airflow-statsd"),
-    ("ServiceAccount", "test-basic-airflow-otel-collector"),
     ("ServiceAccount", "test-basic-airflow-triggerer"),
     ("ServiceAccount", "test-basic-airflow-worker"),
     ("Secret", "test-basic-airflow-metadata"),
@@ -43,21 +42,18 @@ OBJECTS_STD_NAMING = {
     ("Secret", "test-basic-postgresql"),
     ("ConfigMap", "test-basic-airflow-config"),
     ("ConfigMap", "test-basic-airflow-statsd"),
-    ("ConfigMap", "test-basic-airflow-otel-collector"),
     ("Role", "test-basic-airflow-pod-launcher-role"),
     ("Role", "test-basic-airflow-pod-log-reader-role"),
     ("RoleBinding", "test-basic-airflow-pod-launcher-rolebinding"),
     ("RoleBinding", "test-basic-airflow-pod-log-reader-rolebinding"),
     ("Service", "test-basic-airflow-redis"),
     ("Service", "test-basic-airflow-statsd"),
-    ("Service", "test-basic-airflow-otel-collector"),
     ("Service", "test-basic-airflow-triggerer"),
     ("Service", "test-basic-airflow-worker"),
     ("Service", "test-basic-postgresql"),
     ("Service", "test-basic-postgresql-hl"),
     ("Deployment", "test-basic-airflow-scheduler"),
     ("Deployment", "test-basic-airflow-statsd"),
-    ("Deployment", "test-basic-airflow-otel-collector"),
     ("StatefulSet", "test-basic-airflow-redis"),
     ("StatefulSet", "test-basic-airflow-worker"),
     ("StatefulSet", "test-basic-airflow-triggerer"),
@@ -134,7 +130,6 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-redis"),
             ("ServiceAccount", "test-basic-scheduler"),
             ("ServiceAccount", "test-basic-statsd"),
-            ("ServiceAccount", "test-basic-otel-collector"),
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-worker"),
             ("Secret", "test-basic-metadata"),
@@ -144,7 +139,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
-            ("ConfigMap", "test-basic-otel-collector"),
             ("Role", "test-basic-pod-launcher-role"),
             ("Role", "test-basic-pod-log-reader-role"),
             ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
@@ -153,12 +147,10 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
-            ("Service", "test-basic-otel-collector"),
             ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            ("Deployment", "test-basic-otel-collector"),
             ("StatefulSet", "test-basic-triggerer"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
@@ -237,7 +229,6 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-redis"),
             ("ServiceAccount", "test-basic-scheduler"),
             ("ServiceAccount", "test-basic-statsd"),
-            ("ServiceAccount", "test-basic-otel-collector"),
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-dag-processor"),
             ("ServiceAccount", "test-basic-worker"),
@@ -248,7 +239,6 @@ class TestBaseChartTest:
             ("Secret", "test-basic-redis-password"),
             ("ConfigMap", "test-basic-config"),
             ("ConfigMap", "test-basic-statsd"),
-            ("ConfigMap", "test-basic-otel-collector"),
             ("Role", "test-basic-pod-launcher-role"),
             ("Role", "test-basic-pod-log-reader-role"),
             ("RoleBinding", "test-basic-pod-launcher-rolebinding"),
@@ -257,12 +247,10 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
-            ("Service", "test-basic-otel-collector"),
             ("Service", "test-basic-triggerer"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
-            ("Deployment", "test-basic-otel-collector"),
             ("StatefulSet", "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
             ("StatefulSet", "test-basic-postgresql"),
@@ -340,6 +328,7 @@ class TestBaseChartTest:
                     "executor": executor,
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
+                    "otelCollector": {"tracesEnabled": True},
                 },
                 version=airflow_version,
             ),
@@ -377,6 +366,7 @@ class TestBaseChartTest:
             ["2.11.0", "CeleryExecutor,KubernetesExecutor"],
             ["3.0.0", "CeleryExecutor"],
             ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
+            ["3.0.0", "CeleryExecutor,harvest_exec:KubernetesExecutor"],
             ["default", "CeleryExecutor"],
             ["default", "CeleryExecutor,KubernetesExecutor"],
         ],
@@ -410,6 +400,9 @@ class TestBaseChartTest:
             "logs": {"persistence": {"enabled": True}},
             "dags": {"persistence": {"enabled": True}},
             "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+            "priorityClasses": [
+                {"name": "class1", "value": 10000},
+            ],
         }
 
         if airflow_version != "default":
@@ -476,6 +469,7 @@ class TestBaseChartTest:
             (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
+            (f"{release_name}-class1", "PriorityClass", None),
         ]
 
         if self._is_airflow_3_or_above(airflow_version):
@@ -518,6 +512,8 @@ class TestBaseChartTest:
                 expected_labels["executor"] = "CeleryExecutor"
                 if executor == "CeleryExecutor,KubernetesExecutor":
                     expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
+                elif executor == "CeleryExecutor,harvest_exec:KubernetesExecutor":
+                    expected_labels["executor"] = "CeleryExecutor-harvest_exec-KubernetesExecutor"
 
             if (
                 executor == "CeleryExecutor"

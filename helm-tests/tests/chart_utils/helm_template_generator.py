@@ -63,7 +63,9 @@ MY_DIR = Path(__file__).parent.resolve()
 
 crd_lookup = {
     # https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml
-    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml"
+    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml",
+    # https://github.com/kubernetes-sigs/gateway-api/blob/v1.2.1/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml
+    "gateway.networking.k8s.io/v1::HTTPRoute": f"{MY_DIR.as_posix()}/gateway.networking.k8s.io_httproutes.yaml",
 }
 
 
@@ -139,6 +141,7 @@ def render_chart(
     chart_dir=None,
     kubernetes_version=DEFAULT_KUBERNETES_VERSION,
     namespace=None,
+    api_versions=None,
 ):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
@@ -162,6 +165,8 @@ def render_chart(
             "--namespace",
             namespace,
         ]
+        for api_version in api_versions or []:
+            command.extend(["--api-versions", api_version])
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])

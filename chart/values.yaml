@@ -65,14 +65,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.2.0"
+defaultAirflowTag: "3.2.2"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-# Version 2.11.0 and above is supported.
-airflowVersion: "3.2.0"
+# Version 3.1.0 and above is supported.
+airflowVersion: "3.2.2"
 
 images:
   airflow:
@@ -102,7 +102,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.29.0
+    tag: v0.30.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -136,6 +136,8 @@ schedulerName: ~
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
+# Whenever service links should be added to each pod.
+enableServiceLinks: ~
 
 # List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
 # registries. Items can be either strings or {name: secret} objects.
@@ -153,7 +155,8 @@ ingress:
 
   # Configs for the Ingress of the API Server (Airflow 3+)
   apiServer:
-    # Enable API Server ingress resource
+    # Enable API Server ingress resource.
+    # Mutually exclusive with `apiServer.httpRoute.enabled` (Gateway API); enable only one of them.
     enabled: false
 
     # Annotations for the API Server Ingress
@@ -2269,6 +2272,53 @@ migrateDatabaseJob:
 apiServer:
   enabled: true
 
+  # Kubernetes Gateway API (HTTPRoute) configuration for the API server.
+  # Requires the Gateway API CRDs to be installed in the cluster
+  # (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
+  # The HTTPRoute references an externally managed Gateway via `parentRefs`.
+  # This is an alternative to the API server Ingress (`ingress.apiServer`);
+  # the two are mutually exclusive and enabling both will fail rendering.
+  httpRoute:
+    # Enable API Server HTTPRoute resource.
+    # Mutually exclusive with `ingress.apiServer.enabled`; enable only one of them.
+    enabled: false
+
+    # Extra labels for the API Server HTTPRoute
+    labels: {}
+
+    # Annotations for the API Server HTTPRoute
+    annotations: {}
+
+    # List of parent Gateway references this HTTPRoute attaches to. Required when enabled.
+    # Defaults to `~` (null) so the schema's `minItems: 1` fails fast on an explicitly
+    # empty list (`[]`); a still-null value while enabled is caught by the template guard.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference
+    parentRefs: ~
+    # - name: my-gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+
+    # Hostnames this HTTPRoute should match (templated). Empty matches all.
+    hostnames: []
+    # - "airflow.example.com"
+
+    # Default routing rule path (used only when `apiServer.httpRoute.rules` is empty)
+    path: "/"
+
+    # The pathType for the default path. PathPrefix | Exact | RegularExpression
+    pathType: PathPrefix
+
+    # Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteRule
+    rules: []
+    # - matches:
+    #     - path:
+    #         type: PathPrefix
+    #         value: /api/
+    #   backendRefs:
+    #     - name: my-release-api-server
+    #       port: 8080
+
   # Number of Airflow API servers in the Deployment.
   # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
@@ -3504,7 +3554,7 @@ statsd:
 # OpenTelemetry Collector settings
 otelCollector:
   # Send Airflow traces to the OTel Collector (sets [traces] otel_on).
-  tracesEnabled: true
+  tracesEnabled: false
 
   # Send Airflow metrics to the OTel Collector (sets [metrics] otel_on and disables statsd).
   metricsEnabled: false
@@ -4069,6 +4119,25 @@ cleanup:
 
     # Annotations to add to cleanup CronJob Kubernetes Service Account.
     annotations: {}
+
+    # Service Account Token Volume configuration
+    # This is only used when `automountServiceAccountToken` is 'false'
+    # and allows manual configuration of the Service Account token volume
+    serviceAccountTokenVolume:
+      # Enable manual Service Account token volume configuration
+      enabled: false
+
+      # Path where the Service Account token should be mounted
+      mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+
+      # Name of the volume
+      volumeName: kube-api-access
+
+      # Token expiration in seconds
+      expirationSeconds: 3600
+
+      # Audience for the token
+      audience: ~
 
   # When not set, the values defined in the global `securityContext` will be used
   # (deprecated, use `cleanup.securityContexts` instead)

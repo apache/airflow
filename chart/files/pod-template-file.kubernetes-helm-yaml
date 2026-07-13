@@ -241,6 +241,7 @@ spec:
   {{- else }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
   {{- end }}
+  {{- include "serviceLinks" . | nindent 2 }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}
   - name: dags
