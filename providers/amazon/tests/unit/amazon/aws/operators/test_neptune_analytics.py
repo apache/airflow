@@ -1187,7 +1187,8 @@ class TestNeptuneStartImportTaskOperator:
 
 class TestNeptuneCancelImportTaskOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_init_defaults(self, mock_conn):
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_init_defaults(self, mock_get_waiter, mock_conn):
         mock_conn.cancel_import_task.return_value = {
             "taskId": TASK_ID,
             "graphId": GRAPH_ID,
@@ -1275,3 +1276,187 @@ class TestNeptuneCancelImportTaskOperator:
         result = operator.execute_complete(None, event)
 
         assert result == {"import_task_id": TASK_ID}
+
+
+class TestNeptuneDeferForwardsHookParams:
+    """Regression tests: the operator's region_name/verify/botocore_config must be
+    forwarded to the trigger, otherwise the triggerer (a separate process) rebuilds
+    the async hook with region_name=None and can fail with NoRegionError or a
+    wrong-region ResourceNotFoundException while the synchronous path succeeds.
+    """
+
+    REGION = "eu-west-1"
+    BOTOCORE_CONFIG = {"read_timeout": 42}
+    VERIFY = False
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_create_graph_forwards_hook_params(self, mock_conn, mock_persist):
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+        operator = NeptuneCreateGraphOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"test": 123},
+            provisioned_memory=16,
+            deferrable=True,
+            region_name=self.REGION,
+            verify=self.VERIFY,
+            botocore_config=self.BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.VpcEndpointLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_create_private_endpoint_forwards_hook_params(self, mock_conn, mock_persist):
+        mock_conn.create_private_graph_endpoint.return_value = {
+            "status": "CREATING",
+            "vpcEndpointId": ENDPOINT_ID,
+            "vpcId": VPC_ID,
+        }
+        mock_conn.get_private_graph_endpoint.return_value = {"vpcEndpointId": ENDPOINT_ID}
+        operator = NeptuneCreatePrivateGraphEndpointOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            deferrable=True,
+            region_name=self.REGION,
+            verify=self.VERIFY,
+            botocore_config=self.BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_delete_private_endpoint_forwards_hook_params(self, mock_conn):
+        mock_conn.delete_private_graph_endpoint.return_value = {
+            "status": "DELETING",
+            "vpcEndpointId": ENDPOINT_ID,
+        }
+        operator = NeptuneDeletePrivateGraphEndpointOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            vpc_id=VPC_ID,
+            deferrable=True,
+            region_name=self.REGION,
+            verify=self.VERIFY,
+            botocore_config=self.BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_delete_graph_forwards_hook_params(self, mock_conn):
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=True,
+            deferrable=True,
+            region_name=self.REGION,
+            verify=self.VERIFY,
+            botocore_config=self.BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_start_import_forwards_hook_params(self, mock_conn, mock_persist):
+        mock_conn.start_import_task.return_value = {"taskId": TASK_ID}
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            deferrable=True,
+            region_name=self.REGION,
+            verify=self.VERIFY,
+            botocore_config=self.BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_cancel_import_forwards_hook_params(self, mock_conn):
+        mock_conn.cancel_import_task.return_value = {"status": "CANCELLING"}
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            import_task_id=TASK_ID,
+            deferrable=True,
+            region_name=self.REGION,
+            verify=self.VERIFY,
+            botocore_config=self.BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_create_graph_with_import_forwards_hook_params(
+        self, mock_conn, mock_graph_persist, mock_task_persist
+    ):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "taskId": TASK_ID,
+            "status": "CREATING",
+        }
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"test": 123},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            deferrable=True,
+            region_name=self.REGION,
+            verify=self.VERIFY,
+            botocore_config=self.BOTOCORE_CONFIG,
+        )
+        # First defer: graph availability
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
+
+        # Second defer: import task completion (via defer_wait_for_task)
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.defer_wait_for_task(
+                None,
+                event={"status": "success", "graph_id": GRAPH_ID},
+                import_task_id=TASK_ID,
+            )
+        trigger = exc_info.value.trigger
+        assert trigger.region_name == self.REGION
+        assert trigger.verify == self.VERIFY
+        assert trigger.botocore_config == self.BOTOCORE_CONFIG
