@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.utils.state import (
     DagRunState,
@@ -391,34 +392,6 @@ class DagRun(StrictBaseModel):
                 values["note"] = None
 
         return values
-
-
-ArgBindingDataType = Literal["string", "integer", "number", "boolean", "object", "array", "any"]
-"""Language-neutral value type a stub-task argument binds to in the foreign runtime."""
-
-
-class TaskArgBinding(BaseModel):
-    """
-    One positional argument of a stub (foreign-runtime) task, in declaration order.
-
-    A deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema
-    generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
-    """
-
-    kind: Literal["xcom", "literal"]
-    """Whether the value comes from an upstream task's XCom or is a literal from the Dag file."""
-
-    data_type: ArgBindingDataType = "any"
-    """Declared type from the stub function's annotation; runtimes type-check against it."""
-
-    task_id: str | None = None
-    """Upstream task id to pull the XCom from. Only set when ``kind`` is ``xcom``."""
-
-    key: str = "return_value"
-    """XCom key to pull. Only meaningful when ``kind`` is ``xcom``."""
-
-    value: JsonValue | None = None
-    """The literal value from the Dag file. Only set when ``kind`` is ``literal``."""
 
 
 class TIRunContext(BaseModel):

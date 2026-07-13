@@ -49,11 +49,11 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
-    TaskArgBinding,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
     TIAwaitingInputStatePayload,
@@ -81,7 +81,6 @@ from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
@@ -91,8 +90,6 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
-from airflow.serialization.enums import Encoding
-from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -122,6 +119,12 @@ _STUB_TASK_TYPE = "_StubOperator"
 
 def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
     """Extract the stub task's serialized positional-arg spec from the serialized Dag blob."""
+    # Imported here on purpose: only the Multi-Lang stub-task path touches the
+    # serialized-dag machinery, so keep it off the module's top-level imports.
+    from airflow.models.dag_version import DagVersion
+    from airflow.serialization.enums import Encoding
+    from airflow.serialization.serialized_objects import BaseSerialization
+
     if dag_version_id is None:
         return None
     dag_version = session.get(DagVersion, dag_version_id)
