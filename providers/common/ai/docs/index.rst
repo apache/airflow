@@ -98,7 +98,10 @@ Choosing extras
 The provider's extras split into a few groups:
 
 * **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``: pick the one
-  matching your ``llm_conn_id`` connection.
+  matching your ``llm_conn_id`` connection. Each extra name mirrors the identically named
+  ``pydantic-ai-slim`` optional dependency group; pydantic-ai supports more model providers
+  than these four, each under its own extra name, so check the
+  `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
 * **Agent tooling** — ``mcp``, ``skills``, ``code-mode``: MCP servers, Agent Skills, and
   code-mode tool execution.
 * **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
