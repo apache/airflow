@@ -70,20 +70,28 @@ Why ``ExecutionAPIRoute`` is needed:
 from typing import Any, get_args
 
 import structlog
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBearer, SecurityScopes
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.deps import DepContainer
 
 log = structlog.get_logger(logger_name=__name__)
 
 VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenScope))
+
+# ``*:self`` Security scopes pin a token to a single resource. Each maps the scope name to
+# the route path parameter carrying the resource id that the JWT ``sub`` must match.
+SELF_SCOPE_PATH_PARAMS: dict[str, str] = {
+    "ti:self": "task_instance_id",
+    "ct:self": "connection_test_id",
+    "callback:self": "callback_id",
+}
 
 _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
 
@@ -182,25 +190,34 @@ async def require_auth(
             f"Allowed types: {', '.join(sorted(allowed_token_types))}",
         )
 
-    if "ti:self" in security_scopes.scopes:
-        ti_self_id = str(request.path_params["task_instance_id"])
-        if str(token.id) != ti_self_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token subject does not match task instance ID",
-            )
-    elif "ct:self" in security_scopes.scopes:
-        ct_self_id = str(request.path_params["connection_test_id"])
-        if str(token.id) != ct_self_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token subject does not match connection test ID",
-            )
+    # Enforce the first ``*:self`` scope present: the JWT ``sub`` must match the path param.
+    for scope, path_param in SELF_SCOPE_PATH_PARAMS.items():
+        if scope in security_scopes.scopes:
+            if str(token.id) != str(request.path_params[path_param]):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Token subject does not match {path_param}",
+                )
+            break
 
     return token
 
 
 CurrentTIToken: TIToken = Depends(require_auth)
+
+
+def issue_execution_token(services: Any, response: Response, sub: str) -> None:
+    """
+    Mint a short-lived ``execution``-scoped token and set it on the response.
+
+    Used by endpoints that swap a longer-lived token (``workload`` on the Task Instance
+    ``/run`` endpoint, ``callback`` on the callback exchange endpoint) for an ``execution``
+    token: it mints via the request-scoped ``JWTGenerator`` and sets the ``Refreshed-API-Token``
+    header the SDK client adopts automatically. ``JWTReissueMiddleware`` skips those longer-lived
+    scopes, so this is the single place the swap happens.
+    """
+    generator: JWTGenerator = services.get(JWTGenerator)
+    response.headers["Refreshed-API-Token"] = generator.generate(extras={"sub": sub, "scope": "execution"})
 
 
 class ExecutionAPIRoute(APIRoute):
