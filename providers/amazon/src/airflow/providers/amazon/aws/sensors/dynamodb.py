@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.triggers.dynamodb import DynamoDBValueSensorTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -44,6 +48,9 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
     :param attribute_value: DynamoDB attribute value
     :param sort_key_name: (optional) DynamoDB sort key name
     :param sort_key_value: (optional) DynamoDB sort key value
+    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -76,6 +83,7 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
         attribute_value: str | Iterable[str],
         sort_key_name: str | None = None,
         sort_key_value: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -86,6 +94,37 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
         self.attribute_value = attribute_value
         self.sort_key_name = sort_key_name
         self.sort_key_value = sort_key_value
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> Any:
+        if self.deferrable:
+            self.defer(
+                trigger=DynamoDBValueSensorTrigger(
+                    table_name=self.table_name,
+                    partition_key_name=self.partition_key_name,
+                    partition_key_value=self.partition_key_value,
+                    attribute_name=self.attribute_name,
+                    attribute_value=self.attribute_value,
+                    sort_key_name=self.sort_key_name,
+                    sort_key_value=self.sort_key_value,
+                    waiter_delay=int(self.poke_interval),
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
+                timeout=timedelta(seconds=self.timeout),
+            )
+        else:
+            super().execute(context=context)
+
+    def execute_complete(self, context: Context, event: dict | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Trigger error: event is {validated_event}")
+        self.log.info("DynamoDB attribute value match found; sensor complete.")
 
     def poke(self, context: Context) -> bool:
         """Test DynamoDB item for matching attribute value."""
