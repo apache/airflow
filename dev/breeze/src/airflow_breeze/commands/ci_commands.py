@@ -58,12 +58,13 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github import retrieve_github_token
+from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
 if TYPE_CHECKING:
     from github import Github
+    from github.IssueEvent import IssueEvent
     from github.Repository import Issue, Milestone, Repository
 
 
@@ -779,7 +780,7 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    github_token = retrieve_github_token(github_token)
+    github_token = retrieve_github_token(github_token, description="airflow-ci-upgrade", scopes="public_repo")
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
@@ -790,7 +791,8 @@ def upgrade(
     else:
         console_print(
             "[warning]Could not retrieve GitHub token from --github-token, gh CLI, or token env. "
-            "Commands may fail if they require authentication.[/]"
+            "Commands may fail if they require authentication. "
+            f"{format_github_token_scope_guidance(description='airflow-ci-upgrade', scopes='public_repo')}[/]"
         )
 
     # All upgrade commands run locally with check=False to continue on errors.
@@ -905,7 +907,9 @@ def upgrade(
         pr_title = f"[{target_branch}] Upgrade important CI environment"
         pr_body = "This PR upgrades important dependencies of the CI environment."
 
-        # Check if there's already an open PR for this branch
+        # Check if there's already an open PR for this branch.
+        # gh pr list / gh pr ready filter by the bare head-branch name, not the
+        # "owner:branch" label that gh pr create needs for cross-fork PRs.
         existing_pr_result = run_command(
             [
                 "gh",
@@ -914,7 +918,7 @@ def upgrade(
                 "--repo",
                 "apache/airflow",
                 "--head",
-                head_ref,
+                branch_name,
                 "--base",
                 target_branch,
                 "--state",
@@ -944,7 +948,7 @@ def upgrade(
                         "--repo",
                         "apache/airflow",
                         "--undo",
-                        head_ref,
+                        branch_name,
                     ],
                     capture_output=True,
                     text=True,
@@ -980,10 +984,15 @@ def upgrade(
                 env=command_env,
             )
             if pr_result.returncode != 0:
-                console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
-                sys.exit(1)
-            pr_url = pr_result.stdout.strip() if pr_result.returncode == 0 else ""
-            console_print(f"[success]PR created successfully: {pr_url}.[/]")
+                # The branch was already force-pushed, so an existing PR is already
+                # up to date — treat a duplicate as success rather than failing the run.
+                if "already exists" in pr_result.stderr:
+                    console_print(f"[success]PR already exists for {head_ref}, updated with force push.[/]")
+                else:
+                    console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
+                    sys.exit(1)
+            else:
+                console_print(f"[success]PR created successfully: {pr_result.stdout.strip()}.[/]")
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")
@@ -1006,6 +1015,49 @@ def upgrade(
         console_print(f"[success]Local branch {branch_name} deleted.[/]")
     else:
         console_print("[info]PR creation skipped. Changes are committed locally.[/]")
+
+
+# ---------------------------------------------------------------------------
+# Milestone auto-tagging helpers (used by the ``set-milestone`` command and the
+# ``milestone-tag-assistant.yml`` workflow).
+#
+# Skip-decision pipeline
+# ----------------------
+# After fetching the PR (so the ``Issue`` is in scope), the ``set-milestone``
+# command runs these three checks IN ORDER and stops on the first one that
+# returns "skip":
+#
+# 1. **Milestone-already-set guard** (in ``set_milestone``): if
+#    ``issue.milestone`` is non-null, leave the existing milestone alone and
+#    exit.
+# 2. **GitHub events evaluation** (:func:`_should_skip_milestone_tagging`):
+#    if any ``unlabeled`` event in ``issue.get_events()`` removed a
+#    ``backport-to-*`` label AND no ``backport-to-*`` label remains on the
+#    PR, treat the removal as an explicit "don't auto-tag" signal and skip.
+#    GitHub repo settings restrict label changes to committers/triagers, so
+#    the actor's permission is NOT re-verified here — the change is
+#    implicitly authorised.
+# 3. **Static skip labels** (:func:`_should_skip_milestone_tagging`): if any
+#    ``MILESTONE_SKIP_LABELS`` label is currently on the PR, skip.
+#
+# The events check is intentionally ordered before the static-label check so
+# that an explicit maintainer "unbackport" overrides every other condition,
+# including the merge-to-version-branch heuristic that
+# :func:`_determine_milestone_version` would otherwise apply.
+#
+# Inputs the decision uses
+# ------------------------
+# - ``labels`` — the labels currently on the PR (live from ``issue.labels``,
+#   fetched fresh by the caller; the workflow's ``--pr-labels`` snapshot is
+#   no longer consulted for the decision).
+# - ``events`` — the issue events stream from ``issue.get_events()``,
+#   fetched fresh by the caller. Pass ``None`` to disable the events check
+#   (e.g. when the events fetch failed and only the static check should
+#   run).
+#
+# All milestone helpers log via :func:`console_print` with the workflow's
+# Rich console; callers do not need to add their own skip-related log lines.
+# ---------------------------------------------------------------------------
 
 
 VERSION_BRANCH_PATTERN = re.compile(r"^v(\d+)-(\d+)-test$")
@@ -1139,9 +1191,85 @@ def _has_bug_fix_indicators(title: str, labels: list[str]) -> bool:
     return False
 
 
-def _should_skip_milestone_tagging(labels: list[str]) -> bool:
-    """Check if the PR should be skipped from milestone auto-tagging."""
-    return bool(set(labels) & MILESTONE_SKIP_LABELS)
+def _get_removed_backport_labels_from_events(events: Iterable[IssueEvent]) -> set[str]:
+    """Return ``backport-to-*`` labels that appear in any ``unlabeled`` event.
+
+    Scans the issue events stream for ``unlabeled`` events on ``backport-to-*``
+    labels and returns the set of label names that were removed at any point
+    in the PR's lifecycle. The actor is intentionally NOT checked: GitHub
+    repo settings restrict label changes to users with write or triage
+    access, so any ``unlabeled`` event is implicitly authorised.
+
+    Combined with the live ``backport-to-*`` labels still on the PR, this is
+    enough to distinguish:
+
+    - Full removal (event present, no current backport) → skip signal.
+    - Replacement (event present, different current backport) → no skip;
+      the caller's regular evaluation picks up the new label.
+    - No removal (no event) → no skip.
+    """
+    return {
+        event.label.name
+        for event in events
+        if getattr(event, "event", None) == "unlabeled"
+        and getattr(getattr(event, "label", None), "name", "").startswith("backport-to-")
+    }
+
+
+def _should_skip_milestone_tagging(
+    labels: list[str],
+    events: Iterable[IssueEvent] | None = None,
+) -> bool:
+    """Decide whether milestone auto-tagging should be skipped for the PR.
+
+    Single decision point for the ``set-milestone`` command, covering
+    checks 2 and 3 of the pipeline documented in the module-level comment
+    above. Check 1 (milestone-already-set guard) is handled separately in
+    :func:`set_milestone` because it operates on ``issue.milestone`` rather
+    than labels. Applies the checks IN ORDER and short-circuits on the
+    first hit; each skip outcome emits its own ``console_print`` info log
+    so callers only need to react to the boolean return.
+
+    1. **GitHub events evaluation** (when ``events`` is supplied). If any
+       ``unlabeled`` event in ``events`` removed a ``backport-to-*`` label
+       AND ``labels`` contains no ``backport-to-*`` label now, treat the
+       removal as an explicit "don't auto-tag" signal and skip. Pure label
+       replacement (e.g. ``backport-to-v3-1-test`` swapped for
+       ``backport-to-v3-2-test``) leaves a backport on the PR and does NOT
+       trigger the skip — the caller's regular evaluation picks up the new
+       label. The unlabel actor's permission is NOT re-verified: GitHub
+       repo settings already restrict label changes to committers/triagers.
+    2. **Static skip labels.** If any ``MILESTONE_SKIP_LABELS`` label is
+       in ``labels``, skip.
+    3. Otherwise, do not skip.
+
+    The events check is ordered first so that an explicit unbackport
+    overrides every other condition, including the merge-to-version-branch
+    heuristic that :func:`_determine_milestone_version` would otherwise
+    apply.
+
+    :param labels: Labels currently on the PR (live, from ``issue.labels``).
+    :param events: Issue events stream (live, from ``issue.get_events()``).
+        Pass ``None`` to disable the events check — e.g. when the events
+        fetch failed and only the static skip-label check should run.
+    """
+    if events is not None:
+        removed_backports = _get_removed_backport_labels_from_events(events)
+        current_backports = {label for label in labels if label.startswith("backport-to-")}
+        if removed_backports and not current_backports:
+            console_print(
+                f"[info]Skipping milestone tagging - backport labels were removed during the "
+                f"PR lifecycle and no replacement remains, treated as explicit "
+                f"maintainer/triager signal: {sorted(removed_backports)}[/]"
+            )
+            return True
+
+    skip_labels_present = set(labels) & MILESTONE_SKIP_LABELS
+    if skip_labels_present:
+        console_print(f"[info]Skipping milestone tagging - PR has skip label(s): {skip_labels_present}[/]")
+        return True
+
+    return False
 
 
 def _get_backport_version_from_labels(labels: list[str]) -> tuple[int, int] | None:
@@ -1240,29 +1368,18 @@ def set_milestone(
     console_print(f"[info]Base branch: {base_branch}[/]")
     console_print(f"[info]Merged by: {merged_by}[/]")
 
-    # Parse labels from JSON
+    # The workflow's ``--pr-labels`` snapshot is logged for diagnostic visibility
+    # but is no longer used in the decision: live labels and live events are
+    # fetched fresh below. See the milestone-helpers module-level comment for
+    # the full skip-decision pipeline.
     try:
-        labels = json.loads(pr_labels)
+        snapshot_labels = json.loads(pr_labels)
     except json.JSONDecodeError:
         console_print(f"[warning]Could not parse labels JSON: {pr_labels}[/]")
-        labels = []
+        snapshot_labels = []
+    console_print(f"[info]Workflow snapshot labels (diagnostic only): {snapshot_labels}[/]")
 
-    console_print(f"[info]Labels: {labels}[/]")
-
-    # Check if we should skip
-    if _should_skip_milestone_tagging(labels):
-        console_print(
-            f"[info]Skipping milestone tagging - PR has skip label(s): {set(labels) & MILESTONE_SKIP_LABELS}[/]"
-        )
-        return
-
-    # Determine which milestone to use
-    version, reason = _determine_milestone_version(labels, pr_title, base_branch)
-    if version is None:
-        console_print(f"[info]No milestone to set: {reason}[/]")
-        return
-
-    # Initialize GitHub client and get repository
+    # Initialize GitHub client and get repository.
     try:
         gh = _get_github_client(github_token)
         repo: Repository = gh.get_repo(github_repository)
@@ -1270,14 +1387,9 @@ def set_milestone(
         console_print(f"[error]Failed to connect to GitHub: {e}[/]")
         return
 
-    # Double check whether the PR already has a milestone set - if so, we don't want to override it
+    # Step 1: milestone-already-set guard — don't override an existing milestone.
     try:
         issue: Issue = repo.get_issue(pr_number)
-        if issue.milestone is not None:
-            console_print(
-                f"[info]PR #{pr_number} already has milestone '{issue.milestone.title}' set. Skipping.[/]"
-            )
-            return
     except UnknownObjectException:
         console_print(f"[error]PR #{pr_number} not found when checking existing milestone[/]")
         return
@@ -1285,39 +1397,40 @@ def set_milestone(
         console_print(f"[error]Failed to check existing milestone: {e}[/]")
         return
 
-    # Re-read labels from the freshly-fetched issue to close the race between
-    # the workflow's initial label snapshot (taken by the get-pr-info job a
-    # couple of minutes ago) and the actual milestone-set step. Maintainers
-    # sometimes add and remove a backport label inside that window; honour
-    # the latest state, not the stale snapshot.
+    if issue.milestone is not None:
+        console_print(
+            f"[info]PR #{pr_number} already has milestone '{issue.milestone.title}' set. Skipping.[/]"
+        )
+        return
+
+    # Pull live labels and events. Both feed the skip-decision function below
+    # (events → check 2, labels → check 3) and ``labels`` also feeds
+    # ``_determine_milestone_version`` once the skip pipeline lets the PR
+    # through.
     try:
-        current_labels = [label.name for label in issue.labels]
+        labels = [label.name for label in issue.labels]
     except Exception as e:
-        console_print(f"[warning]Could not re-read PR labels; falling back to snapshot decision: {e}[/]")
-        current_labels = labels
+        console_print(f"[warning]Could not read live PR labels; falling back to snapshot: {e}[/]")
+        labels = snapshot_labels
+    console_print(f"[info]Live labels: {sorted(labels)}[/]")
 
-    if set(current_labels) != set(labels):
-        console_print("[info]Labels changed since workflow snapshot; re-evaluating.[/]")
-        console_print(f"[info]Snapshot labels: {sorted(labels)}[/]")
-        console_print(f"[info]Current labels:  {sorted(current_labels)}[/]")
+    events: list | None
+    try:
+        events = list(issue.get_events())
+    except Exception as e:
+        console_print(f"[warning]Could not fetch issue events; skipping events check: {e}[/]")
+        events = None
 
-        if _should_skip_milestone_tagging(current_labels):
-            console_print(
-                f"[info]Skipping milestone tagging - PR now has skip label(s): "
-                f"{set(current_labels) & MILESTONE_SKIP_LABELS}[/]"
-            )
-            return
+    # Steps 2 and 3 of the pipeline: events-based unbackport signal, then
+    # static skip labels. The function logs its own reason when it returns True.
+    if _should_skip_milestone_tagging(labels, events=events):
+        return
 
-        new_version, new_reason = _determine_milestone_version(current_labels, pr_title, base_branch)
-        if (new_version, new_reason) != (version, reason):
-            console_print(
-                f"[info]Determination changed after re-read: was ({version}, {reason!r}); "
-                f"now ({new_version}, {new_reason!r}). Using current labels.[/]"
-            )
-            version, reason = new_version, new_reason
-            if version is None:
-                console_print(f"[info]No milestone to set after re-evaluation: {reason}[/]")
-                return
+    # Determine which milestone to use from the live labels.
+    version, reason = _determine_milestone_version(labels, pr_title, base_branch)
+    if version is None:
+        console_print(f"[info]No milestone to set: {reason}[/]")
+        return
 
     major, minor = version
     milestone_prefix = _get_milestone_prefix(major, minor)

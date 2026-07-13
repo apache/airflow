@@ -25,6 +25,31 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Align hook run() annotations with None-able handler results (#69230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 2.0.0
 .....
 

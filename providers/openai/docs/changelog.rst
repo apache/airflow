@@ -20,6 +20,38 @@
 Changelog
 ---------
 
+1.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Deprecate OpenAI Assistants and Threads hook methods (#69071)``
+* ``Add OpenAI Responses and Conversations support (#69070)``
+* ``Add Workload Identity authentication to OpenAI provider (#69069)``
+
+Misc
+~~~~
+
+* ``Update OpenAI provider to OpenAI Python SDK 2.x (#69068)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+1.7.5
+.....
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+
 1.7.4
 .....
 

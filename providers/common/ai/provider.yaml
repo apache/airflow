@@ -23,10 +23,13 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1779211595
+source-date-epoch: 1783356304
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.6.0
+  - 0.5.0
+  - 0.4.0
   - 0.3.0
   - 0.2.0
   - 0.1.1
@@ -87,19 +90,56 @@ config:
       durable_cache_path:
         description: |
           ObjectStorage URI used to persist per-step caches when running
-          ``AgentOperator`` / ``@task.agent`` with ``durable=True``. Each task
-          execution writes a single JSON file under this path containing its
-          cached model responses and tool results, so that on retry the agent
-          can replay completed steps instead of re-issuing LLM calls and tool
-          invocations. The file is deleted on successful task completion.
+          ``AgentOperator`` / ``@task.agent`` with ``durable=True`` on Airflow
+          **< 3.3**. Each task execution writes a single JSON file under this
+          path containing its cached model responses and tool results, so that
+          on retry the agent can replay completed steps instead of re-issuing
+          LLM calls and tool invocations. The file is deleted on successful task
+          completion.
 
-          Required when ``durable=True`` is used. Any scheme supported by
-          ``airflow.sdk.ObjectStoragePath`` is accepted (``file://``, ``s3://``,
-          ``gs://``, ``azure://``, ...).
+          Required for ``durable=True`` only on Airflow < 3.3. On Airflow >= 3.3
+          the cache is stored in the AIP-103 task state store and this option is
+          ignored. Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is
+          accepted (``file://``, ``s3://``, ``gs://``, ``azure://``, ...).
         version_added: 0.1.0
         type: string
         example: "file:///tmp/airflow_durable_cache"
         default: ""
+      otel_export_enabled:
+        description: |
+          Attach pydantic-ai OpenTelemetry instrumentation to agents created by
+          this provider and emit GenAI spans (agent run, model call, tool call,
+          token usage) for ``AgentOperator`` / ``@task.agent`` / ``@task.llm``
+          and the other LLM operators.
+
+          Spans are emitted through Airflow's existing OpenTelemetry exporter,
+          configured under ``[traces]`` / the standard ``OTEL_EXPORTER_OTLP_*``
+          environment variables, and nest under the task span so they are
+          attributable to the originating DAG run and task instance. The
+          provider does not configure an exporter of its own: if core tracing
+          (``[traces] otel_on``) is not enabled in the worker process, no spans
+          are emitted. Off by default so installing the provider never starts
+          shipping spans without opt-in.
+        version_added: 0.4.0
+        type: boolean
+        example: "True"
+        default: "False"
+      capture_content:
+        description: |
+          Capture prompt, completion, and tool-call content on the emitted
+          GenAI spans (``gen_ai.input.messages`` / ``gen_ai.output.messages``).
+
+          Off by default: only token counts, model id, latency, tool names, and
+          finish reason are recorded, never message text. Turning this on exports
+          model inputs and outputs to your tracing backend without redaction. Airflow's
+          secret masking applies to logs and rendered template fields, not to
+          OpenTelemetry span attributes, so it does not scrub this content.
+          Enable it only for debugging in a trusted environment. Has no effect
+          unless ``otel_export_enabled`` is ``True``.
+        version_added: 0.4.0
+        type: boolean
+        example: "False"
+        default: "False"
 
 
 connection-types:

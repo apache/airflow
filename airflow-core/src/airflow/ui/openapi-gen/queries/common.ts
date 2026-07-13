@@ -1,12 +1,12 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
-export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uriPattern, uriPrefixPattern }: {
+export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   limit?: number;
   namePattern?: string;
@@ -14,9 +14,10 @@ export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, name
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uriPattern, uriPrefixPattern }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }])];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAliases>>;
 export type AssetServiceGetAssetAliasesQueryResult<TData = AssetServiceGetAssetAliasesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
@@ -36,8 +37,9 @@ export const UseAssetServiceGetAssetAliasKeyFn = ({ assetAliasId }: {
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetEvents>>;
 export type AssetServiceGetAssetEventsQueryResult<TData = AssetServiceGetAssetEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetEventsKey = "AssetServiceGetAssetEvents";
-export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
+  extra?: string[];
   limit?: number;
   namePattern?: string;
   namePrefixPattern?: string;
@@ -51,7 +53,7 @@ export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, limit, namePattern
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }])];
 export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetQueuedEvents>>;
 export type AssetServiceGetAssetQueuedEventsQueryResult<TData = AssetServiceGetAssetQueuedEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetQueuedEventsKey = "AssetServiceGetAssetQueuedEvents";
@@ -117,6 +119,12 @@ export const useConnectionServiceGetConnectionKey = "ConnectionServiceGetConnect
 export const UseConnectionServiceGetConnectionKeyFn = ({ connectionId }: {
   connectionId: string;
 }, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionKey, ...(queryKey ?? [{ connectionId }])];
+export type ConnectionServiceGetConnectionTestDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnectionTest>>;
+export type ConnectionServiceGetConnectionTestQueryResult<TData = ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionTestKey = "ConnectionServiceGetConnectionTest";
+export const UseConnectionServiceGetConnectionTestKeyFn = ({ airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestKey, ...(queryKey ?? [{ airflowConnectionTestToken }])];
 export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnections>>;
 export type ConnectionServiceGetConnectionsQueryResult<TData = ConnectionServiceGetConnectionsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceGetConnectionsKey = "ConnectionServiceGetConnections";
@@ -320,7 +328,7 @@ export const UseDagServiceGetDagTagsKeyFn = ({ limit, offset, orderBy, tagNamePa
 export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
 export type DagServiceGetDagsUiQueryResult<TData = DagServiceGetDagsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsUiKey = "DagServiceGetDagsUi";
-export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -330,6 +338,7 @@ export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundl
   dagIdPrefixPattern?: string;
   dagIds?: string[];
   dagRunsLimit?: number;
+  dagRunState?: DagRunState;
   excludeStale?: boolean;
   hasAssetSchedule?: boolean;
   hasImportErrors?: boolean;
@@ -343,13 +352,19 @@ export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundl
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }])];
 export type DagServiceGetLatestRunInfoDefaultResponse = Awaited<ReturnType<typeof DagService.getLatestRunInfo>>;
 export type DagServiceGetLatestRunInfoQueryResult<TData = DagServiceGetLatestRunInfoDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetLatestRunInfoKey = "DagServiceGetLatestRunInfo";
 export const UseDagServiceGetLatestRunInfoKeyFn = ({ dagId }: {
   dagId: string;
 }, queryKey?: Array<unknown>) => [useDagServiceGetLatestRunInfoKey, ...(queryKey ?? [{ dagId }])];
+export type DagServiceGetDagRunStateCountsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagRunStateCountsUi>>;
+export type DagServiceGetDagRunStateCountsUiQueryResult<TData = DagServiceGetDagRunStateCountsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagRunStateCountsUiKey = "DagServiceGetDagRunStateCountsUi";
+export const UseDagServiceGetDagRunStateCountsUiKeyFn = ({ dagIds }: {
+  dagIds: string[];
+}, queryKey?: Array<unknown>) => [useDagServiceGetDagRunStateCountsUiKey, ...(queryKey ?? [{ dagIds }])];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLog>>;
 export type EventLogServiceGetEventLogQueryResult<TData = EventLogServiceGetEventLogDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";
@@ -665,13 +680,15 @@ export const UseImportErrorServiceGetImportErrorKeyFn = ({ importErrorId }: {
 export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<ReturnType<typeof ImportErrorService.getImportErrors>>;
 export type ImportErrorServiceGetImportErrorsQueryResult<TData = ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useImportErrorServiceGetImportErrorsKey = "ImportErrorServiceGetImportErrors";
-export const UseImportErrorServiceGetImportErrorsKeyFn = ({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const UseImportErrorServiceGetImportErrorsKeyFn = ({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
+  filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }])];
+} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }])];
 export type JobServiceGetJobsDefaultResponse = Awaited<ReturnType<typeof JobService.getJobs>>;
 export type JobServiceGetJobsQueryResult<TData = JobServiceGetJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useJobServiceGetJobsKey = "JobServiceGetJobs";
@@ -727,42 +744,42 @@ export const UseProviderServiceGetProvidersKeyFn = ({ limit, offset }: {
   limit?: number;
   offset?: number;
 } = {}, queryKey?: Array<unknown>) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
-export type AssetStateServiceListAssetStatesDefaultResponse = Awaited<ReturnType<typeof AssetStateService.listAssetStates>>;
-export type AssetStateServiceListAssetStatesQueryResult<TData = AssetStateServiceListAssetStatesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useAssetStateServiceListAssetStatesKey = "AssetStateServiceListAssetStates";
-export const UseAssetStateServiceListAssetStatesKeyFn = ({ assetId, limit, offset }: {
+export type AssetStateStoreServiceListAssetStateStoreDefaultResponse = Awaited<ReturnType<typeof AssetStateStoreService.listAssetStateStore>>;
+export type AssetStateStoreServiceListAssetStateStoreQueryResult<TData = AssetStateStoreServiceListAssetStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetStateStoreServiceListAssetStateStoreKey = "AssetStateStoreServiceListAssetStateStore";
+export const UseAssetStateStoreServiceListAssetStateStoreKeyFn = ({ assetId, limit, offset }: {
   assetId: number;
   limit?: number;
   offset?: number;
-}, queryKey?: Array<unknown>) => [useAssetStateServiceListAssetStatesKey, ...(queryKey ?? [{ assetId, limit, offset }])];
-export type AssetStateServiceGetAssetStateDefaultResponse = Awaited<ReturnType<typeof AssetStateService.getAssetState>>;
-export type AssetStateServiceGetAssetStateQueryResult<TData = AssetStateServiceGetAssetStateDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useAssetStateServiceGetAssetStateKey = "AssetStateServiceGetAssetState";
-export const UseAssetStateServiceGetAssetStateKeyFn = ({ assetId, key }: {
+}, queryKey?: Array<unknown>) => [useAssetStateStoreServiceListAssetStateStoreKey, ...(queryKey ?? [{ assetId, limit, offset }])];
+export type AssetStateStoreServiceGetAssetStateStoreDefaultResponse = Awaited<ReturnType<typeof AssetStateStoreService.getAssetStateStore>>;
+export type AssetStateStoreServiceGetAssetStateStoreQueryResult<TData = AssetStateStoreServiceGetAssetStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetStateStoreServiceGetAssetStateStoreKey = "AssetStateStoreServiceGetAssetStateStore";
+export const UseAssetStateStoreServiceGetAssetStateStoreKeyFn = ({ assetId, key }: {
   assetId: number;
   key: string;
-}, queryKey?: Array<unknown>) => [useAssetStateServiceGetAssetStateKey, ...(queryKey ?? [{ assetId, key }])];
-export type TaskStateServiceListTaskStatesDefaultResponse = Awaited<ReturnType<typeof TaskStateService.listTaskStates>>;
-export type TaskStateServiceListTaskStatesQueryResult<TData = TaskStateServiceListTaskStatesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useTaskStateServiceListTaskStatesKey = "TaskStateServiceListTaskStates";
-export const UseTaskStateServiceListTaskStatesKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+}, queryKey?: Array<unknown>) => [useAssetStateStoreServiceGetAssetStateStoreKey, ...(queryKey ?? [{ assetId, key }])];
+export type TaskStateStoreServiceListTaskStateStoreDefaultResponse = Awaited<ReturnType<typeof TaskStateStoreService.listTaskStateStore>>;
+export type TaskStateStoreServiceListTaskStateStoreQueryResult<TData = TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTaskStateStoreServiceListTaskStateStoreKey = "TaskStateStoreServiceListTaskStateStore";
+export const UseTaskStateStoreServiceListTaskStateStoreKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   taskId: string;
-}, queryKey?: Array<unknown>) => [useTaskStateServiceListTaskStatesKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, taskId }])];
-export type TaskStateServiceGetTaskStateDefaultResponse = Awaited<ReturnType<typeof TaskStateService.getTaskState>>;
-export type TaskStateServiceGetTaskStateQueryResult<TData = TaskStateServiceGetTaskStateDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useTaskStateServiceGetTaskStateKey = "TaskStateServiceGetTaskState";
-export const UseTaskStateServiceGetTaskStateKeyFn = ({ dagId, dagRunId, key, mapIndex, taskId }: {
+}, queryKey?: Array<unknown>) => [useTaskStateStoreServiceListTaskStateStoreKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, taskId }])];
+export type TaskStateStoreServiceGetTaskStateStoreDefaultResponse = Awaited<ReturnType<typeof TaskStateStoreService.getTaskStateStore>>;
+export type TaskStateStoreServiceGetTaskStateStoreQueryResult<TData = TaskStateStoreServiceGetTaskStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTaskStateStoreServiceGetTaskStateStoreKey = "TaskStateStoreServiceGetTaskStateStore";
+export const UseTaskStateStoreServiceGetTaskStateStoreKeyFn = ({ dagId, dagRunId, key, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
   taskId: string;
-}, queryKey?: Array<unknown>) => [useTaskStateServiceGetTaskStateKey, ...(queryKey ?? [{ dagId, dagRunId, key, mapIndex, taskId }])];
+}, queryKey?: Array<unknown>) => [useTaskStateStoreServiceGetTaskStateStoreKey, ...(queryKey ?? [{ dagId, dagRunId, key, mapIndex, taskId }])];
 export type XcomServiceGetXcomEntryDefaultResponse = Awaited<ReturnType<typeof XcomService.getXcomEntry>>;
 export type XcomServiceGetXcomEntryQueryResult<TData = XcomServiceGetXcomEntryDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useXcomServiceGetXcomEntryKey = "XcomServiceGetXcomEntry";
@@ -883,10 +900,12 @@ export const UseAuthLinksServiceGetCurrentUserInfoKeyFn = (queryKey?: Array<unkn
 export type PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPartitionedDagRuns>>;
 export type PartitionedDagRunServiceGetPartitionedDagRunsQueryResult<TData = PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const usePartitionedDagRunServiceGetPartitionedDagRunsKey = "PartitionedDagRunServiceGetPartitionedDagRuns";
-export const UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn = ({ dagId, hasCreatedDagRunId }: {
+export const UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn = ({ dagId, hasCreatedDagRunId, limit, offset }: {
   dagId?: string;
   hasCreatedDagRunId?: boolean;
-} = {}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPartitionedDagRunsKey, ...(queryKey ?? [{ dagId, hasCreatedDagRunId }])];
+  limit?: number;
+  offset?: number;
+} = {}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPartitionedDagRunsKey, ...(queryKey ?? [{ dagId, hasCreatedDagRunId, limit, offset }])];
 export type PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPendingPartitionedDagRun>>;
 export type PartitionedDagRunServiceGetPendingPartitionedDagRunQueryResult<TData = PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const usePartitionedDagRunServiceGetPendingPartitionedDagRunKey = "PartitionedDagRunServiceGetPendingPartitionedDagRun";
@@ -1019,6 +1038,17 @@ export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logical
   partitionDateLt?: string;
   partitionDateLte?: string;
 }, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }])];
+export type CalendarServiceGetCalendarDeadlinesDefaultResponse = Awaited<ReturnType<typeof CalendarService.getCalendarDeadlines>>;
+export type CalendarServiceGetCalendarDeadlinesQueryResult<TData = CalendarServiceGetCalendarDeadlinesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useCalendarServiceGetCalendarDeadlinesKey = "CalendarServiceGetCalendarDeadlines";
+export const UseCalendarServiceGetCalendarDeadlinesKeyFn = ({ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }: {
+  dagId: string;
+  deadlineTimeGt?: string;
+  deadlineTimeGte?: string;
+  deadlineTimeLt?: string;
+  deadlineTimeLte?: string;
+  granularity?: "hourly" | "daily";
+}, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarDeadlinesKey, ...(queryKey ?? [{ dagId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, granularity }])];
 export type TeamsServiceListTeamsDefaultResponse = Awaited<ReturnType<typeof TeamsService.listTeams>>;
 export type TeamsServiceListTeamsQueryResult<TData = TeamsServiceListTeamsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTeamsServiceListTeamsKey = "TeamsServiceListTeams";
@@ -1031,12 +1061,15 @@ export type AssetServiceCreateAssetEventMutationResult = Awaited<ReturnType<type
 export type AssetServiceMaterializeAssetMutationResult = Awaited<ReturnType<typeof AssetService.materializeAsset>>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfill>>;
 export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfillDryRun>>;
+export type ConnectionServiceEnqueueConnectionTestMutationResult = Awaited<ReturnType<typeof ConnectionService.enqueueConnectionTest>>;
 export type ConnectionServicePostConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.postConnection>>;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.testConnection>>;
 export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.createDefaultConnections>>;
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.triggerDagRun>>;
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<ReturnType<typeof DagRunService.getListDagRunsBatch>>;
+export type DagRunServiceClearDagRunsMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRuns>>;
+export type DagRunServiceClearDagRunPartitionsMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRunPartitions>>;
 export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
 export type DagServiceUnfavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.unfavoriteDag>>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>>;
@@ -1048,8 +1081,8 @@ export type AuthLinksServiceGenerateTokenMutationResult = Awaited<ReturnType<typ
 export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.pauseBackfill>>;
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;
-export type AssetStateServiceSetAssetStateMutationResult = Awaited<ReturnType<typeof AssetStateService.setAssetState>>;
-export type TaskStateServiceSetTaskStateMutationResult = Awaited<ReturnType<typeof TaskStateService.setTaskState>>;
+export type AssetStateStoreServiceSetAssetStateStoreMutationResult = Awaited<ReturnType<typeof AssetStateStoreService.setAssetStateStore>>;
+export type TaskStateStoreServiceSetTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.setTaskStateStore>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<ReturnType<typeof DagParsingService.reparseDagFile>>;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.patchConnection>>;
 export type ConnectionServiceBulkConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.bulkConnections>>;
@@ -1067,6 +1100,7 @@ export type TaskInstanceServicePatchTaskInstanceDryRunMutationResult = Awaited<R
 export type TaskInstanceServiceUpdateHitlDetailMutationResult = Awaited<ReturnType<typeof TaskInstanceService.updateHitlDetail>>;
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
 export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolService.bulkPools>>;
+export type TaskStateStoreServicePatchTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.patchTaskStateStore>>;
 export type XcomServiceUpdateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.updateXcomEntry>>;
 export type VariableServicePatchVariableMutationResult = Awaited<ReturnType<typeof VariableService.patchVariable>>;
 export type VariableServiceBulkVariablesMutationResult = Awaited<ReturnType<typeof VariableService.bulkVariables>>;
@@ -1078,9 +1112,9 @@ export type DagRunServiceDeleteDagRunMutationResult = Awaited<ReturnType<typeof 
 export type DagServiceDeleteDagMutationResult = Awaited<ReturnType<typeof DagService.deleteDag>>;
 export type TaskInstanceServiceDeleteTaskInstanceMutationResult = Awaited<ReturnType<typeof TaskInstanceService.deleteTaskInstance>>;
 export type PoolServiceDeletePoolMutationResult = Awaited<ReturnType<typeof PoolService.deletePool>>;
-export type AssetStateServiceClearAssetStateMutationResult = Awaited<ReturnType<typeof AssetStateService.clearAssetState>>;
-export type AssetStateServiceDeleteAssetStateMutationResult = Awaited<ReturnType<typeof AssetStateService.deleteAssetState>>;
-export type TaskStateServiceClearTaskStateMutationResult = Awaited<ReturnType<typeof TaskStateService.clearTaskState>>;
-export type TaskStateServiceDeleteTaskStateMutationResult = Awaited<ReturnType<typeof TaskStateService.deleteTaskState>>;
+export type AssetStateStoreServiceClearAssetStateStoreMutationResult = Awaited<ReturnType<typeof AssetStateStoreService.clearAssetStateStore>>;
+export type AssetStateStoreServiceDeleteAssetStateStoreMutationResult = Awaited<ReturnType<typeof AssetStateStoreService.deleteAssetStateStore>>;
+export type TaskStateStoreServiceClearTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.clearTaskStateStore>>;
+export type TaskStateStoreServiceDeleteTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.deleteTaskStateStore>>;
 export type XcomServiceDeleteXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.deleteXcomEntry>>;
 export type VariableServiceDeleteVariableMutationResult = Awaited<ReturnType<typeof VariableService.deleteVariable>>;

@@ -487,15 +487,19 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             try:
                 statement_status = self._hook.get_sql_api_query_status(query_id)
             except Exception as e:
-                raise ValueError({"status": "error", "message": str(e)})
+                raise RuntimeError(f"Failed to get status for query {query_id}: {e}") from e
             if statement_status.get("status") == "error":
                 queries_in_progress.remove(query_id)
                 statement_error_status[query_id] = statement_status
-            if statement_status.get("status") == "success":
+            elif statement_status.get("status") == "success":
                 statement_success_status[query_id] = statement_status
                 queries_in_progress.remove(query_id)
-            if statement_status.get("status") == "running":
+            elif statement_status.get("status") == "running":
                 statement_running_status[query_id] = statement_status
+        # Only wait before the next poll cycle if something is still running. Sleeping
+        # unconditionally after every handle would delay returning even when this cycle
+        # already resolved everything (e.g. all statements finished, or one failed).
+        if queries_in_progress:
             time.sleep(self.poll_interval)
         return {
             "success": statement_success_status,

@@ -11,6 +11,24 @@
     },
     "title": "감사 로그"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "알림 이름",
+      "deadlineTime": "데드라인 시각",
+      "status": "상태"
+    },
+    "deadline_one": "데드라인",
+    "deadline_other": "데드라인",
+    "filters": {
+      "status": "상태",
+      "statusOptions": {
+        "all": "전체",
+        "missed": "초과",
+        "pending": "예정"
+      }
+    },
+    "title": "데드라인"
+  },
   "xcom": {
     "add": {
       "error": "XCom 추가에 실패하였습니다.",

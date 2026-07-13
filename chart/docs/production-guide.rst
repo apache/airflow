@@ -390,6 +390,38 @@ You can create and configure ``Ingress`` objects. See the :ref:`Ingress chart pa
 For more information on ``Ingress``, see the
 `Kubernetes Ingress documentation <https://kubernetes.io/docs/concepts/services-networking/ingress/>`_.
 
+Gateway API (HTTPRoute)
+^^^^^^^^^^^^^^^^^^^^^^^
+
+As an alternative to ``Ingress``, the chart can create a
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` for the API server.
+This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
+the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``parentRefs``.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   apiServer:
+     httpRoute:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - airflow.example.com
+
+For fine-grained routing, supply ``apiServer.httpRoute.rules`` directly — the entry mirrors the
+upstream ``HTTPRouteRule`` schema and overrides the default rule generated from ``path`` + ``pathType``.
+
+.. note::
+
+   ``HTTPRoute`` is an alternative to the API server ``Ingress``, so enable only one of
+   ``ingress.apiServer`` or ``apiServer.httpRoute`` — enabling both at the same time fails template
+   rendering. When ``apiServer.httpRoute.enabled`` is ``true``, the chart also verifies (via Helm
+   ``Capabilities``) that the Gateway API CRDs are installed and fails with a clear message if they
+   are not.
+
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -788,12 +820,12 @@ This container-specific approach ensures that:
 Configuration Options
 ^^^^^^^^^^^^^^^^^^^^^
 
-The service account token volume configuration is available for the scheduler component and includes the following options:
+The service account token volume configuration is available for the scheduler and cleanup component and includes the following options:
 
 .. code-block:: yaml
    :caption: values.yaml
 
-   scheduler:
+   (scheduler|cleanup):
      serviceAccount:
        automountServiceAccountToken: false
        serviceAccountTokenVolume:

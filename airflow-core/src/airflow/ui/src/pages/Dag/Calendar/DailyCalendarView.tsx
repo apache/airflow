@@ -49,12 +49,13 @@ type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
   readonly scale: CalendarScale;
   readonly selectedYear: number;
+  readonly timezone: string;
   readonly viewMode?: CalendarColorMode;
 };
 
-export const DailyCalendarView = ({ data, scale, selectedYear, viewMode = "total" }: Props) => {
+export const DailyCalendarView = ({ data, scale, selectedYear, timezone, viewMode = "total" }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const dailyData = generateDailyCalendarData(data, selectedYear);
+  const dailyData = generateDailyCalendarData(data, selectedYear, timezone);
 
   const weekdays = [
     translate("calendar.weekdays.sunday"),

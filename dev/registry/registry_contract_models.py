@@ -110,6 +110,7 @@ class ModuleContract(BaseModel):
     category: str
     provider_id: str | None = None
     provider_name: str | None = None
+    supports_durable_execution: bool = False
 
 
 class ModulesCatalogContract(BaseModel):

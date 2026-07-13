@@ -105,6 +105,7 @@ SEED_VALUES: dict[str, dict[str, str]] = {
         "timetable_type": "'cron'",
         "timetable_partitioned": "0",
         "timetable_periodic": "0",
+        "partition_mapper_info": "'[]'",
     },
     "dag_version": {
         "id": f"'{SEED_DAG_VERSION_ID}'",
@@ -125,7 +126,6 @@ SEED_VALUES: dict[str, dict[str, str]] = {
         "state": "'success'",
         "log_template_id": "1",
         "run_after": "'2024-01-01 00:00:00+00:00'",
-        "span_status": "'not_started'",
         "clear_number": "0",
     },
     "task_instance": {

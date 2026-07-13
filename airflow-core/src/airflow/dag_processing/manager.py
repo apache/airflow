@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import functools
 import gc
 import inspect
@@ -31,7 +30,7 @@ import signal
 import sys
 import time
 import zipfile
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -41,6 +40,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 import attrs
 import structlog
 from sqlalchemy import select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
@@ -48,7 +48,6 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
@@ -70,6 +69,7 @@ from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
 from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
@@ -77,18 +77,34 @@ from airflow.utils.process_utils import (
 )
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
+from airflow.utils.sqlalchemy import (
+    is_lock_not_available_error,
+    prohibit_commit,
+    with_db_lock_timeout,
+    with_row_locks,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Iterator, Sequence
+    from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
     from socket import socket
 
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+
+
+def _make_execution_api() -> InProcessExecutionAPI:
+    # This is a seriously weighty import, pulling in svcs, cadwyn, fastapi, aiohttp, etc.
+    #
+    # Defer it so that an import of this module for types (e.g. DagFileStat, DagFileInto) doesn't need to pay
+    # that cost.
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    return InProcessExecutionAPI()
 
 
 class DagParsingStat(NamedTuple):
@@ -136,6 +152,11 @@ class DagFileInfo:
     def presence_key(self) -> tuple[str, Path]:
         """Return the stable file identity used for presence checks."""
         return self.bundle_name, self.rel_path
+
+    @property
+    def normalized_file_path_for_stats(self) -> str:
+        """Return the relative file path normalized for use in stats tags."""
+        return normalize_name_for_stats(str(self.rel_path))
 
 
 def _config_int_factory(section: str, key: str):
@@ -237,7 +258,7 @@ class DagFileProcessorManager(LoggingMixin):
     heartbeat: Callable[[], None] = attrs.field(default=lambda: None)
     """An overridable heartbeat called once every time around the loop"""
 
-    _file_queue: deque[DagFileInfo] = attrs.field(factory=deque, init=False)
+    _file_queue: OrderedDict[DagFileInfo, None] = attrs.field(factory=OrderedDict, init=False)
     _file_stats: dict[DagFileInfo, DagFileStat] = attrs.field(
         factory=lambda: defaultdict(DagFileStat), init=False
     )
@@ -245,6 +266,8 @@ class DagFileProcessorManager(LoggingMixin):
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
+    _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
+    _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
     _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
@@ -276,7 +299,7 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
 
-    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
+    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=_make_execution_api)
     """API server to interact with Metadata DB"""
 
     def register_exit_signals(self):
@@ -285,6 +308,19 @@ class DagFileProcessorManager(LoggingMixin):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         # So that we ignore the debug dump signal, making it easier to send
         signal.signal(signal.SIGUSR2, signal.SIG_IGN)
+
+    def _get_team_names(self, bundle_names: Collection[str]) -> dict[str, str | None]:
+        if not self._multi_team or not bundle_names:
+            return {}
+        missing = [name for name in bundle_names if name not in self._bundle_name_to_team_name]
+        if missing:
+            queried = DagBundleModel.get_team_names(missing)
+            for name in missing:
+                self._bundle_name_to_team_name[name] = queried.get(name)
+        return {name: self._bundle_name_to_team_name.get(name) for name in bundle_names}
+
+    def _get_team_name(self, bundle_name: str) -> str | None:
+        return self._get_team_names({bundle_name}).get(bundle_name)
 
     def _exit_gracefully(self, signum, frame):
         """Clean up DAG file processors to avoid leaving orphan processes."""
@@ -411,6 +447,7 @@ class DagFileProcessorManager(LoggingMixin):
     def deactivate_stale_dags(
         self,
         last_parsed: dict[DagFileInfo, datetime | None],
+        *,
         session: Session = NEW_SESSION,
     ):
         """Detect and deactivate DAGs which are no longer present in files."""
@@ -453,15 +490,26 @@ class DagFileProcessorManager(LoggingMixin):
                     to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
-            deactivated_dagmodel = session.execute(
-                update(DagModel)
-                .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_stale=True)
-                .execution_options(synchronize_session="fetch")
-            )
-            deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
-            if deactivated:
-                self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+            try:
+                with with_db_lock_timeout(session=session, lock_timeout=30):
+                    deactivated_dagmodel = session.execute(
+                        update(DagModel)
+                        .where(DagModel.dag_id.in_(to_deactivate))
+                        .values(is_stale=True)
+                        .execution_options(synchronize_session="fetch")
+                    )
+                    deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
+                    if deactivated:
+                        self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+            except OperationalError as e:
+                if is_lock_not_available_error(e):
+                    self.log.warning(
+                        "Lock not available when deactivating stale DAGs. "
+                        "Skipping this iteration to prevent processor hang."
+                    )
+                    session.rollback()
+                else:
+                    raise
 
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -588,7 +636,7 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
     @provide_session
-    def _claim_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
+    def _claim_priority_files(self, *, session: Session = NEW_SESSION) -> list[DagFileInfo]:
         """Fetch priority parsing requests from the metadata database."""
         files: list[DagFileInfo] = []
         bundles = {b.name: b for b in self._dag_bundles}
@@ -617,6 +665,7 @@ class DagFileProcessorManager(LoggingMixin):
     @retry_db_transaction
     def _fetch_callbacks_from_db(
         self,
+        *,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
         """Fetch callbacks from database and add them to the internal queue for execution."""
@@ -656,7 +705,11 @@ class DagFileProcessorManager(LoggingMixin):
         Override to source the bundle from an API.
         """
         try:
-            bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
+            bundle = DagBundlesManager().get_bundle(
+                name=request.bundle_name,
+                version=request.bundle_version,
+                version_data=request.version_data,
+            )
         except ValueError:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
@@ -686,7 +739,8 @@ class DagFileProcessorManager(LoggingMixin):
         )
         self._callback_to_execute[file_info].append(request)
         self._add_files_to_queue([file_info], mode="front")
-        stats.incr("dag_processing.other_callback_count")
+        team_name = self._get_team_name(file_info.bundle_name)
+        stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
 
     @provide_session
     def get_bundle_state(self, bundle_name: str, *, session: Session = NEW_SESSION) -> BundleState | None:
@@ -852,6 +906,8 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
         if any_refreshed:
+            # Bundle-to-team assignments can only change on bundle refresh, so clear the cache.
+            self._bundle_name_to_team_name = {}
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
@@ -902,15 +958,28 @@ class DagFileProcessorManager(LoggingMixin):
         """Deactivate DAGs that come from files that are no longer present in bundle."""
         observed_filelocs = self._get_observed_filelocs(present)
         with create_session() as session:
-            any_deactivated = DagModel.deactivate_deleted_dags(
-                bundle_name=bundle_name,
-                rel_filelocs=observed_filelocs,
-                session=session,
-            )
-            # Only run cleanup if we actually deactivated any DAGs
-            # This avoids unnecessary DELETE queries in the common case where no DAGs were deleted
-            if any_deactivated:
-                remove_references_to_deleted_dags(session=session)
+            try:
+                with with_db_lock_timeout(session=session, lock_timeout=30):
+                    any_deactivated = DagModel.deactivate_deleted_dags(
+                        bundle_name=bundle_name,
+                        rel_filelocs=observed_filelocs,
+                        session=session,
+                    )
+                    # Only run cleanup if we actually deactivated any DAGs
+                    # This avoids unnecessary DELETE queries in the common case where no DAGs were deleted
+                    if any_deactivated:
+                        remove_references_to_deleted_dags(session=session)
+                    session.flush()
+            except OperationalError as e:
+                if is_lock_not_available_error(e):
+                    self.log.warning(
+                        "Lock not available when deactivating deleted DAGs for bundle %s. "
+                        "Skipping this iteration to prevent processor hang.",
+                        bundle_name,
+                    )
+                    session.rollback()
+                else:
+                    raise
 
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -921,7 +990,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def clear_orphaned_import_errors(
-        self, bundle_name: str, observed_filelocs: set[str], session: Session = NEW_SESSION
+        self, bundle_name: str, observed_filelocs: set[str], *, session: Session = NEW_SESSION
     ):
         """
         Clear import errors for files that no longer exist.
@@ -974,20 +1043,37 @@ class DagFileProcessorManager(LoggingMixin):
         utcnow = timezone.utcnow()
         now = time.monotonic()
 
+        bundle_to_team = self._get_team_names({bundle_name for bundle_name in known_files})
+
         for files in known_files.values():
             for file in files:
                 stat = self._file_stats[file]
                 proc = self._processors.get(file)
                 num_dags = stat.num_dags
                 num_errors = stat.import_errors
-                file_name = Path(file.rel_path).stem
+                file_name = normalize_name_for_stats(Path(file.rel_path).stem)
                 processor_pid = proc.pid if proc else None
                 processor_start_time = proc.start_time if proc else None
                 runtime = (now - processor_start_time) if processor_start_time else None
                 last_run = stat.last_finish_time
                 if last_run:
                     seconds_ago = (utcnow - last_run).total_seconds()
-                    stats.gauge(f"dag_processing.last_run.seconds_ago.{file_name}", seconds_ago)
+                    # file_path and bundle_name uniquely identify a file (the same file name can
+                    # exist in different folders or bundles). file_name is kept as a tag to ease
+                    # migration from the legacy interpolated metric, which is emitted automatically
+                    # from the registry (controlled by the export_legacy_names config).
+                    stats.gauge(
+                        "dag_processing.last_run.seconds_ago",
+                        seconds_ago,
+                        tags=prune_dict(
+                            {
+                                "file_path": file.normalized_file_path_for_stats,
+                                "bundle_name": normalize_name_for_stats(file.bundle_name),
+                                "file_name": file_name,
+                                "team_name": bundle_to_team.get(file.bundle_name),
+                            }
+                        ),
+                    )
 
                 rows.append(
                     (
@@ -1065,7 +1151,7 @@ class DagFileProcessorManager(LoggingMixin):
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
         present_keys = {file.presence_key for file in present}
-        self._file_queue = deque(x for x in self._file_queue if x.presence_key in present_keys)
+        self._file_queue = OrderedDict((x, None) for x in self._file_queue if x.presence_key in present_keys)
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
@@ -1078,6 +1164,9 @@ class DagFileProcessorManager(LoggingMixin):
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
         present_keys = {file.presence_key for file in present}
+
+        bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
+
         for file in list(self._processors.keys()):
             if file.presence_key not in present_keys:
                 processor = self._processors.pop(file, None)
@@ -1085,9 +1174,18 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
                 file_name = str(file.rel_path)
                 self.log.warning("Stopping processor for %s", file_name)
-                stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "stop"})
+                stats.decr(
+                    "dag_processing.processes",
+                    tags=prune_dict(
+                        {
+                            "file_path": file.normalized_file_path_for_stats,
+                            "action": "stop",
+                            "team_name": bundle_to_team.get(file.bundle_name),
+                        }
+                    ),
+                )
                 processor.kill(signal.SIGKILL)
-                processor.logger_filehandle.close()
+                processor.close()
                 self._file_stats.pop(file, None)
 
     @provide_session
@@ -1122,6 +1220,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         run_duration = time.monotonic() - proc.start_time
         finish_time = timezone.utcnow()
+        team_name = self._get_team_name(file.bundle_name)
         next_stat = process_parse_results(
             run_duration=run_duration,
             finish_time=finish_time,
@@ -1130,6 +1229,7 @@ class DagFileProcessorManager(LoggingMixin):
             parsing_result=proc.parsing_result,
             is_callback_only=is_callback_only,
             relative_fileloc=str(file.rel_path),
+            team_name=team_name,
         )
 
         if proc.parsing_result is not None:
@@ -1216,7 +1316,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file in finished:
             processor = self._processors.pop(file)
-            processor.logger_filehandle.close()
+            processor.close()
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -1297,14 +1397,25 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
+        bundle_to_team = self._get_team_names({file.bundle_name for file in self._file_queue})
+
         while self._parallelism > len(self._processors) and self._file_queue:
-            file = self._file_queue.popleft()
+            file, _ = self._file_queue.popitem(last=False)
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file in self._processors:
                 continue
 
             processor = self._create_process(file)
-            stats.incr("dag_processing.processes", tags={"file_path": str(file.rel_path), "action": "start"})
+            stats.incr(
+                "dag_processing.processes",
+                tags=prune_dict(
+                    {
+                        "file_path": file.normalized_file_path_for_stats,
+                        "action": "start",
+                        "team_name": bundle_to_team.get(file.bundle_name),
+                    }
+                ),
+            )
 
             self._processors[file] = processor
             stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
@@ -1345,7 +1456,7 @@ class DagFileProcessorManager(LoggingMixin):
             sorted_regular_files, _ = self._sort_by_mtime(regular_files)
 
             # Put callback files at the front, then sorted regular files
-            self._file_queue = deque(callback_files + sorted_regular_files)
+            self._file_queue = OrderedDict.fromkeys(callback_files + sorted_regular_files)
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
         file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
@@ -1469,6 +1580,9 @@ class DagFileProcessorManager(LoggingMixin):
         """Kill any file processors that timeout to defend against process hangs."""
         now = time.monotonic()
         processors_to_remove = []
+
+        bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
+
         for file, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self.processor_timeout:
@@ -1479,9 +1593,18 @@ class DagFileProcessorManager(LoggingMixin):
                     duration,
                     self.processor_timeout,
                 )
-                file_name = str(file.rel_path)
-                stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "timeout"})
-                stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_name})
+                file_path_tag = file.normalized_file_path_for_stats
+                team_name = bundle_to_team.get(file.bundle_name)
+                stats.decr(
+                    "dag_processing.processes",
+                    tags=prune_dict(
+                        {"file_path": file_path_tag, "action": "timeout", "team_name": team_name}
+                    ),
+                )
+                stats.incr(
+                    "dag_processing.processor_timeouts",
+                    tags=prune_dict({"file_path": file_path_tag, "team_name": team_name}),
+                )
                 processor.kill(signal.SIGKILL)
 
                 processors_to_remove.append(file)
@@ -1499,7 +1622,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
-            processor.logger_filehandle.close()
+            processor.close()
 
     def _add_files_to_queue(
         self,
@@ -1510,17 +1633,18 @@ class DagFileProcessorManager(LoggingMixin):
         """Add stuff to the back or front of the file queue, unless it's already present."""
         if mode == "frontprio":
             for file in files:
-                # Try removing the file if already present
-                with contextlib.suppress(ValueError):
-                    self._file_queue.remove(file)
-                # enqueue file to the start of the queue.
-                self._file_queue.appendleft(file)
+                self._file_queue.pop(file, None)
+                self._file_queue[file] = None
+                self._file_queue.move_to_end(file, last=False)
         elif mode == "front":
-            new_files = list(f for f in files if f not in self._file_queue)
-            self._file_queue.extendleft(new_files)
+            for file in files:
+                if file not in self._file_queue:
+                    self._file_queue[file] = None
+                    self._file_queue.move_to_end(file, last=False)
         elif mode == "back":
-            new_files = list(f for f in files if f not in self._file_queue)
-            self._file_queue.extend(new_files)
+            for file in files:
+                if file not in self._file_queue:
+                    self._file_queue[file] = None
         else:
             assert_never(mode)
 
@@ -1541,10 +1665,18 @@ class DagFileProcessorManager(LoggingMixin):
 
     def terminate(self):
         """Stop all running processors."""
+        bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
+
         for file, processor in self._processors.items():
-            # todo: AIP-66 what to do about file_path tag? replace with bundle name and rel path?
             stats.decr(
-                "dag_processing.processes", tags={"file_path": str(file.rel_path), "action": "terminate"}
+                "dag_processing.processes",
+                tags=prune_dict(
+                    {
+                        "file_path": file.normalized_file_path_for_stats,
+                        "action": "terminate",
+                        "team_name": bundle_to_team.get(file.bundle_name),
+                    }
+                ),
             )
             # SIGTERM, wait 5s, SIGKILL if still alive
             processor.kill(signal.SIGTERM, escalation_delay=5.0)
@@ -1577,6 +1709,7 @@ def process_parse_results(
     *,
     is_callback_only: bool = False,
     relative_fileloc: str | None = None,
+    team_name: str | None = None,
 ) -> DagFileStat:
     """
     Create a DagFileStat from parsing results and emit metrics.
@@ -1590,7 +1723,7 @@ def process_parse_results(
             last_duration=run_duration,
             run_count=run_count,  # Don't increment for callback-only processing
         )
-        stats.incr("dag_processing.callback_only_count")
+        stats.incr("dag_processing.callback_only_count", tags=prune_dict({"team_name": team_name}))
     else:
         # Actual DAG parsing or import error
         stat = DagFileStat(
@@ -1608,7 +1741,9 @@ def process_parse_results(
         stats.timing(
             "dag_processing.last_duration",
             stat.last_duration,
-            tags={"bundle_name": normalized_bundle, "file_name": file_name},
+            tags=prune_dict(
+                {"bundle_name": normalized_bundle, "file_name": file_name, "team_name": team_name}
+            ),
         )
 
     if parsing_result is None:

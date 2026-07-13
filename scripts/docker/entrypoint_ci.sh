@@ -320,11 +320,11 @@ function check_boto_upgrade() {
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
 
-    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
-    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Urllib 2.6.0 broke kubernetes client by removing getheaders() (restored in 2.6.1+).
+    # Exclude exactly 2.6.0; any other version is fine.
     # Tracked in https://github.com/kubernetes-client/python/issues/2477
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3" "urllib3<2.6.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3" "botocore" "urllib3!=2.6.0"
 }
 
 # Upgrade sqlalchemy to the latest version to run tests with it
@@ -415,7 +415,7 @@ function reinstall_shared_distributions() {
 # export. Providers cannot run arbitrary code through this hook. Maintainers should
 # review every addition to this list as a privileged change. See
 # contributing-docs/12_provider_distributions.rst.
-PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=("ibm.mq")
 
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"

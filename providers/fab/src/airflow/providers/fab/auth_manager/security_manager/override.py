@@ -1929,6 +1929,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # Ensure python-ldap is installed
         try:
             import ldap
+            import ldap.filter
         except ImportError:
             log.error("python-ldap library is not installed")
             return None
@@ -2423,7 +2424,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
-        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
+        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
@@ -2432,6 +2433,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             claims.validate()
             return claims
 
+        log.warning("JWT token is not validated!")
         _parts = id_token.split(".")
         _payload = _parts[1] + "=" * (-len(_parts[1]) % 4)
         return json.loads(base64.urlsafe_b64decode(_payload))
@@ -2469,9 +2471,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
-        # escape username to prevent LDAP injection attacks
+        # escape username to prevent LDAP filter injection
         escaped_username = ldap.filter.escape_filter_chars(username)
         if self.auth_ldap_search_filter:
+            # validate the search filter has balanced parentheses
+            _sf = self.auth_ldap_search_filter
+            if not (_sf.startswith("(") and _sf.endswith(")") and _sf.count("(") == _sf.count(")")):
+                raise ValueError(
+                    f"AUTH_LDAP_SEARCH_FILTER must be a valid LDAP filter with balanced parentheses, "
+                    f"starting with '(' and ending with ')'. Example: '(objectClass=person)'. "
+                    f"Got: {repr(_sf)[:100]}"
+                )
             filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={escaped_username}))"
         else:
             filter_str = f"({self.auth_ldap_uid_field}={escaped_username})"

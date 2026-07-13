@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Show running task logs in the UI with Elasticsearch remote logging (#69090)``
+* ``ElasticsearchSQLHook: add chunked Polars DataFrame support via custom SQL reader (#68411)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add remote log upload support for callback subprocesses (#66379)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 ``ElasticsearchTaskHandler`` no longer silently registers itself as the remote
 task-log reader during ``dictConfig``. The implicit registration still happens
 for one more release but now emits an ``AirflowProviderDeprecationWarning`` and
@@ -34,6 +59,24 @@ will be removed in a future provider release. If you ship a custom
 ``[logging] logging_config_class`` module that swaps in
 ``ElasticsearchTaskHandler``, set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)``
 at module scope in that module.
+
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``ElasticsearchSQLHook: add Polars DataFrame support via custom SQL reader (#66220)``
+
+Misc
+~~~~
+
+* ``Deprecate implicit REMOTE_TASK_LOG registration in ElasticsearchTaskHandler (#67105)``
+* ``Refactor Elasticsearch log formatter to use timezone.from_timestamp (#67245)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 
 6.5.4
 .....

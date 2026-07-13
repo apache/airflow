@@ -257,7 +257,7 @@ class TestOtelIntegration:
     def serialize_and_get_dags(cls) -> dict[str, SerializedDAG]:
         log.info("Serializing Dags from directory %s", cls.dag_folder)
         # Load DAGs from the dag directory.
-        dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
+        dag_bag = DagBag(dag_folder=cls.dag_folder)
 
         dag_ids = dag_bag.dag_ids
         assert len(dag_ids) == 1
@@ -341,8 +341,8 @@ class TestOtelIntegration:
             state = wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
             assert state == State.SUCCESS, f"Dag run did not complete successfully. Final state: {state}."
 
-            # The ti span_status is updated while processing the executor events,
-            # which is after the dag_run state has been updated.
+            # wait_for_dag_run returns on the dag_run DB state, but OTel metrics are exported
+            # asynchronously, so wait for them to reach stdout before we capture it below.
             time.sleep(10)
 
             task_dict = dag.task_dict
@@ -458,7 +458,6 @@ class TestOtelIntegration:
                 # Additional detail spans are deferred to follow-up PRs; tracked
                 # at https://linear.app/astronomer/issue/ACD-157.
                 {
-                    "hook.on_starting": "startup",
                     "_verify_bundle_access": "parse",
                     "parse": "startup",
                     "get_template_context": "startup",
@@ -468,12 +467,18 @@ class TestOtelIntegration:
                     "_validate_task_inlets_and_outlets": "_prepare",
                     "_prepare": "run",
                     "_execute_task": "run",
+                    "task.execute": "_execute_task",
                     "finalize": "worker.task1",
                     "run": "worker.task1",
-                    "sub_span1": "_execute_task",
+                    "sub_span1": "task.execute",
                     "dag_run.otel_test_dag": None,
                     "task_run.task1": "dag_run.otel_test_dag",
                     "worker.task1": "task_run.task1",
+                    # OpenLineage registers a listener by default, so its
+                    # on_task_instance_running / on_task_instance_success hook
+                    # calls get wrapped in spans at detail level > 1.
+                    "listener.on_task_instance_running": "_prepare",
+                    "listener.on_task_instance_success": "finalize",
                 },
                 id="detail_spans",
             ),
@@ -503,11 +508,10 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
 
-            # Skip the span_status check.
             wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
 
-            # The ti span_status is updated while processing the executor events,
-            # which is after the dag_run state has been updated.
+            # wait_for_dag_run returns on the dag_run DB state, but spans reach Jaeger
+            # asynchronously via the BatchSpanProcessor, so wait before querying the trace below.
             time.sleep(10)
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)

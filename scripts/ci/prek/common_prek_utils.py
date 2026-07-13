@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import abc
 import ast
 import difflib
 import os
@@ -26,7 +27,7 @@ import subprocess
 import sys
 import textwrap
 import time
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
@@ -45,14 +46,25 @@ KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "mic
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
+# Maps a Docker build platform string (as declared in ``provider.yaml`` under
+# ``excluded-platforms``) to the ``platform_machine`` values Python reports on that
+# architecture. ``linux/arm64`` covers both Linux (``aarch64``) and macOS Apple Silicon
+# (``arm64``) so a provider opting out of ARM is never pulled in on any ARM machine where
+# its native dependency cannot be built.
+EXCLUDED_PLATFORM_MACHINES: dict[str, list[str]] = {
+    "linux/arm64": ["aarch64", "arm64"],
+}
+
 GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
 
 try:
     from rich.console import Console
+    from rich.panel import Panel
 
     console = Console(width=400, color_system="standard")
 except ImportError:
     console = None  # type: ignore[assignment]
+    Panel = None  # type: ignore[assignment,misc]
 
 
 @contextmanager
@@ -375,7 +387,7 @@ def run_command_via_breeze_shell(
             print("With environment:")
             print(new_env)
     try:
-        result = subprocess.run(
+        return subprocess.run(
             subprocess_cmd,
             check=False,
             text=True,
@@ -392,7 +404,68 @@ def run_command_via_breeze_shell(
             down_command.extend(["--project-name", project_name])
         down_command.extend(["down", "--remove-orphans", "--volumes"])
         subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return result
+
+
+def run_command_via_breeze_run(
+    cmd: list[str],
+    python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    backend: str = "none",
+    executor: str = "LocalExecutor",
+    extra_env: dict[str, str] | None = None,
+    project_name: str = "breeze-prek",
+    skip_environment_initialization: bool = True,
+    warn_image_upgrade_needed: bool = False,
+    enable_pseudo_terminal: bool = False,
+    **other_popen_kwargs,
+) -> subprocess.CompletedProcess:
+    extra_env = extra_env or {}
+    # Kept for call-site compatibility. `breeze run` does not use `executor`.
+    _ = executor
+    subprocess_cmd: list[str] = [
+        "breeze",
+        "run",
+        "--python",
+        python_version,
+        "--backend",
+        backend,
+        "--tty",
+        "enabled" if enable_pseudo_terminal else "disabled",
+    ]
+    if not warn_image_upgrade_needed:
+        subprocess_cmd.append("--skip-image-upgrade-check")
+    if skip_environment_initialization:
+        # `breeze run` always runs non-interactively; keep parameter for compatibility.
+        pass
+    if project_name:
+        subprocess_cmd.extend(["--project-name", project_name])
+    subprocess_cmd.extend(cmd)
+    new_env = {
+        **os.environ,
+        "SKIP_BREEZE_SELF_UPGRADE_CHECK": "true",
+        "SKIP_GROUP_OUTPUT": "true",
+        "SKIP_SAVING_CHOICES": "true",
+        "ANSWER": "no",
+        **extra_env,
+    }
+
+    if os.environ.get("VERBOSE_COMMANDS") or os.environ.get("CI") == "true":
+        if console:
+            console.print(
+                f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
+            )
+            console.print("[magenta]With environment:[/]")
+            console.print(new_env)
+        else:
+            print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
+            print("With environment:")
+            print(new_env)
+    return subprocess.run(
+        subprocess_cmd,
+        check=False,
+        text=True,
+        **other_popen_kwargs,
+        env=new_env,
+    )
 
 
 class ConsoleDiff(difflib.Differ):
@@ -805,3 +878,182 @@ def parse_operations(
                     commands[group_name].append(subcommand)
 
     return commands
+
+
+def _is_safe_relative(rel: str, repo_root: Path) -> bool:
+    """Whether ``rel`` is a plain relative path that stays inside ``repo_root``."""
+    candidate = Path(rel)
+    if candidate.is_absolute():
+        return False
+    try:
+        (repo_root / candidate).resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+class AllowlistManager(abc.ABC):
+    """Common base for prek hooks that track per-file occurrence counts in allowlist files.
+
+    Subclasses implement :meth:`iter_files`, :meth:`count_occurrences`, and
+    :meth:`violation_panel_text` to define what gets scanned, how violations
+    are counted, and what help text to show.  Everything else — loading, saving,
+    generating, cleaning up, and the check loop — is handled here.
+    """
+
+    def __init__(self, allowlist_file: Path, *, repo_root: Path = AIRFLOW_ROOT_PATH) -> None:
+        self.allowlist_file = allowlist_file
+        self.repo_root = repo_root
+
+    def parse(self, text: str) -> dict[str, int]:
+        """Parse allowlist *text* into a ``{rel_path: count}`` mapping.
+
+        Entries that escape the repo root (absolute paths or ``..`` segments)
+        are silently skipped.
+        """
+        result: dict[str, int] = {}
+        for raw_line in text.splitlines():
+            if not (stripped := raw_line.strip()):
+                continue
+
+            rel_str, _, count_str = stripped.rpartition("::")
+            if not rel_str or not count_str:
+                continue
+
+            try:
+                count = int(count_str)
+            except ValueError:
+                continue
+
+            if not _is_safe_relative(rel_str, self.repo_root):
+                if console:
+                    console.print(
+                        f"[yellow]Ignoring unsafe allowlist entry (escapes repo root):[/yellow] {rel_str}"
+                    )
+                continue
+
+            result[rel_str] = count
+
+        return result
+
+    def load(self) -> dict[str, int]:
+        """Return mapping of ``relative_path -> allowed_count``."""
+        if not self.allowlist_file.exists():
+            return {}
+        return self.parse(self.allowlist_file.read_text())
+
+    def save(self, counts: dict[str, int]) -> None:
+        lines = [f"{rel}::{count}" for rel, count in sorted(counts.items())]
+        self.allowlist_file.write_text("\n".join(lines) + "\n")
+
+    @abc.abstractmethod
+    def iter_files(self) -> Iterable[Path]:
+        """Return all files to scan during ``--generate`` or ``--all-files``."""
+
+    @abc.abstractmethod
+    def count_occurrences(self, path: Path) -> int:
+        """Count the number of violations/occurrences in a single file."""
+
+    @abc.abstractmethod
+    def violation_panel_text(self) -> str:
+        """Return the rich markup body for the violation help panel."""
+
+    def format_violation_details(self, path: Path) -> list[str]:
+        """Return extra detail lines for each violating file."""
+        return []
+
+    def check(self, files: list[Path], allowlist: dict[str, int]) -> int:
+        """Run the check loop: compare counts, tighten entries, report violations."""
+        violations: list[tuple[Path, int, int]] = []
+        tightened: list[tuple[str, int, int]] = []
+
+        for path in files:
+            if not path.exists() or path.suffix != ".py":
+                continue
+            actual = self.count_occurrences(path)
+            rel = str(path.relative_to(self.repo_root))
+            allowed = allowlist.get(rel, 0)
+            if actual > allowed:
+                violations.append((path, actual, allowed))
+            elif actual < allowed:
+                if actual == 0:
+                    del allowlist[rel]
+                else:
+                    allowlist[rel] = actual
+                tightened.append((rel, allowed, actual))
+
+        if tightened:
+            self.save(allowlist)
+            if console:
+                console.print(
+                    f"[green]Tightened {len(tightened)} entr{'y' if len(tightened) == 1 else 'ies'} "
+                    f"in [cyan]{self.allowlist_file.relative_to(self.repo_root)}[/cyan][/green] "
+                    "(stage the updated file):"
+                )
+                for rel, old, new in tightened:
+                    console.print(f"  [cyan]{rel}[/cyan]  {old} → {new}")
+
+        if violations:
+            if console:
+                console.print(
+                    Panel.fit(
+                        self.violation_panel_text(),
+                        title="[red]Check failed[/red]",
+                        border_style="red",
+                    )
+                )
+                for path, actual, allowed in violations:
+                    console.print(
+                        f"  [cyan]{path.relative_to(self.repo_root)}[/cyan]  "
+                        f"count={actual} (allowed={allowed})"
+                    )
+                    for detail in self.format_violation_details(path):
+                        console.print(detail)
+            return 1
+
+        return 1 if tightened else 0
+
+    def generate(self) -> int:
+        if console:
+            console.print(f"Scanning [cyan]{self.repo_root}[/cyan] …")
+        counts: dict[str, int] = {}
+        for path in self.iter_files():
+            n = self.count_occurrences(path)
+            if n > 0:
+                counts[str(path.relative_to(self.repo_root))] = n
+
+        self.save(counts)
+        total = sum(counts.values())
+        if console:
+            console.print(
+                f"[green]Generated[/green] [cyan]{self.allowlist_file.relative_to(self.repo_root)}[/cyan] "
+                f"with [bold]{len(counts)}[/bold] files / [bold]{total}[/bold] occurrences."
+            )
+        return 0
+
+    def cleanup(self) -> int:
+        allowlist = self.load()
+        if not allowlist:
+            if console:
+                console.print("[yellow]Allowlist is empty – nothing to clean up.[/yellow]")
+            return 0
+
+        stale: list[str] = [rel for rel in allowlist if not (self.repo_root / rel).exists()]
+        if stale:
+            if console:
+                console.print(
+                    f"[yellow]Removing {len(stale)} stale entr{'y' if len(stale) == 1 else 'ies'}:[/yellow]"
+                )
+                for s in sorted(stale):
+                    console.print(f"  [dim]-[/dim] {s}")
+            for s in stale:
+                del allowlist[s]
+            self.save(allowlist)
+            if console:
+                console.print(
+                    f"\n[green]Updated[/green] [cyan]{self.allowlist_file.relative_to(self.repo_root)}[/cyan]"
+                )
+        else:
+            if console:
+                console.print("[green]No stale entries found.[/green]")
+        return 0

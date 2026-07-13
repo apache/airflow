@@ -106,6 +106,7 @@ spec:
       hostAliases: {{- toYaml .Values.apiServer.hostAliases | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "apiServer.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       {{- if .Values.apiServer.priorityClassName }}
       priorityClassName: {{ .Values.apiServer.priorityClassName }}
       {{- end }}
@@ -141,7 +142,7 @@ spec:
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.apiServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
@@ -186,7 +187,7 @@ spec:
               {{- end }}
             {{- end }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.apiServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
@@ -244,7 +245,7 @@ spec:
             claimName: {{ template "airflow_logs_volume_claim" . }}
         {{- end }}
         {{- if .Values.volumes }}
-          {{- toYaml .Values.volumes | nindent 8 }}
+          {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.apiServer.extraVolumes }}
           {{- tpl (toYaml .Values.apiServer.extraVolumes) . | nindent 8 }}

@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
         DEFAULT_ALLOWED_TYPES,
+        resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
     from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
@@ -43,12 +44,6 @@ if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
-
-# SQLAlchemy dialect_name → sqlglot dialect mapping for names that differ.
-_SQLALCHEMY_TO_SQLGLOT_DIALECT: dict[str, str] = {
-    "postgresql": "postgres",
-    "mssql": "tsql",
-}
 
 
 class LLMSQLQueryOperator(LLMOperator):
@@ -257,6 +252,4 @@ class LLMSQLQueryOperator(LLMOperator):
         raw = self.dialect
         if not raw and self.db_hook and hasattr(self.db_hook, "dialect_name"):
             raw = self.db_hook.dialect_name
-        if raw:
-            return _SQLALCHEMY_TO_SQLGLOT_DIALECT.get(raw, raw)
-        return None
+        return resolve_sqlglot_dialect(raw)

@@ -24,13 +24,15 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DatabaseError, DataError, IntegrityError
 
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.utils.strings import get_random_string
 
 T = TypeVar("T", bound=Exception)
+DBError = TypeVar("DBError", bound=DatabaseError)
 
 log = logging.getLogger(__name__)
 
@@ -53,8 +55,57 @@ class _DatabaseDialect(Enum):
     POSTGRES = "postgres"
 
 
-class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
-    """Exception raised when trying to insert a duplicate value in a unique column."""
+class _DatabaseErrorHandler(BaseErrorHandler[DBError]):
+    """
+    Base for handlers that turn a SQLAlchemy error into an actionable HTTP response.
+
+    The failing statement is logged under a random lookup id and echoed back to the
+    caller only when ``[api] expose_stacktrace`` is set; otherwise the response just
+    points at that id in the api server logs. Subclasses set ``status_code`` and
+    ``reason`` and may override ``_should_handle`` to skip exceptions they do not own.
+    """
+
+    status_code: int
+    reason: str
+
+    def _should_handle(self, exc: DBError) -> bool:
+        return True
+
+    def exception_handler(self, request: Request, exc: DBError):
+        if not self._should_handle(exc):
+            return
+        exception_id = get_random_string()
+        stacktrace = "".join(traceback.format_tb(exc.__traceback__))
+        log_message = f"Error with id {exception_id}, statement: {exc.statement}\n{stacktrace}"
+        log.error(log_message)
+        if conf.get("api", "expose_stacktrace") == "True":
+            message = log_message
+            statement = str(exc.statement)
+            orig_error = str(exc.orig)
+        else:
+            message = (
+                "Serious error when handling your request. Check logs for more details - "
+                f"you will find it in api server when you look for ID {exception_id}"
+            )
+            statement = "hidden"
+            orig_error = "hidden"
+
+        raise HTTPException(
+            status_code=self.status_code,
+            detail={
+                "reason": self.reason,
+                "statement": statement,
+                "orig_error": orig_error,
+                "message": message,
+            },
+        )
+
+
+class _UniqueConstraintErrorHandler(_DatabaseErrorHandler[IntegrityError]):
+    """Translate a unique-constraint ``IntegrityError`` into a 409, matched per database dialect."""
+
+    status_code = status.HTTP_409_CONFLICT
+    reason = "Unique constraint violation"
 
     unique_constraint_error_prefix_dict: dict[_DatabaseDialect, str] = {
         _DatabaseDialect.SQLITE: "UNIQUE constraint failed",
@@ -66,37 +117,8 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         super().__init__(IntegrityError)
         self.dialect: _DatabaseDialect | None = None
 
-    def exception_handler(self, request: Request, exc: IntegrityError):
-        """Handle IntegrityError exception."""
-        if self._is_dialect_matched(exc):
-            exception_id = get_random_string()
-            stacktrace = ""
-            for tb in traceback.format_tb(exc.__traceback__):
-                stacktrace += tb
-
-            log_message = f"Error with id {exception_id}, statement: {exc.statement}\n{stacktrace}"
-            log.error(log_message)
-            if conf.get("api", "expose_stacktrace") == "True":
-                message = log_message
-                statement = str(exc.statement)
-                orig_error = str(exc.orig)
-            else:
-                message = (
-                    "Serious error when handling your request. Check logs for more details - "
-                    f"you will find it in api server when you look for ID {exception_id}"
-                )
-                statement = "hidden"
-                orig_error = "hidden"
-
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "reason": "Unique constraint violation",
-                    "statement": statement,
-                    "orig_error": orig_error,
-                    "message": message,
-                },
-            )
+    def _should_handle(self, exc: IntegrityError) -> bool:
+        return self._is_dialect_matched(exc)
 
     def _is_dialect_matched(self, exc: IntegrityError) -> bool:
         """Check if the exception matches the unique constraint error message for any dialect."""
@@ -108,6 +130,21 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         return False
 
 
+class DataErrorHandler(_DatabaseErrorHandler[DataError]):
+    """
+    Translate a ``sqlalchemy.exc.DataError`` into a 422.
+
+    The database rejected a value that passed Pydantic validation (too long, out of
+    range, or the wrong type for its column), so it is a client error, not a 500.
+    """
+
+    status_code = HTTP_422_UNPROCESSABLE_CONTENT
+    reason = "Value rejected by database"
+
+    def __init__(self):
+        super().__init__(DataError)
+
+
 class DagErrorHandler(BaseErrorHandler[DeserializationError]):
     """Handler for Dag related errors."""
 
@@ -116,10 +153,26 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
 
     def exception_handler(self, request: Request, exc: DeserializationError):
         """Handle Dag deserialization exceptions."""
+        if conf.get("api", "expose_stacktrace") == "True":
+            log.error("Error while trying to deserialize Dag: %s", exc, exc_info=exc)
+            detail = f"An error occurred while trying to deserialize Dag: {exc}"
+        else:
+            # Only mint a correlation id when the detail is redacted, so the
+            # generic client message can be tied back to the server-side log.
+            exception_id = get_random_string()
+            log.error("Error with id %s while trying to deserialize Dag: %s", exception_id, exc, exc_info=exc)
+            detail = (
+                "An error occurred while trying to deserialize the Dag. Check the api server "
+                f"logs for more details - look for ID {exception_id}."
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while trying to deserialize Dag: {exc}",
+            detail=detail,
         )
 
 
-ERROR_HANDLERS: list[BaseErrorHandler] = [_UniqueConstraintErrorHandler(), DagErrorHandler()]
+ERROR_HANDLERS: list[BaseErrorHandler] = [
+    _UniqueConstraintErrorHandler(),
+    DataErrorHandler(),
+    DagErrorHandler(),
+]

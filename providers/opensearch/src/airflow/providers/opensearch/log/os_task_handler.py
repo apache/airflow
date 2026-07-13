@@ -49,6 +49,7 @@ from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRF
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -550,6 +551,16 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
+        # In Airflow 3 logs reach OpenSearch only after the task finishes, so a running task has
+        # nothing to read there yet. Defer to the base handler for live worker/executor logs, as
+        # S3/GCS do.
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and ti.try_number == try_number
+            and ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        ):
+            return super()._read(ti, try_number, metadata)  # type: ignore[return-value]
+
         if not metadata:
             # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
@@ -853,8 +864,11 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Emit structured task logs to stdout and/or write them directly to OpenSearch."""
+        if ti is None:
+            return
+
         path = Path(path)
         local_loc = path if path.is_absolute() else self.base_log_folder.joinpath(path)
         if not local_loc.is_file():

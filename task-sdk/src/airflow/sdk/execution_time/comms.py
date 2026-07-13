@@ -51,7 +51,9 @@ from __future__ import annotations
 import asyncio
 import itertools
 import threading
+import traceback
 from collections.abc import Iterator
+from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -69,7 +71,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
-    AssetStateResponse,
+    AssetStateStoreResponse,
     BundleInfo,
     ConnectionResponse,
     DagResponse,
@@ -82,8 +84,9 @@ from airflow.sdk.api.datamodels._generated import (
     TaskBreadcrumbsResponse,
     TaskInstance,
     TaskInstanceState,
-    TaskStateResponse,
     TaskStatesResponse,
+    TaskStateStoreResponse,
+    TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
@@ -115,6 +118,31 @@ if TYPE_CHECKING:
 
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
+
+
+class DeadlockImminentError(BaseException):
+    """
+    Raised when ``send()`` is called from the event loop thread while ``asend()`` holds the lock.
+
+    Inherits from :class:`BaseException` so it escapes ``contextlib.suppress(Exception)``
+    and always surfaces to the caller.
+    """
+
+    def __init__(self, msg: object) -> None:
+        self.msg_type = type(msg).__name__
+        self.stack = "".join(traceback.format_stack())
+        super().__init__()
+
+    def __str__(self) -> str:
+        return (
+            f"comms.send() called from the event loop thread for message '{self.msg_type}' "
+            "— deadlock is imminent (asend() is concurrently in-flight). "
+            "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
+            "from inside an async task. "
+            "Use the async equivalents instead: "
+            "await BaseHook.aget_hook() or await BaseHook.aget_connection()."
+            f"\nOffending call stack:\n{self.stack}"
+        )
 
 
 def _msgpack_enc_hook(obj: Any) -> Any:
@@ -203,23 +231,32 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     err_decoder: TypeAdapter[ErrorResponse] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    # Threading lock for sync operations
     _thread_lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
-    # Async lock for async operations
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
+    _loop_thread_id: int | None = attrs.field(default=None, repr=False, init=False)
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
         _trace_propagator.inject(carrier)
         return _RequestFrame(id=next(self.id_counter), body=msg.model_dump(), context_carrier=carrier or None)
 
+    @property
+    def _is_on_loop_thread(self) -> bool:
+        if threading.get_ident() == self._loop_thread_id:
+            with suppress(RuntimeError):
+                return bool(asyncio.get_running_loop())
+        return False
+
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
         frame_bytes = self._make_frame(msg).as_bytes()
 
-        # We must make sure sockets aren't intermixed between sync and async calls,
-        # thus we need a dual locking mechanism to ensure that.
-        with self._thread_lock:
+        # When called from the event loop thread, use non-blocking acquire to detect
+        # an imminent deadlock: an asend() coroutine currently holds _thread_lock and
+        # is waiting for the event loop to complete its I/O.
+        if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
+            raise DeadlockImminentError(msg)
+        try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
                 if recv_fds is None:
@@ -231,11 +268,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 if TYPE_CHECKING:
                     assert isinstance(resp, SentFDs)
                 resp.fds = fds
-                # Since we know this is an expliclt SendFDs, and since this class is generic SendFDs might not
+                # Since we know this is an explicit ResendLoggingFD, and since this class is generic SentFDs might not
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
             return self._get_response()
+        finally:
+            self._thread_lock.release()
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
@@ -243,6 +282,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         Uses async lock for coroutine safety and thread lock for socket safety.
         """
+        self._loop_thread_id = threading.get_ident()
+
         frame_bytes = self._make_frame(msg).as_bytes()
 
         async with self._async_lock:
@@ -563,24 +604,24 @@ class VariableResult(VariableResponse):
         return cls(**variable_response.model_dump(exclude_defaults=True), type="VariableResult")
 
 
-class TaskStateResult(TaskStateResponse):
-    """Response to GetTaskState; wraps the generated API response for supervisor to worker comms."""
+class TaskStateStoreResult(TaskStateStoreResponse):
+    """Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms."""
 
-    type: Literal["TaskStateResult"] = "TaskStateResult"
-
-    @classmethod
-    def from_task_state_response(cls, resp: TaskStateResponse) -> TaskStateResult:
-        return cls(**resp.model_dump(exclude_defaults=True), type="TaskStateResult")
-
-
-class AssetStateResult(AssetStateResponse):
-    """Response to GetAssetState; wraps the generated API response for supervisor to worker comms."""
-
-    type: Literal["AssetStateResult"] = "AssetStateResult"
+    type: Literal["TaskStateStoreResult"] = "TaskStateStoreResult"
 
     @classmethod
-    def from_asset_state_response(cls, resp: AssetStateResponse) -> AssetStateResult:
-        return cls(**resp.model_dump(exclude_defaults=True), type="AssetStateResult")
+    def from_task_state_store_response(cls, resp: TaskStateStoreResponse) -> TaskStateStoreResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="TaskStateStoreResult")
+
+
+class AssetStateStoreResult(AssetStateStoreResponse):
+    """Response to GetAssetStateStore; wraps the generated API response for supervisor to worker comms."""
+
+    type: Literal["AssetStateStoreResult"] = "AssetStateStoreResult"
+
+    @classmethod
+    def from_asset_state_store_response(cls, resp: AssetStateStoreResponse) -> AssetStateStoreResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="AssetStateStoreResult")
 
 
 class AssetsByAliasResult(BaseModel):
@@ -772,7 +813,7 @@ ToTask = Annotated[
     AssetResult
     | AssetsByAliasResult
     | AssetEventsResult
-    | AssetStateResult
+    | AssetStateStoreResult
     | ConnectionResult
     | DagRunResult
     | DagRunStateResult
@@ -784,7 +825,7 @@ ToTask = Annotated[
     | SentFDs
     | StartupDetails
     | TaskRescheduleStartDate
-    | TaskStateResult
+    | TaskStateStoreResult
     | TICount
     | TaskBreadcrumbsResult
     | TaskStatesResult
@@ -832,6 +873,12 @@ class DeferTask(TIDeferredStatePayload):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
+
+
+class AwaitInputTask(TIAwaitingInputStatePayload):
+    """Park a task instance awaiting human input (Human-in-the-loop), without a trigger."""
+
+    type: Literal["AwaitInputTask"] = "AwaitInputTask"
 
 
 class RetryTask(TIRetryStatePayload):
@@ -914,78 +961,77 @@ class DeleteXCom(BaseModel):
     type: Literal["DeleteXCom"] = "DeleteXCom"
 
 
-class GetTaskState(BaseModel):
+class GetTaskStateStore(BaseModel):
     ti_id: UUID
     key: str
-    type: Literal["GetTaskState"] = "GetTaskState"
+    type: Literal["GetTaskStateStore"] = "GetTaskStateStore"
 
 
-class SetTaskState(BaseModel):
+class SetTaskStateStore(BaseModel):
     ti_id: UUID
     key: str
     value: JsonValue
     expires_at: AwareDatetime | None
-    type: Literal["SetTaskState"] = "SetTaskState"
+    type: Literal["SetTaskStateStore"] = "SetTaskStateStore"
 
 
-class DeleteTaskState(BaseModel):
+class DeleteTaskStateStore(BaseModel):
     ti_id: UUID
     key: str
-    type: Literal["DeleteTaskState"] = "DeleteTaskState"
+    type: Literal["DeleteTaskStateStore"] = "DeleteTaskStateStore"
 
 
-class ClearTaskState(BaseModel):
+class ClearTaskStateStore(BaseModel):
     ti_id: UUID
-    all_map_indices: bool = False
-    type: Literal["ClearTaskState"] = "ClearTaskState"
+    type: Literal["ClearTaskStateStore"] = "ClearTaskStateStore"
 
 
-class GetAssetStateByName(BaseModel):
+class GetAssetStateStoreByName(BaseModel):
     name: str
     key: str
-    type: Literal["GetAssetStateByName"] = "GetAssetStateByName"
+    type: Literal["GetAssetStateStoreByName"] = "GetAssetStateStoreByName"
 
 
-class GetAssetStateByUri(BaseModel):
+class GetAssetStateStoreByUri(BaseModel):
     uri: str
     key: str
-    type: Literal["GetAssetStateByUri"] = "GetAssetStateByUri"
+    type: Literal["GetAssetStateStoreByUri"] = "GetAssetStateStoreByUri"
 
 
-class SetAssetStateByName(BaseModel):
+class SetAssetStateStoreByName(BaseModel):
     name: str
     key: str
     value: JsonValue
-    type: Literal["SetAssetStateByName"] = "SetAssetStateByName"
+    type: Literal["SetAssetStateStoreByName"] = "SetAssetStateStoreByName"
 
 
-class SetAssetStateByUri(BaseModel):
+class SetAssetStateStoreByUri(BaseModel):
     uri: str
     key: str
     value: JsonValue
-    type: Literal["SetAssetStateByUri"] = "SetAssetStateByUri"
+    type: Literal["SetAssetStateStoreByUri"] = "SetAssetStateStoreByUri"
 
 
-class DeleteAssetStateByName(BaseModel):
+class DeleteAssetStateStoreByName(BaseModel):
     name: str
     key: str
-    type: Literal["DeleteAssetStateByName"] = "DeleteAssetStateByName"
+    type: Literal["DeleteAssetStateStoreByName"] = "DeleteAssetStateStoreByName"
 
 
-class DeleteAssetStateByUri(BaseModel):
+class DeleteAssetStateStoreByUri(BaseModel):
     uri: str
     key: str
-    type: Literal["DeleteAssetStateByUri"] = "DeleteAssetStateByUri"
+    type: Literal["DeleteAssetStateStoreByUri"] = "DeleteAssetStateStoreByUri"
 
 
-class ClearAssetStateByName(BaseModel):
+class ClearAssetStateStoreByName(BaseModel):
     name: str
-    type: Literal["ClearAssetStateByName"] = "ClearAssetStateByName"
+    type: Literal["ClearAssetStateStoreByName"] = "ClearAssetStateStoreByName"
 
 
-class ClearAssetStateByUri(BaseModel):
+class ClearAssetStateStoreByUri(BaseModel):
     uri: str
-    type: Literal["ClearAssetStateByUri"] = "ClearAssetStateByUri"
+    type: Literal["ClearAssetStateStoreByUri"] = "ClearAssetStateStoreByUri"
 
 
 class GetConnection(BaseModel):
@@ -1096,6 +1142,7 @@ class GetAssetEventByAsset(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAsset"] = "GetAssetEventByAsset"
 
 
@@ -1105,6 +1152,7 @@ class GetAssetEventByAssetAlias(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAssetAlias"] = "GetAssetEventByAssetAlias"
 
 
@@ -1190,21 +1238,22 @@ class GetDag(BaseModel):
 
 
 ToSupervisor = Annotated[
-    ClearAssetStateByName
-    | ClearAssetStateByUri
-    | ClearTaskState
+    AwaitInputTask
+    | ClearAssetStateStoreByName
+    | ClearAssetStateStoreByUri
+    | ClearTaskStateStore
     | DeferTask
-    | DeleteAssetStateByName
-    | DeleteAssetStateByUri
-    | DeleteTaskState
+    | DeleteAssetStateStoreByName
+    | DeleteAssetStateStoreByUri
+    | DeleteTaskStateStore
     | DeleteXCom
     | GetAssetByName
     | GetAssetByUri
     | GetAssetsByAlias
     | GetAssetEventByAsset
     | GetAssetEventByAssetAlias
-    | GetAssetStateByName
-    | GetAssetStateByUri
+    | GetAssetStateStoreByName
+    | GetAssetStateStoreByUri
     | GetConnection
     | GetDagRun
     | GetDagRunState
@@ -1214,7 +1263,7 @@ ToSupervisor = Annotated[
     | GetPreviousDagRun
     | GetPreviousTI
     | GetTaskRescheduleStartDate
-    | GetTaskState
+    | GetTaskStateStore
     | GetTICount
     | GetTaskBreadcrumbs
     | GetTaskStates
@@ -1227,11 +1276,11 @@ ToSupervisor = Annotated[
     | PutVariable
     | RescheduleTask
     | RetryTask
-    | SetAssetStateByName
-    | SetAssetStateByUri
+    | SetAssetStateStoreByName
+    | SetAssetStateStoreByUri
     | SetRenderedFields
     | SetRenderedMapIndex
-    | SetTaskState
+    | SetTaskStateStore
     | SetXCom
     | SkipDownstreamTasks
     | SucceedTask

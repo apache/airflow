@@ -55,6 +55,7 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "tooltip": None,
             "setup_teardown_type": None,
             "type": "task",
+            "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
         },
@@ -66,6 +67,7 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "tooltip": None,
             "setup_teardown_type": None,
             "type": "task",
+            "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
         },
@@ -77,6 +79,7 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "tooltip": None,
             "setup_teardown_type": None,
             "type": "task",
+            "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
         },
@@ -278,6 +281,7 @@ class TestStructureDataEndpoint:
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "task",
+                            "team": None,
                             "operator": "EmptyOperator",
                         },
                         {
@@ -289,6 +293,7 @@ class TestStructureDataEndpoint:
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "task",
+                            "team": None,
                             "operator": "ExternalTaskSensor",
                         },
                         {
@@ -300,6 +305,7 @@ class TestStructureDataEndpoint:
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "task",
+                            "team": None,
                             "operator": "EmptyOperator",
                         },
                     ],
@@ -334,6 +340,7 @@ class TestStructureDataEndpoint:
                             "setup_teardown_type": None,
                             "tooltip": None,
                             "type": "task",
+                            "team": None,
                         },
                     ],
                 },
@@ -361,6 +368,7 @@ class TestStructureDataEndpoint:
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "task",
+                            "team": None,
                             "operator": "TriggerDagRunOperator",
                         },
                         {
@@ -372,6 +380,7 @@ class TestStructureDataEndpoint:
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "trigger",
+                            "team": None,
                             "operator": None,
                         },
                     ],
@@ -468,6 +477,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "task",
+                    "team": None,
                     "operator": "EmptyOperator",
                     "asset_condition_type": None,
                 },
@@ -479,6 +489,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "task",
+                    "team": None,
                     "operator": "ExternalTaskSensor",
                     "asset_condition_type": None,
                 },
@@ -490,6 +501,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "task",
+                    "team": None,
                     "operator": "EmptyOperator",
                     "asset_condition_type": None,
                 },
@@ -501,6 +513,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "asset",
+                    "team": None,
                     "operator": None,
                     "asset_condition_type": None,
                 },
@@ -512,6 +525,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "sensor",
+                    "team": None,
                     "operator": None,
                     "asset_condition_type": None,
                 },
@@ -523,6 +537,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "trigger",
+                    "team": None,
                     "operator": None,
                     "asset_condition_type": None,
                 },
@@ -534,6 +549,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "asset-condition",
+                    "team": None,
                     "operator": None,
                     "asset_condition_type": "and-gate",
                 },
@@ -545,6 +561,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "asset",
+                    "team": None,
                     "operator": None,
                     "asset_condition_type": None,
                 },
@@ -556,6 +573,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "asset",
+                    "team": None,
                     "operator": None,
                     "asset_condition_type": None,
                 },
@@ -567,6 +585,7 @@ class TestStructureDataEndpoint:
                     "tooltip": None,
                     "setup_teardown_type": None,
                     "type": "asset-alias",
+                    "team": None,
                     "operator": None,
                     "asset_condition_type": None,
                 },
@@ -611,6 +630,7 @@ class TestStructureDataEndpoint:
                     "id": "task_1",
                     "label": "task_1",
                     "type": "task",
+                    "team": None,
                     "children": None,
                     "is_mapped": None,
                     "tooltip": None,
@@ -622,6 +642,7 @@ class TestStructureDataEndpoint:
                     "id": "task_2",
                     "label": "task_2",
                     "type": "task",
+                    "team": None,
                     "children": None,
                     "is_mapped": None,
                     "tooltip": None,
@@ -633,6 +654,7 @@ class TestStructureDataEndpoint:
                     "id": f"asset:{resolved_asset.id}",
                     "label": "resolved_example_asset_alias",
                     "type": "asset",
+                    "team": None,
                     "children": None,
                     "is_mapped": None,
                     "tooltip": None,
@@ -708,6 +730,31 @@ class TestStructureDataEndpoint:
         response = test_client.get("/structure/structure_data", params={"dag_id": "not_existing"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Dag with id not_existing was not found"
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_should_return_400_on_malformed_asset_expression(self, test_client):
+        """A TypeError from get_upstream_assets surfaces as a 400 with a clear message.
+
+        The asset_expression ultimately comes from user-authored Dag code (via the Task SDK),
+        so a malformed expression is bad input that ended up persisted -- not a server fault.
+        Without the try/except wrap, the TypeError propagates uncaught and FastAPI returns a
+        generic ``{"detail": "Internal Server Error"}`` 500 body with no context about which
+        Dag triggered it. With the wrap, the response identifies the Dag and version, which
+        is what a caller needs to fix the upstream Dag definition.
+        """
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.ui.structure.get_upstream_assets",
+            side_effect=TypeError("Unsupported type: dict_keys(['weird-op'])"),
+        ):
+            response = test_client.get(
+                "/structure/structure_data",
+                params={"dag_id": DAG_ID, "external_dependencies": True},
+            )
+        assert response.status_code == 400
+        detail = response.json()["detail"]
+        assert "Malformed asset_expression" in detail
+        assert DAG_ID in detail
+        assert "Unsupported type" in detail
 
     def test_should_return_404_when_dag_version_not_found(self, test_client):
         response = test_client.get(
