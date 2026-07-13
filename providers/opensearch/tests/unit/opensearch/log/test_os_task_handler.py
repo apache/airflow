@@ -420,7 +420,7 @@ class TestOpensearchTaskHandler:
             expected_sources=["http://localhost"],
         )
         assert not metadata["end_of_log"]
-        mock_logger.warning.assert_called_once()
+        mock_logger.debug.assert_called_once()
 
     @pytest.mark.db_test
     def test_set_context(self, ti):
@@ -867,12 +867,12 @@ class TestBuildStructuredLogFields:
 
 
 class TestSafeBuildStructuredLogMessage:
-    def test_string_event_returns_unchanged_and_does_not_warn(self):
+    def test_string_event_returns_unchanged_and_does_not_log(self):
         hit = {"event": "hello", "level": "info"}
         with patch("airflow.providers.opensearch.log.os_task_handler.logger") as mock_logger:
             result = _safe_build_structured_log_message(hit)
         assert result.event == "hello"
-        mock_logger.warning.assert_not_called()
+        mock_logger.debug.assert_not_called()
 
     def test_non_string_event_falls_back_to_stringified_event(self):
         hit = {"event": ["a", "b"], "timestamp": "2024-01-01T00:00:00Z"}
@@ -880,4 +880,4 @@ class TestSafeBuildStructuredLogMessage:
             result = _safe_build_structured_log_message(hit)
         assert result.event == str(["a", "b"])
         assert result.timestamp is not None
-        mock_logger.warning.assert_called_once()
+        mock_logger.debug.assert_called_once()

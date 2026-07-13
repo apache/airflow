@@ -136,7 +136,7 @@ def _safe_build_structured_log_message(hit_dict: dict[str, Any]) -> StructuredLo
     try:
         return StructuredLogMessage(**fields)
     except ValidationError:
-        logger.warning(
+        logger.debug(
             "Failed to parse stored log entry into StructuredLogMessage; falling back to "
             "stringified event. Offending fields: %s",
             fields,
