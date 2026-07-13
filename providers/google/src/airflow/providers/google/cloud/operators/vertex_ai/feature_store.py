@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1beta1.types import FeatureViewDataFormat
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.feature_store import FeatureStoreHook
@@ -127,8 +126,8 @@ class CreateFeatureOnlineStoreOperator(GoogleCloudBaseOperator, OperationHelper)
         This specifies the Google Cloud region where the feature store resources are located.
     :param feature_online_store_id: Required. The ID of the online feature store that contains
         the feature view to be synchronized. This store serves as the online serving layer.
-    :param feature_online_store: FeatureOnlineStore configuration object of the feature online store
-        to be created.
+    :param feature_online_store: FeatureOnlineStore configuration object or dictionary of the
+        feature online store to be created.
     :param gcp_conn_id: The connection ID to use for connecting to Google Cloud Platform.
         Defaults to 'google_cloud_default'.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -153,7 +152,7 @@ class CreateFeatureOnlineStoreOperator(GoogleCloudBaseOperator, OperationHelper)
         project_id: str,
         location: str,
         feature_online_store_id: str,
-        feature_online_store: FeatureOnlineStore,
+        feature_online_store: FeatureOnlineStore | dict,
         timeout: float | _MethodDefault = DEFAULT,
         retry: Retry | _MethodDefault | None = DEFAULT,
         metadata: Sequence[tuple[str, str]] = (),
@@ -286,7 +285,7 @@ class CreateFeatureViewOperator(GoogleCloudBaseOperator, OperationHelper):
         of the FeatureView's resource name. This value may be up to 60 characters, and valid characters
         are ``[a-z0-9_]``. The first character cannot be a number.
         The value must be unique within a FeatureOnlineStore.
-    :param feature_view: The configuration of the FeatureView to create.
+    :param feature_view: The FeatureView configuration object or dictionary to create.
     :param feature_online_store_id: The ID of the online feature store.
     :param run_sync_immediately: If set to true, one on demand sync will be run
         immediately, regardless the FeatureView.sync_config.
@@ -316,7 +315,7 @@ class CreateFeatureViewOperator(GoogleCloudBaseOperator, OperationHelper):
         self,
         *,
         feature_view_id: str,
-        feature_view: FeatureView,
+        feature_view: FeatureView | dict,
         feature_online_store_id: str,
         run_sync_immediately: bool = False,
         project_id: str,
@@ -437,7 +436,7 @@ class FetchFeatureValuesOperator(GoogleCloudBaseOperator, OperationHelper):
     :param entity_id: Simple ID to identify Entity to fetch feature values for.
     :param feature_view_id: The FeatureView ID to fetch data from.
     :param feature_online_store_id: The ID of the online feature store.
-    :param data_key: The request key to fetch feature values for.
+    :param data_key: The FeatureViewDataKey object or dictionary used to fetch feature values.
     :param project_id: Required. The ID of the Google Cloud project that contains the feature store.
         This is used to identify which project's resources to interact with.
     :param location: Required. The location of the feature store (e.g., 'us-central1', 'us-east1').
@@ -470,7 +469,7 @@ class FetchFeatureValuesOperator(GoogleCloudBaseOperator, OperationHelper):
         project_id: str,
         location: str,
         entity_id: str | None = None,
-        data_key: FeatureViewDataKey | None = None,
+        data_key: FeatureViewDataKey | dict | None = None,
         timeout: float | _MethodDefault = DEFAULT,
         retry: Retry | _MethodDefault | None = DEFAULT,
         metadata: Sequence[tuple[str, str]] = (),
@@ -493,6 +492,8 @@ class FetchFeatureValuesOperator(GoogleCloudBaseOperator, OperationHelper):
 
     def execute(self, context: Context) -> dict[str, Any]:
         """Execute the get feature view sync operation."""
+        from google.cloud.aiplatform_v1beta1.types import FeatureViewDataFormat
+
         hook = FeatureStoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

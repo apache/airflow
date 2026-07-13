@@ -17,7 +17,11 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from unittest import mock
+
+import pytest
 
 from airflow.providers.google.cloud.hooks.vertex_ai.feature_store import FeatureStoreHook
 
@@ -27,6 +31,7 @@ from unit.google.cloud.utils.base_gcp_mock import (
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 FEATURE_STORE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.feature_store.{}"
+FEATURE_STORE_CLIENT_STRING = "google.cloud.aiplatform_v1beta1.{}"
 
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
 TEST_PROJECT_ID = "test-project"
@@ -37,6 +42,22 @@ TEST_FEATURE_VIEW = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/featu
 TEST_FEATURE_VIEW_SYNC_NAME = f"{TEST_FEATURE_VIEW}/featureViewSyncs/sync123"
 
 
+@pytest.mark.parametrize(
+    "module",
+    (
+        "airflow.providers.google.cloud.hooks.vertex_ai.feature_store",
+        "airflow.providers.google.cloud.operators.vertex_ai.feature_store",
+    ),
+)
+def test_import_does_not_load_aiplatform_v1beta1(module):
+    code = (
+        f"import sys; import {module}; "
+        "assert 'google.cloud.aiplatform_v1beta1' not in sys.modules, "
+        "sorted(name for name in sys.modules if 'aiplatform_v1beta1' in name)"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
+
 class TestFeatureStoreHook:
     def setup_method(self):
         with mock.patch(
@@ -45,7 +66,7 @@ class TestFeatureStoreHook:
             self.hook = FeatureStoreHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(BASE_STRING.format("GoogleBaseHook.get_client_options"))
-    @mock.patch(FEATURE_STORE_STRING.format("FeatureOnlineStoreAdminServiceClient"), autospec=True)
+    @mock.patch(FEATURE_STORE_CLIENT_STRING.format("FeatureOnlineStoreAdminServiceClient"), autospec=True)
     @mock.patch(BASE_STRING.format("GoogleBaseHook.get_credentials"))
     def test_get_feature_online_store_admin_service_client(
         self, mock_get_credentials, mock_client, mock_get_client_options
@@ -68,6 +89,23 @@ class TestFeatureStoreHook:
         )
         api_endpoint_override = mock_get_client_options.call_args[1]["api_endpoint_override"]
         assert not api_endpoint_override
+
+    @mock.patch(BASE_STRING.format("GoogleBaseHook.get_client_options"))
+    @mock.patch(FEATURE_STORE_CLIENT_STRING.format("FeatureOnlineStoreServiceClient"), autospec=True)
+    @mock.patch(BASE_STRING.format("GoogleBaseHook.get_credentials"))
+    def test_get_feature_online_store_service_client(
+        self,
+        mock_get_credentials,
+        mock_client,
+        mock_get_client_options,
+    ):
+        self.hook.get_feature_online_store_service_client(location=TEST_LOCATION)
+
+        mock_client.assert_called_once_with(
+            credentials=mock_get_credentials.return_value,
+            client_info=mock.ANY,
+            client_options=mock_get_client_options.return_value,
+        )
 
     @mock.patch(FEATURE_STORE_STRING.format("FeatureStoreHook.get_feature_online_store_admin_service_client"))
     def test_get_feature_view_sync(self, mock_client_getter):
