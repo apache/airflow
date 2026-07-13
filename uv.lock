@@ -2072,7 +2072,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=22.1.0,!=25.2.0" },
     { name = "cachetools", specifier = ">=6.0.0" },
-    { name = "cadwyn", specifier = ">=6.1.1" },
+    { name = "cadwyn", specifier = ">=7.1.0" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "cron-descriptor", specifier = ">=1.2.24" },
     { name = "croniter", specifier = ">=2.0.2" },
@@ -2080,7 +2080,7 @@ requires-dist = [
     { name = "deprecated", specifier = ">=1.2.13" },
     { name = "dill", specifier = ">=0.2.2" },
     { name = "eventlet", marker = "extra == 'async'", specifier = ">=0.37.0" },
-    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.129.0,<0.137.0" },
+    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.137.2" },
     { name = "gevent", marker = "extra == 'async'", specifier = ">=25.4.1" },
     { name = "graphviz", marker = "sys_platform != 'darwin' and extra == 'graphviz'", specifier = ">=0.20" },
     { name = "greenback", marker = "extra == 'async'", specifier = ">=1.2.1" },
@@ -10327,7 +10327,7 @@ wheels = [
 
 [[package]]
 name = "cadwyn"
-version = "7.0.0"
+version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
@@ -10338,9 +10338,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/80/31/9a986a9fe20c6b52bde0dd23c9fc002388ab0c8f7b30a37217b07aa1875f/cadwyn-7.0.0.tar.gz", hash = "sha256:3b57549a37e218dffb55ac5d188639de0516207f05642b084f23627c5a44d614", size = 662353, upload-time = "2026-06-06T16:34:39.492Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/eb/74/b557960408e3577d57eb9b5a677d081bc36d2fc5b02cfd15791de35a3257/cadwyn-7.1.0.tar.gz", hash = "sha256:0272361a7c97723a9639258a7e1f02c7832b24b7929ac3f3be805eb9de53a550", size = 666212, upload-time = "2026-06-15T18:42:00.757Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/c4/efee5781dc8b3a50fd876d413cad6db6ee69e1f21d5a07ca469cec03cd22/cadwyn-7.0.0-py3-none-any.whl", hash = "sha256:727d3c444ae992bb2a238246d13f173e4802c92e1c901458975549e6f0522560", size = 61194, upload-time = "2026-06-06T16:34:37.768Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/53/a7d4153847692d59de6cfd7b41a26c66dd633b2bda5e098305819f50c0ad/cadwyn-7.1.0-py3-none-any.whl", hash = "sha256:a72859c326e10dce63cbe360bf0aa88ffd2785be7024b3baafe49be25e2be3d6", size = 62227, upload-time = "2026-06-15T18:41:59.496Z" },
 ]
 
 [[package]]
@@ -11776,7 +11776,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.136.3"
+version = "0.139.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -11785,9 +11785,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/2d/ff8d91d7b564d464629a0fd50a4489c97fcb836ac230bf3a7269232a9b1f/fastapi-0.136.3.tar.gz", hash = "sha256:e487fae93ad408e6f47641ee4dfe389864fd7bec92e547ea8498fc13f43e83ab", size = 396410, upload-time = "2026-05-23T18:53:15.192Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/af/a5f50ccfa659ec1802cb4ca842c23f06d906a8cc9aef6016a2caeea3d4ed/fastapi-0.139.0.tar.gz", hash = "sha256:99ab7b2d92223c76d6cf10757ab3f89d45b38267fc20b2a136cf02f6beac3145", size = 423016, upload-time = "2026-07-01T16:35:33.436Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/82/45359b62a067409bd929ae8a56b8ed13e5a8c8a61194b3c236920999ab83/fastapi-0.136.3-py3-none-any.whl", hash = "sha256:3d2a69bdf04b7e9f3afa292c3bc7a98816bbfafa10bc9b45f3f3700d2f761620", size = 117481, upload-time = "2026-05-23T18:53:16.924Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/7c/8e3c6ad324ea5cb36604fc3f968554887891c316d9dfde57761611d907ad/fastapi-0.139.0-py3-none-any.whl", hash = "sha256:cf15e1e9e667ddb0ad63811e60bd11390d1aac838ca4a7a23f421807b2308189", size = 130339, upload-time = "2026-07-01T16:35:32.19Z" },
 ]
 
 [package.optional-dependencies]

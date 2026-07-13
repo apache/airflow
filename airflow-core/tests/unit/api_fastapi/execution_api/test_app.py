@@ -233,20 +233,6 @@ class TestCorrelationIdMiddleware:
 class TestTraceContextPropagation:
     """Exercise ``execution_api.otel_trace_propagation`` on the real Execution API app."""
 
-    @pytest.fixture(autouse=True)
-    def _restore_router_dependencies(self):
-        from airflow.api_fastapi.execution_api.routes import execution_api_router
-
-        snapshot = {
-            id(route): list(route.dependencies)
-            for route in execution_api_router.routes
-            if isinstance(route, APIRoute)
-        }
-        yield
-        for route in execution_api_router.routes:
-            if isinstance(route, APIRoute):
-                route.dependencies[:] = snapshot[id(route)]
-
     @staticmethod
     def _build_app(mode: str):
         with conf_vars({("execution_api", "otel_trace_propagation"): mode}):
