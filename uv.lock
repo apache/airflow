@@ -4556,6 +4556,7 @@ langchain = [
     { name = "langchain" },
 ]
 llamaindex = [
+    { name = "dataclasses-json" },
     { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
     { name = "llama-index-llms-openai" },
@@ -4611,6 +4612,7 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
+    { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
@@ -5651,6 +5653,7 @@ dependencies = [
     { name = "google-cloud-videointelligence" },
     { name = "google-cloud-vision" },
     { name = "google-cloud-workflows" },
+    { name = "google-genai" },
     { name = "grpcio-gcp" },
     { name = "httpx" },
     { name = "immutabledict" },
@@ -5844,6 +5847,7 @@ requires-dist = [
     { name = "google-cloud-videointelligence", specifier = ">=2.11.0" },
     { name = "google-cloud-vision", specifier = ">=3.4.0" },
     { name = "google-cloud-workflows", specifier = ">=1.10.0" },
+    { name = "google-genai", specifier = ">=2.8.0" },
     { name = "grpcio-gcp", specifier = ">=0.2.2" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "immutabledict", specifier = ">=4.2.0" },
