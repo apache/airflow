@@ -26,6 +26,7 @@ from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators.node.coordinator import (
+    EMBEDDED_METADATA_MAX_BYTES,
     NodeCoordinator,
     _find_bundle,
 )
@@ -140,6 +141,12 @@ class TestNodeCoordinatorBundleSelection:
         write_embedded_bundle(tmp_path, payload=payload)
 
         with pytest.raises(FileNotFoundError, match=message):
+            _find_bundle([tmp_path])
+
+    def test_find_bundle_rejects_oversized_embedded_metadata(self, tmp_path):
+        write_embedded_bundle(tmp_path, payload="A" * EMBEDDED_METADATA_MAX_BYTES)
+
+        with pytest.raises(FileNotFoundError, match="embedded airflow metadata exceeds"):
             _find_bundle([tmp_path])
 
     def test_find_bundle_rejects_empty_marker(self, tmp_path):

@@ -18,7 +18,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,11 +31,12 @@ import {
   runPack,
 } from "../../src/cli/pack.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
-import { AIRFLOW_METADATA_SENTINEL } from "../../src/coordinator/runtime.js";
+import { AIRFLOW_METADATA_SENTINEL } from "../../src/coordinator/manifest.js";
 
 const FIXTURE_ENTRY = fileURLToPath(new URL("fixtures/entry.ts", import.meta.url));
 const NOISY_ENTRY = fileURLToPath(new URL("fixtures/noisy-entry.ts", import.meta.url));
 const EMPTY_ENTRY = fileURLToPath(new URL("fixtures/empty-entry.ts", import.meta.url));
+const SDK_INDEX = fileURLToPath(new URL("../../src/index.ts", import.meta.url));
 const SDK_VERSION = (
   JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf-8")) as {
     version: string;
@@ -158,6 +159,25 @@ describe("runPack", () => {
     expect(metadata).toContain('  "noisy_dag":');
 
     execFileSync(process.execPath, [bundlePath, "--airflow-metadata"], { encoding: "utf-8" });
+  });
+
+  it("leaves no bundle behind when the metadata exceeds the embedded size limit", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "huge-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { registerTask, startCoordinator } from ${JSON.stringify(SDK_INDEX)};`,
+        'for (let i = 0; i < 4000; i += 1) registerTask({ dagId: "big_dag", taskId: String(i).padStart(240, "t") }, async () => undefined);',
+        "await startCoordinator();",
+      ].join("\n"),
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
+      "over the 1048576 byte limit",
+    );
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
   it("leaves no bundle behind when the entry registers no tasks", async () => {

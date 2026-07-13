@@ -47,8 +47,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node"
 BUNDLE_FILENAME = "bundle.mjs"
 METADATA_FILENAME = "airflow-metadata.yaml"
 EMBEDDED_METADATA_MARKER = b"//# airflowMetadata="
-# Metadata sits on the bundle's first line; a bounded read is enough.
-EMBEDDED_METADATA_HEAD_BYTES = 1 << 20
+EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024
 
 
 def _read_embedded_metadata(bundle_path: pathlib.Path) -> dict[str, Any] | None:
@@ -61,14 +60,19 @@ def _read_embedded_metadata(bundle_path: pathlib.Path) -> dict[str, Any] | None:
     """
     try:
         with bundle_path.open("rb") as bundle_file:
-            head = bundle_file.read(EMBEDDED_METADATA_HEAD_BYTES)
+            line = bundle_file.readline(EMBEDDED_METADATA_MAX_BYTES + 1)
     except OSError as exc:
         raise ValueError(f"cannot read {bundle_path.name}: {exc}") from exc
 
-    if not head.startswith(EMBEDDED_METADATA_MARKER):
+    if not line.startswith(EMBEDDED_METADATA_MARKER):
         return None
+    if len(line) > EMBEDDED_METADATA_MAX_BYTES:
+        raise ValueError(
+            f"embedded airflow metadata exceeds {EMBEDDED_METADATA_MAX_BYTES} bytes; "
+            f"rebuild {bundle_path.name} with airflow-ts-pack"
+        )
 
-    payload = head[len(EMBEDDED_METADATA_MARKER) :].split(b"\n", 1)[0].strip()
+    payload = line[len(EMBEDDED_METADATA_MARKER) :].strip()
     try:
         decoded = base64.b64decode(payload, validate=True)
     except ValueError as exc:

@@ -33,14 +33,15 @@ import {
   AIRFLOW_METADATA_FLAG,
   AIRFLOW_METADATA_SENTINEL,
   type BundleManifest,
-} from "../coordinator/runtime.js";
+} from "../coordinator/manifest.js";
 
 const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const BUNDLE_FILENAME = "bundle.mjs";
 // bundle.mjs is written only after validation, so failures leave no partial artifact.
 const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
-const MANIFEST_MAX_BUFFER = 64 << 20;
+const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+const EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024;
 export const EMBEDDED_METADATA_PREFIX = "//# airflowMetadata=";
 
 const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir>] [--source <name>]
@@ -125,7 +126,7 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
       encoding: "utf-8",
       timeout: MANIFEST_TIMEOUT_MS,
-      maxBuffer: MANIFEST_MAX_BUFFER,
+      maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
     });
   } catch (error) {
     throw new Error(`Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`, {
@@ -209,6 +210,12 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       dags: manifest.dags,
     });
     const metadataLine = `${EMBEDDED_METADATA_PREFIX}${Buffer.from(metadataYaml, "utf-8").toString("base64")}\n`;
+    if (metadataLine.length > EMBEDDED_METADATA_MAX_BYTES) {
+      throw new Error(
+        `Embedded airflow metadata is ${metadataLine.length} bytes, ` +
+          `over the ${EMBEDDED_METADATA_MAX_BYTES} byte limit; reduce the number of registered tasks`,
+      );
+    }
     writeFileSync(bundlePath, metadataLine + stripShebang(readFileSync(stagingPath, "utf-8")));
   } finally {
     rmSync(stagingPath, { force: true });

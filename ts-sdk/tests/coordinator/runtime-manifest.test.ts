@@ -19,11 +19,8 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  AIRFLOW_METADATA_SENTINEL,
-  buildBundleManifest,
-  startCoordinator,
-} from "../../src/coordinator/runtime.js";
+import { AIRFLOW_METADATA_SENTINEL, buildBundleManifest } from "../../src/coordinator/manifest.js";
+import { startCoordinator } from "../../src/coordinator/runtime.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
 
 describe("buildBundleManifest", () => {

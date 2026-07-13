@@ -38,6 +38,11 @@ import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
+  AIRFLOW_METADATA_FLAG,
+  AIRFLOW_METADATA_SENTINEL,
+  buildBundleManifest,
+} from "./manifest.js";
+import {
   asMsgFromSupervisor,
   SUPERVISOR_API_VERSION,
   type RuntimeDagFileParsingResult,
@@ -46,7 +51,7 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { getRegisteredTask, listRegisteredTasks, type TaskRegistration } from "../sdk/registry.js";
+import { getRegisteredTask, listRegisteredTasks } from "../sdk/registry.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -101,29 +106,6 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   if (!commAddr) throw new Error("Missing --comm=host:port");
   if (!logsAddr) throw new Error("Missing --logs=host:port");
   return { commAddr, logsAddr };
-}
-
-export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
-
-/** Marks the manifest line on stdout, which import-time logging may also reach. */
-export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
-
-/** Bundle manifest fields only the built bundle itself knows: the schema
- *  version it was compiled against and the Dag/task pairs it registered.
- *  `airflow-ts-pack` runs `node bundle.mjs --airflow-metadata` to read this. */
-export interface BundleManifest {
-  supervisor_schema_version: string;
-  dags: Record<string, { tasks: string[] }>;
-}
-
-export function buildBundleManifest(
-  registrations: readonly TaskRegistration[] = listRegisteredTasks(),
-): BundleManifest {
-  const dags: BundleManifest["dags"] = {};
-  for (const { dagId, taskId } of registrations) {
-    (dags[dagId] ??= { tasks: [] }).tasks.push(taskId);
-  }
-  return { supervisor_schema_version: SUPERVISOR_API_VERSION, dags };
 }
 
 /** Start the coordinator runtime. Resolves when the subprocess has
