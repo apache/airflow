@@ -19,7 +19,7 @@ Object-storage results backend.
 
 Each DQ check writes a keyed JSON document plus read indexes optimized for the UI:
 
-    runs/by_task/dag_id=<dag>/task_id=<task>/date=<2026-07-04>/<run_uid>.json
+    runs/by_task/dag_id=<dag>/task_id=<task>/date=<2026-07-04>/<started_at>__<run_uid>.json
         Canonical run record: ``{"run": ..., "results": [...], "summary": ...}``.
 
     runs/by_task_instance/dag_id=<dag>/task_id=<task>/<safe_run_id>__<map_index>.json
@@ -53,9 +53,10 @@ class ObjectStorageResultsBackend:
 
     def write_run(self, run: DQRun, results: list[RuleResult]) -> None:
         timestamp = run.started_at or datetime.now(tz=timezone.utc).isoformat()
+        compact_ts = self._get_safe_key(timestamp)
         payload = self._build_run_payload(run, results)
 
-        self._write_run_file(run, timestamp[:10], payload)
+        self._write_run_file(run, timestamp[:10], compact_ts, payload)
         self._write_task_instance_index(run, payload)
         self._write_rule_indexes(run, results, timestamp)
 
@@ -86,8 +87,11 @@ class ObjectStorageResultsBackend:
         exhausted without walking to the end.
 
         ``date=`` partition names sort correctly as plain strings, so directories are walked
-        newest-first and scanning stops as soon as ``limit + 1`` matching runs have been
-        collected — a task with years of history doesn't pay for a full scan on every page.
+        newest-first. Filenames are ``{started_at}__{run_uid}.json``, so sorting each partition's
+        filenames before scanning also walks newest-first within the partition -- required for
+        the early exit below to stop on the actual newest runs rather than an arbitrary subset.
+        Scanning stops as soon as ``limit + 1`` matching runs have been collected — a task with
+        years of history doesn't pay for a full scan on every page.
         """
         task_dir = self.root / "runs" / "by_task" / f"dag_id={dag_id}" / f"task_id={task_id}"
         if not task_dir.exists():
@@ -96,7 +100,7 @@ class ObjectStorageResultsBackend:
         date_dirs = sorted((path for path in task_dir.iterdir() if path.is_dir()), reverse=True)
         runs = []
         for date_dir in date_dirs:
-            for path in date_dir.iterdir():
+            for path in sorted(date_dir.iterdir(), key=lambda p: p.name, reverse=True):
                 if not path.name.endswith(".json"):
                     continue
                 payload = self._read_json(path)
@@ -130,7 +134,7 @@ class ObjectStorageResultsBackend:
         )
         return self._read_json_or_raise(path)
 
-    def _write_run_file(self, run: DQRun, date_part: str, payload: dict[str, Any]) -> None:
+    def _write_run_file(self, run: DQRun, date_part: str, compact_ts: str, payload: dict[str, Any]) -> None:
         run_dir = (
             self.root
             / "runs"
@@ -140,7 +144,7 @@ class ObjectStorageResultsBackend:
             / f"date={date_part}"
         )
         run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / f"{run.run_uid}.json").write_text(json.dumps(payload, default=str))
+        (run_dir / f"{compact_ts}__{run.run_uid}.json").write_text(json.dumps(payload, default=str))
 
     def _write_task_instance_index(self, run: DQRun, payload: dict[str, Any]) -> None:
         ti_dir = self.root / "runs" / "by_task_instance" / f"dag_id={run.dag_id}" / f"task_id={run.task_id}"

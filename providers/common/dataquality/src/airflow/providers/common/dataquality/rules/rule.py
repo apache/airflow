@@ -136,9 +136,14 @@ class DQRule(BaseModel):
         May reference the target table as ``{table}``.
     :param severity: ``error`` (fails the task by default) or ``warn`` (recorded only).
     :param partition_clause: Extra predicate ANDed into the check's WHERE clause.
-    :param previous_name: Set when renaming a rule, to keep its history continuous.
+    :param previous_name: Set when renaming a rule, to keep its history continuous. A rule whose
+        ``previous_name`` happens to match another rule's identity (same check/column/condition)
+        collides on ``rule_uid``; set an explicit ``id`` on one of them to avoid this.
     :param description: Human-readable description shown in results and the UI. When omitted,
         the provider generates a short default description from the rule and condition.
+    :param id: Explicit, stable identity for this rule's history. When set, it is used verbatim
+        as the ``rule_uid`` instead of the derived hash, so it survives ``previous_name`` chains
+        and sidesteps any collision between rules that would otherwise hash the same.
 
     Invalid input raises pydantic's own :class:`~pydantic.ValidationError`.
     """
@@ -147,12 +152,19 @@ class DQRule(BaseModel):
 
     name: str
     check: str = Field(description="One of the built-in checks, or custom_sql.")
-    condition: Condition | dict[str, Any] | None = None
+    condition: Condition | None = None
     column: str | None = None
     sql: str | None = None
     severity: Severity = Severity.ERROR
     partition_clause: str | None = None
     previous_name: str | None = None
+    id: str | None = Field(
+        default=None,
+        description=(
+            "Explicit, stable identity for this rule's history, used verbatim as rule_uid "
+            "instead of a derived hash."
+        ),
+    )
     description: str | None = Field(
         default=None,
         description=(
@@ -197,7 +209,15 @@ class DQRule(BaseModel):
 
     @property
     def rule_uid(self) -> str:
-        """Stable identity across runs: survives severity/dimension tweaks and Dag refactors."""
+        """
+        Stable identity across runs: survives severity/dimension tweaks and Dag refactors.
+
+        Uses ``id`` verbatim when set. Otherwise derives a hash from the rule's identity --
+        set ``id`` explicitly to sidestep a collision between two rules that would otherwise
+        hash the same (see ``previous_name``).
+        """
+        if self.id:
+            return self.id
         condition = cast("Condition", self.condition)
         identity = {
             "name": self.previous_name or self.name,
@@ -217,7 +237,7 @@ class DQRule(BaseModel):
             "condition": condition.to_dict(),
             "severity": self.severity.value,
         }
-        for optional in ("column", "sql", "partition_clause", "previous_name", "description"):
+        for optional in ("column", "sql", "partition_clause", "previous_name", "id", "description"):
             value = getattr(self, optional)
             if value is not None:
                 data[optional] = value
@@ -267,6 +287,11 @@ class RuleSet(BaseModel):
         duplicates = {name for name in names if names.count(name) > 1}
         if duplicates:
             raise ValueError(f"Duplicate rule names in ruleset {self.name!r}: {sorted(duplicates)}")
+        uids = [rule.rule_uid for rule in self.rules]
+        colliding_uids = {uid for uid in uids if uids.count(uid) > 1}
+        if colliding_uids:
+            colliding_names = sorted(rule.name for rule in self.rules if rule.rule_uid in colliding_uids)
+            raise ValueError(f"Rules {colliding_names} in ruleset {self.name!r} collide on rule_uid")
         return self
 
     def to_dict(self) -> dict[str, Any]:

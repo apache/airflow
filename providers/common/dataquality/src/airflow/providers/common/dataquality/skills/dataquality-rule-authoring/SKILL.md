@@ -80,6 +80,11 @@ Combine `greater_than`/`less_than`/`geq_to`/`leq_to` freely to express a range, 
 
 ## `custom_sql`: when a catalog check doesn't fit
 
+> **Security note:** `custom_sql` executes the given statement verbatim against the configured
+> connection. Prefer a built-in check whenever one fits. Treat any model-generated `custom_sql`
+> rule as requiring human review before it runs against a production connection, and use
+> read-only credentials for data quality connections.
+
 Use `check: "custom_sql"` with a `sql` statement resolving to a single scalar whenever:
 
 - The check needs more than one column (e.g. `end_date >= start_date`), a join, or a subquery.

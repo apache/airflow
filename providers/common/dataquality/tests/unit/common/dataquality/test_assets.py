@@ -41,18 +41,28 @@ RULESET = RuleSet(
 ORDERS = Asset("orders")
 
 
-def make_triggering_events(*, extra: dict, asset: Asset = ORDERS) -> TriggeringAssetEventsAccessor:
+def make_event(
+    *,
+    extra: dict,
+    asset: Asset = ORDERS,
+    run_id: str = "manual__2026-07-04",
+    timestamp: str = "2026-07-04T06:00:00Z",
+) -> AssetEventDagRunReferenceResult:
     event = {
         "asset": {"name": asset.name, "uri": asset.uri, "extra": {}},
         "extra": extra,
         "source_task_id": "dq",
         "source_dag_id": "orders_pipeline",
-        "source_run_id": "manual__2026-07-04",
+        "source_run_id": run_id,
         "source_map_index": -1,
         "source_aliases": [],
-        "timestamp": "2026-07-04T06:00:00Z",
+        "timestamp": timestamp,
     }
-    return TriggeringAssetEventsAccessor.build([AssetEventDagRunReferenceResult.model_validate(event)])
+    return AssetEventDagRunReferenceResult.model_validate(event)
+
+
+def make_triggering_events(*, extra: dict, asset: Asset = ORDERS) -> TriggeringAssetEventsAccessor:
+    return TriggeringAssetEventsAccessor.build([make_event(extra=extra, asset=asset)])
 
 
 class TestAssetQuality:
@@ -130,34 +140,49 @@ class TestQualityScorePasses:
         events = make_triggering_events(extra={DQ_RESULT_EXTRA_KEY: {"passed": 3}})
         assert _quality_score_passes(ORDERS, 0.5, events) is False
 
-    def test_uses_most_recent_event_when_several_present(self):
-        first = AssetEventDagRunReferenceResult.model_validate(
-            {
-                "asset": {"name": ORDERS.name, "uri": ORDERS.uri, "extra": {}},
-                "extra": {DQ_RESULT_EXTRA_KEY: {"score": 0.4}},
-                "source_task_id": "dq",
-                "source_dag_id": "orders_pipeline",
-                "source_run_id": "run1",
-                "source_map_index": -1,
-                "source_aliases": [],
-                "timestamp": "2026-07-03T06:00:00Z",
-            }
+    def test_require_all_fails_when_any_event_is_below_min_score(self):
+        low = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.4}}, run_id="run1", timestamp="2026-07-03T06:00:00Z"
         )
-        second = AssetEventDagRunReferenceResult.model_validate(
-            {
-                "asset": {"name": ORDERS.name, "uri": ORDERS.uri, "extra": {}},
-                "extra": {DQ_RESULT_EXTRA_KEY: {"score": 0.99}},
-                "source_task_id": "dq",
-                "source_dag_id": "orders_pipeline",
-                "source_run_id": "run2",
-                "source_map_index": -1,
-                "source_aliases": [],
-                "timestamp": "2026-07-04T06:00:00Z",
-            }
+        high = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.99}}, run_id="run2", timestamp="2026-07-04T06:00:00Z"
+        )
+        events = TriggeringAssetEventsAccessor.build([low, high])
+
+        assert _quality_score_passes(ORDERS, 0.9, events) is False
+
+    def test_require_all_passes_when_every_event_meets_min_score(self):
+        first = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.95}}, run_id="run1", timestamp="2026-07-03T06:00:00Z"
+        )
+        second = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.99}}, run_id="run2", timestamp="2026-07-04T06:00:00Z"
         )
         events = TriggeringAssetEventsAccessor.build([first, second])
 
         assert _quality_score_passes(ORDERS, 0.9, events) is True
+
+    def test_latest_only_uses_most_recent_event_when_require_all_false(self):
+        first = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.4}}, run_id="run1", timestamp="2026-07-03T06:00:00Z"
+        )
+        second = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.99}}, run_id="run2", timestamp="2026-07-04T06:00:00Z"
+        )
+        events = TriggeringAssetEventsAccessor.build([first, second])
+
+        assert _quality_score_passes(ORDERS, 0.9, events, require_all=False) is True
+
+    def test_latest_only_fails_when_most_recent_event_is_below_min_score(self):
+        first = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.99}}, run_id="run1", timestamp="2026-07-03T06:00:00Z"
+        )
+        second = make_event(
+            extra={DQ_RESULT_EXTRA_KEY: {"score": 0.4}}, run_id="run2", timestamp="2026-07-04T06:00:00Z"
+        )
+        events = TriggeringAssetEventsAccessor.build([first, second])
+
+        assert _quality_score_passes(ORDERS, 0.9, events, require_all=False) is False
 
 
 class TestRequireQuality:

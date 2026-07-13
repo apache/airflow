@@ -208,8 +208,10 @@ class TestDQCheckOperatorExecute:
 
     @mock.patch.object(DQCheckOperator, "get_db_hook")
     def test_execution_error_always_fails_task(self, mock_get_db_hook):
+        """A connection that's actually down fails the batch query and every per-rule fallback query."""
         operator, hook = make_operator(records=None, fail_on="never")
         hook.get_records.side_effect = RuntimeError("boom")
+        hook.get_first.side_effect = RuntimeError("boom")
         mock_get_db_hook.return_value = hook
 
         with pytest.raises(DQCheckFailedError, match="errored"):

@@ -83,23 +83,21 @@ class SQLDQEngine:
     def _measure_builtin(
         self, rules: list[DQRule], table: str, partition_clause: str | None
     ) -> list[Observation]:
-        sql = self.build_batch_sql(rules, table, partition_clause)
+        # Built once per rule and reused below, instead of re-deriving each rule's SQL for the
+        # batch, for the returned Observation, and again in the per-rule fallback.
+        rule_sql = {rule.rule_uid: self.build_rule_sql(rule, table, partition_clause) for rule in rules}
+        sql = " UNION ALL ".join(rule_sql.values())
         log.info("Running %d built-in checks against %s", len(rules), table)
         started = time.monotonic()
         try:
             records = self.hook.get_records(sql)
-        except Exception as e:
-            elapsed_ms = (time.monotonic() - started) * 1000
-            log.exception("Check query failed for table %s", table)
-            return [
-                Observation(
-                    rule=rule,
-                    duration_ms=elapsed_ms,
-                    error_message=str(e),
-                    sql=self.build_rule_sql(rule, table, partition_clause),
-                )
-                for rule in rules
-            ]
+        except Exception:
+            log.exception(
+                "Batched check query failed for table %s; falling back to one query per rule so a "
+                "single bad rule doesn't mark every other rule in the batch as errored",
+                table,
+            )
+            return [self._measure_builtin_single(rule, rule_sql[rule.rule_uid]) for rule in rules]
         elapsed_ms = (time.monotonic() - started) * 1000
         observed_by_uid = {str(row[0]): row[1] for row in records or []}
         return [
@@ -108,10 +106,25 @@ class SQLDQEngine:
                 observed_value=observed_by_uid.get(rule.rule_uid),
                 duration_ms=elapsed_ms,
                 error_message=None if rule.rule_uid in observed_by_uid else "No result returned for rule",
-                sql=self.build_rule_sql(rule, table, partition_clause),
+                sql=rule_sql[rule.rule_uid],
             )
             for rule in rules
         ]
+
+    def _measure_builtin_single(self, rule: DQRule, sql: str) -> Observation:
+        started = time.monotonic()
+        try:
+            row = self.hook.get_first(sql)
+        except Exception as e:
+            elapsed_ms = (time.monotonic() - started) * 1000
+            log.exception("Check query failed for rule %s", rule.name)
+            return Observation(rule=rule, duration_ms=elapsed_ms, error_message=str(e), sql=sql)
+        elapsed_ms = (time.monotonic() - started) * 1000
+        if row is None:
+            return Observation(
+                rule=rule, duration_ms=elapsed_ms, error_message="No result returned for rule", sql=sql
+            )
+        return Observation(rule=rule, observed_value=row[0], duration_ms=elapsed_ms, sql=sql)
 
     def _measure_custom(self, rule: DQRule, table: str) -> Observation:
         if rule.sql is None:
