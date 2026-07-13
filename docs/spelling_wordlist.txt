@@ -294,7 +294,6 @@ conda
 conf
 Config
 config
-ConfigDict
 configfile
 configMap
 configmap
