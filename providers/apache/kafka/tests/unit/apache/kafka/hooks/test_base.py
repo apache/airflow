@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -65,6 +66,22 @@ class TestKafkaBaseHook:
         with pytest.raises(ValueError, match="must be provided"):
             hook.get_conn()
 
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_callbacks_resolved_from_connection_dotted_path(self, mock_get_connection):
+        stats_cb = MagicMock()
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "error_cb": "json.loads",
+            "oauth_cb": "json.dumps",
+            "stats_cb": stats_cb,
+        }
+
+        config = SomeKafkaHook().get_conn
+        assert config["error_cb"] is json.loads
+        assert config["oauth_cb"] is json.dumps
+        # Already-callable values on the connection are passed through unchanged.
+        assert config["stats_cb"] is stats_cb
+
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_test_connection(self, mock_get_connection, admin_client, hook):
@@ -89,6 +106,18 @@ class TestKafkaBaseHook:
         mock_admin_instance = admin_client.return_value
         mock_admin_instance.list_topics.assert_called_once_with(timeout=TIMEOUT)
         assert connection == (False, "Failed to establish connection.")
+
+    @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_test_connection_resolves_callbacks(self, mock_get_connection, admin_client, hook):
+        # ``test_connection`` runs the same callback resolution as the runtime clients,
+        # so dotted-path strings on the connection are exercised by the UI test too.
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "error_cb": "json.loads",
+        }
+        assert hook.test_connection() == (True, "Connection successful.")
+        admin_client.assert_called_once_with({"bootstrap.servers": "localhost:9092", "error_cb": json.loads})
 
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
