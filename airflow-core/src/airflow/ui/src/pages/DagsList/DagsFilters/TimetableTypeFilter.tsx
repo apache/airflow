@@ -16,13 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, Input, InputGroup } from "@chakra-ui/react";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiClock } from "react-icons/fi";
-import { useDebouncedCallback } from "use-debounce";
 
-const debounceDelay = 200;
+import { SearchBar } from "src/components/SearchBar";
 
 type Props = {
   readonly onChange: (value: string) => void;
@@ -30,60 +27,22 @@ type Props = {
 };
 
 export const TimetableTypeFilter = ({ onChange, value: initialValue }: Props) => {
-  const [value, setValue] = useState(initialValue);
-  const lastSentValue = useRef(initialValue);
   const { t: translate } = useTranslation("dags");
 
-  const handleFilterChange = useDebouncedCallback((newValue: string) => {
-    lastSentValue.current = newValue;
-    onChange(newValue);
-  }, debounceDelay);
-
-  useEffect(() => {
-    if (initialValue !== lastSentValue.current) {
-      setValue(initialValue);
-      lastSentValue.current = initialValue;
-    }
-  }, [initialValue]);
-
-  const onInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const newValue = event.target.value;
-
-    setValue(newValue);
-    handleFilterChange(newValue.trim());
-  };
-
-  const clearFilter = () => {
-    handleFilterChange.cancel();
-    lastSentValue.current = "";
-    setValue("");
-    onChange("");
-  };
-
   return (
-    <InputGroup
-      colorPalette="brand"
-      endElement={
-        Boolean(value) ? (
-          <CloseButton
-            aria-label={translate("filters.timetableTypeClear")}
-            data-testid="clear-timetable-type-filter"
-            onClick={clearFilter}
-            size="xs"
-          />
-        ) : undefined
-      }
+    <SearchBar
+      clearButtonAriaLabel={translate("filters.timetableTypeClear")}
+      clearButtonTestId="clear-timetable-type-filter"
+      defaultValue={initialValue}
+      hotkeyDisabled
+      inputAriaLabel={translate("filters.timetableType")}
+      inputPaddingRight={0}
+      inputTestId="dags-timetable-type-filter"
       maxWidth="260px"
       minWidth="220px"
+      onChange={(newValue) => onChange(newValue.trim())}
+      placeholder={translate("filters.timetableType")}
       startElement={<FiClock />}
-    >
-      <Input
-        aria-label={translate("filters.timetableType")}
-        data-testid="dags-timetable-type-filter"
-        onChange={onInputChange}
-        placeholder={translate("filters.timetableType")}
-        value={value}
-      />
-    </InputGroup>
+    />
   );
 };
