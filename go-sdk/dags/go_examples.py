@@ -17,9 +17,10 @@
 """
 Python stub Dags mirroring the Go SDK example bundle (``go-sdk/example/bundle``).
 
-Two Dags, both backed by the same Go bundle: ``simple_dag`` (extract/transform/
-load, below) and ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
-timing sequential vs goroutine XCom pulls).
+Three Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
+load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
+timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag``
+(stressing the TaskFlow argument-binding surface, see its Dag function below).
 
 ``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
 run exercises XCom across the language boundary, the same way
@@ -114,3 +115,51 @@ def concurrent_xcom_dag():
 
 
 concurrent_xcom_dag()
+
+
+@task.stub(queue="golang")
+def make_config(): ...
+
+
+@task.stub(queue="golang")
+def make_numbers(): ...
+
+
+@task.stub(queue="golang")
+def combine(
+    name: str,
+    count: int,
+    ratio: float,
+    enabled: bool,
+    tags: list,
+    config: dict,
+    numbers: list,
+    note: str | None = None,
+): ...
+
+
+@dag(dag_id="taskflow_binding_dag")
+def taskflow_binding_dag():
+    """
+    Stress the TaskFlow argument-binding surface beyond ``simple_dag``'s transform.
+
+    One mixed positional/keyword call carries literals of every scalar type plus an
+    array literal, and fans in XComs from *two* upstream Go tasks: ``make_config``
+    returns an object that binds onto a strictly-decoded Go struct, ``make_numbers``
+    an array that binds onto ``[]int``. ``note`` is not passed, so its ``None``
+    default is captured and arrives in Go as a nil ``*string``. The Go ``combine``
+    (``go-sdk/example/bundle/taskflowbinding``) verifies every bound value and fails
+    the task on any mismatch.
+    """
+    combine(
+        "summary",
+        3,
+        2.5,
+        True,
+        ["metrics", "hourly"],
+        config=make_config(),
+        numbers=make_numbers(),
+    )
+
+
+taskflow_binding_dag()

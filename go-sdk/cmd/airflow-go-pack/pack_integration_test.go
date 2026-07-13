@@ -154,6 +154,11 @@ dags:
       - "extract"
       - "transform"
       - "load"
+  taskflow_binding_dag:
+    tasks:
+      - "make_config"
+      - "make_numbers"
+      - "combine"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 
