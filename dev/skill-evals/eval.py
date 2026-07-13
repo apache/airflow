@@ -91,7 +91,11 @@ def find_sdk_modules() -> Path:
     """
     promptfoo_bin = shutil.which("promptfoo")
     if promptfoo_bin:
-        version = run(["promptfoo", "--version"]).stdout.strip()
+        # PROMPTFOO_DISABLE_UPDATE avoids an outdated version banner on stdout when a newer
+        # promptfoo is published upstream, which would otherwise break this exact match.
+        version = run(
+            ["promptfoo", "--version"], env={**os.environ, "PROMPTFOO_DISABLE_UPDATE": "1"}
+        ).stdout.strip()
         if version == PROMPTFOO_VERSION:
             pf_pkg = Path(promptfoo_bin).resolve()
             while pf_pkg.name != "promptfoo" or not (pf_pkg / "package.json").is_file():
