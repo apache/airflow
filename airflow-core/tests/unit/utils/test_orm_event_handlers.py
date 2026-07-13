@@ -17,7 +17,7 @@
 
 """
 These tests ensure compatibility with the deprecation of `sqlalchemy.orm.mapper()` in SQLAlchemy 2.0.0.b1.
-See also: https://docs.sqlalchemy.org/en/21/orm/mapping_styles.html#orm-imperative-mapping
+See also: https://docs.sqlalchemy.org/en/20/orm/mapping_styles.html#orm-imperative-mapping
 """
 
 from __future__ import annotations
