@@ -27,7 +27,11 @@ import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useCalendarServiceGetCalendar, useDagServiceGetDagDetails } from "openapi/queries";
+import {
+  useCalendarServiceGetCalendar,
+  useCalendarServiceGetCalendarDeadlines,
+  useDagServiceGetDagDetails,
+} from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { IconButton } from "src/components/ui";
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
@@ -37,7 +41,7 @@ import { useTimezone } from "src/context/timezone";
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
 import { HourlyCalendarView } from "./HourlyCalendarView";
-import { createCalendarScale } from "./calendarUtils";
+import { buildDeadlineDateMap, createCalendarScale } from "./calendarUtils";
 
 const spin = keyframes`
   from { transform: rotate(0deg); }
@@ -83,6 +87,19 @@ export const Calendar = () => {
     undefined,
     { enabled: Boolean(dagId) },
   );
+
+  const { data: deadlineData } = useCalendarServiceGetCalendarDeadlines(
+    {
+      dagId,
+      deadlineTimeGte: gte,
+      deadlineTimeLte: lte,
+      granularity,
+    },
+    undefined,
+    { enabled: Boolean(dagId) },
+  );
+
+  const deadlineMap = buildDeadlineDateMap(deadlineData?.deadlines ?? [], selectedTimezone, granularity);
 
   const scale = createCalendarScale(data?.dag_runs ?? [], {
     granularity,
@@ -238,18 +255,20 @@ export const Calendar = () => {
             <DailyCalendarView
               data={data?.dag_runs ?? []}
               data-testid="calendar-daily-view"
+              deadlineMap={deadlineMap}
               scale={scale}
               selectedYear={selectedDate.year()}
               timezone={selectedTimezone}
               viewMode={viewMode}
             />
-            <CalendarLegend scale={scale} viewMode={viewMode} />
+            <CalendarLegend hasDeadlines={deadlineMap.size > 0} scale={scale} viewMode={viewMode} />
           </>
         ) : (
           <HStack align="start" gap={2}>
             <Box>
               <HourlyCalendarView
                 data={data?.dag_runs ?? []}
+                deadlineMap={deadlineMap}
                 scale={scale}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}
@@ -258,7 +277,12 @@ export const Calendar = () => {
               />
             </Box>
             <Box display="flex" flex="1" justifyContent="center" pt={16}>
-              <CalendarLegend scale={scale} vertical viewMode={viewMode} />
+              <CalendarLegend
+                hasDeadlines={deadlineMap.size > 0}
+                scale={scale}
+                vertical
+                viewMode={viewMode}
+              />
             </Box>
           </HStack>
         )}

@@ -819,7 +819,6 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "airflow-ctl-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "airflow-e2e-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
-"providers-e2e-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -1086,7 +1085,6 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/task-sdk-integration-tests/tests",
-    "$MYPY_CONFIG_FILE_DIR/providers-e2e-tests/openlineage/tests",
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
@@ -1346,7 +1344,6 @@ dev = [
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
-    "apache-airflow-openlineage-e2e-tests",
     "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk[all]",
@@ -1431,7 +1428,6 @@ apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
-apache-airflow-openlineage-e2e-tests = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-akeyless = false
@@ -1577,7 +1573,6 @@ apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
-apache-airflow-openlineage-e2e-tests = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-akeyless = false
@@ -1720,7 +1715,6 @@ apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-integration-tests = { workspace = true }
-apache-airflow-openlineage-e2e-tests = { workspace = true }
 apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
@@ -1860,7 +1854,6 @@ members = [
     "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
-    "providers-e2e-tests/openlineage",
     "chart",
     "kubernetes-tests",
     "task-sdk",
