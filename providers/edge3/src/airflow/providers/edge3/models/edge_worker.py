@@ -28,11 +28,8 @@ from sqlalchemy.orm import Mapped
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
-<<<<<<< HEAD
-from airflow.utils.helpers import prune_dict
-=======
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
->>>>>>> 366552b881 (Reworked statsd taging for pre airflow 3.3 versions)
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -189,9 +186,7 @@ def set_metrics(
     if not isinstance(status, (int, float)):
         status = logging.NOTSET
 
-    Stats.gauge(
-        "edge_worker.status", status, tags=metric_tags
-    )  # type: ignore
+    Stats.gauge("edge_worker.status", status, tags=metric_tags)
     Stats.gauge("edge_worker.connected", int(connected), tags=metric_tags)
     Stats.gauge("edge_worker.maintenance", int(maintenance), tags=metric_tags)
     Stats.gauge("edge_worker.jobs_active", jobs_active, tags=metric_tags)
