@@ -45,7 +45,7 @@ CONN_ID = "sqlite_default"
 TABLE_NAME = "dq_gated_orders"
 RESULTS_PATH = Path("/tmp/airflow_dq_example/results")
 
-os.environ.setdefault("AIRFLOW__DQ__RESULTS_PATH", f"file://{RESULTS_PATH}")
+os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RESULTS_PATH}")
 
 # [START howto_asset_quality]
 gated_orders_ruleset = RuleSet(

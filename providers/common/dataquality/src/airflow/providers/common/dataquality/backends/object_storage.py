@@ -106,6 +106,8 @@ class ObjectStorageResultsBackend:
                 if before is not None and cursor >= before:
                     continue
                 runs.append(payload)
+                if len(runs) > limit:
+                    break
             if len(runs) > limit:
                 break
 

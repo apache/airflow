@@ -41,7 +41,7 @@ TABLE_NAME = "dq_yaml_orders"
 RESULTS_PATH = Path("/tmp/airflow_dq_example/results")
 RULESET_FILE = Path(__file__).parent / "orders_ruleset.yaml"
 
-os.environ.setdefault("AIRFLOW__DQ__RESULTS_PATH", f"file://{RESULTS_PATH}")
+os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RESULTS_PATH}")
 
 with DAG(
     dag_id=DAG_ID,
