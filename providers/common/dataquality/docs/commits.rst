@@ -26,10 +26,10 @@
 Package apache-airflow-providers-common-dataquality
 ------------------------------------------------------
 
-``Data Quality Provider``
+``Common Data Quality Provider``
 
 
-This is detailed commit list of changes for versions provider package: ``dataquality``.
+This is detailed commit list of changes for versions provider package: ``common.dataquality``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::
