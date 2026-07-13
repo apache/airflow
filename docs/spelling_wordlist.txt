@@ -1438,6 +1438,7 @@ Roadmap
 roadmap
 roc
 RoleBinding
+rollout
 rollup
 rom
 romeoandjuliet
