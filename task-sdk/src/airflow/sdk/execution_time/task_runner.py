@@ -1872,7 +1872,10 @@ def _handle_trigger_dag_run(
         ),
     )
 
-    if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+    dag_run_already_exists = (
+        isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS
+    )
+    if dag_run_already_exists:
         if drte.skip_when_already_exists:
             log.info(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
@@ -1884,7 +1887,8 @@ def _handle_trigger_dag_run(
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.SKIPPED
-        else:
+            return msg, state
+        if not drte.reattach_on_existing:
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
             msg = TaskState(
                 state=TaskInstanceState.FAILED,
@@ -1892,10 +1896,10 @@ def _handle_trigger_dag_run(
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.FAILED
-
-        return msg, state
-
-    log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
+            return msg, state
+        log.info("Dag Run already exists, reattaching to it.", dag_id=drte.trigger_dag_id)
+    else:
+        log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
 
     # Store the run id from the dag run (either created or found above) to
     # be used when creating the extra link on the webserver.

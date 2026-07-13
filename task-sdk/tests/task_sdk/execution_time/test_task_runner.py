@@ -5049,6 +5049,171 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
     @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_conflict_reattach(self, create_runtime_ti, mock_supervisor_comms):
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            reattach_on_existing=True,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_conflict_reattach", run_id="test_run", task=task
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        state, msg, _ = run(ti, ti.get_template_context(), mock.MagicMock())
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.state == TaskInstanceState.SUCCESS
+        sent_messages = [
+            call.args[0] if call.args else call.kwargs["msg"]
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        trigger_msg = next(msg for msg in sent_messages if isinstance(msg, TriggerDagRun))
+        assert trigger_msg.dag_id == "test_dag"
+        assert trigger_msg.run_id == "test_run_id"
+        assert trigger_msg.reset_dag_run is False
+        xcom_msg = next(
+            msg for msg in sent_messages if isinstance(msg, SetXCom) and msg.key == "trigger_run_id"
+        )
+        assert xcom_msg.value == "test_run_id"
+        assert xcom_msg.dag_id == "test_handle_trigger_dag_run_conflict_reattach"
+        assert xcom_msg.task_id == "test_task"
+        assert xcom_msg.run_id == "test_run"
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_conflict_skip_precedes_reattach(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            skip_when_already_exists=True,
+            reattach_on_existing=True,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_conflict_skip_precedes_reattach", run_id="test_run", task=task
+        )
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+        state, msg, _ = run(ti, ti.get_template_context(), mock.MagicMock())
+
+        assert state == TaskInstanceState.SKIPPED
+        assert msg.state == TaskInstanceState.SKIPPED
+
+    @pytest.mark.parametrize(
+        ("target_dr_state", "expected_task_state"),
+        [
+            pytest.param(DagRunState.SUCCESS, TaskInstanceState.SUCCESS, id="success"),
+            pytest.param(DagRunState.FAILED, TaskInstanceState.FAILED, id="failed"),
+        ],
+    )
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_conflict_reattach_wait_for_completion(
+        self, target_dr_state, expected_task_state, create_runtime_ti, mock_supervisor_comms
+    ):
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            reattach_on_existing=True,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_conflict_reattach_wait", run_id="test_run", task=task
+        )
+        dag_run_states = iter([DagRunState.RUNNING, target_dr_state])
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=next(dag_run_states))
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        with mock.patch("time.sleep", autospec=True, return_value=None):
+            state, msg, _ = run(ti, ti.get_template_context(), mock.MagicMock())
+
+        assert state == expected_task_state
+        assert msg.state == expected_task_state
+        sent_messages = [
+            call.args[0] if call.args else call.kwargs["msg"]
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        xcom_msg = next(
+            msg for msg in sent_messages if isinstance(msg, SetXCom) and msg.key == "trigger_run_id"
+        )
+        assert xcom_msg.value == "test_run_id"
+        assert xcom_msg.dag_id == "test_handle_trigger_dag_run_conflict_reattach_wait"
+        assert xcom_msg.task_id == "test_task"
+        assert xcom_msg.run_id == "test_run"
+        dag_run_state_messages = [msg for msg in sent_messages if isinstance(msg, GetDagRunState)]
+        assert dag_run_state_messages == [
+            GetDagRunState(dag_id="test_dag", run_id="test_run_id"),
+            GetDagRunState(dag_id="test_dag", run_id="test_run_id"),
+        ]
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_conflict_reattach_deferred(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            wait_for_completion=True,
+            deferrable=True,
+            reattach_on_existing=True,
+            poke_interval=5,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_conflict_reattach_deferred", run_id="test_run", task=task
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        state, msg, _ = run(ti, ti.get_template_context(), mock.MagicMock())
+
+        assert state == TaskInstanceState.DEFERRED
+        assert isinstance(msg, DeferTask)
+        assert msg.trigger_kwargs["dag_id"] == "test_dag"
+        assert msg.trigger_kwargs["run_ids"] == ["test_run_id"]
+        assert msg.trigger_kwargs["execution_dates"] is None
+        assert msg.trigger_kwargs["poll_interval"] == 5
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run_reraises_original_error(self, create_runtime_ti, mock_supervisor_comms):
         """
         When an ``except`` handler in ``run()`` raises before binding ``state``,
