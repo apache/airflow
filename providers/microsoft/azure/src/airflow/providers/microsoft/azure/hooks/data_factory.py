@@ -39,13 +39,15 @@ from collections.abc import Callable
 from functools import wraps
 from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
+from azure.core import MatchConditions
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import (
     ClientSecretCredential as AsyncClientSecretCredential,
     DefaultAzureCredential as AsyncDefaultAzureCredential,
 )
-from azure.mgmt.datafactory import DataFactoryManagementClient
+from azure.mgmt.datafactory import DataFactoryManagementClient, __version__ as _ADF_SDK_VERSION
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
+from packaging.version import Version
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -70,6 +72,30 @@ if TYPE_CHECKING:
 
 Credentials = ClientSecretCredential | DefaultAzureCredential
 AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
+
+# azure-mgmt-datafactory 10 replaced the if_match/if_none_match operation parameters
+# with azure-core's keyword-only etag + match_condition pair (IfNotModified sends
+# If-Match, IfModified sends If-None-Match). Older SDKs silently ignore the new-style
+# arguments and drop the conditional header, so the calling convention has to be
+# picked by the installed major version.
+# https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/datafactory/azure-mgmt-datafactory/CHANGELOG.md#breaking-changes
+_ADF_SDK_V10_PLUS = Version(_ADF_SDK_VERSION).major >= 10
+
+
+def _build_if_match_kwargs(if_match: str | None) -> dict[str, Any]:
+    if _ADF_SDK_V10_PLUS:
+        return {"etag": if_match, "match_condition": MatchConditions.IfNotModified if if_match else None}
+    return {"if_match": if_match}
+
+
+def _build_if_none_match_kwargs(if_none_match: str | None) -> dict[str, Any]:
+    if _ADF_SDK_V10_PLUS:
+        return {
+            "etag": if_none_match,
+            "match_condition": MatchConditions.IfModified if if_none_match else None,
+        }
+    return {"if_none_match": if_none_match}
+
 
 T = TypeVar("T", bound=Any)
 
@@ -278,7 +304,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Factory {factory!r} does not exist.")
 
         return self.get_conn().factories.create_or_update(
-            resource_group_name, factory_name, factory, if_match, **config
+            resource_group_name, factory_name, factory, **_build_if_match_kwargs(if_match), **config
         )
 
     @provide_targeted_factory
@@ -339,7 +365,11 @@ class AzureDataFactoryHook(BaseHook):
         :return: The linked service.
         """
         return self.get_conn().linked_services.get(
-            resource_group_name, factory_name, linked_service_name, if_none_match, **config
+            resource_group_name,
+            factory_name,
+            linked_service_name,
+            **_build_if_none_match_kwargs(if_none_match),
+            **config,
         )
 
     def _linked_service_exists(self, resource_group_name, factory_name, linked_service_name) -> bool:
@@ -549,7 +579,11 @@ class AzureDataFactoryHook(BaseHook):
         :return: The DataFlowResource.
         """
         return self.get_conn().data_flows.get(
-            resource_group_name, factory_name, dataflow_name, if_none_match, **config
+            resource_group_name,
+            factory_name,
+            dataflow_name,
+            **_build_if_none_match_kwargs(if_none_match),
+            **config,
         )
 
     def _dataflow_exists(
@@ -597,7 +631,12 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Dataflow {dataflow_name!r} does not exist.")
 
         return self.get_conn().data_flows.create_or_update(
-            resource_group_name, factory_name, dataflow_name, dataflow, if_match, **config
+            resource_group_name,
+            factory_name,
+            dataflow_name,
+            dataflow,
+            **_build_if_match_kwargs(if_match),
+            **config,
         )
 
     @provide_targeted_factory
@@ -627,7 +666,12 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Dataflow {dataflow_name!r} already exists.")
 
         return self.get_conn().data_flows.create_or_update(
-            resource_group_name, factory_name, dataflow_name, dataflow, if_match, **config
+            resource_group_name,
+            factory_name,
+            dataflow_name,
+            dataflow,
+            **_build_if_match_kwargs(if_match),
+            **config,
         )
 
     @provide_targeted_factory
@@ -923,7 +967,12 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Trigger {trigger_name!r} does not exist.")
 
         return self.get_conn().triggers.create_or_update(
-            resource_group_name, factory_name, trigger_name, trigger, if_match, **config
+            resource_group_name,
+            factory_name,
+            trigger_name,
+            trigger,
+            **_build_if_match_kwargs(if_match),
+            **config,
         )
 
     @provide_targeted_factory
