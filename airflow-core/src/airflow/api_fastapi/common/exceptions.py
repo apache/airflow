@@ -100,7 +100,6 @@ def _build_database_error_response(
     )
 
 
-
 class _DatabaseErrorHandler(BaseErrorHandler[DBError]):
     """
     Base for handlers that turn a SQLAlchemy error into an actionable HTTP response.
