@@ -1,0 +1,1 @@
+Release the metadata DB connection in the grid ``structure`` endpoint before deserializing historical DAG versions, so it is not held open across CPU-bound work and does not exhaust the connection pool on large DAGs.
