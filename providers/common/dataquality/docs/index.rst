@@ -55,6 +55,78 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-dataquality/>
     Installing from sources <installing-providers-from-sources>
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/common/dataquality/index>
+
+
+apache-airflow-providers-common-dataquality package
+---------------------------------------------------
+
+``Data Quality Provider``
+
+Declarative data quality rules with durable, per-rule execution history. Checks run through
+``common.sql`` DB-API hooks; results are persisted to a configurable results store (object
+storage or local files) so task, run, and rule-level quality can be inspected over time.
+
+See :doc:`rules` for the built-in check catalog (and its cross-database caveats),
+:doc:`operators`/:doc:`decorators` for running checks, and :doc:`assets` for attaching rules to
+an asset and gating a downstream Dag on its quality score.
+
+Release: 0.1.0
+
+Provider package
+----------------
+
+This package is for the ``common.dataquality`` provider.
+All classes for this package are included in the ``airflow.providers.common.dataquality`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow installation via
+``pip install apache-airflow-providers-common-dataquality``. For the minimum Airflow version supported,
+see ``Requirements`` below.
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
+
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0.0``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
+``apache-airflow-providers-common-sql``     ``>=2.0.0``
+``pydantic``                                ``>=2.11.0``
+``pyyaml``                                  ``>=6.0.2``
+==========================================  ==================
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+apache-airflow-providers-common-dataquality package
+------------------------------------------------------
+
 ``Data Quality Provider``
 
 Declarative data quality rules with durable, per-rule execution history.

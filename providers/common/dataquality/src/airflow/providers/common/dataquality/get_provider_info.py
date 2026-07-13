@@ -24,11 +24,11 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-common-dataquality",
-        "name": "Data Quality",
+        "name": "Common Data Quality",
         "description": "``Data Quality Provider``\n\nDeclarative data quality rules with durable, per-rule execution history.\nChecks run through ``common.sql`` DB-API hooks; results are persisted to a\nconfigurable results store (object storage or local files) so task, run,\nand rule-level quality can be inspected over time.\n",
         "integrations": [
             {
-                "integration-name": "Data Quality",
+                "integration-name": "Common Data Quality",
                 "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-dataquality/",
                 "how-to-guide": ["/docs/apache-airflow-providers-common-dataquality/operators.rst"],
                 "tags": ["software"],
@@ -36,7 +36,7 @@ def get_provider_info():
         ],
         "operators": [
             {
-                "integration-name": "Data Quality",
+                "integration-name": "Common Data Quality",
                 "python-modules": ["airflow.providers.common.dataquality.operators.dq_check"],
             }
         ],
