@@ -58,7 +58,10 @@ def client(request: pytest.FixtureRequest):
 
         raw_id = request.path_params.get(
             "task_instance_id",
-            request.path_params.get("connection_test_id", "00000000-0000-0000-0000-000000000000"),
+            request.path_params.get(
+                "connection_test_id",
+                request.path_params.get("callback_id", "00000000-0000-0000-0000-000000000000"),
+            ),
         )
         try:
             ti_id = UUID(raw_id)

@@ -80,6 +80,16 @@ class TestExecutionAPIRoute:
         )
         assert route.allowed_token_types == frozenset({"execution"})
 
+    def test_extracts_callback_token_scope(self):
+        route = ExecutionAPIRoute(
+            path="/test",
+            endpoint=lambda: None,
+            dependencies=[
+                Security(require_auth, scopes=["callback:self", "token:callback"]),
+            ],
+        )
+        assert route.allowed_token_types == frozenset({"callback"})
+
     def test_rejects_invalid_token_types(self):
         with pytest.raises(ValueError, match="Invalid token types"):
             ExecutionAPIRoute(

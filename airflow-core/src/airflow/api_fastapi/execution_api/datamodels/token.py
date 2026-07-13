@@ -24,7 +24,7 @@ from pydantic import ConfigDict
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
-TokenScope = Literal["execution", "workload"]
+TokenScope = Literal["execution", "workload", "callback"]
 
 
 class TIClaims(BaseModel):

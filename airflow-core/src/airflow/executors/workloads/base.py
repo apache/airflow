@@ -84,12 +84,12 @@ class BaseWorkloadSchema(BaseModel):
     """The identity token for this workload"""
 
     @staticmethod
-    def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
+    def generate_token(sub_id: str, generator: JWTGenerator | None = None, scope: str = "workload") -> str:
         if not generator:
             return ""
         valid_for = conf.getfloat("scheduler", "task_queued_timeout")
         return generator.generate(
-            extras={"sub": sub_id, "scope": "workload"},
+            extras={"sub": sub_id, "scope": scope},
             valid_for=valid_for,
         )
 
