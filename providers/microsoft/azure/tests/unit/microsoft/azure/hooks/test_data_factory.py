@@ -679,19 +679,16 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch("azure.mgmt.datafactory.models._models_py3.PipelineRun")
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_connection")
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
-    async def test_get_pipeline_run_exception_without_resource(
-        self, mock_conn, mock_get_connection, mock_pipeline_run
-    ):
+    async def test_get_pipeline_run_exception_without_resource(self, mock_conn, mock_get_connection):
         """
         Test get_pipeline_run function without passing the resource name to check the decorator function and
         raise exception
         """
         mock_connection = Connection(extra={"factory_name": DATAFACTORY_NAME})
         mock_get_connection.return_value = mock_connection
-        mock_conn.return_value.pipeline_runs.get.return_value = mock_pipeline_run
+        mock_conn.return_value.pipeline_runs.get.return_value = MagicMock()
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         with pytest.raises(AirflowException):
             await hook.get_pipeline_run(RUN_ID, None, DATAFACTORY_NAME)
