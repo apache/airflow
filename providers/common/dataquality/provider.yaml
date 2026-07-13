@@ -17,7 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-common-dataquality
-name: Data Quality
+name: Common Data Quality
 description: |
   ``Data Quality Provider``
 
@@ -39,14 +39,14 @@ versions:
   - 0.1.0
 
 integrations:
-  - integration-name: Data Quality
+  - integration-name: Common Data Quality
     external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-dataquality/
     how-to-guide:
       - /docs/apache-airflow-providers-common-dataquality/operators.rst
     tags: [software]
 
 operators:
-  - integration-name: Data Quality
+  - integration-name: Common Data Quality
     python-modules:
       - airflow.providers.common.dataquality.operators.dq_check
 
