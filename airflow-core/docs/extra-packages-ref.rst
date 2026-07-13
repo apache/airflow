@@ -397,6 +397,8 @@ pre-installed when Airflow is installed.
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common-compat       | ``pip install 'apache-airflow[common-compat]'``     | Compatibility code for old Airflow   |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| common-dataquality  | ``pip install 'apache-airflow[common-dataquality]'`` | Common Data Quality provider         |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common-io           | ``pip install 'apache-airflow[common-io]'``         | Core IO Operators                    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common-messaging    | ``pip install 'apache-airflow[common-messaging]'``  | Core Messaging Operators             |              |

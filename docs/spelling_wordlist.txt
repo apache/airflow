@@ -294,6 +294,7 @@ conda
 conf
 Config
 config
+ConfigDict
 configfile
 configMap
 configmap
@@ -402,6 +403,7 @@ dataprep
 Dataproc
 dataproc
 DataprocDiagnoseClusterOperator
+dataquality
 DataScan
 dataScans
 Dataset
