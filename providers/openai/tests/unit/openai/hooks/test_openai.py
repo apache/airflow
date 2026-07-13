@@ -315,6 +315,28 @@ def test_create_response(mock_openai_hook):
     assert result is expected
 
 
+def test_parse_response(mock_openai_hook):
+    from pydantic import BaseModel
+
+    class Person(BaseModel):
+        name: str
+
+    expected = mock_openai_hook.conn.responses.parse.return_value
+    result = mock_openai_hook.parse_response(
+        input="Extract: Alice",
+        text_format=Person,
+        model=MODEL,
+        instructions="Be precise.",
+    )
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL,
+        input="Extract: Alice",
+        text_format=Person,
+        instructions="Be precise.",
+    )
+    assert result is expected
+
+
 def test_get_response(mock_openai_hook):
     expected = mock_openai_hook.conn.responses.retrieve.return_value
     result = mock_openai_hook.get_response("resp_123")

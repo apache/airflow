@@ -20,7 +20,8 @@ from unittest.mock import Mock
 
 import pytest
 from openai.types.batch import Batch
-from openai.types.responses import Response
+from openai.types.responses import ParsedResponse, Response
+from pydantic import BaseModel
 
 from airflow.providers.common.compat.sdk import Context, TaskDeferred
 from airflow.providers.openai.hooks.openai import OpenAIHook
@@ -102,6 +103,63 @@ def test_openai_response_operator_execute():
         instructions="Be concise.",
         previous_response_id="resp_prev",
     )
+
+
+class _StructuredPerson(BaseModel):
+    """Pydantic model used by the structured-output operator tests."""
+
+    name: str
+
+
+def test_openai_response_operator_structured_output_returns_dict():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Extract: Alice",
+        model="test_model",
+        text_format=_StructuredPerson,
+        response_kwargs={"instructions": "Be precise."},
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.parse_response.return_value = Mock(
+        spec=ParsedResponse,
+        id="resp_str_1",
+        status="completed",
+        output_parsed=_StructuredPerson(name="Alice"),
+    )
+    operator.hook = mock_hook_instance
+
+    result = operator.execute(Context())
+
+    assert result == {"name": "Alice"}
+    mock_hook_instance.parse_response.assert_called_once_with(
+        input="Extract: Alice",
+        model="test_model",
+        text_format=_StructuredPerson,
+        instructions="Be precise.",
+    )
+    mock_hook_instance.create_response.assert_not_called()
+
+
+def test_openai_response_operator_structured_output_refusal_raises():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Extract: Alice",
+        model="test_model",
+        text_format=_StructuredPerson,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.parse_response.return_value = Mock(
+        spec=ParsedResponse,
+        id="resp_refused",
+        status="incomplete",
+        output_parsed=None,
+    )
+    operator.hook = mock_hook_instance
+
+    with pytest.raises(ValueError, match="did not produce a parseable structured output"):
+        operator.execute(Context())
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
