@@ -132,7 +132,7 @@ class FileGroupForCi(Enum):
     EVENT_DRIVEN_E2E_FILES = auto()
     JAVA_SDK_E2E_FILES = auto()
     GO_SDK_E2E_FILES = auto()
-    PROVIDERS_E2E_OPENLINEAGE_FILES = auto()
+    OPENLINEAGE_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -237,7 +237,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/messaging/.*",
         ],
         FileGroupForCi.JAVA_SDK_E2E_FILES: [
-            r"^java-sdk/.*",
+            # `.md` excluded — doc-only edits do not affect the Gradle build.
+            r"^java-sdk/(?!.*\.md$).*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
@@ -251,8 +252,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
         ],
-        FileGroupForCi.PROVIDERS_E2E_OPENLINEAGE_FILES: [
-            r"^providers-e2e-tests/openlineage/.*",
+        FileGroupForCi.OPENLINEAGE_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/.*",
+            r"^airflow-e2e-tests/docker/openlineage\.yml$",
             r"^providers/openlineage/.*",
             r"^providers/common/compat/.*",
             r"^providers/common/io/.*",
@@ -444,7 +446,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^go-sdk/.*\.go$",
         ],
         FileGroupForCi.JAVA_SDK_FILES: [
-            r"^java-sdk/",
+            # `.md` excluded — doc-only edits do not affect the Gradle build.
+            r"^java-sdk/(?!.*\.md$).*",
         ],
         FileGroupForCi.TS_SDK_FILES: [
             r"^ts-sdk/",
@@ -1045,8 +1048,18 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.GO_SDK_E2E_FILES)
 
     @cached_property
-    def run_providers_e2e_tests_openlineage(self) -> bool:
-        return self._should_be_run(FileGroupForCi.PROVIDERS_E2E_OPENLINEAGE_FILES)
+    def run_openlineage_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
+
+    @cached_property
+    def run_openlineage_e2e_compat_tests(self) -> bool:
+        # The older-Airflow compat matrix is costly, so it does not run on every OpenLineage PR:
+        # only on canary (scheduled / main) or when a maintainer explicitly asks via the label.
+        # Deliberately not tied to derived full_tests_needed (large PRs, env changes, pushes) — same
+        # rationale as run_ui_e2e_tests.
+        if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
+            return True
+        return False
 
     @cached_property
     def run_amazon_tests(self) -> bool:
@@ -1190,7 +1203,7 @@ class SelectiveChecks:
             or self.run_event_driven_e2e_tests
             or self.run_java_sdk_e2e_tests
             or self.run_go_sdk_e2e_tests
-            or self.run_providers_e2e_tests_openlineage
+            or self.run_openlineage_e2e_tests
             or self.run_ui_e2e_tests
         )
 

@@ -60,6 +60,7 @@ PIP package                                 Version required
 ``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
 ``psycopg[binary]``                         ``>=3.2.9; python_version < "3.14"``
 ``psycopg[binary]``                         ``>=3.3.3; python_version >= "3.14"``
+``asyncpg``                                 ``>=0.30.0``
 ==========================================  ======================================
 
 Optional cross provider package dependencies
