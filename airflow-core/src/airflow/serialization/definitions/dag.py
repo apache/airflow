@@ -126,9 +126,9 @@ class SerializedDAG:
     max_active_runs: int = 16
     max_active_tasks: int = 16
     max_consecutive_failed_dag_runs: int = 0
-    inlets: Sequence[Any] = ()
+    inlets: Sequence[Any] = attrs.field(factory=list)
     owner_links: dict[str, str] = attrs.field(factory=dict)
-    outlets: Sequence[Any] = ()
+    outlets: Sequence[Any] = attrs.field(factory=list)
     params: SerializedParamsDict = attrs.field(factory=SerializedParamsDict)
     partial: bool = False
     render_template_as_native_obj: bool = False
