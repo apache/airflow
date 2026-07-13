@@ -22,7 +22,6 @@ from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
-import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
@@ -34,8 +33,6 @@ from airflow.providers.git.hooks.git import GitHook
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.dag_processing.bundles.base import BundleVersion
-
-log = structlog.get_logger(__name__)
 
 
 class GitDagBundle(BaseDagBundle):
@@ -95,17 +92,6 @@ class GitDagBundle(BaseDagBundle):
         else:
             self.prune_dotgit_folder = prune_dotgit_folder
 
-        self._log = log.bind(
-            bundle_name=self.name,
-            version=self.version,
-            bare_repo_path=self.bare_repo_path,
-            repo_path=self.repo_path,
-            versions_path=self.versions_dir,
-            git_conn_id=self.git_conn_id,
-            submodules=self.submodules,
-            sparse_dirs=self.sparse_dirs,
-        )
-
         self._log.debug("bundle configured")
         self.hook: GitHook | None = None
         try:
@@ -149,6 +135,16 @@ class GitDagBundle(BaseDagBundle):
         finally:
             if repo is not None:
                 repo.close()
+
+    def _log_context(self) -> dict:
+        return {
+            "bare_repo_path": self.bare_repo_path,
+            "repo_path": self.repo_path,
+            "versions_path": self.versions_dir,
+            "git_conn_id": self.git_conn_id,
+            "submodules": self.submodules,
+            "sparse_dirs": self.sparse_dirs,
+        }
 
     def _initialize(self):
         with self.lock():
