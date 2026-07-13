@@ -82,6 +82,20 @@ class TestDQCheckOperatorConstruction:
         with pytest.raises(ValueError, match="fail_on"):
             DQCheckOperator(task_id="dq", ruleset=RULESET, table="orders", conn_id="c", fail_on="maybe")
 
+    def test_requires_conn_id(self):
+        with pytest.raises(ValueError, match="conn_id is required"):
+            DQCheckOperator(task_id="dq", ruleset=RULESET, table="orders")
+
+    def test_asset_without_conn_id_fails_fast(self):
+        asset = asset_quality(
+            Asset("orders", uri="postgres://wh/warehouse/analytics/orders"),
+            ruleset=RULESET,
+            table="analytics.orders",
+        )
+
+        with pytest.raises(ValueError, match="conn_id is required"):
+            DQCheckOperator(task_id="dq", asset=asset)
+
     def test_asset_supplies_defaults_and_outlet(self):
         asset = asset_quality(
             Asset("orders", uri="postgres://wh/warehouse/analytics/orders"),

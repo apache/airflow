@@ -95,7 +95,9 @@ class DQCheckOperator(BaseSQLOperator):
             config = get_asset_quality_config(asset) or {}
             ruleset = ruleset if ruleset is not None else config.get("ruleset")
             table = table or config.get("table") or asset.name
-            kwargs.setdefault("conn_id", config.get("conn_id"))
+            asset_conn_id = config.get("conn_id")
+            if asset_conn_id is not None:
+                kwargs.setdefault("conn_id", asset_conn_id)
             outlets = list(kwargs.get("outlets") or [])
             if asset not in outlets:
                 outlets.append(asset)
@@ -107,6 +109,8 @@ class DQCheckOperator(BaseSQLOperator):
             raise ValueError("ruleset is required, either directly or via an asset_quality() asset")
         if not table:
             raise ValueError("table is required, either directly or via an asset_quality() asset")
+        if not self.conn_id:
+            raise ValueError("conn_id is required, either directly or via an asset_quality() asset")
         self.ruleset = ruleset
         self.table = table
         self.asset = asset

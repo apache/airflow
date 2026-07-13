@@ -291,6 +291,25 @@ class TestObjectStorageResultsBackend:
         # no further — date=2026-07-02/01 must not be read.
         assert len(read_paths) == 2
 
+    def test_read_task_runs_stops_inside_date_partition_once_limit_is_reached(self, backend, monkeypatch):
+        for index in range(1, 5):
+            backend.write_run(
+                make_run(run_uid=f"run{index}", started_at=f"2026-07-04T06:00:0{index}+00:00"),
+                [make_result()],
+            )
+
+        read_paths: list[Any] = []
+        original_read_json = backend._read_json
+        monkeypatch.setattr(
+            backend, "_read_json", lambda path: (read_paths.append(path), original_read_json(path))[1]
+        )
+
+        result = backend.read_task_runs("orders_pipeline", "dq", limit=1)
+
+        assert len(result["items"]) == 1
+        assert result["next_cursor"] is not None
+        assert len(read_paths) == 2
+
     def test_read_task_rule_history_filters_to_task(self, backend):
         backend.write_run(make_run(run_uid="run1"), [make_result()])
         backend.write_run(

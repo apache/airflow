@@ -19,7 +19,7 @@ Example DAG for the Data Quality provider's ``DQCheckOperator``.
 
 Runs against the ``sqlite_default`` connection (Airflow's default local backend, no extra
 infrastructure required). Results are persisted through the ``[common.dataquality] results_path`` config
-option, seeded here via ``AIRFLOW__DQ__RESULTS_PATH`` so the history can be inspected
+option, seeded here via ``AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH`` so the history can be inspected
 afterwards under ``/tmp/airflow_dq_example/results`` -- a real deployment would instead set
 ``results_path`` in ``airflow.cfg`` (or its env var) once, for every check to share.
 
@@ -68,7 +68,7 @@ RESULTS_PATH = Path("/tmp/airflow_dq_example/results")
 # DQCheckOperator has no per-operator results-store override; every check in a deployment
 # shares the one store configured under [common.dataquality] results_path. setdefault() so a real deployment's
 # own config is never overridden.
-os.environ.setdefault("AIRFLOW__DQ__RESULTS_PATH", f"file://{RESULTS_PATH}")
+os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RESULTS_PATH}")
 
 # [START howto_operator_dq_check_ruleset]
 orders_ruleset = RuleSet(

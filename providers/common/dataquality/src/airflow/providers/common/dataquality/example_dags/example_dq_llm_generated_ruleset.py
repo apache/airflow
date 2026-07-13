@@ -55,7 +55,7 @@ RESULTS_PATH = Path("/tmp/airflow_dq_example/results")
 # __file__ so the path holds regardless of the Dag processor's working directory.
 SKILLS_DIR = Path(__file__).parent.parent / "skills" / "dataquality-rule-authoring"
 
-os.environ.setdefault("AIRFLOW__DQ__RESULTS_PATH", f"file://{RESULTS_PATH}")
+os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RESULTS_PATH}")
 
 if AgentSkillsToolset is not None:
     with DAG(
