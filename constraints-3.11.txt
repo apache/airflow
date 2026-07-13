@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-12T08:16:50.069897
+# This constraints file was automatically generated on 2026-07-13T23:02:38.457201
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -220,7 +220,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==15.0.0
 azure-mgmt-core==1.6.0
 azure-mgmt-cosmosdb==10.0.0
-azure-mgmt-datafactory==9.3.0
+azure-mgmt-datafactory==10.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -277,7 +277,7 @@ curlify==3.0.0
 databricks-sql-connector==2.0.2
 dataclasses-json==0.6.7
 datadog==0.52.2
-db-dtypes==1.7.0
+db-dtypes==1.7.1
 debugpy==1.8.21
 decorator==5.3.1
 defusedxml==0.7.1
@@ -286,7 +286,7 @@ dill==0.4.1
 distlib==0.4.3
 distro==1.9.0
 dnspython==2.8.0
-docker==7.1.0
+docker==7.2.0
 docopt==0.6.2
 docstring_parser==0.18.0
 durationpy==0.10
@@ -297,10 +297,10 @@ entrypoints==0.4
 eventlet==0.41.0
 executing==2.2.1
 facebook_business==25.0.2
-fastapi-cli==0.0.28
+fastapi-cli==0.0.29
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.14.5
+fastcore==2.0.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.7
@@ -333,7 +333,7 @@ google-cloud-automl==2.20.0
 google-cloud-batch==0.22.0
 google-cloud-bigquery-datatransfer==3.23.0
 google-cloud-bigquery-storage==2.39.0
-google-cloud-bigquery==3.42.1
+google-cloud-bigquery==3.42.2
 google-cloud-bigtable==2.40.0
 google-cloud-build==3.38.0
 google-cloud-compute==1.49.0
@@ -341,14 +341,14 @@ google-cloud-container==2.65.0
 google-cloud-core==2.6.0
 google-cloud-datacatalog==3.31.0
 google-cloud-dataflow-client==0.14.0
-google-cloud-dataform==0.11.1
+google-cloud-dataform==0.11.2
 google-cloud-dataplex==2.20.0
 google-cloud-dataproc-metastore==1.23.0
-google-cloud-dataproc==5.29.0
+google-cloud-dataproc==5.30.0
 google-cloud-dlp==3.38.0
-google-cloud-kms==3.14.0
+google-cloud-kms==3.15.0
 google-cloud-language==2.21.0
-google-cloud-logging==3.16.0
+google-cloud-logging==3.16.1
 google-cloud-managedkafka==0.4.1
 google-cloud-memcache==1.16.0
 google-cloud-monitoring==2.31.0
@@ -363,7 +363,7 @@ google-cloud-spanner==3.69.0
 google-cloud-speech==2.40.0
 google-cloud-storage-control==1.12.0
 google-cloud-storage-transfer==1.21.0
-google-cloud-storage==3.12.0
+google-cloud-storage==3.12.1
 google-cloud-tasks==2.23.0
 google-cloud-texttospeech==2.37.0
 google-cloud-translate==3.27.0
@@ -385,7 +385,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.81.1
 grpcio-status==1.81.1
 grpcio-tools==1.81.1
-grpcio==1.81.1
+grpcio==1.82.1
 gssapi==1.11.1
 gunicorn==26.0.0
 h11==0.16.0
@@ -401,7 +401,7 @@ httpr==0.4.8
 httptools==0.8.0
 httpx2==2.5.0
 httpx==0.28.1
-huggingface_hub==1.22.0
+huggingface_hub==1.23.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -429,7 +429,7 @@ jeepney==0.9.0
 jiter==0.16.0
 jmespath==1.1.0
 joblib==1.5.3
-joserfc==1.7.2
+joserfc==1.7.3
 jpype1==1.7.1
 jsonpath-ng==1.8.0
 jsonpath-python==1.1.6
@@ -469,7 +469,7 @@ microsoft-kiota-authentication-azure==1.11.7
 microsoft-kiota-http==1.11.7
 microsoft-kiota-serialization-json==1.11.7
 microsoft-kiota-serialization-text==1.11.7
-mistune==3.3.2
+mistune==3.3.3
 mmh3==5.2.1
 more-itertools==11.1.0
 msal-extensions==1.3.1
@@ -495,7 +495,7 @@ nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
-openai==2.44.0
+openai==2.45.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.51.0
@@ -545,7 +545,7 @@ prison==0.2.1
 prometheus_client==0.25.0
 prompt_toolkit==3.0.52
 propcache==0.5.2
-proto-plus==1.28.0
+proto-plus==1.28.1
 protobuf==6.33.6
 psutil==7.2.2
 psycopg-binary==3.3.4
@@ -557,14 +557,14 @@ pure_eval==0.2.3
 py-spy==0.4.2
 pyOpenSSL==26.2.0
 pyarrow==24.0.0
-pyasn1==0.6.3
+pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.6.0
+pydantic-ai-slim==2.7.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.6.0
+pydantic-graph==2.7.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -584,7 +584,7 @@ pyspnego==0.12.1
 python-arango==8.3.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.4.3
+python-discovery==1.4.4
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -631,7 +631,7 @@ sendgrid==6.12.5
 sentry-sdk==2.64.0
 setproctitle==1.3.7
 shellingham==1.5.4
-simple-salesforce==1.12.9
+simple-salesforce==1.12.10
 six==1.17.0
 slack_sdk==3.43.0
 smart_open==8.0.0
@@ -639,8 +639,8 @@ smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.6.0
-snowflake-snowpark-python==1.52.0
-snowflake-sqlalchemy==1.10.2
+snowflake-snowpark-python==1.53.0
+snowflake-sqlalchemy==1.11.0
 sortedcontainers==2.4.0
 soupsieve==2.8.4
 spython==0.3.14
@@ -689,7 +689,7 @@ uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
 uv==0.11.28
-uvicorn==0.50.2
+uvicorn==0.51.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
@@ -710,7 +710,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.398.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
-ydb==3.29.7
+ydb==3.30.0
 zeep==4.3.3
 zenpy==2.0.57
 zipp==4.1.0
