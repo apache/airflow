@@ -106,17 +106,18 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.timetables.base import DagRunInfo, Timetable
-from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.db import LazySelectSequence
+from airflow.utils.sqlalchemy import deserialize_pod_dict
 
 if TYPE_CHECKING:
     from inspect import Parameter
 
     from kubernetes.client import models as k8s  # noqa: TC004
+    from kubernetes.client.api_client import ApiClient  # noqa: TC004
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
     from airflow.sdk.types import Operator as SdkOperator
@@ -132,6 +133,12 @@ log = logging.getLogger(__name__)
 _CALLBACK_TYPES = ("execute", "failure", "success", "retry", "skipped")
 _OPERATOR_CALLBACK_FIELDS = frozenset(f"on_{x}_callback" for x in _CALLBACK_TYPES)
 _HAS_CALLBACK_FIELDS = frozenset(f"has_on_{x}_callback" for x in _CALLBACK_TYPES)
+# Fields whose value must never be serialized: the object has no serializer, so it would
+# fall back to str(obj) and leak a non-deterministic memory address (a new DagVersion every
+# parse). Only a boolean ``has_<field>`` flag is stored; the live object is recovered by
+# re-parsing the DAG source on the worker. Applies both to a mapped operator's
+# ``partial_kwargs`` and to a DAG's ``default_args``.
+_HAS_FLAG_FIELDS = _OPERATOR_CALLBACK_FIELDS | frozenset({"retry_policy"})
 
 
 def _get_registered_priority_weight_strategy(
@@ -470,7 +477,6 @@ class BaseSerialization:
         :meta private:
         """
         from airflow.sdk.definitions._internal.types import is_arg_set
-        from airflow.sdk.exceptions import TaskDeferred
 
         if not is_arg_set(var):
             return cls._encode(None, type_=DAT.ARG_NOT_SET)
@@ -494,7 +500,7 @@ class BaseSerialization:
             and _has_kubernetes(attempt_import=True)
             and isinstance(var, k8s.V1Pod)
         ):
-            json_pod = PodGenerator.serialize_pod(var)
+            json_pod = ApiClient().sanitize_for_serialization(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
             return cls._encode(
@@ -535,7 +541,7 @@ class BaseSerialization:
                 var._asdict(),
                 type_=DAT.TASK_INSTANCE_KEY,
             )
-        elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
+        elif isinstance(var, AirflowException) and hasattr(var, "serialize"):
             exc_cls_name, args, kwargs = var.serialize()
             return cls._encode(
                 cls.serialize(
@@ -555,14 +561,6 @@ class BaseSerialization:
                     strict=strict,
                 ),
                 type_=DAT.BASE_EXC_SER,
-            )
-        elif isinstance(var, BaseTrigger):
-            return cls._encode(
-                cls.serialize(
-                    var.serialize(),
-                    strict=strict,
-                ),
-                type_=DAT.BASE_TRIGGER,
             )
         elif callable(var):
             return str(get_python_source(var))
@@ -650,10 +648,9 @@ class BaseSerialization:
             if not _has_kubernetes(attempt_import=True):
                 raise RuntimeError(
                     "Cannot deserialize POD objects without kubernetes libraries. "
-                    "Please install the cncf.kubernetes provider."
+                    "Please install the `kubernetes` package."
                 )
-            pod = PodGenerator.deserialize_model_dict(var)
-            return pod
+            return deserialize_pod_dict(var)
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
@@ -671,10 +668,6 @@ class BaseSerialization:
             else:
                 exc_cls = import_string(f"builtins.{exc_cls_name}")
             return exc_cls(*args, **kwargs)
-        elif type_ == DAT.BASE_TRIGGER:
-            tr_cls_name, kwargs = cls.deserialize(var)
-            tr_cls = import_string(tr_cls_name)
-            return tr_cls(**kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
@@ -918,14 +911,16 @@ class _DependencyDetector:
 
         for obj in task.outlets or []:
             if isinstance(obj, (Asset, SerializedAsset)):
-                serialized_asset = ensure_serialized_asset(obj)
+                # The unique key only needs ``name``/``uri``, and asset encode/decode
+                # copies both verbatim, so build the key directly and skip the full
+                # ensure_serialized_asset() encode→decode roundtrip on every outlet.
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
                         target="asset",
                         label=obj.name,
                         dependency_type="asset",
-                        dependency_id=SerializedAssetUniqueKey.from_asset(serialized_asset).to_str(),
+                        dependency_id=SerializedAssetUniqueKey(name=obj.name, uri=obj.uri).to_str(),
                     )
                 )
             elif isinstance(obj, (AssetAlias, SerializedAssetAlias)):
@@ -964,6 +959,12 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
     _const_fields: ClassVar[set[str] | None] = None
 
+    # Parameters of BaseOperator.__init__ that must not appear in template_fields.
+    # Computed once at class-load time: the signature never changes during a process.
+    _FORBIDDEN_TEMPLATE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        signature(BaseOperator.__init__).parameters
+    ) - {"email"}
+
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
@@ -979,7 +980,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if cls._is_excluded(v, k, op):
                     continue
 
-                if k in _OPERATOR_CALLBACK_FIELDS:
+                if k in _HAS_FLAG_FIELDS:
+                    # Store only a has_<field> flag, never the object (see _HAS_FLAG_FIELDS).
                     if bool(v):
                         serialized_op["partial_kwargs"][f"has_{k}"] = True
                     continue
@@ -1044,9 +1046,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
         # And raise an exception if the field is not templateable
-        forbidden_fields = set(signature(BaseOperator.__init__).parameters.keys())
-        # Though allow some of the BaseOperator fields to be templated anyway
-        forbidden_fields.difference_update({"email"})
+        forbidden_fields = cls._FORBIDDEN_TEMPLATE_FIELDS
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
@@ -1735,13 +1735,13 @@ class DagSerialization(BaseSerialization):
             #   Ideally default_args goes through same logic as fields of SerializedBaseOperator.
             if serialized_dag.get("default_args", {}):
                 default_args_dict = serialized_dag["default_args"][Encoding.VAR]
-                callbacks_to_remove = []
+                flags_to_remove = []
                 for k, v in list(default_args_dict.items()):
-                    if k in _OPERATOR_CALLBACK_FIELDS:
+                    if k in _HAS_FLAG_FIELDS:
                         if bool(v):
                             default_args_dict[f"has_{k}"] = True
-                        callbacks_to_remove.append(k)
-                for k in callbacks_to_remove:
+                        flags_to_remove.append(k)
+                for k in flags_to_remove:
                     del default_args_dict[k]
 
             return serialized_dag
@@ -2108,6 +2108,8 @@ class TaskGroupSerialization(BaseSerialization):
             "upstream_task_ids": cls.serialize(sorted(task_group.upstream_task_ids)),
             "downstream_task_ids": cls.serialize(sorted(task_group.downstream_task_ids)),
         }
+        if task_group.doc_md is not None:
+            encoded["doc_md"] = task_group.doc_md
 
         if isinstance(task_group, MappedTaskGroup):
             encoded["expand_input"] = encode_expand_input(task_group._expand_input)
@@ -2129,6 +2131,7 @@ class TaskGroupSerialization(BaseSerialization):
             key: cls.deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
+        kwargs["doc_md"] = cls.deserialize(encoded_group.get("doc_md"))
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
         if not encoded_group.get("is_mapped"):
@@ -2178,11 +2181,10 @@ def _has_kubernetes(attempt_import: bool = False) -> bool:
     # Loading kube modules is expensive, so delay it until the last moment
     try:
         from kubernetes.client import models as k8s
-
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         globals()["k8s"] = k8s
-        globals()["PodGenerator"] = PodGenerator
+        globals()["ApiClient"] = ApiClient
         return True
     except ImportError:
         return False
@@ -2230,6 +2232,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "jinja_environment_kwargs",
         "relative_fileloc",
         "disable_bundle_versioning",
+        "rerun_with_latest_version",
         "fail_fast",
         "last_loaded",
     }

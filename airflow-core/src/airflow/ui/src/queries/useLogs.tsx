@@ -37,6 +37,7 @@ import { parseStreamingLogContent } from "src/utils/logs";
 export type ParsedLogEntry = {
   element: JSX.Element | string | undefined;
   group?: { id: number; level: number; parentId?: number; type: "header" | "line" };
+  lineNumber?: number;
 };
 
 type Props = {
@@ -103,19 +104,22 @@ const parseLogs = ({
           }
         }
 
-        return renderStructuredLog({
-          index: lineNumbers[index] ?? index,
-          logLevelFilters,
-          logLink,
-          logMessage: datum,
-          renderingMode: "jsx",
-          showSource,
-          showTimestamp,
-          sourceFilters,
-          translate,
-        });
+        return {
+          element: renderStructuredLog({
+            index: lineNumbers[index] ?? index,
+            logLevelFilters,
+            logLink,
+            logMessage: datum,
+            renderingMode: "jsx",
+            showSource,
+            showTimestamp,
+            sourceFilters,
+            translate,
+          }),
+          lineNumber: lineNumbers[index],
+        };
       })
-      .filter((parsedLine) => parsedLine !== "");
+      .filter(({ element }) => element !== "");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -132,8 +136,8 @@ const parseLogs = ({
     const result: Array<ParsedLogEntry> = [];
     let nextGroupId = 0;
 
-    parsedLines.forEach((line) => {
-      const text = innerText(line);
+    parsedLines.forEach(({ element, lineNumber }) => {
+      const text = innerText(element);
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
@@ -162,11 +166,12 @@ const parseLogs = ({
 
       if (groupStack.length > 0 && currentGroup) {
         result.push({
-          element: line,
+          element,
           group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
+          lineNumber,
         });
       } else {
-        result.push({ element: line });
+        result.push({ element, lineNumber });
       }
     });
 
@@ -175,31 +180,36 @@ const parseLogs = ({
   })();
 
   // Extract TI identity fields from the first structured log line and insert a single preamble
-  // entry after the "Log message source details" group (or at position 0 if absent), so they
+  // entry after the "Pre Execute" group header (or at position 0 if absent), so they
   // appear once rather than repeated on every line.
   const tiContext = extractTIContext(data);
 
   if (tiContext !== undefined) {
     let insertAt = 0;
-    const sourceDetailsIndex = flatEntries.findIndex(
+    let insertGroup: { id: number; level: number; parentId?: number; type: "header" | "line" } | undefined =
+      undefined;
+    const preExecuteIndex = flatEntries.findIndex(
       (entry) =>
         entry.group?.type === "header" &&
         typeof entry.element === "string" &&
-        entry.element.startsWith("Log message source details"),
+        entry.element.startsWith("Pre Execute"),
     );
 
-    const sourceGroup = sourceDetailsIndex === -1 ? undefined : flatEntries[sourceDetailsIndex];
+    const preExecuteGroup = preExecuteIndex === -1 ? undefined : flatEntries[preExecuteIndex];
 
-    if (sourceGroup?.group !== undefined) {
-      const sourceGroupId = sourceGroup.group.id;
-      const lastMemberIndex = flatEntries.reduce(
-        (last, entry, idx) => (entry.group?.id === sourceGroupId ? idx : last),
-        sourceDetailsIndex,
-      );
-
-      insertAt = lastMemberIndex + 1;
+    if (preExecuteGroup?.group !== undefined) {
+      insertAt = preExecuteIndex + 1;
+      insertGroup = {
+        id: preExecuteGroup.group.id,
+        level: preExecuteGroup.group.level,
+        parentId: preExecuteGroup.group.id,
+        type: "line",
+      };
     }
-    flatEntries.splice(insertAt, 0, { element: renderTIContextPreamble(tiContext, "jsx", "Task Identity") });
+    flatEntries.splice(insertAt, 0, {
+      element: renderTIContextPreamble(tiContext, "jsx", "Task Identity"),
+      group: insertGroup,
+    });
   }
 
   return {

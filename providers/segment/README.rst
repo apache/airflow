@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-segment``
 
-Release: ``3.9.4``
+Release: ``3.9.5``
 
 
 `Segment <https://segment.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``segment`` provider. All classes for this provid
 are in ``airflow.providers.segment`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.9.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.9.5/>`_.
 
 Installation
 ------------
@@ -58,24 +58,5 @@ PIP package                                 Version required
 ``segment-analytics-python``                ``>=2.3.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-segment[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.9.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.9.5/changelog.html>`_.

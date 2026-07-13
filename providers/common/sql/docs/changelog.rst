@@ -25,6 +25,34 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Align hook run() annotations with None-able handler results (#69230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+2.0.0
+.....
+
 .. warning::
    **Breaking Change:** The default execution mode for paginated (``page_size`` + string SQL) GenericTransfer tasks has changed. Previously, these tasks always ran in deferred mode (using deferrable execution). Starting with this release, they now run synchronously by default unless you explicitly opt in to deferrable mode.
 
@@ -34,6 +62,11 @@ Changelog
    2. Set the global config option ``[operators] default_deferrable = true`` to make all operators deferrable by default.
 
    Review your DAGs and configuration if you rely on deferred execution for paginated GenericTransfer tasks.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Add standardized SQL check representation for listeners (#66849)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

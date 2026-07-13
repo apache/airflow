@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support API & OAuth tokens; unhide extra in Connection UI (#64591)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 4.11.3
 ......
 

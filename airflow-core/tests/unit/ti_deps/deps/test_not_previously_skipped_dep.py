@@ -62,8 +62,8 @@ def test_no_parent(session, dag_maker):
     (ti1,) = dag_maker.create_dagrun(logical_date=start_date).task_instances
 
     dep = NotPreviouslySkippedDep()
-    assert len(list(dep.get_dep_statuses(ti1, session, DepContext()))) == 0
-    assert dep.is_met(ti1, session)
+    assert len(list(dep.get_dep_statuses(ti1, DepContext(), session=session))) == 0
+    assert dep.is_met(ti1, session=session)
     assert ti1.state != State.SKIPPED
 
 
@@ -85,8 +85,8 @@ def test_no_skipmixin_parent(session, dag_maker):
     _, ti2 = dag_maker.create_dagrun().task_instances
 
     dep = NotPreviouslySkippedDep()
-    assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
-    assert dep.is_met(ti2, session)
+    assert len(list(dep.get_dep_statuses(ti2, DepContext(), session=session))) == 0
+    assert dep.is_met(ti2, session=session)
     assert ti2.state != State.SKIPPED
 
 
@@ -110,8 +110,8 @@ def test_parent_follow_branch(session, dag_maker):
     run_task_instance(ti, op1)
 
     dep = NotPreviouslySkippedDep()
-    assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
-    assert dep.is_met(ti2, session)
+    assert len(list(dep.get_dep_statuses(ti2, DepContext(), session=session))) == 0
+    assert dep.is_met(ti2, session=session)
     assert ti2.state != State.SKIPPED
 
 
@@ -138,8 +138,8 @@ def test_parent_skip_branch(session, dag_maker):
     run_task_instance(tis["op1"], op1)
 
     dep = NotPreviouslySkippedDep()
-    assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1
-    assert not dep.is_met(tis["op2"], session)
+    assert len(list(dep.get_dep_statuses(tis["op2"], DepContext(), session=session))) == 1
+    assert not dep.is_met(tis["op2"], session=session)
     assert tis["op2"].state == State.SKIPPED
 
 
@@ -163,8 +163,8 @@ def test_parent_not_executed(session, dag_maker):
     _, ti2, _ = dag_maker.create_dagrun().task_instances
 
     dep = NotPreviouslySkippedDep()
-    assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
-    assert dep.is_met(ti2, session)
+    assert len(list(dep.get_dep_statuses(ti2, DepContext(), session=session))) == 0
+    assert dep.is_met(ti2, session=session)
     assert ti2.state == State.NONE
 
 
@@ -211,6 +211,6 @@ def test_unmapped_parent_skip_mapped_downstream(session, dag_maker):
     session.flush()
 
     dep = NotPreviouslySkippedDep()
-    assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1
-    assert not dep.is_met(tis["op2"], session)
+    assert len(list(dep.get_dep_statuses(tis["op2"], DepContext(), session=session))) == 1
+    assert not dep.is_met(tis["op2"], session=session)
     assert tis["op2"].state == State.SKIPPED

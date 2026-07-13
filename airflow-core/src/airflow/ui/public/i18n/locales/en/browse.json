@@ -11,6 +11,24 @@
     },
     "title": "Audit Log"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Alert Name",
+      "deadlineTime": "Deadline Time",
+      "status": "Status"
+    },
+    "deadline_one": "Deadline",
+    "deadline_other": "Deadlines",
+    "filters": {
+      "status": "Status",
+      "statusOptions": {
+        "all": "All",
+        "missed": "Missed",
+        "pending": "Pending"
+      }
+    },
+    "title": "Deadlines"
+  },
   "xcom": {
     "add": {
       "error": "Failed to add XCom",

@@ -25,6 +25,7 @@ import os
 import shutil
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from operator import attrgetter
@@ -41,13 +42,16 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow._shared.module_loading import import_string
@@ -269,7 +273,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
 
         self.frontend = frontend
@@ -317,8 +321,31 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
 
                 if get_remote_task_log() is None:
+                    # stacklevel=1 keeps the warning attributed to this airflow.providers
+                    # module so module-based deprecation filters still match; dictConfig
+                    # is in stdlib and would otherwise hide the warning at stacklevel=2.
+                    warnings.warn(
+                        "Implicit REMOTE_TASK_LOG registration by ElasticsearchTaskHandler "
+                        "during dictConfig is deprecated and will be removed in a future "
+                        "provider release. Set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)`` "
+                        "at module scope in your ``[logging] logging_config_class`` module. "
+                        "See the Elasticsearch provider logging documentation for the "
+                        "updated override example.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=1,
+                    )
                     _ActiveLoggingConfig.set(self.io, None)
             elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                warnings.warn(
+                    "Implicit REMOTE_TASK_LOG registration by ElasticsearchTaskHandler "
+                    "during dictConfig is deprecated and will be removed in a future "
+                    "provider release. Set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)`` "
+                    "at module scope in your ``[logging] logging_config_class`` module. "
+                    "See the Elasticsearch provider logging documentation for the "
+                    "updated override example.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
                 alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     @staticmethod
@@ -362,6 +389,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
+        # In Airflow 3 logs reach Elasticsearch only after the task finishes, so a running task
+        # has nothing to read there yet. Defer to the base handler for live worker/executor logs,
+        # as S3/GCS do. Airflow 2 has no remote-log-IO read path, so it keeps the ES-only path below.
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and ti.try_number == try_number
+            and ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        ):
+            return super()._read(ti, try_number, metadata)  # type: ignore[return-value]
+
         if not metadata:
             # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
@@ -651,7 +688,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         self.index_patterns_callable = conf.get("elasticsearch", "index_patterns_callable", fallback="")
         self.PAGE = 0
         self.MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)
@@ -665,8 +702,11 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             ["@timestamp", *TASK_LOG_FIELDS, self.host_field, self.offset_field, *extra_fields]
         )
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Write the log to ElasticSearch."""
+        if ti is None:
+            return
+
         path = Path(path)
 
         if path.is_absolute():

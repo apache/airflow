@@ -18,10 +18,14 @@
   "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
   "assetEvent_other": "Ereignisse zu Datensets (Asset)",
+  "assetInactive": {
+    "tooltip": "Vorgänger-Datenset (Asset) wurde deaktiviert; der Scheduler hält die Partitionsauswertung an, bis es reaktiviert wird."
+  },
   "backfill_one": "Auffüllung",
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "deadlines": "Fristen",
     "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
@@ -142,6 +146,7 @@
     "startTime": "Startzeitpunkt"
   },
   "generateToken": "Zugriffstoken erzeugen",
+  "key": "Schlüssel",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -175,6 +180,7 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
+  "overallStatus": "Gesamtstatus",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
   "partitionedDagRun_other": "Partitionierte Dag Läufe",
   "partitionedDagRunDetail": {
@@ -225,6 +231,7 @@
   "startDate": "Startdatum",
   "state": "Status",
   "states": {
+    "awaiting_input": "Wartet auf Interaktion",
     "deferred": "Delegiert",
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
@@ -257,17 +264,23 @@
       "any": "Einer"
     },
     "tagPlaceholder": "Dags nach Markierung filtern",
-    "to": "Zu"
+    "to": "Zu",
+    "updatedAt": "Aktualisiert um"
   },
   "task": {
+    "dependsOnPast": "Abhängig von vorherigen Läufen",
     "documentation": "Task Dokumentation",
     "lastInstance": "Letzte Task Instanz",
     "operator": "Operator",
-    "triggerRule": "Auslöse-Regel"
+    "retries": "Wiederholungen",
+    "triggerRule": "Auslöse-Regel",
+    "waitForDownstream": "Auf nachgelagerte Tasks warten"
   },
   "task_one": "Task",
   "task_other": "Tasks",
-  "taskGroup": "Task Gruppe",
+  "taskGroup": {
+    "documentation": "Dokumentation der Task Gruppe"
+  },
   "taskGroup_one": "Task Gruppe",
   "taskGroup_other": "Task Gruppen",
   "taskId": "Task ID",
@@ -283,6 +296,7 @@
     "priorityWeight": "Priorität",
     "queue": "Warteschlange",
     "queuedWhen": "Wartend seit",
+    "renderedMapIndex": "Planungs-Index Anzeige",
     "scheduledWhen": "Geplant ab",
     "triggerer": {
       "assigned": "Zugewiesene Abrufumgebung",
@@ -385,6 +399,7 @@
     "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",
     "mustBeValidNumber": "Muss eine gültige Zahl sein."
   },
+  "value": "Wert",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",

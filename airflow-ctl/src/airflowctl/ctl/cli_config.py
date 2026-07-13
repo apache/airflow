@@ -267,6 +267,11 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID of the Dag to pause or unpause",
 )
+ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
+    flags=("logical_date_or_run_id",),
+    type=str,
+    help="The logical date with a timezone offset or run ID of the Dag run",
+)
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
@@ -960,12 +965,30 @@ CONNECTION_COMMANDS = (
 
 DAG_COMMANDS = (
     ActionCommand(
+        name="next-execution",
+        help="Show the next scheduled execution time for a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
         name="pause",
         help="Pause a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.pause"),
         args=(
             ARG_DAG_ID,
             ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="state",
+        help="Get the status of a Dag run",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
         ),
     ),
     ActionCommand(

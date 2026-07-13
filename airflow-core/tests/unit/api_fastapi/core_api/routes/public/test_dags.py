@@ -137,7 +137,17 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://scheduled_asset"}]},
+            asset_expression={
+                "any": [
+                    {
+                        "asset": {
+                            "uri": "test://scheduled_asset",
+                            "name": "scheduled_asset",
+                            "group": "test-group",
+                        }
+                    }
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -156,7 +166,9 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://asset1"}]},
+            asset_expression={
+                "any": [{"asset": {"uri": "test://asset1", "name": "test_asset_1", "group": "test-group"}}]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -174,7 +186,11 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "s3://bucket/dataset"}]},
+            asset_expression={
+                "any": [
+                    {"asset": {"uri": "s3://bucket/dataset", "name": "dataset_asset", "group": "test-group"}}
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -1057,6 +1073,7 @@ class TestDagDetails(TestDagEndpoint):
             },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
+            "rerun_with_latest_version": None,
             "start_date": start_date,
             "tags": [],
             "template_search_path": None,
@@ -1158,6 +1175,7 @@ class TestDagDetails(TestDagEndpoint):
             },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
+            "rerun_with_latest_version": None,
             "start_date": start_date,
             "tags": [],
             "template_search_path": None,
@@ -1200,6 +1218,19 @@ class TestDagDetails(TestDagEndpoint):
         assert "is_favorite" in body
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
+
+    def test_dag_details_serves_legacy_asset_expression_as_null(self, session, test_client):
+        """A pre-3.0 dataset-format ``asset_expression`` that the typed model cannot describe is
+        served as ``null`` instead of 500ing the endpoint (handled by ``MaybeAssetExpression``)."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        # The 2.x dataset scheduler stored bare-string leaves; the 3.0 column rename kept them verbatim.
+        dag_model.asset_expression = {"any": ["s3://legacy-a", "s3://legacy-b"]}
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] is None
 
     def test_dag_details_includes_active_runs_count(self, session, test_client):
         """Test that DAG details include the active_runs_count field."""
@@ -1359,6 +1390,26 @@ class TestGetDag(TestDagEndpoint):
     def test_get_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 403
+
+
+class TestDagWithoutFileloc(TestDagEndpoint):
+    def _make_dag_without_fileloc(self, dag_maker, session, dag_id="test_dag_no_fileloc"):
+        with dag_maker(dag_id=dag_id, schedule=None):
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        dag_maker.sync_dagbag_to_db()
+        dag_model = session.get(DagModel, dag_id)
+        dag_model.fileloc = None
+        dag_model.relative_fileloc = None
+        session.commit()
+        return dag_id
+
+    @pytest.mark.parametrize("path_suffix", ["", "/details"])
+    def test_detail_endpoints_serve_dag_with_null_fileloc(self, session, test_client, dag_maker, path_suffix):
+        dag_id = self._make_dag_without_fileloc(dag_maker, session)
+        response = test_client.get(f"/dags/{dag_id}{path_suffix}")
+        assert response.status_code == 200
+        assert response.json()["fileloc"] is None
 
 
 class TestDeleteDAG(TestDagEndpoint):

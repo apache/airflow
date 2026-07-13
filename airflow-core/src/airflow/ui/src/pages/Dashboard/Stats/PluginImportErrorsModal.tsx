@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text, HStack } from "@chakra-ui/react";
+import { Box, ClipboardRoot, Heading, Text, HStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -24,7 +24,7 @@ import { PiFilePy } from "react-icons/pi";
 
 import type { PluginImportErrorResponse } from "openapi/requests/types.gen";
 import { SearchBar } from "src/components/SearchBar";
-import { Accordion, Dialog } from "src/components/ui";
+import { Accordion, ClipboardIconButton, Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type PluginImportErrorsModalProps = {
@@ -64,7 +64,7 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
   }, [searchQuery, importErrors]);
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="xl">
+    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
       <Dialog.Content backdrop p={4}>
         <Dialog.Header display="flex" justifyContent="space-between">
           <HStack fontSize="xl">
@@ -84,10 +84,21 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
             {visibleItems.map((importError) => (
               <Accordion.Item key={importError.error} value={importError.source}>
-                <Accordion.ItemTrigger cursor="pointer">
-                  <PiFilePy />
-                  {importError.source}
-                </Accordion.ItemTrigger>
+                <HStack align="stretch" gap={0} w="100%">
+                  <Accordion.ItemTrigger cursor="pointer" flex="1">
+                    <HStack alignItems="center" gap={2} minW={0} w="100%">
+                      <PiFilePy />
+                      <Text minW={0} overflowWrap="anywhere">
+                        {importError.source}
+                      </Text>
+                    </HStack>
+                  </Accordion.ItemTrigger>
+                  <Box alignItems="center" display="flex" flexShrink={0} pr={2}>
+                    <ClipboardRoot value={importError.source}>
+                      <ClipboardIconButton variant="outline" />
+                    </ClipboardRoot>
+                  </Box>
+                </HStack>
                 <Accordion.ItemContent>
                   <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
                     <code>{importError.error}</code>

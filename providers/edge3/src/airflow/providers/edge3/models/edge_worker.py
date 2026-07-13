@@ -28,6 +28,7 @@ from sqlalchemy.orm import Mapped
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -156,6 +157,7 @@ def set_metrics(
     free_concurrency: int,
     queues: list[str] | None,
     sysinfo: dict[str, str | int | float | datetime],
+    team_name: str | None = None,
 ) -> None:
     """Set metric of edge worker."""
     queues = queues if queues else []
@@ -178,30 +180,31 @@ def set_metrics(
         "concurrency",
         "free_concurrency",
     }
+    metric_tags = prune_dict({"worker_name": worker_name, "team_name": team_name})
 
     Stats.gauge(
         "edge_worker.status",
         sysinfo.get("status", logging.NOTSET),  # type: ignore
-        tags={"worker_name": worker_name},
+        tags=metric_tags,
     )
-    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.connected", int(connected), tags=metric_tags)
+    Stats.gauge("edge_worker.maintenance", int(maintenance), tags=metric_tags)
+    Stats.gauge("edge_worker.jobs_active", jobs_active, tags=metric_tags)
+    Stats.gauge("edge_worker.concurrency", concurrency, tags=metric_tags)
+    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags=metric_tags)
     Stats.gauge(
         "edge_worker.num_queues",
         len(queues),
-        tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        tags={**metric_tags, "queues": ",".join(queues)},
     )
 
     for key in additional_keys:
         value = sysinfo.get(key)
         if isinstance(value, (int, float)):
-            Stats.gauge(f"edge_worker.{key}", value, tags={"worker_name": worker_name})
+            Stats.gauge(f"edge_worker.{key}", value, tags=metric_tags)
 
 
-def reset_metrics(worker_name: str) -> None:
+def reset_metrics(worker_name: str, team_name: str | None = None) -> None:
     """Reset metrics of worker."""
     set_metrics(
         worker_name=worker_name,
@@ -213,6 +216,7 @@ def reset_metrics(worker_name: str) -> None:
         sysinfo={
             "status": logging.NOTSET,
         },
+        team_name=team_name,
     )
 
 
@@ -225,6 +229,7 @@ def get_query_filter_by_worker_name(worker_name: str):
 def _fetch_edge_hosts_from_db(
     hostname: str | None = None,
     states: list | None = None,
+    *,
     session: Session = NEW_SESSION,
 ) -> Sequence[EdgeWorkerModel]:
     query = select(EdgeWorkerModel)
@@ -238,13 +243,13 @@ def _fetch_edge_hosts_from_db(
 
 @providers_configuration_loaded
 @provide_session
-def get_registered_edge_hosts(states: list | None = None, session: Session = NEW_SESSION):
+def get_registered_edge_hosts(*, states: list | None = None, session: Session = NEW_SESSION):
     return _fetch_edge_hosts_from_db(states=states, session=session)
 
 
 @provide_session
 def request_maintenance(
-    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
+    worker_name: str, maintenance_comment: str | None, *, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance request to the db."""
     query = get_query_filter_by_worker_name(worker_name=worker_name)
@@ -256,7 +261,7 @@ def request_maintenance(
 
 
 @provide_session
-def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
+def exit_maintenance(worker_name: str, *, session: Session = NEW_SESSION) -> None:
     """Write maintenance exit to the db."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -267,7 +272,7 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
 
 
 @provide_session
-def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
+def remove_worker(worker_name: str, *, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -287,7 +292,7 @@ def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
 
 @provide_session
 def change_maintenance_comment(
-    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
+    worker_name: str, maintenance_comment: str | None, *, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance comment in the db."""
     query = get_query_filter_by_worker_name(worker_name)
@@ -308,7 +313,7 @@ def change_maintenance_comment(
 
 
 @provide_session
-def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
+def request_shutdown(worker_name: str, *, session: Session = NEW_SESSION) -> None:
     """Request to shutdown the edge worker."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -323,7 +328,7 @@ def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
 
 
 @provide_session
-def add_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+def add_worker_queues(worker_name: str, queues: list[str], *, session: Session = NEW_SESSION) -> None:
     """Add queues to an edge worker."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -341,7 +346,7 @@ def add_worker_queues(worker_name: str, queues: list[str], session: Session = NE
 
 
 @provide_session
-def remove_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
+def remove_worker_queues(worker_name: str, queues: list[str], *, session: Session = NEW_SESSION) -> None:
     """Remove queues from an edge worker."""
     query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -361,7 +366,7 @@ def remove_worker_queues(worker_name: str, queues: list[str], session: Session =
 
 
 @provide_session
-def set_worker_concurrency(worker_name: str, concurrency: int, session: Session = NEW_SESSION) -> None:
+def set_worker_concurrency(worker_name: str, concurrency: int, *, session: Session = NEW_SESSION) -> None:
     """Set the concurrency of an edge worker."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)

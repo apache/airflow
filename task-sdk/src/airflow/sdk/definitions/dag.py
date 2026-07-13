@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.xcom_arg import PlainXComArg
     from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
 
@@ -303,6 +304,13 @@ def _default_task_group(instance: DAG) -> TaskGroup:
     return TaskGroup.create_root(dag=instance)
 
 
+def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
+    from airflow.sdk.bases.xcom import BaseXCom
+    from airflow.sdk.definitions.xcom_arg import PlainXComArg
+
+    return isinstance(value, PlainXComArg) and value.key == BaseXCom.XCOM_RETURN_KEY
+
+
 # TODO: Task-SDK: look at re-enabling slots after we remove pickling
 @attrs.define(repr=False, field_transformer=_all_after_dag_id_to_kw_only, slots=False)
 class DAG:
@@ -417,6 +425,9 @@ class DAG:
     :param allowed_run_types: An optional list or single DagRunType specifying which run types are
         permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
     :param dag_display_name: The display name of the Dag which appears on the UI.
+    :param rerun_with_latest_version: If True, cleared or rerun tasks will use the latest
+        available bundle version. If False, they use the original bundle version. If None
+        (default), inherits from the global config ``[core] rerun_with_latest_version``.
     """
 
     __serialized_fields: ClassVar[frozenset[str]]
@@ -539,6 +550,8 @@ class DAG:
 
     fileloc: str = attrs.field(init=False, factory=_default_fileloc)
     relative_fileloc: str | None = attrs.field(init=False, default=None)
+    bundle_name: str | None = attrs.field(init=False, default=None)
+
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)
@@ -547,6 +560,9 @@ class DAG:
     has_on_failure_callback: bool = attrs.field(init=False)
     disable_bundle_versioning: bool = attrs.field(
         factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
+    )
+    rerun_with_latest_version: bool | None = attrs.field(
+        default=None, converter=attrs.converters.optional(bool)
     )
 
     # TODO (GH-52141): This is never used in the sdk dag (it only makes sense
@@ -1110,12 +1126,8 @@ class DAG:
             tg._remove(task)
 
     def add_result(self, xcom_arg: X) -> X:
-        from airflow.sdk.bases.xcom import BaseXCom
-        from airflow.sdk.definitions.xcom_arg import PlainXComArg
-
-        if not isinstance(xcom_arg, PlainXComArg) or xcom_arg.key != BaseXCom.XCOM_RETURN_KEY:
+        if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
-
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 
@@ -1394,8 +1406,23 @@ class DAG:
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
                 scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
-                ids_unrunnable = {x for x in all_tis if x.state not in FINISHED_STATES} - scheduled_tis
-                if not scheduled_tis and ids_unrunnable:
+                awaiting_input_tis = {x for x in all_tis if x.state == TaskInstanceState.AWAITING_INPUT}
+                ids_unrunnable = (
+                    {x for x in all_tis if x.state not in FINISHED_STATES}
+                    - scheduled_tis
+                    - awaiting_input_tis
+                )
+                if not scheduled_tis and awaiting_input_tis:
+                    # Human-in-the-loop tasks stay parked in AWAITING_INPUT: dag.test() never
+                    # resolves them itself. Keep the run alive until a response recorded from
+                    # outside -- the Required Actions UI or the HITL REST API of an api-server
+                    # sharing this metadata DB -- flips them back to SCHEDULED.
+                    log.info(
+                        "Waiting for Human-in-the-loop input for tasks: %s",
+                        sorted(x.task_id for x in awaiting_input_tis),
+                    )
+                    time.sleep(1)
+                elif not scheduled_tis and ids_unrunnable:
                     log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
 
@@ -1609,6 +1636,7 @@ if TYPE_CHECKING:
         allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
+        rerun_with_latest_version: bool | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow Dag.
@@ -1667,7 +1695,15 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
                 dag_obj.fileloc = back.f_code.co_filename if back else ""
 
                 # Invoke function to create operators in the Dag scope.
-                f(**f_kwargs)
+                r = f(**f_kwargs)
+
+                if _is_valid_dag_result(r):
+                    log.debug(
+                        "Automatically adding function return value %r as result for dag %s",
+                        r,
+                        dag_obj.dag_id,
+                    )
+                    dag_obj.add_result(r)
 
             # Return dag object such that it's accessible in Globals.
             return dag_obj

@@ -27,6 +27,82 @@
 Changelog
 ---------
 
+13.5.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``refactor: Fix _is_http_client_closed returning True for a transport that was never opened (#69329)``
+* ``Invalidate cached RequestAdapter of KiotaRequestAdapterHook if session of AuthenticationProvider is closed (#69128)``
+* ``Fix msgraph/Power BI auth failure from empty allowed_hosts list (#69014)``
+* ``MSgraph: fix UnicodeDecodeError in DefaultResponseHandler when response content is binary (#68495)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+13.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add GCSToAzureBlobStorageOperator for GCS to Azure Blob transfer (#64966)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use async versions of CertificateCredential and ClientSecretCredential in KiotaRequestAdapterHook (#68375)``
+* ``Fix SAS token authentication in the WASB hook for azure-storage-blob 12.30.0 compatibility (#68490)``
+* ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
+* ``Fix coroutine serialization error in PowerBIDatasetRefreshOperator (#63829)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+13.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode support to AzureBatchOperator (#66815)``
+
+Misc
+~~~~
+
+* ``Remove exclusion of yanked version dependencies from providers (#66857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky AzureDataFactory operator test by mocking time (#67427)``
+
+
+13.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to AzureContainerInstancesOperator (#62772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Azure Batch provider import error by capping azure-batch<15 (#66452)``
+* ``Fix error messages in 'PythonVirtualenvOperator' when Azure Key Vault secret backend is configured (#67157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adjust log message header for expandable sources (#66570)``
+
 13.2.0
 ......
 

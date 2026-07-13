@@ -127,7 +127,6 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
           {sortedTries.map((ti) => (
             <TaskInstanceTooltip key={ti.try_number} taskInstance={ti}>
               <Button
-                colorPalette="brand"
                 data-testid={`log-attempt-select-button-${ti.try_number}`}
                 key={ti.try_number}
                 onClick={() => {
@@ -135,7 +134,6 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
                     onSelectTryNumber(ti.try_number);
                   }
                 }}
-                size="sm"
                 variant={selectedTryNumber === ti.try_number ? "surface" : "outline"}
               >
                 {ti.try_number}

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"resty.dev/v3"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/api"
@@ -216,6 +218,38 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 	count := callCount.Load()
 	s.Assert().
 		True(count <= 11 && count >= 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", count))
+}
+
+func (s *WorkerSuite) TestTaskHeartbeatConflictStopsTask() {
+	id := uuid.New().String()
+	testWorkload := newTestWorkLoad(id, id[:8])
+
+	s.registry.AddDag(testWorkload.TI.DagId).
+		AddTaskWithName(testWorkload.TI.TaskId, func(ctx context.Context) error {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(2 * time.Second):
+				return fmt.Errorf("task context was not cancelled")
+			}
+		})
+
+	s.ExpectTaskRun(id)
+	s.ExpectTaskState(id, api.TerminalTIStateFailed)
+	s.ti.EXPECT().
+		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
+		Return(&api.GeneralHTTPError{
+			Response: &resty.Response{
+				RawResponse: &http.Response{
+					Status:     "409 Conflict",
+					StatusCode: http.StatusConflict,
+				},
+			},
+		})
+	s.client.EXPECT().TaskInstances().Return(s.ti)
+
+	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
+	s.NoError(err)
 }
 
 func (s *WorkerSuite) TestTaskHeartbeatErrorStopsTaskAndLogs() {

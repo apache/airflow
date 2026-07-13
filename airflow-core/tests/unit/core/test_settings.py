@@ -243,7 +243,7 @@ class TestMetadataEngineHooks:
 
         with (
             patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "false"}),
-            patch("airflow.settings._AirflowSettings.sql_alchemy_conn", "sqlite://"),
+            patch("airflow.settings.SQL_ALCHEMY_CONN", "sqlite://"),
             patch("airflow.settings.Session"),
             patch("airflow.settings.engine"),
             patch("airflow.settings.setup_event_handlers"),
@@ -269,7 +269,7 @@ class TestMetadataEngineHooks:
         mock_create_async_engine.return_value = MagicMock()
 
         with (
-            patch("airflow.settings._AirflowSettings.sql_alchemy_conn_async", "sqlite+aiosqlite://"),
+            patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "sqlite+aiosqlite://"),
             patch("airflow.settings.conf") as mock_conf,
         ):
             # Pool enabled but sqlite -- pool args should be skipped
@@ -291,10 +291,7 @@ class TestMetadataEngineHooks:
         mock_create_async_engine.return_value = MagicMock()
 
         with (
-            patch(
-                "airflow.settings._AirflowSettings.sql_alchemy_conn_async",
-                "postgresql+asyncpg://localhost/airflow",
-            ),
+            patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "postgresql+asyncpg://localhost/airflow"),
             patch("airflow.settings.conf") as mock_conf,
         ):
             mock_conf.getint.side_effect = lambda section, key, fallback=None: {
@@ -320,10 +317,7 @@ class TestMetadataEngineHooks:
         mock_create_async_engine.return_value = MagicMock()
 
         with (
-            patch(
-                "airflow.settings._AirflowSettings.sql_alchemy_conn_async",
-                "postgresql+asyncpg://localhost/airflow",
-            ),
+            patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "postgresql+asyncpg://localhost/airflow"),
             patch("airflow.settings.conf") as mock_conf,
         ):
             mock_conf.getboolean.return_value = False
@@ -336,10 +330,10 @@ class TestMetadataEngineHooks:
 
     @patch("airflow.settings.create_async_metadata_engine")
     def test_configure_async_session_skips_when_no_async_conn(self, mock_create_async_engine):
-        """_configure_async_session() must not call the hook when ``sql_alchemy_conn_async`` is empty."""
+        """_configure_async_session() must not call the hook when SQL_ALCHEMY_CONN_ASYNC is empty."""
         from airflow import settings
 
-        with patch("airflow.settings._AirflowSettings.sql_alchemy_conn_async", ""):
+        with patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", ""):
             settings._configure_async_session()
 
         assert mock_create_async_engine.mock_calls == []
@@ -432,12 +426,45 @@ def test_sqlite_relative_path(value, expectation):
 
     with (
         patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}),
-        patch("airflow.settings._AirflowSettings.sql_alchemy_conn", value),
+        patch("airflow.settings.SQL_ALCHEMY_CONN", value),
         patch("airflow.settings.Session"),
         patch("airflow.settings.engine"),
     ):
         with expectation:
             settings.configure_orm()
+
+
+@pytest.mark.parametrize(
+    ("sync_uri", "use_psycopg3", "expected_async_uri"),
+    [
+        ("postgresql://user:pass@host/db", True, "postgresql+psycopg_async://user:pass@host/db"),
+        ("postgresql://user:pass@host/db", False, "postgresql+asyncpg://user:pass@host/db"),
+        ("postgresql+psycopg2://user:pass@host/db", True, "postgresql+psycopg_async://user:pass@host/db"),
+        ("postgresql+psycopg2://user:pass@host/db", False, "postgresql+asyncpg://user:pass@host/db"),
+        ("sqlite:////root/airflow.db", True, "sqlite+aiosqlite:////root/airflow.db"),
+        ("mysql://user:pass@host/db", True, "mysql+aiomysql://user:pass@host/db"),
+        ("mssql://user:pass@host/db", True, "mssql://user:pass@host/db"),
+    ],
+)
+def test_get_async_conn_uri_from_sync(sync_uri, use_psycopg3, expected_async_uri):
+    from airflow import settings
+
+    with patch.object(settings, "_USE_PSYCOPG3", use_psycopg3):
+        assert settings._get_async_conn_uri_from_sync(sync_uri) == expected_async_uri
+
+
+def test_explicit_sql_alchemy_conn_async_is_not_rewritten():
+    from airflow import settings
+
+    from tests_common.test_utils.config import conf_vars
+
+    explicit_async_uri = "postgresql+asyncpg://user:pass@host/db"
+    try:
+        with conf_vars({("database", "sql_alchemy_conn_async"): explicit_async_uri}):
+            settings.configure_vars()
+            assert explicit_async_uri == settings.SQL_ALCHEMY_CONN_ASYNC
+    finally:
+        settings.configure_vars()
 
 
 class TestDisposeOrm:

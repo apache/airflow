@@ -44,7 +44,7 @@ describe("getDownloadText", () => {
     translate,
   };
 
-  it("places Task Identity preamble after the source details endgroup, before the first log line", () => {
+  it("places Task Identity preamble after the 'Pre Execute' group header, before the first log line", () => {
     const fetchedData = {
       content: [
         { event: "::group::Log message source details" },
@@ -52,6 +52,7 @@ describe("getDownloadText", () => {
         { event: "/logs/b.log" },
         { event: "some source detail" },
         { event: "::endgroup::" },
+        tiLine("::group::Pre Execute", "2026-01-01T00:00:00Z"),
         tiLine("First log line", "2026-01-01T00:00:00Z"),
         tiLine("Second log line", "2026-01-01T00:00:01Z"),
       ],
@@ -60,10 +61,10 @@ describe("getDownloadText", () => {
 
     const lines = getDownloadText({ ...baseOptions, fetchedData });
     const preambleIdx = lines.findIndex((line) => line.includes("Task Identity"));
-    const endGroupIdx = lines.findIndex((line) => line.includes("::endgroup::"));
+    const preExecuteGroupIdx = lines.findIndex((line) => line.includes("::group::Pre Execute"));
     const firstLogIdx = lines.findIndex((line) => line.includes("First log line"));
 
-    expect(preambleIdx).toBeGreaterThan(endGroupIdx);
+    expect(preambleIdx).toBeGreaterThan(preExecuteGroupIdx);
     expect(preambleIdx).toBeLessThan(firstLogIdx);
   });
 
@@ -109,7 +110,6 @@ describe("getHighlightColor", () => {
     expect(
       getHighlightColor({
         currentMatchLineIndex: 3,
-        hash: "",
         index: 3,
         searchMatchIndices: new Set([1, 3, 5]),
       }),
@@ -120,7 +120,6 @@ describe("getHighlightColor", () => {
     expect(
       getHighlightColor({
         currentMatchLineIndex: 1,
-        hash: "",
         index: 3,
         searchMatchIndices: new Set([1, 3, 5]),
       }),
@@ -130,8 +129,8 @@ describe("getHighlightColor", () => {
   it("returns brand.emphasized for the URL-hash-linked line when no search is active", () => {
     expect(
       getHighlightColor({
-        hash: "5",
-        index: 4, // hash "5" maps to index 4 (1-based to 0-based)
+        hashIndex: 4,
+        index: 4,
         searchMatchIndices: undefined,
       }),
     ).toBe("brand.emphasized");
@@ -140,7 +139,6 @@ describe("getHighlightColor", () => {
   it("returns transparent when no condition matches", () => {
     expect(
       getHighlightColor({
-        hash: "",
         index: 2,
         searchMatchIndices: undefined,
       }),
@@ -151,7 +149,6 @@ describe("getHighlightColor", () => {
     expect(
       getHighlightColor({
         currentMatchLineIndex: 0,
-        hash: "",
         index: 7,
         searchMatchIndices: new Set([0, 2]),
       }),
@@ -162,7 +159,7 @@ describe("getHighlightColor", () => {
     expect(
       getHighlightColor({
         currentMatchLineIndex: 4,
-        hash: "5",
+        hashIndex: 4,
         index: 4,
         searchMatchIndices: new Set([4]),
       }),
@@ -173,7 +170,7 @@ describe("getHighlightColor", () => {
     expect(
       getHighlightColor({
         currentMatchLineIndex: 0,
-        hash: "5",
+        hashIndex: 4,
         index: 4,
         searchMatchIndices: new Set([0, 4]),
       }),
@@ -184,7 +181,6 @@ describe("getHighlightColor", () => {
     expect(
       getHighlightColor({
         currentMatchLineIndex: undefined,
-        hash: "",
         index: 0,
         searchMatchIndices: new Set(),
       }),

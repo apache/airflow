@@ -39,7 +39,9 @@ from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
+    from airflow.models.deadline import DeadlineReferenceType
     from airflow.partition_mappers.base import PartitionMapper
+    from airflow.partition_mappers.window import Window
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
 
@@ -283,6 +285,26 @@ def get_partition_mapper_plugins() -> dict[str, type[PartitionMapper]]:
         qualname(partition_mapper_cls): partition_mapper_cls
         for plugin in _get_plugins()[0]
         for partition_mapper_cls in plugin.partition_mappers
+    }
+
+
+@cache
+def get_windows_plugins() -> dict[str, type[Window]]:
+    """Collect and get window classes registered by plugins."""
+    log.debug("Initialize extra window plugins")
+
+    return {qualname(window_cls): window_cls for plugin in _get_plugins()[0] for window_cls in plugin.windows}
+
+
+@cache
+def get_deadline_references_plugins() -> dict[str, type[DeadlineReferenceType]]:
+    """Collect and get deadline reference classes registered by plugins."""
+    log.debug("Initialize extra deadline reference plugins")
+
+    return {
+        qualname(deadline_ref_cls): deadline_ref_cls
+        for plugin in _get_plugins()[0]
+        for deadline_ref_cls in plugin.deadline_references
     }
 
 

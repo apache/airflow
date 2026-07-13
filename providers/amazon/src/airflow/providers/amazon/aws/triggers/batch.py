@@ -40,11 +40,13 @@ class BatchJobTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
+        *,
         job_id: str | None,
         region_name: str | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 5,
         waiter_max_attempts: int = 720,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"job_id": job_id},
@@ -59,10 +61,16 @@ class BatchJobTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        return BatchClientHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
 
 class BatchCreateComputeEnvironmentTrigger(AwsBaseWaiterTrigger):
@@ -78,11 +86,13 @@ class BatchCreateComputeEnvironmentTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
+        *,
         compute_env_arn: str,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 10,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             serialized_fields={"compute_env_arn": compute_env_arn},
@@ -96,7 +106,13 @@ class BatchCreateComputeEnvironmentTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        return BatchClientHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

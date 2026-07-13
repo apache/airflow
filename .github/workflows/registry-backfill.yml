@@ -60,6 +60,7 @@ jobs:
         "pierrejeambrun",
         "shahar1",
         "potiuk",
+        "uranusjr",
         "utkarsharma2",
         "vincbeck"
         ]'), github.event.sender.login)
@@ -126,7 +127,7 @@ jobs:
       packages: read
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -162,7 +163,7 @@ jobs:
           rm -rf /tmp/aws/
 
       - name: "Configure AWS credentials"
-        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6.1.1
+        uses: aws-actions/configure-aws-credentials@254c19bd240aabef8777f48595e9d2d7b972184b  # v6.2.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -217,7 +218,7 @@ jobs:
             --provider "${PROVIDER}" ${VERSION_ARGS}
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@739bfe42ca9233c5e6aca07c1a25a9d34aca49b0  # v6.0.7
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
           version: 10
 
@@ -284,7 +285,7 @@ jobs:
     name: "Publish versions.json"
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
 
@@ -304,7 +305,7 @@ jobs:
           rm -rf /tmp/aws/
 
       - name: "Configure AWS credentials"
-        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6.1.1
+        uses: aws-actions/configure-aws-credentials@254c19bd240aabef8777f48595e9d2d7b972184b  # v6.2.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

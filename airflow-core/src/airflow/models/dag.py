@@ -20,11 +20,13 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
+from threading import Lock
 from typing import TYPE_CHECKING, Any, cast
 
 import pendulum
 import sqlalchemy as sa
 import structlog
+from cachetools import TTLCache, cached
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
@@ -66,7 +68,7 @@ from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.encoders import DAT, encode_deadline_alert
 from airflow.serialization.enums import Encoding
-from airflow.timetables.base import DataInterval, Timetable
+from airflow.timetables.base import DataInterval, PartitionMapperInfo, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -102,6 +104,16 @@ if TYPE_CHECKING:
 log = structlog.getLogger(__name__)
 
 TAG_MAX_LEN = 100
+
+_team_name_cache_ttl = airflow_conf.getint("core", "team_name_cache_ttl", fallback=30)
+_team_name_cache: TTLCache = TTLCache(maxsize=1024, ttl=_team_name_cache_ttl)
+_team_name_cache_lock = Lock()
+
+
+def clear_team_name_cache() -> None:
+    """Drop all cached Dag team names (test isolation; the cache is keyed by dag_id)."""
+    with _team_name_cache_lock:
+        _team_name_cache.clear()
 
 
 def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) -> DataInterval:
@@ -388,6 +400,16 @@ class DagModel(Base):
     timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Whether the timetable is periodic (supports backfilling).
     timetable_periodic: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Cached partition mapper metadata for partitioned timetables, populated
+    # during Dag serialization so the UI can resolve mapper attributes without
+    # deserializing the timetable. See ``PartitionMapperInfo`` for the per-asset
+    # entry shape; empty list for timetables without per-asset partition mappers.
+    # No ``server_default`` — MySQL refuses literal defaults on JSON columns;
+    # the migration backfills existing rows and ``default=list`` covers new
+    # ORM inserts that don't pass an explicit value.
+    partition_mapper_info: Mapped[list[PartitionMapperInfo]] = mapped_column(
+        sa.JSON(), nullable=False, default=list
+    )
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON(), nullable=True)
     # DAG deadline information
@@ -481,6 +503,38 @@ class DagModel(Base):
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
 
+    def is_rollup_asset(self, *, name: str, uri: str) -> bool:
+        """
+        Return whether the asset identified by *name*/*uri* uses a rollup mapper.
+
+        Reads the cached ``partition_mapper_info`` populated during Dag
+        serialization, mirroring ``PartitionedAssetTimetable.get_partition_mapper``.
+
+        Entries come from three shapes:
+
+        - Regular ``Asset`` → ``{"name": ..., "uri": ..., "is_rollup": ...}``
+        - ``Asset.ref(name=...)`` (``SerializedAssetNameRef``) → ``{"name": ..., "is_rollup": ...}``
+        - ``Asset.ref(uri=...)`` (``SerializedAssetUriRef``) → ``{"uri": ..., "is_rollup": ...}``
+
+        Name match wins over uri match (any name hit in the list outranks
+        any uri hit), so the first pass scans for a name match and the
+        second pass falls back to uri. The uri pass exists for uri-only
+        ref entries (which carry no ``name`` field) — without it, those
+        refs would never resolve.
+        """
+        for entry in self.partition_mapper_info:
+            if entry.get("name") == name:
+                return entry["is_rollup"]
+        for entry in self.partition_mapper_info:
+            if entry.get("uri") == uri:
+                return entry["is_rollup"]
+        return False
+
+    @property
+    def has_rollup_mappers(self) -> bool:
+        """Whether any cached partition mapper is a rollup mapper."""
+        return any(entry["is_rollup"] for entry in self.partition_mapper_info)
+
     @property
     def next_dagrun_data_interval(self) -> DataInterval | None:
         return _get_model_data_interval(
@@ -524,7 +578,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dagmodel(dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
+    def get_dagmodel(dag_id: str, *, session: Session = NEW_SESSION) -> DagModel | None:
         return session.get(
             DagModel,
             dag_id,
@@ -532,12 +586,12 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def get_current(cls, dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
+    def get_current(cls, dag_id: str, *, session: Session = NEW_SESSION) -> DagModel | None:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
     def get_last_dagrun(
-        self, session: Session = NEW_SESSION, include_manually_triggered: bool = False
+        self, *, session: Session = NEW_SESSION, include_manually_triggered: bool = False
     ) -> DagRun | None:
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
@@ -549,7 +603,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
+    def get_paused_dag_ids(dag_ids: list[str], *, session: Session = NEW_SESSION) -> set[str]:
         """
         Given a list of dag_ids, get a set of Paused Dag Ids.
 
@@ -591,6 +645,7 @@ class DagModel(Base):
         cls,
         bundle_name: str,
         rel_filelocs: Collection[str],
+        *,
         session: Session = NEW_SESSION,
     ) -> bool:
         """
@@ -758,28 +813,27 @@ class DagModel(Base):
         self,
         dag: SerializedDAG | LazyDeserializedDAG,
         *,
-        last_automated_run: DagRun | None,
+        reference_run: DagRun | None,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_run: DagRun of most recent run of this dag, or none
-            if not yet scheduled.
-            TODO: AIP-76 This is not always latest run! See https://github.com/apache/airflow/issues/59618.
+        :param reference_run: The automated run used as the basis for computing the
+            next run, or None if not yet scheduled. This is the run the scheduler is
+            currently processing, which is not necessarily the latest run of the dag:
+            scheduler processing order and concurrent run creation in a distributed
+            system mean a newer run may already exist.
         """
-        # TODO: AIP-76 perhaps we need to add validation for manual runs ensure consistency between
-        #   partition_key / partition_date and run_after
-
-        if isinstance(last_automated_run, datetime):
+        if isinstance(reference_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
 
         last_run_info = None
-        if last_automated_run:
-            last_run_info = dag.timetable.run_info_from_dag_run(dag_run=last_automated_run)
+        if reference_run:
+            last_run_info = dag.timetable.run_info_from_dag_run(dag_run=reference_run)
         next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
         if next_dagrun_info is None:
             # there is no next dag run after the last dag run; set everything to None
@@ -813,8 +867,9 @@ class DagModel(Base):
         return get_asset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
 
     @staticmethod
+    @cached(_team_name_cache, key=lambda dag_id, **_: dag_id, lock=_team_name_cache_lock)
     @provide_session
-    def get_team_name(dag_id: str, session: Session = NEW_SESSION) -> str | None:
+    def get_team_name(dag_id: str, *, session: Session = NEW_SESSION) -> str | None:
         """Return the team name associated to a Dag or None if it is not owned by a specific team."""
         stmt = (
             select(Team.name)
@@ -827,7 +882,7 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dag_id_to_team_name_mapping(
-        dag_ids: list[str], session: Session = NEW_SESSION
+        dag_ids: list[str], *, session: Session = NEW_SESSION
     ) -> dict[str, str | None]:
         stmt = (
             select(DagModel.dag_id, Team.name)

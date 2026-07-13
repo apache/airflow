@@ -108,14 +108,17 @@ run on the central Airflow instance:
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand.
 
-If your Airflow deployment uses Multi-Team mode, assign the worker to its team with
-the ``--team-name`` option so it only picks up jobs for that team. See
-:ref:`edge_executor:multi_team` for setup details and security considerations.
+If your Airflow deployment uses the experimental Multi-Team mode, assign the worker
+to its team with the ``--team-name`` option so it only picks up jobs for that team.
+The flag is a UI/REST API-level hint — the Execution API does not currently enforce
+team-based access boundaries. See :ref:`edge_executor:multi_team` for setup details
+and :doc:`apache-airflow:security/workload` (section "No team-level isolation in
+Execution API") for the security boundary.
 
 .. code-block:: bash
 
     airflow edge worker
-    2025-09-27T12:28:32.954316Z [info     ] Starting worker with API endpoint http://localhost:8080/edge_worker/v1/rpcapi
+    2026-07-09T12:28:32.954316Z [info     ] Starting worker with API endpoint http://localhost:8080/edge_worker/v1/rpcapi
       ____________       _____________
      ____    |__( )_________  __/__  /________      __
     ____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /
@@ -127,7 +130,7 @@ the ``--team-name`` option so it only picks up jobs for that team. See
     /___/\_,_/\_, /\__/   |__/|__/\___/_/ /_/\_\\__/_/
             /___/
 
-    2025-09-27T12:28:33.171525Z [info     ] No new job to process
+    2026-07-09T12:28:33.171525Z [debug    ] No new job to process
 
 
 To start a worker assigned to a specific team:

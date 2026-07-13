@@ -27,7 +27,13 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
-import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
+import {
+  SelectionHeaderCheckbox,
+  SelectionProvider,
+  SelectionRowCheckbox,
+  useRowSelection,
+  type GetColumnsParams,
+} from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
@@ -36,21 +42,24 @@ import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
+import { useAutoRefresh, isStatePending, renderDuration, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
 import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
 import BulkMarkTaskInstancesAsButton from "./BulkMarkTaskInstancesAsButton";
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
+import TaskInstanceNoteButton from "./TaskInstanceNoteButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
-const getRowKey = (ti: TaskInstanceResponse) => `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
+// Matches the identifier the bulk task-instance endpoint echoes back in its
+// ``success`` / ``errors`` lists, so the bulk response can deselect rows directly.
+const getRowKey = (ti: TaskInstanceResponse) =>
+  `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]`;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -65,6 +74,7 @@ const {
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
+  RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
@@ -79,35 +89,17 @@ type ColumnProps = {
 };
 
 const taskInstanceColumns = ({
-  allRowsSelected,
   dagId,
-  onRowSelect,
-  onSelectAll,
   runId,
-  selectedRows,
   taskId,
   translate,
 }: ColumnProps & GetColumnsParams): Array<ColumnDef<TaskInstanceResponse>> => [
   {
     accessorKey: "select",
-    cell: ({ row }) => (
-      <Checkbox
-        borderWidth={1}
-        checked={selectedRows.get(getRowKey(row.original))}
-        colorPalette="brand"
-        onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
-      />
-    ),
+    cell: ({ row }) => <SelectionRowCheckbox rowKey={getRowKey(row.original)} />,
     enableHiding: false,
     enableSorting: false,
-    header: () => (
-      <Checkbox
-        borderWidth={1}
-        checked={allRowsSelected}
-        colorPalette="brand"
-        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-      />
-    ),
+    header: () => <SelectionHeaderCheckbox />,
     meta: {
       skeletonWidth: 10,
     },
@@ -158,6 +150,15 @@ const taskInstanceColumns = ({
       ]),
   {
     accessorKey: "rendered_map_index",
+    // Map index remains visible before a mapped task instance starts.
+    cell: ({ row: { original } }) =>
+      original.map_index >= 0 ? (
+        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+          {original.rendered_map_index ?? original.map_index}
+        </RouterLink>
+      ) : (
+        original.rendered_map_index
+      ),
     header: translate("mapIndex"),
   },
   {
@@ -235,6 +236,7 @@ const taskInstanceColumns = ({
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
+        <TaskInstanceNoteButton taskInstance={row.original} />
         <ClearTaskInstanceButton taskInstance={row.original} />
         <MarkTaskInstanceAsButton taskInstance={row.original} />
         <DeleteTaskInstanceButton taskInstance={row.original} />
@@ -251,6 +253,10 @@ const taskInstanceColumns = ({
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
+
+  // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
+
   const [searchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState({
@@ -280,6 +286,7 @@ export const TaskInstances = () => {
   const poolNamePattern = searchParams.get(POOL_NAME_PATTERN_PARAM);
   const queueNamePattern = searchParams.get(QUEUE_NAME_PATTERN_PARAM);
   const operatorNamePattern = searchParams.get(OPERATOR_NAME_PATTERN_PARAM);
+  const renderedMapIndexFilter = searchParams.get(RENDERED_MAP_INDEX_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
@@ -323,6 +330,12 @@ export const TaskInstances = () => {
     storageKey: QUEUE_NAME_PATTERN_PARAM,
     value: queueNamePattern,
   });
+  const renderedMapIndexArg = useAdvancedSearchArg({
+    patternApiKey: "renderedMapIndexPattern",
+    prefixApiKey: "renderedMapIndexPrefixPattern",
+    storageKey: RENDERED_MAP_INDEX_PARAM,
+    value: renderedMapIndexFilter,
+  });
 
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
@@ -341,6 +354,7 @@ export const TaskInstances = () => {
       orderBy,
       ...poolNameArg,
       ...queueNameArg,
+      ...renderedMapIndexArg,
       ...runIdPatternArg,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
@@ -362,7 +376,7 @@ export const TaskInstances = () => {
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
-  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
       data: data?.task_instances,
       getKey: getRowKey,
@@ -371,19 +385,20 @@ export const TaskInstances = () => {
   const selectedTaskInstances = (data?.task_instances ?? []).filter((ti) => selectedRows.has(getRowKey(ti)));
 
   const columns = taskInstanceColumns({
-    allRowsSelected,
     dagId,
     multiTeam: false,
-    onRowSelect: handleRowSelect,
-    onSelectAll: handleSelectAll,
     runId,
-    selectedRows,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,
   });
 
   return (
-    <>
+    <SelectionProvider
+      allRowsSelected={allRowsSelected}
+      onRowSelect={handleRowSelect}
+      onSelectAll={handleSelectAll}
+      selectedRows={selectedRows}
+    >
       <TaskInstancesFilter />
       <DataTable
         columns={columns}
@@ -407,16 +422,16 @@ export const TaskInstances = () => {
             selectedTaskInstances={selectedTaskInstances}
           />
           <BulkMarkTaskInstancesAsButton
-            clearSelections={clearSelections}
+            deselectKeys={deselectKeys}
             selectedTaskInstances={selectedTaskInstances}
           />
           <BulkDeleteTaskInstancesButton
-            clearSelections={clearSelections}
+            deselectKeys={deselectKeys}
             selectedTaskInstances={selectedTaskInstances}
           />
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
-    </>
+    </SelectionProvider>
   );
 };

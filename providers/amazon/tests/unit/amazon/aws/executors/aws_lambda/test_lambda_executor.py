@@ -64,7 +64,7 @@ def set_env_vars():
 @pytest.fixture
 def mock_airflow_key():
     def _key():
-        key_mock = mock.Mock()
+        key_mock = mock.Mock(spec=TaskInstanceKey)
         # Use a "random" value (memory id of the mock obj) so each key serializes uniquely
         key_mock._asdict = mock.Mock(return_value={"mock_key": id(key_mock)})
         return key_mock
@@ -180,10 +180,12 @@ class TestAwsLambdaExecutor:
     def test_task_sdk_callback(self, mock_executor):
         """Test task sdk callback execution end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.models.callback import CallbackKey
 
-        callback_id = "callback_123"
+        callback_id = CallbackKey("callback_123")
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {}
@@ -212,7 +214,7 @@ class TestAwsLambdaExecutor:
         mock_executor.attempt_workload_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
         payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
-        assert payload["task_key"] == callback_id
+        assert payload["task_key"] == str(callback_id)
         assert payload["command"] == [
             "python",
             "-m",
@@ -223,7 +225,7 @@ class TestAwsLambdaExecutor:
 
         # Callback is stored in running workloads.
         assert len(mock_executor.running_workloads) == 1
-        assert callback_id in mock_executor.running_workloads
+        assert str(callback_id) in mock_executor.running_workloads
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
@@ -1079,6 +1081,33 @@ class TestAwsLambdaExecutor:
         assert mock_executor.running_workloads[callback_id] == callback_id
 
         assert len(not_adopted) == 0
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(None, {}, id="without_team"),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+"
+                ),
+            ),
+        ],
+    )
+    @mock.patch.object(lambda_executor.Stats, "timer")
+    def test_try_adopt_task_instances_emits_team_name_tag(
+        self, mock_timer, mock_executor, team_name, expected_tags
+    ):
+        """Test that the adopt task instances duration metric is tagged with the team name."""
+        mock_executor.team_name = team_name
+
+        mock_executor.try_adopt_task_instances([])
+
+        mock_timer.assert_called_once_with(
+            "lambda_executor.adopt_task_instances.duration", tags=expected_tags
+        )
 
     @mock.patch("airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.timezone")
     def test_end_timeout(self, mock_timezone, mock_executor, mock_airflow_key):

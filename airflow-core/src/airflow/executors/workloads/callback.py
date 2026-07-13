@@ -64,8 +64,10 @@ class CallbackDTO(BaseModel):
 
     @property
     def key(self) -> CallbackKey:
-        """Return callback ID as key (CallbackKey = str)."""
-        return self.id
+        """Return callback ID as a CallbackKey instance."""
+        from airflow.models.callback import CallbackKey  # circular import
+
+        return CallbackKey(id=self.id)
 
 
 class ExecuteCallback(BaseDagBundleWorkload):
@@ -112,9 +114,13 @@ class ExecuteCallback(BaseDagBundleWorkload):
     ) -> ExecuteCallback:
         """Create an ExecuteCallback workload from a Callback ORM model."""
         if not bundle_info:
+            from airflow.models.dag_version import _resolve_version_data
+
+            version_data = _resolve_version_data(dag_run.created_dag_version, dag_run.bundle_version)
             bundle_info = BundleInfo(
                 name=dag_run.dag_model.bundle_name,
                 version=dag_run.bundle_version,
+                version_data=version_data,
             )
         fname = f"executor_callbacks/{dag_run.dag_id}/{dag_run.run_id}/{callback.id}"
 

@@ -86,6 +86,8 @@ BASIC_SPHINX_EXTENSIONS = [
     "removemarktransform",
     "sphinx_copybutton",
     "airflow_intersphinx",
+    "common_compat_alias",
+    "sphinxcontrib.mermaid",
     "sphinxcontrib.spelling",
     "sphinx_airflow_theme",
     "redirects",
@@ -93,17 +95,17 @@ BASIC_SPHINX_EXTENSIONS = [
     "sphinx_design",
     "pagefind_search",
     "metrics_tables_from_registry",
+    "suggest_change_button",
 ]
 
-SPHINX_REDOC_EXTENSIONS = [
-    "autoapi.extension",
-    # First, generate redoc
-    "sphinxcontrib.redoc",
-    # Second, update redoc script
-    "sphinx_script_update",
-]
+# Properties for Swagger OpenAPI generation:
+# See https://github.com/SAP/swagger-plugin-for-sphinx
+SPHINX_SWAGGER_EXTENSION = "swagger_plugin_for_sphinx"
 
-REDOC_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+_SWAGGER_VERSION = "5.32.6"
+SWAGGER_PRESENT_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui-standalone-preset.js"
+SWAGGER_BUNDLE_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui-bundle.js"
+SWAGGER_CSS_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui.css"
 
 
 def get_rst_filepath_from_path(filepath: pathlib.Path, root: pathlib.Path):

@@ -20,7 +20,6 @@ import {
   Box,
   createListCollection,
   Flex,
-  IconButton,
   Popover,
   Portal,
   Select,
@@ -30,7 +29,6 @@ import {
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt, LuKeyboard } from "react-icons/lu";
@@ -42,11 +40,13 @@ import { useLocalStorage } from "usehooks-ts";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
-import { Tooltip } from "src/components/ui";
+import { IconButton, Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
 import { dependenciesKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
@@ -188,17 +188,17 @@ export const PanelButtons = ({
     }
   };
 
-  useHotkeys(
-    "g",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.dagView.toggleGraphGrid,
+    callback: () => {
       const newView = dagView === "graph" ? "grid" : "graph";
 
       setDagView(newView);
       handleFocus(newView);
     },
-    [dagView],
-    { preventDefault: true },
-  );
+    dependencies: [dagView],
+    options: { preventDefault: true },
+  });
 
   return (
     <Box bg="bg" pr={4} ref={containerRef} width="100%" zIndex={1}>
@@ -211,13 +211,7 @@ export const PanelButtons = ({
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <IconButton
-                aria-label={translate("dag:panel.buttons.options")}
-                colorPalette="brand"
-                size="md"
-                title={translate("dag:panel.buttons.options")}
-                variant="ghost"
-              >
+              <IconButton label={translate("dag:panel.buttons.options")}>
                 <MdSettings />
               </IconButton>
             </Popover.Trigger>
@@ -328,17 +322,6 @@ export const PanelButtons = ({
           <GridFilters />
           <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
             <RunTypeLegend />
-            <Tooltip
-              content={
-                <Box>
-                  <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
-                  <Text>{translate("dag:navigation.toggleGroup")}</Text>
-                </Box>
-              }
-              portalled
-            >
-              <LuKeyboard />
-            </Tooltip>
           </Flex>
         </Flex>
       )}

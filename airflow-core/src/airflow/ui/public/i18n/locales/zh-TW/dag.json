@@ -1,9 +1,9 @@
 {
   "allRuns": "所有執行",
   "blockingDeps": {
-    "dependency": "依賴 (Dependencies)",
+    "dependency": "相依性 (Dependencies)",
     "reason": "原因",
-    "title": "依賴 (Dependencies) 阻礙任務排程"
+    "title": "相依性 (Dependencies) 阻礙任務排程"
   },
   "calendar": {
     "daily": "每日",
@@ -91,10 +91,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "全螢幕",
-      "tooltip": "按下 {{hotkey}} 進入全螢幕"
-    },
     "info": "INFO",
     "noTryNumber": "無嘗試次數",
     "search": {
@@ -107,9 +103,7 @@
     "warning": "WARNING"
   },
   "navigation": {
-    "navigation": "導航: {{arrow}}",
-    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F",
-    "toggleGroup": "展開/收合群組: 空白鍵"
+    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "返回",
@@ -152,13 +146,13 @@
       "label": "Dag 執行次數"
     },
     "dependencies": {
-      "label": "依賴 (Dependencies)",
+      "label": "相依性 (Dependencies)",
       "options": {
         "allDagDependencies": "所有 Dag 相依性",
         "externalConditions": "外部條件",
         "onlyTasks": "僅限任務"
       },
-      "placeholder": "依賴 (Dependencies)"
+      "placeholder": "相依性 (Dependencies)"
     },
     "graphDirection": {
       "label": "圖表方向"
@@ -183,12 +177,12 @@
       }
     },
     "taskStreamFilter": {
-      "activeFilter": "啟用過濾器",
-      "clearFilter": "清除過濾器",
-      "clickTask": "點擊一個任務以將其選為過濾根",
+      "activeFilter": "啟用篩選器",
+      "clearFilter": "清除篩選器",
+      "clickTask": "點擊一個任務以將其選為篩選根",
       "depth": "深度",
       "direction": "方向",
-      "label": "過濾器",
+      "label": "篩選器",
       "mode": "模式",
       "modeTooltip": "靜態模式會在切換至不同任務時保持目前檢視；遍歷模式則會自動將篩選條件更新為所點擊的任務，以便更容易瀏覽 Dag",
       "modes": {
@@ -218,7 +212,7 @@
   },
   "tabs": {
     "assetEvents": "資源事件",
-    "auditLog": "審計日誌",
+    "auditLog": "稽核日誌",
     "backfills": "回填",
     "calendar": "日曆",
     "code": "程式碼",
@@ -230,12 +224,34 @@
     "renderedTemplates": "渲染後的範本",
     "requiredActions": "待回應的任務實例",
     "runs": "執行紀錄",
+    "storage": "儲存空間",
     "taskInstances": "任務實例",
+    "taskStateStore": "任務儲存區",
     "tasks": "任務",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "收合所有任務群組",
     "expandAll": "展開所有任務群組"
+  },
+  "taskStateStore": {
+    "add": "新增任務儲存區",
+    "clearAll": {
+      "resource": "所有任務儲存區",
+      "title": "清除所有任務儲存區",
+      "warning": "所有任務儲存區將被清空。使用此儲存區追蹤外部工作的任務將無法恢復，必須從頭重新執行。"
+    },
+    "delete": "刪除任務儲存區",
+    "deleteWarning": "此任務將失去這筆持久化的記憶資料。若任務使用此鍵追蹤外部工作（例如外部工作 ID），將無法恢復該工作。",
+    "edit": "編輯任務儲存區",
+    "emptyStore": "任務儲存區會儲存在重試之間持久保留的值。工作節點可透過 Task SDK 寫入任務儲存區。",
+    "expiresAt": {
+      "column": "到期時間",
+      "custom": "自訂",
+      "default": "預設 ({{interval}})",
+      "label": "到期方式",
+      "never": "永不"
+    },
+    "title": "任務儲存區"
   }
 }

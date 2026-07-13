@@ -35,13 +35,14 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
-from airflow.utils.helpers import merge_dicts
+from airflow.utils.helpers import merge_dicts, prune_dict
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.providers.amazon.aws.executors.batch.utils import BatchJobWorkloadKey
 
 
 from airflow.providers.amazon.aws.executors.batch.boto_schema import (
@@ -115,7 +116,10 @@ class AwsBatchExecutor(BaseExecutor):
             from airflow.providers.common.compat.sdk import conf
 
             self.conf = conf
-
+        # TODO: Remove this fallback once the min Airflow version for providers is >= 3.1
+        # (BaseExecutor.team_name is always defined from Airflow 3.1 onward).
+        if not hasattr(self, "team_name"):
+            self.team_name = None
         self.attempts_since_last_successful_connection = 0
         self.load_batch_connection(check_connection=False)
         self.IS_BOTO_CONNECTION_HEALTHY = False
@@ -402,9 +406,7 @@ class AwsBatchExecutor(BaseExecutor):
             all_jobs.extend(describe_workloads_response["jobs"])
         return all_jobs
 
-    def execute_async(
-        self, key: TaskInstanceKey | str, command: CommandType, queue=None, executor_config=None
-    ):
+    def execute_async(self, key: BatchJobWorkloadKey, command: CommandType, queue=None, executor_config=None):
         """Save the workload to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')
@@ -415,15 +417,7 @@ class AwsBatchExecutor(BaseExecutor):
             if isinstance(command[0], workloads.ExecuteTask) or (
                 AIRFLOW_V_3_3_PLUS and isinstance(command[0], workloads.ExecuteCallback)
             ):
-                workload = command[0]
-                ser_input = workload.model_dump_json()
-                command = [
-                    "python",
-                    "-m",
-                    "airflow.sdk.execution_time.execute_workload",
-                    "--json-string",
-                    ser_input,
-                ]
+                command = self._serialize_workload_to_command(command[0])
             else:
                 raise ValueError(
                     f"BatchExecutor doesn't know how to handle workload of type: {type(command[0])}"
@@ -510,13 +504,48 @@ class AwsBatchExecutor(BaseExecutor):
             )
         return submit_kwargs
 
+    @staticmethod
+    def _serialize_workload_to_command(workload) -> CommandType:
+        """
+        Serialize a workload into a command for the Task SDK.
+
+        :param workload: ExecuteTask or ExecuteCallback workload to serialize
+        :return: Command as list of strings for Task SDK execution
+        """
+        return [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload.model_dump_json(),
+        ]
+
+    def _build_task_command(self, ti: TaskInstance) -> CommandType:
+        """
+        Build task command for execution based on Airflow version.
+
+        For Airflow 3.x+, generates an ExecuteTask workload with JSON serialization.
+        For Airflow 2.x, uses the legacy command_as_list() method.
+
+        :param ti: TaskInstance to build command for
+        :return: Command as list of strings
+        """
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.executors.workloads import ExecuteTask
+
+            workload = ExecuteTask.make(ti)
+            return self._serialize_workload_to_command(workload)
+        return ti.command_as_list()
+
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Adopt task instances which have an external_executor_id (the Batch job ID).
 
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
         """
-        with Stats.timer("batch_executor.adopt_task_instances.duration"):
+        with Stats.timer(
+            "batch_executor.adopt_task_instances.duration", tags=prune_dict({"team_name": self.team_name})
+        ):
             adopted_tis: list[TaskInstance] = []
 
             if job_ids := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
@@ -524,10 +553,12 @@ class AwsBatchExecutor(BaseExecutor):
 
                 for batch_job in batch_jobs:
                     ti = next(ti for ti in tis if ti.external_executor_id == batch_job.job_id)
+                    command = self._build_task_command(ti)
+
                     self.active_workers.add_job(
                         job_id=batch_job.job_id,
                         airflow_workload_key=ti.key,
-                        airflow_cmd=ti.command_as_list(),
+                        airflow_cmd=command,
                         queue=ti.queue,
                         exec_config=ti.executor_config,
                         attempt_number=ti.try_number,
