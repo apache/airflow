@@ -25,6 +25,13 @@ write workflow bundles, and have Airflow consume the result.
 The SDK and execution-time logic is implemented in Kotlin.
 An example is bundled showing how the SDK can be used in Java.
 
+See also Airflow documentation on Java SDK under *Authoring and Scheduling* for
+more details on using the Java SDK.
+
+The SDK requires Java 11 or later at runtime. Optional components and
+development tools may have further requirements (see the toolchain in
+`buildSrc/src/main/kotlin/airflow-jvm-conventions.gradle.kts`).
+
 ## Building the SDK
 
 ```bash
@@ -389,16 +396,17 @@ manager, before sending the vote — should run against the source package in
 
 3. **Diff against the git tag.** Extract the tarball and compare it with a
    clean checkout of the tag it claims to be built from. They should be
-   identical except `gradlew`, `gradlew.bat`, and `gradle-wrapper.jar`. The
-   extracted top-level directory should be `apache-airflow-java-sdk-<version>`
-   without the `-src` suffix that only appears in the tarball's own filename:
+   identical except for the files kept out of the source release via
+   `.gitattributes` `export-ignore`. The extracted top-level directory should be
+   `apache-airflow-java-sdk-<version>` without the `-src` suffix that only
+   appears in the tarball's own filename:
 
    ```bash
    tar xzf apache-airflow-java-sdk-<VERSION>-src.tar.gz
    git clone --branch java-sdk/<VERSION>-rc<N> \
      https://github.com/apache/airflow.git tag-checkout
    diff -rq apache-airflow-java-sdk-<VERSION>/ tag-checkout/java-sdk/ \
-     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar)$'
+     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|scripts)$'
    ```
 
    Any remaining diff output is unexpected and should block the vote.
@@ -408,7 +416,7 @@ manager, before sending the vote — should run against the source package in
 
    ```bash
    find apache-airflow-java-sdk-<VERSION>/ -type f \
-     -exec sh -c 'file "$1" | grep -qv text && echo "$1"' _ {} \;
+     -exec sh -c 'file -b "$1" | grep -qviE "text|json|xml|empty" && echo "$1"' _ {} \;
    ```
 
    This should print nothing.
@@ -466,8 +474,83 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
    Keep the RC tag for traceability.
 
-4. Update the download page and wait ~1 hour after promoting so Central has
-   synced. Send the `[ANNOUNCE]` email.
+4. Publish a **GitHub release**. Attach the **voted, signed** source artifacts.
+   From the directory holding the three signed files (e.g. `dist/release`):
+
+   ```bash
+   gh release create java-sdk/<VERSION> \
+     --repo apache/airflow \
+     --title "Apache Airflow Java SDK <VERSION>" \
+     --notes "See the Java SDK README for the features in this release." \
+     --verify-tag \
+     --prerelease \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
+     apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
+   ```
+
+   Drop the `--prerelease` flag if this is not a prerelease.
+
+5. **Announce.** Wait ~1 hour after promoting so Maven Central has synced, then
+   send a plain-text `[ANNOUNCE]` email to `users@airflow.apache.org` (cc
+   `dev@airflow.apache.org`) using the "Announce email template" below, and
+   record the release (version + date) in the ASF Committee Report Helper:
+   <https://reporter.apache.org/addrelease.html?airflow>.
+
+6. Publish the **API docs.** Trigger the *Publish Docs to S3* workflow in
+   `apache/airflow` for the release tag:
+
+   ```bash
+   gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
+     -f ref=java-sdk/<VERSION> \
+     -f include-docs=java-sdk \
+     -f destination=live
+   ```
+
+   Optionally use `destination=staging` first to check, then `live`. It may be
+   possible to `auto` instead, which resolves to `live` for a release tag.
+
+   Confirm that `https://airflow.apache.org/docs/java-sdk/stable/` resolves
+   (allow time for cache invalidation) and `/docs/java-sdk/` redirects to it.
+
+### Announce email template
+
+Send to `users@airflow.apache.org`, cc `dev@airflow.apache.org`.
+
+```text
+Subject: [ANNOUNCE] Apache Airflow Java SDK <VERSION> Released
+
+Dear Airflow community,
+
+I'm happy to announce that Apache Airflow Java SDK <VERSION> was just released.
+
+The signed source release can be downloaded from:
+https://downloads.apache.org/airflow/java-sdk/<VERSION>/
+
+We also published the convenience binaries to Maven Central, under group id
+org.apache.airflow. Import airflow-sdk-bom:<VERSION> to keep the module versions
+aligned.
+
+The API documentation is available at:
+https://airflow.apache.org/docs/java-sdk/<VERSION>/
+
+<Optional: one or two lines on notable changes; omit for the first release.>
+
+Thanks to everyone who contributed to and tested this release.
+
+Cheers,
+<your name>
+```
+
+Pre-send checklist:
+
+* The Maven Central sync has completed (the BOM resolves for a fresh consumer)
+  and the docs URL above resolves.
+* Fill or delete the optional changes line.
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** --
+  any match means a placeholder (`<VERSION>`, `<your name>`, ...) was left
+  unfilled.
+
 
 ### If the vote fails
 

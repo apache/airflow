@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,20 +15,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.3.4'
-default_language_version:
-  python: python3
-repos:
-  - repo: local
-    hooks:
-      - id: mypy-openlineage-e2e-tests
-        name: Run mypy for providers-e2e-tests/openlineage
-        language: python
-        entry: >-
-          ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py
-          providers-e2e-tests/openlineage
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
+"""
+Add index on asset.uri.
+
+Revision ID: c4e7a1f9b2d0
+Revises: 436dc127462c
+Create Date: 2026-07-06 00:00:00.000000
+"""
+
+from __future__ import annotations
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = "c4e7a1f9b2d0"
+down_revision = "436dc127462c"
+branch_labels = None
+depends_on = None
+airflow_version = "3.4.0"
+
+
+def upgrade():
+    """Apply Add index on asset.uri."""
+    with op.batch_alter_table("asset", schema=None) as batch_op:
+        batch_op.create_index("idx_asset_uri", ["uri"], unique=False)
+
+
+def downgrade():
+    """Unapply Add index on asset.uri."""
+    with op.batch_alter_table("asset", schema=None) as batch_op:
+        batch_op.drop_index("idx_asset_uri")

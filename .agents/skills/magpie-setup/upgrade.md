@@ -168,6 +168,14 @@ The snapshot is gitignored — destroying it loses no
 committed work. Do this **before** the new install to avoid
 "new layered on top of old" partial state.
 
+**Sandboxed agents:** the snapshot's nested `.git/` (its
+`config` + `hooks/*.sample`) sits in Claude Code's built-in
+git-internals write-deny set, so this `rm -rf` fails with
+`operation not permitted` and leaves the snapshot half-deleted.
+Propose a sandbox bypass to the operator *before* running it —
+the same propose-then-bypass pattern Step 6c uses for its
+`.claude/` writes.
+
 ## Step 4 — Install per the committed lock
 
 Per `<committed-lock>.method`:
@@ -183,6 +191,13 @@ Per `<committed-lock>.method`:
   `unzip` to `.apache-magpie/`. The verification step is
   **mandatory**; mismatched SHA-512 stops the upgrade and
   surfaces the discrepancy.
+
+**Sandboxed agents (git methods):** writing the clone's nested
+`.apache-magpie/.git/hooks/*.sample` hits the same git-internals
+write-deny set, so `git clone` fails with `operation not
+permitted`. The fetch host is already allowlisted — only the
+local `.git/` write needs the bypass; propose it before cloning,
+as in Step 3.
 
 After install, capture the actual on-disk state for the
 new `<local-lock>`:
