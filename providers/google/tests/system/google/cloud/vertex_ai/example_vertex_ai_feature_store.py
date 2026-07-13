@@ -25,7 +25,7 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta
 
-from google.cloud.aiplatform_v1beta1 import FeatureOnlineStore, FeatureView, FeatureViewDataKey
+from google.cloud.aiplatform_v1beta1 import FeatureOnlineStore
 
 from airflow import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -146,13 +146,13 @@ with DAG(
         location=REGION,
         feature_online_store_id=FEATURE_ONLINE_STORE_ID,
         feature_view_id=FEATURE_VIEW_ID,
-        feature_view=FeatureView(
-            big_query_source=FeatureView.BigQuerySource(
-                uri=f"bq://{BQ_VIEW_FQN}",
-                entity_id_columns=["entity_id"],
-            ),
-            sync_config=FeatureView.SyncConfig(cron="TZ=America/Los_Angeles 56 * * * *"),
-        ),
+        feature_view={
+            "big_query_source": {
+                "uri": f"bq://{BQ_VIEW_FQN}",
+                "entity_id_columns": ["entity_id"],
+            },
+            "sync_config": {"cron": "TZ=America/Los_Angeles 56 * * * *"},
+        },
     )
     # [END how_to_cloud_vertex_ai_create_feature_view_store_operator]
 
@@ -201,7 +201,7 @@ with DAG(
         location=REGION,
         feature_online_store_id=FEATURE_ONLINE_STORE_ID,
         feature_view_id=FEATURE_VIEW_ID,
-        data_key=FeatureViewDataKey(FEATURE_VIEW_DATA_KEY),
+        data_key=FEATURE_VIEW_DATA_KEY,
         retries=3,
         retry_delay=timedelta(minutes=3),
     )
