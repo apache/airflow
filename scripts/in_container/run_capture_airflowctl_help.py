@@ -48,6 +48,7 @@ COMMANDS = [
     "variables",
     "version",
     "plugins",
+    "tasks",
 ]
 
 SUBCOMMANDS = [
