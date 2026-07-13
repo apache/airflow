@@ -941,6 +941,9 @@ class BaseDatabricksHook(BaseHook):
           because Kubernetes service account tokens cannot carry custom claims, so only
           service-principal-level federation is possible; it is validated before the token is read.
 
+        If more than one is configured, precedence is: supplied provider, then AWS, then Kubernetes
+        (matching the dispatch order in :meth:`_get_token`).
+
         :return: a ``(subject_token, client_id)`` tuple; ``client_id`` is ``None`` when the exchange
             should omit it (account-wide federation policy).
         """
@@ -1046,9 +1049,9 @@ class BaseDatabricksHook(BaseHook):
         """
         Get a Databricks OAuth token by exchanging a federated OIDC JWT.
 
-        Uses RFC 8693 token exchange to convert an OIDC subject token -- supplied either by a
-        ``federated_token_provider`` callable or by the pod's Kubernetes service account (see
-        :meth:`_get_federation_subject_token`) -- into a Databricks OAuth token.
+        Uses RFC 8693 token exchange to convert an OIDC subject token -- supplied by a
+        ``federated_token_provider`` callable, AWS STS (``federated_aws``), or the pod's Kubernetes
+        service account (see :meth:`_get_federation_subject_token`) -- into a Databricks OAuth token.
 
         :param resource: Databricks OIDC token exchange URL
         :return: Databricks OAuth access token
@@ -1230,13 +1233,13 @@ class BaseDatabricksHook(BaseHook):
         if self.databricks_conn.extra_dejson.get("federated_token_provider"):
             self.log.debug("Using OIDC token federation with a supplied token provider.")
             return self._get_federated_databricks_token(self._get_oidc_token_service_url())
+        if self._is_aws_federation():
+            self.log.debug("Using AWS IAM OIDC token federation.")
+            return self._get_federated_databricks_token(self._get_oidc_token_service_url())
         if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
             "federated_k8s", False
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
-            return self._get_federated_databricks_token(self._get_oidc_token_service_url())
-        if self._is_aws_federation():
-            self.log.debug("Using AWS IAM OIDC token federation.")
             return self._get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
@@ -1273,13 +1276,13 @@ class BaseDatabricksHook(BaseHook):
         if self.databricks_conn.extra_dejson.get("federated_token_provider"):
             self.log.debug("Using OIDC token federation with a supplied token provider.")
             return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
+        if self._is_aws_federation():
+            self.log.debug("Using AWS IAM OIDC token federation.")
+            return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
         if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
             "federated_k8s", False
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
-            return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
-        if self._is_aws_federation():
-            self.log.debug("Using AWS IAM OIDC token federation.")
             return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
