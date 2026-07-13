@@ -28,6 +28,8 @@ from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -84,16 +86,24 @@ class OpenAIResponseOperator(BaseOperator):
     """
     Operator that generates a model response using the OpenAI Responses API.
 
-    The operator is synchronous and returns the response's aggregated output text. For
-    ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
-    structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
+    By default the operator is synchronous and returns the response's aggregated output text.
+    Pass ``text_format`` (a Pydantic ``BaseModel`` subclass) to request a structured output; the
+    operator then returns the parsed model as a ``dict`` (via ``model_dump()``), which is safe to
+    push to XCom. Requires a model that supports structured outputs (``gpt-4o-2024-08-06`` and
+    later). For ``previous_response_id`` chaining or ``background=True`` responses, use
+    :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
         input items.
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
-        method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        (or ``parse_response`` when ``text_format`` is set) method — for example ``instructions``,
+        ``tools``, ``conversation`` or ``previous_response_id``.
+    :param text_format: Optional. A Pydantic ``BaseModel`` subclass describing the expected
+        structured output. When set, the operator calls ``parse_response`` and returns
+        ``output_parsed.model_dump()``; otherwise it calls ``create_response`` and returns
+        ``output_text``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -110,6 +120,7 @@ class OpenAIResponseOperator(BaseOperator):
         input_text: str | list[Any],
         model: str = "gpt-4o-mini",
         response_kwargs: dict | None = None,
+        text_format: type[BaseModel] | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -117,13 +128,31 @@ class OpenAIResponseOperator(BaseOperator):
         self.input_text = input_text
         self.model = model
         self.response_kwargs = response_kwargs or {}
+        self.text_format = text_format
 
     @cached_property
     def hook(self) -> OpenAIHook:
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: Context) -> str | dict[str, Any]:
+        if self.text_format is not None:
+            parsed = self.hook.parse_response(
+                input=self.input_text,
+                model=self.model,
+                text_format=self.text_format,
+                **self.response_kwargs,
+            )
+            self.log.info("Generated response %s", parsed.id)
+            if parsed.output_parsed is None:
+                # No structured output — the model refused, the request errored, or the response
+                # was truncated. Surface a clear error so downstream tasks don't get None.
+                raise ValueError(
+                    f"Response {parsed.id} did not produce a parseable structured output "
+                    f"(status={parsed.status!r}). Inspect the response via OpenAIHook.get_response "
+                    f"for refusal / error details."
+                )
+            return parsed.output_parsed.model_dump()
         response = self.hook.create_response(input=self.input_text, model=self.model, **self.response_kwargs)
         if response.status != "completed":
             self.log.warning(

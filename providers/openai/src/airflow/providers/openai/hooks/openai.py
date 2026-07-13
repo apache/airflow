@@ -50,8 +50,9 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
     from openai.types.conversations import Conversation, ConversationDeletedResource
-    from openai.types.responses import Response
+    from openai.types.responses import ParsedResponse, Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+    from pydantic import BaseModel
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
@@ -247,6 +248,29 @@ class OpenAIHook(BaseHook):
         :param model: ID of the model to use.
         """
         return self.conn.responses.create(model=model, input=input, **kwargs)
+
+    def parse_response(
+        self,
+        input: Any,
+        text_format: type[BaseModel],
+        model: str = "gpt-4o-mini",
+        **kwargs: Any,
+    ) -> ParsedResponse[Any]:
+        """
+        Create a model response and parse it into a Pydantic model via the Responses API.
+
+        Wraps :py:meth:`openai.resources.responses.Responses.parse`. The SDK converts
+        ``text_format`` into a JSON schema, sends it as a structured-output request, and
+        returns a :class:`~openai.types.responses.ParsedResponse` whose ``output_parsed``
+        attribute is an instance of ``text_format`` (or ``None`` if the model refused).
+
+        :param input: Text, image, or file input(s) to the model.
+        :param text_format: A Pydantic ``BaseModel`` subclass describing the expected
+            structured output. Requires a model that supports structured outputs
+            (``gpt-4o-2024-08-06`` and later).
+        :param model: ID of the model to use.
+        """
+        return self.conn.responses.parse(input=input, model=model, text_format=text_format, **kwargs)
 
     def get_response(self, response_id: str, **kwargs: Any) -> Response:
         """
