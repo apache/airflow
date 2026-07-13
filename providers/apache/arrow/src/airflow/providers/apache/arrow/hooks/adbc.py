@@ -24,9 +24,9 @@ import sys
 from collections.abc import Iterable, Mapping
 from contextlib import closing
 from functools import cached_property
+from importlib import resources as importlib_resources
 from typing import Any
 
-from importlib import resources as importlib_resources
 from adbc_driver_manager.dbapi import Connection, connect
 from more_itertools import chunked
 from pyarrow import RecordBatch, Schema, array, schema
