@@ -62,5 +62,4 @@ bundle to that exact commit:
 Branches move as new commits are pushed, so combined with ``refresh_interval`` they pick up new code
 without a restart. Tags and commit SHAs are static (assuming tags aren't moved), pinning the bundle
 to known-good code — but promoting or rolling back a SHA means changing ``tracking_ref`` in
-``dag_bundle_config_list`` itself, which requires restarting the Dag processor and workers to take
-effect.
+``dag_bundle_config_list`` itself, which requires restarting the Dag processor to take effect.
