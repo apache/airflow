@@ -67,13 +67,19 @@ def run_command(cmd: list[str], github_actions: bool, **kwargs) -> subprocess.Co
 def generate_openapi_file(app: FastAPI, file_path: Path, prefix: str = "", only_ui: bool = False):
     import yaml
     from fastapi.openapi.utils import get_openapi
-    from fastapi.routing import APIRoute
+    from fastapi.routing import APIRoute, iter_route_contexts
 
     if only_ui:
-        for route in app.routes:
-            if not isinstance(route, APIRoute):
-                continue
-            route.include_in_schema = route.path.startswith("/ui/")
+        routes = [
+            route_context
+            for route_context in iter_route_contexts(app.routes)
+            if isinstance(route_context.original_route, APIRoute) and route_context.path.startswith("/ui/")
+        ]
+        # UI routers are excluded from the public schema, so opt their materialized contexts back in.
+        for route_context in routes:
+            route_context._effective_route.include_in_schema = True
+    else:
+        routes = app.routes
 
     with file_path.open("w+") as f:
         openapi_schema = get_openapi(
@@ -81,7 +87,7 @@ def generate_openapi_file(app: FastAPI, file_path: Path, prefix: str = "", only_
             version=app.version,
             openapi_version=app.openapi_version,
             description=app.description,
-            routes=app.routes,
+            routes=routes,
         )
         if prefix:
             openapi_schema["paths"] = {
