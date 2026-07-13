@@ -21,6 +21,7 @@ import importlib
 import sys
 from collections.abc import Iterator
 from types import ModuleType
+from typing import cast
 from unittest import mock
 
 import pytest
@@ -41,10 +42,11 @@ _MISSING = object()
 
 @pytest.fixture
 def generative_model_hook_module_without_evaluation() -> Iterator[ModuleType]:
-    original_evaluation_module = sys.modules.get(EVALUATION_MODULE, _MISSING)
-    original_hook_module = sys.modules.get(HOOK_MODULE, _MISSING)
+    modules = cast("dict[str, object]", sys.modules)
+    original_evaluation_module = modules.get(EVALUATION_MODULE, _MISSING)
+    original_hook_module = modules.get(HOOK_MODULE, _MISSING)
 
-    sys.modules[EVALUATION_MODULE] = None
+    modules[EVALUATION_MODULE] = None
     hook_module = importlib.import_module(HOOK_MODULE)
     hook_module = importlib.reload(hook_module)
 
@@ -52,12 +54,12 @@ def generative_model_hook_module_without_evaluation() -> Iterator[ModuleType]:
         yield hook_module
     finally:
         if original_evaluation_module is _MISSING:
-            sys.modules.pop(EVALUATION_MODULE, None)
+            modules.pop(EVALUATION_MODULE, None)
         else:
-            sys.modules[EVALUATION_MODULE] = original_evaluation_module
+            modules[EVALUATION_MODULE] = original_evaluation_module
 
         if original_hook_module is _MISSING:
-            sys.modules.pop(HOOK_MODULE, None)
+            modules.pop(HOOK_MODULE, None)
         else:
             importlib.reload(hook_module)
 
