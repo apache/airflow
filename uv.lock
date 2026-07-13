@@ -3348,7 +3348,6 @@ dependencies = [
     { name = "adbc-driver-manager" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-sql" },
-    { name = "importlib-resources" },
     { name = "more-itertools" },
     { name = "pyarrow" },
 ]
@@ -3403,7 +3402,6 @@ requires-dist = [
     { name = "adbc-driver-sqlite", marker = "extra == 'sqlite'", specifier = ">=1.7.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "importlib-resources", specifier = ">=1.3" },
     { name = "more-itertools", specifier = ">=9.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.13'", specifier = ">=18.0.0" },
