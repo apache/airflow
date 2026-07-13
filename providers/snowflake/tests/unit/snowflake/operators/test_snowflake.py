@@ -843,6 +843,26 @@ class TestSnowflakeSqlApiOperatorDurable:
         assert mock_get_sql_api_query_status.call_count == 1
         assert operator._hook.query_ids == ["uuid1"]
 
+    def test_already_succeeded_pushes_query_ids_to_xcom(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=True,
+        )
+        mock_get_sql_api_query_status.return_value = {"status": "success"}
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = ["uuid1"]
+        context = self._context(task_store)
+
+        operator.execute(context)
+
+        mock_execute_query.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
+
     def test_resubmits_when_stored_query_in_terminal_error(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
     ):
