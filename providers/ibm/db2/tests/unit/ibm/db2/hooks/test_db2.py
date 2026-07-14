@@ -157,7 +157,7 @@ class TestDb2Hook:
         """Test hook class attributes."""
         assert Db2Hook.conn_name_attr == "db2_conn_id"
         assert Db2Hook.default_conn_name == "db2_default"
-        assert Db2Hook.conn_type == "Db2"
+        assert Db2Hook.conn_type == "ibmdb2"
         assert Db2Hook.hook_name == "IBM Db2"
         assert Db2Hook.supports_autocommit is True
         assert Db2Hook.supports_executemany is True
