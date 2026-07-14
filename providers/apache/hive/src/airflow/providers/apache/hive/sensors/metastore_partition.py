@@ -70,13 +70,20 @@ class MetastorePartitionSensor(SqlSensor):
         self.partition_name = partition_name
         self.table = table
         self.schema = schema
-        super().__init__(conn_id=mysql_conn_id, sql=_METASTORE_PARTITION_SQL, **kwargs)
+        _kwargs: dict[str, Any] = {"conn_id": mysql_conn_id, "sql": _METASTORE_PARTITION_SQL}
+        if kwargs:
+            _kwargs |= kwargs
+        super().__init__(**_kwargs)
 
     def poke(self, context: Context) -> Any:
-        schema = self.schema
-        table = self.table
-        if "." in table:
-            schema, table = table.split(".", maxsplit=1)
+        if "." in self.table:
+            parts = self.table.split(".")
+            if len(parts) != 2:
+                raise ValueError(f"Expected 'schema.table' format, got: {self.table!r}")
+            schema, table = parts
+        else:
+            schema, table = self.schema, self.table
+
         self.parameters = {
             "table": table,
             "schema": schema,
