@@ -80,7 +80,7 @@ class TestPluginsManager:
             example_plugins_module="airflow.example_dags.plugins",
         )
 
-        assert len(plugins) == 11
+        assert len(plugins) == 13
         assert not import_errors
         for plugin in plugins:
             if "AirflowTestOnLoadPlugin" in str(plugin):
@@ -103,7 +103,7 @@ class TestPluginsManager:
         ):
             plugins, import_errors = plugins_manager._get_plugins()
 
-        assert len(plugins) == 4  # four are loaded from examples
+        assert len(plugins) == 6  # four are loaded from examples
         assert len(import_errors) == 1
 
         received_logs = caplog.text
@@ -408,7 +408,7 @@ class TestPluginsManager:
         # Mock/skip loading from plugin dir
         with mock.patch("airflow.plugins_manager._load_plugins_from_plugin_directory", return_value=([], [])):
             plugins = plugins_manager._get_plugins()[0]
-        assert len(plugins) == 6
+        assert len(plugins) == 7
 
 
 class TestWindowPluginRegistration:

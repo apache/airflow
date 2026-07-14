@@ -16,8 +16,8 @@
   },
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "assetEvent_one": "Asset Event",
-  "assetEvent_other": "Asset Events",
+  "assetEvent_one": "$t(asset_one) Event",
+  "assetEvent_other": "$t(asset_one) Events",
   "assetInactive": {
     "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
   },
@@ -33,8 +33,8 @@
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "consumingAsset": "Consuming Asset",
-  "createdAssetEvent_one": "Created Asset Event",
-  "createdAssetEvent_other": "Created Asset Events",
+  "createdAssetEvent_one": "Created $t(assetEvent_one)",
+  "createdAssetEvent_other": "Created $t(assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -71,9 +71,9 @@
     },
     "expectedDuration": "Expected Duration",
     "lastSchedulingDecision": "Last Scheduling Decision",
-    "mappedPartitionKey": "Mapped Partition key",
+    "mappedPartitionKey": "Mapped Partition Key",
     "partitionDate": "Partition Date",
-    "partitionKey": "Partition key",
+    "partitionKey": "Partition Key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",
     "runType": "Run Type",
@@ -195,6 +195,23 @@
   },
   "pendingDagRun_one": "{{count}} Pending Dag Run",
   "pendingDagRun_other": "{{count}} Pending Dag Runs",
+  "presetFilters": {
+    "deleteTitle": "Delete preset filter",
+    "deleteWarning": "Preset filters are stored in this browser only.",
+    "duplicate": "The preset filter \"{{name}}\" already saves this exact setup.",
+    "empty": "No preset filters yet",
+    "info": {
+      "default": "Pin a preset filter as the default and it is applied automatically when you land on this page with no filters applied.",
+      "save": "Save the current filters and sorting as a named preset filter, then switch back to it anytime.",
+      "storage": "Preset filters are stored in this browser."
+    },
+    "namePlaceholder": "Preset filter name",
+    "nothingToSave": "Nothing to save. Apply filters or sorting to save a preset filter.",
+    "save": "Save",
+    "setDefault": "Set as default",
+    "title": "Preset Filters",
+    "unsetDefault": "Unset default"
+  },
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
@@ -226,6 +243,47 @@
   },
   "selectLanguage": "Select Language",
   "selected": "Selected",
+  "shortcuts": {
+    "categories": {
+      "code": "Code",
+      "dagView": "Dag View",
+      "filters": "Filters",
+      "global": "Global",
+      "logs": "Logs",
+      "navigation": "Navigation",
+      "runActions": "Run & Task Actions",
+      "search": "Search"
+    },
+    "descriptions": {
+      "clearRun": "Clear $t(dagRun_one)",
+      "clearTaskInstance": "Clear $t(taskInstance_one)",
+      "downloadLogs": "Download logs",
+      "focusFilterSearch": "Focus filter search",
+      "focusLogSearch": "Search logs",
+      "focusSearch": "Focus search",
+      "markRunFailed": "Mark $t(dagRun_one) as failed",
+      "markRunSuccess": "Mark $t(dagRun_one) as success",
+      "markTaskFailed": "Mark $t(task_one) as failed",
+      "markTaskGroupFailed": "Mark $t(taskGroup_one) as failed",
+      "markTaskGroupSuccess": "Mark $t(taskGroup_one) as success",
+      "markTaskSuccess": "Mark $t(task_one) as success",
+      "navigateTasks": "Navigate $t(task_other)",
+      "openGraphFilters": "Open graph filters",
+      "scrollBottom": "Scroll to bottom",
+      "scrollTop": "Scroll to top",
+      "searchDags": "Search $t(dag_other)",
+      "showHelp": "Show $t(shortcuts.title)",
+      "toggleExpand": "Expand or collapse all groups",
+      "toggleFullscreen": "Toggle fullscreen",
+      "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleSource": "Toggle source",
+      "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
+      "toggleTimestamp": "Toggle timestamps",
+      "toggleWrap": "Toggle $t(wrap.wrap)"
+    },
+    "empty": "No keyboard shortcuts are available on this page.",
+    "title": "Keyboard Shortcuts"
+  },
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
   "source": {
@@ -233,8 +291,8 @@
     "hotkey": "s",
     "show": "Show Source"
   },
-  "sourceAssetEvent_one": "Source Asset Event",
-  "sourceAssetEvent_other": "Source Asset Events",
+  "sourceAssetEvent_one": "Source $t(assetEvent_one)",
+  "sourceAssetEvent_other": "Source $t(assetEvent_other)",
   "startDate": "Start Date",
   "state": "State",
   "states": {

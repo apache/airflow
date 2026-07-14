@@ -103,9 +103,7 @@
     "warning": "경고"
   },
   "navigation": {
-    "navigation": "탐색: Shift+{{arrow}}",
-    "openGraphFilters": "태스크 필터: Ctrl+Shift+F",
-    "toggleGroup": "그룹 전환: Space"
+    "openGraphFilters": "태스크 필터: Ctrl+Shift+F"
   },
   "notFound": {
     "back": "뒤로",

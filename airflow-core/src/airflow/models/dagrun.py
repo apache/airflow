@@ -64,6 +64,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import (
+    DAGRUN_PARENT_TRACE_CONTEXT_KEY,
     TASK_SPAN_DETAIL_LEVEL_KEY,
     TRACE_SAMPLED_KEY,
     new_dagrun_trace_carrier,
@@ -78,7 +79,7 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -90,7 +91,6 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
@@ -195,6 +195,39 @@ def trace_sampled_override(conf) -> bool | None:
     return None
 
 
+def parent_trace_context(conf) -> context.Context | None:
+    """
+    External parent trace context from the ``airflow/dagrun_parent_trace_context`` run conf key.
+
+    Lets a run be embedded in a trace owned by an external system (an upstream
+    orchestrator, event pipeline, CI job, another Airflow) instead of being a root
+    trace. The value is a W3C ``traceparent`` string, or a carrier dict carrying
+    ``traceparent`` (and optionally ``tracestate``); anything else -- including a
+    malformed traceparent -- is ignored so it can neither silently mis-parent the
+    run nor fail run creation. Returns an OpenTelemetry ``Context`` when a valid
+    parent is present, else None (root trace, the default).
+    """
+    if not conf:
+        return None
+    match conf.get(DAGRUN_PARENT_TRACE_CONTEXT_KEY):
+        case str() as traceparent:
+            carrier = {"traceparent": traceparent}
+        case {"traceparent": str()} as raw:
+            # Keep only str members: a non-str tracestate reaches TraceState.from_header
+            # unvalidated and raises TypeError, which would drop the otherwise-valid parent.
+            carrier = {k: raw[k] for k in ("traceparent", "tracestate") if isinstance(raw.get(k), str)}
+        case _:
+            return None
+    try:
+        ctx = TraceContextTextMapPropagator().extract(carrier)
+    except Exception:
+        # Never let a malformed conf value fail run creation; fall back to a root trace.
+        return None
+    if not trace.get_current_span(ctx).get_span_context().is_valid:
+        return None
+    return ctx
+
+
 class DagRun(Base, LoggingMixin):
     """
     Invocation instance of a DAG.
@@ -264,9 +297,6 @@ class DagRun(Base, LoggingMixin):
     # Span context carrier, used for context propagation.
     context_carrier: Mapped[dict[str, Any] | None] = mapped_column(
         MutableDict.as_mutable(ExtendedJSON), nullable=True
-    )
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
     created_dag_version_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
@@ -429,6 +459,7 @@ class DagRun(Base, LoggingMixin):
             task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None),
             attributes=dagrun_trace_attributes(self),  # these are for potential use by head sampler
             force_sampled=trace_sampled_override(self.conf),
+            parent_context=parent_trace_context(self.conf),
         )
 
         if not isinstance(partition_key, str | None):
@@ -1120,11 +1151,11 @@ class DagRun(Base, LoggingMixin):
         span_context = span.get_span_context()
 
         # Skip if the run was head-sampled out. Unlike the task spans, this guard is
-        # required (not just an optimization): the span below is forced to be a root span
-        # (context=context.Context()), so the configured sampler never sees the carrier's
-        # flag. A valid-but-unsampled carrier means head-sampled out; an invalid/empty
-        # carrier (legacy DagRun) recorded no decision, so it falls through and still
-        # emits — prior behavior we may want to reconsider.
+        # required (not just an optimization): the span below is started as a root span
+        # (or under an external parent) rather than under the carrier, so the configured
+        # sampler is not driven by the carrier's flag. A valid-but-unsampled carrier means
+        # head-sampled out; an invalid/empty carrier (legacy DagRun) recorded no decision,
+        # so it falls through and still emits — prior behavior we may want to reconsider.
         if span_context.is_valid and not span_context.trace_flags.sampled:
             return
 
@@ -1147,18 +1178,21 @@ class DagRun(Base, LoggingMixin):
             if self.partition_date:
                 attributes["airflow.dag_run.partition_date"] = self.partition_date.isoformat()
 
-            # TODO: make the empty parent context optional. Default should be to
-            #  nest the dag run span under the currently active parent span (by
-            #  omitting `context` here); only use the empty `context.Context()` to
-            #  force a root span when Airflow itself initiates the run (e.g. dag
-            #  triggered via API, scheduler, or backfill). Today this forces a
-            #  root span unconditionally.
-            #  Tracked at https://github.com/apache/airflow/issues/67210
+            # Root by default: an Airflow-initiated run owns its own trace, so we do not
+            # attach to whatever span is incidentally active in the scheduler. When the run
+            # opted into an external trace via airflow/dagrun_parent_trace_context, start under that
+            # parent so the run nests inside it. The carrier was already built riding the same
+            # external trace_id (both read the same conf), so the override_ids trace_id is a
+            # no-op here — only the span_id override takes effect and the parent link comes
+            # from parent_ctx. The emitted span's sampling then follows the external parent, so
+            # an unsampled external trace drops this dag_run span even when airflow/trace_sampled
+            # forced the head decision that the task/worker spans ride.
+            parent_ctx = parent_trace_context(self.conf)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
-                context=context.Context(),
+                context=parent_ctx or context.Context(),
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
@@ -1449,12 +1483,18 @@ class DagRun(Base, LoggingMixin):
             )
             relevant_ti = None
         if not execute:
+            from airflow.models.dag_version import _resolve_version_data
+
+            # Only carry version_data for pinned runs so the callback initializes the bundle
+            # against the same version the run used.
+            version_data = _resolve_version_data(self.created_dag_version, self.bundle_version)
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,
                 dag_id=self.dag_id,
                 run_id=self.run_id,
                 bundle_name=self.dag_model.bundle_name,
                 bundle_version=self.bundle_version,
+                version_data=version_data,
                 context_from_server=DagRunContext(
                     dag_run=self,
                     last_ti=relevant_ti,
@@ -2005,7 +2045,7 @@ class DagRun(Base, LoggingMixin):
 
     def _revise_map_indexes_if_mapped(
         self, task: Operator, *, dag_version_id: UUID | None, session: Session
-    ) -> Iterator[TI]:
+    ) -> list[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
 
@@ -2016,14 +2056,13 @@ class DagRun(Base, LoggingMixin):
         """
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
-        from airflow.settings import task_instance_mutation_hook
 
         try:
             total_length = get_mapped_ti_count(task, self.run_id, session=session)
         except NotMapped:
-            return  # Not a mapped task, don't need to do anything.
+            return []  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:
-            return  # Upstreams not ready, don't need to revise this yet.
+            return []  # Upstreams not ready, don't need to revise this yet.
 
         query = session.scalars(
             select(TI.map_index).where(
@@ -2048,16 +2087,17 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
+        new_tis: list[TI] = []
         for index in range(total_length):
             if index in existing_indexes:
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti, dag_run=self)
-            ti = session.merge(ti)
-            ti.refresh_from_task(task, dag_run=self)
+            _add_and_prime_mapped_ti(ti, task, self, session=session)
+            new_tis.append(ti)
+        if new_tis:
             session.flush()
-            yield ti
+        return new_tis
 
     @classmethod
     @provide_session

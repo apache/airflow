@@ -30,6 +30,9 @@ labelPRBasedOnFilePath:
   provider:amazon:
     - providers/amazon/**
 
+  provider:anthropic:
+    - providers/anthropic/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
@@ -110,6 +113,9 @@ labelPRBasedOnFilePath:
 
   provider:common-compat:
     - providers/common/compat/**
+
+  provider:common-dataquality:
+    - providers/common/dataquality/**
 
   provider:common-io:
     - providers/common/io/**
@@ -553,6 +559,18 @@ labelPRBasedOnFilePath:
 
   area:go-sdk:
     - go-sdk/**/*
+
+  area:java-sdk:
+    - java-sdk/**/*
+
+  area:ts-sdk:
+    - ts-sdk/**/*
+
+  "AIP-108: Coordinator":
+    - task-sdk/src/airflow/sdk/coordinators/**/*
+    - task-sdk/src/airflow/sdk/execution_time/coordinator.py
+    - task-sdk/tests/task_sdk/coordinators/**/*
+    - task-sdk/tests/task_sdk/execution_time/test_coordinator.py
 
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*

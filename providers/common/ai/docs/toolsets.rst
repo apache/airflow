@@ -42,11 +42,10 @@ passed to any pydantic-ai ``Agent``, including via
 .. note::
 
     ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation — not
-    just the Airflow-native toolsets above. PydanticAI's own MCP server
-    classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``, ``MCPServerStdio``)
-    and third-party toolsets work too. The Airflow-native toolsets add
-    connection management, secret backend integration, and the connection UI,
-    but you are not locked in.
+    just the Airflow-native toolsets above. PydanticAI's own ``MCPToolset``
+    (built over a FastMCP transport) and third-party toolsets work too. The
+    Airflow-native toolsets add connection management, secret backend
+    integration, and the connection UI, but you are not locked in.
 
 
 Using Toolsets Directly with PydanticAI
@@ -316,10 +315,17 @@ Parameters
   ``"weather_get_forecast"``).
 - ``token_provider``: Optional zero-argument callable returning a bearer token.
   When set, it overrides the connection's static ``password`` for the
-  ``Authorization`` header and is called each time the server connection is
-  established -- use it for short-lived or minted tokens (e.g. a Snowflake
-  managed MCP server authenticated with a key-pair JWT). See
+  ``Authorization`` header. Called once, the first time this toolset
+  establishes a connection -- use it for short-lived or minted tokens (e.g. a
+  Snowflake managed MCP server authenticated with a key-pair JWT). See
   :ref:`howto/connection:mcp`.
+- ``env_provider``: Optional zero-argument callable returning a
+  ``dict[str, str]`` merged over the connection's ``Extra.env`` (winning on key
+  conflicts) for the ``stdio`` subprocess environment -- use it when the
+  credential a local stdio MCP server needs lives in a different connection, or
+  is minted fresh per call (e.g. a Splunk/Vault token), rather than storing it
+  statically here. Called once, the first time this toolset establishes a
+  connection. See :ref:`howto/connection:mcp`.
 
 Using Multiple MCP Servers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -336,29 +342,30 @@ Using Multiple MCP Servers
         ],
     )
 
-Direct PydanticAI MCP Servers
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Direct PydanticAI MCP Toolsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For prototyping or when you want full PydanticAI control, you can pass MCP
-server instances directly — no Airflow connection needed:
+For prototyping or when you want full PydanticAI control, you can pass
+``MCPToolset`` instances directly — no Airflow connection needed:
 
 .. code-block:: python
 
-    from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerStdio
+    from fastmcp.client.transports import StdioTransport
+    from pydantic_ai.mcp import MCPToolset
 
     AgentOperator(
         task_id="direct_mcp",
         prompt="What tools are available?",
         llm_conn_id="pydanticai_default",
         toolsets=[
-            MCPServerStreamableHTTP("http://localhost:3001/mcp"),
-            MCPServerStdio("uvx", args=["mcp-run-python"]),
+            MCPToolset("http://localhost:3001/mcp"),
+            MCPToolset(StdioTransport(command="uvx", args=["mcp-run-python"])),
         ],
     )
 
-This works because PydanticAI's MCP server classes implement
-``AbstractToolset``. The tradeoff: URLs and credentials are hardcoded in DAG
-code instead of being managed through Airflow connections and secret backends.
+This works because PydanticAI's ``MCPToolset`` implements ``AbstractToolset``.
+The tradeoff: URLs and credentials are hardcoded in Dag code instead of being
+managed through Airflow connections and secret backends.
 
 
 .. _agent-skills:
@@ -385,8 +392,8 @@ extra to use it:
 
 Each source is a local directory or a connection-resolved
 :class:`~airflow.providers.common.ai.skills.GitSkills`. Sources are resolved when
-the agent enters the toolset, on the worker -- never while the DAG processor
-parses the file -- so a Git token is never baked into the serialized DAG, and
+the agent enters the toolset, on the worker -- never while the Dag processor
+parses the file -- so a Git token is never baked into the serialized Dag, and
 cloned repositories are removed when the run ends.
 
 A local directory of ``SKILL.md`` bundles:
@@ -418,7 +425,7 @@ need strict isolation.
 
     Skill bundles can contain scripts that the agent may run on the worker via
     the ``run_skill_script`` tool. For a remote source, anyone who can modify the
-    repository can introduce code that executes on your worker, outside DAG
+    repository can introduce code that executes on your worker, outside Dag
     review and versioning. Point ``GitSkills`` at a trusted repository, pin
     ``branch`` to a trusted ref, and treat skill contents as code that runs in
     your environment.
@@ -537,8 +544,8 @@ before it runs. If no registered tool can read the environment, the
 filesystem, or other connections, the model cannot reach them, regardless of
 what the prompt instructs it to do.
 
-This is what "untrusted" means in this context. The DAG file itself is
-author-written and trusted, exactly like any other DAG. What is untrusted is
+This is what "untrusted" means in this context. The Dag file itself is
+author-written and trusted, exactly like any other Dag. What is untrusted is
 the model's *output*: the tool-call requests and text it generates. That output
 is confined to your registered tools and bounded by the tool-call budget. An
 agent cannot create a new connection, read another connection's credentials, or
@@ -563,13 +570,13 @@ No single layer is sufficient — they work together.
      - What it does
      - What it does NOT do
    * - **Airflow Connections**
-     - Credentials are stored in Airflow's secret backend, never in DAG code.
+     - Credentials are stored in Airflow's secret backend, never in Dag code.
        The LLM agent cannot see API keys or database passwords.
      - Does not prevent the agent from using the connection to access data
        the connection has access to.
    * - **HookToolset: explicit allow-list**
      - Only methods listed in ``allowed_methods`` are exposed as tools.
-       Auto-discovery is not supported. Methods are validated at DAG parse
+       Auto-discovery is not supported. Methods are validated at Dag parse
        time.
      - Does not restrict what arguments the agent passes to allowed methods.
    * - **SQLToolset: read-only by default**
@@ -712,7 +719,7 @@ Production Checklist
 Before deploying an agent task to production:
 
 1. **Connection credentials**: Use Airflow's secret backend. Never hardcode
-   API keys in DAG files.
+   API keys in Dag files.
 2. **Database permissions**: Create a dedicated database user with minimum
    required grants. Don't reuse the admin connection.
 3. **Tool allow-list**: Review ``allowed_methods`` / ``allowed_tables``. The

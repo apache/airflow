@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
+    JAVA_SDK_VERSION,
     KIND_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
@@ -91,6 +92,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
+AREA_KUBERNETES_TESTS_LABEL = "area:kubernetes-tests"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -108,6 +110,7 @@ class FileGroupForCi(Enum):
     STANDARD_PROVIDER_FILES = auto()
     API_CODEGEN_FILES = auto()
     HELM_FILES = auto()
+    KUSTOMIZE_OVERLAYS_FILES = auto()
     DEPENDENCY_FILES = auto()
     DOC_FILES = auto()
     TEXT_NON_DOC_FILES = auto()
@@ -118,6 +121,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
+    TS_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -128,6 +132,8 @@ class FileGroupForCi(Enum):
     EVENT_DRIVEN_E2E_FILES = auto()
     JAVA_SDK_E2E_FILES = auto()
     GO_SDK_E2E_FILES = auto()
+    OPENLINEAGE_E2E_FILES = auto()
+    OPENLINEAGE_E2E_COMPAT_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -149,6 +155,7 @@ class FileGroupForCi(Enum):
     DEVEL_TOML_FILES = auto()
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
+    PREK_FILES = auto()
     KERBEROS_FILES = auto()
     OTEL_FILES = auto()
     CELERY_FILES = auto()
@@ -171,7 +178,15 @@ class HashableDict(dict[T, list[str]]):
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
-            r"^.github/workflows",
+            # Only workflows that actually run or configure the test suite force the full
+            # matrix. Non-test workflows (security scans, doc publishing, notifications,
+            # backporting, stale/calendar bots, …) cannot affect test outcomes, so they
+            # are excluded here to avoid accidental full-matrix runs.
+            r"^\.github/workflows/(?!("
+            r"asf-allowlist-check|automatic-backport|backport-cli|ci-duration-monitor|ci-notification|"
+            r"codeql-analysis|e2e-flaky-tests-report|milestone-tag-assistant|notify-uv-lock-conflicts|"
+            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-release-calendar|stale"
+            r")\.yml$)",
             r"^dev/breeze/src",
             r"^dev/breeze/pyproject\.toml",
             r"^dev/breeze/uv\.lock",
@@ -179,7 +194,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
-            r"^scripts/ci/prek",
+            # NOTE: scripts/ci/prek (static-check hooks) is intentionally NOT here. prek
+            # hooks drive static checks, not the test matrix, so they must not force the
+            # full matrix. They still build the CI image via FileGroupForCi.PREK_FILES
+            # below (so mypy-scripts and all static checks still run).
             r"^scripts/docker",
             r"^scripts/in_container",
         ],
@@ -220,7 +238,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/messaging/.*",
         ],
         FileGroupForCi.JAVA_SDK_E2E_FILES: [
-            r"^java-sdk/.*",
+            # `.md` excluded — doc-only edits do not affect the Gradle build.
+            r"^java-sdk/(?!.*\.md$).*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
@@ -233,6 +252,22 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/go\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
+        ],
+        FileGroupForCi.OPENLINEAGE_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/.*",
+            r"^airflow-e2e-tests/docker/openlineage\.yml$",
+            r"^providers/openlineage/.*",
+            r"^providers/common/compat/.*",
+            r"^providers/common/io/.*",
+            r"^providers/common/sql/.*",
+        ],
+        FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES: [
+            # Only add files that affect the compat setup and do NOT already trigger the full matrix
+            # here. The compat workflow (.github/workflows/openlineage-e2e-compat-tests.yml) is
+            # intentionally absent: it matches ENVIRONMENT_FILES and so already forces full_tests.
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
+            r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -285,6 +320,19 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart",
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
+        ],
+        # `^chart/` (under HELM_FILES) is intentionally NOT reused
+        # — the overlays don't care about every chart-template edit,
+        # only their own files.
+        FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES: [
+            r"^chart/kustomize-overlays/",
+            r"^chart/tests/overlay_tests/",
+            r"^chart/templates/",
+            r"^chart/files/",
+            r"^scripts/ci/prek/build_kustomize_overlays\.py$",
+            r"^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$",
+            r"^dev/breeze/src/airflow_breeze/commands/kubernetes_kustomize_commands\.py$",
+            r"^\.github/workflows/kustomize-overlays-tests\.yml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -407,7 +455,11 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^go-sdk/.*\.go$",
         ],
         FileGroupForCi.JAVA_SDK_FILES: [
-            r"^java-sdk/",
+            # `.md` excluded — doc-only edits do not affect the Gradle build.
+            r"^java-sdk/(?!.*\.md$).*",
+        ],
+        FileGroupForCi.TS_SDK_FILES: [
+            r"^ts-sdk/",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -438,6 +490,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/tools/.*\.py$",
             r"^scripts/tests/.*\.py$",
         ],
+        FileGroupForCi.PREK_FILES: [
+            r"^scripts/ci/prek",
+        ],
         FileGroupForCi.UV_LOCK_FILE: [
             r"^uv\.lock$",
         ],
@@ -448,7 +503,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.OTEL_FILES: [
             r"^airflow-core/src/airflow/observability/.*",
             r"^shared/observability/src/airflow_shared/observability/.*",
-            r"^airflow-core/src/airflow/utils/span_status\.py$",
+            # The otel integration tests assert the exact span hierarchy that
+            # task_runner emits, so changes to either must exercise the integration.
+            r"^airflow-core/tests/integration/otel/.*",
+            r"^task-sdk/src/airflow/sdk/execution_time/task_runner\.py$",
         ],
         FileGroupForCi.CELERY_FILES: [
             # Core executor sources - redis is celery's broker/result backend, so the
@@ -662,6 +720,7 @@ class SelectiveChecks:
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
     default_helm_version = HELM_VERSION
+    java_sdk_version = JAVA_SDK_VERSION
 
     @cached_property
     def latest_versions_only(self) -> bool:
@@ -998,6 +1057,21 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.GO_SDK_E2E_FILES)
 
     @cached_property
+    def run_openlineage_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
+
+    @cached_property
+    def run_openlineage_e2e_compat_tests(self) -> bool:
+        # Costly older-Airflow matrix. Like run_ui_e2e_tests it is not triggered by *derived*
+        # full_tests_needed (pushes, env changes, large PRs) — only by canary, an explicit label, or
+        # an actual change to a file that drives the compat setup but does not itself force the full
+        # matrix: the shared e2e harness (conftest / constants) or the compat Dockerfile. The compat
+        # workflow already forces full_tests_needed via ENVIRONMENT_FILES.
+        if self._is_canary_run() or FULL_TESTS_NEEDED_LABEL in self._pr_labels:
+            return True
+        return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1040,6 +1114,12 @@ class SelectiveChecks:
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
+        if AREA_KUBERNETES_TESTS_LABEL in self._pr_labels:
+            console_print(
+                "[warning]Running Kubernetes tests because "
+                f"label '{AREA_KUBERNETES_TESTS_LABEL}' is in {self._pr_labels}[/]"
+            )
+            return True
         return self._should_be_run(FileGroupForCi.KUBERNETES_FILES)
 
     @cached_property
@@ -1049,6 +1129,19 @@ class SelectiveChecks:
     @cached_property
     def run_helm_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
+
+    @cached_property
+    def run_kustomize_overlays_tests(self) -> bool:
+        """Gate for the kustomize-overlays smoke test CI job.
+
+        Distinct from ``run_helm_tests`` so an unrelated chart change
+        (e.g. a values.yaml tweak) does not pull in a 30-40 minute kind
+        cluster spin-up just to verify overlays it does not touch.
+        Trips on changes inside ``chart/kustomize-overlays/`` and the
+        narrow set of files that drive the runner; see
+        ``KUSTOMIZE_OVERLAYS_FILES`` in ``CI_FILE_GROUP_MATCHES``.
+        """
+        return self._should_be_run(FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES) and self._default_branch == "main"
 
     @cached_property
     def run_unit_tests(self) -> bool:
@@ -1100,6 +1193,10 @@ class SelectiveChecks:
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
             or self.prod_image_build
+            # prek hooks no longer force the full test matrix (they are static checks, not
+            # tests), but they still need the CI image so mypy-scripts and the image-based
+            # static checks run for a prek-only change.
+            or bool(self._matching_files(FileGroupForCi.PREK_FILES, CI_FILE_GROUP_MATCHES))
         )
 
     @cached_property
@@ -1107,6 +1204,7 @@ class SelectiveChecks:
         return (
             self.run_kubernetes_tests
             or self.run_helm_tests
+            or self.run_kustomize_overlays_tests
             or self.run_task_sdk_integration_tests
             or self.run_airflow_ctl_integration_tests
             or self.run_remote_logging_s3_e2e_tests
@@ -1115,6 +1213,8 @@ class SelectiveChecks:
             or self.run_event_driven_e2e_tests
             or self.run_java_sdk_e2e_tests
             or self.run_go_sdk_e2e_tests
+            or self.run_openlineage_e2e_tests
+            or self.run_openlineage_e2e_compat_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1559,6 +1659,11 @@ class SelectiveChecks:
             # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that (intermittently failing) download.
             prek_hooks_to_skip.add("ktlint")
+        if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
+            # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
+            # ts-sdk types is the ts-sdk follow-up PR's job, not the schema author's.
+            prek_hooks_to_skip.add("check-ts-sdk-supervisor-schema")
         if not (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
@@ -1644,6 +1749,29 @@ class SelectiveChecks:
     @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
+
+    @cached_property
+    def kustomize_overlay_names(self) -> str:
+        """JSON array of overlay names under chart/kustomize-overlays/ to smoke-test.
+
+        Auto-discovered from the filesystem: any directory under
+        ``chart/kustomize-overlays/`` with a ``STATUS.yaml`` that carries a
+        ``verify:`` block is included. Adding a new overlay therefore just
+        works in CI — no second list to maintain anywhere.
+        """
+        import yaml
+
+        overlays_dir = AIRFLOW_ROOT_PATH / "chart" / "kustomize-overlays"
+        names: list[str] = []
+        if overlays_dir.is_dir():
+            for status_path in sorted(overlays_dir.glob("*/STATUS.yaml")):
+                try:
+                    doc = yaml.safe_load(status_path.read_text()) or {}
+                except yaml.YAMLError:
+                    continue
+                if doc.get("verify"):
+                    names.append(status_path.parent.name)
+        return json.dumps(names)
 
     @cached_property
     def helm_test_kubernetes_versions(self) -> str:
