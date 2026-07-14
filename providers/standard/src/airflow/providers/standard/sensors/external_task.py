@@ -284,9 +284,15 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     @staticmethod
     def _serialize_dttm_filter_for_log(dttm_filter: Sequence[datetime.datetime]) -> str:
-        return ",".join(
-            timezone.coerce_datetime(dt).astimezone(settings.TIMEZONE).isoformat() for dt in dttm_filter
-        )
+        formatted_dates = []
+        for dt in dttm_filter:
+            serialized_dt = dt.isoformat()
+            timezone_dt = timezone.coerce_datetime(dt).astimezone(settings.TIMEZONE).isoformat()
+            if serialized_dt == timezone_dt:
+                formatted_dates.append(serialized_dt)
+            else:
+                formatted_dates.append(f"{serialized_dt} (default timezone: {timezone_dt})")
+        return ",".join(formatted_dates)
 
     def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
