@@ -37,7 +37,7 @@ from pathlib import Path
 
 from airflow.providers.common.dataquality.assets import asset_quality, require_quality
 from airflow.providers.common.dataquality.operators.dq_check import DQCheckOperator
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.sdk import DAG, Asset, task
 
@@ -55,11 +55,11 @@ gated_orders_ruleset = RuleSet(
             name="order_id_not_null",
             check="null_count",
             column="order_id",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             id="order_id_not_null",  # explicit rule_uid, stable across future renames
         ),
-        DQRule(name="amount_min_ge_zero", check="min", column="amount", condition={"geq_to": 0}),
-        DQRule(name="row_count_present", check="row_count", condition={"greater_than": 0}),
+        DQRule(name="amount_min_ge_zero", check="min", column="amount", condition=Condition(geq_to=0)),
+        DQRule(name="row_count_present", check="row_count", condition=Condition(greater_than=0)),
     ),
 )
 

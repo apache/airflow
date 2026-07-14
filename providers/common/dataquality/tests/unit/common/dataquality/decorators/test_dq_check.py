@@ -22,11 +22,11 @@ import pytest
 
 from airflow.providers.common.dataquality.backends.object_storage import ObjectStorageResultsBackend
 from airflow.providers.common.dataquality.decorators.dq_check import _DQCheckDecoratedOperator
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.sdk.execution_time.context import OutletEventAccessors
 
-NULLS = DQRule(name="nulls", check="null_count", column="id", condition={"equal_to": 0})
+NULLS = DQRule(name="nulls", check="null_count", column="id", condition=Condition(equal_to=0))
 RULESET = RuleSet(name="orders", rules=(NULLS,))
 
 
@@ -80,7 +80,7 @@ class TestDQCheckDecoratedOperator:
 
     @mock.patch.object(_DQCheckDecoratedOperator, "get_db_hook")
     def test_ruleset_can_be_provided_only_at_runtime(self, mock_get_db_hook):
-        other_rule = DQRule(name="row_count_ok", check="row_count", condition={"greater_than": 0})
+        other_rule = DQRule(name="row_count_ok", check="row_count", condition=Condition(greater_than=0))
         other_ruleset = RuleSet(name="dynamic", rules=(other_rule,))
 
         operator, hook = make_decorated_operator(

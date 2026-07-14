@@ -29,7 +29,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.sdk import DAG, task
 
@@ -43,8 +43,10 @@ os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RES
 orders_ruleset = RuleSet(
     name="orders_dynamic",
     rules=(
-        DQRule(name="order_id_not_null", check="null_count", column="order_id", condition={"equal_to": 0}),
-        DQRule(name="row_count_present", check="row_count", condition={"greater_than": 0}),
+        DQRule(
+            name="order_id_not_null", check="null_count", column="order_id", condition=Condition(equal_to=0)
+        ),
+        DQRule(name="row_count_present", check="row_count", condition=Condition(greater_than=0)),
     ),
 )
 
@@ -52,7 +54,7 @@ strict_ruleset = RuleSet(
     name="orders_dynamic_strict",
     rules=(
         *orders_ruleset.rules,
-        DQRule(name="amount_min_ge_zero", check="min", column="amount", condition={"geq_to": 0}),
+        DQRule(name="amount_min_ge_zero", check="min", column="amount", condition=Condition(geq_to=0)),
     ),
 )
 

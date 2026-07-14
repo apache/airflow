@@ -31,7 +31,7 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow.providers.common.dataquality.operators.dq_check import DQCheckOperator
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet, Severity
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet, Severity
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.sdk import DAG
 
@@ -52,7 +52,7 @@ custom_sql_ruleset = RuleSet(
             # {table} is substituted by the SQL engine at check time, not an f-string
             # placeholder -- a cross-column comparison no single-column built-in can express.
             sql="SELECT COUNT(*) FROM {table} WHERE shipped_at < ordered_at",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
         ),
         DQRule(
             name="high_value_order_ratio",
@@ -60,7 +60,7 @@ custom_sql_ruleset = RuleSet(
             sql=(
                 "SELECT CAST(SUM(CASE WHEN amount > 100 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) FROM {table}"
             ),
-            condition={"leq_to": 0.5},
+            condition=Condition(leq_to=0.5),
             severity=Severity.WARN,
         ),
     ),

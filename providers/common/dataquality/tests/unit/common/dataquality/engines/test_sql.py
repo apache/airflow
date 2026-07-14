@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.dataquality.engines.sql import SQLDQEngine
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
@@ -30,13 +30,13 @@ def hook():
     return mock.create_autospec(DbApiHook, instance=True)
 
 
-NULLS = DQRule(name="nulls", check="null_count", column="id", condition={"equal_to": 0})
-VOLUME = DQRule(name="volume", check="row_count", condition={"greater_than": 0})
+NULLS = DQRule(name="nulls", check="null_count", column="id", condition=Condition(equal_to=0))
+VOLUME = DQRule(name="volume", check="row_count", condition=Condition(greater_than=0))
 CUSTOM = DQRule(
     name="negatives",
     check="custom_sql",
     sql="SELECT COUNT(*) FROM {table} WHERE amount < 0",
-    condition={"equal_to": 0},
+    condition=Condition(equal_to=0),
 )
 
 
@@ -55,7 +55,7 @@ class TestBuildBatchSql:
             name="nulls",
             check="null_count",
             column="id",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             partition_clause="region = 'EU'",
         )
         sql = SQLDQEngine(hook).build_batch_sql([rule], "orders", "ds = '2026-07-04'")
