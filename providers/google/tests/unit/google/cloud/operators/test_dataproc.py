@@ -3737,6 +3737,73 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 
 class TestDataprocCreateBatchOperator:
+    def test_batch_id_and_batch_id_prefix_are_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            DataprocCreateBatchOperator(
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                project_id=GCP_PROJECT,
+                batch=BATCH,
+                batch_id=BATCH_ID,
+                batch_id_prefix="batch-prefix",
+            )
+
+    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
+    def test_build_unique_batch_id_from_prefix_preserves_prefix_verbatim(self, mock_uuid):
+        mock_uuid.return_value.hex = "abc12345def67890"
+        batch_id = DataprocCreateBatchOperator._build_unique_batch_id_from_prefix("Batch_Prefix")
+
+        assert batch_id == "Batch_Prefix-abc12345"
+
+    @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
+    @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_with_batch_id_prefix(self, mock_hook, to_dict_mock, mock_uuid, mock_log):
+        mock_uuid.return_value.hex = "abc12345def67890"
+        expected_batch_id = "batch-prefix-abc12345"
+        operator = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id_prefix="batch-prefix",
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{expected_batch_id}"
+        batch_state_succeeded = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_batch.return_value = batch_state_succeeded
+
+        operator.execute(context=MagicMock())
+
+        mock_hook.return_value.create_batch.assert_called_once_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=expected_batch_id,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        to_dict_mock.assert_called_once_with(batch_state_succeeded)
+        logs_link = DATAPROC_BATCH_LINK.format(
+            region=GCP_REGION, project_id=GCP_PROJECT, batch_id=expected_batch_id
+        )
+        mock_log.info.assert_has_calls(
+            [
+                mock.call("Starting batch %s", expected_batch_id),
+                mock.call("The batch %s was created.", expected_batch_id),
+                mock.call("Waiting for the completion of batch job %s", expected_batch_id),
+                mock.call("Batch job %s completed.\nDriver logs: %s", expected_batch_id, logs_link),
+            ]
+        )
+
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
