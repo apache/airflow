@@ -1670,7 +1670,7 @@ api:
         Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
         The cache is keyed by Dag version ID. Lookups by Dag ID
         (e.g., viewing a Dag's details) fetch the latest serialized row, but reuse
-        its cached deserialized DAG when the version ID and hash are unchanged.
+        its cached deserialized Dag when the version ID and hash are unchanged.
       version_added: 3.3.0
       type: integer
       example: ~
