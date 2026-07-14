@@ -538,25 +538,19 @@ class TestDisposeOrm:
 class TestGetAsyncConnUriFromSync:
     """Tests for _get_async_conn_uri_from_sync function."""
 
-    def test_sqlite_uri_conversion(self):
-        """Test conversion of SQLite sync URI to async with aiosqlite."""
-        result = settings._get_async_conn_uri_from_sync("sqlite:///path/to/db.sqlite")
-        assert result == "sqlite+aiosqlite:///path/to/db.sqlite"
-
-    def test_postgresql_uri_conversion(self):
-        """Test conversion of PostgreSQL sync URI to async with asyncpg."""
-        result = settings._get_async_conn_uri_from_sync("postgresql://user:pass@localhost/dbname")
-        assert result == "postgresql+asyncpg://user:pass@localhost/dbname"
-
-    def test_mysql_uri_conversion(self):
-        """Test conversion of MySQL sync URI to async with aiomysql."""
-        result = settings._get_async_conn_uri_from_sync("mysql://user:pass@localhost/dbname")
-        assert result == "mysql+aiomysql://user:pass@localhost/dbname"
-
-    def test_postgresql_psycopg2_uri_conversion(self):
-        """Test conversion of PostgreSQL with psycopg2 driver to asyncpg."""
-        result = settings._get_async_conn_uri_from_sync("postgresql+psycopg2://user@localhost/db")
-        assert result == "postgresql+asyncpg://user@localhost/db"
+    @pytest.mark.parametrize(
+        ("sync_uri", "expected"),
+        [
+            ("sqlite:///path/to/db.sqlite", "sqlite+aiosqlite:///path/to/db.sqlite"),
+            ("postgresql://user:pass@localhost/dbname", "postgresql+asyncpg://user:pass@localhost/dbname"),
+            ("mysql://user:pass@localhost/dbname", "mysql+aiomysql://user:pass@localhost/dbname"),
+            ("postgresql+psycopg2://user@localhost/db", "postgresql+asyncpg://user@localhost/db"),
+        ],
+    )
+    def test_supported_scheme_conversion(self, sync_uri, expected):
+        """Test conversion of supported sync SQLAlchemy URIs to async driver variants."""
+        result = settings._get_async_conn_uri_from_sync(sync_uri)
+        assert result == expected
 
     def test_unsupported_scheme_returns_original_uri(self):
         """Test that unsupported schemes return the original URI unchanged."""
@@ -564,20 +558,18 @@ class TestGetAsyncConnUriFromSync:
         result = settings._get_async_conn_uri_from_sync(uri)
         assert result == uri
 
-    def test_empty_string_raises_value_error(self):
-        """Test that empty string raises ValueError with helpful message."""
-        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI"):
-            settings._get_async_conn_uri_from_sync("")
-
-    def test_none_raises_value_error(self):
-        """Test that None raises ValueError with helpful message."""
-        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI"):
-            settings._get_async_conn_uri_from_sync(None)
-
-    def test_malformed_uri_without_colon_raises_value_error(self):
-        """Test that URI without ':' separator raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI.*':' separator"):
-            settings._get_async_conn_uri_from_sync("notavaliduri")
+    @pytest.mark.parametrize(
+        ("invalid_uri", "error_match"),
+        [
+            ("", "Invalid SQLAlchemy connection URI"),
+            (None, "Invalid SQLAlchemy connection URI"),
+            ("notavaliduri", "Invalid SQLAlchemy connection URI.*':' separator"),
+        ],
+    )
+    def test_invalid_uri_raises_value_error(self, invalid_uri, error_match):
+        """Test that invalid URIs raise ValueError with actionable guidance."""
+        with pytest.raises(ValueError, match=error_match):
+            settings._get_async_conn_uri_from_sync(invalid_uri)
 
     def test_error_message_is_helpful(self):
         """Test that error message contains helpful guidance."""
