@@ -47,6 +47,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import TypeAdapter
+from sqlalchemy import update
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -103,7 +104,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, StartTriggerArgs, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -712,6 +713,47 @@ def test_create_workload_uses_persisted_context_requirement(
     else:
         assert workload.dag_data is None
         assert workload.dag_run_data is None
+
+
+@pytest.mark.parametrize("task_requirement", [False, True])
+def test_build_trigger_workloads_persists_legacy_context_requirement(
+    session,
+    supervisor_builder,
+    task_requirement,
+):
+    class ContextRequiredOperator(BaseOperator):
+        start_from_trigger = True
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs={},
+            next_method="execute_complete",
+        )
+
+    operator_class = ContextRequiredOperator if task_requirement else BaseOperator
+    operator = operator_class(task_id="test_ti")
+    _, _, trigger, task_instance = create_trigger_in_db(
+        session,
+        TimeDeltaTrigger(datetime.timedelta(days=7)),
+        operator=operator,
+    )
+    serialized_dag = DBDagBag().get_serialized_dag_model(
+        version_id=task_instance.dag_version_id,
+        session=session,
+    )
+    assert serialized_dag.dag.get_task(task_instance.task_id).start_from_trigger is task_requirement
+    trigger_id = trigger.id
+    session.execute(
+        update(Trigger).where(Trigger.id == trigger_id).values(start_from_trigger=None),
+    )
+    session.commit()
+    session.expire_all()
+    assert session.get(Trigger, trigger_id).start_from_trigger is None
+
+    built_workloads = supervisor_builder().build_trigger_workloads({trigger_id})
+    session.expire_all()
+
+    assert len(built_workloads) == 1
+    assert session.get(Trigger, trigger_id).start_from_trigger is task_requirement
 
 
 @pytest.mark.parametrize("stored_requirement", [True, None])
