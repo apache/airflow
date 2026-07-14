@@ -987,6 +987,9 @@ triggers:
   - integration-name: Google Cloud Generative AI
     python-modules:
       - airflow.providers.google.cloud.triggers.gen_ai
+  - integration-name: Google Cloud Functions
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_functions
 
 transfers:
   - source-integration-name: Presto

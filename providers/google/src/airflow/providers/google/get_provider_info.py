@@ -1101,6 +1101,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_build"],
             },
             {
+                "integration-name": "Google Cloud Functions",
+                "python-modules": ["airflow.providers.google.cloud.triggers.cloud_functions"],
+            },
+            {
                 "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_composer"],
             },
