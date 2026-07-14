@@ -1,0 +1,105 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+
+name: OpenLineage E2E Compat Tests
+
+permissions:
+  contents: read
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      airflow-version:
+        description: "Released Airflow version to test with current providers from main."
+        required: true
+        type: string
+
+jobs:
+  test-openlineage-e2e-compat:
+    timeout-minutes: 60
+    name: "OpenLineage e2e compat ${{ inputs.airflow-version }}"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      # OpenLineage requires Airflow 3.x. Gating each step (rather than the whole job) keeps the job
+      # itself "running" so its dynamic name resolves, ending in success with every real step skipped
+      # for the Airflow 2.x matrix entry.
+      - name: "Skip notice for Airflow 2.x"
+        if: ${{ startsWith(inputs.airflow-version, '2.') }}
+        run: echo "Skipping OpenLineage e2e tests — not supported against Airflow 2.x."
+      - name: "Cleanup repo"
+        if: ${{ !startsWith(inputs.airflow-version, '2.') }}
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        if: ${{ !startsWith(inputs.airflow-version, '2.') }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        if: ${{ !startsWith(inputs.airflow-version, '2.') }}
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+      - name: "Run OpenLineage e2e compat tests against Airflow ${{ inputs.airflow-version }}"
+        if: ${{ !startsWith(inputs.airflow-version, '2.') }}
+        run: >
+          breeze testing airflow-e2e-tests
+          --e2e-test-mode openlineage
+          --airflow-version "${AIRFLOW_VERSION}"
+        env:
+          AIRFLOW_VERSION: "${{ inputs.airflow-version }}"
+      - name: Zip logs
+        if: ${{ always() && !startsWith(inputs.airflow-version, '2.') }}
+        run: |
+          cd ./airflow-e2e-tests && zip -r logs.zip logs
+      - name: "Upload logs"
+        if: ${{ always() && !startsWith(inputs.airflow-version, '2.') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: "openlineage-e2e-compat-logs-${{ inputs.airflow-version }}"
+          path: './airflow-e2e-tests/logs.zip'
+          retention-days: '7'
+          if-no-files-found: 'error'

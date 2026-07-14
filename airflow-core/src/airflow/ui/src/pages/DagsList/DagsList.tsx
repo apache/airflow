@@ -42,6 +42,7 @@ import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
+import { useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import { DagCard } from "./DagCard";
@@ -193,6 +194,7 @@ const createColumns = (
 ];
 
 const {
+  DAG_RUN_STATE,
   FAVORITE,
   LAST_DAG_RUN_STATE,
   NAME_PATTERN,
@@ -218,6 +220,9 @@ const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithL
 
 export const DagsList = () => {
   const { t: translate } = useTranslation();
+
+  useDocumentTitle(translate("common:nav.dags"));
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
@@ -229,6 +234,7 @@ export const DagsList = () => {
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
+  const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
@@ -284,6 +290,7 @@ export const DagsList = () => {
     advancedSearch: advancedSearch.enabled,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
+    dagRunState,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,

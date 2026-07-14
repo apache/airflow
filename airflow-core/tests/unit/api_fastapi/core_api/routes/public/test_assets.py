@@ -577,6 +577,14 @@ class TestGetAssets(TestAssets):
                     "wasb://some_asset_bucket_/key",
                 },
             ),
+            # Exact-match ``uri`` filter: only the asset whose full URI matches is returned.
+            ({"uri": "s3://folder/key"}, {"s3://folder/key"}),
+            ({"uri": "gcp://bucket/key"}, {"gcp://bucket/key"}),
+            # Repeated ``uri`` params match any of the given URIs.
+            ({"uri": ["s3://folder/key", "gcp://bucket/key"]}, {"s3://folder/key", "gcp://bucket/key"}),
+            # A substring of an existing URI must NOT match (unlike uri_pattern).
+            ({"uri": "s3://folder"}, set()),
+            ({"uri": "does-not-exist://key"}, set()),
         ],
     )
     @provide_session
@@ -1755,6 +1763,43 @@ class TestPostAssetMaterialize(TestAssets):
             == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
         )
 
+    def test_materialize_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
+        """Asset materialization allowed_run_types is enforced from the requested bundle version, not latest."""
+        bundle_name = "allowed_run_types_bundle"
+        asset = session.get(AssetModel, 1).to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
+
+        # v1 allows materialization; latest v2 does not. Requesting v1 must succeed.
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        # Without bundle_version the latest (v2) governs and rejects the run.
+        response = test_client.post("/assets/1/materialize")
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
+        )
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_403_when_user_cannot_trigger_dag(self, test_client):
         with mock.patch(
@@ -1775,6 +1820,57 @@ class TestPostAssetMaterialize(TestAssets):
                 details=DagDetails(id=self.DAG_ASSET1_ID),
                 user=mock.ANY,
             )
+
+    def test_should_respond_with_bundle_version(self, test_client, session, dag_maker):
+        """Test that asset materialization respects bundle_version parameter."""
+        bundle_name = "testing_bundle"
+        asset = session.get(AssetModel, 1).to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "invalid_version"})
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v3",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v3", outlets=asset)
+            dag_maker.dag.disable_bundle_versioning = True
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 400
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not support bundle versioning"
+            in response.json()["detail"]
+        )
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_400_on_invalid_dag_run_id(self, test_client):

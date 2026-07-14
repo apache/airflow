@@ -30,13 +30,16 @@ import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
   const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+
+  useDocumentTitle(taskId);
+
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 

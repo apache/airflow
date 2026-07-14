@@ -78,9 +78,13 @@ val publishedArtifacts =
 val verifyBomCoverage by tasks.registering {
     group = "verification"
     description = "Fail if airflow-sdk-bom does not constrain the same set of published Java SDK artifacts."
+
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val published = publishedArtifacts
+    val bom = bomArtifacts
     doLast {
-        val missing = (publishedArtifacts - bomArtifacts).sorted()
-        val stale = (bomArtifacts - publishedArtifacts).sorted()
+        val missing = (published - bom).sorted()
+        val stale = (bom - published).sorted()
         if (missing.isNotEmpty() || stale.isNotEmpty()) {
             throw GradleException(
                 buildString {
