@@ -28,10 +28,11 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
 from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
 from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
-from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models.callback import CallbackKey
+from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
 
 
 def test_task_instance_alias_keeps_backwards_compat():
@@ -134,3 +135,176 @@ def test_callback_dto_key_returns_callback_key_instance():
     assert isinstance(key, CallbackKey)
     assert key.id == cid
     assert str(key) == cid
+
+
+def test_workload_ti_round_trips_through_sdk_generated_model():
+    """
+    The executor-side DTO and the SDK's generated TaskInstance share the
+    execution API schema; the serialized workload must carry the routing
+    fields and exclude the executor-only ones.
+    """
+    ti = TaskInstanceDTO(
+        id=uuid4(),
+        dag_version_id=uuid4(),
+        task_id="test_task",
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=2,
+        map_index=3,
+        pool_slots=4,
+        queue="jdk-17",
+        priority_weight=5,
+        external_executor_id="celery-id",
+        executor_config={"KubernetesExecutor": {"image": "custom"}},
+    )
+
+    dumped = ti.model_dump(mode="json")
+    assert "external_executor_id" not in dumped
+    assert "executor_config" not in dumped
+    # Executor-side scheduling fields stay on the workload wire (older workers
+    # deserialize the workload with a model that requires them) but are not
+    # part of the worker-facing schema.
+    assert dumped["pool_slots"] == 4
+    assert dumped["priority_weight"] == 5
+
+    received = GeneratedTaskInstance.model_validate(dumped)
+    assert received.queue == "jdk-17"
+    assert received.map_index == 3
+    assert not hasattr(received, "pool_slots")
+
+
+class TestExecuteTaskMakeVersionData:
+    """Tests for ExecuteTask.make() threading version_data through BundleInfo."""
+
+    @pytest.fixture(autouse=True)
+    def _stub_log_template(self, monkeypatch):
+        monkeypatch.setattr(
+            "airflow.utils.helpers.log_filename_template_renderer",
+            lambda: lambda **kwargs: "test.log",
+        )
+
+    @staticmethod
+    def _make_mock_ti(bundle_version, version_data, *, has_dag_version=True):
+        """Build a mock TI with the attributes ExecuteTask.make() reads.
+
+        ``has_dag_version`` controls whether the TI has an associated DagVersion
+        (legacy/backfilled TIs may not), independently of ``version_data`` so the
+        pin-guard can be exercised with version_data present on an unpinned run.
+        """
+        from unittest.mock import Mock
+
+        ti = Mock()
+        ti.id = uuid4()
+        ti.dag_version_id = uuid4()
+        ti.task_id = "test_task"
+        ti.dag_id = "test_dag"
+        ti.run_id = "test_run"
+        ti.try_number = 1
+        ti.map_index = -1
+        ti.pool_slots = 1
+        ti.queue = "default"
+        ti.priority_weight = 1
+        ti.executor_config = None
+        ti.parent_context_carrier = None
+        ti.context_carrier = None
+        ti.hostname = None
+        ti.external_executor_id = None
+
+        ti.dag_model.bundle_name = "test-bundle"
+        ti.dag_model.relative_fileloc = "dags/test_dag.py"
+
+        ti.dag_run.bundle_version = bundle_version
+
+        if has_dag_version:
+            ti.dag_version.version_data = version_data
+        else:
+            ti.dag_version = None
+
+        return ti
+
+    def test_pinned_run_populates_version_data(self):
+        """When the run is pinned, version_data from dag_version flows to BundleInfo."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        ti = self._make_mock_ti(bundle_version="abc123", version_data=version_data)
+
+        workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data == version_data
+
+    def test_unpinned_run_suppresses_present_version_data(self):
+        """An unpinned run must not expose version_data even when the dag_version carries it."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        ti = self._make_mock_ti(bundle_version=None, version_data=version_data)
+
+        workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version is None
+        assert workload.bundle_info.version_data is None
+
+    def test_missing_dag_version_yields_none(self):
+        """A pinned run whose TI has no dag_version (legacy/backfilled) yields no version_data."""
+        ti = self._make_mock_ti(bundle_version="abc123", version_data=None, has_dag_version=False)
+
+        workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data is None
+
+
+class TestExecuteCallbackMakeVersionData:
+    """Tests for ExecuteCallback.make() threading version_data through BundleInfo."""
+
+    @staticmethod
+    def _make_mocks(bundle_version, version_data, *, has_created_dag_version=True):
+        """Build mock Callback + DagRun with the attributes ExecuteCallback.make() reads."""
+        from unittest.mock import Mock
+
+        callback = Mock()
+        callback.id = uuid4()
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        callback.data = {"path": "my_module.my_callback"}
+
+        dag_run = Mock()
+        dag_run.dag_id = "test_dag"
+        dag_run.run_id = "test_run"
+        dag_run.bundle_version = bundle_version
+        dag_run.dag_model.bundle_name = "test-bundle"
+        dag_run.dag_model.relative_fileloc = "dags/test_dag.py"
+        if has_created_dag_version:
+            dag_run.created_dag_version.version_data = version_data
+        else:
+            dag_run.created_dag_version = None
+
+        return callback, dag_run
+
+    def test_pinned_run_populates_version_data(self):
+        """When the run is pinned, version_data from created_dag_version flows to BundleInfo."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        callback, dag_run = self._make_mocks(bundle_version="abc123", version_data=version_data)
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data == version_data
+
+    def test_unpinned_run_suppresses_present_version_data(self):
+        """An unpinned run must not expose version_data even when created_dag_version carries it."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        callback, dag_run = self._make_mocks(bundle_version=None, version_data=version_data)
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.bundle_info.version is None
+        assert workload.bundle_info.version_data is None
+
+    def test_missing_created_dag_version_yields_none(self):
+        """A pinned run without a created_dag_version yields no version_data."""
+        callback, dag_run = self._make_mocks(
+            bundle_version="abc123", version_data=None, has_created_dag_version=False
+        )
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data is None

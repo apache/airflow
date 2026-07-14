@@ -17,41 +17,117 @@
  * under the License.
  */
 
-import com.diffplug.gradle.spotless.SpotlessExtension
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
-    kotlin("jvm") version "2.3.0"
-    id("com.diffplug.spotless") version "7.2.1" // Last version supporting JDK 11.
-    id("org.jlleitschuh.gradle.ktlint") version "14.0.1"
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
 
-allprojects {
-    apply(plugin = "com.diffplug.spotless")
-    apply(plugin = "org.jetbrains.kotlin.jvm")
-    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+val projectVersion: String by project
 
-    repositories { mavenCentral() }
+group = "org.apache.airflow"
+version = projectVersion
 
-    java {
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(11))
-        }
-        sourceCompatibility = JavaVersion.VERSION_11
-    }
-    kotlin {
-        compilerOptions {
-            // If this is changed, also change "Setup Java" in codeql-analysis.yml.
-            jvmTarget = JvmTarget.JVM_11
-        }
-    }
-
-    configure<SpotlessExtension> {
-        java {
-            target("**/*.java")
-            googleJavaFormat().formatJavadoc(false)
-            trimTrailingWhitespace()
-            endWithNewline()
+if (!project.hasProperty("mavenUrl")) {
+    nexusPublishing {
+        repositories {
+            create("apache") {
+                nexusUrl.set(uri("https://repository.apache.org/service/local/"))
+                snapshotRepositoryUrl.set(
+                    uri("https://repository.apache.org/content/repositories/snapshots/"),
+                )
+                username.set(
+                    providers.gradleProperty("mavenUsername")
+                        .orElse(providers.environmentVariable("ASF_NEXUS_USERNAME")),
+                )
+                password.set(
+                    providers.gradleProperty("mavenPassword")
+                        .orElse(providers.environmentVariable("ASF_NEXUS_PASSWORD")),
+                )
+            }
         }
     }
+}
+
+val sourceReleaseDir = layout.buildDirectory.dir("distributions")
+
+// Derive the version from the tag, so the tarball's name matches its contents.
+val sourceReleaseVersion =
+    providers.gradleProperty("gitRef").map {
+        it.substringAfterLast('/').replace(Regex("-rc\\d+$"), "")
+    }
+val sourceReleaseTarball =
+    sourceReleaseDir.zip(sourceReleaseVersion) { dir, version ->
+        dir.file("apache-airflow-java-sdk-$version-src.tar.gz")
+    }
+
+val sourceTarball by tasks.registering(Exec::class) {
+    group = "release"
+    description = "Assembles the source tarball from committed java-sdk sources."
+    executable = "git"
+    workingDir = rootDir
+
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val gitRef = providers.gradleProperty("gitRef")
+    val archiveVersion = sourceReleaseVersion
+    val tarball = sourceReleaseTarball
+
+    argumentProviders.add(
+        CommandLineArgumentProvider {
+            listOf(
+                "archive",
+                "--format=tar.gz",
+                "--prefix=apache-airflow-java-sdk-${archiveVersion.get()}/",
+                "-o", tarball.get().asFile.absolutePath,
+                gitRef.get(),
+            )
+        },
+    )
+
+    doFirst { tarball.get().asFile.parentFile.mkdirs() }
+}
+
+val signSourceTarball by tasks.registering(Exec::class) {
+    group = "release"
+    description = "Creates the detached OpenPGP signature (.asc) for the source tarball."
+    executable = "gpg"
+    workingDir = rootDir
+    dependsOn(sourceTarball)
+
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val tarball = sourceReleaseTarball
+    argumentProviders.add(
+        CommandLineArgumentProvider {
+            listOf("--armor", "--yes", "--detach-sign", tarball.get().asFile.absolutePath)
+        },
+    )
+}
+
+val checksumSourceTarball by tasks.registering {
+    group = "release"
+    description = "Writes the SHA-512 checksum (.sha512) for the source tarball."
+    dependsOn(sourceTarball)
+
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val tarball = sourceReleaseTarball
+    doLast {
+        val file = tarball.get().asFile
+        val digest = java.security.MessageDigest.getInstance("SHA-512")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        val hex = digest.digest().joinToString("") { "%02x".format(it) }
+        file.resolveSibling("${file.name}.sha512").writeText("$hex  ${file.name}\n")
+    }
+}
+
+tasks.register("sourceRelease") {
+    group = "release"
+    description = "Builds the source tarball plus its .asc signature and .sha512 checksum."
+    dependsOn(sourceTarball, signSourceTarball, checksumSourceTarball)
 }

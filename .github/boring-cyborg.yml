@@ -30,6 +30,9 @@ labelPRBasedOnFilePath:
   provider:amazon:
     - providers/amazon/**
 
+  provider:anthropic:
+    - providers/anthropic/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
@@ -93,6 +96,9 @@ labelPRBasedOnFilePath:
   provider:celery:
     - providers/celery/**
 
+  provider:clickhousedb:
+    - providers/clickhousedb/**
+
   provider:cloudant:
     - providers/cloudant/**
 
@@ -107,6 +113,9 @@ labelPRBasedOnFilePath:
 
   provider:common-compat:
     - providers/common/compat/**
+
+  provider:common-dataquality:
+    - providers/common/dataquality/**
 
   provider:common-io:
     - providers/common/io/**
@@ -355,9 +364,9 @@ labelPRBasedOnFilePath:
 
   # This should be copy of the "area:dev-tools" above minus contributing docs and some files that should
   # only make sense in main - it should be updated when we switch maintenance branch.
-  # Scoped to PRs targeting `main` only — a PR opened directly against v3-2-test
-  # does not need a backport-to-v3-2-test label.
-  backport-to-v3-2-test:
+  # Scoped to PRs targeting `main` only — a PR opened directly against v3-3-test
+  # does not need a backport-to-v3-3-test label.
+  backport-to-v3-3-test:
     paths:
       - scripts/**/*
       - dev/**/*
@@ -550,6 +559,18 @@ labelPRBasedOnFilePath:
 
   area:go-sdk:
     - go-sdk/**/*
+
+  area:java-sdk:
+    - java-sdk/**/*
+
+  area:ts-sdk:
+    - ts-sdk/**/*
+
+  "AIP-108: Coordinator":
+    - task-sdk/src/airflow/sdk/coordinators/**/*
+    - task-sdk/src/airflow/sdk/execution_time/coordinator.py
+    - task-sdk/tests/task_sdk/coordinators/**/*
+    - task-sdk/tests/task_sdk/execution_time/test_coordinator.py
 
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*

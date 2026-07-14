@@ -163,7 +163,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
                 f"str prompt, or disable require_approval."
             )
 
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
+        agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
         result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)

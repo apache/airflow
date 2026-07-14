@@ -50,3 +50,31 @@ class EcsOperatorError(Exception):
 
 class S3HookUriParseFailure(AirflowException):
     """When parse_s3_url fails to parse URL, this error is thrown."""
+
+
+class S3HookPathTraversalError(AirflowException):
+    """Raise when an S3 object key resolves outside the target local directory."""
+
+
+class NeptuneGraphCreationFailedError(AirflowException):
+    """Raised when a Neptune Analytics graph fails to reach the available state."""
+
+
+class NeptunePrivateEndpointCreationFailedError(AirflowException):
+    """Raised when a Neptune Analytics private graph endpoint fails to be created."""
+
+
+class NeptunePrivateEndpointDeletionFailedError(AirflowException):
+    """Raised when a Neptune Analytics private graph endpoint fails to be deleted."""
+
+
+class NeptuneGraphDeletionFailedError(AirflowException):
+    """Raised when a Neptune Analytics graph deletion encounters an unexpected AWS error."""
+
+
+class NeptuneImportTaskCancellationFailedError(AirflowException):
+    """Raised when a Neptune Analytics import task cancellation fails or returns an unexpected status."""
+
+
+class NeptuneImportTaskFailedError(AirflowException):
+    """Raised when a Neptune Analytics import task fails to complete successfully."""

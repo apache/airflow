@@ -17,7 +17,8 @@
  * under the License.
  */
 import { expect, test } from "tests/e2e/fixtures";
-import { apiCreateVariable, apiDeleteVariable, uniqueRunId } from "tests/e2e/utils/test-helpers";
+import { apiCreateVariable, apiDeleteVariable } from "tests/e2e/utils/api/variables";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 test.describe("Variables Page", () => {
   test.describe.configure({ mode: "serial" });

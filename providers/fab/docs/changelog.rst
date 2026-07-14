@@ -20,6 +20,106 @@
 Changelog
 ---------
 
+.. note::
+    The Azure AD OAuth provider in the FAB auth manager now verifies the ``id_token``
+    signature by default: ``verify_signature`` now defaults to ``True`` (previously
+    ``False``), consistent with the Authentik provider. Deployments that intentionally
+    relied on skipping signature verification must set ``verify_signature: False``
+    explicitly in the Azure provider ``client_kwargs`` to keep the previous behaviour.
+
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG named "DAGs" colliding with the global DAGs permission resource (#69106)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69344)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69210)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69186)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69133)``
+
+3.7.1
+.....
+
+.. note::
+    The ``get_cli_user`` method added to the FAB auth manager in 3.7.0 has been removed
+    together with the revert of the airflowctl CLI client integration in Airflow core.
+    If you relied on ``airflowctl`` CLI authentication through the FAB auth manager,
+    provide an API token via the ``AIRFLOW_CLI_TOKEN`` environment variable instead.
+
+Misc
+~~~~
+
+* ``Revert airflowctl dependency from airflow-core (#68856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement 'get_cli_user' in the FAB auth manager so airflowctl CLI commands can authenticate (#68175)``
+* ``Add Browse > Deadlines menu item for compatibility with Airflow 3.3.0 (#67586)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix fab deserialize user session leak (#68100)``
+* ``Import ldap.filter in security_manager override (#68226)``
+* ``Add defensive validation for LDAP search filter configuration (#67630)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update FAB auth manager Flask config wording for Airflow 3 (#68162)``
+* ``Fix removed webserver command in FAB SSO guide for Airflow 3 (#68166)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#67928)``
+   * ``[main] Upgrade important CI environment (#68163)``
+   * ``Bump stylelint (#68347)``
+   * ``Bump prettier (#68576)``
+   * ``Bump eslint (#68681)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
+3.6.5
+.....
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 5 updates (#67733)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#67512)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+* ``Remove exclusion of yanked version dependencies from providers (#66857)``
+* ``Bump eslint (via audit fix) (#67220)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove findings from positional session check in Core Utils (#67777)``
+   * ``[main] CI: Upgrade important CI environment (#67593)``
+   * ``[main] CI: Upgrade important CI environment (#67313)``
+
+
 3.6.4
 .....
 

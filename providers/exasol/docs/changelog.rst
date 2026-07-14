@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+4.10.4
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Align hook run() annotations with None-able handler results (#69230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``[main] Upgrade important CI environment (#68933)``
+
+4.10.3
+......
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+
 4.10.2
 ......
 

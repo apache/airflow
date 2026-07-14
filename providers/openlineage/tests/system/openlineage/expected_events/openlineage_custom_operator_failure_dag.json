@@ -1,0 +1,170 @@
+[
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "s3://failure-test",
+                "name": "before_fail.csv"
+            }
+        ],
+        "run": {
+            "facets": {
+                "custom_facet": {
+                    "random_facet_key": null
+                }
+            }
+        },
+        "outputs": [],
+        "job": {
+            "name": "openlineage_custom_operator_failure_dag.failing_task"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "custom_facet": {
+                    "random_facet_key": "123"
+                },
+                "errorMessage": {
+                    "message": "Intentional failure for OpenLineage on_failure testing",
+                    "programmingLanguage": "python",
+                    "stackTrace": "{{ result.startswith('Traceback (most recent call last):\n') and result.endswith('example_openlineage_custom_operator_failure_dag.py\", line 49, in execute\n    raise ValueError(\"Intentional failure for OpenLineage on_failure testing\")\nValueError: Intentional failure for OpenLineage on_failure testing\n') }}"
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_custom_operator_failure_dag"
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_custom_operator_failure_dag",
+                            "namespace": "{{ result is string }}"
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "dag": {
+                        "dag_id": "openlineage_custom_operator_failure_dag",
+                        "description": "custom_description",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_custom_operator_failure_dag.py') }}",
+                        "owner": "{{ result.split(', ') | sort == ['airflow', 'some_owner1'] }}",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "tags": "{{ result[1:-1].split(', ') | sort == [\"'first'\", \"'second'\"] }}",
+                        "timetable": {},
+                        "timetable_summary": "None"
+                    },
+                    "dagRun": {
+                        "conf": {},
+                        "dag_id": "openlineage_custom_operator_failure_dag",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result is string }}",
+                        "run_type": "manual",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}"
+                    },
+                    "task": {
+                        "depends_on_past": false,
+                        "downstream_task_ids": "['empty_success']",
+                        "executor_config": {},
+                        "inlets": "[]",
+                        "mapped": false,
+                        "multiple_outputs": false,
+                        "operator_class": "FailingOLOperator",
+                        "operator_class_path": "{{ result.endswith('.FailingOLOperator') }}",
+                        "outlets": "[]",
+                        "owner": "some_owner1",
+                        "priority_weight": 1,
+                        "queue": "{{ result is string }}",
+                        "retries": "{{ result is number }}",
+                        "retry_exponential_backoff": false,
+                        "task_id": "failing_task",
+                        "trigger_rule": "all_success",
+                        "upstream_task_ids": "[]",
+                        "wait_for_downstream": false,
+                        "wait_for_past_depends_before_skipping": false
+                    },
+                    "taskUuid": "{{ is_uuid(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^(2|3)\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_custom_operator_failure_dag.failing_task",
+            "facets": {
+                "documentation": {
+                    "description": "RST doc",
+                    "contentType": "text/x-rst",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                },
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "some_owner1"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "tags": {
+                    "tags": [
+                        {
+                            "key": "first",
+                            "value": "first",
+                            "source": "AIRFLOW"
+                        },
+                        {
+                            "key": "second",
+                            "value": "second",
+                            "source": "AIRFLOW"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/TagsJobFacet.json\\#\\/\\$defs\\/TagsJobFacet\") }}"
+                },
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                }
+            }
+        }
+    }
+]

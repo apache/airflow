@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Text } from "@chakra-ui/react";
+import { Flex, HStack, Text, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -27,9 +27,16 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
-import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
+import {
+  SelectionHeaderCheckbox,
+  SelectionProvider,
+  SelectionRowCheckbox,
+  useRowSelection,
+  type GetColumnsParams,
+} from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import RenderedJsonField from "src/components/RenderedJsonField";
@@ -39,15 +46,16 @@ import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
+import BulkMarkDagRunsAsButton from "./BulkMarkDagRunsAsButton";
 import { DagRunsFilters } from "./DagRunsFilters";
 import DeleteRunButton from "./DeleteRunButton";
+import RunNoteButton from "./RunNoteButton";
 
 // Matches the identifier the bulk Dag Run endpoint echoes back in its ``success`` /
 // ``errors`` lists, so the bulk response can deselect rows directly.
@@ -79,37 +87,17 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly open: boolean;
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({
-  allRowsSelected,
-  dagId,
-  onRowSelect,
-  onSelectAll,
-  selectedRows,
-  translate,
-}: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({ dagId, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
   {
     accessorKey: "select",
-    cell: ({ row }) => (
-      <Checkbox
-        borderWidth={1}
-        checked={selectedRows.get(getRowKey(row.original))}
-        colorPalette="brand"
-        onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
-      />
-    ),
+    cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
     enableHiding: false,
     enableSorting: false,
-    header: () => (
-      <Checkbox
-        borderWidth={1}
-        checked={allRowsSelected}
-        colorPalette="brand"
-        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-      />
-    ),
+    header: () => <SelectionHeaderCheckbox colorPalette="brand" />,
     meta: {
       skeletonWidth: 10,
     },
@@ -210,7 +198,7 @@ const runColumns = ({
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
       original.conf && Object.keys(original.conf).length > 0 ? (
-        <RenderedJsonField collapsed content={original.conf} />
+        <RenderedJsonField collapsed={!open} content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
   },
@@ -218,6 +206,7 @@ const runColumns = ({
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
+        <RunNoteButton dagRun={row.original} />
         <ClearRunButton dagRun={row.original} />
         <MarkRunAsButton dagRun={row.original} />
         <DeleteRunButton dagRun={row.original} />
@@ -234,11 +223,15 @@ const runColumns = ({
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
   const { dagId } = useParams();
+
+  // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:dagRun_other") : undefined);
+
   const [searchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure();
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
-      conf: false,
       dag_version: false,
       end_date: false,
       partition_key: false,
@@ -345,18 +338,29 @@ export const DagRuns = () => {
   const selectedDagRuns = (data?.dag_runs ?? []).filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
 
   const columns = runColumns({
-    allRowsSelected,
     dagId,
     multiTeam: false,
-    onRowSelect: handleRowSelect,
-    onSelectAll: handleSelectAll,
-    selectedRows,
+    open,
     translate,
   });
 
   return (
-    <>
-      <DagRunsFilters dagId={dagId} />
+    <SelectionProvider
+      allRowsSelected={allRowsSelected}
+      onRowSelect={handleRowSelect}
+      onSelectAll={handleSelectAll}
+      selectedRows={selectedRows}
+    >
+      <Flex alignItems="center" justifyContent="space-between">
+        <DagRunsFilters dagId={dagId} />
+        <ExpandCollapseButtons
+          collapseLabel={translate("common:collapseAllExtra")}
+          expandLabel={translate("common:expandAllExtra")}
+          isExpanded={open}
+          onCollapse={onClose}
+          onExpand={onOpen}
+        />
+      </Flex>
       <DataTable
         columns={columns}
         data={data?.dag_runs ?? []}
@@ -375,10 +379,11 @@ export const DagRuns = () => {
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
+          <BulkMarkDagRunsAsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
           <BulkDeleteDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
-    </>
+    </SelectionProvider>
   );
 };

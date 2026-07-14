@@ -319,7 +319,10 @@ class JWTValidator:
         self, unvalidated: str, required_claims: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
-        key = await self._get_validation_key(unvalidated)
+        try:
+            key = await self._get_validation_key(unvalidated)
+        except KeyError:
+            raise jwt.InvalidTokenError("Kid did not match any validation keys")
         algorithms = self.algorithm
         validation_key: str | jwt.PyJWK | Any = key
         if algorithms == ["GUESS"] and isinstance(key, jwt.PyJWK):

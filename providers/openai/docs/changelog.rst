@@ -20,6 +20,55 @@
 Changelog
 ---------
 
+.. Behavior note
+
+The ``[datalib]`` extra of the ``openai`` SDK is no longer part of this
+provider's base install. That extra existed to support the SDK's legacy
+``openai tools fine_tunes.prepare_data`` CLI (removed in openai 1.x) and
+transitively pulled in ``numpy``, ``pandas``, and ``pandas-stubs`` for every
+provider user. None of these packages are imported by the provider's
+source, tests, or example DAGs, so the extra was pure transitive bloat.
+
+Users whose DAG code relied on ``numpy`` or ``pandas`` being installed as a
+side-effect of installing this provider should declare those packages
+explicitly, or install the SDK extra directly:
+
+.. code-block:: bash
+
+    pip install 'openai[datalib]'
+
+1.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Deprecate OpenAI Assistants and Threads hook methods (#69071)``
+* ``Add OpenAI Responses and Conversations support (#69070)``
+* ``Add Workload Identity authentication to OpenAI provider (#69069)``
+
+Misc
+~~~~
+
+* ``Update OpenAI provider to OpenAI Python SDK 2.x (#69068)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+1.7.5
+.....
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+
 1.7.4
 .....
 
