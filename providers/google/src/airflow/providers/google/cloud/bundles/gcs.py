@@ -21,7 +21,7 @@ from pathlib import Path
 
 from google.api_core.exceptions import NotFound
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.providers.common.compat.bundles import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook

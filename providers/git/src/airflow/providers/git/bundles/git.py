@@ -26,7 +26,7 @@ from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.providers.common.compat.bundles import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.git.hooks.git import GitHook
