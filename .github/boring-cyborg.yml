@@ -114,6 +114,9 @@ labelPRBasedOnFilePath:
   provider:common-compat:
     - providers/common/compat/**
 
+  provider:common-dataquality:
+    - providers/common/dataquality/**
+
   provider:common-io:
     - providers/common/io/**
 
