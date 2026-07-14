@@ -50,14 +50,14 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ===================
+==========================================  ==================
 PIP package                                 Version required
-==========================================  ===================
+==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``airbyte-api``                             ``>=0.52.0,<1.0.0``
-``requests``                                ``>=2.32.0``
-==========================================  ===================
+``airbyte-api``                             ``>=1.0.0,<2.0``
+``httpx``                                   ``>=0.28.1``
+==========================================  ==================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-airbyte/5.5.2/changelog.html>`_.

@@ -64,7 +64,7 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.waitForDashboardLoad();
 
     await homePage.runningDagsCard.click();
-    await expect(homePage.page).toHaveURL(/last_dag_run_state=running/);
+    await expect(homePage.page).toHaveURL(/dag_run_state=running/);
   });
 
   test("should display welcome heading on dashboard", async ({ homePage }) => {

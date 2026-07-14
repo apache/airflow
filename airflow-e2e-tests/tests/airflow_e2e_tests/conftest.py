@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, rmtree
@@ -51,6 +52,7 @@ from airflow_e2e_tests.constants import (
     KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
+    OPENLINEAGE_COMPOSE_PATH,
     OPENSEARCH_PATH,
     PROVIDERS_MOUNT_CONTAINER_PATH,
     PROVIDERS_ROOT_PATH,
@@ -68,6 +70,7 @@ console = Console(width=400, color_system="standard")
 class _E2ETestState:
     compose_instance: DockerCompose | None = None
     airflow_logs_path: Path | None = None
+    airflow_dags_path: Path | None = None
 
 
 def _copy_localstack_files(tmp_dir):
@@ -278,29 +281,31 @@ _SPARK_JAVA_MODULE_OPTIONS = [
 ]
 
 
-def _setup_java_sdk_integration(dot_env_file, tmp_dir):
-    """Set up the java_sdk E2E test mode.
+def _run_java_sdk_gradle_container(workdir, *gradle_argv, capture_output=False):
+    """Run the Java SDK Gradle wrapper inside the pinned JDK container.
 
-    Builds the Java example bundle via the Gradle wrapper, then builds a
-    Java-capable Airflow worker image, copies the JARs into the temp directory,
-    and writes the coordinator configuration.
+    * --user keeps build outputs owned by the current user (not root).
+    * --network=host shares one loopback across concurrent builds so Gradle's
+      cross-process lock handover works: a UDP ping to the lock owner's port
+      (org.gradle.cache.internal.locklistener.FileLockCommunicator.pingOwner,
+      see https://github.com/gradle/gradle/blob/v8.14.4/platforms/core-execution/persistent-cache/src/main/java/org/gradle/cache/internal/locklistener/FileLockCommunicator.java)
+      would fail across isolated container network namespaces, as reported in
+      https://github.com/gradle/gradle/issues/851.
+    * --no-daemon avoids a background JVM that would outlive the container.
+    * GRADLE_USER_HOME persists the Gradle distribution and dependency cache
+      in java-sdk/.gradle/ so subsequent runs skip straight to compilation.
+    * HOME is set explicitly because --user runs as the host UID which has no
+      entry in the container's /etc/passwd; Docker would otherwise inherit the
+      image's HOME (/root) which the non-root process cannot write to.
+    * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
+      there without nesting, and its contents are visible on the host.
     """
-    # * --user keeps build outputs owned by the current user (not root).
-    # * --no-daemon avoids a background JVM that would outlive the container.
-    # * GRADLE_USER_HOME persists the Gradle distribution and dependency cache
-    #   in java-sdk/.gradle/ so subsequent runs skip straight to compilation.
-    # * HOME is set explicitly because --user runs as the host UID which has no
-    #   entry in the container's /etc/passwd; Docker would otherwise inherit the
-    #   image's HOME (/root) which the non-root process cannot write to.
-    # * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
-    #   there without nesting, and its contents are visible on the host.
-    console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
-    JAVA_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    return subprocess.run(
         [
             "docker",
             "run",
             "--rm",
+            "--network=host",
             "--user",
             f"{os.getuid()}:{os.getgid()}",
             "-e",
@@ -312,72 +317,65 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
             "-w",
-            "/repo/java-sdk",
+            workdir,
             "eclipse-temurin:17-jdk",
-            "./gradlew",
-            "publishToMavenLocal",
-            "-PskipSigning=true",
+            "/repo/java-sdk/gradlew",
             "--no-daemon",
+            *gradle_argv,
         ],
         check=True,
+        capture_output=capture_output,
+        text=True,
     )
-    # TODO: Make the following build steps parallel
+
+
+def _build_example_bundle(workdir):
+    """Build one example bundle, capturing output so concurrent builds don't interleave."""
+    try:
+        completed = _run_java_sdk_gradle_container(workdir, "bundle", capture_output=True)
+    except subprocess.CalledProcessError as e:
+        console.print(f"[red]Bundle build failed in {workdir}:")
+        console.print(e.stdout, e.stderr, sep="\n", markup=False, soft_wrap=True)
+        raise
+    console.print(f"[yellow]Bundle build finished in {workdir}:")
+    console.print(completed.stdout, completed.stderr, sep="\n", markup=False, soft_wrap=True)
+
+
+def _setup_java_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the java_sdk E2E test mode.
+
+    Builds the Java SDK and Scala Spark example bundles via the Gradle wrapper,
+    then builds a Java-capable Airflow worker image, copies the JARs into the
+    temp directory, and writes the coordinator configuration.
+    """
+    console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
+    JAVA_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    _run_java_sdk_gradle_container("/repo/java-sdk", "publishToMavenLocal", "-PskipSigning=true")
+
+    # The example and scala_spark_example are independent Gradle builds that both
+    # consume the SDK artifact published above, so build them concurrently. Sharing
+    # a writable Gradle user home between concurrent builds is safe only because
+    # --network=host lets each build ping the other's lock-owner port (see the
+    # helper's docstring); publishToMavenLocal has already unpacked the shared
+    # wrapper distribution, so neither build races to fetch it.
+    #
     # The Gradle `bundle` task is a Copy that never prunes its destination, so
     # JARs from an earlier build linger. A stale dependency JAR with its own
     # Main-Class would make JavaCoordinator's Main-Class discovery ambiguous, so
     # start each bundle from an empty directory.
     rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
-    console.print("[yellow]Building Java SDK example bundle (eclipse-temurin:17-jdk)...")
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
-            "-e",
-            "HOME=/workspace-home",
-            "-v",
-            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            "/repo/java-sdk/example",
-            "eclipse-temurin:17-jdk",
-            "../gradlew",
-            "bundle",
-            "--no-daemon",
-        ],
-        check=True,
-    )
     rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
-    console.print("[yellow]Building Scala Spark example bundle (eclipse-temurin:17-jdk)...")
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
-            "-e",
-            "HOME=/workspace-home",
-            "-v",
-            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            "/repo/java-sdk/scala_spark_example",
-            "eclipse-temurin:17-jdk",
-            "../gradlew",
-            "bundle",
-            "--no-daemon",
-        ],
-        check=True,
+    console.print(
+        "[yellow]Building Java SDK and Scala Spark example bundles concurrently (eclipse-temurin:17-jdk)..."
     )
+    example_bundle_workdirs = [
+        "/repo/java-sdk/example",
+        "/repo/java-sdk/scala_spark_example",
+    ]
+    with ThreadPoolExecutor(max_workers=len(example_bundle_workdirs)) as pool:
+        bundle_builds = [pool.submit(_build_example_bundle, workdir) for workdir in example_bundle_workdirs]
+        for build in bundle_builds:
+            build.result()
 
     # Copy compose override and Dockerfile into the temp directory.
     copyfile(JAVA_COMPOSE_PATH, tmp_dir / "java.yml")
@@ -570,6 +568,21 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _setup_openlineage_integration(dot_env_file, tmp_dir):
+    """Set up the openlineage E2E test mode.
+
+    The OpenLineage system-test DAGs are the single source of truth; ``prepare_dags`` copies them
+    into the stack's dags folder (stripping the pytest-only footer) alongside the harness-only warmup
+    DAG and versioned bundle. The ``openlineage.yml`` overlay carries the OpenLineage env config and
+    mounts the generated ``dag_doc.md`` where the docs DAG resolves it.
+    """
+    from airflow_e2e_tests.openlineage_tests.prepare_dags import prepare_dags
+
+    console.print("[yellow]Preparing OpenLineage DAGs from the provider system tests...")
+    prepare_dags(tmp_dir / "dags")
+    copyfile(OPENLINEAGE_COMPOSE_PATH, tmp_dir / "openlineage.yml")
+
+
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("breeze-airflow-e2e-tests")
 
@@ -584,9 +597,13 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         (tmp_dir / subdir).mkdir()
 
     _E2ETestState.airflow_logs_path = tmp_dir / "logs"
+    _E2ETestState.airflow_dags_path = tmp_dir / "dags"
 
-    console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
-    copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
+    # openlineage sources its dags from the provider system tests (via _setup_openlineage_integration),
+    # so it must not also load the stock e2e dags — the harness triggers every dag it finds.
+    if E2E_TEST_MODE != "openlineage":
+        console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
+        copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
 
     dot_env_file = tmp_dir / ".env"
     dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
@@ -617,6 +634,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "go_sdk":
         compose_file_names.append("go.yml")
         _setup_go_sdk_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "openlineage":
+        compose_file_names.append("openlineage.yml")
+        _setup_openlineage_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -710,6 +730,18 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
 def compose_instance():
     """Provide access to the running Docker Compose instance."""
     return _E2ETestState.compose_instance
+
+
+@pytest.fixture(scope="session")
+def airflow_logs_path():
+    """Live host path of the stack's task logs (bind-mounted), readable while tests run."""
+    return _E2ETestState.airflow_logs_path
+
+
+@pytest.fixture(scope="session")
+def airflow_dags_path():
+    """Host path of the dags served to the stack."""
+    return _E2ETestState.airflow_dags_path
 
 
 def generate_test_report(results):
