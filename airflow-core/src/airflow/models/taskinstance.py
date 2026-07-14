@@ -409,6 +409,7 @@ def clear_task_instances(
         from airflow.models.dagrun import (  # Avoid circular import
             DagRun,
             dagrun_trace_attributes,
+            parent_trace_context,
             trace_sampled_override,
         )
 
@@ -435,6 +436,7 @@ def clear_task_instances(
                 task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None,
                 attributes=dagrun_trace_attributes(dr),
                 force_sampled=trace_sampled_override(dr.conf),
+                parent_context=parent_trace_context(dr.conf),
             )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)

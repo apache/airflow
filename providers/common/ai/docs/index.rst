@@ -73,6 +73,12 @@ a service the vendor runs for you, which no vendor-neutral operator wraps:
   Managed Agents sessions where the agent loop runs on Anthropic's infrastructure rather
   than in the Airflow worker.
 * :doc:`apache-airflow-providers-cohere:index` — Cohere's own Embed API.
+* :doc:`apache-airflow-providers-google:index` — Vertex AI's Batch Prediction jobs
+  (``CreateBatchPredictionJobOperator``), a managed batch service like OpenAI's Batch API.
+* :doc:`apache-airflow-providers-amazon:index` — Bedrock's Batch Inference
+  (``BedrockBatchInferenceOperator``), and Bedrock AgentCore's managed agent runtime
+  (``BedrockCreateAgentRuntimeOperator`` / ``BedrockInvokeAgentRuntimeOperator``), where the
+  agent loop runs on AWS's infrastructure rather than in the Airflow worker.
 
 As a rule of thumb: if Airflow should *run* the AI step (and the model should stay
 swappable), use ``common.ai``; if the Dag *submits work to* a vendor-managed service and
@@ -85,6 +91,26 @@ OpenAI, Anthropic, or other pydantic-ai-supported connection:
     :language: python
     :start-after: [START howto_operator_llm_basic]
     :end-before: [END howto_operator_llm_basic]
+
+Choosing extras
+----------------
+
+The provider's extras split into a few groups:
+
+* **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``: pick the one
+  matching your ``llm_conn_id`` connection. Each extra name mirrors the identically named
+  ``pydantic-ai-slim`` optional dependency group; pydantic-ai supports more model providers
+  than these four, each under its own extra name, so check the
+  `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
+* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``: MCP servers, Agent Skills, and
+  code-mode tool execution.
+* **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
+  document pipelines.
+* **Retrieval / SQL** — ``sql``, ``common.sql``, ``langchain``, ``llamaindex``: RAG and
+  SQL-schema tooling.
+* **Git-backed content** — ``git``: pulling Agent Skills or documents from a git connection.
+
+See the Optional dependencies table below for the exact package each extra installs.
 
 .. toctree::
     :hidden:
@@ -100,6 +126,7 @@ OpenAI, Anthropic, or other pydantic-ai-supported connection:
     :maxdepth: 1
     :caption: Guides
 
+    Quick start <quickstart>
     Connection types <connections/pydantic_ai>
     MCP connection <connections/mcp>
     Hooks <hooks/index>
