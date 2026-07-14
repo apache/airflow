@@ -50,6 +50,8 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
     :param database: Default database for query execution. (templated)
         This argument is optional when the query does not require a default database,
         such as when all referenced table names are fully qualified.
+        If omitted or set to ``None``, any ``Database`` value set in
+        the ``query_execution_context`` will be used instead.
     :param catalog: Catalog to select. (templated)
     :param output_location: s3 path to write the query results into. (templated)
         To run the query, you must specify the query results location using one of the ways:
