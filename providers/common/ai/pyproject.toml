@@ -183,6 +183,7 @@ provider_info = "airflow.providers.common.ai.get_provider_info:get_provider_info
 
 [project.entry-points."airflow.plugins"]
 hitl_review = "airflow.providers.common.ai.plugins.hitl_review:HITLReviewPlugin"
+ai_trace = "airflow.providers.common.ai.plugins.ai_trace:AITracePlugin"
 
 [tool.hatch.version]
 path = "src/airflow/providers/common/ai/__init__.py"
@@ -199,6 +200,8 @@ exclude = [
     "src/airflow/providers/__init__.py",
     "src/airflow/providers/common/ai/plugins/www/.pnpm-store",
     "src/airflow/providers/common/ai/plugins/www/node_modules",
+    "src/airflow/providers/common/ai/plugins/ai_trace_www/.pnpm-store",
+    "src/airflow/providers/common/ai/plugins/ai_trace_www/node_modules",
 ]
 
 [tool.hatch.build.targets.custom]
@@ -206,16 +209,20 @@ path = "./hatch_build.py"
 
 artifacts = [
     "src/airflow/providers/common/ai/plugins/www/dist",
+    "src/airflow/providers/common/ai/plugins/ai_trace_www/dist",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/airflow']
 artifacts = [
     "src/airflow/providers/common/ai/plugins/www/dist",
+    "src/airflow/providers/common/ai/plugins/ai_trace_www/dist",
 ]
 exclude = [
     "src/airflow/__init__.py",
     "src/airflow/providers/__init__.py",
     "src/airflow/providers/common/ai/plugins/www/.pnpm-store",
     "src/airflow/providers/common/ai/plugins/www/node_modules",
+    "src/airflow/providers/common/ai/plugins/ai_trace_www/.pnpm-store",
+    "src/airflow/providers/common/ai/plugins/ai_trace_www/node_modules",
 ]

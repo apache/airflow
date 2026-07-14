@@ -79,6 +79,35 @@ PROVIDERS_PATHS = {
         / "www"
         / "dist",
         "hash": PROVIDERS_ROOT / "common" / "ai" / "www-hash.txt",
+        # common.ai ships two independent plugin bundles (HITL Review under
+        # ``www`` and AI Trace under ``ai_trace_www``); each is compiled with the
+        # same pnpm install + build and must be packaged, so extra bundles are
+        # listed here and built alongside the primary one.
+        "extra_bundles": [
+            {
+                "www": PROVIDERS_ROOT
+                / "common"
+                / "ai"
+                / "src"
+                / "airflow"
+                / "providers"
+                / "common"
+                / "ai"
+                / "plugins"
+                / "ai_trace_www",
+                "dist": PROVIDERS_ROOT
+                / "common"
+                / "ai"
+                / "src"
+                / "airflow"
+                / "providers"
+                / "common"
+                / "ai"
+                / "plugins"
+                / "ai_trace_www"
+                / "dist",
+            },
+        ],
     },
 }
 
@@ -106,30 +135,16 @@ INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 SKIP_PATH_REGEXPS = [".*/node_modules.*", ".*/.pnpm-store.*"]
 
 
-def compile_assets(provider_name: str):
-    if provider_name not in PROVIDERS_PATHS:
-        raise ValueError(
-            f"Provider '{provider_name}' is not supported. Supported providers: {list(PROVIDERS_PATHS.keys())}"
-        )
-    provider_paths = PROVIDERS_PATHS[provider_name]
-    www_directory = provider_paths["www"]
-    dist_directory = provider_paths["dist"]
-    provider_paths["hash"].parent.mkdir(exist_ok=True, parents=True)
-    if dist_directory.exists():
-        old_hash = provider_paths["hash"].read_text().strip() if provider_paths["hash"].exists() else ""
-        new_hash = get_directory_hash(www_directory, skip_path_regexps=SKIP_PATH_REGEXPS)
-        if new_hash == old_hash:
-            print(f"The '{www_directory}' directory has not changed! Skip regeneration.")
-            return
-        print(f"The directory has changed, regenerating assets in {www_directory}.")
-        print("Old hash: " + old_hash)
-        print("New hash: " + new_hash)
-    else:
+def _build_bundle(provider_name: str, www_directory: Path, dist_directory: Path) -> None:
+    """Run ``pnpm install --frozen-lockfile`` + ``pnpm build`` for one UI bundle."""
+    if not dist_directory.exists():
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
     for try_num in range(3):
-        print(f"### Trying to install {provider_name} dependencies: attempt: {try_num + 1} ###")
+        print(
+            f"### Trying to install {provider_name} deps in {www_directory.name}: attempt {try_num + 1} ###"
+        )
         result = subprocess.run(
             ["pnpm", "install", "--frozen-lockfile"],
             cwd=os.fspath(www_directory),
@@ -143,7 +158,35 @@ def compile_assets(provider_name: str):
             print(result.stdout + "\n" + result.stderr)
             sys.exit(result.returncode)
     subprocess.check_call(["pnpm", "build"], cwd=os.fspath(www_directory), env=env)
-    new_hash = get_directory_hash(www_directory, skip_path_regexps=SKIP_PATH_REGEXPS)
+
+
+def compile_assets(provider_name: str):
+    if provider_name not in PROVIDERS_PATHS:
+        raise ValueError(
+            f"Provider '{provider_name}' is not supported. Supported providers: {list(PROVIDERS_PATHS.keys())}"
+        )
+    provider_paths = PROVIDERS_PATHS[provider_name]
+    # A provider may ship more than one bundle (e.g. common.ai has HITL Review
+    # and AI Trace); build them all. The change hash covers every source dir so
+    # a change in any bundle triggers a rebuild of the set.
+    bundles = [{"www": provider_paths["www"], "dist": provider_paths["dist"]}]
+    bundles += provider_paths.get("extra_bundles", [])
+    provider_paths["hash"].parent.mkdir(exist_ok=True, parents=True)
+
+    all_dists_exist = all(b["dist"].exists() for b in bundles)
+    new_hash = "".join(get_directory_hash(b["www"], skip_path_regexps=SKIP_PATH_REGEXPS) for b in bundles)
+    if all_dists_exist:
+        old_hash = provider_paths["hash"].read_text().strip() if provider_paths["hash"].exists() else ""
+        if new_hash == old_hash:
+            print(f"The {provider_name!r} UI sources have not changed! Skip regeneration.")
+            return
+        print(f"The {provider_name!r} UI sources changed, regenerating all bundles.")
+        print("Old hash: " + old_hash)
+        print("New hash: " + new_hash)
+
+    for bundle in bundles:
+        _build_bundle(provider_name, bundle["www"], bundle["dist"])
+    new_hash = "".join(get_directory_hash(b["www"], skip_path_regexps=SKIP_PATH_REGEXPS) for b in bundles)
     provider_paths["hash"].write_text(new_hash + "\n")
     print(f"Assets compiled successfully. New hash: {new_hash}")
 
