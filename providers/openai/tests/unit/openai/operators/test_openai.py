@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from enum import Enum
 from unittest.mock import Mock
 
 import pytest
 from openai.types.batch import Batch
 from openai.types.responses import ParsedResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from airflow.providers.common.compat.sdk import Context, TaskDeferred
 from airflow.providers.openai.hooks.openai import OpenAIHook
@@ -111,6 +112,23 @@ class _StructuredPerson(BaseModel):
     name: str
 
 
+class _Priority(str, Enum):
+    LOW = "low"
+    HIGH = "high"
+
+
+class _StructuredTask(BaseModel):
+    """Pydantic model with an enum field — exercises ``model_dump(mode="json")``.
+
+    A plain ``enum.Enum`` field returned as a live enum instance (``model_dump``'s default
+    ``mode="python"``) is not XCom-safe: Airflow's serde only unwraps enums that mix in
+    ``str``/``int``. Using ``mode="json"`` renders the enum via its JSON representation.
+    """
+
+    title: str
+    priority: _Priority
+
+
 def test_openai_response_operator_structured_output_returns_dict():
     operator = OpenAIResponseOperator(
         task_id=TASK_ID,
@@ -141,6 +159,31 @@ def test_openai_response_operator_structured_output_returns_dict():
     mock_hook_instance.create_response.assert_not_called()
 
 
+def test_openai_response_operator_structured_output_dumps_enum_as_json():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Classify",
+        model="test_model",
+        text_format=_StructuredTask,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.parse_response.return_value = Mock(
+        spec=ParsedResponse,
+        id="resp_str_2",
+        status="completed",
+        output_parsed=_StructuredTask(title="Deploy", priority=_Priority.HIGH),
+    )
+    operator.hook = mock_hook_instance
+
+    result = operator.execute(Context())
+
+    # ``mode="json"`` renders the enum as its ``.value`` string, not the ``_Priority`` instance;
+    # this is what makes the returned dict safe to push to XCom without a serde helper.
+    assert result == {"title": "Deploy", "priority": "high"}
+    assert isinstance(result["priority"], str)
+
+
 def test_openai_response_operator_structured_output_refusal_raises():
     operator = OpenAIResponseOperator(
         task_id=TASK_ID,
@@ -155,10 +198,46 @@ def test_openai_response_operator_structured_output_refusal_raises():
         id="resp_refused",
         status="incomplete",
         output_parsed=None,
+        error="model refused",
+        incomplete_details="max_output_tokens",
     )
     operator.hook = mock_hook_instance
 
-    with pytest.raises(ValueError, match="did not produce a parseable structured output"):
+    with pytest.raises(ValueError, match="did not return a structured output") as excinfo:
+        operator.execute(Context())
+    # API-reported details are surfaced so users don't need a follow-up ``get_response`` call.
+    message = str(excinfo.value)
+    assert "status='incomplete'" in message
+    assert "error='model refused'" in message
+    assert "incomplete_details='max_output_tokens'" in message
+
+
+def test_openai_response_operator_structured_output_validation_error_raises():
+    # ``responses.parse`` raises ``pydantic.ValidationError`` when the model's JSON output
+    # can't be coerced into ``text_format`` (e.g. truncated mid-JSON on ``max_output_tokens``).
+    # The operator converts it to a ``ValueError`` so callers see one exception type across
+    # all parse failures.
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Extract: Alice",
+        model="test_model",
+        text_format=_StructuredPerson,
+    )
+    # Build a real ValidationError instance the same way the SDK's internal parse would --
+    # by feeding a payload that violates the model's schema. No public constructor exists.
+    try:
+        _StructuredPerson.model_validate({})
+    except ValidationError as real_exc:
+        validation_error = real_exc
+    else:
+        raise AssertionError("expected ValidationError when validating empty dict")
+
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.parse_response.side_effect = validation_error
+    operator.hook = mock_hook_instance
+
+    with pytest.raises(ValueError, match="does not match '_StructuredPerson'"):
         operator.execute(Context())
 
 

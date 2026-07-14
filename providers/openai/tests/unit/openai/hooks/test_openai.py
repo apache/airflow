@@ -35,6 +35,7 @@ from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from pydantic import BaseModel
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -316,8 +317,6 @@ def test_create_response(mock_openai_hook):
 
 
 def test_parse_response(mock_openai_hook):
-    from pydantic import BaseModel
-
     class Person(BaseModel):
         name: str
 

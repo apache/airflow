@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypeVar
 
 from deprecated import deprecated
 from openai import OpenAI
@@ -66,6 +66,11 @@ _ASSISTANTS_DEPRECATION_REASON = (
     "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
     "See https://platform.openai.com/docs/guides/migrate-to-responses."
 )
+
+#: Generic type variable for the Pydantic model used as the ``text_format`` in structured-output
+#: Responses API calls. Mirrors the SDK's ``TextFormatT`` so ``parse_response`` returns a
+#: ``ParsedResponse[T]`` — callers get ``output_parsed`` typed as ``T | None``.
+_TextFormatT = TypeVar("_TextFormatT", bound="BaseModel")
 
 
 class BatchStatus(str, Enum):
@@ -252,10 +257,10 @@ class OpenAIHook(BaseHook):
     def parse_response(
         self,
         input: Any,
-        text_format: type[BaseModel],
+        text_format: type[_TextFormatT],
         model: str = "gpt-4o-mini",
         **kwargs: Any,
-    ) -> ParsedResponse[Any]:
+    ) -> ParsedResponse[_TextFormatT]:
         """
         Create a model response and parse it into a Pydantic model via the Responses API.
 
@@ -266,8 +271,8 @@ class OpenAIHook(BaseHook):
 
         :param input: Text, image, or file input(s) to the model.
         :param text_format: A Pydantic ``BaseModel`` subclass describing the expected
-            structured output. Requires a model that supports structured outputs
-            (``gpt-4o-2024-08-06`` and later).
+            structured output. The SDK converts it to a JSON schema and sends the
+            structured-output request.
         :param model: ID of the model to use.
         """
         return self.conn.responses.parse(input=input, model=model, text_format=text_format, **kwargs)

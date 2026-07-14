@@ -22,6 +22,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
+from pydantic import ValidationError
+
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import OpenAIHook
@@ -88,9 +90,9 @@ class OpenAIResponseOperator(BaseOperator):
 
     By default the operator is synchronous and returns the response's aggregated output text.
     Pass ``text_format`` (a Pydantic ``BaseModel`` subclass) to request a structured output; the
-    operator then returns the parsed model as a ``dict`` (via ``model_dump()``), which is safe to
-    push to XCom. Requires a model that supports structured outputs (``gpt-4o-2024-08-06`` and
-    later). For ``previous_response_id`` chaining or ``background=True`` responses, use
+    operator then returns the parsed model as a ``dict`` (via ``model_dump(mode="json")``), which
+    is safe to push to XCom regardless of the field types the model uses (enums, dates, etc. are
+    rendered as their JSON representations). For ``background=True`` responses, use
     :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
     :param conn_id: The OpenAI connection ID to use.
@@ -102,8 +104,8 @@ class OpenAIResponseOperator(BaseOperator):
         ``tools``, ``conversation`` or ``previous_response_id``.
     :param text_format: Optional. A Pydantic ``BaseModel`` subclass describing the expected
         structured output. When set, the operator calls ``parse_response`` and returns
-        ``output_parsed.model_dump()``; otherwise it calls ``create_response`` and returns
-        ``output_text``.
+        ``output_parsed.model_dump(mode="json")``; otherwise it calls ``create_response`` and
+        returns ``output_text``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -137,22 +139,38 @@ class OpenAIResponseOperator(BaseOperator):
 
     def execute(self, context: Context) -> str | dict[str, Any]:
         if self.text_format is not None:
-            parsed = self.hook.parse_response(
-                input=self.input_text,
-                model=self.model,
-                text_format=self.text_format,
-                **self.response_kwargs,
-            )
+            try:
+                parsed = self.hook.parse_response(
+                    input=self.input_text,
+                    model=self.model,
+                    text_format=self.text_format,
+                    **self.response_kwargs,
+                )
+            except ValidationError as exc:
+                # ``responses.parse`` raises ``ValidationError`` when the model's JSON output
+                # can't be coerced into ``text_format`` — most commonly because the response
+                # was truncated (e.g. ``max_output_tokens`` hit) mid-JSON. Convert to a clean
+                # ``ValueError`` so callers see a consistent shape across all parse failures.
+                raise ValueError(
+                    f"OpenAI Responses API returned a payload that does not match "
+                    f"{self.text_format.__name__!r}: {exc}"
+                ) from exc
+
             self.log.info("Generated response %s", parsed.id)
             if parsed.output_parsed is None:
                 # No structured output — the model refused, the request errored, or the response
-                # was truncated. Surface a clear error so downstream tasks don't get None.
+                # was incomplete. Surface a clear error so downstream tasks don't get ``None``,
+                # and include what the API already told us so the user does not need a follow-up
+                # ``OpenAIHook.get_response`` call.
+                details: list[str] = [f"status={parsed.status!r}"]
+                if parsed.error is not None:
+                    details.append(f"error={parsed.error!r}")
+                if parsed.incomplete_details is not None:
+                    details.append(f"incomplete_details={parsed.incomplete_details!r}")
                 raise ValueError(
-                    f"Response {parsed.id} did not produce a parseable structured output "
-                    f"(status={parsed.status!r}). Inspect the response via OpenAIHook.get_response "
-                    f"for refusal / error details."
+                    f"Response {parsed.id} did not return a structured output ({', '.join(details)})."
                 )
-            return parsed.output_parsed.model_dump()
+            return parsed.output_parsed.model_dump(mode="json")
         response = self.hook.create_response(input=self.input_text, model=self.model, **self.response_kwargs)
         if response.status != "completed":
             self.log.warning(

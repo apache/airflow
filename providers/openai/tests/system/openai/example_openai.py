@@ -118,8 +118,6 @@ def example_openai_dag():
     OpenAIResponseOperator(
         task_id="openai_response_structured",
         conn_id="openai_default",
-        # Structured outputs require a compatible model (gpt-4o-2024-08-06 or later).
-        model="gpt-4o-2024-08-06",
         input_text="Extract the name and age from: 'Alice is 30 years old'.",
         text_format=Person,
     )
