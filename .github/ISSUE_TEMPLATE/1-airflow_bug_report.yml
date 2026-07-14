@@ -115,6 +115,7 @@ body:
         - akeyless
         - alibaba
         - amazon
+        - anthropic
         - apache-beam
         - apache-cassandra
         - apache-drill
@@ -136,11 +137,13 @@ body:
         - asana
         - atlassian-jira
         - celery
+        - clickhousedb
         - cloudant
         - cncf-kubernetes
         - cohere
         - common-ai
         - common-compat
+        - common-dataquality
         - common-io
         - common-messaging
         - common-sql
@@ -227,7 +230,8 @@ body:
       multiple: false
       options:
         - "Not Applicable"
-        - "1.21.0 (latest released)"
+        - "1.22.0 (latest released)"
+        - "1.21.0"
         - "1.20.0"
         - "1.19.0"
         - "1.18.0"

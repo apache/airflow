@@ -30,12 +30,16 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1779137949
+source-date-epoch: 1783356304
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 22.2.2
+  - 22.2.1
+  - 22.2.0
+  - 22.1.0
   - 22.0.0
   - 21.3.0
   - 21.2.0
@@ -612,6 +616,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
       - airflow.providers.google.cloud.operators.vertex_ai.feature_store
       - airflow.providers.google.cloud.operators.vertex_ai.ray
+      - airflow.providers.google.cloud.operators.vertex_ai.agent_engine
   - integration-name: Google Data Studio
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -898,6 +903,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
       - airflow.providers.google.cloud.hooks.vertex_ai.feature_store
+      - airflow.providers.google.cloud.hooks.vertex_ai.agent_engine
       - airflow.providers.google.cloud.hooks.vertex_ai.ray
   - integration-name: Google Data Studio
     python-modules:
@@ -1009,6 +1015,10 @@ transfers:
   - source-integration-name: Apache Cassandra
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.cassandra_to_gcs
+  - source-integration-name: MongoDB
+    target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/mongo_to_gcs.rst
+    python-module: airflow.providers.google.cloud.transfers.mongo_to_gcs
   - source-integration-name: Google Calendar
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/calendar_to_gcs.rst

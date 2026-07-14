@@ -25,7 +25,8 @@ dayjs.extend(dayjsDuration);
 dayjs.extend(relativeTime);
 dayjs.extend(tz);
 
-export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
+export const DATE_FORMAT = "YYYY-MM-DD";
+export const DEFAULT_DATETIME_FORMAT = `${DATE_FORMAT} HH:mm:ss`;
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
 export const renderDuration = (

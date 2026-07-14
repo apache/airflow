@@ -20,7 +20,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from requests import Response, Session
+from requests.exceptions import SSLError
 
+from airflow.models import Connection
 from airflow.providers.informatica.hooks.edc import InformaticaEDCError, InformaticaEDCHook
 
 
@@ -32,7 +35,7 @@ def hook():
 @patch("airflow.providers.informatica.hooks.edc.HttpHook.get_connection")
 def test_config_property_and_build_connection_config(mock_get_connection, hook):
     """Test config property and _build_connection_config method."""
-    mock_conn = MagicMock()
+    mock_conn = MagicMock(spec=Connection)
     mock_conn.host = "testhost"
     mock_conn.schema = "https"
     mock_conn.port = 443
@@ -61,7 +64,7 @@ def test_config_property_and_build_connection_config(mock_get_connection, hook):
 @patch("airflow.providers.informatica.hooks.edc.HttpHook.get_conn")
 def test_get_conn_headers_and_verify(mock_get_conn, mock_get_connection, hook):
     """Test get_conn sets headers and verify."""
-    mock_conn = MagicMock()
+    mock_conn = MagicMock(spec=Connection)
     mock_conn.host = "testhost"
     mock_conn.schema = "https"
     mock_conn.port = 443
@@ -69,7 +72,7 @@ def test_get_conn_headers_and_verify(mock_get_conn, mock_get_connection, hook):
     mock_conn.password = "pass"
     mock_conn.extra_dejson = {"verify_ssl": True}
     mock_get_connection.return_value = mock_conn
-    mock_session = MagicMock()
+    mock_session = MagicMock(spec=Session)
     mock_session.headers = {}
     mock_get_conn.return_value = mock_session
     session = hook.get_conn()
@@ -91,8 +94,8 @@ def test_build_url(hook):
 @patch("airflow.providers.informatica.hooks.edc.InformaticaEDCHook.get_conn")
 def test_request_success_and_error(mock_get_conn, hook):
     """Test _request method for success and error cases."""
-    mock_session = MagicMock()
-    mock_response = MagicMock()
+    mock_session = MagicMock(spec=Session)
+    mock_response = MagicMock(spec=Response)
     mock_response.ok = True
     mock_response.status_code = 200
     mock_response.text = ""
@@ -112,6 +115,20 @@ def test_request_success_and_error(mock_get_conn, hook):
         InformaticaEDCError, match="Informatica EDC request to endpoint returned 400: Bad Request"
     ):
         hook._request("GET", "endpoint")
+
+
+@patch("airflow.providers.informatica.hooks.edc.InformaticaEDCHook.get_conn")
+def test_request_ssl_error_raises_without_http_fallback(mock_get_conn, hook):
+    """Test _request raises on SSL errors and does not retry over HTTP."""
+    mock_session = MagicMock(spec=Session)
+    mock_session.request.side_effect = SSLError("[SSL: WRONG_VERSION_NUMBER] wrong version number")
+    mock_get_conn.return_value = mock_session
+    hook._config = MagicMock(base_url="https://informatica_sim:8082", request_timeout=10)
+
+    with pytest.raises(InformaticaEDCError, match="Failed to call Informatica EDC endpoint /access"):
+        hook._request("GET", "/access")
+
+    assert mock_session.request.call_count == 1
 
 
 def test_encode_id(hook):
@@ -154,3 +171,67 @@ def test_create_lineage_link(mock_request, hook):
 def test_close_session(hook):
     """Test close_session does nothing (no-op)."""
     assert hook.close_session() is None
+
+
+@patch("airflow.providers.informatica.hooks.edc.InformaticaEDCHook._search")
+def test_search_database_prefers_database_hits(mock_search, hook):
+    """Database hit should be returned without fallback search."""
+    mock_search.return_value = {"hits": [{"id": "db_1"}]}
+
+    result = hook.search_database("my_db")
+
+    assert result == {"hits": [{"id": "db_1"}]}
+    mock_search.assert_called_once_with(
+        **{"core.classType": "com.infa.ldm.relational.Database", "core.name": "my_db"}
+    )
+
+
+@patch("airflow.providers.informatica.hooks.edc.InformaticaEDCHook._search")
+def test_search_database_falls_back_to_database_server(mock_search, hook):
+    """DatabaseServer fallback should be used when Database search has no hits."""
+    mock_search.side_effect = [{"hits": []}, {"hits": [{"id": "db_server_1"}]}]
+
+    result = hook.search_database("my_db")
+
+    assert result == {"hits": [{"id": "db_server_1"}]}
+    assert mock_search.call_count == 2
+
+
+@patch("airflow.providers.informatica.hooks.edc.InformaticaEDCHook._search")
+def test_search_schema_prefers_schema_hits(mock_search, hook):
+    """Schema hit should be returned without fallback search."""
+    mock_search.return_value = {"hits": [{"id": "schema_1"}]}
+
+    result = hook.search_schema("public")
+
+    assert result == {"hits": [{"id": "schema_1"}]}
+    mock_search.assert_called_once_with(
+        **{"core.classType": "com.infa.ldm.relational.Schema", "core.name": "public"}
+    )
+
+
+@patch("airflow.providers.informatica.hooks.edc.InformaticaEDCHook._search")
+def test_search_schema_falls_back_to_database_schema(mock_search, hook):
+    """DatabaseSchema fallback should be used when Schema search has no hits."""
+    mock_search.side_effect = [{"hits": []}, {"hits": [{"id": "db_schema_1"}]}]
+
+    result = hook.search_schema("public")
+
+    assert result == {"hits": [{"id": "db_schema_1"}]}
+    assert mock_search.call_count == 2
+
+
+@patch("airflow.providers.informatica.hooks.edc.InformaticaEDCHook._search")
+def test_search_table_queries_table_and_view(mock_search, hook):
+    """Table search should query both Table and View class types."""
+    mock_search.return_value = {"hits": [{"id": "table_or_view_1"}]}
+
+    result = hook.search_table("orders")
+
+    assert result == {"hits": [{"id": "table_or_view_1"}]}
+    mock_search.assert_called_once_with(
+        **{
+            "core.classType": "com.infa.ldm.relational.Table OR core.classType:com.infa.ldm.relational.View",
+            "core.name": "orders",
+        }
+    )

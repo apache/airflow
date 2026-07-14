@@ -42,7 +42,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -50,7 +50,7 @@ paths:
             \ possible."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -79,6 +79,20 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: uri
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: Exact-match filter on the full asset URI. Compiles to an indexed
+            equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+            to match multiple assets.
+          title: Uri
+        description: Exact-match filter on the full asset URI. Compiles to an indexed
+          equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+          to match multiple assets.
       - name: uri_pattern
         in: query
         required: false
@@ -87,7 +101,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -95,7 +109,7 @@ paths:
             \ possible."
           title: Uri Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -221,7 +235,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -229,7 +243,7 @@ paths:
             \ possible."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -441,7 +455,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -449,7 +463,7 @@ paths:
             \ possible."
           title: Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -478,6 +492,18 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: extra
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+            (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
+          title: Extra
+        description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+          (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
       - name: timestamp_gte
         in: query
         required: false
@@ -1161,6 +1187,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -1420,6 +1452,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -1589,6 +1627,102 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/connections/enqueue-test:
+    get:
+      tags:
+      - Connection
+      summary: Get Connection Test
+      description: Poll for the status of an enqueued connection test by its token
+        (passed as a header).
+      operationId: get_connection_test
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: Airflow-Connection-Test-Token
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Airflow-Connection-Test-Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncConnectionTestResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Connection
+      summary: Enqueue Connection Test
+      description: Enqueue a connection test for deferred execution on a worker; returns
+        a polling token.
+      operationId: enqueue_connection_test
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionTestRequestBody'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestQueuedResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
   /api/v2/connections:
     get:
       tags:
@@ -1640,7 +1774,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -1648,7 +1782,7 @@ paths:
             \ when possible."
           title: Connection Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -2057,7 +2191,7 @@ paths:
       tags:
       - DagRun
       summary: Bulk Dag Runs
-      description: Bulk delete Dag Runs.
+      description: Bulk update or delete Dag Runs.
       operationId: bulk_dag_runs
       security:
       - OAuth2PasswordBearer: []
@@ -2444,7 +2578,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -2452,7 +2586,7 @@ paths:
             \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -2489,7 +2623,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -2497,7 +2631,7 @@ paths:
             \ parameter when possible."
           title: Triggering User Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -2535,7 +2669,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -2543,7 +2677,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -2580,15 +2714,15 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
-            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
-            \ the database from using B-tree indexes, which can be very slow on large\
+            \ The pipe `|` is matched literally, not as an OR separator. Regular expressions\
+            \ are **not** supported. \n\n**Performance note:** this full-match pattern\
+            \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the\
+            \ database from using B-tree indexes, which can be very slow on large\
             \ tables. Prefer the equivalent ``partition_key_prefix_pattern`` parameter\
             \ when possible."
           title: Partition Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ The pipe `|` is matched literally, not as an OR separator. Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -2601,17 +2735,17 @@ paths:
           - type: string
           - type: 'null'
           description: "Prefix match \u2014 returns items whose value starts with\
-            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
-            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
-            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ the given string (case-sensitive, index-friendly). The pipe `|` is part\
+            \ of the prefix, not an OR separator. Use `~` to match all. Wildcard characters\
+            \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
             \ characters in the prefix are stripped before matching so the range scan\
             \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
             \ effectively matches items starting with `test`, and `s3://` matches\
             \ items starting with `s3`."
           title: Partition Key Prefix Pattern
         description: "Prefix match \u2014 returns items whose value starts with the\
-          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
-          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ given string (case-sensitive, index-friendly). The pipe `|` is part of\
+          \ the prefix, not an OR separator. Use `~` to match all. Wildcard characters\
           \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
           \ characters in the prefix are stripped before matching so the range scan\
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
@@ -2884,9 +3018,13 @@ paths:
             items:
               type: string
           - type: 'null'
-          description: Collect result XCom from task. Can be set multiple times.
+          description: Collect result XCom from task. Can be set multiple times. If
+            unset, return value of the return task as specified in the dag (in present)
+            is returned by default.
           title: Result
-        description: Collect result XCom from task. Can be set multiple times.
+        description: Collect result XCom from task. Can be set multiple times. If
+          unset, return value of the return task as specified in the dag (in present)
+          is returned by default.
       responses:
         '200':
           description: Successful Response
@@ -3013,6 +3151,66 @@ paths:
                 - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
                 - $ref: '#/components/schemas/DAGRunCollectionResponse'
                 title: Response Clear Dag Runs
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/clearPartitions:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Run Partitions
+      description: Reset partition_key and partition_date fields on matching Dag Runs.
+      operationId: clear_dag_run_partitions
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearPartitionsBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClearPartitionsResponse'
         '401':
           content:
             application/json:
@@ -3491,7 +3689,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -3499,7 +3697,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -3536,7 +3734,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -3544,7 +3742,7 @@ paths:
             \ when possible."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -3861,7 +4059,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -3869,7 +4067,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -4471,7 +4669,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -4479,7 +4677,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -4492,7 +4690,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -4500,7 +4698,7 @@ paths:
             \ possible."
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -4513,7 +4711,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -4521,7 +4719,7 @@ paths:
             \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -4534,7 +4732,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -4542,7 +4740,7 @@ paths:
             \ possible."
           title: Owner Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -4555,7 +4753,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -4563,7 +4761,7 @@ paths:
             \ possible."
           title: Event Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -4888,7 +5086,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -4896,7 +5094,7 @@ paths:
             \ when possible."
           title: Filename Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -4925,6 +5123,30 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: filename
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Exact filename match. Returns only the import error for this
+            specific file path.
+          title: Filename
+        description: Exact filename match. Returns only the import error for this
+          specific file path.
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Exact bundle name match. Returns only import errors from this
+            specific bundle.
+          title: Bundle Name
+        description: Exact bundle name match. Returns only import errors from this
+          specific bundle.
       responses:
         '200':
           description: Successful Response
@@ -5433,7 +5655,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -5441,7 +5663,7 @@ paths:
             \ when possible."
           title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -5633,13 +5855,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/assets/{asset_id}/store:
+  /api/v2/assets/{asset_id}/state-store:
     get:
       tags:
-      - Asset Store
-      summary: List Asset Store
-      description: List all store entries for an asset.
-      operationId: list_asset_store
+      - Asset State Store
+      summary: List Asset State Store
+      description: List all state store entries for an asset.
+      operationId: list_asset_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5672,7 +5894,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssetStoreCollectionResponse'
+                $ref: '#/components/schemas/AssetStateStoreCollectionResponse'
         '401':
           content:
             application/json:
@@ -5699,10 +5921,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Asset Store
-      summary: Clear Asset Store
-      description: Delete all store keys for an asset.
-      operationId: clear_asset_store
+      - Asset State Store
+      summary: Clear Asset State Store
+      description: Delete all state store keys for an asset.
+      operationId: clear_asset_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5740,13 +5962,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/assets/{asset_id}/store/{key}:
+  /api/v2/assets/{asset_id}/state-store/{key}:
     get:
       tags:
-      - Asset Store
-      summary: Get Asset Store
-      description: Get a single asset store entry.
-      operationId: get_asset_store
+      - Asset State Store
+      summary: Get Asset State Store
+      description: Get a single asset state store entry.
+      operationId: get_asset_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5769,7 +5991,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssetStoreResponse'
+                $ref: '#/components/schemas/AssetStateStoreResponse'
         '401':
           content:
             application/json:
@@ -5796,10 +6018,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     put:
       tags:
-      - Asset Store
-      summary: Set Asset Store
-      description: Set an asset store value. Creates or overwrites the key.
-      operationId: set_asset_store
+      - Asset State Store
+      summary: Set Asset State Store
+      description: Set an asset state store value. Creates or overwrites the key.
+      operationId: set_asset_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5821,7 +6043,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssetStoreBody'
+              $ref: '#/components/schemas/AssetStateStoreBody'
       responses:
         '204':
           description: Successful Response
@@ -5851,10 +6073,11 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Asset Store
-      summary: Delete Asset Store
-      description: Delete a single asset store key. No-op if the key does not exist.
-      operationId: delete_asset_store
+      - Asset State Store
+      summary: Delete Asset State Store
+      description: Delete a single asset state store key. No-op if the key does not
+        exist.
+      operationId: delete_asset_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5898,13 +6121,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store:
     get:
       tags:
-      - Task Store
-      summary: List Task Store
-      description: List all task store entries for a task instance.
-      operationId: list_task_store
+      - Task State Store
+      summary: List Task State Store
+      description: List all task state store entries for a task instance.
+      operationId: list_task_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5957,7 +6180,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskStoreCollectionResponse'
+                $ref: '#/components/schemas/TaskStateStoreCollectionResponse'
         '401':
           content:
             application/json:
@@ -5984,16 +6207,16 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Task Store
-      summary: Clear Task Store
-      description: 'Delete all task store keys for a task instance.
+      - Task State Store
+      summary: Clear Task State Store
+      description: 'Delete all task state store keys for a task instance.
 
 
-        When ``all_map_indices=true``, store is cleared for every map index of the
-        task and
+        When ``all_map_indices=true``, state store is cleared for every map index
+        of the task and
 
         the ``map_index`` parameter is ignored.'
-      operationId: clear_task_store
+      operationId: clear_task_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6058,13 +6281,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}:
     get:
       tags:
-      - Task Store
-      summary: Get Task Store
-      description: Get a single task store entry.
-      operationId: get_task_store
+      - Task State Store
+      summary: Get Task State Store
+      description: Get a single task state store entry.
+      operationId: get_task_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6107,7 +6330,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskStoreResponse'
+                $ref: '#/components/schemas/TaskStateStoreResponse'
         '401':
           content:
             application/json:
@@ -6134,10 +6357,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     put:
       tags:
-      - Task Store
-      summary: Set Task Store
-      description: Set a task store value. Creates or overwrites the key.
-      operationId: set_task_store
+      - Task State Store
+      summary: Set Task State Store
+      description: Set a task state store value. Creates or overwrites the key.
+      operationId: set_task_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6179,7 +6402,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskStoreBody'
+              $ref: '#/components/schemas/TaskStateStoreBody'
       responses:
         '204':
           description: Successful Response
@@ -6209,10 +6432,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     patch:
       tags:
-      - Task Store
-      summary: Patch Task Store
-      description: Update the value of an existing task store key.
-      operationId: patch_task_store
+      - Task State Store
+      summary: Patch Task State Store
+      description: Update the value of an existing task state store key.
+      operationId: patch_task_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6254,7 +6477,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskStorePatchBody'
+              $ref: '#/components/schemas/TaskStateStorePatchBody'
       responses:
         '200':
           description: Successful Response
@@ -6287,10 +6510,11 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
-      - Task Store
-      summary: Delete Task Store
-      description: Delete a single task store key. No-op if the key does not exist.
-      operationId: delete_task_store
+      - Task State Store
+      summary: Delete Task State Store
+      description: Delete a single task state store key. No-op if the key does not
+        exist.
+      operationId: delete_task_state_store
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -6677,7 +6901,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -6685,7 +6909,7 @@ paths:
             \ when possible."
           title: Xcom Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -6722,7 +6946,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -6730,7 +6954,7 @@ paths:
             \ when possible."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -6767,7 +6991,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -6775,7 +6999,7 @@ paths:
             \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -6812,7 +7036,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -6820,7 +7044,7 @@ paths:
             \ possible."
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -7542,7 +7766,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -7550,7 +7774,7 @@ paths:
             \ when possible."
           title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -7595,7 +7819,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -7603,7 +7827,7 @@ paths:
             \ when possible."
           title: Queue Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -7672,7 +7896,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -7680,7 +7904,7 @@ paths:
             \ when possible."
           title: Operator Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -7725,7 +7949,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -7733,7 +7957,7 @@ paths:
             \ parameter when possible."
           title: Rendered Map Index Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -7788,16 +8012,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            run_after, logical_date, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, run_after, logical_date,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -8543,7 +8765,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -8551,7 +8773,7 @@ paths:
             \ when possible."
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -8598,7 +8820,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -8606,7 +8828,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -8643,7 +8865,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -8651,7 +8873,7 @@ paths:
             \ possible."
           title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -8704,7 +8926,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -8712,7 +8934,7 @@ paths:
             \ when possible."
           title: Pool Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -8757,7 +8979,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -8765,7 +8987,7 @@ paths:
             \ when possible."
           title: Queue Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -8834,7 +9056,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -8842,7 +9064,7 @@ paths:
             \ when possible."
           title: Operator Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -8887,7 +9109,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -8895,7 +9117,7 @@ paths:
             \ parameter when possible."
           title: Rendered Map Index Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -8950,16 +9172,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            logical_date, run_after, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, logical_date, run_after,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -9987,7 +10207,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -9995,7 +10215,7 @@ paths:
             \ when possible."
           title: Variable Key Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -10419,7 +10639,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -10427,7 +10647,7 @@ paths:
             \ when possible."
           title: Tag Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -10923,7 +11143,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -10931,7 +11151,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -10976,7 +11196,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -10984,7 +11204,7 @@ paths:
             \ possible."
           title: Task Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -11061,14 +11281,14 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
             \ tables. Prefer the equivalent ``subject_search`` parameter when possible."
           title: Subject Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -11081,14 +11301,14 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
             \ tables. Prefer the equivalent ``body_search`` parameter when possible."
           title: Body Search
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -11338,6 +11558,23 @@ components:
       - total_entries
       title: AssetCollectionResponse
       description: Asset collection response.
+    AssetEventAccessControl:
+      properties:
+        consumer_teams:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Consumer Teams
+        allow_global:
+          type: boolean
+          title: Allow Global
+          default: true
+      additionalProperties: false
+      type: object
+      title: AssetEventAccessControl
+      description: Access control settings for asset event consumer team filtering.
     AssetEventCollectionResponse:
       properties:
         asset_events:
@@ -11425,6 +11662,123 @@ components:
       - timestamp
       title: AssetEventResponse
       description: Asset event serializer for responses.
+    AssetExpressionAlias:
+      properties:
+        alias:
+          $ref: '#/components/schemas/AssetExpressionAliasInfo'
+      type: object
+      required:
+      - alias
+      title: AssetExpressionAlias
+      description: 'An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.'
+    AssetExpressionAliasInfo:
+      properties:
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+      type: object
+      required:
+      - name
+      - group
+      title: AssetExpressionAliasInfo
+      description: Body of an ``alias`` leaf node.
+    AssetExpressionAll:
+      properties:
+        all:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: All
+      type: object
+      required:
+      - all
+      title: AssetExpressionAll
+      description: 'An "and" node: ``{"all": [...]}`` -- satisfied when all children
+        are satisfied.'
+    AssetExpressionAny:
+      properties:
+        any:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: Any
+      type: object
+      required:
+      - any
+      title: AssetExpressionAny
+      description: 'An "or" node: ``{"any": [...]}`` -- satisfied when any child is
+        satisfied.'
+    AssetExpressionAsset:
+      properties:
+        asset:
+          $ref: '#/components/schemas/AssetExpressionAssetInfo'
+      type: object
+      required:
+      - asset
+      title: AssetExpressionAsset
+      description: 'An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group":
+        ...}}``.'
+    AssetExpressionAssetInfo:
+      properties:
+        uri:
+          type: string
+          title: Uri
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+        id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Id
+      type: object
+      required:
+      - uri
+      - name
+      - group
+      title: AssetExpressionAssetInfo
+      description: 'Body of an ``asset`` leaf node.
+
+
+        ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when
+        the expression is
+
+        persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``.
+        It is left
+
+        optional so a row persisted before id-enrichment (or migrated from the pre-3.0
+        dataset format)
+
+        degrades gracefully instead of failing response validation.'
+    AssetExpressionRef:
+      properties:
+        asset_ref:
+          additionalProperties:
+            type: string
+          type: object
+          title: Asset Ref
+      type: object
+      required:
+      - asset_ref
+      title: AssetExpressionRef
+      description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}``
+        or ``{"asset_ref": {"uri": ...}}``.'
     AssetResponse:
       properties:
         id:
@@ -11498,7 +11852,7 @@ components:
       - watchers
       title: AssetResponse
       description: Asset serializer for responses.
-    AssetStoreBody:
+    AssetStateStoreBody:
       properties:
         value:
           $ref: '#/components/schemas/JsonValue'
@@ -11506,25 +11860,54 @@ components:
       type: object
       required:
       - value
-      title: AssetStoreBody
-      description: Request body for setting an asset store value.
-    AssetStoreCollectionResponse:
+      title: AssetStateStoreBody
+      description: Request body for setting an asset state store value.
+    AssetStateStoreCollectionResponse:
       properties:
-        asset_store:
+        asset_state_store:
           items:
-            $ref: '#/components/schemas/AssetStoreResponse'
+            $ref: '#/components/schemas/AssetStateStoreResponse'
           type: array
-          title: Asset Store
+          title: Asset State Store
         total_entries:
           type: integer
           title: Total Entries
       type: object
       required:
-      - asset_store
+      - asset_state_store
       - total_entries
-      title: AssetStoreCollectionResponse
-      description: All asset store entries for an asset.
-    AssetStoreResponse:
+      title: AssetStateStoreCollectionResponse
+      description: All asset state store entries for an asset.
+    AssetStateStoreLastUpdatedBy:
+      properties:
+        kind:
+          $ref: '#/components/schemas/AssetStateStoreWriterKind'
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+        map_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
+      type: object
+      required:
+      - kind
+      title: AssetStateStoreLastUpdatedBy
+      description: Writer info for the last write to an asset state store entry.
+    AssetStateStoreResponse:
       properties:
         key:
           type: string
@@ -11535,13 +11918,28 @@ components:
           type: string
           format: date-time
           title: Updated At
+        last_updated_by:
+          anyOf:
+          - $ref: '#/components/schemas/AssetStateStoreLastUpdatedBy'
+          - type: 'null'
       type: object
       required:
       - key
       - value
       - updated_at
-      title: AssetStoreResponse
-      description: A single asset store key/value pair with metadata.
+      title: AssetStateStoreResponse
+      description: A single asset state store key/value pair with metadata.
+    AssetStateStoreWriterKind:
+      type: string
+      enum:
+      - task
+      - watcher
+      - api
+      title: AssetStateStoreWriterKind
+      description: "Identifies what kind of writer last updated an asset state store\
+        \ entry.\n\n``TASK`` \u2014 written by a task via the execution API.\n``WATCHER``\
+        \ \u2014 written by a ``BaseEventTrigger`` (no task instance).\n``API`` \u2014\
+        \ written directly through the Core API (e.g. manual admin write)."
     AssetWatcherResponse:
       properties:
         name:
@@ -11561,6 +11959,35 @@ components:
       - created_date
       title: AssetWatcherResponse
       description: Asset watcher serializer for responses.
+    AsyncConnectionTestResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+        result_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Message
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      - created_at
+      title: AsyncConnectionTestResponse
+      description: Response returned when polling for the status of an enqueued connection
+        test.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -11940,14 +12367,49 @@ components:
           - type: string
           - type: 'null'
           title: Dag Id
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunMutableStates'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
       additionalProperties: false
       type: object
       required:
       - dag_run_id
       title: BulkDAGRunBody
-      description: Request body for bulk delete operations on Dag Runs.
+      description: Request body for bulk operations on Dag Runs.
     BulkDAGRunClearBody:
       properties:
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+          description: Select runs by exact partition key match. Mutually exclusive
+            with the other partition selectors.
+        partition_date_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Start
+          description: Inclusive start of the partition date window. The value is
+            interpreted in the Dag's timetable timezone. Mutually exclusive with the
+            other partition selectors.
+        partition_date_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date End
+          description: Inclusive end of the partition date window. The value is interpreted
+            in the Dag's timetable timezone. Mutually exclusive with the other partition
+            selectors.
         dry_run:
           type: boolean
           title: Dry Run
@@ -11981,12 +12443,9 @@ components:
           items:
             $ref: '#/components/schemas/BulkDAGRunBody'
           type: array
-          minItems: 1
           title: Dag Runs
       additionalProperties: false
       type: object
-      required:
-      - dag_runs
       title: BulkDAGRunClearBody
       description: Request body for the bulk clear Dag Runs endpoint.
     BulkDeleteAction_BulkDAGRunBody_:
@@ -12354,6 +12813,73 @@ components:
       - action
       - entities
       title: BulkUpdateAction[VariableBody]
+    ClearPartitionsBody:
+      properties:
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+          description: Select runs by exact partition key match. Mutually exclusive
+            with the other partition selectors.
+        partition_date_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Start
+          description: Inclusive start of the partition date window. The value is
+            interpreted in the Dag's timetable timezone. Mutually exclusive with the
+            other partition selectors.
+        partition_date_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date End
+          description: Inclusive end of the partition date window. The value is interpreted
+            in the Dag's timetable timezone. Mutually exclusive with the other partition
+            selectors.
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+          description: Select runs by exact run_id. Mutually exclusive with ``partition_key``
+            and partition date window.
+        clear_task_instances:
+          type: boolean
+          title: Clear Task Instances
+          description: Also clear task instances on the matched runs.
+          default: false
+        dry_run:
+          type: boolean
+          title: Dry Run
+          description: If True, compute counts without writing any changes.
+          default: true
+      additionalProperties: false
+      type: object
+      title: ClearPartitionsBody
+      description: 'Request body for the clearPartitions endpoint (column-reset: set
+        partition fields to None).'
+    ClearPartitionsResponse:
+      properties:
+        dag_runs_cleared:
+          type: integer
+          title: Dag Runs Cleared
+        task_instances_cleared:
+          type: integer
+          title: Task Instances Cleared
+        dry_run:
+          type: boolean
+          title: Dry Run
+      type: object
+      required:
+      - dag_runs_cleared
+      - task_instances_cleared
+      - dry_run
+      title: ClearPartitionsResponse
+      description: Response for the clearPartitions endpoint.
     ClearTaskInstanceCollectionResponse:
       properties:
         task_instances:
@@ -12652,6 +13178,108 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionTestQueuedResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      title: ConnectionTestQueuedResponse
+      description: Response returned when a connection test has been enqueued for
+        worker execution.
+    ConnectionTestRequestBody:
+      properties:
+        connection_id:
+          type: string
+          maxLength: 200
+          pattern: ^[\w.-]+$
+          title: Connection Id
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
+        commit_on_success:
+          type: boolean
+          title: Commit On Success
+          description: If True, save or update the connection in the connection table
+            when the test succeeds.
+          default: false
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+          description: Executor name to dispatch the connection test to.
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+          description: Worker queue to route the connection test to (executor-dependent).
+      additionalProperties: false
+      type: object
+      required:
+      - connection_id
+      - conn_type
+      title: ConnectionTestRequestBody
+      description: 'Request body for enqueueing a connection test on a worker.
+
+
+        Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+
+        ``team_name`` handling from ``ConnectionBody`` so tested connections share
+
+        the same input contract as persisted ones.'
     ConnectionTestResponse:
       properties:
         status:
@@ -12665,7 +13293,7 @@ components:
       - status
       - message
       title: ConnectionTestResponse
-      description: Connection Test serializer for responses.
+      description: Connection Test serializer for synchronous test responses.
     CreateAssetEventsBody:
       properties:
         asset_id:
@@ -12674,12 +13302,18 @@ components:
         partition_key:
           anyOf:
           - type: string
+            maxLength: 250
+            pattern: \S
           - type: 'null'
           title: Partition Key
         extra:
           additionalProperties: true
           type: object
           title: Extra
+        access_control:
+          anyOf:
+          - $ref: '#/components/schemas/AssetEventAccessControl'
+          - type: 'null'
       additionalProperties: false
       type: object
       required:
@@ -12749,7 +13383,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -12841,8 +13477,12 @@ components:
           title: Dag Run Timeout
         asset_expression:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
           - type: 'null'
           title: Asset Expression
         doc_md:
@@ -13052,7 +13692,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -13376,6 +14018,12 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        partition_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date
       type: object
       required:
       - dag_run_id
@@ -13399,6 +14047,7 @@ components:
       - bundle_version
       - dag_display_name
       - partition_key
+      - partition_date
       title: DAGRunResponse
       description: Dag Run serializer for responses.
     DAGRunsBatchBody:
@@ -13921,6 +14570,7 @@ components:
       type: string
       enum:
       - asset conflict
+      - duplicate dag id
       - non-existent pool
       - runtime varying value
       title: DagWarningType
@@ -14624,6 +15274,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -15596,6 +16251,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
@@ -16006,7 +16662,7 @@ components:
       - extra_links
       title: TaskResponse
       description: Task serializer for responses.
-    TaskStoreBody:
+    TaskStateStoreBody:
       properties:
         value:
           $ref: '#/components/schemas/JsonValue'
@@ -16023,8 +16679,8 @@ components:
       type: object
       required:
       - value
-      title: TaskStoreBody
-      description: 'Request body for setting a task store value.
+      title: TaskStateStoreBody
+      description: 'Request body for setting a task state store value.
 
 
         ``expires_at`` controls expiry:
@@ -16035,23 +16691,23 @@ components:
         - ``null``: never expire.
 
         - aware datetime: expire at that time.'
-    TaskStoreCollectionResponse:
+    TaskStateStoreCollectionResponse:
       properties:
-        task_store:
+        task_state_store:
           items:
-            $ref: '#/components/schemas/TaskStoreResponse'
+            $ref: '#/components/schemas/TaskStateStoreResponse'
           type: array
-          title: Task Store
+          title: Task State Store
         total_entries:
           type: integer
           title: Total Entries
       type: object
       required:
-      - task_store
+      - task_state_store
       - total_entries
-      title: TaskStoreCollectionResponse
-      description: All task store entries for a task instance.
-    TaskStorePatchBody:
+      title: TaskStateStoreCollectionResponse
+      description: All task state store entries for a task instance.
+    TaskStateStorePatchBody:
       properties:
         value:
           $ref: '#/components/schemas/JsonValue'
@@ -16059,10 +16715,10 @@ components:
       type: object
       required:
       - value
-      title: TaskStorePatchBody
-      description: Request body for patching only the value of an existing task store
-        key.
-    TaskStoreResponse:
+      title: TaskStateStorePatchBody
+      description: Request body for patching only the value of an existing task state
+        store key.
+    TaskStateStoreResponse:
       properties:
         key:
           type: string
@@ -16085,8 +16741,8 @@ components:
       - value
       - updated_at
       - expires_at
-      title: TaskStoreResponse
-      description: A single task store key/value pair with metadata.
+      title: TaskStateStoreResponse
+      description: A single task state store key/value pair with metadata.
     TimeDelta:
       properties:
         __type:
@@ -16156,6 +16812,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       required:
@@ -16173,6 +16834,7 @@ components:
         kwargs:
           type: string
           title: Kwargs
+          deprecated: true
         created_date:
           type: string
           format: date-time

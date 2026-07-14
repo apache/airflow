@@ -20,9 +20,23 @@ name: "CodeQL"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
   push:
-    branches: [main]
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
   schedule:
     - cron: '0 2 * * *'
 
@@ -33,13 +47,75 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-languages:
+    name: Detect languages to scan
+    runs-on: ["ubuntu-22.04"]
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      languages: ${{ steps.set-languages.outputs.languages }}
+    steps:
+      - name: Compute CodeQL language matrix
+        id: set-languages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
+          REPOSITORY: ${{ github.repository }}
+        # On `pull_request` and `push` we only scan the languages whose files actually changed.
+        # On `schedule` we always scan every language to keep full periodic coverage.
+        run: |
+          set -euo pipefail
+          all_languages='["python","javascript","actions","go","java"]'
+          if [[ "${EVENT_NAME}" == "schedule" ]]; then
+            echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            changed_files="$(gh api "repos/${REPOSITORY}/compare/${BEFORE_SHA}...${AFTER_SHA}" \
+              --jq '.files[].filename')" || true
+            num_files="$(printf '%s\n' "${changed_files}" | grep -c . || true)"
+            # Fall back to a full scan if the compare call failed, returned nothing, or hit the
+            # API's 300-file cap. The compare API does not paginate files (only commits), so a
+            # merge of >300 files truncates the list and could under-detect a changed language;
+            # release branches have no daily schedule full-scan to back them up. Empty also covers
+            # a force-push or a newly created branch whose before SHA is all zeros (no base commit).
+            if [[ -z "${changed_files}" || "${num_files}" -ge 300 ]]; then
+              echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          else
+            # pull_request
+            changed_files="$(gh api --paginate \
+              "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')"
+          fi
+          languages=()
+          grep -Eiq '\.(py|pyi)$'                        <<< "${changed_files}" && languages+=("python")
+          grep -Eiq '\.(js|jsx|mjs|cjs|ts|tsx|vue)$'     <<< "${changed_files}" && languages+=("javascript")
+          grep -Eiq '^\.github/(workflows|actions)/'     <<< "${changed_files}" && languages+=("actions")
+          grep -Eiq '(\.go$|/go\.(mod|sum)$)'            <<< "${changed_files}" && languages+=("go")
+          grep -Eiq '(\.java$|\.gradle(\.kts)?$|\.kts$)' <<< "${changed_files}" && languages+=("java")
+          if [[ ${#languages[@]} -eq 0 ]]; then
+            echo "languages=[]" >> "${GITHUB_OUTPUT}"
+          else
+            json_languages="$(printf '%s\n' "${languages[@]}" \
+              | jq -Rsc 'split("\n") | map(select(length > 0))')"
+            echo "languages=${json_languages}" >> "${GITHUB_OUTPUT}"
+          fi
+
   analyze:
     name: Analyze
+    needs: detect-languages
+    # Skip entirely when no scannable language changed (e.g. docs-only PRs).
+    if: needs.detect-languages.outputs.languages != '[]'
     runs-on: ["ubuntu-22.04"]
     strategy:
       fail-fast: false
       matrix:
-        language: ['python', 'javascript', 'actions', 'go', 'java']
+        language: ${{ fromJSON(needs.detect-languages.outputs.languages) }}
 
     permissions:
       actions: read
@@ -48,26 +124,25 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
 
-      # keep this in sync with the jvmTarget in java-sdk/build.gradle.kts
       - name: Setup Java
         if: matrix.language == 'java'
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520  # v5.4.0
         with:
           distribution: 'temurin'
           java-version: '11'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e  # v4.36.2
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
         if: matrix.language != 'java'
-        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+        uses: github/codeql-action/autobuild@8aad20d150bbac5944a9f9d289da16a4b0d87c1e  # v4.36.2
 
       - name: Build Java SDK
         if: matrix.language == 'java'
@@ -75,7 +150,7 @@ jobs:
         run: ./gradlew classes testClasses
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e  # v4.36.2
         with:
           # Provide more context to the SARIF output (shows up in run.automationDetails.id field)
           category: "/language:${{matrix.language}}"

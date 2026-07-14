@@ -189,6 +189,13 @@ async def require_auth(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token subject does not match task instance ID",
             )
+    elif "ct:self" in security_scopes.scopes:
+        ct_self_id = str(request.path_params["connection_test_id"])
+        if str(token.id) != ct_self_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token subject does not match connection test ID",
+            )
 
     return token
 
@@ -266,4 +273,19 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
+    )
+
+
+def _team_name_for_dag_stmt(dag_id):
+    """Build the select statement resolving ``DagModel.dag_id -> Team.name``."""
+    from airflow.models import DagModel
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+
+    return (
+        select(Team.name)
+        .select_from(DagModel)
+        .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
+        .join(DagBundleModel.teams)
+        .where(DagModel.dag_id == dag_id)
     )

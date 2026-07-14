@@ -102,7 +102,6 @@ def not_permitted_dag_model(testing_dag_bundle, *, session: Session = NEW_SESSIO
 def clear_db():
     clear_db_import_errors()
     clear_db_dags()
-    clear_db_dag_bundles()
 
     yield
 
@@ -387,6 +386,111 @@ class TestGetImportErrors:
             import_error["filename"] for import_error in response_json["import_errors"]
         ] == expected_filenames
 
+    @pytest.mark.parametrize(
+        ("filename", "expected_total_entries", "expected_filenames"),
+        [
+            (FILENAME1, 1, [FILENAME1]),
+            (FILENAME2, 1, [FILENAME2]),
+            ("nonexistent.py", 0, []),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_exact_filename_filter(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        filename,
+        expected_total_entries,
+        expected_filenames,
+        permitted_dag_model_all,
+    ):
+        """Test that the exact ``filename`` filter returns only the matching file."""
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors", params={"filename": filename})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == expected_total_entries
+        assert [ie["filename"] for ie in response_json["import_errors"]] == expected_filenames
+
+    @pytest.mark.parametrize(
+        ("bundle_name", "expected_total_entries", "expected_filenames"),
+        [
+            (BUNDLE_NAME, 3, [FILENAME1, FILENAME2, FILENAME3]),
+            ("nonexistent_bundle", 0, []),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_bundle_name_filter(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        bundle_name,
+        expected_total_entries,
+        expected_filenames,
+        permitted_dag_model_all,
+    ):
+        """Test that the ``bundle_name`` filter returns only errors from the matching bundle."""
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors", params={"bundle_name": bundle_name})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == expected_total_entries
+        assert [ie["filename"] for ie in response_json["import_errors"]] == expected_filenames
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_bundle_name_and_filename_filter(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        permitted_dag_model_all,
+        session,
+    ):
+        """Test that combining ``bundle_name`` and ``filename`` filters finds the right error
+        when two bundles share the same relative_fileloc (the multi-bundle cross-contamination case).
+        """
+        other_bundle = "other_bundle"
+        session.add(DagBundleModel(name=other_bundle))
+        session.flush()
+
+        shared_filename = FILENAME1
+        other_dag = DagModel(
+            fileloc=f"/other/{shared_filename}",
+            relative_fileloc=shared_filename,
+            dag_id="dag_in_other_bundle",
+            is_paused=False,
+            bundle_name=other_bundle,
+        )
+        session.add(other_dag)
+        session.add(
+            ParseImportError(
+                bundle_name=other_bundle,
+                filename=shared_filename,
+                stacktrace="wrong bundle error",
+                timestamp=TIMESTAMP1,
+            )
+        )
+        session.commit()
+
+        set_mock_auth_manager__get_authorized_dag_ids(
+            mock_get_auth_manager, permitted_dag_model_all | {other_dag.dag_id}
+        )
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get(
+            "/importErrors", params={"filename": shared_filename, "bundle_name": BUNDLE_NAME}
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["import_errors"][0]["bundle_name"] == BUNDLE_NAME
+        assert response_json["import_errors"][0]["stack_trace"] == STACKTRACE1
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/importErrors")
         assert response.status_code == 401
@@ -394,6 +498,85 @@ class TestGetImportErrors:
     def test_should_raises_403_unauthorized(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/importErrors")
         assert response.status_code == 403
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_total_entries_counts_distinct_import_errors_when_file_has_multiple_dags(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        testing_dag_bundle,
+        session,
+    ):
+        dag_models = [
+            DagModel(
+                fileloc=FILENAME1,
+                relative_fileloc=FILENAME1,
+                dag_id=f"dag_id{i}",
+                is_paused=False,
+                bundle_name=BUNDLE_NAME,
+            )
+            for i in range(1, 4)
+        ]
+        session.add_all(dag_models)
+        session.commit()
+
+        readable_dag_ids = {dag_model.dag_id for dag_model in dag_models}
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, readable_dag_ids)
+        mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
+            mock_get_auth_manager, True
+        )
+
+        response = test_client.get("/importErrors", params={"filename_pattern": FILENAME1, "limit": 1})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert [import_error["filename"] for import_error in response_json["import_errors"]] == [FILENAME1]
+        assert len(mock_batch_is_authorized_dag.call_args.args[0]) == 3
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_pagination_applies_to_distinct_import_errors_not_joined_dag_rows(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        testing_dag_bundle,
+        session,
+    ):
+        dag_models = [
+            DagModel(
+                fileloc=FILENAME1,
+                relative_fileloc=FILENAME1,
+                dag_id=f"dag_id{i}",
+                is_paused=False,
+                bundle_name=BUNDLE_NAME,
+            )
+            for i in range(1, 4)
+        ]
+        dag_models.append(
+            DagModel(
+                fileloc=FILENAME2,
+                relative_fileloc=FILENAME2,
+                dag_id="dag_id4",
+                is_paused=False,
+                bundle_name=BUNDLE_NAME,
+            )
+        )
+        session.add_all(dag_models)
+        session.commit()
+
+        readable_dag_ids = {dag_model.dag_id for dag_model in dag_models}
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, readable_dag_ids)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get(
+            "/importErrors",
+            params={"filename_pattern": "test_filename", "limit": 1, "offset": 1, "order_by": "id"},
+        )
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 2
+        assert [import_error["filename"] for import_error in response_json["import_errors"]] == [FILENAME2]
 
     @pytest.mark.parametrize(
         ("team", "batch_is_authorized_dag_return_value", "expected_stack_trace"),

@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, func, inspect, select, table, text
+from sqlalchemy import and_, column, func, inspect, literal, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -77,6 +77,13 @@ class _TableConfig:
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
+    :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
+    :param skip_if_referenced: list of ``(referencing_table, fk_column)`` pairs whose FK points at this
+        table's ``referenced_pk_column``. A row that is still referenced by any of these is excluded from
+        deletion. This avoids issuing deletes that would violate an ``ON DELETE RESTRICT`` foreign key
+        (e.g. ``task_instance.dag_version_id``) — such deletes fail and, on MySQL, can leave the cleanup
+        command blocked on metadata locks. ``referenced_pk_column`` must be listed in ``extra_columns``.
+    :param referenced_pk_column: the primary-key column of this table that ``skip_if_referenced`` FKs point at.
     """
 
     table_name: str
@@ -90,6 +97,9 @@ class _TableConfig:
     # because the relationships are unlikely to change and the number of tables is small.
     # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
+    extra_filters: list[Any] | None = None
+    skip_if_referenced: list[tuple[str, str]] | None = None
+    referenced_pk_column: str = "id"
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -105,6 +115,16 @@ class _TableConfig:
                 *[column(x) for x in self.extra_columns or []],
                 self.dag_id_column,
                 self.recency_column,
+            )
+
+        # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
+        # (added via extra_columns). Fail fast with a clear message instead of a cryptic KeyError
+        # raised later when _build_query evaluates base_table.c[referenced_pk_column].
+        if self.skip_if_referenced and self.referenced_pk_column not in self.orm_model.c.keys():
+            raise ValueError(
+                f"_TableConfig for table {self.table_name!r} sets skip_if_referenced but its "
+                f"referenced_pk_column {self.referenced_pk_column!r} is not one of its columns; "
+                f"add {self.referenced_pk_column!r} to extra_columns."
             )
 
     def __lt__(self, other):
@@ -138,7 +158,7 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
-        dependent_tables=["task_instance", "deadline"],
+        dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
@@ -152,6 +172,11 @@ config_list: list[_TableConfig] = [
     ),
     _TableConfig(
         table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
+    ),
+    _TableConfig(
+        table_name="task_state_store",
+        recency_column_name="expires_at",
+        dag_id_column_name="dag_id",
     ),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
@@ -167,13 +192,27 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="dag_version",
         recency_column_name="created_at",
+        extra_columns=["id"],
         dependent_tables=["task_instance", "dag_run"],
         dag_id_column_name="dag_id",
         keep_last=True,
         keep_last_group_by=["dag_id"],
+        # task_instance.dag_version_id is ON DELETE RESTRICT, so a version still referenced by any
+        # task instance cannot be deleted. Skip those rows instead of issuing a delete that would
+        # fail the FK (and hang on MySQL). They become eligible once their task instances age out
+        # and are cleaned. dag_run.created_dag_version_id is ON DELETE SET NULL, so it does not block.
+        skip_if_referenced=[("task_instance", "dag_version_id")],
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
+    _TableConfig(
+        table_name="connection_test_request",
+        recency_column_name="updated_at",
+        extra_columns=["state"],
+        extra_filters=[
+            column("state").in_(["success", "failed"]),
+        ],
+    ),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -341,6 +380,9 @@ def _build_query(
     dag_id_column=None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    extra_filters: list[Any] | None = None,
+    skip_if_referenced: list[tuple[str, str]] | None = None,
+    referenced_pk_column: str = "id",
     **kwargs,
 ) -> Select:
     base_table_alias = "base"
@@ -348,6 +390,25 @@ def _build_query(
     query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
+
+    if extra_filters:
+        conditions.extend(extra_filters)
+
+    if skip_if_referenced:
+        # Exclude rows still referenced by a RESTRICT foreign key; deleting them would fail the
+        # constraint (and on MySQL leave the command blocked on metadata locks). correlate() is
+        # explicit on purpose: this is a NOT EXISTS guard whose silent failure would delete
+        # still-referenced rows, so we don't rely on implicit correlation of the base table.
+        base_table_pk_col = base_table.c[referenced_pk_column]
+        for referencing_table, fk_column in skip_if_referenced:
+            referencing = table(referencing_table, column(fk_column))
+            conditions.append(
+                ~select(literal(1))
+                .select_from(referencing)
+                .where(referencing.c[fk_column] == base_table_pk_col)
+                .correlate(base_table)
+                .exists()
+            )
 
     if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
         base_table_dag_id_col = base_table.c[dag_id_column.name]
@@ -394,6 +455,9 @@ def _cleanup_table(
     skip_archive: bool = False,
     session: Session,
     batch_size: int | None = None,
+    extra_filters: list[Any] | None = None,
+    skip_if_referenced: list[tuple[str, str]] | None = None,
+    referenced_pk_column: str = "id",
     **kwargs,
 ) -> None:
     print()
@@ -409,6 +473,9 @@ def _cleanup_table(
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
+        extra_filters=extra_filters,
+        skip_if_referenced=skip_if_referenced,
+        referenced_pk_column=referenced_pk_column,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())

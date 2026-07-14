@@ -29,6 +29,7 @@ import pytest
 from airflow._shared.module_loading import qualname
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
+from airflow.partition_mappers.window import Window
 from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.config import conf_vars
@@ -79,7 +80,7 @@ class TestPluginsManager:
             example_plugins_module="airflow.example_dags.plugins",
         )
 
-        assert len(plugins) == 10
+        assert len(plugins) == 13
         assert not import_errors
         for plugin in plugins:
             if "AirflowTestOnLoadPlugin" in str(plugin):
@@ -102,7 +103,7 @@ class TestPluginsManager:
         ):
             plugins, import_errors = plugins_manager._get_plugins()
 
-        assert len(plugins) == 3  # three are loaded from examples
+        assert len(plugins) == 6  # four are loaded from examples
         assert len(import_errors) == 1
 
         received_logs = caplog.text
@@ -407,4 +408,28 @@ class TestPluginsManager:
         # Mock/skip loading from plugin dir
         with mock.patch("airflow.plugins_manager._load_plugins_from_plugin_directory", return_value=([], [])):
             plugins = plugins_manager._get_plugins()[0]
-        assert len(plugins) == 6
+        assert len(plugins) == 7
+
+
+class TestWindowPluginRegistration:
+    """``windows`` plugin attribute surfaces via ``get_windows_plugins()``."""
+
+    def test_windows_attribute_surfaces_via_getter(self):
+        from airflow import plugins_manager
+
+        class MyCustomWindow(Window):
+            name = "test_window_plugin"
+
+            def to_upstream(self, decoded_downstream):
+                return [decoded_downstream]
+
+        class MyWindowPlugin(AirflowPlugin):
+            name = "test_window_plugin"
+            windows = [MyCustomWindow]
+
+        with mock_plugin_manager(plugins=[MyWindowPlugin()]):
+            plugins_manager.get_windows_plugins.cache_clear()
+            registered = plugins_manager.get_windows_plugins()
+
+        assert qualname(MyCustomWindow) in registered
+        assert registered[qualname(MyCustomWindow)] is MyCustomWindow

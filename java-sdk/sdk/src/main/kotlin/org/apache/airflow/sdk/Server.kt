@@ -25,6 +25,7 @@ import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -139,20 +140,27 @@ class Server(
    */
   suspend fun serveAsync(bundle: Bundle) =
     coroutineScope {
+      val deferral = CompletableDeferred<Unit>()
+
       launch {
-        aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
-          logger.debug("Connected comm", mapOf("addr" to comm))
-          CoordinatorComm(
-            bundle,
-            socket.openReadChannel(),
-            socket.openWriteChannel(autoFlush = true),
-          ).startProcessing()
+        try {
+          aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
+            logger.debug("Connected comm", mapOf("addr" to comm))
+            CoordinatorComm(
+              bundle,
+              socket.openReadChannel(),
+              socket.openWriteChannel(autoFlush = true),
+            ).startProcessing()
+          }
+        } finally {
+          deferral.complete(Unit)
         }
       }
       launch {
         aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(logs).use { socket ->
           logger.debug("Connected logs", mapOf("addr" to logs))
           LogSender.configure(socket.openWriteChannel(autoFlush = true))
+          deferral.await()
         }
       }
     }

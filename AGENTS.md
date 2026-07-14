@@ -31,6 +31,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 `<PROJECT>` is folder where pyproject.toml of the package you want to test is located. For example, `airflow-core` or `providers/amazon`.
 `<target_branch>` is the branch the PR will be merged into — usually `main`, but could be `v3-1-test` when creating a PR for the 3.1 branch.
 
+<!-- START generated-commands, please keep comment here to allow auto update -->
 - **Run a single test:** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`
 - **Run a test file:** `uv run --project <PROJECT> pytest path/to/test.py -xvs`
 - **Run all tests in package:** `uv run --project <PROJECT> pytest path/to/package -xvs`
@@ -54,6 +55,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
+<!-- END generated-commands, please keep comment here to allow auto update -->
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 
@@ -132,28 +134,36 @@ reported as such are described in "What is NOT considered a security vulnerabili
 
 - **Always format and check Python files with ruff immediately after writing or editing them:** `uv run ruff format <file_path>` and `uv run ruff check --fix <file_path>`. Do this for every Python file you create or modify, before moving on to the next step.
 - No `assert` in production code.
+- **Comment sparingly — code says *what*, comments say *why*.** Add a comment only when the reasoning is non-obvious and cannot be carried by a clear name or the code itself. Do not write narrating comments that restate the next line, do not pad logic with multi-line prose, and do not repeat the same rationale at several sites — put one concise note at the source of truth and let the others stand on their own. Tests whose names already describe intent need no explanatory comment. Reserve longer explanation for genuinely complex or non-obvious logic (e.g. a security check whose threat model isn't apparent), and keep even that as tight as it can be. Over-commenting is noise that ages badly and obscures the code it wraps.
 - `time.monotonic()` for durations, not `time.time()`.
 - In `airflow-core`, functions with a `session` parameter must not call `session.commit()`. Use keyword-only `session` parameters.
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
-- Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
+- Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong. **Never add new direct `raise AirflowException(...)` usages — the community is actively reducing them, not adding more, and the `check-no-new-airflow-exceptions` prek hook enforces this across `airflow-core`, `airflow-ctl`, `task-sdk`, `providers`, and `shared`.** Prefer a Python built-in (`ValueError`, `TypeError`, `OSError`, …) or a dedicated class in the appropriate `exceptions.py`. The only acceptable way an `AirflowException` line may move is relocating an already-existing one verbatim during a refactor (e.g. moving code between files) — that is not a new usage. When you touch code that already raises `AirflowException`, prefer narrowing it to a more specific exception rather than leaving or duplicating it.
 - Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreStateBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
 - Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 - Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
-- Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes (usually coordinated during review; do not add by default). **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
+- **Keep selective-checks behaviour and its documentation in sync.** The CI optimisation logic lives in `dev/breeze/src/airflow_breeze/utils/selective_checks.py` (run-mode decisions, file-group matching, test-type selection, prek-hook skipping). Whenever you change a rule there — add/rename a file group, change what forces `full_tests_needed`/`all_versions`, alter how providers or test types are selected, or change which prek hooks are skipped — update [`dev/breeze/doc/ci/04_selective_checks.md`](dev/breeze/doc/ci/04_selective_checks.md) in the same PR (the decision-rules list, the diagrams, the outputs table, and the worked examples as applicable) and add/adjust tests in `dev/breeze/tests/test_selective_checks.py`. The doc is the human-facing explanation of that file; letting them drift makes CI behaviour impossible to reason about.
+- Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes. **Golden rule: never create a newsfragment unless you are certain the change is user-facing.** If you are not sure the change is visible to users — build/release tooling, CI, packaging, internal refactors with no behavior change, dev-only scripts, and test-only changes are *not* user-facing — do **not** add one. Default to omitting it; a maintainer will ask for a newsfragment during review if the change warrants one. Adding a spurious newsfragment for a non-user-facing change is a defect, not a safe default. **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
 
 ## Testing Standards
 
-- Add tests for new behavior — cover success, failure, and edge cases.
+- Target exactly 100% coverage of what the PR changes — no more, no less. Every changed or added behaviour must have a test; every test must fail without the PR's change. Do not add tests for pre-existing logic that was already present before the PR, and do not test standard-library or third-party functions. The exception is deliberate behaviour or integration tests, which may cross those boundaries by design.
 - Use pytest patterns, not `unittest.TestCase`.
 - Use `spec`/`autospec` when mocking.
+- Prefer `@mock.patch` decorators over `with mock.patch(...)` context managers for patching. Use `conf_vars` (from `tests_common.test_utils.config`) for Airflow config overrides — as a decorator when the value is fixed, as a context manager when it varies via `@pytest.mark.parametrize`.
 - Use `time_machine` for time-dependent tests. Do not use `datetime.now()`
-- Use `@pytest.mark.parametrize` for multiple similar inputs.
+- Use `@pytest.mark.parametrize` for multiple similar inputs — consolidate tests that only differ in input/expected values into a single parametrized test.
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
-- Do not use `caplog` in tests, prefer checking logic and not log output.
+- Do not assert on raw log text (`caplog.text` for example), these are legacy string matching APIs planned for removal. Structured assertions via `caplog` (which resolves to `cap_structlog` under structlog) are fine and preferred: `"event name" in caplog` or `{"event": ..., "field": ...} in caplog`.
+
+## Output conventions
+
+- Put any files you generate (PR reviews, reports, scratch output) under `files/`.
+- Create `files/` if it doesn't exist.
 
 
 ## Commits and PRs
@@ -163,8 +173,26 @@ Write commit messages focused on user impact, not implementation details.
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
+  (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
+  prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
+  every commit of the PR.
 
-For `airflow-core` (and `chart/`, `dev/mypy/`) user-visible changes, add a newsfragment in that distribution's `newsfragments/` directory:
+**Always run `prek install` before committing any code.** It installs the
+`commit-msg` hook (in addition to `pre-commit`) so the Conventional Commits guard
+runs locally; a clone that ran `prek install` before this hook existed must re-run
+it to pick up the new hook type.
+
+Use the **imperative mood** and a plain message — do **not** use Conventional Commits prefixes
+(`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
+convention. (Area tags the project already uses, like `UI:` / `API:` / `Helm:`, are fine;
+Conventional-Commit `type:` tokens are not.) The same rule applies to PR titles.
+
+The commit message **body** should describe **why** the change is made — the motivation and
+context — and **never what** the change is. The diff already shows what changed; restating it in
+prose adds noise.
+
+For `airflow-core` (and `chart/`, `dev/mypy/`) **user-facing** changes, add a newsfragment in that distribution's `newsfragments/` directory. **Golden rule: only add a newsfragment when you are certain the change is visible to users; when in doubt, do not add one** — a maintainer will request one in review if it is needed. Build/release tooling, CI, packaging, internal refactors, and dev-only scripts are not user-facing and must not get a newsfragment:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
 
 **Do not add newsfragments for `providers/` or `airflow-ctl/`** — their release managers regenerate the changelog from `git log` and do not consume newsfragments. Update the changelog directly when needed: `providers/<provider>/docs/changelog.rst` (see `providers/AGENTS.md`) or `airflow-ctl/RELEASE_NOTES.rst`. Changes to `task-sdk/` use `airflow-core/newsfragments/` since task-sdk ships in airflow-core.
@@ -225,6 +253,17 @@ If a doc, script, or command you're about to run uses the old `apache` name (or
 any other variant), **translate it to the `upstream` convention** in what you
 propose to the user, rather than perpetuating the old name. Flag the stale
 documentation so it can be fixed in a follow-up.
+
+### Before starting: check for an existing PR
+
+Before working on an issue, check for open PRs already addressing it
+(`gh pr list --search "<issue number or keywords>"`, and look for `closes:`
+/ `fixes:` references). Airflow allows parallel work — "better PR wins"
+(see `contributing-docs/04_how_to_contribute.rst`) — but it is not the
+default: prefer reviewing and building on an existing PR. Open a separate
+one only *if your approach is genuinely different*. Do not blindly open
+another near-identical PR for an issue that already has one (or several) —
+that just adds reviewer noise.
 
 ### Creating Pull Requests
 
@@ -298,7 +337,7 @@ pre-fills the PR template with the generative AI disclosure already completed.
 
 Remind the user to:
 
-1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
+1. Review the PR title — keep it short (under 70 chars), in the imperative mood, and focused on user impact. Do not use Conventional Commits prefixes (`fix:`, `feat:`, `chore:`, …).
 2. Add a brief description of the changes at the top of the body.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
 
@@ -415,24 +454,49 @@ block under the AI-disclosure checkbox; commit messages still follow
 the no-self-as-co-author rule above). Do not skip the footer to
 shorten a message — attribution applies regardless of message length.
 
-## apache-steward framework
+#### Do not tag individuals
 
-This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+AI agents MUST NOT mention or tag individual contributors, committers,
+PMC members, or maintainers using GitHub usernames (e.g. `@user`) unless
+explicitly instructed by a human reviewer. When suggesting who might be
+relevant to a discussion, refer to roles, teams, code ownership
+information, labels, or components instead of individuals. This keeps
+notification noise down and avoids pulling people into threads they have
+not chosen to join.
+
+The only exceptions are mentions a human has explicitly authorized —
+including the `@<github-handle>` in the `Drafted-by: … reviewed by
+@<handle>` footer above, which names the reviewer who approved the
+message — and replying within a thread to people already actively
+participating in that same PR/issue discussion.
+
+## apache-magpie framework
+
+This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
 framework via the snapshot mechanism. The framework provides the
 `pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-steward/` snapshot directory.
+gitignored symlinks into the `.apache-magpie/` snapshot directory.
 
 A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/setup-steward` (or follow
-[`.claude/skills/setup-steward/`](.claude/skills/setup-steward/)) to fetch
-it per the committed [`.apache-steward.lock`](.apache-steward.lock). The
+invocable. Run `/magpie-setup` (or follow
+[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
+it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
 contributor-facing summary of the adoption + setup flow lives in the
-[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
+[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 
 Adopter-specific modifications to framework-skill workflows live in
-[`.apache-steward-overrides/`](.apache-steward-overrides/) — never edit
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
 the snapshot directly. Framework changes go via PR to
-[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+[`apache/magpie`](https://github.com/apache/magpie).
+
+### Reviewing pull requests
+
+With apache-magpie installed locally, use the
+`magpie-pr-management-code-review` skill for PR code review. It posts
+findings as **inline review comments** anchored to `file:line`, presented
+**individually for accept/skip** before anything is submitted — prefer it
+over an ad-hoc review pass or a generic review command. A body-only review
+is the explicit opt-out (`inline:off`).
 
 ## Boundaries
 

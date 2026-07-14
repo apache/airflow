@@ -51,6 +51,7 @@ from airflow.providers.elasticsearch.log.es_response import ElasticSearchRespons
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow._shared.module_loading import import_string
@@ -388,6 +389,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
+        # In Airflow 3 logs reach Elasticsearch only after the task finishes, so a running task
+        # has nothing to read there yet. Defer to the base handler for live worker/executor logs,
+        # as S3/GCS do. Airflow 2 has no remote-log-IO read path, so it keeps the ES-only path below.
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and ti.try_number == try_number
+            and ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        ):
+            return super()._read(ti, try_number, metadata)  # type: ignore[return-value]
+
         if not metadata:
             # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
@@ -691,8 +702,11 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             ["@timestamp", *TASK_LOG_FIELDS, self.host_field, self.offset_field, *extra_fields]
         )
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Write the log to ElasticSearch."""
+        if ti is None:
+            return
+
         path = Path(path)
 
         if path.is_absolute():

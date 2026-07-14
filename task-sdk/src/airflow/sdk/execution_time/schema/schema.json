@@ -299,16 +299,16 @@
       "title": "AssetResult",
       "type": "object"
     },
-    "AssetStoreResult": {
+    "AssetStateStoreResult": {
       "additionalProperties": false,
-      "description": "Response to GetAssetStore; wraps the generated API response for supervisor to worker comms.",
+      "description": "Response to GetAssetStateStore; wraps the generated API response for supervisor to worker comms.",
       "properties": {
         "value": {
           "$ref": "#/$defs/JsonValue"
         },
         "type": {
-          "const": "AssetStoreResult",
-          "default": "AssetStoreResult",
+          "const": "AssetStateStoreResult",
+          "default": "AssetStateStoreResult",
           "title": "Type",
           "type": "string"
         }
@@ -316,7 +316,7 @@
       "required": [
         "value"
       ],
-      "title": "AssetStoreResult",
+      "title": "AssetStateStoreResult",
       "type": "object"
     },
     "AssetsByAliasResult": {
@@ -342,6 +342,80 @@
       "title": "AssetsByAliasResult",
       "type": "object"
     },
+    "AwaitInputTask": {
+      "additionalProperties": false,
+      "description": "Park a task instance awaiting human input (Human-in-the-loop), without a trigger.",
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "const": "awaiting_input",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "awaiting_input",
+          "title": "State"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout"
+        },
+        "next_method": {
+          "title": "Next Method",
+          "type": "string"
+        },
+        "next_kwargs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Kwargs"
+        },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        },
+        "type": {
+          "const": "AwaitInputTask",
+          "default": "AwaitInputTask",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "next_method"
+      ],
+      "title": "AwaitInputTask",
+      "type": "object"
+    },
     "BundleInfo": {
       "description": "Schema for telling task which bundle to run with.",
       "properties": {
@@ -360,6 +434,19 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         }
       },
       "required": [
@@ -368,15 +455,15 @@
       "title": "BundleInfo",
       "type": "object"
     },
-    "ClearAssetStoreByName": {
+    "ClearAssetStateStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
           "type": "string"
         },
         "type": {
-          "const": "ClearAssetStoreByName",
-          "default": "ClearAssetStoreByName",
+          "const": "ClearAssetStateStoreByName",
+          "default": "ClearAssetStateStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -384,18 +471,18 @@
       "required": [
         "name"
       ],
-      "title": "ClearAssetStoreByName",
+      "title": "ClearAssetStateStoreByName",
       "type": "object"
     },
-    "ClearAssetStoreByUri": {
+    "ClearAssetStateStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
           "type": "string"
         },
         "type": {
-          "const": "ClearAssetStoreByUri",
-          "default": "ClearAssetStoreByUri",
+          "const": "ClearAssetStateStoreByUri",
+          "default": "ClearAssetStateStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -403,24 +490,19 @@
       "required": [
         "uri"
       ],
-      "title": "ClearAssetStoreByUri",
+      "title": "ClearAssetStateStoreByUri",
       "type": "object"
     },
-    "ClearTaskStore": {
+    "ClearTaskStateStore": {
       "properties": {
         "ti_id": {
           "format": "uuid",
           "title": "Ti Id",
           "type": "string"
         },
-        "all_map_indices": {
-          "default": false,
-          "title": "All Map Indices",
-          "type": "boolean"
-        },
         "type": {
-          "const": "ClearTaskStore",
-          "default": "ClearTaskStore",
+          "const": "ClearTaskStateStore",
+          "default": "ClearTaskStateStore",
           "title": "Type",
           "type": "string"
         }
@@ -428,7 +510,7 @@
       "required": [
         "ti_id"
       ],
-      "title": "ClearTaskStore",
+      "title": "ClearTaskStateStore",
       "type": "object"
     },
     "ConnectionResult": {
@@ -670,6 +752,19 @@
             }
           ],
           "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         },
         "msg": {
           "anyOf": [
@@ -1203,6 +1298,19 @@
           "default": null,
           "title": "Partition Key"
         },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
         "note": {
           "anyOf": [
             {
@@ -1396,7 +1504,7 @@
       "title": "DeferTask",
       "type": "object"
     },
-    "DeleteAssetStoreByName": {
+    "DeleteAssetStateStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
@@ -1407,8 +1515,8 @@
           "type": "string"
         },
         "type": {
-          "const": "DeleteAssetStoreByName",
-          "default": "DeleteAssetStoreByName",
+          "const": "DeleteAssetStateStoreByName",
+          "default": "DeleteAssetStateStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -1417,10 +1525,10 @@
         "name",
         "key"
       ],
-      "title": "DeleteAssetStoreByName",
+      "title": "DeleteAssetStateStoreByName",
       "type": "object"
     },
-    "DeleteAssetStoreByUri": {
+    "DeleteAssetStateStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
@@ -1431,8 +1539,8 @@
           "type": "string"
         },
         "type": {
-          "const": "DeleteAssetStoreByUri",
-          "default": "DeleteAssetStoreByUri",
+          "const": "DeleteAssetStateStoreByUri",
+          "default": "DeleteAssetStateStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -1441,10 +1549,10 @@
         "uri",
         "key"
       ],
-      "title": "DeleteAssetStoreByUri",
+      "title": "DeleteAssetStateStoreByUri",
       "type": "object"
     },
-    "DeleteTaskStore": {
+    "DeleteTaskStateStore": {
       "properties": {
         "ti_id": {
           "format": "uuid",
@@ -1456,8 +1564,8 @@
           "type": "string"
         },
         "type": {
-          "const": "DeleteTaskStore",
-          "default": "DeleteTaskStore",
+          "const": "DeleteTaskStateStore",
+          "default": "DeleteTaskStateStore",
           "title": "Type",
           "type": "string"
         }
@@ -1466,7 +1574,7 @@
         "ti_id",
         "key"
       ],
-      "title": "DeleteTaskStore",
+      "title": "DeleteTaskStateStore",
       "type": "object"
     },
     "DeleteVariable": {
@@ -1555,6 +1663,19 @@
             }
           ],
           "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         },
         "msg": {
           "anyOf": [
@@ -1751,6 +1872,21 @@
           "title": "Ascending",
           "type": "boolean"
         },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
         "type": {
           "const": "GetAssetEventByAsset",
           "default": "GetAssetEventByAsset",
@@ -1814,6 +1950,21 @@
           "title": "Ascending",
           "type": "boolean"
         },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
         "type": {
           "const": "GetAssetEventByAssetAlias",
           "default": "GetAssetEventByAssetAlias",
@@ -1827,7 +1978,7 @@
       "title": "GetAssetEventByAssetAlias",
       "type": "object"
     },
-    "GetAssetStoreByName": {
+    "GetAssetStateStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
@@ -1838,8 +1989,8 @@
           "type": "string"
         },
         "type": {
-          "const": "GetAssetStoreByName",
-          "default": "GetAssetStoreByName",
+          "const": "GetAssetStateStoreByName",
+          "default": "GetAssetStateStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -1848,10 +1999,10 @@
         "name",
         "key"
       ],
-      "title": "GetAssetStoreByName",
+      "title": "GetAssetStateStoreByName",
       "type": "object"
     },
-    "GetAssetStoreByUri": {
+    "GetAssetStateStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
@@ -1862,8 +2013,8 @@
           "type": "string"
         },
         "type": {
-          "const": "GetAssetStoreByUri",
-          "default": "GetAssetStoreByUri",
+          "const": "GetAssetStateStoreByUri",
+          "default": "GetAssetStateStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -1872,7 +2023,7 @@
         "uri",
         "key"
       ],
-      "title": "GetAssetStoreByUri",
+      "title": "GetAssetStateStoreByUri",
       "type": "object"
     },
     "GetAssetsByAlias": {
@@ -2330,6 +2481,31 @@
       "title": "GetTaskRescheduleStartDate",
       "type": "object"
     },
+    "GetTaskStateStore": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetTaskStateStore",
+          "default": "GetTaskStateStore",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "key"
+      ],
+      "title": "GetTaskStateStore",
+      "type": "object"
+    },
     "GetTaskStates": {
       "properties": {
         "dag_id": {
@@ -2417,31 +2593,6 @@
         "dag_id"
       ],
       "title": "GetTaskStates",
-      "type": "object"
-    },
-    "GetTaskStore": {
-      "properties": {
-        "ti_id": {
-          "format": "uuid",
-          "title": "Ti Id",
-          "type": "string"
-        },
-        "key": {
-          "title": "Key",
-          "type": "string"
-        },
-        "type": {
-          "const": "GetTaskStore",
-          "default": "GetTaskStore",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "ti_id",
-        "key"
-      ],
-      "title": "GetTaskStore",
       "type": "object"
     },
     "GetVariable": {
@@ -3330,7 +3481,7 @@
       "title": "SentFDs",
       "type": "object"
     },
-    "SetAssetStoreByName": {
+    "SetAssetStateStoreByName": {
       "properties": {
         "name": {
           "title": "Name",
@@ -3344,8 +3495,8 @@
           "$ref": "#/$defs/JsonValue"
         },
         "type": {
-          "const": "SetAssetStoreByName",
-          "default": "SetAssetStoreByName",
+          "const": "SetAssetStateStoreByName",
+          "default": "SetAssetStateStoreByName",
           "title": "Type",
           "type": "string"
         }
@@ -3355,10 +3506,10 @@
         "key",
         "value"
       ],
-      "title": "SetAssetStoreByName",
+      "title": "SetAssetStateStoreByName",
       "type": "object"
     },
-    "SetAssetStoreByUri": {
+    "SetAssetStateStoreByUri": {
       "properties": {
         "uri": {
           "title": "Uri",
@@ -3372,8 +3523,8 @@
           "$ref": "#/$defs/JsonValue"
         },
         "type": {
-          "const": "SetAssetStoreByUri",
-          "default": "SetAssetStoreByUri",
+          "const": "SetAssetStateStoreByUri",
+          "default": "SetAssetStateStoreByUri",
           "title": "Type",
           "type": "string"
         }
@@ -3383,7 +3534,7 @@
         "key",
         "value"
       ],
-      "title": "SetAssetStoreByUri",
+      "title": "SetAssetStateStoreByUri",
       "type": "object"
     },
     "SetRenderedFields": {
@@ -3429,7 +3580,7 @@
       "title": "SetRenderedMapIndex",
       "type": "object"
     },
-    "SetTaskStore": {
+    "SetTaskStateStore": {
       "properties": {
         "ti_id": {
           "format": "uuid",
@@ -3456,8 +3607,8 @@
           "title": "Expires At"
         },
         "type": {
-          "const": "SetTaskStore",
-          "default": "SetTaskStore",
+          "const": "SetTaskStateStore",
+          "default": "SetTaskStateStore",
           "title": "Type",
           "type": "string"
         }
@@ -3468,7 +3619,7 @@
         "value",
         "expires_at"
       ],
-      "title": "SetTaskStore",
+      "title": "SetTaskStateStore",
       "type": "object"
     },
     "SetXCom": {
@@ -3582,7 +3733,7 @@
     "StartupDetails": {
       "properties": {
         "ti": {
-          "$ref": "#/$defs/TaskInstanceDTO"
+          "$ref": "#/$defs/TaskInstance"
         },
         "dag_rel_path": {
           "title": "Dag Rel Path",
@@ -3764,6 +3915,19 @@
           ],
           "title": "Bundle Version"
         },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
         "msg": {
           "anyOf": [
             {
@@ -3817,164 +3981,6 @@
       "title": "TaskCallbackRequest",
       "type": "object"
     },
-    "TaskInstance": {
-      "description": "Schema for TaskInstance model with minimal required fields needed for Runtime.",
-      "properties": {
-        "id": {
-          "format": "uuid",
-          "title": "Id",
-          "type": "string"
-        },
-        "task_id": {
-          "title": "Task Id",
-          "type": "string"
-        },
-        "dag_id": {
-          "title": "Dag Id",
-          "type": "string"
-        },
-        "run_id": {
-          "title": "Run Id",
-          "type": "string"
-        },
-        "try_number": {
-          "title": "Try Number",
-          "type": "integer"
-        },
-        "dag_version_id": {
-          "format": "uuid",
-          "title": "Dag Version Id",
-          "type": "string"
-        },
-        "map_index": {
-          "default": -1,
-          "title": "Map Index",
-          "type": "integer"
-        },
-        "hostname": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Hostname"
-        },
-        "context_carrier": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Context Carrier"
-        }
-      },
-      "required": [
-        "id",
-        "task_id",
-        "dag_id",
-        "run_id",
-        "try_number",
-        "dag_version_id"
-      ],
-      "title": "TaskInstance",
-      "type": "object"
-    },
-    "TaskInstanceDTO": {
-      "description": "Task SDK TaskInstanceDTO.",
-      "properties": {
-        "id": {
-          "format": "uuid",
-          "title": "Id",
-          "type": "string"
-        },
-        "dag_version_id": {
-          "format": "uuid",
-          "title": "Dag Version Id",
-          "type": "string"
-        },
-        "task_id": {
-          "title": "Task Id",
-          "type": "string"
-        },
-        "dag_id": {
-          "title": "Dag Id",
-          "type": "string"
-        },
-        "run_id": {
-          "title": "Run Id",
-          "type": "string"
-        },
-        "try_number": {
-          "title": "Try Number",
-          "type": "integer"
-        },
-        "map_index": {
-          "default": -1,
-          "title": "Map Index",
-          "type": "integer"
-        },
-        "pool_slots": {
-          "title": "Pool Slots",
-          "type": "integer"
-        },
-        "queue": {
-          "title": "Queue",
-          "type": "string"
-        },
-        "priority_weight": {
-          "title": "Priority Weight",
-          "type": "integer"
-        },
-        "parent_context_carrier": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Parent Context Carrier"
-        },
-        "context_carrier": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Context Carrier"
-        }
-      },
-      "required": [
-        "id",
-        "dag_version_id",
-        "task_id",
-        "dag_id",
-        "run_id",
-        "try_number",
-        "pool_slots",
-        "queue",
-        "priority_weight"
-      ],
-      "title": "TaskInstanceDTO",
-      "type": "object"
-    },
     "TaskInstanceState": {
       "description": "All possible states that a Task Instance can be in.\n\nNote that None is also allowed, so always use this in a type hint with Optional.",
       "enum": [
@@ -3989,7 +3995,8 @@
         "up_for_reschedule",
         "upstream_failed",
         "skipped",
-        "deferred"
+        "deferred",
+        "awaiting_input"
       ],
       "title": "TaskInstanceState",
       "type": "string"
@@ -4072,6 +4079,26 @@
       "title": "TaskState",
       "type": "object"
     },
+    "TaskStateStoreResult": {
+      "additionalProperties": false,
+      "description": "Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms.",
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "TaskStateStoreResult",
+          "default": "TaskStateStoreResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "TaskStateStoreResult",
+      "type": "object"
+    },
     "TaskStatesResult": {
       "properties": {
         "task_states": {
@@ -4090,26 +4117,6 @@
         "task_states"
       ],
       "title": "TaskStatesResult",
-      "type": "object"
-    },
-    "TaskStoreResult": {
-      "additionalProperties": false,
-      "description": "Response to GetTaskStore; wraps the generated API response for supervisor to worker comms.",
-      "properties": {
-        "value": {
-          "$ref": "#/$defs/JsonValue"
-        },
-        "type": {
-          "const": "TaskStoreResult",
-          "default": "TaskStoreResult",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "value"
-      ],
-      "title": "TaskStoreResult",
       "type": "object"
     },
     "TriggerDagRun": {
@@ -4577,6 +4584,18 @@
           "format": "date-time",
           "title": "Timestamp",
           "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
         }
       },
       "required": [
@@ -4723,6 +4742,19 @@
           ],
           "title": "Partition Key"
         },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
         "note": {
           "anyOf": [
             {
@@ -4853,6 +4885,82 @@
         "max_tries"
       ],
       "title": "TIRunContext",
+      "type": "object"
+    },
+    "TaskInstance": {
+      "description": "Schema for TaskInstance model with minimal required fields needed for Runtime.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "try_number": {
+          "title": "Try Number",
+          "type": "integer"
+        },
+        "dag_version_id": {
+          "format": "uuid",
+          "title": "Dag Version Id",
+          "type": "string"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "hostname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hostname"
+        },
+        "context_carrier": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Carrier"
+        },
+        "queue": {
+          "default": "default",
+          "title": "Queue",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "dag_id",
+        "run_id",
+        "try_number",
+        "dag_version_id"
+      ],
+      "title": "TaskInstance",
       "type": "object"
     },
     "VariableResponse": {
