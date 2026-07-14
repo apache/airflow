@@ -43,6 +43,7 @@ unique within the ruleset.
 | `severity` | no | `"error"` (default) or `"warn"`. `"error"` fails the task on a failing rule (subject to the operator's `fail_on`); `"warn"` only records it. |
 | `partition_clause` | no | Extra SQL predicate ANDed into this rule's `WHERE` clause, e.g. `"region = 'EU'"`. |
 | `previous_name` | no | Only set when told a rule is being renamed, to keep its history continuous. |
+| `id` | no | Explicit stable identity for this rule's history, used verbatim instead of the derived hash. Only set this when told to, e.g. to avoid a collision between a renamed rule and an unrelated rule that reuses its old name. |
 | `description` | no | Human-readable text shown in data quality results. Use it when a clear business meaning is known; otherwise omit it and let Airflow generate a default description. |
 | `dimension` | no | One of `completeness`, `uniqueness`, `validity`, `freshness`, `volume`, `consistency`. Defaults to the check's catalog dimension (`validity` for `custom_sql`) -- only set this explicitly when a `custom_sql` rule measures something the default doesn't capture (e.g. a freshness check written as `custom_sql` should set `"dimension": "freshness"`). Leave it unset for every built-in check. |
 

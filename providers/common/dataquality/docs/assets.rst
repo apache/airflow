@@ -41,6 +41,10 @@ via ``asset=`` (see :doc:`operators`) instead of ``table``/``ruleset``/``conn_id
 resolves all three from the asset's config, adds the asset to its own outlets, and attaches its
 summary -- including the quality ``score`` used below -- to the asset event.
 
+Only one Dag should call ``asset_quality()`` for a given asset ``name``/``uri``. Airflow keeps one
+shared record per asset across all Dags, so if more than one Dag attaches (or omits) config for the
+same asset, whichever Dag parsed most recently determines what's stored.
+
 Gating a consumer Dag on quality
 ------------------------------------
 
