@@ -44,6 +44,80 @@ _KEYED_COLLECTION_PATHS = {
     ("dag", "dag_dependencies"),
     *_ORDER_INSENSITIVE_LIST_PATHS,
 }
+_CUSTOM_TASK_FIELDS_PATH_COMPONENT = "custom_fields"
+# This allowlist is part of diff schema v1. Serializer schema changes must not
+# silently change the paths visible to callers of the diff API.
+_DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
+    {
+        "__type",
+        "_disallow_kwargs_override",
+        "_expand_input_attr",
+        "_is_mapped",
+        "_is_sensor",
+        "_logger_name",
+        "_needs_expansion",
+        "_operator_extra_links",
+        "_task_display_name",
+        "_task_module",
+        "allow_nested_operators",
+        "depends_on_past",
+        "do_xcom_push",
+        "doc",
+        "doc_json",
+        "doc_md",
+        "doc_rst",
+        "doc_yaml",
+        "downstream_task_ids",
+        "email_on_failure",
+        "email_on_retry",
+        "end_date",
+        "execution_timeout",
+        "executor",
+        "executor_config",
+        "has_on_execute_callback",
+        "has_on_failure_callback",
+        "has_on_retry_callback",
+        "has_on_skipped_callback",
+        "has_on_success_callback",
+        "ignore_first_depends_on_past",
+        "inlets",
+        "is_setup",
+        "is_teardown",
+        "map_index_template",
+        "max_active_tis_per_dag",
+        "max_active_tis_per_dagrun",
+        "max_retry_delay",
+        "multiple_outputs",
+        "on_failure_fail_dagrun",
+        "outlets",
+        "owner",
+        "params",
+        "partial_kwargs",
+        "pool",
+        "pool_slots",
+        "priority_weight",
+        "queue",
+        "render_template_as_native_obj",
+        "retries",
+        "retry_delay",
+        "retry_exponential_backoff",
+        "start_date",
+        "start_from_trigger",
+        "start_trigger_args",
+        "task_id",
+        "task_type",
+        "template_ext",
+        "template_fields",
+        "template_fields_renderers",
+        "trigger_rule",
+        "ui_color",
+        "ui_fgcolor",
+        "wait_for_downstream",
+        "wait_for_past_depends_before_skipping",
+        "weight_rule",
+    }
+)
+_DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS: frozenset[str] = frozenset()
 _REDACTED_RECURSIVE_MAPPING_PATHS = {
     (),
     ("dag",),
@@ -98,8 +172,8 @@ def build_serialized_dag_diff(
         return _unavailable(result, f"unsupported_serialized_dag_schema_version:{unsupported_versions[0]}")
 
     try:
-        base_document = _canonicalize_payload(base_data)
-        target_document = _canonicalize_payload(target_data)
+        base_document = _canonicalize_payload_v1(base_data)
+        target_document = _canonicalize_payload_v1(target_data)
     except (AttributeError, KeyError, OverflowError, TypeError, ValueError):
         return _unavailable(result, "serialized_dag_canonicalization_failed")
 
@@ -132,9 +206,10 @@ class _ChangeCollector:
         if len(self.changes) >= self.max_changes:
             return
 
-        category = _get_category(path)
+        public_path = _get_public_path(path)
+        category = _get_category(public_path)
         change: dict[str, Any] = {
-            "path": _format_path(path if self.include_values else _redact_path(path)),
+            "path": _format_path(path if self.include_values else public_path),
             "operation": operation,
             "category": category,
             "impact": _get_impact(category),
@@ -172,7 +247,7 @@ def _unavailable(result: dict[str, Any], reason: str) -> dict[str, Any]:
     return result
 
 
-def _canonicalize_payload(data: dict[str, Any]) -> dict[str, Any]:
+def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
     payload = copy.deepcopy(data)
     version = _get_schema_version(payload)
     if version is None:
@@ -299,6 +374,9 @@ def _collect_changes(
     collector: _ChangeCollector,
 ) -> None:
     if isinstance(before, Mapping) and isinstance(after, Mapping):
+        if not collector.include_values and _is_task_mapping_path(path):
+            _collect_redacted_task_changes(before, after, path=path, collector=collector)
+            return
         if not collector.include_values and not _should_recurse_redacted_mapping(path):
             if not _json_equal(before, after):
                 collector.add(path=path, operation="changed", before=before, after=after)
@@ -323,15 +401,47 @@ def _collect_changes(
         collector.add(path=path, operation="changed", before=before, after=after)
 
 
-def _should_recurse_redacted_mapping(path: tuple[str, ...]) -> bool:
-    if path in _REDACTED_RECURSIVE_MAPPING_PATHS:
-        return True
+def _collect_redacted_task_changes(
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+    *,
+    path: tuple[str, ...],
+    collector: _ChangeCollector,
+) -> None:
+    public_fields = _DIFF_V1_PUBLIC_TASK_FIELDS
+    keys = {str(key) for key in before} | {str(key) for key in after}
+    for key in sorted(keys & public_fields):
+        _collect_changes(
+            before.get(key, _MISSING),
+            after.get(key, _MISSING),
+            path=path + (key,),
+            collector=collector,
+        )
+
+    before_custom_fields = {key: before[key] for key in before if key not in public_fields}
+    after_custom_fields = {key: after[key] for key in after if key not in public_fields}
+    if not _json_equal(before_custom_fields, after_custom_fields):
+        collector.add(
+            path=path + (_CUSTOM_TASK_FIELDS_PATH_COMPONENT,),
+            operation="changed",
+            before=before_custom_fields,
+            after=after_custom_fields,
+        )
+
+
+def _is_task_mapping_path(path: tuple[str, ...]) -> bool:
     return len(path) == 3 and path[:2] == ("dag", "tasks")
 
 
-def _redact_path(path: tuple[str, ...]) -> tuple[str, ...]:
+def _should_recurse_redacted_mapping(path: tuple[str, ...]) -> bool:
+    return path in _REDACTED_RECURSIVE_MAPPING_PATHS
+
+
+def _get_public_path(path: tuple[str, ...]) -> tuple[str, ...]:
     if len(path) >= 3 and path[:2] in _KEYED_COLLECTION_PATHS:
-        return (*path[:2], "*", *path[3:])
+        path = (*path[:2], "*", *path[3:])
+    if len(path) >= 4 and path[:2] == ("dag", "tasks") and path[3] not in _DIFF_V1_PUBLIC_TASK_FIELDS:
+        return (*path[:3], _CUSTOM_TASK_FIELDS_PATH_COMPONENT)
     return path
 
 
@@ -357,45 +467,54 @@ def _get_category(path: tuple[str, ...]) -> str:
     lowered_path = tuple(component.lower() for component in path)
     if lowered_path and lowered_path[0] == "provenance":
         return "provenance"
-    if "deadline" in lowered_path:
-        return "deadline"
-    if any("callback" in component for component in lowered_path):
-        return "callback"
-    if any(component in {"asset", "assets", "inlets", "outlets"} for component in lowered_path):
-        return "asset"
-    if any(component in {"param", "params", "default_args"} for component in lowered_path):
-        return "param"
-    if any(
-        component
-        in {"dag_dependencies", "dependencies", "edge_info", "upstream_task_ids", "downstream_task_ids"}
-        for component in lowered_path
-    ):
+    if lowered_path[:2] == ("dag", "dag_dependencies"):
         return "dependency"
-    if any(
-        component
-        in {
-            "schedule",
-            "schedule_interval",
-            "timetable",
-            "catchup",
-            "max_active_runs",
-            "max_active_tasks",
-            "dagrun_timeout",
-            "fail_fast",
-            "fail_stop",
-            "allowed_run_types",
-        }
-        for component in lowered_path
-    ):
-        return "schedule"
-    if len(lowered_path) >= 2 and lowered_path[:2] == ("dag", "tasks"):
-        return "task"
-    if any(
-        component in {"tags", "description", "doc_md", "owner", "owners", "email", "fileloc"}
-        for component in lowered_path
-    ):
+    if lowered_path[:2] == ("dag", "tags"):
         return "metadata"
-    return "unknown"
+    if lowered_path[:2] == ("dag", "allowed_run_types"):
+        return "schedule"
+
+    if lowered_path[:2] == ("dag", "tasks"):
+        field = lowered_path[3] if len(lowered_path) >= 4 else None
+        default_category = "task"
+    elif lowered_path and lowered_path[0] == "dag":
+        field = lowered_path[1] if len(lowered_path) >= 2 else None
+        default_category = "unknown"
+    else:
+        return "unknown"
+
+    if field == "deadline":
+        return "deadline"
+    if field is not None and "callback" in field:
+        return "callback"
+    if field in {"asset", "assets", "inlets", "outlets"}:
+        return "asset"
+    if field in {"param", "params", "default_args"}:
+        return "param"
+    if field in {
+        "dag_dependencies",
+        "dependencies",
+        "edge_info",
+        "upstream_task_ids",
+        "downstream_task_ids",
+    }:
+        return "dependency"
+    if field in {
+        "schedule",
+        "schedule_interval",
+        "timetable",
+        "catchup",
+        "max_active_runs",
+        "max_active_tasks",
+        "dagrun_timeout",
+        "fail_fast",
+        "fail_stop",
+        "allowed_run_types",
+    }:
+        return "schedule"
+    if field in {"tags", "description", "doc_md", "owner", "owners", "email", "fileloc"}:
+        return "metadata"
+    return default_category
 
 
 def _get_impact(category: str) -> str:
