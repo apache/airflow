@@ -93,10 +93,10 @@ class SQLDQEngine:
             records = self.hook.get_records(sql)
         except Exception:
             log.exception(
-                "Batched check query failed for table %s; falling back to one query per rule so a "
-                "single bad rule doesn't mark every other rule in the batch as errored",
+                "Batched check query failed for table %s; falling back to one query execution per rule",
                 table,
             )
+
             return [self._measure_builtin_single(rule, rule_sql[rule.rule_uid]) for rule in rules]
         elapsed_ms = (time.monotonic() - started) * 1000
         observed_by_uid = {str(row[0]): row[1] for row in records or []}
