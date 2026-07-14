@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 from airflow.cli import cli_parser
@@ -72,18 +73,24 @@ MOCK_COMMANDS: list[CLICommand] = [
 ]
 
 ALL_COMMANDS = """\
-airflow cmd_b                                   | Help text D
+airflow cmd_b | Help text D
 """
 
 SECTION_A = """\
-airflow cmd_a cmd_b                             | Help text B
-airflow cmd_a cmd_c                             | Help text C
+airflow cmd_a cmd_b | Help text B
+airflow cmd_a cmd_c | Help text C
 """
 
 SECTION_E = """\
-airflow cmd_e cmd_f                             | Help text F
-airflow cmd_e cmd_g                             | Help text G
+airflow cmd_e cmd_f | Help text F
+airflow cmd_e cmd_g | Help text G
 """
+
+
+def assert_cheat_sheet_rows(output: str, rows: str) -> None:
+    for row in rows.splitlines():
+        command, help_text = row.split(" | ")
+        assert re.search(rf"^{re.escape(command)}\s+\|\s+{re.escape(help_text)}$", output, re.MULTILINE)
 
 
 class TestCheatSheetCommand:
@@ -97,6 +104,6 @@ class TestCheatSheetCommand:
             args = self.parser.parse_args(["cheat-sheet"])
             args.func(args)
         output = temp_stdout.getvalue()
-        assert ALL_COMMANDS in output
-        assert SECTION_A in output
-        assert SECTION_E in output
+        assert_cheat_sheet_rows(output, ALL_COMMANDS)
+        assert_cheat_sheet_rows(output, SECTION_A)
+        assert_cheat_sheet_rows(output, SECTION_E)
