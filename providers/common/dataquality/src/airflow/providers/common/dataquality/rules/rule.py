@@ -141,7 +141,7 @@ class DQRule(BaseModel):
         collides on ``rule_uid``; set an explicit ``id`` on one of them to avoid this.
     :param description: Human-readable description shown in results and the UI. When omitted,
         the provider generates a short default description from the rule and condition.
-    :param id: Explicit, stable identity for this rule's history. When set, it is used verbatim
+    :param id: Explicit, stable identity for this rule's history. When set, it is used directly
         as the ``rule_uid`` instead of the derived hash, so it survives ``previous_name`` chains
         and sidesteps any collision between rules that would otherwise hash the same.
 
@@ -161,7 +161,7 @@ class DQRule(BaseModel):
     id: str | None = Field(
         default=None,
         description=(
-            "Explicit, stable identity for this rule's history, used verbatim as rule_uid "
+            "Explicit, stable identity for this rule's history, used directly as rule_uid "
             "instead of a derived hash."
         ),
     )
@@ -212,7 +212,7 @@ class DQRule(BaseModel):
         """
         Stable identity across runs: survives severity/dimension tweaks and Dag refactors.
 
-        Uses ``id`` verbatim when set. Otherwise derives a hash from the rule's identity --
+        Uses ``id`` directly when set. Otherwise derives a hash from the rule's identity --
         set ``id`` explicitly to sidestep a collision between two rules that would otherwise
         hash the same (see ``previous_name``).
         """

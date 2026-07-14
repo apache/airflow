@@ -56,7 +56,7 @@ from pathlib import Path
 
 from airflow.providers.common.dataquality.assets import asset_quality
 from airflow.providers.common.dataquality.operators.dq_check import DQCheckOperator
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet, Severity
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet, Severity
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.sdk import DAG, Asset, task
 
@@ -78,89 +78,89 @@ orders_ruleset = RuleSet(
             name="order_id_not_null",
             check="null_count",
             column="order_id",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
         ),
         DQRule(
             name="order_id_unique",
             check="unique_violations",
             column="order_id",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
         ),
         DQRule(
             name="customer_id_not_null",
             check="null_count",
             column="customer_id",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             severity=Severity.WARN,
         ),
         DQRule(
             name="discount_null_ratio",
             check="null_ratio",
             column="discount",
-            condition={"leq_to": 0.25},
+            condition=Condition(leq_to=0.25),
             severity=Severity.WARN,
         ),
         DQRule(
             name="region_distinct_count",
             check="distinct_count",
             column="region",
-            condition={"geq_to": 2},
+            condition=Condition(geq_to=2),
             severity=Severity.WARN,
         ),
         DQRule(
             name="amount_min_ge_zero",
             check="min",
             column="amount",
-            condition={"geq_to": 0},
+            condition=Condition(geq_to=0),
         ),
         DQRule(
             name="amount_max_le_100",
             check="max",
             column="amount",
-            condition={"leq_to": 100},
+            condition=Condition(leq_to=100),
         ),
         DQRule(
             name="amount_mean_between_5_and_60",
             check="mean",
             column="amount",
-            condition={"geq_to": 5, "leq_to": 60},
+            condition=Condition(geq_to=5, leq_to=60),
         ),
         DQRule(
             name="quantity_min_ge_one",
             check="min",
             column="quantity",
-            condition={"geq_to": 1},
+            condition=Condition(geq_to=1),
         ),
         DQRule(
             name="quantity_max_le_ten",
             check="max",
             column="quantity",
-            condition={"leq_to": 10},
+            condition=Condition(leq_to=10),
         ),
         DQRule(
             name="amount_non_negative",
             check="custom_sql",
             # {table} is substituted by the SQL engine at check time, not an f-string placeholder.
             sql="SELECT COUNT(*) FROM {table} WHERE amount < 0",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
         ),
         DQRule(
             name="high_value_order_count",
             check="custom_sql",
             sql="SELECT COUNT(*) FROM {table} WHERE amount > 100",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             severity=Severity.WARN,
         ),
         DQRule(
             name="row_count_present",
             check="row_count",
-            condition={"greater_than": 0},
+            condition=Condition(greater_than=0),
             severity=Severity.WARN,
         ),
         DQRule(
             name="row_count_at_least_three",
             check="row_count",
-            condition={"geq_to": 3},
+            condition=Condition(geq_to=3),
         ),
     ),
 )
@@ -182,24 +182,24 @@ strict_orders_ruleset = RuleSet(
             name="strict_order_id_not_null",
             check="null_count",
             column="order_id",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
         ),
         DQRule(
             name="strict_amount_max_le_20",
             check="max",
             column="amount",
-            condition={"leq_to": 20},
+            condition=Condition(leq_to=20),
         ),
         DQRule(
             name="strict_row_count_equal_two",
             check="row_count",
-            condition={"equal_to": 2},
+            condition=Condition(equal_to=2),
         ),
         DQRule(
             name="strict_region_distinct_count",
             check="distinct_count",
             column="region",
-            condition={"geq_to": 4},
+            condition=Condition(geq_to=4),
             severity=Severity.WARN,
         ),
     ),

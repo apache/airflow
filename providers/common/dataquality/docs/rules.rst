@@ -63,7 +63,7 @@ can also be proposed by an LLM -- see :doc:`agents`.
   ``"region = 'EU'"``. Combines with the operator-level ``partition_clause``, if any.
 - ``previous_name`` -- set when renaming a rule so its execution history stays continuous
   (see `Identity and history`_).
-- ``id`` -- explicit, stable identity for this rule's history, used verbatim as ``rule_uid``
+- ``id`` -- explicit, stable identity for this rule's history, used directly as ``rule_uid``
   instead of the derived hash (see `Identity and history`_).
 - ``description`` -- optional human-readable text shown in data quality results.
   When omitted, the provider generates a short default description from the rule and condition.

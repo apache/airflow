@@ -24,14 +24,14 @@ from airflow.providers.common.dataquality.assets import asset_quality
 from airflow.providers.common.dataquality.backends.object_storage import ObjectStorageResultsBackend
 from airflow.providers.common.dataquality.exceptions import DQCheckFailedError
 from airflow.providers.common.dataquality.operators.dq_check import DQCheckOperator
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet, Severity
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet, Severity
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.sdk import Asset
 from airflow.sdk.execution_time.context import OutletEventAccessors
 
-NULLS = DQRule(name="nulls", check="null_count", column="id", condition={"equal_to": 0})
+NULLS = DQRule(name="nulls", check="null_count", column="id", condition=Condition(equal_to=0))
 VOLUME_WARN = DQRule(
-    name="volume", check="row_count", condition={"greater_than": 100}, severity=Severity.WARN
+    name="volume", check="row_count", condition=Condition(greater_than=100), severity=Severity.WARN
 )
 RULESET = RuleSet(name="orders", rules=(NULLS, VOLUME_WARN))
 
@@ -168,7 +168,7 @@ class TestDQCheckOperatorExecute:
             name="nulls",
             check="null_count",
             column="id",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             description="Order IDs must always be present.",
         )
         operator, hook = make_operator(

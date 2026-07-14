@@ -114,7 +114,7 @@ class TestCondition:
 
 class TestDQRule:
     def test_condition_dict_is_coerced(self):
-        rule = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0})
+        rule = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0})  # type: ignore[arg-type]
         assert isinstance(rule.condition, Condition)
 
     @pytest.mark.parametrize(
@@ -130,39 +130,39 @@ class TestDQRule:
             DQRule(name="r", check="null_count", column="c", condition=condition)
 
     def test_rule_uid_is_stable_across_severity(self):
-        base = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0})
+        base = DQRule(name="r", check="null_count", column="c", condition=Condition(equal_to=0))
         tweaked = DQRule(
             name="r",
             check="null_count",
             column="c",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             severity=Severity.WARN,
         )
         assert base.rule_uid == tweaked.rule_uid
 
     def test_rule_uid_is_stable_across_description(self):
-        base = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0})
+        base = DQRule(name="r", check="null_count", column="c", condition=Condition(equal_to=0))
         described = DQRule(
             name="r",
             check="null_count",
             column="c",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             description="Column c must be populated.",
         )
         assert base.rule_uid == described.rule_uid
 
     def test_rule_uid_changes_with_condition(self):
-        one = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0})
-        two = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 1})
+        one = DQRule(name="r", check="null_count", column="c", condition=Condition(equal_to=0))
+        two = DQRule(name="r", check="null_count", column="c", condition=Condition(equal_to=1))
         assert one.rule_uid != two.rule_uid
 
     def test_previous_name_keeps_uid(self):
-        old = DQRule(name="old_name", check="null_count", column="c", condition={"equal_to": 0})
+        old = DQRule(name="old_name", check="null_count", column="c", condition=Condition(equal_to=0))
         renamed = DQRule(
             name="new_name",
             check="null_count",
             column="c",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             previous_name="old_name",
         )
         assert renamed.rule_uid == old.rule_uid
@@ -179,14 +179,16 @@ class TestDQRule:
             name="new_name",
             check="null_count",
             column="c",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             previous_name="old_name",
         )
-        unrelated = DQRule(name="old_name", check="null_count", column="c", condition={"equal_to": 0})
+        unrelated = DQRule(name="old_name", check="null_count", column="c", condition=Condition(equal_to=0))
         assert renamed.rule_uid == unrelated.rule_uid
 
-    def test_explicit_id_is_used_verbatim_as_rule_uid(self):
-        rule = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0}, id="my-stable-id")
+    def test_explicit_id_is_used_directly_as_rule_uid(self):
+        rule = DQRule(
+            name="r", check="null_count", column="c", condition=Condition(equal_to=0), id="my-stable-id"
+        )
         assert rule.rule_uid == "my-stable-id"
 
     def test_explicit_id_avoids_collision(self):
@@ -194,20 +196,24 @@ class TestDQRule:
             name="new_name",
             check="null_count",
             column="c",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             previous_name="old_name",
             id="renamed-rule",
         )
-        unrelated = DQRule(name="old_name", check="null_count", column="c", condition={"equal_to": 0})
+        unrelated = DQRule(name="old_name", check="null_count", column="c", condition=Condition(equal_to=0))
         assert renamed.rule_uid != unrelated.rule_uid
 
     def test_explicit_id_survives_condition_and_previous_name_changes(self):
-        first = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0}, id="stable")
-        tightened = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 5}, id="stable")
+        first = DQRule(name="r", check="null_count", column="c", condition=Condition(equal_to=0), id="stable")
+        tightened = DQRule(
+            name="r", check="null_count", column="c", condition=Condition(equal_to=5), id="stable"
+        )
         assert first.rule_uid == tightened.rule_uid
 
     def test_id_is_serialized_and_round_trips(self):
-        rule = DQRule(name="r", check="null_count", column="c", condition={"equal_to": 0}, id="my-stable-id")
+        rule = DQRule(
+            name="r", check="null_count", column="c", condition=Condition(equal_to=0), id="my-stable-id"
+        )
         assert rule.to_dict()["id"] == "my-stable-id"
         assert DQRule.from_dict(rule.to_dict()) == rule
 
@@ -227,7 +233,7 @@ class TestDQRule:
             DQRule(**kwargs)
 
     def test_row_count_needs_no_column(self):
-        rule = DQRule(name="volume", check="row_count", condition={"greater_than": 0})
+        rule = DQRule(name="volume", check="row_count", condition=Condition(greater_than=0))
         assert rule.column is None
 
     @pytest.mark.parametrize(
@@ -244,7 +250,7 @@ class TestDQRule:
         ],
     )
     def test_default_dimension_comes_from_check_catalog(self, check, column, expected_dimension):
-        rule = DQRule(name="r", check=check, column=column, condition={"equal_to": 0})
+        rule = DQRule(name="r", check=check, column=column, condition=Condition(equal_to=0))
         assert rule.dimension.value == expected_dimension
 
     def test_custom_sql_dimension_can_be_overridden(self):
@@ -252,18 +258,24 @@ class TestDQRule:
             name="freshness_check",
             check="custom_sql",
             sql="SELECT COUNT(*) FROM {table} WHERE updated_at < NOW() - INTERVAL '1 day'",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             dimension="freshness",
         )
         assert rule.dimension.value == "freshness"
 
     def test_invalid_dimension_rejected(self):
         with pytest.raises(ValidationError):
-            DQRule(name="r", check="row_count", condition={"greater_than": 0}, dimension="not_a_dimension")
+            DQRule(
+                name="r", check="row_count", condition=Condition(greater_than=0), dimension="not_a_dimension"
+            )
 
     def test_explicit_dimension_matching_default_is_omitted_from_to_dict(self):
         rule = DQRule(
-            name="r", check="null_count", column="c", condition={"equal_to": 0}, dimension="completeness"
+            name="r",
+            check="null_count",
+            column="c",
+            condition=Condition(equal_to=0),
+            dimension="completeness",
         )
         assert "dimension" not in rule.to_dict()
 
@@ -272,7 +284,7 @@ class TestDQRule:
             name="freshness_check",
             check="custom_sql",
             sql="SELECT COUNT(*) FROM {table} WHERE updated_at < NOW() - INTERVAL '1 day'",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             dimension="freshness",
         )
         assert rule.to_dict()["dimension"] == "freshness"
@@ -287,7 +299,7 @@ class TestDQRule:
             name="r",
             check="custom_sql",
             sql="SELECT COUNT(*) FROM {table} WHERE x < 0",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             severity=Severity.WARN,
             partition_clause="ds = '2026-07-04'",
             description="No rows should have negative x.",
@@ -298,19 +310,19 @@ class TestDQRule:
         rule = DQRule(
             name="r",
             check="row_count",
-            condition={"greater_than": 0},
+            condition=Condition(greater_than=0),
             description="Orders table should not be empty.",
         )
         assert rule.to_dict()["description"] == "Orders table should not be empty."
 
     def test_default_description_uses_column_when_available(self):
-        rule = DQRule(name="amount_min", check="min", column="amount", condition={"geq_to": 0})
+        rule = DQRule(name="amount_min", check="min", column="amount", condition=Condition(geq_to=0))
         assert describe_rule(rule) == "amount should be greater than or equal to 0.0"
 
 
 class TestRuleSet:
     def test_duplicate_rule_names_rejected(self):
-        rule = DQRule(name="r", check="row_count", condition={"greater_than": 0})
+        rule = DQRule(name="r", check="row_count", condition=Condition(greater_than=0))
         with pytest.raises(ValidationError, match="Duplicate rule names"):
             RuleSet(name="s", rules=(rule, rule))
 
@@ -319,10 +331,10 @@ class TestRuleSet:
             name="new_name",
             check="null_count",
             column="c",
-            condition={"equal_to": 0},
+            condition=Condition(equal_to=0),
             previous_name="old_name",
         )
-        unrelated = DQRule(name="old_name", check="null_count", column="c", condition={"equal_to": 0})
+        unrelated = DQRule(name="old_name", check="null_count", column="c", condition=Condition(equal_to=0))
         with pytest.raises(ValidationError, match="collide on rule_uid"):
             RuleSet(name="s", rules=(renamed, unrelated))
 
@@ -330,8 +342,8 @@ class TestRuleSet:
         ruleset = RuleSet(
             name="orders",
             rules=(
-                DQRule(name="volume", check="row_count", condition={"greater_than": 0}),
-                DQRule(name="ids", check="null_count", column="id", condition={"equal_to": 0}),
+                DQRule(name="volume", check="row_count", condition=Condition(greater_than=0)),
+                DQRule(name="ids", check="null_count", column="id", condition=Condition(equal_to=0)),
             ),
         )
         assert RuleSet.from_dict(ruleset.to_dict()) == ruleset

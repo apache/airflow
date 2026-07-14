@@ -28,14 +28,14 @@ from airflow.providers.common.dataquality.assets import (
     require_quality,
 )
 from airflow.providers.common.dataquality.exceptions import DQRuleValidationError
-from airflow.providers.common.dataquality.rules import DQRule, RuleSet
+from airflow.providers.common.dataquality.rules import Condition, DQRule, RuleSet
 from airflow.sdk import Asset
 from airflow.sdk.execution_time.comms import AssetEventDagRunReferenceResult
 from airflow.sdk.execution_time.context import TriggeringAssetEventsAccessor
 
 RULESET = RuleSet(
     name="orders",
-    rules=(DQRule(name="volume", check="row_count", condition={"greater_than": 0}),),
+    rules=(DQRule(name="volume", check="row_count", condition=Condition(greater_than=0)),),
 )
 
 ORDERS = Asset("orders")
