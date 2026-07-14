@@ -658,6 +658,42 @@ def test_create_workload_watched_assets_none_when_no_assets(jobless_supervisor, 
     assert workload.watched_assets is None
 
 
+def test_create_workload_handles_stale_task(jobless_supervisor, mocker):
+    """_create_workload() should return a context-free workload when get_task() raises TaskNotFound."""
+    from airflow.exceptions import TaskNotFound
+
+    trigger = mocker.Mock()
+    trigger.id = 99
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance.dag_version_id = uuid.uuid4()
+    trigger.task_instance.task_id = "vanished_task"
+    trigger.task_instance.trigger_timeout = None
+
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        return_value=mocker.Mock(spec=TaskInstanceDTO),
+    )
+
+    dag_bag = mocker.Mock()
+    serialized_dag_model = mocker.Mock()
+    serialized_dag_model.dag.get_task.side_effect = TaskNotFound("Task vanished_task not found")
+    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+
+    render_log_fname = mocker.Mock(return_value="/logs/ti")
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=dag_bag,
+        render_log_fname=render_log_fname,
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    assert workload.id == 99
+    assert workload.dag_data is None
+
+
 def test_run_trigger_workload_includes_watched_assets_field():
     """RunTrigger workload should accept and store watched_assets."""
     workload = RunTrigger(
