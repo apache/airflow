@@ -19,9 +19,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.bundles import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 
 
