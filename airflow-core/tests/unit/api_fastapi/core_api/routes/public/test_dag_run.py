@@ -48,7 +48,7 @@ from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
@@ -1626,6 +1626,70 @@ class TestPatchDagRun:
         )
         assert response.status_code == 200
         assert listener.dag_run_note_at_listener == "listener_note"
+
+    @pytest.mark.parametrize(
+        ("dag_run_state", "expected_ti_listener_state"),
+        [
+            ("success", TaskInstanceState.SUCCESS),
+            ("failed", TaskInstanceState.FAILED),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_notifies_ti_listeners_for_running_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+        dag_run_state,
+        expected_ti_listener_state,
+    ):
+        with dag_maker(dag_id="test_ti_listeners", schedule=None, serialized=True):
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners/dagRuns/{dr.run_id}", json={"state": dag_run_state}
+        )
+        assert response.status_code == 200
+        assert expected_ti_listener_state in listener.state
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_does_not_notify_ti_listeners_for_non_running_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+    ):
+        with dag_maker(dag_id="test_ti_listeners_queued", schedule=None, serialized=True):
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.QUEUED
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners_queued/dagRuns/{dr.run_id}", json={"state": "success"}
+        )
+        assert response.status_code == 200
+        # Only the dagrun-level hook should have fired; no TI hooks for a non-running task.
+        # DagRunState.SUCCESS and TaskInstanceState.SUCCESS share the string value 'success', so
+        # we check the exact type to distinguish them.
+        assert listener.state == [DagRunState.SUCCESS]
 
 
 class TestDeleteDagRun:

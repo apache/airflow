@@ -57,6 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.taskinstance import TaskInstance
@@ -193,7 +194,13 @@ def patch_dag_run_state(
 ) -> None:
     """Set a Dag Run's state (success/queued/failed), firing the matching listener hooks."""
     if state == DagRunMutableStates.SUCCESS:
-        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        _, running_tis = set_dag_run_state_to_success(
+            dag=dag, run_id=dag_run.run_id, commit=True, session=session
+        )
+        try:
+            _emit_state_listener_hooks(running_tis, TaskInstanceState.SUCCESS)
+        except Exception:
+            log.exception("error calling listener")
         try:
             if dag_run.dag is None:
                 dag_run.dag = dag
@@ -209,7 +216,13 @@ def patch_dag_run_state(
         # Not notifying on queued - only notifying on RUNNING, which happens in the scheduler.
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
     elif state == DagRunMutableStates.FAILED:
-        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        _, running_tis = set_dag_run_state_to_failed(
+            dag=dag, run_id=dag_run.run_id, commit=True, session=session
+        )
+        try:
+            _emit_state_listener_hooks(running_tis, TaskInstanceState.FAILED)
+        except Exception:
+            log.exception("error calling listener")
         try:
             if dag_run.dag is None:
                 dag_run.dag = dag
