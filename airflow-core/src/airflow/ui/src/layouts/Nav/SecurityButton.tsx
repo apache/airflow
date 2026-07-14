@@ -33,10 +33,14 @@ export const SecurityButton = () => {
     return undefined;
   }
 
+  const securityPaths = authLinks.extra_menu_items.map(
+    ({ text }) => `security/${text.toLowerCase().replace(" ", "-")}`,
+  );
+
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={FiLock} title={translate("nav.security")} />
+        <NavButton icon={FiLock} title={translate("nav.security")} to={securityPaths} />
       </Menu.Trigger>
       <Menu.Content>
         {authLinks.extra_menu_items.map(({ text }) => {
