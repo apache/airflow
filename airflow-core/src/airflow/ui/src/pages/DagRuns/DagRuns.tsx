@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Text } from "@chakra-ui/react";
+import { Flex, HStack, Text, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -36,6 +36,7 @@ import {
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import RenderedJsonField from "src/components/RenderedJsonField";
@@ -47,7 +48,7 @@ import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -86,10 +87,11 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly open: boolean;
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({ dagId, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({ dagId, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -196,7 +198,7 @@ const runColumns = ({ dagId, translate }: ColumnProps): Array<ColumnDef<DAGRunRe
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
       original.conf && Object.keys(original.conf).length > 0 ? (
-        <RenderedJsonField collapsed content={original.conf} />
+        <RenderedJsonField collapsed={!open} content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
   },
@@ -221,11 +223,15 @@ const runColumns = ({ dagId, translate }: ColumnProps): Array<ColumnDef<DAGRunRe
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
   const { dagId } = useParams();
+
+  // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:dagRun_other") : undefined);
+
   const [searchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure();
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
-      conf: false,
       dag_version: false,
       end_date: false,
       partition_key: false,
@@ -334,6 +340,7 @@ export const DagRuns = () => {
   const columns = runColumns({
     dagId,
     multiTeam: false,
+    open,
     translate,
   });
 
@@ -344,7 +351,16 @@ export const DagRuns = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <DagRunsFilters dagId={dagId} />
+      <Flex alignItems="center" justifyContent="space-between">
+        <DagRunsFilters dagId={dagId} />
+        <ExpandCollapseButtons
+          collapseLabel={translate("common:collapseAllExtra")}
+          expandLabel={translate("common:expandAllExtra")}
+          isExpanded={open}
+          onCollapse={onClose}
+          onExpand={onOpen}
+        />
+      </Flex>
       <DataTable
         columns={columns}
         data={data?.dag_runs ?? []}

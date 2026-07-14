@@ -30,6 +30,9 @@ labelPRBasedOnFilePath:
   provider:amazon:
     - providers/amazon/**
 
+  provider:anthropic:
+    - providers/anthropic/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
@@ -110,6 +113,9 @@ labelPRBasedOnFilePath:
 
   provider:common-compat:
     - providers/common/compat/**
+
+  provider:common-dataquality:
+    - providers/common/dataquality/**
 
   provider:common-io:
     - providers/common/io/**

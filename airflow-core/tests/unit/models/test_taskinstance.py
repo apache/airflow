@@ -108,7 +108,6 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -2588,7 +2587,6 @@ class TestTaskInstance:
             "task_display_name": "Test Refresh from DB Task",
             "dag_version_id": mock.ANY,
             "context_carrier": {},
-            "span_status": SpanStatus.ENDED,
             "retry_delay_override": 60.0,
             "retry_reason": "Rate limit, backing off",
         }
@@ -2714,6 +2712,30 @@ class TestTaskInstance:
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert tih[0].task_instance_id == try_id
+
+    def test_record_ti_stamps_end_date_when_unset_for_non_finished_state(self, dag_maker, session):
+        """record_ti() must fill in end_date/duration when archiving a non-finished TI with end_date=None."""
+        archive_time = pendulum.datetime(2024, 6, 15, 12, 0, 0, tz="UTC")
+        start = pendulum.datetime(2024, 6, 15, 11, 50, 0, tz="UTC")
+
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="test_record_ti_fallback")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.state = TaskInstanceState.RUNNING
+        ti.start_date = start
+        ti.end_date = None
+        session.flush()
+
+        with time_machine.travel(archive_time, tick=False):
+            TaskInstanceHistory.record_ti(ti, session=session)
+        session.flush()
+
+        tih = session.scalars(select(TaskInstanceHistory)).one()
+        assert tih.state == str(TaskInstanceState.FAILED)
+        assert tih.end_date == archive_time
+        assert tih.duration == (archive_time - start).total_seconds()
 
     @pytest.mark.parametrize(
         ("first_ti", "second_ti"),
@@ -4127,6 +4149,26 @@ def test_clear_task_instances_honors_trace_sampled_conf(dag_maker, session, flag
     new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
     span_ctx = trace.get_current_span(new_ctx).get_span_context()
     assert span_ctx.trace_flags.sampled is flag
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_keeps_external_parent_trace(dag_maker, session):
+    """The regenerated carrier keeps riding the external trace from airflow/dagrun_parent_trace_context."""
+    external_trace_id = "11111111111111111111111111111111"
+    with dag_maker("test_clear_parent_trace"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun(
+        conf={"airflow/dagrun_parent_trace_context": f"00-{external_trace_id}-2222222222222222-01"}
+    )
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span_ctx = trace.get_current_span(new_ctx).get_span_context()
+    assert format(span_ctx.trace_id, "032x") == external_trace_id
 
 
 @pytest.mark.db_test

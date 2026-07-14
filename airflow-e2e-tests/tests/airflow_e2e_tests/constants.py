@@ -50,6 +50,10 @@ XCOM_BUCKET = "test-xcom-objectstorage-backend"
 
 KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
 
+# OpenLineage E2E test paths. The DAGs are sourced from the provider system tests at runtime by
+# openlineage_tests/prepare_dags.py; the overlay carries the OpenLineage-specific env + dag_doc mount.
+OPENLINEAGE_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage.yml"
+
 # Java SDK E2E test paths
 JAVA_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
 JAVA_SDK_EXAMPLE_DAGS_PATH = JAVA_SDK_ROOT_PATH / "example" / "src" / "resources" / "dags"

@@ -71,20 +71,20 @@ export const AssetEvent = ({
             showArrow
           >
             <Link to={`/assets/${event.asset_id}`}>
-              <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+              <Box color="fg.info" overflowWrap="anywhere" padding={0}>
                 {event.name ?? ""}
               </Box>
             </Link>
           </Tooltip>
         </HStack>
       )}
-      <HStack>
+      <HStack flexWrap="wrap">
         <Box>{translate("source")}: </Box>
         {source === "" ? (
           <Link
             to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
           >
-            <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+            <Box color="fg.info" overflowWrap="anywhere" padding={0}>
               {event.source_dag_id}
             </Box>
           </Link>
