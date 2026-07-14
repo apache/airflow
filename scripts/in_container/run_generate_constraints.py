@@ -40,8 +40,6 @@ DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
-ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
-
 
 def _read_version_from_pyproject(pyproject_path: Path) -> str:
     with pyproject_path.open("rb") as f:
@@ -448,13 +446,14 @@ def uninstall_all_packages(config_params: ConfigParams):
 
 
 def get_all_active_provider_distributions(python_version: str | None = None) -> list[str]:
+    all_provider_dependencies = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
     return [
         f"apache-airflow-providers-{provider.replace('.', '-')}"
-        for provider in ALL_PROVIDER_DEPENDENCIES.keys()
-        if ALL_PROVIDER_DEPENDENCIES[provider]["state"] == "ready"
+        for provider in all_provider_dependencies.keys()
+        if all_provider_dependencies[provider]["state"] == "ready"
         and (
             python_version is None
-            or python_version not in ALL_PROVIDER_DEPENDENCIES[provider]["excluded-python-versions"]
+            or python_version not in all_provider_dependencies[provider]["excluded-python-versions"]
         )
     ]
 
