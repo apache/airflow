@@ -145,7 +145,7 @@ class TestIsloSandboxBackendCreate:
 
         kwargs = mock_client.sandboxes.create_sandbox.call_args.kwargs
         assert set(kwargs) == {"name", "lifecycle", "internet_enabled"}
-        assert kwargs["name"].startswith("airflow-sbx-")
+        assert kwargs["name"].startswith("airflow-sandbox-")
         assert kwargs["internet_enabled"] is False
         assert kwargs["lifecycle"] == LifecyclePolicy(delete_after=3600)
 
@@ -236,6 +236,31 @@ class TestIsloSandboxBackendRun:
         assert result.sandbox_terminated is True
         mock_client.sandboxes.get_exec_result.assert_not_called()
         mock_client.sandboxes.delete_sandbox.assert_called_once_with(sandbox_name="sbx")
+
+    @patch("airflow.providers.common.ai.sandbox.islo.time.monotonic", side_effect=[0.0, 10.0])
+    def test_run_termination_cleanup_failure_does_not_fail_task(self, mock_monotonic):
+        # A transient delete failure during the timeout-termination path must not
+        # propagate — the server-side TTL is the backstop.
+        backend, mock_client = _backend_with_mock_client()
+        mock_client.sandboxes.delete_sandbox.side_effect = RuntimeError("transient 503")
+
+        result = backend.run("sbx", ["sleep", "60"], timeout=1.0)
+
+        assert result.timed_out is True
+        assert result.sandbox_terminated is True
+
+    def test_run_caps_oversized_output(self):
+        from airflow.providers.common.ai.sandbox.base import _MAX_OUTPUT_CHARS
+
+        backend, mock_client = _backend_with_mock_client()
+        mock_client.sandboxes.get_exec_result.return_value = _make_exec_result(
+            stdout="x" * (_MAX_OUTPUT_CHARS + 50), stderr="y", truncated=False
+        )
+
+        result = backend.run("sbx", ["python3", "-c", "x"], timeout=10.0)
+
+        assert len(result.stdout) == _MAX_OUTPUT_CHARS
+        assert result.truncated is True
 
     @pytest.mark.parametrize("timeout", [0, -1, float("nan")])
     def test_run_rejects_invalid_timeout(self, timeout):

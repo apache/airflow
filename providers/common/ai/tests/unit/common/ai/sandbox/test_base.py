@@ -21,8 +21,10 @@ import dataclasses
 import pytest
 
 from airflow.providers.common.ai.sandbox.base import (
+    _MAX_OUTPUT_CHARS,
     SandboxBackend,
     SandboxResult,
+    _cap_output,
     _new_sandbox_name,
     _validate_positive_finite,
 )
@@ -43,11 +45,21 @@ class TestSandboxResult:
 
 class TestNewSandboxName:
     def test_prefix(self):
-        assert _new_sandbox_name().startswith("airflow-sbx-")
+        assert _new_sandbox_name().startswith("airflow-sandbox-")
 
     def test_unique(self):
         names = {_new_sandbox_name() for _ in range(100)}
         assert len(names) == 100
+
+
+class TestCapOutput:
+    def test_short_text_is_untouched(self):
+        assert _cap_output("hello") == ("hello", False)
+
+    def test_long_text_is_capped_and_flagged(self):
+        text, truncated = _cap_output("x" * (_MAX_OUTPUT_CHARS + 1))
+        assert len(text) == _MAX_OUTPUT_CHARS
+        assert truncated is True
 
 
 class TestSandboxBackend:
