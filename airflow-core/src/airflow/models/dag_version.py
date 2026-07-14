@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, get_args
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -30,6 +30,7 @@ from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.exceptions import DagVersionNotFound
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
@@ -43,10 +44,8 @@ log = logging.getLogger(__name__)
 
 SourceStatus = Literal["current_stored_code", "redacted", "unavailable"]
 ValuesStatus = Literal["available", "unavailable"]
-
-
-class DagVersionNotFoundError(ValueError):
-    """Raised when one of the requested Dag versions does not exist."""
+_VALID_SOURCE_STATUSES = get_args(SourceStatus)
+_VALID_VALUES_STATUSES = get_args(ValuesStatus)
 
 
 class DagVersion(Base):
@@ -274,15 +273,24 @@ class DagVersion(Base):
         method returns any source content. API callers use ``values_status`` to suppress raw values
         when the user cannot access Dag code; the structural diff remains available in redacted form.
         """
+        # Keep this local to avoid the dag_version -> dag_version_diff -> serialized_objects cycle.
         from airflow.serialization.dag_version_diff import (
             DEFAULT_MAX_CHANGES,
             build_serialized_dag_diff,
         )
 
+        if source_status is not None and source_status not in _VALID_SOURCE_STATUSES:
+            raise ValueError(f"source_status must be one of {_VALID_SOURCE_STATUSES}, not {source_status!r}")
+        if values_status is not None and values_status not in _VALID_VALUES_STATUSES:
+            raise ValueError(f"values_status must be one of {_VALID_VALUES_STATUSES}, not {values_status!r}")
+
         if max_changes is None:
             max_changes = DEFAULT_MAX_CHANGES
         if base_version_number < 1 or target_version_number < 1:
             raise ValueError("Dag version numbers must be positive integers")
+
+        if source_status is None:
+            source_status = "current_stored_code" if include_source else "unavailable"
 
         query = (
             select(cls)
@@ -292,7 +300,7 @@ class DagVersion(Base):
             )
             .options(joinedload(cls.serialized_dag))
         )
-        if include_source and source_status not in {"redacted", "unavailable"}:
+        if include_source and source_status == "current_stored_code":
             query = query.options(joinedload(cls.dag_code))
 
         versions = {version.version_number: version for version in session.scalars(query).all()}
@@ -305,13 +313,13 @@ class DagVersion(Base):
             None,
         )
         if missing_version is not None:
-            raise DagVersionNotFoundError(
+            raise DagVersionNotFound(
                 f"The DagVersion with dag_id: `{dag_id}` and version_number: `{missing_version}` was not found"
             )
 
         base_version = versions[base_version_number]
         target_version = versions[target_version_number]
-        effective_include_values = include_values and values_status != "unavailable"
+        effective_include_values = include_values and values_status in {None, "available"}
         result = build_serialized_dag_diff(
             base_data=base_version.serialized_dag.data if base_version.serialized_dag else None,
             target_data=target_version.serialized_dag.data if target_version.serialized_dag else None,
@@ -327,7 +335,7 @@ class DagVersion(Base):
             base_version,
             target_version,
             include_source=include_source,
-            source_status=source_status or ("current_stored_code" if include_source else "unavailable"),
+            source_status=source_status,
         )
         return result
 

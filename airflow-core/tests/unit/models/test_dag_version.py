@@ -17,14 +17,16 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 from unittest import mock
 
 import pytest
 from sqlalchemy import delete, func, select
 
 from airflow._shared.timezones import timezone
+from airflow.exceptions import DagVersionNotFound
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion, DagVersionNotFoundError
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -248,7 +250,7 @@ class TestDagVersionGetDiff:
         assert "values" not in result
 
     def test_raises_for_missing_version(self, dag_id, session):
-        with pytest.raises(DagVersionNotFoundError, match="version_number: `3`"):
+        with pytest.raises(DagVersionNotFound, match="version_number: `3`"):
             DagVersion.get_diff(dag_id, 1, 3, session=session)
 
     @pytest.mark.parametrize("version_numbers", [(0, 2), (1, 0)])
@@ -256,8 +258,11 @@ class TestDagVersionGetDiff:
         with pytest.raises(ValueError, match="Dag version numbers must be positive integers"):
             DagVersion.get_diff(dag_id, *version_numbers, session=session)
 
-    def test_marks_values_available_for_operator_authority(self, dag_id, session):
-        result = DagVersion.get_diff(dag_id, 1, 2, include_values=True, session=session)
+    @pytest.mark.parametrize("values_status", [None, "available"])
+    def test_marks_values_available_when_allowed(self, dag_id, session, values_status):
+        result = DagVersion.get_diff(
+            dag_id, 1, 2, include_values=True, values_status=values_status, session=session
+        )
 
         assert result["values"] == {"status": "available"}
         assert any("after_value" in change for change in result["changes"])
@@ -279,8 +284,11 @@ class TestDagVersionGetDiff:
         )
         assert result["values"] == {"status": "unavailable"}
 
-    def test_includes_current_stored_source(self, dag_id, session):
-        result = DagVersion.get_diff(dag_id, 1, 2, include_source=True, session=session)
+    @pytest.mark.parametrize("source_status", [None, "current_stored_code"])
+    def test_includes_current_stored_source(self, dag_id, session, source_status):
+        result = DagVersion.get_diff(
+            dag_id, 1, 2, include_source=True, source_status=source_status, session=session
+        )
 
         source = result["source"]
         assert source["status"] == "current_stored_code"
@@ -288,12 +296,31 @@ class TestDagVersionGetDiff:
         assert source["base"]["digest"].startswith("sha256:")
         assert source["target"]["content"] is not None
 
-    def test_redacts_source_when_status_denied(self, dag_id, session):
+    @pytest.mark.parametrize("source_status", ["redacted", "unavailable"])
+    def test_hides_source_when_status_denied(self, dag_id, session, source_status):
         result = DagVersion.get_diff(
-            dag_id, 1, 2, include_source=True, source_status="redacted", session=session
+            dag_id, 1, 2, include_source=True, source_status=source_status, session=session
         )
 
-        assert result["source"] == {"status": "redacted", "fidelity": "redacted"}
+        assert result["source"] == {"status": source_status, "fidelity": source_status}
+
+    @pytest.mark.parametrize(
+        ("status_name", "invalid_status"),
+        [("source_status", ""), ("values_status", "redacted")],
+    )
+    def test_rejects_invalid_authorization_status(self, dag_id, session, status_name, invalid_status):
+        status: dict[str, Any] = {status_name: invalid_status}
+
+        with pytest.raises(ValueError, match=rf"{status_name} must be one of"):
+            DagVersion.get_diff(
+                dag_id,
+                1,
+                2,
+                include_source=True,
+                include_values=True,
+                session=session,
+                **status,
+            )
 
     def test_marks_source_unavailable_when_code_missing(self, dag_id, session):
         from airflow.models.dagcode import DagCode
