@@ -108,7 +108,7 @@ from airflow.api_fastapi.core_api.services.public.dag_run import (
     perform_clear_dag_run,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import ParamValidationError
+from airflow.exceptions import DagVersionNotFound, ParamValidationError
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
@@ -693,21 +693,44 @@ def trigger_dag_run(
             f"Dag with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
-        )
-
     referer = request.headers.get("referer")
     if referer:
         triggered_by = DagRunTriggeredByType.UI
     else:
         triggered_by = DagRunTriggeredByType.REST_API
 
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     try:
-        params = body.validate_context(dag)
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+        preloaded_dag_version = None
+        context_dag = dag
+        if body.bundle_version is not None and not dag.disable_bundle_versioning:
+            preloaded_dag_version = DagVersion.get_latest_version(
+                dag_id, bundle_version=body.bundle_version, load_serialized_dag=True, session=session
+            )
+            if not preloaded_dag_version:
+                raise DagVersionNotFound(
+                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{body.bundle_version}'"
+                )
+            context_dag = preloaded_dag_version.serialized_dag.dag
+
+        if (
+            context_dag.allowed_run_types is not None
+            and DagRunType.MANUAL not in context_dag.allowed_run_types
+        ):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Dag with dag_id: '{dag_id}' does not allow manual runs",
+            )
+
+        params = body.validate_context(context_dag)
+
+        if body.bundle_version is not None:
+            if dag.disable_bundle_versioning:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
+                )
+
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -719,17 +742,22 @@ def trigger_dag_run(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            bundle_version=body.bundle_version,
+            dag_version=preloaded_dag_version,
             partition_date=params["partition_date"],
             session=session,
         )
+
+        dag_run_note = body.note
+        if dag_run_note:
+            current_user_id = user.get_id()
+            dag_run.note = (dag_run_note, current_user_id)
+        return dag_run
+
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
-
-    dag_run_note = body.note
-    if dag_run_note:
-        current_user_id = user.get_id()
-        dag_run.note = (dag_run_note, current_user_id)
-    return dag_run
+    except DagVersionNotFound as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
 
 @dag_run_router.get(
