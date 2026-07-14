@@ -100,7 +100,6 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -757,19 +756,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        run_type = self.dag_run.run_type
-        base = prune_dict(
-            {
-                "dag_id": self.dag_id,
-                "task_id": self.task_id,
-                # bare value so it serializes as e.g. "scheduled", not "dagruntype.scheduled"
-                "run_type": getattr(run_type, "value", run_type),
-                "team_name": getattr(self, "_team_name", None),
-            }
-        )
-        dag_tags = self.dag_run.dag_tags_for_stats()
-        # Built-in keys win on collision; dag tags fill in everything else.
-        return {**dag_tags, **base}
+        # Reuse the dag run's tags (dag_id, run_type, dag tags) and add the task-level ones.
+        # team_name is a transient attribute resolved per-object at scheduling time, so it may be set
+        # on the TI even when the dag run has not seen it — carry the TI's own value when present.
+        tags = {**self.dag_run.stats_tags, "task_id": self.task_id}
+        if team_name := getattr(self, "_team_name", None):
+            tags["team_name"] = team_name
+        return tags
 
     @staticmethod
     def insert_mapping(

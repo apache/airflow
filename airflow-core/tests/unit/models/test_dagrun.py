@@ -1086,7 +1086,9 @@ class TestDagRun:
         )
 
         if state == DagRunState.RUNNING:
-            fetch = partial(DagRun.get_running_dag_runs_to_examine, session, eagerly_load_dag_tags=False)
+            fetch = partial(
+                DagRun.get_running_dag_runs_to_examine, session=session, eagerly_load_dag_tags=False
+            )
         else:
             fetch = partial(DagRun.get_queued_dag_runs_to_set_running, session)
         runs = fetch().all()

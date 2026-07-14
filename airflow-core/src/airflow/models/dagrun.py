@@ -737,7 +737,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @retry_db_transaction
     def get_running_dag_runs_to_examine(
-        cls, session: Session, *, eagerly_load_dag_tags: bool
+        cls, *, session: Session, eagerly_load_dag_tags: bool
     ) -> ScalarResult[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
