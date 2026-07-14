@@ -185,6 +185,7 @@ class TestTriggererCallback:
         assert isinstance(callback.trigger, Trigger)
         assert callback.trigger.kwargs["callback_path"] == TEST_ASYNC_CALLBACK.path
         assert callback.trigger.kwargs["callback_kwargs"] == TEST_ASYNC_CALLBACK.kwargs
+        assert callback.trigger.start_from_trigger is False
         assert callback.state == CallbackState.QUEUED
 
     @staticmethod

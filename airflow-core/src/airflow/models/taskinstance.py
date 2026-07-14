@@ -1784,6 +1784,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 classpath=start_trigger_args.trigger_cls,
                 kwargs=trigger_kwargs,
                 team_name=team_name,
+                start_from_trigger=True,
             )
 
             # First, make the trigger entry

@@ -97,6 +97,28 @@ def test_trigger_team_name_stored(session, testing_team):
     assert loaded.team_name == "testing"
 
 
+@pytest.mark.parametrize(
+    ("constructor_options", "expected"),
+    [
+        pytest.param({}, False, id="default"),
+        pytest.param({"start_from_trigger": None}, None, id="legacy-null"),
+        pytest.param({"start_from_trigger": True}, True, id="direct-to-triggerer"),
+    ],
+)
+def test_trigger_start_from_trigger_stored(session, constructor_options, expected):
+    trigger = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        **constructor_options,
+    )
+    session.add(trigger)
+    session.flush()
+    trigger_id = trigger.id
+    session.expire_all()
+
+    assert session.get(Trigger, trigger_id).start_from_trigger is expected
+
+
 def test_fetch_trigger_ids_with_non_task_associations(session):
     # Create triggers
     asset_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})

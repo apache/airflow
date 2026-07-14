@@ -101,6 +101,7 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamProducer
@@ -612,20 +613,63 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
 
 
-def test_create_workload_missing_task_returns_context_free_workload(jobless_supervisor, mocker, caplog):
+def _make_task_trigger(*, trigger_id, start_from_trigger, task_id="task", dag_version_id=None):
     ti = SimpleNamespace(
         id=uuid.uuid4(),
         dag_id="example_dag",
-        dag_version_id=uuid.uuid4(),
-        task_id="removed_task",
+        dag_version_id=dag_version_id or uuid.uuid4(),
+        task_id=task_id,
         trigger_timeout=None,
+        state=TaskInstanceState.DEFERRED,
+        trigger_id=trigger_id,
+        get_dagrun=lambda *, session: SimpleNamespace(
+            dag_run_data=SimpleNamespace(
+                model_dump=lambda **kwargs: {"dag_id": "example_dag"},
+            )
+        ),
     )
-    trigger = SimpleNamespace(
-        id=7,
+    return SimpleNamespace(
+        id=trigger_id,
         classpath="some.path.Trigger",
         encrypted_kwargs="encrypted",
         task_instance=ti,
+        start_from_trigger=start_from_trigger,
     )
+
+
+def _make_serialized_dag(mocker, *, task_id="task", start_from_trigger=False, missing_task=False):
+    dag = mocker.Mock(spec=SerializedDAG)
+    if missing_task:
+        dag.get_task.side_effect = TaskNotFound(task_id)
+    else:
+        dag.get_task.return_value = SimpleNamespace(
+            task_id=task_id,
+            start_from_trigger=start_from_trigger,
+        )
+    serialized_dag = mocker.Mock(spec=SerializedDagModel)
+    serialized_dag.dag = dag
+    serialized_dag.data = {"dag": "serialized"}
+    return serialized_dag
+
+
+@pytest.mark.parametrize(
+    ("stored_requirement", "task_requirement", "expect_lookup", "expected_requirement"),
+    [
+        pytest.param(False, False, False, False, id="ordinary"),
+        pytest.param(True, True, True, True, id="direct-to-triggerer"),
+        pytest.param(None, False, True, False, id="legacy-ordinary"),
+        pytest.param(None, True, True, True, id="legacy-direct-to-triggerer"),
+    ],
+)
+def test_create_workload_uses_persisted_context_requirement(
+    jobless_supervisor,
+    mocker,
+    stored_requirement,
+    task_requirement,
+    expect_lookup,
+    expected_requirement,
+):
+    trigger = _make_task_trigger(trigger_id=7, start_from_trigger=stored_requirement)
 
     ser_ti = mocker.Mock(spec=TaskInstanceDTO)
     mocker.patch(
@@ -634,10 +678,11 @@ def test_create_workload_missing_task_returns_context_free_workload(jobless_supe
         return_value=ser_ti,
     )
 
-    def get_task(task_id):
-        raise TaskNotFound(task_id)
-
-    serialized_dag_model = SimpleNamespace(dag=SimpleNamespace(get_task=get_task))
+    serialized_dag_model = _make_serialized_dag(
+        mocker,
+        task_id=trigger.task_instance.task_id,
+        start_from_trigger=task_requirement,
+    )
     dag_bag = mocker.Mock(spec=DBDagBag)
     dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
 
@@ -648,15 +693,94 @@ def test_create_workload_missing_task_returns_context_free_workload(jobless_supe
         session=mocker.sentinel.session,
     )
 
-    assert workload == RunTrigger(
-        id=trigger.id,
-        classpath=trigger.classpath,
-        encrypted_kwargs=trigger.encrypted_kwargs,
-        ti=ser_ti,
+    assert workload is not None
+    assert workload.id == trigger.id
+    assert workload.ti == ser_ti
+    assert trigger.start_from_trigger is expected_requirement
+    if expect_lookup:
+        dag_bag.get_serialized_dag_model.assert_called_once_with(
+            version_id=trigger.task_instance.dag_version_id,
+            session=mocker.sentinel.session,
+        )
+        serialized_dag_model.dag.get_task.assert_called_once_with(trigger.task_instance.task_id)
+    else:
+        dag_bag.get_serialized_dag_model.assert_not_called()
+
+    if expected_requirement:
+        assert workload.dag_data == serialized_dag_model.data
+        assert workload.dag_run_data == {"dag_id": "example_dag"}
+    else:
+        assert workload.dag_data is None
+        assert workload.dag_run_data is None
+
+
+@pytest.mark.parametrize("stored_requirement", [True, None])
+def test_create_workload_missing_task_removes_ti(jobless_supervisor, mocker, caplog, stored_requirement):
+    trigger = _make_task_trigger(
+        trigger_id=7,
+        start_from_trigger=stored_requirement,
+        task_id="removed_task",
     )
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        autospec=True,
+        return_value=mocker.Mock(spec=TaskInstanceDTO),
+    )
+
+    serialized_dag_model = _make_serialized_dag(
+        mocker,
+        task_id=trigger.task_instance.task_id,
+        missing_task=True,
+    )
+    dag_bag = mocker.Mock(spec=DBDagBag)
+    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=dag_bag,
+        render_log_fname=lambda *, ti: "/logs/ti",
+        session=mocker.sentinel.session,
+    )
+
+    assert workload is None
+    assert trigger.task_instance.state == TaskInstanceState.REMOVED
+    assert trigger.task_instance.trigger_id is None
     assert {
-        "event": "Task for deferred trigger was not found in serialized Dag; "
-        "starting trigger without Dag context",
+        "event": "Task for deferred trigger was not found in serialized Dag; removing TaskInstance",
+        "trigger_id": trigger.id,
+        "ti_id": trigger.task_instance.id,
+        "dag_id": trigger.task_instance.dag_id,
+        "task_id": trigger.task_instance.task_id,
+        "dag_version_id": trigger.task_instance.dag_version_id,
+    } in caplog
+
+
+@pytest.mark.parametrize("stored_requirement", [True, None])
+def test_create_workload_missing_serialized_dag_retries(
+    jobless_supervisor, mocker, caplog, stored_requirement
+):
+    trigger = _make_task_trigger(trigger_id=7, start_from_trigger=stored_requirement)
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        autospec=True,
+        return_value=mocker.Mock(spec=TaskInstanceDTO),
+    )
+
+    dag_bag = mocker.Mock(spec=DBDagBag)
+    dag_bag.get_serialized_dag_model.return_value = None
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=dag_bag,
+        render_log_fname=lambda *, ti: "/logs/ti",
+        session=mocker.sentinel.session,
+    )
+
+    assert workload is None
+    assert trigger.task_instance.state == TaskInstanceState.DEFERRED
+    assert trigger.task_instance.trigger_id == trigger.id
+    assert {
+        "event": "Serialized Dag for context-required trigger was not found; skipping trigger",
         "trigger_id": trigger.id,
         "ti_id": trigger.task_instance.id,
         "dag_id": trigger.task_instance.dag_id,
@@ -666,47 +790,26 @@ def test_create_workload_missing_task_returns_context_free_workload(jobless_supe
 
 
 def test_build_trigger_workloads_continues_after_missing_task(jobless_supervisor, mocker):
-    def get_missing_task(task_id):
-        raise TaskNotFound(task_id)
-
-    stale_ti = SimpleNamespace(
-        id=uuid.uuid4(),
-        dag_id="example_dag",
-        dag_version_id=uuid.uuid4(),
+    stale_trigger = _make_task_trigger(
+        trigger_id=1,
+        start_from_trigger=True,
         task_id="removed_task",
-        trigger_timeout=None,
     )
-    stale_trigger = SimpleNamespace(
-        id=1,
-        classpath="some.path.StaleTrigger",
-        encrypted_kwargs="stale",
-        task_instance=stale_ti,
-    )
-    healthy_ti = SimpleNamespace(
-        id=uuid.uuid4(),
-        dag_id="example_dag",
-        dag_version_id=uuid.uuid4(),
+    healthy_trigger = _make_task_trigger(
+        trigger_id=2,
+        start_from_trigger=True,
         task_id="healthy_task",
-        trigger_timeout=None,
-        get_dagrun=lambda *, session: SimpleNamespace(
-            dag_run_data=SimpleNamespace(
-                model_dump=lambda **kwargs: {"dag_id": "example_dag"},
-            )
-        ),
-    )
-    healthy_trigger = SimpleNamespace(
-        id=2,
-        classpath="some.path.HealthyTrigger",
-        encrypted_kwargs="healthy",
-        task_instance=healthy_ti,
     )
 
-    serialized_stale_dag = SimpleNamespace(dag=SimpleNamespace(get_task=get_missing_task))
-    serialized_healthy_dag = SimpleNamespace(
-        data={"dag": "serialized"},
-        dag=SimpleNamespace(
-            get_task=lambda task_id: SimpleNamespace(task_id=task_id, start_from_trigger=True)
-        ),
+    serialized_stale_dag = _make_serialized_dag(
+        mocker,
+        task_id=stale_trigger.task_instance.task_id,
+        missing_task=True,
+    )
+    serialized_healthy_dag = _make_serialized_dag(
+        mocker,
+        task_id=healthy_trigger.task_instance.task_id,
+        start_from_trigger=True,
     )
 
     dag_bag = mocker.Mock(spec=DBDagBag)
@@ -747,10 +850,11 @@ def test_build_trigger_workloads_continues_after_missing_task(jobless_supervisor
     workloads = jobless_supervisor.build_trigger_workloads({stale_trigger.id, healthy_trigger.id})
 
     workload_by_id = {workload.id: workload for workload in workloads}
-    assert workload_by_id.keys() == {stale_trigger.id, healthy_trigger.id}
-    assert workload_by_id[stale_trigger.id].dag_data is None
+    assert workload_by_id.keys() == {healthy_trigger.id}
     assert workload_by_id[healthy_trigger.id].dag_data == serialized_healthy_dag.data
     assert workload_by_id[healthy_trigger.id].dag_run_data == {"dag_id": "example_dag"}
+    assert stale_trigger.task_instance.state == TaskInstanceState.REMOVED
+    assert stale_trigger.task_instance.trigger_id is None
 
 
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):

@@ -688,6 +688,7 @@ def _create_ti_state_update_query_and_update_state(
             kwargs={},
             queue=ti_patch_payload.queue,
             team_name=get_team_name_for_ti(task_instance_id, session),
+            start_from_trigger=False,
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)

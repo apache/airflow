@@ -2922,6 +2922,7 @@ def test_defer_task(create_task_instance):
     assert isinstance(trigger_row, Trigger)
     assert trigger_row.classpath == "trigger_cls"
     assert trigger_row.kwargs == {"key": "value"}
+    assert trigger_row.start_from_trigger is True
 
     # Check that session.flush was called
     session.flush.assert_called_once()

@@ -1186,6 +1186,7 @@ class AssetModelOperation(NamedTuple):
                         classpath=triggers[trigger_hash]["classpath"],
                         kwargs=triggers[trigger_hash]["kwargs"],
                         team_name=team_name,
+                        start_from_trigger=False,
                     )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers

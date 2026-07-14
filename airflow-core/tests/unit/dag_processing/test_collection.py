@@ -394,6 +394,7 @@ class TestAssetModelOperation:
         triggers = session.scalars(select(Trigger)).all()
         assert len(triggers) == 1
         assert triggers[0].team_name == expected
+        assert triggers[0].start_from_trigger is False
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_hash_consistency(self, dag_maker, session):

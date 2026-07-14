@@ -134,6 +134,7 @@ from airflow.triggers.shared_stream import SharedStreamManager
 from airflow.utils.helpers import log_filename_template_renderer, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from opentelemetry.util._decorator import _AgnosticContextManager
@@ -874,50 +875,64 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ti=ser_ti,  # type: ignore
         )
 
+        workload = workloads.RunTrigger(
+            id=trigger.id,
+            classpath=trigger.classpath,
+            encrypted_kwargs=trigger.encrypted_kwargs,
+            ti=ser_ti,
+            timeout_after=trigger.task_instance.trigger_timeout,
+        )
+        if trigger.start_from_trigger is False:
+            return workload
+
         serialized_dag_model = dag_bag.get_serialized_dag_model(
             version_id=trigger.task_instance.dag_version_id,
             session=session,
         )
 
-        if serialized_dag_model:
-            try:
-                task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
-            except TaskNotFound:
-                # Avoid this lookup for ordinary deferrals once trigger context requirements are persisted;
-                # tracked at https://github.com/apache/airflow/issues/69841
-                log.warning(
-                    "Task for deferred trigger was not found in serialized Dag; "
-                    "starting trigger without Dag context",
-                    trigger_id=trigger.id,
-                    ti_id=trigger.task_instance.id,
-                    dag_id=trigger.task_instance.dag_id,
-                    task_id=trigger.task_instance.task_id,
-                    dag_version_id=trigger.task_instance.dag_version_id,
-                )
-                task = None
+        if serialized_dag_model is None:
+            log.warning(
+                "Serialized Dag for context-required trigger was not found; skipping trigger",
+                trigger_id=trigger.id,
+                ti_id=trigger.task_instance.id,
+                dag_id=trigger.task_instance.dag_id,
+                task_id=trigger.task_instance.task_id,
+                dag_version_id=trigger.task_instance.dag_version_id,
+            )
+            return None
 
-            # When a TaskInstance of a Trigger contains a task with start_from_trigger enabled,
-            # it means we need to load the SerializedDagModel so we can build a RuntimeTaskInstance later on which
-            # will allow us to build a context on which we will render the templated fields.
-            if task is not None and task.start_from_trigger:
-                log.info("Start from trigger enabled for task %s", task.task_id)
-                dag_run = trigger.task_instance.get_dagrun(session=session)
+        try:
+            task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
+        except TaskNotFound:
+            trigger.task_instance.state = TaskInstanceState.REMOVED
+            trigger.task_instance.trigger_id = None
+            log.warning(
+                "Task for deferred trigger was not found in serialized Dag; removing TaskInstance",
+                trigger_id=trigger.id,
+                ti_id=trigger.task_instance.id,
+                dag_id=trigger.task_instance.dag_id,
+                task_id=trigger.task_instance.task_id,
+                dag_version_id=trigger.task_instance.dag_version_id,
+            )
+            return None
 
-                return workloads.RunTrigger(
-                    id=trigger.id,
-                    classpath=trigger.classpath,
-                    encrypted_kwargs=trigger.encrypted_kwargs,
-                    ti=ser_ti,
-                    timeout_after=trigger.task_instance.trigger_timeout,
-                    dag_data=serialized_dag_model.data,
-                    dag_run_data=dag_run.dag_run_data.model_dump(exclude_unset=True),
-                )
+        if trigger.start_from_trigger is None:
+            trigger.start_from_trigger = task.start_from_trigger
+
+        if trigger.start_from_trigger is False:
+            return workload
+
+        log.info("Start from trigger enabled for task %s", task.task_id)
+        dag_run = trigger.task_instance.get_dagrun(session=session)
+
         return workloads.RunTrigger(
             id=trigger.id,
             classpath=trigger.classpath,
             encrypted_kwargs=trigger.encrypted_kwargs,
             ti=ser_ti,
             timeout_after=trigger.task_instance.trigger_timeout,
+            dag_data=serialized_dag_model.data,
+            dag_run_data=dag_run.dag_run_data.model_dump(exclude_unset=True),
         )
 
     def fetch_trigger_details(self, trigger_ids: set[int], *, session: Session) -> dict[int, Trigger]:

@@ -1597,6 +1597,7 @@ class TestTIUpdateState:
                 "key": "value",
                 "moment": datetime(2024, 12, 18, 00, 00, 1, tzinfo=timezone.utc),
             }
+            assert t[0].start_from_trigger is False
             if queues_enabled:
                 assert t[0].queue == "default"
             else:
