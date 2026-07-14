@@ -466,9 +466,12 @@ class TestValidatePluginTeams:
             name = "team_plugin"
             team_name = "nonexistent_team"
 
-        # multi_team defaults to False; validation must not touch the database or raise.
+        # multi_team defaults to False; validation must return early without hitting
+        # the database, even for a plugin pointing at a nonexistent team.
         with mock_plugin_manager(plugins=[TeamPlugin()]):
-            plugins_manager.validate_plugin_teams()
+            with mock.patch("airflow.models.team.Team.get_all_team_names") as mock_get_all_team_names:
+                plugins_manager.validate_plugin_teams()
+        mock_get_all_team_names.assert_not_called()
 
     @conf_vars({("core", "multi_team"): "True"})
     @mock.patch("airflow.models.team.Team.get_all_team_names", return_value={"team_a"})
