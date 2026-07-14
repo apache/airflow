@@ -160,9 +160,10 @@ Durable execution
 
 ``SnowflakeSqlApiOperator`` submits one or more SQL statements and then polls their statement
 handles to completion on the worker. By default the operator runs in a *durable* mode that makes
-this crash-safe: the statement handles are persisted to task state store before polling begins, so
-if the worker crashes or is preempted and the task is retried, the operator reconnects to the
-statements that are already executing in Snowflake instead of resubmitting the SQL.
+this crash-safe: the statement handles are persisted to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>` before polling begins, so if the worker crashes
+or is preempted and the task is retried, the operator reconnects to the statements that are
+already executing in Snowflake instead of resubmitting the SQL.
 
 On retry the operator checks the prior statements' state:
 
