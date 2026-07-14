@@ -45,6 +45,7 @@ HOST = "xx.cloud.databricks.com"
 HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
 TOKEN = "token"
 HTTP_PATH = "sql/protocolv1/o/1234567890123456/0123-456789-abcd123"
+ENDPOINT_HTTP_PATH = "/sql/1.0/endpoints/1264e5078741679a"
 SCHEMA = "test_schema"
 CATALOG = "test_catalog"
 
@@ -94,7 +95,7 @@ def mock_get_requests():
                 "name": "Test",
                 "odbc_params": {
                     "hostname": "xx.cloud.databricks.com",
-                    "path": "/sql/1.0/endpoints/1264e5078741679a",
+                    "path": ENDPOINT_HTTP_PATH,
                 },
             }
         ]
@@ -148,6 +149,41 @@ def test_get_uri():
         f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
     )
     assert uri == expected_uri
+
+
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_prefers_sql_endpoint_name_over_connection_extra_http_path(mock_connect, mock_get_requests):
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, sql_endpoint_name="Test")
+    hook.databricks_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        password=TOKEN,
+        extra={"http_path": "sql/protocolv1/o/extra/path"},
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    assert mock_connect.call_args.args[1] == ENDPOINT_HTTP_PATH
+
+
+def test_sqlalchemy_url_uses_connection_extra_http_path_without_endpoint_lookup():
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, sql_endpoint_name="Test")
+    hook.databricks_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        password=TOKEN,
+        extra={"http_path": "sql/protocolv1/o/extra/path"},
+    )
+
+    with mock.patch.object(DatabricksSqlHook, "_get_sql_endpoint_by_name", autospec=True) as mock_endpoint:
+        url = hook.sqlalchemy_url.render_as_string(hide_password=False)
+
+    assert "http_path=sql%2Fprotocolv1%2Fo%2Fextra%2Fpath" in url
+    assert hook._http_path is None
+    mock_endpoint.assert_not_called()
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:

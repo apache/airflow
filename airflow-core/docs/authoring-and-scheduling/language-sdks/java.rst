@@ -30,10 +30,16 @@ scheduling remain in Python; individual tasks delegate to a JVM subprocess that 
    :local:
    :depth: 2
 
+API reference
+-------------
+
+The generated API reference for the Java SDK is published with the Airflow documentation at
+`Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__.
+
 Prerequisites
 -------------
 
-* JRE 17 or later must be available on the Airflow worker nodes.
+* JRE 11 or later must be available on the Airflow worker nodes.
 * The compiled task JAR(s) and JVM dependencies must be accessible from the worker.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator;
   no additional Python packages are needed.
@@ -226,9 +232,7 @@ Register tasks manually in a ``BundleBuilder``:
       }
     }
 
-See the Java SDK's published JavaDoc for more details.
-
-.. TODO: (AIP-108) Put a link here once we publish the JavaDoc.
+See the `Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__ for more details.
 
 .. _java-sdk/logging:
 
