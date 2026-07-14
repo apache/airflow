@@ -205,6 +205,16 @@ Interface-based API
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
 read.
 
+The runner creates a fresh instance of the task class through reflection for every task-instance run,
+which puts three constraints on the class. It must be:
+
+* Concrete: not abstract and not an interface.
+* A public no-argument constructor.
+* If nested inside another class, it must be ``static`` class.
+
+A class that violates any of these fails at runtime with a ``Cannot instantiate task class`` error in the
+task log.
+
 .. code-block:: java
 
     import org.apache.airflow.sdk.*;
@@ -218,11 +228,21 @@ read.
       }
     }
 
-Register tasks manually in a ``BundleBuilder``:
+Register tasks manually in a ``BundleBuilder``. A task class can be top-level like ``FetchTask``, or
+nested ``static`` class like ``ProcessTask``:
 
 .. code-block:: java
 
     public class MyBundle implements BundleBuilder {
+      public static class ProcessTask implements Task {
+        @Override
+        public void execute(Context context, Client client) throws Exception {
+          var fetched = (String) client.getXCom("fetch");
+          // implement task logic
+          client.setXCom(count);
+        }
+      }
+
       @Override
       public Iterable<Dag> getDags() {
         var dag = new Dag("my_dag");

@@ -297,4 +297,21 @@ class BuilderTest {
       "Cannot create task from vararg function t1",
     )
   }
+
+  @Test
+  @DisplayName("fail compilation when dag class is a non-static inner class")
+  fun failCompilationWhenDagClassIsNonStaticInner() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          @Builder.Dag
+          public class InnerDag { @Builder.Task(id = "foo") public void t1() {} }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+  }
 }

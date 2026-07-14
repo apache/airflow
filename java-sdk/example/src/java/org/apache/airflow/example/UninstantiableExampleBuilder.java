@@ -19,23 +19,34 @@
 
 package org.apache.airflow.example;
 
-import java.util.List;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
 
-public class ExampleBundleBuilder implements BundleBuilder {
-  @NotNull
-  @Override
-  public Iterable<Dag> getDags() {
-    return List.of(
-        InterfaceExampleBuilder.build(),
-        AnnotationExampleBuilder.build(),
-        XComCastingExampleBuilder.build(),
-        UninstantiableExampleBuilder.build());
+public class UninstantiableExampleBuilder {
+  public static class MissingNoArgConstructor implements Task {
+    private final String marker;
+
+    public MissingNoArgConstructor(String marker) {
+      this.marker = marker;
+    }
+
+    public void execute(@NotNull Context context, Client client) {
+      throw new IllegalStateException(marker);
+    }
   }
 
-  public static void main(String[] args) {
-    var bundle = new ExampleBundleBuilder().build();
-    Server.create(args).serve(bundle);
+  /**
+   * The not static only constructor implicitly takes the enclosing instance, so the
+   * runner's no-argument lookup fails even though no constructor is declared.
+   */
+  public class NonStaticInner implements Task {
+    public void execute(@NotNull Context context, Client client) {}
+  }
+
+  public static Dag build() {
+    var dag = new Dag("java_uninstantiable_example");
+    dag.addTask("missing_no_arg_constructor", MissingNoArgConstructor.class);
+    dag.addTask("non_static_inner", NonStaticInner.class);
+    return dag;
   }
 }
