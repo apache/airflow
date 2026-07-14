@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -39,6 +40,13 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
+SourceStatus = Literal["current_stored_code", "redacted", "unavailable"]
+ValuesStatus = Literal["available", "unavailable"]
+
+
+class DagVersionNotFoundError(ValueError):
+    """Raised when one of the requested Dag versions does not exist."""
 
 
 class DagVersion(Base):
@@ -242,6 +250,125 @@ class DagVersion(Base):
     def version(self) -> str:
         """A human-friendly representation of the version."""
         return f"{self.dag_id}-{self.version_number}"
+
+    @classmethod
+    @provide_session
+    def get_diff(
+        cls,
+        dag_id: str,
+        base_version_number: int,
+        target_version_number: int,
+        *,
+        include_values: bool = False,
+        include_source: bool = False,
+        max_changes: int | None = None,
+        source_status: SourceStatus | None = None,
+        values_status: ValuesStatus | None = None,
+        session: Session = NEW_SESSION,
+    ) -> dict[str, Any]:
+        """
+        Compare two versions of a Dag using their currently stored state.
+
+        ``source_status`` is supplied by callers that have an authorization context.  The CLI has
+        operator-level authority and leaves it unset, while API callers calculate it before this
+        method returns any source content.
+        """
+        from airflow.serialization.dag_version_diff import (
+            DEFAULT_MAX_CHANGES,
+            build_serialized_dag_diff,
+        )
+
+        if max_changes is None:
+            max_changes = DEFAULT_MAX_CHANGES
+        if base_version_number < 1 or target_version_number < 1:
+            raise ValueError("Dag version numbers must be positive integers")
+
+        query = (
+            select(cls)
+            .where(
+                cls.dag_id == dag_id,
+                cls.version_number.in_((base_version_number, target_version_number)),
+            )
+            .options(joinedload(cls.serialized_dag))
+        )
+        if include_source and source_status not in {"redacted", "unavailable"}:
+            query = query.options(joinedload(cls.dag_code))
+
+        versions = {version.version_number: version for version in session.scalars(query).all()}
+        missing_version = next(
+            (
+                version_number
+                for version_number in (base_version_number, target_version_number)
+                if version_number not in versions
+            ),
+            None,
+        )
+        if missing_version is not None:
+            raise DagVersionNotFoundError(
+                f"The DagVersion with dag_id: `{dag_id}` and version_number: `{missing_version}` was not found"
+            )
+
+        base_version = versions[base_version_number]
+        target_version = versions[target_version_number]
+        effective_include_values = include_values and values_status != "unavailable"
+        result = build_serialized_dag_diff(
+            base_data=base_version.serialized_dag.data if base_version.serialized_dag else None,
+            target_data=target_version.serialized_dag.data if target_version.serialized_dag else None,
+            base_provenance=_get_provenance(base_version),
+            target_provenance=_get_provenance(target_version),
+            include_values=effective_include_values,
+            max_changes=max_changes,
+        )
+        if include_values:
+            values_available = effective_include_values and result["mode"] == "observed_state"
+            result["values"] = {"status": "available" if values_available else "unavailable"}
+        result["source"] = _get_source_diff(
+            base_version,
+            target_version,
+            include_source=include_source,
+            source_status=source_status or ("current_stored_code" if include_source else "unavailable"),
+        )
+        return result
+
+
+def _get_provenance(version: DagVersion) -> dict[str, Any]:
+    return {
+        "bundle_name": version.bundle_name,
+        "bundle_version": version.bundle_version,
+        "version_data": version.version_data,
+    }
+
+
+def _get_source_diff(
+    base_version: DagVersion,
+    target_version: DagVersion,
+    *,
+    include_source: bool,
+    source_status: SourceStatus,
+) -> dict[str, Any]:
+    if not include_source:
+        return {"status": "unavailable", "fidelity": "unavailable"}
+    if source_status != "current_stored_code":
+        return {"status": source_status, "fidelity": source_status}
+
+    base_code = base_version.dag_code
+    target_code = target_version.dag_code
+    if base_code is None or target_code is None:
+        return {"status": "unavailable", "fidelity": "unavailable"}
+
+    base_source = base_code.source_code
+    target_source = target_code.source_code
+    return {
+        "status": "current_stored_code",
+        "fidelity": "current_stored_code",
+        "changed": base_source != target_source,
+        "base": {"digest": _get_source_digest(base_source), "content": base_source},
+        "target": {"digest": _get_source_digest(target_source), "content": target_source},
+    }
+
+
+def _get_source_digest(source: str) -> str:
+    return f"sha256:{hashlib.sha256(source.encode()).hexdigest()}"
 
 
 def _resolve_version_data(
