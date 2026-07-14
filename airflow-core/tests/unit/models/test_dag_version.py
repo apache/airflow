@@ -241,7 +241,8 @@ class TestDagVersionGetDiff:
 
         assert result["mode"] == "observed_state"
         paths = {change["path"]: change for change in result["changes"]}
-        assert paths["/dag/tasks/task2"]["operation"] == "added"
+        assert paths["/dag/tasks/*"]["operation"] == "added"
+        assert "after_digest" not in paths["/dag/tasks/*"]
         assert paths["/provenance/bundle_version"]["category"] == "provenance"
         assert result["source"] == {"status": "unavailable", "fidelity": "unavailable"}
         assert "values" not in result
@@ -260,16 +261,23 @@ class TestDagVersionGetDiff:
 
         assert result["values"] == {"status": "available"}
         assert any("after_value" in change for change in result["changes"])
+        assert any(change["path"] == "/dag/tasks/task2" for change in result["changes"])
 
     def test_marks_values_unavailable_when_status_denied(self, dag_id, session):
         result = DagVersion.get_diff(
             dag_id, 1, 2, include_values=True, values_status="unavailable", session=session
         )
 
-        assert result["values"] == {"status": "unavailable"}
+        assert result["mode"] == "observed_state"
+        assert any(change["path"] == "/dag/tasks/*" for change in result["changes"])
         assert all(
-            "before_value" not in change and "after_value" not in change for change in result["changes"]
+            "before_digest" not in change
+            and "after_digest" not in change
+            and "before_value" not in change
+            and "after_value" not in change
+            for change in result["changes"]
         )
+        assert result["values"] == {"status": "unavailable"}
 
     def test_includes_current_stored_source(self, dag_id, session):
         result = DagVersion.get_diff(dag_id, 1, 2, include_source=True, session=session)

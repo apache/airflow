@@ -271,7 +271,8 @@ class DagVersion(Base):
 
         ``source_status`` is supplied by callers that have an authorization context.  The CLI has
         operator-level authority and leaves it unset, while API callers calculate it before this
-        method returns any source content.
+        method returns any source content. API callers use ``values_status`` to suppress raw values
+        when the user cannot access Dag code; the structural diff remains available in redacted form.
         """
         from airflow.serialization.dag_version_diff import (
             DEFAULT_MAX_CHANGES,
