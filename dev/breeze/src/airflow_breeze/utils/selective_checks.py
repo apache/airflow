@@ -262,7 +262,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^providers/common/sql/.*",
         ],
         FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES: [
-            # Only files that drive the compat setup yet do NOT already force the full matrix belong
+            # Only add files that affect the compat setup and do NOT already trigger the full matrix
             # here. The compat workflow (.github/workflows/openlineage-e2e-compat-tests.yml) is
             # intentionally absent: it matches ENVIRONMENT_FILES and so already forces full_tests.
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
