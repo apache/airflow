@@ -1,0 +1,1 @@
+Boolean params in the Trigger Dag form now right-align their toggle within the control column, instead of the toggle sitting immediately after the label. This matches the label-left/control-right layout of the other params in the form.
