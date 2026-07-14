@@ -55,8 +55,8 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example Dags <https://github.com/apache/airflow/tree/providers-ibm-db2/|version|/providers/ibm/db2/tests/system/ibm/db2>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ibm-db2/>
+    Example Dags <https://github.com/apache/airflow/tree/providers-ibm-db2/|version|/providers/ibm/db2/tests/system/ibm/db2>
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
