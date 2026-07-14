@@ -38,8 +38,13 @@ Model
     dedicated input in the connection form (via ``conn-fields``) and stores its
     value in ``extra["model"]``.
 
-    Examples: ``openai:gpt-5.3``, ``anthropic:claude-sonnet-4-20250514``,
+    Examples: ``openai:gpt-5.6-sol``, ``anthropic:claude-sonnet-5``,
     ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.0-flash``
+
+    See `Anthropic's models overview <https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison>`__
+    for the current list of Claude model IDs across the Claude API, Amazon Bedrock, and Google Cloud.
+    See `OpenAI's models reference <https://developers.openai.com/api/docs/models/all>`__
+    for the current list of OpenAI model IDs.
 
     The model can also be overridden at the hook/operator level via the
     ``model_id`` parameter.
@@ -64,7 +69,7 @@ Extra (JSON, optional)
 
     .. code-block:: json
 
-        {"model": "openai:gpt-5.3"}
+        {"model": "openai:gpt-5.6-sol"}
 
     When using the UI, the "Model" field above writes to this same location
     automatically.
@@ -79,7 +84,7 @@ Examples
     {
         "conn_type": "pydanticai",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-5.3\"}"
+        "extra": "{\"model\": \"openai:gpt-5.6-sol\"}"
     }
 
 **Anthropic**
