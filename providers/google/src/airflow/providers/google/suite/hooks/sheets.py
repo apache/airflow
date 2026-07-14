@@ -51,17 +51,17 @@ class GSheetsHook(GoogleBaseHook):
     """
 
     def __init__(
-    self,
-    gcp_conn_id: str = "google_cloud_default",
-    api_version: str = "v4",
-    impersonation_chain: str | Sequence[str] | None = None,
-    subject: str | None = None,
-    api_endpoint: str | None = None,
-) -> None:
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v4",
+        impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
+        api_endpoint: str | None = None,
+    ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
-             subject=subject,
+            subject=subject,
         )
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version

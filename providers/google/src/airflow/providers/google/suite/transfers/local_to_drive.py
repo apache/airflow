@@ -108,7 +108,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-             subject=self.subject,
+            subject=self.subject,
         )
 
         remote_file_ids = []

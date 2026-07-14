@@ -49,13 +49,13 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
     _conn: Resource | None = None
 
     def __init__(
-    self,
-    api_service_name: str,
-    api_version: str,
-    gcp_conn_id: str = "google_cloud_default",
-    impersonation_chain: str | Sequence[str] | None = None,
-    subject: str | None = None,
-) -> None:
+        self,
+        api_service_name: str,
+        api_version: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
+    ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,

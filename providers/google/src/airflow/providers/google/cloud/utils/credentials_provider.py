@@ -277,7 +277,7 @@ class _CredentialProvider(LoggingMixin):
                 credentials, project_id = self._get_credentials_using_credential_config_file()
             else:
                 credentials, project_id = self._get_credentials_using_adc()
-   
+
             delegated_subject = self.subject or self.delegate_to
 
             if delegated_subject:
@@ -287,7 +287,7 @@ class _CredentialProvider(LoggingMixin):
                     raise AirflowException(
                         "The current authentication method does not support "
                         "Google Workspace Domain-Wide Delegation."
-                         "Please use service account credentials."
+                        "Please use service account credentials."
                     )
 
             if self.target_principal:
