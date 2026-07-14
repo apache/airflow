@@ -40,6 +40,8 @@ on:  # yamllint disable-line rule:truthy
     branches:
       - v[0-9]+-[0-9]+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - airflow-ctl/v[0-9]+-[0-9]+-test
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -92,6 +94,7 @@ jobs:
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       individual-providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-strings-in-json }}
+      java-sdk-version: ${{ steps.selective-checks.outputs.java-sdk-version }}
       kubernetes-combos: ${{ steps.selective-checks.outputs.kubernetes-combos }}
       kubernetes-combos-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-combos-list-as-string }}
@@ -133,6 +136,8 @@ jobs:
       run-event-driven-e2e-tests: ${{ steps.selective-checks.outputs.run-event-driven-e2e-tests }}
       run-java-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-java-sdk-e2e-tests }}
       run-go-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-go-sdk-e2e-tests }}
+      run-openlineage-e2e-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-tests }}
+      run-openlineage-e2e-compat-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-compat-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -161,11 +166,11 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -358,7 +363,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
@@ -400,7 +405,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
@@ -427,7 +432,7 @@ jobs:
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
 
   providers:
-    name: "provider distributions tests"
+    name: "Provider distributions tests"
     uses: ./.github/workflows/test-providers.yml
     needs: [build-info, build-ci-images]
     permissions:
@@ -905,6 +910,11 @@ jobs:
       run-event-driven-e2e-tests: ${{ needs.build-info.outputs.run-event-driven-e2e-tests }}
       run-java-sdk-e2e-tests: ${{ needs.build-info.outputs.run-java-sdk-e2e-tests }}
       run-go-sdk-e2e-tests: ${{ needs.build-info.outputs.run-go-sdk-e2e-tests }}
+      run-openlineage-e2e-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-tests }}
+      run-openlineage-e2e-compat-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-compat-tests }}
+      # yamllint disable rule:line-length
+      providers-compatibility-tests-matrix: >
+        ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
@@ -925,6 +935,9 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       kubernetes-combos: ${{ needs.build-info.outputs.kubernetes-combos }}
+      java-sdk-version: ${{ needs.build-info.outputs.java-sdk-version }}
+      lang-sdk-kubernetes-combo: >-
+        ${{ needs.build-info.outputs.default-python-version }}-${{ needs.build-info.outputs.default-kubernetes-version }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.run-helm-tests == 'true')
@@ -967,14 +980,14 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
-          go-version: 1.24
+          go-version: 1.25
           cache-dependency-path: go-sdk/go.sum
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Gotestsum
@@ -1004,11 +1017,11 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: Setup Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520  # v5.4.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1034,7 +1047,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -1137,7 +1150,7 @@ jobs:
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Get failing jobs"
@@ -1250,7 +1263,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Free up disk space"
@@ -1262,7 +1275,7 @@ jobs:
           path: ./artifacts
           pattern: test-warnings-*
       - name: "Setup python"
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: "${{ inputs.default-python-version }}"
       - name: "Summarize all warnings"

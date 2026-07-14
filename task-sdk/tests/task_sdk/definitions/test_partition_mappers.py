@@ -192,14 +192,47 @@ class TestSdkSegmentWindow:
 
 
 class TestSdkCategoricalRollupGuard:
-    """SDK-side RollupMapper guard mirrors core: str mapper + str window passes."""
+    """SDK-side RollupMapper guard mirrors core: the decoded type must match in either direction."""
 
-    def test_fixed_key_with_segment_window_does_not_raise(self):
-        # SDK guard: FixedKeyMapper.expected_decoded_type is str,
-        # SegmentWindow.expected_decoded_type is str -> guard passes.
-        RollupMapper(upstream_mapper=FixedKeyMapper("all"), window=SegmentWindow(["us", "eu"]))
+    @pytest.mark.parametrize(
+        ("upstream_mapper_factory", "window_factory", "match"),
+        [
+            pytest.param(
+                lambda: FixedKeyMapper("all"),
+                lambda: SegmentWindow(["us", "eu"]),
+                None,
+                id="str_mapper-str_window-valid",
+            ),
+            pytest.param(
+                StartOfDayMapper,
+                DayWindow,
+                None,
+                id="datetime_mapper-datetime_window-valid",
+            ),
+            pytest.param(
+                lambda: FixedKeyMapper("all"),
+                DayWindow,
+                "DayWindow expects decoded values of type 'datetime'",
+                id="str_mapper-datetime_window-invalid",
+            ),
+            pytest.param(
+                StartOfDayMapper,
+                lambda: SegmentWindow(["us"]),
+                "SegmentWindow expects decoded values of type 'str'",
+                id="datetime_mapper-str_window-invalid",
+            ),
+        ],
+    )
+    def test_upstream_mapper_window_type_pairing(self, upstream_mapper_factory, window_factory, match):
+        """RollupMapper's guard must catch a decoded-type mismatch in either direction.
 
-    def test_str_mapper_with_datetime_window_raises(self):
-        # SDK guard: FixedKeyMapper (str) + DayWindow (datetime) -> raise.
-        with pytest.raises(TypeError, match="DayWindow expects decoded values of type 'datetime'"):
-            RollupMapper(upstream_mapper=FixedKeyMapper("all"), window=DayWindow())
+        Guards the ``datetime_mapper-str_window`` direction in particular: left
+        unchecked, that pairing survives construction and serialization, then
+        raises ``AttributeError`` inside ``to_upstream`` at scheduler tick time.
+        """
+        if match is None:
+            # Should not raise.
+            RollupMapper(upstream_mapper=upstream_mapper_factory(), window=window_factory())
+        else:
+            with pytest.raises(TypeError, match=match):
+                RollupMapper(upstream_mapper=upstream_mapper_factory(), window=window_factory())

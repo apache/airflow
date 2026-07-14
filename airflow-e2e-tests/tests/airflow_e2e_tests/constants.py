@@ -50,6 +50,10 @@ XCOM_BUCKET = "test-xcom-objectstorage-backend"
 
 KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
 
+# OpenLineage E2E test paths. The DAGs are sourced from the provider system tests at runtime by
+# openlineage_tests/prepare_dags.py; the overlay carries the OpenLineage-specific env + dag_doc mount.
+OPENLINEAGE_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage.yml"
+
 # Java SDK E2E test paths
 JAVA_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
 JAVA_SDK_EXAMPLE_DAGS_PATH = JAVA_SDK_ROOT_PATH / "example" / "src" / "resources" / "dags"
@@ -79,7 +83,7 @@ GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
 # The Alpine variant is ~7x smaller than the Debian one and is safe here because the
 # bundle is built with CGO_ENABLED=0 (a fully static binary, independent of musl/glibc)
 # and module fetches go through the HTTPS proxy (no git/gcc needed).
-GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.24-alpine")
+GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
 
 # Local provider sources are mounted into the airflow containers under this directory so
 # ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)

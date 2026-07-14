@@ -51,6 +51,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
@@ -771,6 +772,87 @@ class TestUpdateDagParsingResults:
 
         new_serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
         assert new_serialized_dags_count == 1
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_duplicate_dag_id_creates_dag_warning(self, testing_dag_bundle, session):
+        session.add(
+            DagModel(
+                dag_id="duplicated_dag",
+                bundle_name="testing",
+                fileloc="/opt/airflow/dags/existing.py",
+                relative_fileloc="existing.py",
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        dag = DAG(dag_id="duplicated_dag")
+        dag.fileloc = "/opt/airflow/dags/current.py"
+        dag.relative_fileloc = "current.py"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == "duplicated_dag",
+                DagWarning.warning_type == DagWarningType.DUPLICATE_DAG_ID,
+            )
+        )
+
+        assert warning is not None
+        assert "existing.py" in warning.message
+        assert "overwritten" in warning.message
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_duplicate_dag_id_warning_is_removed_when_dag_file_matches(self, testing_dag_bundle, session):
+        session.add(
+            DagModel(
+                dag_id="same_file_dag",
+                bundle_name="testing",
+                fileloc="/opt/airflow/dags/current.py",
+                relative_fileloc="current.py",
+                is_stale=False,
+            )
+        )
+        session.add(
+            DagWarning(
+                dag_id="same_file_dag",
+                warning_type=DagWarningType.DUPLICATE_DAG_ID,
+                message="Previous duplicate dag_id warning",
+            )
+        )
+        session.flush()
+
+        dag = DAG(dag_id="same_file_dag")
+        dag.fileloc = "/opt/airflow/dags/current.py"
+        dag.relative_fileloc = "current.py"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == "same_file_dag",
+                DagWarning.warning_type == DagWarningType.DUPLICATE_DAG_ID,
+            )
+        )
+
+        assert warning is None
 
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
