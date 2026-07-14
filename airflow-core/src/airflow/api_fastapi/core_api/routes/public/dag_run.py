@@ -222,7 +222,9 @@ def patch_dag_run(
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
-    for attr_name, attr_value_raw in data.items():
+    # Sort keys so that the "note" update happens before "state" update, so that the listeners called inside
+    # `patch_dag_run_state()` already receive updated DagRun object with note.
+    for attr_name, attr_value_raw in sorted(data.items()):
         if attr_name == "state" and patch_body.state is not None:
             patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
         elif attr_name == "note":
