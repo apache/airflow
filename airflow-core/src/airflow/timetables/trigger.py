@@ -88,8 +88,6 @@ class _TriggerTimetable(Timetable):
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
             if last_automated_data_interval is not None:
-                # _calc_first_run respects run_immediately to decide between the
-                # most recent past cron point and the next future one.
                 start_time_candidates = [
                     self._calc_first_run(),
                     self._get_next(last_automated_data_interval.end),
