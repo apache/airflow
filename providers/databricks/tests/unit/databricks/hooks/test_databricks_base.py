@@ -1358,6 +1358,45 @@ class TestBaseDatabricksHook:
         mock_k8s.assert_not_called()
         assert mock_post.call_args.kwargs["data"]["subject_token"] == _SUPPLIED_JWT
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook")
+    @mock.patch("requests.post")
+    def test_federated_aws_takes_precedence_over_federated_k8s(self, mock_post, mock_sts_hook):
+        """With both configured, the AWS path wins and the Kubernetes disk path is never used."""
+        mock_sts_hook.return_value.get_conn.return_value.get_web_identity_token.return_value = {
+            "WebIdentityToken": "aws_signed_jwt"
+        }
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps(
+                {
+                    "federated_aws": True,
+                    "federated_k8s": True,
+                    "client_id": "sp-client-id",
+                }
+            ),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        with mock.patch.object(hook, "_get_k8s_jwt_token") as mock_k8s:
+            assert hook._get_token() == "databricks_token"
+        mock_k8s.assert_not_called()
+        assert mock_post.call_args.kwargs["data"]["subject_token"] == "aws_signed_jwt"
+
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
     async def test_a_get_token_with_supplied_provider(self, mock_post):
