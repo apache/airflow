@@ -314,6 +314,8 @@ jobs:
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   ci-image-checks:
     name: "CI image checks"
