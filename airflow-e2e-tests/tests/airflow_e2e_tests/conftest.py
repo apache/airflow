@@ -644,9 +644,10 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     #
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
-    # If we are using the image from ghcr.io/apache/airflow we do not pull
-    # as it is already available and loaded using prepare_breeze_and_image step in workflow
-    pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/") else True
+    # Skip pull for images that exist only locally and cannot be fetched from a registry:
+    # - ghcr.io/apache/airflow/: pre-pulled by the prepare_breeze_and_image CI step
+    # - openlineage-e2e/: locally built by _build_openlineage_e2e_compat_image (never pushed)
+    pull = not DOCKER_IMAGE.startswith(("ghcr.io/apache/airflow/", "openlineage-e2e/"))
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")

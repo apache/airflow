@@ -52,6 +52,7 @@ apache-airflow-providers-telegram = false
 apache-airflow-providers-celery = false
 apache-airflow-providers-docker = false
 apache-airflow-providers-sendgrid = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-ai = false
 apache-airflow = false
 apache-airflow-shared-observability = false
@@ -101,7 +102,6 @@ apache-airflow-shared-serialization = false
 apache-airflow-scripts = false
 apache-airflow-providers-exasol = false
 apache-airflow-providers-mongo = false
-apache-airflow-providers-apache-arrow = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
@@ -178,7 +178,6 @@ members = [
     "apache-airflow-providers-alibaba",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-anthropic",
-    "apache-airflow-providers-apache-arrow",
     "apache-airflow-providers-apache-cassandra",
     "apache-airflow-providers-apache-drill",
     "apache-airflow-providers-apache-druid",
@@ -210,6 +209,7 @@ members = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-databricks",
     "apache-airflow-providers-datadog",
+    "apache-airflow-providers-common-dataquality",
     "apache-airflow-providers-dbt-cloud",
     "apache-airflow-providers-dingding",
     "apache-airflow-providers-discord",
@@ -325,40 +325,6 @@ wheels = [
 ]
 
 [[package]]
-name = "adbc-driver-bigquery"
-version = "1.11.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "adbc-driver-manager" },
-    { name = "importlib-resources" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/0d/3e7195500badfe3318d6409e3d7461354f7e3e57b3b8ee2cb5a4c0c78bbd/adbc_driver_bigquery-1.11.0.tar.gz", hash = "sha256:37fc2a90dfec1f741bc7475bdf50c744c22d05ec135d0858934117912c06077e", size = 19255, upload-time = "2026-04-07T00:17:26.014Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/0f/76baf47962bfa49608fcd5d38c3a46213155aeb1f58e5c8abf467ed7e4bc/adbc_driver_bigquery-1.11.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:4153bb759dcfa6c45420c4ee9a1505f3c5daa7685d10cf068a91b8876e183732", size = 9736982, upload-time = "2026-04-07T00:14:31.386Z" },
-    { url = "https://files.pythonhosted.org/packages/15/0b/b88fd632ea5b26ded6f11cbfc62d154249b54d4ae95ad8bdc2e681f3cbb0/adbc_driver_bigquery-1.11.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:023744303c4900fc8e3d12cd044835d406ee8a84880458766aff0800601d4999", size = 9049987, upload-time = "2026-04-07T00:14:37.48Z" },
-    { url = "https://files.pythonhosted.org/packages/9e/0a/ce0b0772f479eb451993ed9a0d139fcdaddcab651d1ce09520003163aa54/adbc_driver_bigquery-1.11.0-py3-none-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:3067b90ccbb6801936567bddcc56e79540efb7e09023f0300e9f6090cb7245e1", size = 18043100, upload-time = "2026-04-07T00:14:44.159Z" },
-    { url = "https://files.pythonhosted.org/packages/74/2c/f71aaea78f4859935e334b1c5791e959cb24315201789bb9f7a8fd5a94c2/adbc_driver_bigquery-1.11.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:dea28d663b622e1b4c803fd063b0b959dc867218461ecb6e34b557423e956527", size = 16537326, upload-time = "2026-04-07T00:14:49.284Z" },
-    { url = "https://files.pythonhosted.org/packages/f2/41/595bdc39a6e8eea2be3ccd043a10e68243b8a682d45f52b5d982674269f3/adbc_driver_bigquery-1.11.0-py3-none-win_amd64.whl", hash = "sha256:75ff98aa9071707419c300f9da74e19da375cd6524ecf09493c8131960e31c3c", size = 17698043, upload-time = "2026-04-07T00:14:53.622Z" },
-]
-
-[[package]]
-name = "adbc-driver-flightsql"
-version = "1.11.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "adbc-driver-manager" },
-    { name = "importlib-resources" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/d8/b0bf88456d9acf85812b1d28568f3c3f80019d2b52d2131d28daea259d1e/adbc_driver_flightsql-1.11.0.tar.gz", hash = "sha256:75f703eef1812c3932e5f4643c5e21b5690b23df7e09e88b727f7952aa559f2a", size = 34941, upload-time = "2026-04-07T00:17:26.829Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/af/3e40778760257b594df4efc0b12cbfe3c182bdcb69f67a9730cfad5e9cae/adbc_driver_flightsql-1.11.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:6cceffd95af5cdf5f3be051629de6bfd65744e591177b0f8176cd6810725e8f0", size = 8014539, upload-time = "2026-04-07T00:14:57.149Z" },
-    { url = "https://files.pythonhosted.org/packages/b2/06/6ae41136909c88fc85c913b008d3d9878683289a851ec78924ab11c9e3bc/adbc_driver_flightsql-1.11.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:2e716c15bfad65c489d13a49528de5bcce72179fb8024be19353b143af5749fd", size = 7437919, upload-time = "2026-04-07T00:15:04.504Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/37/d8d12630ebbe336517b42aed9d9d4deab91e2bee153a1cba6ea9af9c5026/adbc_driver_flightsql-1.11.0-py3-none-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:cabff560abcf18cebef0bf24bb2886d145bae340e8eef18cf0b6642e09fa349d", size = 14696685, upload-time = "2026-04-07T00:15:07.644Z" },
-    { url = "https://files.pythonhosted.org/packages/bd/d2/18147e9fda30d41644ef75c9b30a19c8bc39734b3308e127b17747079e93/adbc_driver_flightsql-1.11.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6252f0a4c8a6240d51b61dcefed88fb3d9fa1e5bcc67cb954c94907f447b744d", size = 13471551, upload-time = "2026-04-07T00:15:10.792Z" },
-    { url = "https://files.pythonhosted.org/packages/97/e4/343f698d0377db4a99009af3cf4ce8dbdc36f1578d9be71e128ee2e3a225/adbc_driver_flightsql-1.11.0-py3-none-win_amd64.whl", hash = "sha256:955865ed9a5746073a7b78c291ebb59aaaeaf0244e394b1e5a037c53cf61900c", size = 14475054, upload-time = "2026-04-07T00:15:14.949Z" },
-]
-
-[[package]]
 name = "adbc-driver-manager"
 version = "1.11.0"
 source = { registry = "https://pypi.org/simple" }
@@ -418,23 +384,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f0/32/63e4b41f0e4cb36a61ed62edd151ea71c4cc555b2dd554a068812c8dae52/adbc_driver_postgresql-1.11.0-py3-none-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:03cca73acc3840c9751305cef86aa5a9971fe2374a7aabaf1704b3582b351518", size = 3800773, upload-time = "2026-04-07T00:16:48.977Z" },
     { url = "https://files.pythonhosted.org/packages/ca/f8/93c681d2ccd5b0e70db58998b0f61a7bf52ccf6b9e199d5055c49ef37959/adbc_driver_postgresql-1.11.0-py3-none-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c5904ed3da009fe1361ddf6d5c1a61c8963a6d1dfeda0e96bd4445e028f37216", size = 3489464, upload-time = "2026-04-07T00:16:51.305Z" },
     { url = "https://files.pythonhosted.org/packages/a7/47/dd2322a40537ee9e22aa9937c70614ca29e9259d1b8b17441b92fbb49d5c/adbc_driver_postgresql-1.11.0-py3-none-win_amd64.whl", hash = "sha256:95c13b3203615b816a258db91c375785750cb82395b985f16c0dc6af88b932e3", size = 3067900, upload-time = "2026-04-07T00:16:53.08Z" },
-]
-
-[[package]]
-name = "adbc-driver-snowflake"
-version = "1.11.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "adbc-driver-manager" },
-    { name = "importlib-resources" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fd/c1/561549e36abe8644bedc6b4848abb79ab41a6b0fc4b106ceef944b0c3493/adbc_driver_snowflake-1.11.0.tar.gz", hash = "sha256:7fce54ae7540c6c63aad6cc9ec2795a05647cc147c8af41ca2bd4e95455e8eae", size = 30570, upload-time = "2026-04-07T00:17:30.403Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/f3/1125c7929faf750e7a5bdcec33ca22259ce040338dae12f75f3eb8080def/adbc_driver_snowflake-1.11.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:5ebddfa5fc0b5cd7c86b5cce17bb578889c8db5ff2b756903b64e684b56829e8", size = 15094744, upload-time = "2026-04-07T00:16:55.86Z" },
-    { url = "https://files.pythonhosted.org/packages/d5/1d/88d564a8941607e6e555a3d3290ecb92852d4aa5a926a1cdbe86b17a8424/adbc_driver_snowflake-1.11.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:be862f8d0b6a507dae5c0644e13be79290180532c097d97c5a95a294c0bb5302", size = 13517204, upload-time = "2026-04-07T00:17:00.137Z" },
-    { url = "https://files.pythonhosted.org/packages/6f/26/baa44b8b9faaf26846dd8c0e513c7ce6862d7f35de46ee61175ac976699f/adbc_driver_snowflake-1.11.0-py3-none-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:7c7d7ecef7246303648a08cee3d78c383133bea8f2e1568cf6e8750ab94b5a57", size = 27574063, upload-time = "2026-04-07T00:17:04.862Z" },
-    { url = "https://files.pythonhosted.org/packages/5d/41/fe557f0d8414037dfe86fcba6338eb094a51da894050ec9a4c9f4504513d/adbc_driver_snowflake-1.11.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:07b5edbeb1b85be0882d7095641df26a24b3b4c2ba4d8edda35e3bbe89e70a06", size = 24767291, upload-time = "2026-04-07T00:17:09.763Z" },
-    { url = "https://files.pythonhosted.org/packages/e9/ca/542793fc9a164f013e3248061e922ac5d5246ce93718a5c0cb44bbd2219e/adbc_driver_snowflake-1.11.0-py3-none-win_amd64.whl", hash = "sha256:83b1a363a44ae4cb1e4956f9cc6c4e44dddd7c768a0f0a8b42d9cb8eb8906305", size = 27264722, upload-time = "2026-04-07T00:17:14.083Z" },
 ]
 
 [[package]]
@@ -1059,7 +1008,6 @@ all = [
     { name = "apache-airflow-providers-alibaba" },
     { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"] },
     { name = "apache-airflow-providers-anthropic" },
-    { name = "apache-airflow-providers-apache-arrow" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
@@ -1091,6 +1039,7 @@ all = [
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-databricks" },
     { name = "apache-airflow-providers-datadog" },
+    { name = "apache-airflow-providers-common-dataquality" },
     { name = "apache-airflow-providers-dbt-cloud" },
     { name = "apache-airflow-providers-dingding" },
     { name = "apache-airflow-providers-discord" },
@@ -1180,9 +1129,6 @@ amazon-aws-auth = [
 ]
 anthropic = [
     { name = "apache-airflow-providers-anthropic" },
-]
-apache-arrow = [
-    { name = "apache-airflow-providers-apache-arrow" },
 ]
 apache-atlas = [
     { name = "atlasclient" },
@@ -1289,6 +1235,9 @@ databricks = [
 ]
 datadog = [
     { name = "apache-airflow-providers-datadog" },
+]
+common-dataquality = [
+    { name = "apache-airflow-providers-common-dataquality" },
 ]
 dbt-cloud = [
     { name = "apache-airflow-providers-dbt-cloud" },
@@ -1634,8 +1583,6 @@ requires-dist = [
     { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "extra == 's3fs'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-anthropic", marker = "extra == 'all'", editable = "providers/anthropic" },
     { name = "apache-airflow-providers-anthropic", marker = "extra == 'anthropic'", editable = "providers/anthropic" },
-    { name = "apache-airflow-providers-apache-arrow", marker = "extra == 'all'", editable = "providers/apache/arrow" },
-    { name = "apache-airflow-providers-apache-arrow", marker = "extra == 'apache-arrow'", editable = "providers/apache/arrow" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
@@ -1701,6 +1648,8 @@ requires-dist = [
     { name = "apache-airflow-providers-databricks", marker = "extra == 'databricks'", editable = "providers/databricks" },
     { name = "apache-airflow-providers-datadog", marker = "extra == 'all'", editable = "providers/datadog" },
     { name = "apache-airflow-providers-datadog", marker = "extra == 'datadog'", editable = "providers/datadog" },
+    { name = "apache-airflow-providers-common-dataquality", marker = "extra == 'all'", editable = "providers/common/dataquality" },
+    { name = "apache-airflow-providers-common-dataquality", marker = "extra == 'common-dataquality'", editable = "providers/common/dataquality" },
     { name = "apache-airflow-providers-dbt-cloud", marker = "extra == 'all'", editable = "providers/dbt/cloud" },
     { name = "apache-airflow-providers-dbt-cloud", marker = "extra == 'dbt-cloud'", editable = "providers/dbt/cloud" },
     { name = "apache-airflow-providers-dingding", marker = "extra == 'all'", editable = "providers/dingding" },
@@ -1847,7 +1796,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.26" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "common-dataquality", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -3336,83 +3285,6 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
-]
-docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
-
-[[package]]
-name = "apache-airflow-providers-apache-arrow"
-version = "0.1.0"
-source = { editable = "providers/apache/arrow" }
-dependencies = [
-    { name = "adbc-driver-manager" },
-    { name = "apache-airflow" },
-    { name = "apache-airflow-providers-common-sql" },
-    { name = "more-itertools" },
-    { name = "pyarrow" },
-]
-
-[package.optional-dependencies]
-all = [
-    { name = "adbc-driver-bigquery" },
-    { name = "adbc-driver-flightsql" },
-    { name = "adbc-driver-postgresql" },
-    { name = "adbc-driver-snowflake" },
-    { name = "adbc-driver-sqlite" },
-]
-bigquery = [
-    { name = "adbc-driver-bigquery" },
-]
-flightsql = [
-    { name = "adbc-driver-flightsql" },
-]
-postgresql = [
-    { name = "adbc-driver-postgresql" },
-]
-snowflake = [
-    { name = "adbc-driver-snowflake" },
-]
-sqlite = [
-    { name = "adbc-driver-sqlite" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "apache-airflow" },
-    { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-common-sql" },
-    { name = "apache-airflow-task-sdk" },
-]
-docs = [
-    { name = "apache-airflow-devel-common", extra = ["docs"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "adbc-driver-bigquery", marker = "extra == 'all'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-bigquery", marker = "extra == 'bigquery'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-flightsql", marker = "extra == 'all'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-flightsql", marker = "extra == 'flightsql'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-manager", specifier = ">=1.7.0" },
-    { name = "adbc-driver-postgresql", marker = "extra == 'all'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-postgresql", marker = "extra == 'postgresql'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-snowflake", marker = "extra == 'all'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-snowflake", marker = "extra == 'snowflake'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-sqlite", marker = "extra == 'all'", specifier = ">=1.7.0" },
-    { name = "adbc-driver-sqlite", marker = "extra == 'sqlite'", specifier = ">=1.7.0" },
-    { name = "apache-airflow", editable = "." },
-    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "more-itertools", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
-    { name = "pyarrow", marker = "python_full_version >= '3.13'", specifier = ">=18.0.0" },
-]
-provides-extras = ["sqlite", "snowflake", "bigquery", "flightsql", "postgresql", "all"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "apache-airflow", editable = "." },
-    { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -5031,6 +4903,37 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-common-dataquality"
+version = "0.1.0"
+source = { editable = "providers/common/dataquality" }
+dependencies = [
+    { name = "apache-airflow" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
