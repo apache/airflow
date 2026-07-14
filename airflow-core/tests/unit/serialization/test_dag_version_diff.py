@@ -21,7 +21,12 @@ import json
 
 import pytest
 
-from airflow.serialization.dag_version_diff import build_serialized_dag_diff
+from airflow.serialization.dag_version_diff import (
+    _DIFF_V1_PUBLIC_TASK_FIELDS,
+    _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS,
+    build_serialized_dag_diff,
+)
+from airflow.serialization.json_schema import load_dag_schema_dict
 
 
 def _payload(
@@ -47,6 +52,15 @@ def _payload(
             "dag_dependencies": dependencies or [],
         },
     }
+
+
+def test_diff_v1_task_field_policy_tracks_serializer_schema() -> None:
+    schema_fields = frozenset(load_dag_schema_dict()["definitions"]["operator"]["properties"])
+
+    assert schema_fields == (
+        (_DIFF_V1_PUBLIC_TASK_FIELDS - {"__type"}) | _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS
+    )
+    assert not (_DIFF_V1_PUBLIC_TASK_FIELDS & _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS)
 
 
 def test_build_diff_is_deterministic_and_normalizes_order() -> None:
@@ -265,6 +279,157 @@ def test_build_diff_redacts_sensitive_data_without_values() -> None:
         "secret-label",
     ):
         assert sensitive_value not in encoded_result
+
+
+def test_build_diff_collapses_custom_task_fields_without_values() -> None:
+    custom_field = "secret_callback_field"
+    base_task = {
+        "task_id": "extract",
+        "template_fields": [custom_field],
+        custom_field: "old-secret",
+    }
+    target_task = {
+        "task_id": "extract",
+        "template_fields": [custom_field],
+        custom_field: "new-secret",
+    }
+
+    result = build_serialized_dag_diff(
+        base_data=_payload(tasks=[base_task]),
+        target_data=_payload(tasks=[target_task]),
+    )
+
+    assert result["changes"] == [
+        {
+            "path": "/dag/tasks/*/custom_fields",
+            "operation": "changed",
+            "category": "task",
+            "impact": "execution",
+        }
+    ]
+    encoded_result = json.dumps(result)
+    assert custom_field not in encoded_result
+    assert "old-secret" not in encoded_result
+    assert "new-secret" not in encoded_result
+
+
+def test_build_diff_includes_custom_task_fields_with_values() -> None:
+    custom_field = "secret_callback_field"
+    base_task = {
+        "task_id": "extract",
+        "template_fields": [custom_field],
+        custom_field: "old-secret",
+    }
+    target_task = {
+        "task_id": "extract",
+        "template_fields": [custom_field],
+        custom_field: "new-secret",
+    }
+
+    result = build_serialized_dag_diff(
+        base_data=_payload(tasks=[base_task]),
+        target_data=_payload(tasks=[target_task]),
+        include_values=True,
+    )
+
+    change = next(change for change in result["changes"] if change["path"].endswith(custom_field))
+    assert change["path"] == f"/dag/tasks/extract/{custom_field}"
+    assert change["category"] == "task"
+    assert change["impact"] == "execution"
+    assert change["before_value"] == "old-secret"
+    assert change["after_value"] == "new-secret"
+
+
+@pytest.mark.parametrize(
+    (
+        "base_data",
+        "target_data",
+        "hidden_identifier",
+        "expected_path",
+        "expected_operation",
+        "expected_category",
+        "expected_impact",
+    ),
+    [
+        pytest.param(
+            _payload(tasks=[{"task_id": "deadline", "retries": 1}]),
+            _payload(tasks=[{"task_id": "deadline", "retries": 2}]),
+            "deadline",
+            "/dag/tasks/*/retries",
+            "changed",
+            "task",
+            "execution",
+            id="task-id",
+        ),
+        pytest.param(
+            _payload(tasks=[]),
+            _payload(tasks=[], tags=["deadline"]),
+            "deadline",
+            "/dag/tags/*",
+            "added",
+            "metadata",
+            "metadata",
+            id="tag",
+        ),
+        pytest.param(
+            _payload(tasks=[]),
+            _payload(
+                tasks=[],
+                dependencies=[
+                    {
+                        "dependency_type": "sensor",
+                        "dependency_id": "upstream-task",
+                        "source": "upstream-dag",
+                        "target": "example",
+                        "label": "secret_callback",
+                    }
+                ],
+            ),
+            "secret_callback",
+            "/dag/dag_dependencies/*",
+            "added",
+            "dependency",
+            "execution",
+            id="dependency",
+        ),
+    ],
+)
+def test_build_diff_classification_ignores_redacted_identifiers(
+    base_data,
+    target_data,
+    hidden_identifier,
+    expected_path,
+    expected_operation,
+    expected_category,
+    expected_impact,
+) -> None:
+    result = build_serialized_dag_diff(base_data=base_data, target_data=target_data)
+
+    assert result["changes"] == [
+        {
+            "path": expected_path,
+            "operation": expected_operation,
+            "category": expected_category,
+            "impact": expected_impact,
+        }
+    ]
+    assert hidden_identifier not in json.dumps(result)
+
+
+def test_build_diff_preserves_known_task_field_classification_without_values() -> None:
+    result = build_serialized_dag_diff(
+        base_data=_payload(tasks=[{"task_id": "extract", "outlets": []}]),
+        target_data=_payload(tasks=[{"task_id": "extract", "outlets": ["asset"]}]),
+    )
+
+    assert result["changes"] == [
+        {
+            "path": "/dag/tasks/*/outlets",
+            "operation": "changed",
+            "category": "asset",
+            "impact": "execution",
+        }
+    ]
 
 
 def test_build_diff_collapses_arbitrary_mappings_without_values() -> None:
