@@ -542,15 +542,27 @@ class TestGetAsyncConnUriFromSync:
         ("sync_uri", "expected"),
         [
             ("sqlite:///path/to/db.sqlite", "sqlite+aiosqlite:///path/to/db.sqlite"),
-            ("postgresql://user:pass@localhost/dbname", "postgresql+asyncpg://user:pass@localhost/dbname"),
             ("mysql://user:pass@localhost/dbname", "mysql+aiomysql://user:pass@localhost/dbname"),
-            ("postgresql+psycopg2://user@localhost/db", "postgresql+asyncpg://user@localhost/db"),
         ],
     )
     def test_supported_scheme_conversion(self, sync_uri, expected):
         """Test conversion of supported sync SQLAlchemy URIs to async driver variants."""
         result = settings._get_async_conn_uri_from_sync(sync_uri)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("sync_uri", "expected_template"),
+        [
+            ("postgresql://user:pass@localhost/dbname", "postgresql+{driver}://user:pass@localhost/dbname"),
+            ("postgresql+psycopg2://user@localhost/db", "postgresql+{driver}://user@localhost/db"),
+        ],
+    )
+    def test_postgresql_scheme_conversion(self, sync_uri, expected_template):
+        """Test conversion of PostgreSQL sync URIs to the configured async driver."""
+        postgres_async_driver = "psycopg_async" if settings._USE_PSYCOPG3 else "asyncpg"
+        assert settings._get_async_conn_uri_from_sync(sync_uri) == expected_template.format(
+            driver=postgres_async_driver
+        )
 
     def test_unsupported_scheme_returns_original_uri(self):
         """Test that unsupported schemes return the original URI unchanged."""
