@@ -23,6 +23,7 @@ import copy
 import hashlib
 import json
 from collections.abc import Callable, Mapping
+from enum import Enum
 from typing import Any, Literal
 
 from airflow.serialization.serialized_objects import DagSerialization
@@ -38,6 +39,18 @@ _ORDER_INSENSITIVE_LIST_PATHS = {
     ("dag", "tags"),
     ("dag", "allowed_run_types"),
 }
+_KEYED_COLLECTION_PATHS = {
+    ("dag", "tasks"),
+    ("dag", "dag_dependencies"),
+    *_ORDER_INSENSITIVE_LIST_PATHS,
+}
+_REDACTED_RECURSIVE_MAPPING_PATHS = {
+    (),
+    ("dag",),
+    ("dag", "task_group"),
+    ("provenance",),
+    *_KEYED_COLLECTION_PATHS,
+}
 
 
 def build_serialized_dag_diff(
@@ -49,7 +62,12 @@ def build_serialized_dag_diff(
     include_values: bool = False,
     max_changes: int = DEFAULT_MAX_CHANGES,
 ) -> dict[str, Any]:
-    """Build a bounded, deterministic diff from two stored serialized Dag payloads."""
+    """
+    Build a bounded, deterministic diff from two stored serialized Dag payloads.
+
+    Raw values, digests, and value-derived path components are returned only when
+    ``include_values`` is true.
+    """
     _validate_max_changes(max_changes)
 
     base_schema_version = _get_schema_version(base_data)
@@ -115,15 +133,15 @@ class _ChangeCollector:
             return
 
         category = _get_category(path)
-        change = {
-            "path": _format_path(path),
+        change: dict[str, Any] = {
+            "path": _format_path(path if self.include_values else _redact_path(path)),
             "operation": operation,
             "category": category,
             "impact": _get_impact(category),
-            "before_digest": None if before is _MISSING else _get_digest(before),
-            "after_digest": None if after is _MISSING else _get_digest(after),
         }
         if self.include_values:
+            change["before_digest"] = None if before is _MISSING else _get_digest(before)
+            change["after_digest"] = None if after is _MISSING else _get_digest(after)
             if before is not _MISSING:
                 change["before_value"] = before
             if after is not _MISSING:
@@ -200,8 +218,11 @@ def _apply_client_defaults(payload: dict[str, Any]) -> None:
 def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
     if isinstance(value, Mapping):
         return {
-            str(key): _canonicalize_value(item, path=path + (str(key),))
-            for key, item in sorted(value.items(), key=lambda item: str(item[0]))
+            canonical_key: _canonicalize_value(item, path=path + (canonical_key,))
+            for canonical_key, item in (
+                (_canonicalize_mapping_key(key), item)
+                for key, item in sorted(value.items(), key=lambda item: _canonicalize_mapping_key(item[0]))
+            )
         }
     if isinstance(value, list):
         canonical_values = [_canonicalize_value(item, path=path) for item in value]
@@ -213,6 +234,12 @@ def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
             return _canonicalize_keyed_list(canonical_values, _get_string_key, path)
         return canonical_values
     return value
+
+
+def _canonicalize_mapping_key(key: Any) -> str:
+    if isinstance(key, str) and isinstance(key, Enum):
+        return key.value
+    return str(key)
 
 
 def _canonicalize_keyed_list(
@@ -272,6 +299,10 @@ def _collect_changes(
     collector: _ChangeCollector,
 ) -> None:
     if isinstance(before, Mapping) and isinstance(after, Mapping):
+        if not collector.include_values and not _should_recurse_redacted_mapping(path):
+            if not _json_equal(before, after):
+                collector.add(path=path, operation="changed", before=before, after=after)
+            return
         keys = sorted({str(key) for key in before} | {str(key) for key in after})
         for key in keys:
             before_value = before.get(key, _MISSING)
@@ -290,6 +321,18 @@ def _collect_changes(
         collector.add(path=path, operation="removed", before=before, after=_MISSING)
     elif not _json_equal(before, after):
         collector.add(path=path, operation="changed", before=before, after=after)
+
+
+def _should_recurse_redacted_mapping(path: tuple[str, ...]) -> bool:
+    if path in _REDACTED_RECURSIVE_MAPPING_PATHS:
+        return True
+    return len(path) == 3 and path[:2] == ("dag", "tasks")
+
+
+def _redact_path(path: tuple[str, ...]) -> tuple[str, ...]:
+    if len(path) >= 3 and path[:2] in _KEYED_COLLECTION_PATHS:
+        return (*path[:2], "*", *path[3:])
+    return path
 
 
 def _format_path(path: tuple[str, ...]) -> str:

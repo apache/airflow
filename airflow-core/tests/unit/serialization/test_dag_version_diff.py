@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from airflow.serialization.dag_version_diff import build_serialized_dag_diff
@@ -217,6 +219,72 @@ def test_build_diff_rejects_unbounded_change_bound() -> None:
         )
 
 
+def test_build_diff_redacts_sensitive_data_without_values() -> None:
+    dependency = {
+        "dependency_type": "sensor",
+        "dependency_id": "secret-dependency",
+        "source": "secret-upstream",
+        "target": "example",
+        "label": "secret-label",
+    }
+    result = build_serialized_dag_diff(
+        base_data=_payload(
+            tasks=[{"task_id": "secret-task", "retries": 1}],
+            tags=["secret-old-tag"],
+            dependencies=[dependency],
+        ),
+        target_data=_payload(
+            tasks=[
+                {"task_id": "secret-task", "retries": 2},
+                {"task_id": "secret-new-task", "retries": 1},
+            ],
+            tags=["secret-new-tag"],
+        ),
+    )
+
+    assert result["mode"] == "observed_state"
+    assert any(change["path"] == "/dag/tasks/*/retries" for change in result["changes"])
+    assert any(change["path"] == "/dag/tasks/*" for change in result["changes"])
+    assert any(change["path"] == "/dag/tags/*" for change in result["changes"])
+    assert any(change["path"] == "/dag/dag_dependencies/*" for change in result["changes"])
+    assert all(
+        "before_digest" not in change
+        and "after_digest" not in change
+        and "before_value" not in change
+        and "after_value" not in change
+        for change in result["changes"]
+    )
+    encoded_result = json.dumps(result)
+    for sensitive_value in (
+        "secret-task",
+        "secret-new-task",
+        "secret-old-tag",
+        "secret-new-tag",
+        "secret-dependency",
+        "secret-upstream",
+        "secret-label",
+    ):
+        assert sensitive_value not in encoded_result
+
+
+def test_build_diff_collapses_arbitrary_mappings_without_values() -> None:
+    base = _payload(tasks=[])
+    target = _payload(tasks=[])
+    base["dag"]["default_args"] = {"secret-argument": "old-secret"}
+    target["dag"]["default_args"] = {"secret-argument": "new-secret"}
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target)
+
+    assert result["changes"] == [
+        {
+            "path": "/dag/default_args",
+            "operation": "changed",
+            "category": "param",
+            "impact": "execution",
+        }
+    ]
+
+
 def test_build_diff_reports_unkeyed_lists_as_one_stable_change() -> None:
     base = _payload(tasks=[])
     target = _payload(tasks=[])
@@ -231,8 +299,8 @@ def test_build_diff_reports_unkeyed_lists_as_one_stable_change() -> None:
     assert change["operation"] == "changed"
     assert change["category"] == "unknown"
     assert change["impact"] == "unknown"
-    assert change["before_digest"].startswith("sha256:")
-    assert change["after_digest"].startswith("sha256:")
+    assert "before_digest" not in change
+    assert "after_digest" not in change
 
 
 def test_build_diff_reports_deadline_lists_as_one_stable_change() -> None:
@@ -403,9 +471,37 @@ def _v1_payload() -> dict:
     }
 
 
+def _equivalent_v3_payload() -> dict:
+    return {
+        "__version": 3,
+        "dag": {
+            "dag_id": "example",
+            "fileloc": "/dags/example.py",
+            "timezone": "UTC",
+            "timetable": {
+                "__type": "airflow.timetables.simple.NullTimetable",
+                "__var": {},
+            },
+            "task_group": {"group_display_name": ""},
+            "tasks": [
+                {
+                    "__type": "operator",
+                    "__var": {
+                        "task_id": "extract",
+                        "task_type": "EmptyOperator",
+                        "_task_module": "airflow.providers.standard.operators.empty",
+                        "ui_color": "#e8f7e4",
+                    },
+                }
+            ],
+            "dag_dependencies": [],
+        },
+    }
+
+
 def test_build_diff_normalizes_valid_v1_payload() -> None:
-    result = build_serialized_dag_diff(base_data=_v1_payload(), target_data=_v1_payload())
+    result = build_serialized_dag_diff(base_data=_v1_payload(), target_data=_equivalent_v3_payload())
 
     assert result["mode"] == "observed_state"
-    assert result["serialized_dag_schema_versions"] == {"base": 1, "target": 1}
+    assert result["serialized_dag_schema_versions"] == {"base": 1, "target": 3}
     assert result["changes"] == []
