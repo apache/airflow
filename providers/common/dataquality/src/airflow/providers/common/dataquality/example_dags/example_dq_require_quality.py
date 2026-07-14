@@ -51,7 +51,13 @@ os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RES
 gated_orders_ruleset = RuleSet(
     name="gated_orders_quality",
     rules=(
-        DQRule(name="order_id_not_null", check="null_count", column="order_id", condition={"equal_to": 0}),
+        DQRule(
+            name="order_id_not_null",
+            check="null_count",
+            column="order_id",
+            condition={"equal_to": 0},
+            id="order_id_not_null",  # explicit rule_uid, stable across future renames
+        ),
         DQRule(name="amount_min_ge_zero", check="min", column="amount", condition={"geq_to": 0}),
         DQRule(name="row_count_present", check="row_count", condition={"greater_than": 0}),
     ),

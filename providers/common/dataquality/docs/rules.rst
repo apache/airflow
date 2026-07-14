@@ -63,6 +63,8 @@ can also be proposed by an LLM -- see :doc:`agents`.
   ``"region = 'EU'"``. Combines with the operator-level ``partition_clause``, if any.
 - ``previous_name`` -- set when renaming a rule so its execution history stays continuous
   (see `Identity and history`_).
+- ``id`` -- explicit, stable identity for this rule's history, used verbatim as ``rule_uid``
+  instead of the derived hash (see `Identity and history`_).
 - ``description`` -- optional human-readable text shown in data quality results.
   When omitted, the provider generates a short default description from the rule and condition.
 - ``dimension`` -- one of ``completeness``, ``uniqueness``, ``validity``, ``freshness``,
@@ -217,4 +219,21 @@ Renaming a rule outright would normally start a new history under the new name; 
         check="unique_violations",
         column="order_id",
         condition={"equal_to": 0},
+    )
+
+The derived hash isn't guaranteed unique across every possible ruleset: two rules can end up
+with the same ``rule_uid`` if their identity fields happen to line up (for example, a renamed
+rule's ``previous_name`` matching another rule's current ``name``, ``check``, ``column``, and
+``condition``). ``RuleSet`` validates against this and raises if it happens. If you'd rather
+not depend on the hash at all, set ``id`` and it's used as the ``rule_uid`` directly:
+
+.. code-block:: python
+
+    DQRule(
+        name="order_id_is_unique",
+        previous_name="order_id_unique",
+        check="unique_violations",
+        column="order_id",
+        condition={"equal_to": 0},
+        id="order_id_uniqueness",  # stable regardless of future renames or condition tweaks
     )
