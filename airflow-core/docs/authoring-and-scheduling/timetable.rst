@@ -152,7 +152,6 @@ must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`
         pass
 
 .. versionadded:: 3.0.0
-    The ``run_immediately`` argument was introduced in Airflow 3.
 
 The optional ``run_immediately`` argument controls which cron point is scheduled when a Dag is first
 enabled or re-enabled after a pause. It has no effect when ``catchup=True`` (in that case the
@@ -206,7 +205,7 @@ scheduler always continues from where it left off).
 .. note::
 
     ``run_immediately`` is a parameter of ``CronTriggerTimetable``, **not** of the ``DAG``
-    constructor. Passing it directly to ``DAG(run_immediately=...)`` has no effect.
+    constructor. Passing it directly to ``DAG(run_immediately=...)`` is an error.
 
 
 .. _MultipleCronTriggerTimetable:
