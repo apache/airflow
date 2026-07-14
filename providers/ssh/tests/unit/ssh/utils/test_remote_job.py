@@ -433,6 +433,11 @@ class TestCleanupCommands:
                 "/tmp/airflow-ssh-jobs/job_123", expected_base="/tmp-data/airflow-ssh-jobs"
             )
 
+    def test_posix_cleanup_does_not_replace_empty_expected_base_with_default(self):
+        """Test an empty expected base does not fall back to the default base directory."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_posix_cleanup_command("/tmp/airflow-ssh-jobs/job_123", expected_base="")
+
     def test_windows_cleanup_rejects_invalid_path(self):
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
@@ -445,3 +450,8 @@ class TestCleanupCommands:
                 "$env:TEMP\\airflow-ssh-jobs\\job_123",
                 expected_base="$env:TEMP\\custom-airflow-ssh-jobs",
             )
+
+    def test_windows_cleanup_does_not_replace_empty_expected_base_with_default(self):
+        """Test an empty expected base does not fall back to the default base directory."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_windows_cleanup_command("$env:TEMP\\airflow-ssh-jobs\\job_123", expected_base="")

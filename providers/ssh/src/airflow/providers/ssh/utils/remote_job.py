@@ -44,10 +44,10 @@ def _validate_job_dir(
     :raises ValueError: If job_dir doesn't start with the expected base path
     """
     if remote_os == "posix":
-        expected_base = expected_base or POSIX_DEFAULT_BASE_DIR
+        expected_base = POSIX_DEFAULT_BASE_DIR if expected_base is None else expected_base
         expected_prefix = expected_base + "/"
     else:
-        expected_base = expected_base or WINDOWS_DEFAULT_BASE_DIR
+        expected_base = WINDOWS_DEFAULT_BASE_DIR if expected_base is None else expected_base
         expected_prefix = expected_base + "\\"
 
     if not job_dir.startswith(expected_prefix):

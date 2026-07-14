@@ -452,10 +452,16 @@ class SSHRemoteJobOperator(BaseOperator):
         """
         self.log.info("Cleaning up remote job directory: %s", job_dir)
         expected_base = self._paths.base_dir if self._paths else self.remote_base_dir
-        if remote_os == "posix":
-            cleanup_cmd = build_posix_cleanup_command(job_dir, expected_base=expected_base)
-        else:
-            cleanup_cmd = build_windows_cleanup_command(job_dir, expected_base=expected_base)
+        try:
+            if remote_os == "posix":
+                cleanup_cmd = build_posix_cleanup_command(job_dir, expected_base=expected_base)
+            else:
+                cleanup_cmd = build_windows_cleanup_command(job_dir, expected_base=expected_base)
+        except ValueError as e:
+            self.log.warning(
+                "Cleanup validation failed; leaving remote job directory %s in place: %s", job_dir, e
+            )
+            return
 
         last_error: Exception | None = None
         for attempt in range(1, self.cleanup_retries + 1):
