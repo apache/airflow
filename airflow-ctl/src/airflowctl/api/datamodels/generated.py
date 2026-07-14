@@ -646,6 +646,7 @@ class DagWarningType(str, Enum):
     """
 
     ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
 
@@ -829,6 +830,7 @@ class MaterializeAssetBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class NewTaskResponse(BaseModel):
@@ -1159,6 +1161,7 @@ class TriggerDAGRunPostBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class TriggerResponse(BaseModel):

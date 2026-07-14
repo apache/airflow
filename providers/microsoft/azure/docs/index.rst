@@ -110,7 +110,9 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``adlfs``                                   ``>=2023.10.0``
+``aiohttp``                                 ``>=3.14.0``
 ``azure-batch``                             ``<15.0.0,>=8.0.0``
+``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.6.0``
 ``azure-mgmt-cosmosdb``                     ``>=3.0.0``
 ``azure-datalake-store``                    ``>=0.0.45``

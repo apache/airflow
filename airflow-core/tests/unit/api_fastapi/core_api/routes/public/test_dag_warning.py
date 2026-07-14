@@ -117,5 +117,5 @@ class TestGetDagWarnings:
         assert response.status_code == 422
         assert (
             response_json["detail"][0]["msg"]
-            == "Input should be 'asset conflict', 'non-existent pool' or 'runtime varying value'"
+            == "Input should be 'asset conflict', 'duplicate dag id', 'non-existent pool' or 'runtime varying value'"
         )
