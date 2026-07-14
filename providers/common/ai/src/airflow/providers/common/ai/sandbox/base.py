@@ -24,6 +24,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
 
+# Cap on each of stdout/stderr a backend returns from a command, protecting the
+# LLM context window from unbounded output. Shared by every backend.
+_MAX_OUTPUT_CHARS = 64 * 1024
+
 
 def _validate_positive_finite(value: float, name: str) -> None:
     if not math.isfinite(value) or value <= 0:
@@ -31,8 +35,15 @@ def _validate_positive_finite(value: float, name: str) -> None:
 
 
 def _new_sandbox_name() -> str:
-    """Generate a unique sandbox name, ``airflow-`` prefixed for correlation and cleanup."""
-    return f"airflow-sbx-{uuid.uuid4().hex[:12]}"
+    """Generate a unique sandbox name, ``airflow-sandbox-`` prefixed for correlation and cleanup."""
+    return f"airflow-sandbox-{uuid.uuid4().hex[:12]}"
+
+
+def _cap_output(text: str) -> tuple[str, bool]:
+    """Return ``text`` capped at ``_MAX_OUTPUT_CHARS`` and whether it was truncated."""
+    if len(text) <= _MAX_OUTPUT_CHARS:
+        return text, False
+    return text[:_MAX_OUTPUT_CHARS], True
 
 
 @dataclass(frozen=True)

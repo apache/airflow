@@ -586,7 +586,9 @@ ends.
 It is a Deployment Manager prerequisite to install the ``sbx`` binary
 (``brew install docker/tap/sbx`` / ``winget install Docker.sbx``) and run
 ``sbx policy init`` once on the worker host; the backend needs no Python
-dependency. The template image must provide the GNU ``timeout`` utility, which
+dependency. Outbound network egress is governed by that host ``sbx policy``
+rather than by the backend — use ``sbx policy init deny-all`` for a no-egress
+default. The template image must provide the GNU ``timeout`` utility, which
 enforces the per-command timeout (any Debian/Ubuntu-based image, including
 ``python:*-slim``, does).
 
@@ -652,10 +654,10 @@ Constructor parameters:
   deleted even if the worker never got to destroy it (killed mid-run).
   Default ``3600``.
 
-The command timeout is also sent to Islo for server-side enforcement. If the
-API does not report a terminal command state within a short grace period, the
-backend deletes the microVM before returning the timeout and marks the sandbox
-as terminated.
+The command timeout is enforced by the backend, not the islo API (the API's
+``timeout_secs`` is only a compatibility hint). If no terminal command state
+arrives within the timeout plus a short grace period, the backend deletes the
+microVM, marks the sandbox terminated, and returns a timeout.
 
 Parameters
 ^^^^^^^^^^

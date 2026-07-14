@@ -64,7 +64,9 @@ class _RecordingBackend(SandboxBackend):
 
 
 def _call_run_code(ts: SandboxToolset, code: str = "print('hi')"):
-    return asyncio.run(ts.call_tool("run_code", {"code": code}, ctx=MagicMock(), tool=MagicMock()))
+    return asyncio.run(
+        ts.call_tool("run_python_in_sandbox", {"code": code}, ctx=MagicMock(), tool=MagicMock())
+    )
 
 
 class TestSandboxToolsetInit:
@@ -82,15 +84,33 @@ class TestSandboxToolsetInit:
             SandboxToolset(_RecordingBackend(), python_command="")
 
 
+class TestSandboxToolsetForRun:
+    def test_for_run_hands_each_run_a_fresh_instance(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend, timeout=42.0, python_command="py")
+
+        a = asyncio.run(ts.for_run(MagicMock()))
+        b = asyncio.run(ts.for_run(MagicMock()))
+
+        # Distinct instances so concurrent runs never share sandbox state...
+        assert a is not ts
+        assert a is not b
+        # ...but the same backend and configuration are carried over.
+        assert a._backend is backend
+        assert a._timeout == 42.0
+        assert a._python_command == "py"
+        assert a._sandbox is None
+
+
 class TestSandboxToolsetGetTools:
     def test_returns_run_code_tool(self):
         ts = SandboxToolset(_RecordingBackend())
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
-        assert set(tools.keys()) == {"run_code"}
+        assert set(tools.keys()) == {"run_python_in_sandbox"}
 
     def test_tool_definition_shape(self):
         ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_code"]
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
         assert tool.tool_def.description
         assert tool.tool_def.sequential is True
         assert tool.tool_def.parameters_json_schema["required"] == ["code"]
@@ -103,7 +123,7 @@ class TestSandboxToolsetGetTools:
     def test_tool_declares_string_return_schema(self):
         # run_code returns a JSON-encoded string, so code mode should see `-> str`.
         ts = SandboxToolset(_RecordingBackend())
-        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_code"]
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
         assert tool.tool_def.return_schema == {"type": "string"}
 
 
@@ -211,7 +231,7 @@ class TestSandboxToolsetLifecycle:
 
         async def scenario():
             async with ts:
-                await ts.call_tool("run_code", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
 
         asyncio.run(scenario())
 
@@ -237,7 +257,7 @@ class TestSandboxToolsetLifecycle:
         async def scenario():
             async with ts:
                 backend.run_error = RuntimeError("boom")
-                await ts.call_tool("run_code", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
 
         with pytest.raises(RuntimeError, match="boom"):
             asyncio.run(scenario())
@@ -251,7 +271,7 @@ class TestSandboxToolsetLifecycle:
 
         async def one_run():
             async with ts:
-                await ts.call_tool("run_code", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
 
         asyncio.run(one_run())
         asyncio.run(one_run())
@@ -265,7 +285,7 @@ class TestSandboxToolsetLifecycle:
 
         async def one_run():
             async with ts:
-                await ts.call_tool("run_code", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                await ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
 
         with pytest.raises(RuntimeError, match="delete failed"):
             asyncio.run(one_run())
@@ -293,7 +313,7 @@ class TestSandboxToolsetLifecycle:
         async def scenario():
             async with ts:
                 call = asyncio.create_task(
-                    ts.call_tool("run_code", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
+                    ts.call_tool("run_python_in_sandbox", {"code": "1"}, ctx=MagicMock(), tool=MagicMock())
                 )
                 assert await asyncio.to_thread(create_started.wait, 1)
                 call.cancel()

@@ -37,6 +37,11 @@ if TYPE_CHECKING:
 
 _PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
+# Deliberately not "run_code": that name is reserved by the Monty code_mode
+# meta-tool, and the pinned pydantic-ai-harness rejects a second tool claiming
+# it. A distinct name lets this toolset and code_mode coexist.
+_TOOL_NAME = "run_python_in_sandbox"
+
 _RUN_CODE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -59,9 +64,9 @@ class SandboxToolset(AbstractToolset[Any]):
     """
     Toolset that executes agent-written Python in an isolated sandbox.
 
-    Provides one tool, ``run_code``. Unlike ``code_mode`` — whose ``run_code``
-    executes in-process on the worker via the Monty interpreter — this ships
-    the code to a disposable sandbox provisioned by the given
+    Provides one tool, ``run_python_in_sandbox``. Unlike ``code_mode`` — whose
+    ``run_code`` executes in-process on the worker via the Monty interpreter —
+    this ships the code to a disposable sandbox provisioned by the given
     :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`. Airflow does
     not inject its context, connections, credentials, or worker environment;
     custom images and hosted backends can still provide their own credentials.
@@ -77,7 +82,7 @@ class SandboxToolset(AbstractToolset[Any]):
     failure) propagate and fail the task.
 
     :param backend: Sandbox backend that provisions and runs the sandbox, e.g.
-        :class:`~airflow.providers.common.ai.sandbox.DockerSandboxBackend` or
+        :class:`~airflow.providers.common.ai.sandbox.SbxSandboxBackend` or
         :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend`.
     :param timeout: Timeout in seconds for a single ``run_code`` call.
         Default ``300``.
@@ -104,6 +109,14 @@ class SandboxToolset(AbstractToolset[Any]):
     @property
     def id(self) -> str:
         return f"sandbox-{self._backend.name}"
+
+    async def for_run(self, ctx: RunContext[Any]) -> AbstractToolset[Any]:
+        # Per-run isolation: pydantic-ai shares one toolset instance across runs,
+        # but each run holds its own sandbox in ``_sandbox``/``_create_task``.
+        # Hand every run a fresh instance so concurrent runs never share a
+        # sandbox or destroy each other's. The backend keys all state by unique
+        # sandbox name, so sharing it across runs is safe.
+        return SandboxToolset(self._backend, timeout=self._timeout, python_command=self._python_command)
 
     async def __aenter__(self) -> Self:
         # The sandbox is provisioned lazily in call_tool, not here: a durable
@@ -147,14 +160,14 @@ class SandboxToolset(AbstractToolset[Any]):
         # return_schema is "string": the tool returns a JSON-encoded string
         # (json.dumps), so code mode renders `-> str` instead of `-> Any`.
         tool_def = ToolDefinition(
-            name="run_code",
+            name=_TOOL_NAME,
             description=_RUN_CODE_DESCRIPTION,
             parameters_json_schema=_RUN_CODE_SCHEMA,
             sequential=True,
             **return_schema_kwargs({"type": "string"}),
         )
         return {
-            "run_code": ToolsetTool(
+            _TOOL_NAME: ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
                 max_retries=2,
@@ -169,7 +182,7 @@ class SandboxToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        if name != "run_code":
+        if name != _TOOL_NAME:
             raise ValueError(f"Unknown tool: {name!r}")
         # Backend calls are synchronous and a sandbox run can take minutes, so
         # offload them to a thread instead of blocking the event loop (unlike
