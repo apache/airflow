@@ -43,6 +43,7 @@ from airflow.providers.opensearch.log.os_task_handler import (
     getattr_nested,
 )
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -290,6 +291,9 @@ class TestOpensearchTaskHandler:
     @pytest.mark.db_test
     @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
     def test_read(self, ti, metadata_mode):
+        # A finished task reads from OpenSearch directly. A running task is delegated to the
+        # base handler (covered by test_read_running_task_delegates_to_base_handler).
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now()
         response = _make_os_response(self.os_task_handler.io, self.base_log_source)
 
@@ -318,6 +322,7 @@ class TestOpensearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_defaults_offset_when_missing_from_metadata(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now()
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
             logs, metadatas = self.os_task_handler.read(ti, 1, {"end_of_log": False})
@@ -330,6 +335,7 @@ class TestOpensearchTaskHandler:
     @pytest.mark.db_test
     @pytest.mark.parametrize("seconds", [3, 6])
     def test_read_missing_logs(self, ti, seconds):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now().add(seconds=-seconds)
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
             logs, metadatas = self.os_task_handler.read(
@@ -350,6 +356,7 @@ class TestOpensearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_timeout(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now().subtract(minutes=5)
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
             logs, metadatas = self.os_task_handler.read(
@@ -365,6 +372,7 @@ class TestOpensearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_with_custom_offset_and_host_fields(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         self.os_task_handler.host_field = "host.name"
         self.os_task_handler.offset_field = "log.offset"
         self.os_task_handler.io.host_field = "host.name"
@@ -395,6 +403,37 @@ class TestOpensearchTaskHandler:
         )
         assert metadata["offset"] == "1"
         assert not metadata["end_of_log"]
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Live-log delegation only applies to Airflow 3")
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
+    def test_read_running_task_delegates_to_base_handler(self, ti, state):
+        ti.state = state
+        base_result = (["live log line"], {"end_of_log": False})
+        with (
+            patch.object(FileTaskHandler, "_read", return_value=base_result) as base_read,
+            patch.object(self.os_task_handler.io, "_os_read") as os_read,
+        ):
+            result = self.os_task_handler._read(ti, 1, {})
+
+        assert result == base_result
+        base_read.assert_called_once()
+        os_read.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Live-log delegation only applies to Airflow 3")
+    def test_read_old_try_of_running_task_does_not_delegate(self, ti):
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 2
+        response = _make_os_response(self.os_task_handler.io, self.base_log_source)
+        with (
+            patch.object(FileTaskHandler, "_read") as base_read,
+            patch.object(self.os_task_handler.io, "_os_read", return_value=response) as os_read,
+        ):
+            self.os_task_handler.read(ti, 1, {"offset": 0})
+
+        base_read.assert_not_called()
+        os_read.assert_called_once()
 
     @pytest.mark.db_test
     def test_set_context(self, ti):
