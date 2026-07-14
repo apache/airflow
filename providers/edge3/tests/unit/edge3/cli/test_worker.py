@@ -164,6 +164,13 @@ class TestEdgeWorker:
                 importlib.reload(cli_parser)
                 self.parser = cli_parser.get_parser()
 
+    @pytest.fixture(autouse=True)
+    def reset_edge_worker_class_attrs(self):
+        yield
+        EdgeWorker.jobs = []
+        EdgeWorker.drain = False
+        EdgeWorker.maintenance_mode = False
+
     @pytest.fixture
     def cli_worker_with_team(self, tmp_path: Path) -> EdgeWorker:
         test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, team_name="team_a")
