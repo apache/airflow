@@ -5596,7 +5596,7 @@ class TestSchedulerJob:
         with assert_queries_count(1, session=session):
             _associate_asset_events_with_dag_run(
                 dag_run=dag_run,
-                asset_event_ids=select(AssetEvent.id.label("event_id")).where(
+                asset_event_ids_select=select(AssetEvent.id.label("event_id")).where(
                     AssetEvent.id == asset_event_id
                 ),
                 session=session,

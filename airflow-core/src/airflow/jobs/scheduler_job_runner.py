@@ -169,11 +169,11 @@ MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 def _associate_asset_events_with_dag_run(
     *,
     dag_run: DagRun,
-    asset_event_ids: Select[tuple[int]],
+    asset_event_ids_select: Select[tuple[int]],
     session: Session,
 ) -> None:
     """Associate selected asset events without materializing ORM objects."""
-    selected_event_ids = asset_event_ids.subquery()
+    selected_event_ids = asset_event_ids_select.subquery()
     session.execute(
         insert(association_table).from_select(
             ["dag_run_id", "event_id"],
@@ -2362,13 +2362,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            asset_event_ids = select(AssetEvent.id.label("event_id")).where(
+            asset_event_ids_select = select(AssetEvent.id.label("event_id")).where(
                 PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
                 PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
             )
             _associate_asset_events_with_dag_run(
                 dag_run=dag_run,
-                asset_event_ids=asset_event_ids,
+                asset_event_ids_select=asset_event_ids_select,
                 session=session,
             )
             session.flush()
@@ -2642,21 +2642,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             event_window_floor.append(date.min)
 
-            asset_event_ids = select(AssetEvent.id.label("event_id")).where(
-                or_(
-                    AssetEvent.asset_id.in_(
-                        select(DagScheduleAssetReference.asset_id).where(
-                            DagScheduleAssetReference.dag_id == dag.dag_id
+            asset_event_ids_select = (
+                select(AssetEvent.id.label("event_id"))
+                .where(
+                    or_(
+                        AssetEvent.asset_id.in_(
+                            select(DagScheduleAssetReference.asset_id).where(
+                                DagScheduleAssetReference.dag_id == dag.dag_id
+                            ),
+                        ),
+                        AssetEvent.source_aliases.any(
+                            AssetAliasModel.scheduled_dags.any(
+                                DagScheduleAssetAliasReference.dag_id == dag.dag_id
+                            )
                         ),
                     ),
-                    AssetEvent.source_aliases.any(
-                        AssetAliasModel.scheduled_dags.any(
-                            DagScheduleAssetAliasReference.dag_id == dag.dag_id
-                        )
-                    ),
-                ),
-                AssetEvent.timestamp <= triggered_date,
-                AssetEvent.timestamp > func.coalesce(*event_window_floor),
+                    AssetEvent.timestamp <= triggered_date,
+                    AssetEvent.timestamp > func.coalesce(*event_window_floor),
+                )
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             )
 
             dag_run = dag.create_dagrun(
@@ -2680,7 +2684,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
             _associate_asset_events_with_dag_run(
                 dag_run=dag_run,
-                asset_event_ids=asset_event_ids,
+                asset_event_ids_select=asset_event_ids_select,
                 session=session,
             )
             consumed_asset_event_count = (
