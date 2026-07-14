@@ -49,7 +49,7 @@ class Db2Hook(DbApiHook):
 
     conn_name_attr = "db2_conn_id"
     default_conn_name = "db2_default"
-    conn_type = "Db2"
+    conn_type = "ibmdb2"
     hook_name = "IBM Db2"
     supports_autocommit = True
     supports_executemany = True
