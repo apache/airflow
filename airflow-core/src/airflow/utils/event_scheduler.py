@@ -50,10 +50,11 @@ class EventScheduler(scheduler, LoggingMixin):
                 try:
                     action(*args, **kwargs)
                 except Exception as e:
-                    self.log.exception(
+                    self.log.warning(
                         "Failed to run periodic action %s due to %s; will retry on the next cycle",
                         getattr(action, "__name__", action),
                         e,
+                        exc_info=True,
                     )
             else:
                 action(*args, **kwargs)
