@@ -342,7 +342,7 @@ def get_partitioned_dag_runs(
 
 
 @partitioned_dag_runs_router.get(
-    "/pending_partitioned_dag_run/{dag_id}/{partition_key}",
+    "/pending_partitioned_dag_run/{dag_id}",
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_pending_partitioned_dag_run(
@@ -351,6 +351,9 @@ def get_pending_partitioned_dag_run(
     session: SessionDep,
 ) -> PartitionedDagRunDetailResponse:
     """Return full details for pending PartitionedDagRun."""
+    # partition_key is a query param, not a path segment: it is a free-form key
+    # (up to 250 chars) that may itself contain "/", which would otherwise be
+    # ambiguous (or mis-routed) as a path segment.
     partitioned_dag_run = session.execute(
         select(
             AssetPartitionDagRun.id,
@@ -366,7 +369,11 @@ def get_pending_partitioned_dag_run(
             AssetPartitionDagRun.partition_key == partition_key,
             AssetPartitionDagRun.created_dag_run_id.is_(None),
         )
-    ).one_or_none()
+        # Duplicate pending rows for the same (dag_id, partition_key) can exist
+        # after a crash; mirror _get_or_create_apdr and work on the latest one.
+        .order_by(AssetPartitionDagRun.id.desc())
+        .limit(1)
+    ).first()
 
     if partitioned_dag_run is None:
         raise HTTPException(
@@ -440,9 +447,15 @@ def get_pending_partitioned_dag_run(
             required_keys = []
             received_count = 0
             required_count = 1
-        else:
+        elif is_rollup:
             received_count = len(received_keys)
             required_count = len(required_keys)
+        else:
+            # Match the list route's _compute_received_count: a non-rollup asset is
+            # satisfied by any single received event, so credit caps at 1 even if
+            # several distinct upstream keys mapped onto this one target key.
+            required_count = len(required_keys)
+            received_count = 1 if received_keys else 0
         assets.append(
             PartitionedDagRunAssetResponse(
                 asset_id=asset_row.id,
