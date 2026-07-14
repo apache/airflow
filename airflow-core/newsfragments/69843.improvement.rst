@@ -1,0 +1,1 @@
+Avoid loading serialized Dags for ordinary deferred task triggers by persisting whether Dag context is required.
