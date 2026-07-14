@@ -1544,7 +1544,15 @@ def _run_task(
                 trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": serialize(event.payload)} if event else msg.next_kwargs
+                # Merge (not replace) so defer()-time kwargs survive, matching the production triggerer path.
+                if event:
+                    next_kwargs = deserialize(msg.next_kwargs) if msg.next_kwargs else {}
+                    if TYPE_CHECKING:
+                        assert isinstance(next_kwargs, dict)
+                    next_kwargs["event"] = event.payload
+                    ti.next_kwargs = serialize(next_kwargs)
+                else:
+                    ti.next_kwargs = msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
                 # Set the state to SCHEDULED so that the task can be resumed.
