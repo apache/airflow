@@ -143,7 +143,6 @@ def clean_database():
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     clear_db_triggers()

@@ -50,6 +50,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperator,
     BaseSensorOperator,
     MappedOperator,
+    conf as airflow_conf,
 )
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
@@ -72,6 +73,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 from airflow.providers.openlineage.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
     get_base_airflow_version_tuple,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -980,6 +982,7 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
         "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
         "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+        "dag_team_name": lambda dagrun: DagRunInfo.team_name(dagrun) if AIRFLOW_V_3_3_PLUS else None,
         "deadlines": lambda dagrun: DagRunInfo.deadlines(dagrun),
     }
 
@@ -1037,7 +1040,7 @@ class DagRunInfo(InfoJsonEncodable):
 
     @classmethod
     def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
-        """Extract deg version info for given key, sourced from DagRun (on scheduler)."""
+        """Extract DAG version info for given key, sourced from DagRun (on scheduler)."""
         # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
         dag_versions = safe_getattr(dagrun, "dag_versions", [])
         if not dag_versions:
@@ -1052,6 +1055,20 @@ class DagRunInfo(InfoJsonEncodable):
         if key == "version_number":
             return current_version.version_number
         raise ValueError(f"Unsupported key: {key}`")
+
+    @classmethod
+    def team_name(cls, dagrun: DagRun) -> str | None:
+        """Extract the team name for the DagRun."""
+        if not AIRFLOW_V_3_3_PLUS or not airflow_conf.getboolean("core", "multi_team", fallback=False):
+            return None
+
+        from airflow.models.dagbundle import DagBundleModel
+
+        bundle_name = cls.dag_version_info(dagrun, "bundle_name")
+        if not isinstance(bundle_name, str):
+            return None
+
+        return DagBundleModel.get_team_name(bundle_name)
 
 
 class TaskInstanceInfo(InfoJsonEncodable):

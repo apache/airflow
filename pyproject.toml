@@ -191,6 +191,9 @@ apache-airflow = "airflow.__main__:main"
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
 ]
+"common.dataquality" = [
+    "apache-airflow-providers-common-dataquality>=0.1.0"
+]
 "common.io" = [
     "apache-airflow-providers-common-io>=1.4.2"
 ]
@@ -441,6 +444,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-ai>=0.1.0",
     "apache-airflow-providers-common-compat>=1.2.1",
+    "apache-airflow-providers-common-dataquality>=0.1.0",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
@@ -563,7 +567,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.25",
+    "uv>=0.11.26",
 ]
 
 [project.urls]
@@ -1148,6 +1152,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/common/ai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/dataquality/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/dataquality/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/messaging/src",
@@ -1460,6 +1466,7 @@ apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
 apache-airflow-providers-common-ai = false
 apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
@@ -1605,6 +1612,7 @@ apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
 apache-airflow-providers-common-ai = false
 apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
@@ -1765,6 +1773,7 @@ apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-ai = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
+apache-airflow-providers-common-dataquality = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-messaging = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
@@ -1905,6 +1914,7 @@ members = [
     "providers/cohere",
     "providers/common/ai",
     "providers/common/compat",
+    "providers/common/dataquality",
     "providers/common/io",
     "providers/common/messaging",
     "providers/common/sql",

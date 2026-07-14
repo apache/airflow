@@ -24,7 +24,9 @@ AdsInsights
 adsinsights
 afterall
 agentcore
+AgentDetails
 agentic
+AgentVersionDetails
 ai
 aio
 aiobotocore
@@ -400,6 +402,7 @@ dataprep
 Dataproc
 dataproc
 DataprocDiagnoseClusterOperator
+dataquality
 DataScan
 dataScans
 Dataset
@@ -449,6 +452,8 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+DeleteAgentResponse
+DeleteAgentVersionResponse
 delim
 deliverability
 deltalake

@@ -18,3 +18,7 @@
 /gradlew export-ignore
 /gradlew.bat export-ignore
 /gradle/wrapper/gradle-wrapper.jar export-ignore
+
+# ktlint reads .editorconfig for its formatting rules at build time, and the
+# build task requires the lint to pass, so the source release must ship it.
+/.editorconfig -export-ignore

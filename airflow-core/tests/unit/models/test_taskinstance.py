@@ -4152,6 +4152,26 @@ def test_clear_task_instances_honors_trace_sampled_conf(dag_maker, session, flag
 
 
 @pytest.mark.db_test
+def test_clear_task_instances_keeps_external_parent_trace(dag_maker, session):
+    """The regenerated carrier keeps riding the external trace from airflow/dagrun_parent_trace_context."""
+    external_trace_id = "11111111111111111111111111111111"
+    with dag_maker("test_clear_parent_trace"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun(
+        conf={"airflow/dagrun_parent_trace_context": f"00-{external_trace_id}-2222222222222222-01"}
+    )
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span_ctx = trace.get_current_span(new_ctx).get_span_context()
+    assert format(span_ctx.trace_id, "032x") == external_trace_id
+
+
+@pytest.mark.db_test
 def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, session):
     """``TaskInstance.__repr__`` must survive *any* deferred column it reads.
 

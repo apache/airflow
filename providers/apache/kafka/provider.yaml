@@ -129,3 +129,129 @@ connection-types:
 
 queues:
   - airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider
+
+plugins:
+  - name: kafka_listener
+    plugin-class: airflow.providers.apache.kafka.plugins.listener.KafkaListenerPlugin
+
+config:
+  kafka_listener:
+    description: |
+      Settings for the Kafka listener that publishes Airflow DagRun and
+      TaskInstance state-change events to a Kafka topic.
+    options:
+      dag_run_events_enabled:
+        description: |
+          Publish DagRun state-change events (``dag_run.running``,
+          ``dag_run.success``, ``dag_run.failed``). When False the
+          DagRun listener is not registered.
+        version_added: 1.14.1
+        type: boolean
+        example: ~
+        default: "False"
+      task_instance_events_enabled:
+        description: |
+          Publish TaskInstance state-change events (``task_instance.running``,
+          ``task_instance.success``, ``task_instance.failed``,
+          ``task_instance.skipped``). When False the TaskInstance listener
+          is not registered.
+        version_added: 1.14.1
+        type: boolean
+        example: ~
+        default: "False"
+      kafka_config_id:
+        description: |
+          Airflow connection used to build the listener's Kafka producer.
+          When unset, the producer hook falls back to its default
+          connection (``kafka_default``).
+        version_added: 1.14.1
+        type: string
+        example: "kafka_default"
+        default: ""
+      topic:
+        description: |
+          Topic the listener publishes events to. The topic must already
+          exist on the broker; the listener will not auto-create it.
+        version_added: 1.14.1
+        type: string
+        example: ~
+        default: "airflow.events"
+      source:
+        description: |
+          Identifier added to every emitted message under the ``source``
+          field so consumers can distinguish Airflow installations that
+          share the same topic. When unset, falls back to the hostname
+          of the Airflow component that emits the event (scheduler,
+          worker, etc.).
+        version_added: 1.14.1
+        type: string
+        example: "af-prod-eu"
+        default: ""
+      dag_run_dag_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, DagRun events are only
+          emitted for dag_ids matching at least one pattern. Empty = all dags.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*,test_dag1"
+        default: ""
+      dag_run_dag_id_denylist:
+        description: |
+          Comma-separated glob patterns. DagRun events for dag_ids matching
+          any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*"
+        default: ""
+      task_instance_dag_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, TaskInstance events are
+          only emitted for dag_ids matching at least one pattern.
+          Empty = all dags.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*,test_dag1"
+        default: ""
+      task_instance_dag_id_denylist:
+        description: |
+          Comma-separated glob patterns. TaskInstance events for dag_ids
+          matching any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*"
+        default: ""
+      task_instance_task_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, TaskInstance events are
+          only emitted for task_ids matching at least one pattern. Applied
+          in addition to ``task_instance_dag_id_allowlist`` — both must pass.
+          Mapped task instances share the same task_id so a single pattern
+          covers all map indices.
+        version_added: 1.14.1
+        type: string
+        example: "load_*,extract_*"
+        default: ""
+      task_instance_task_id_denylist:
+        description: |
+          Comma-separated glob patterns. TaskInstance events for task_ids
+          matching any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "*_cleanup"
+        default: ""
+      topic_check_timeout:
+        description: |
+          How long (in seconds) each topic existence check is allowed
+          to block waiting for a response from the broker.
+        version_added: 1.14.1
+        type: integer
+        example: ~
+        default: "10"
+      topic_check_retry_interval:
+        description: |
+          How long (in seconds) to wait before retrying a topic check,
+          in case it failed.
+        version_added: 1.14.1
+        type: integer
+        example: ~
+        default: "60"
