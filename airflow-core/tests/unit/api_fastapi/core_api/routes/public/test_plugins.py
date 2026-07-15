@@ -39,13 +39,14 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                19,
+                20,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
                     "business_day_window_plugin",
                     "databricks_workflow",
+                    "dataquality",
                     "decreasing_priority_weight_strategy_plugin",
                     "edge_executor",
                     "hitl_review",
@@ -64,14 +65,14 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 3},
-                19,
+                20,
                 [
                     "business_day_window_plugin",
                     "databricks_workflow",
-                    "decreasing_priority_weight_strategy_plugin",
+                    "dataquality",
                 ],
             ),
-            ({"limit": 1}, 19, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 20, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -174,7 +175,7 @@ class TestGetPlugins:
         assert len(plugins_page) == 8
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 19
+        assert body["total_entries"] == 20
 
 
 @skip_if_force_lowest_dependencies_marker

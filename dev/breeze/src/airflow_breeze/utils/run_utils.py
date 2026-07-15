@@ -43,6 +43,9 @@ from airflow_breeze.utils.path_utils import (
     COMMON_AI_PLUGIN_PREK_HOOK,
     COMMON_AI_UI_PLUGIN_DIST_PATH,
     COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH,
+    COMMON_DATAQUALITY_PLUGIN_PREK_HOOK,
+    COMMON_DATAQUALITY_UI_PLUGIN_DIST_PATH,
+    COMMON_DATAQUALITY_UI_PLUGIN_NODE_MODULES_PATH,
     EDGE_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_UI_DIST_PATH,
     EDGE_PLUGIN_UI_NODE_MODULES_PATH,
@@ -528,6 +531,9 @@ def _clean_ui_assets(additional_ui_hooks: list[str]):
     if COMMON_AI_PLUGIN_PREK_HOOK in additional_ui_hooks:
         shutil.rmtree(COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH, ignore_errors=True)
         shutil.rmtree(COMMON_AI_UI_PLUGIN_DIST_PATH, ignore_errors=True)
+    if COMMON_DATAQUALITY_PLUGIN_PREK_HOOK in additional_ui_hooks:
+        shutil.rmtree(COMMON_DATAQUALITY_UI_PLUGIN_NODE_MODULES_PATH, ignore_errors=True)
+        shutil.rmtree(COMMON_DATAQUALITY_UI_PLUGIN_DIST_PATH, ignore_errors=True)
 
     console_print("[success]Cleaned ui assets[/]")
 

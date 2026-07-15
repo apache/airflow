@@ -127,6 +127,7 @@ from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     COMMON_AI_PLUGIN_PREK_HOOK,
+    COMMON_DATAQUALITY_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_PREK_HOOK,
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     cleanup_python_generated_files,
@@ -663,7 +664,7 @@ def start_airflow(
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
         # Compile provider assets if needed
-        additional_assets = [COMMON_AI_PLUGIN_PREK_HOOK]
+        additional_assets = [COMMON_AI_PLUGIN_PREK_HOOK, COMMON_DATAQUALITY_PLUGIN_PREK_HOOK]
         if executor and EDGE_EXECUTOR in executor:
             additional_assets.append(EDGE_PLUGIN_PREK_HOOK)
         if auth_manager == FAB_AUTH_MANAGER:

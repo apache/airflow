@@ -20,8 +20,15 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.12.0"]
-build-backend = "flit_core.buildapi"
+requires = [
+    "hatchling==1.30.1",
+    "packaging==26.2",
+    "pathspec==1.1.1",
+    "pluggy==1.6.0",
+    "tomli==2.4.1; python_version < '3.11'",
+    "trove-classifiers==2026.6.1.19",
+]
+build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-dataquality"
@@ -60,6 +67,10 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0",
+    "apache-airflow-providers-common-compat>=1.15.0",
+    "apache-airflow-providers-common-sql>=2.0.0",
+    "pydantic>=2.11.0",
+    "pyyaml>=6.0.2",
 ]
 
 [dependency-groups]
@@ -67,6 +78,8 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
@@ -107,17 +120,41 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.common.dataquality.get_provider_info:get_provider_info"
 
-[tool.flit.module]
-name = "airflow.providers.common.dataquality"
+[project.entry-points."airflow.plugins"]
+dataquality = "airflow.providers.common.dataquality.plugins.dataquality_plugin:DataQualityPlugin"
 
-# Explicit sdist contents so the build does not rely on VCS information
-# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
-[tool.flit.sdist]
+[tool.hatch.version]
+path = "src/airflow/providers/common/dataquality/__init__.py"
+
+[tool.hatch.build.targets.sdist]
 include = [
-    "docs/",
-    "provider.yaml",
+    "docs",
+    "src/airflow/providers/common/dataquality",
+    "tests",
+    "NOTICE"
+]
+exclude = [
     "src/airflow/__init__.py",
     "src/airflow/providers/__init__.py",
-    "src/airflow/providers/common/__init__.py",
-    "tests/",
+    "src/airflow/providers/common/dataquality/plugins/www/.pnpm-store",
+    "src/airflow/providers/common/dataquality/plugins/www/node_modules",
+]
+
+[tool.hatch.build.targets.custom]
+path = "./hatch_build.py"
+
+artifacts = [
+    "src/airflow/providers/common/dataquality/plugins/www/dist",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/airflow']
+artifacts = [
+    "src/airflow/providers/common/dataquality/plugins/www/dist",
+]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/common/dataquality/plugins/www/.pnpm-store",
+    "src/airflow/providers/common/dataquality/plugins/www/node_modules",
 ]
