@@ -124,7 +124,7 @@ class SQLDQEngine:
             return Observation(
                 rule=rule, duration_ms=elapsed_ms, error_message="No result returned for rule", sql=sql
             )
-        return Observation(rule=rule, observed_value=row[0], duration_ms=elapsed_ms, sql=sql)
+        return Observation(rule=rule, observed_value=row[1], duration_ms=elapsed_ms, sql=sql)
 
     def _measure_custom(self, rule: DQRule, table: str) -> Observation:
         if rule.sql is None:
