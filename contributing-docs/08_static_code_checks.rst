@@ -43,7 +43,6 @@ prek hooks.
 
 We have integrated the `prek <https://github.com/j178/prek>`__ framework
 in our development workflow. It can be installed in various ways and does not even need ``pip`` or
-
 ``python`` to be installed. It is a drop-in replacement for the legacy ``pre-commit`` tool, but it is
 much faster and more feature-rich. It is written in Rust and it is designed to install environments in parallel,
 so it is much faster than the ``pre-commit`` tool.

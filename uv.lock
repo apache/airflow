@@ -21,7 +21,6 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
-apache-airflow-openlineage-e2e-tests = false
 apache-airflow-providers-informatica = false
 apache-airflow-providers-clickhousedb = false
 apache-airflow-providers-amazon = false
@@ -34,6 +33,7 @@ apache-airflow-providers-openlineage = false
 apache-airflow-providers-sftp = false
 apache-airflow-e2e-tests = false
 apache-airflow-shared-logging = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-pgvector = false
 apache-airflow-providers-imap = false
@@ -64,9 +64,9 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-oracle = false
 apache-airflow-providers-mysql = false
+apache-airflow-providers-teradata = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-microsoft-mssql = false
-apache-airflow-providers-teradata = false
 apache-airflow-providers-jdbc = false
 apache-airflow-helm-chart = false
 apache-airflow-providers-anthropic = false
@@ -83,6 +83,7 @@ apache-airflow-providers-salesforce = false
 apache-airflow-providers-ssh = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-google = false
+pydantic-ai-skills = "2026-07-16T00:00:00Z"
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-vertica = false
 apache-airflow-providers-apache-hdfs = false
@@ -172,7 +173,6 @@ members = [
     "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-mypy",
-    "apache-airflow-openlineage-e2e-tests",
     "apache-airflow-providers",
     "apache-airflow-providers-airbyte",
     "apache-airflow-providers-akeyless",
@@ -205,6 +205,7 @@ members = [
     "apache-airflow-providers-cohere",
     "apache-airflow-providers-common-ai",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-dataquality",
     "apache-airflow-providers-common-io",
     "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-common-sql",
@@ -1034,6 +1035,7 @@ all = [
     { name = "apache-airflow-providers-cohere" },
     { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-dataquality" },
     { name = "apache-airflow-providers-common-io" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
@@ -1219,6 +1221,9 @@ common-ai = [
 ]
 common-compat = [
     { name = "apache-airflow-providers-common-compat" },
+]
+common-dataquality = [
+    { name = "apache-airflow-providers-common-dataquality" },
 ]
 common-io = [
     { name = "apache-airflow-providers-common-io" },
@@ -1495,7 +1500,6 @@ ci-image = [
     { name = "apache-airflow-docker-tests" },
     { name = "apache-airflow-helm-chart" },
     { name = "apache-airflow-kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests" },
     { name = "apache-airflow-scripts" },
     { name = "apache-airflow-shared-configuration" },
     { name = "apache-airflow-shared-dagnode" },
@@ -1525,7 +1529,6 @@ dev = [
     { name = "apache-airflow-docker-tests" },
     { name = "apache-airflow-helm-chart" },
     { name = "apache-airflow-kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests" },
     { name = "apache-airflow-scripts" },
     { name = "apache-airflow-shared-configuration" },
     { name = "apache-airflow-shared-dagnode" },
@@ -1634,6 +1637,8 @@ requires-dist = [
     { name = "apache-airflow-providers-common-ai", marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", marker = "extra == 'all'", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-dataquality", marker = "extra == 'all'", editable = "providers/common/dataquality" },
+    { name = "apache-airflow-providers-common-dataquality", marker = "extra == 'common-dataquality'", editable = "providers/common/dataquality" },
     { name = "apache-airflow-providers-common-io", marker = "extra == 'all'", editable = "providers/common/io" },
     { name = "apache-airflow-providers-common-io", marker = "extra == 'common-io'", editable = "providers/common/io" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'all'", editable = "providers/common/messaging" },
@@ -1792,7 +1797,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.26" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-dataquality", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -1807,7 +1812,6 @@ ci-image = [
     { name = "apache-airflow-docker-tests", editable = "docker-tests" },
     { name = "apache-airflow-helm-chart", editable = "chart" },
     { name = "apache-airflow-kubernetes-tests", editable = "kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests", editable = "providers-e2e-tests/openlineage" },
     { name = "apache-airflow-scripts", editable = "scripts" },
     { name = "apache-airflow-shared-configuration", editable = "shared/configuration" },
     { name = "apache-airflow-shared-dagnode", editable = "shared/dagnode" },
@@ -1837,7 +1841,6 @@ dev = [
     { name = "apache-airflow-docker-tests", editable = "docker-tests" },
     { name = "apache-airflow-helm-chart", editable = "chart" },
     { name = "apache-airflow-kubernetes-tests", editable = "kubernetes-tests" },
-    { name = "apache-airflow-openlineage-e2e-tests", editable = "providers-e2e-tests/openlineage" },
     { name = "apache-airflow-scripts", editable = "scripts" },
     { name = "apache-airflow-shared-configuration", editable = "shared/configuration" },
     { name = "apache-airflow-shared-dagnode", editable = "shared/dagnode" },
@@ -2714,7 +2717,7 @@ requires-dist = [
     { name = "types-deprecated", marker = "extra == 'mypy'", specifier = ">=1.2.9.20240311" },
     { name = "types-docutils", marker = "extra == 'mypy'", specifier = ">=0.21.0.20240704" },
     { name = "types-markdown", marker = "extra == 'mypy'", specifier = ">=3.6.0.20240316" },
-    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=3.4.0.20240423,<4.0.0" },
+    { name = "types-paramiko", marker = "extra == 'mypy'", specifier = ">=4.0.0.20260402,<5.0.0" },
     { name = "types-protobuf", marker = "extra == 'mypy'", specifier = ">=5.26.0.20240422" },
     { name = "types-pymysql", marker = "extra == 'mypy'", specifier = ">=1.1.0.20240425" },
     { name = "types-python-dateutil", marker = "extra == 'mypy'", specifier = ">=2.9.0.20240316" },
@@ -2879,29 +2882,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "mypy", specifier = ">=1.0.0" }]
-
-[[package]]
-name = "apache-airflow-openlineage-e2e-tests"
-version = "0.0.1"
-source = { editable = "providers-e2e-tests/openlineage" }
-dependencies = [
-    { name = "apache-airflow-core" },
-    { name = "apache-airflow-devel-common" },
-]
-
-[package.dev-dependencies]
-mypy = [
-    { name = "apache-airflow-devel-common", extra = ["mypy"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "apache-airflow-core", editable = "airflow-core" },
-    { name = "apache-airflow-devel-common", editable = "devel-common" },
-]
-
-[package.metadata.requires-dev]
-mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-providers"
@@ -4449,6 +4429,7 @@ langchain = [
     { name = "langchain" },
 ]
 llamaindex = [
+    { name = "dataclasses-json" },
     { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
     { name = "llama-index-llms-openai" },
@@ -4504,6 +4485,7 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
+    { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
@@ -4513,7 +4495,7 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
-    { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=0.11.0" },
+    { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", specifier = ">=2.0.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'" },
     { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'" },
@@ -4540,7 +4522,7 @@ dev = [
     { name = "llama-index-core", specifier = ">=0.13.0" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", specifier = ">=0.6.0" },
-    { name = "pydantic-ai-skills", specifier = ">=0.11.0" },
+    { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"] },
     { name = "sqlglot", specifier = ">=30.0.0" },
 ]
@@ -4589,6 +4571,35 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-common-dataquality"
+version = "0.1.0"
+source = { editable = "providers/common/dataquality" }
+dependencies = [
+    { name = "apache-airflow" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [{ name = "apache-airflow", editable = "." }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -5298,7 +5309,7 @@ requires-dist = [
     { name = "blinker", specifier = ">=1.6.2" },
     { name = "cachetools", specifier = ">=6.0" },
     { name = "flask", specifier = ">=2.2.1" },
-    { name = "flask-appbuilder", specifier = "==5.2.1" },
+    { name = "flask-appbuilder", specifier = "==5.2.2" },
     { name = "flask-limiter", specifier = ">3" },
     { name = "flask-login", marker = "python_full_version < '3.14'", specifier = ">=0.6.2" },
     { name = "flask-login", marker = "python_full_version >= '3.14'", specifier = ">=0.6.3" },
@@ -5544,6 +5555,7 @@ dependencies = [
     { name = "google-cloud-videointelligence" },
     { name = "google-cloud-vision" },
     { name = "google-cloud-workflows" },
+    { name = "google-genai" },
     { name = "grpcio-gcp" },
     { name = "httpx" },
     { name = "immutabledict" },
@@ -5737,6 +5749,7 @@ requires-dist = [
     { name = "google-cloud-videointelligence", specifier = ">=2.11.0" },
     { name = "google-cloud-vision", specifier = ">=3.4.0" },
     { name = "google-cloud-workflows", specifier = ">=1.10.0" },
+    { name = "google-genai", specifier = ">=2.8.0" },
     { name = "grpcio-gcp", specifier = ">=0.2.2" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "immutabledict", specifier = ">=4.2.0" },
@@ -6254,8 +6267,10 @@ version = "13.5.1"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
+    { name = "aiohttp" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "azure-ai-projects" },
     { name = "azure-batch" },
     { name = "azure-cosmos" },
     { name = "azure-datalake-store" },
@@ -6328,6 +6343,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "adlfs", specifier = ">=2023.10.0" },
+    { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -6336,6 +6352,7 @@ requires-dist = [
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
+    { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=8.0.0,<15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.6.0" },
     { name = "azure-datalake-store", specifier = ">=0.0.45" },
@@ -6346,7 +6363,7 @@ requires-dist = [
     { name = "azure-mgmt-containerinstance", specifier = ">=10.1.0" },
     { name = "azure-mgmt-containerregistry", specifier = ">=8.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=3.0.0" },
-    { name = "azure-mgmt-datafactory", specifier = ">=2.0.0" },
+    { name = "azure-mgmt-datafactory", specifier = ">=10.0.0" },
     { name = "azure-mgmt-datalake-store", specifier = ">=0.5.0" },
     { name = "azure-mgmt-resource", specifier = ">=2.2.0" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
@@ -6723,7 +6740,7 @@ source = { editable = "providers/openai" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "openai", extra = ["datalib"] },
+    { name = "openai" },
 ]
 
 [package.dev-dependencies]
@@ -6741,7 +6758,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "openai", extras = ["datalib"], specifier = ">=2.37.0" },
+    { name = "openai", specifier = ">=2.37.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -7172,6 +7189,7 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
+    { name = "asyncpg" },
     { name = "psycopg", extra = ["binary"] },
     { name = "psycopg2-binary" },
 ]
@@ -7223,6 +7241,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
+    { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "asyncpg", marker = "extra == 'asyncpg'", specifier = ">=0.30.0" },
     { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
@@ -7606,7 +7625,7 @@ requires-dist = [
     { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
     { name = "asyncssh", marker = "python_full_version < '3.14'", specifier = ">=2.12.0" },
     { name = "asyncssh", marker = "python_full_version >= '3.14'", specifier = ">=2.22.0" },
-    { name = "paramiko", specifier = ">=3.5.1,<4.0.0" },
+    { name = "paramiko", specifier = ">=4.0.0,<5.0.0" },
     { name = "sshfs", marker = "extra == 'sshfs'", specifier = ">=2023.1.0" },
 ]
 provides-extras = ["openlineage", "sshfs"]
@@ -7883,7 +7902,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "asyncssh", specifier = ">=2.12.0" },
-    { name = "paramiko", specifier = ">=3.5.1,<4.0.0" },
+    { name = "paramiko", specifier = ">=4.0.0,<5.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -9506,6 +9525,23 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-ai-projects"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "azure-identity" },
+    { name = "azure-storage-blob" },
+    { name = "isodate" },
+    { name = "openai" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b9/d8/24342aea74fe75b0a8378b6eff665b9c1cb63f855c1a96f70a0095e474a2/azure_ai_projects-2.2.0.tar.gz", hash = "sha256:58ee31bb031cfb004051145c545294bb0d32de679c670c312ef384845bd72cef", size = 668496, upload-time = "2026-05-30T00:20:59.099Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/cf/90f27a2b48c9b748f84194b07e565f900e7f0ce0500da9b9f067dca599d3/azure_ai_projects-2.2.0-py3-none-any.whl", hash = "sha256:8f89bdaca4df1bd479d3bd2bd0f19a0905d60be6d17b84a69e8fabd82eac5906", size = 344307, upload-time = "2026-05-30T00:21:00.672Z" },
+]
+
+[[package]]
 name = "azure-batch"
 version = "14.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -9689,16 +9725,16 @@ wheels = [
 
 [[package]]
 name = "azure-mgmt-datafactory"
-version = "9.3.0"
+version = "10.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-mgmt-core" },
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/5e/c28a8a50885185a9a06ff659594fec24f1a840622f21883b376358dd1188/azure_mgmt_datafactory-9.3.0.tar.gz", hash = "sha256:f5fdd5cd416f0ed71dfedf05dc7677b8f0e52f3428fd5b17b04c9200dd8d36b3", size = 494270, upload-time = "2026-03-11T07:52:35.206Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/f9/81397c6afd0fed926ffe3093d108d0392745bddc05c5dfc69880dfb70bb2/azure_mgmt_datafactory-10.0.0.tar.gz", hash = "sha256:c83eeb2b092c1f1e5bb2499ffbba6fd7809a1274739930f9db1e336273405587", size = 717334, upload-time = "2026-07-08T09:40:00.573Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/35/ea6a784652119a7373a730d0eb87d5c0b7d153721d7e23c8e9b76547aca4/azure_mgmt_datafactory-9.3.0-py3-none-any.whl", hash = "sha256:fddb855a27e3f7b78328f184df146d71e433e1dfb9cc4923ea503c53813f0504", size = 570055, upload-time = "2026-03-11T07:52:37.337Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/41/b5a74df49ed17aa27361fc55fd88a07bfe7c7a55bcb5ed210c0e0e712d57/azure_mgmt_datafactory-10.0.0-py3-none-any.whl", hash = "sha256:d0e93194c9e1cd820d2ed4f92813902af89cf4421c02e72a729ae32d87171198", size = 601269, upload-time = "2026-07-08T09:40:02.559Z" },
 ]
 
 [[package]]
@@ -12022,7 +12058,7 @@ wheels = [
 
 [[package]]
 name = "flask-appbuilder"
-version = "5.2.1"
+version = "5.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apispec", extra = ["yaml"] },
@@ -12047,9 +12083,9 @@ dependencies = [
     { name = "werkzeug" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/97/b2/ad1784b3393cda84fd68b90689b1d6db037c13a62a9726ef639068bf8a75/flask_appbuilder-5.2.1.tar.gz", hash = "sha256:a5f6f34aa4ae0092a9eeb5051dc210869d9360429a429b0be88416c2616e1281", size = 7077970, upload-time = "2026-04-09T11:06:35.649Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/f1/6aa168038f829eb76f056caa72d8381d64520b3444c185f5121e96e3828c/flask_appbuilder-5.2.2.tar.gz", hash = "sha256:0527623394b40b859ff47056e3621a61eefaaa16ccf188f272c64294307587ca", size = 7078906, upload-time = "2026-06-23T12:21:39.139Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/af/bdfd96170b1159ddc0e8424dfebbbac93d7270a1a749b0857fdaf384f027/flask_appbuilder-5.2.1-py3-none-any.whl", hash = "sha256:c5a134870fc0b780ac8d9de15fea8c470613ebe44feeddf01a2c18d2c066e144", size = 2217302, upload-time = "2026-04-09T11:06:32.891Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/f9/2c3cb04fac8ef455746d7ab536bf58bf66d39785dc2612d24af514be5b98/flask_appbuilder-5.2.2-py3-none-any.whl", hash = "sha256:9dcae59cd15e5a284175d65c682529a6a73b7ba9d53d408e4796ec062d05472a", size = 2217171, upload-time = "2026-06-23T12:21:34.926Z" },
 ]
 
 [[package]]
@@ -14295,6 +14331,7 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/6b/e8e38a3e1b828c029e4b0aa39ecdd940319ffe725273a0f8be6efae88a7c/ibmmq-2.1.0.tar.gz", hash = "sha256:63ac906290700b55e88cc7c32232579e4419aba209830b6009d6d89cbb089555", size = 436005, upload-time = "2026-06-17T11:48:41.238Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2d/e6/d17301d1171dea40b6ed642557174c0de78fea46568756106d143e98cc88/ibmmq-2.1.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:9dbb2b509ec1e86a8111480e35c5b346fa21bae7266c35634d76dd377da80fdb", size = 395482, upload-time = "2026-06-17T11:48:36.803Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/2e/f8b4f8088ca697d9d5978fba6e5d9a1adf83421346c51800b3700b179f52/ibmmq-2.1.0-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:81c65da995be055d4fe02eb65ab05b8c5465324d3c320d5def63bbea32c08087", size = 435602, upload-time = "2026-07-06T08:02:24.283Z" },
     { url = "https://files.pythonhosted.org/packages/20/09/e833b4e18115c94df8b3e6c293755a1cdb5bbd30b935ecc71b89e0206874/ibmmq-2.1.0-cp39-abi3-win_amd64.whl", hash = "sha256:5d68c837f216721b2d6d7495cf91c717670a5cec383b28aa584616a9c48c1c30", size = 400532, upload-time = "2026-06-17T11:48:38.923Z" },
 ]
 
@@ -14577,6 +14614,15 @@ version = "1.0.4"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/97/9c/1646ca469bc2dc299ac393c8d31136c6c22a35ca1e373fa462ac01100d37/inputimeout-1.0.4-py3-none-any.whl", hash = "sha256:f4e23d27753cfc25268eefc8d52a3edc46280ad831d226617c51882423475a43", size = 4639, upload-time = "2018-03-02T14:28:06.903Z" },
+]
+
+[[package]]
+name = "invoke"
+version = "3.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/f6/227c48c5fe47fa178ccf1fda8f047d16c97ba926567b661e9ce2045c600c/invoke-3.0.3.tar.gz", hash = "sha256:437b6a622223824380bfb4e64f612711a6b648c795f565efc8625af66fb57f0c", size = 343419, upload-time = "2026-04-07T15:17:48.307Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/de/bbc12563bbf979618d17625a4e753ff7a078523e28d870d3626daa97261a/invoke-3.0.3-py3-none-any.whl", hash = "sha256:f11327165e5cbb89b2ad1d88d3292b5113332c43b8553b494da435d6ec6f5053", size = 160958, upload-time = "2026-04-07T15:17:46.875Z" },
 ]
 
 [[package]]
@@ -17400,16 +17446,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ae/f4/561ed79fd94876160018a5e75254cfcb9b0e62d4dded9dcb20072e86d623/openai-2.44.0-py3-none-any.whl", hash = "sha256:0a2a3ab2e29aeda368700f662ff9ba0f9df17ba4c54577a64e08b8115a3cc0ad", size = 1366216, upload-time = "2026-06-24T20:55:58.882Z" },
 ]
 
-[package.optional-dependencies]
-datalib = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "numpy", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pandas" },
-    { name = "pandas-stubs", version = "2.3.3.260113", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "pandas-stubs", version = "3.0.3.260530", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-]
-
 [[package]]
 name = "openapi-schema-validator"
 version = "0.9.0"
@@ -18055,48 +18091,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pandas-stubs"
-version = "2.3.3.260113"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.11' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "(python_full_version < '3.11' and platform_machine != 'arm64') or (python_full_version < '3.11' and sys_platform != 'darwin')",
-]
-dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" } },
-    { name = "types-pytz" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/92/5d/be23854a73fda69f1dbdda7bc10fbd6f930bd1fa87aaec389f00c901c1e8/pandas_stubs-2.3.3.260113.tar.gz", hash = "sha256:076e3724bcaa73de78932b012ec64b3010463d377fa63116f4e6850643d93800", size = 116131, upload-time = "2026-01-13T22:30:16.704Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d1/c6/df1fe324248424f77b89371116dab5243db7f052c32cc9fe7442ad9c5f75/pandas_stubs-2.3.3.260113-py3-none-any.whl", hash = "sha256:ec070b5c576e1badf12544ae50385872f0631fc35d99d00dc598c2954ec564d3", size = 168246, upload-time = "2026-01-13T22:30:15.244Z" },
-]
-
-[[package]]
-name = "pandas-stubs"
-version = "3.0.3.260530"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.14.*'",
-    "python_full_version == '3.13.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "(python_full_version == '3.13.*' and platform_machine != 'arm64') or (python_full_version == '3.13.*' and sys_platform != 'darwin')",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "(python_full_version == '3.12.*' and platform_machine != 'arm64') or (python_full_version == '3.12.*' and sys_platform != 'darwin')",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64') or (python_full_version == '3.11.*' and sys_platform != 'darwin')",
-]
-dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/aa/c41a8a0ff86fd85dbb3ec0c1f3fa488ca64a8b5f82654ae1b07d84acefe5/pandas_stubs-3.0.3.260530.tar.gz", hash = "sha256:d1efe47b2e5a312c047d7feabec5cb7a55365747983420077e9fcbe9ab74f714", size = 113183, upload-time = "2026-05-30T17:47:40.34Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/e0/99ec5b02203c4e9ce878bc63d8caa06ac1f891e4d63bded9a5ced70fcb4f/pandas_stubs-3.0.3.260530-py3-none-any.whl", hash = "sha256:a6277eb1c8cebf48d9b2413fcd2e9a6b4ff479c934a223c29eacbc3058c4cb55", size = 173780, upload-time = "2026-05-30T17:47:39.13Z" },
-]
-
-[[package]]
 name = "pandocfilters"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -18140,16 +18134,17 @@ all = [
 
 [[package]]
 name = "paramiko"
-version = "3.5.1"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcrypt" },
     { name = "cryptography" },
+    { name = "invoke" },
     { name = "pynacl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/15/ad6ce226e8138315f2451c2aeea985bf35ee910afb477bae7477dc3a8f3b/paramiko-3.5.1.tar.gz", hash = "sha256:b2c665bc45b2b215bd7d7f039901b14b067da00f3a11e6640995fd58f2664822", size = 1566110, upload-time = "2025-02-04T02:37:59.783Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/e7/81fdcbc7f190cdb058cffc9431587eb289833bdd633e2002455ca9bb13d4/paramiko-4.0.0.tar.gz", hash = "sha256:6a25f07b380cc9c9a88d2b920ad37167ac4667f8d9886ccebd8f90f654b5d69f", size = 1630743, upload-time = "2025-08-04T01:02:03.711Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/f8/c7bd0ef12954a81a1d3cea60a13946bd9a49a0036a5927770c461eade7ae/paramiko-3.5.1-py3-none-any.whl", hash = "sha256:43b9a0501fc2b5e70680388d9346cf252cfb7d00b0667c39e80eb43a408b8f61", size = 227298, upload-time = "2025-02-04T02:37:57.672Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/90/a744336f5af32c433bd09af7854599682a383b37cfd78f7de263de6ad6cb/paramiko-4.0.0-py3-none-any.whl", hash = "sha256:0e20e00ac666503bf0b4eda3b6d833465a2b7aff2e2b3d79a8bba5ef144ee3b9", size = 223932, upload-time = "2025-08-04T01:02:02.029Z" },
 ]
 
 [[package]]
@@ -19229,16 +19224,16 @@ codemode = [
 
 [[package]]
 name = "pydantic-ai-skills"
-version = "1.1.0"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "pydantic-ai-slim" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7c/0c/ee3e5bd2d003170f96f2fe5d1ec3f4525930183378841fb1b9147c5129cc/pydantic_ai_skills-1.1.0.tar.gz", hash = "sha256:66f85a63088a30863a3363a36830beedf60c32517473663c3da6557f1a838006", size = 9028209, upload-time = "2026-06-27T18:48:29.181Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/90/5f20728badc7d17ca0e81f24dc35a96c02f008323dce393d0e70a8465144/pydantic_ai_skills-1.2.0.tar.gz", hash = "sha256:e52f7e8243343dfa94206aae11cd142120edb8990fc392b1d8af32f99b6d351e", size = 9031839, upload-time = "2026-07-15T02:37:26.37Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8a/6c/406ce642127956ac3068bc12e0f64d876af53688ca6992ca5aa077926c3d/pydantic_ai_skills-1.1.0-py3-none-any.whl", hash = "sha256:72a0d9099f4562c96ed7f882f6b3e77589cd5e7d4c6d48c550904931ca56df1d", size = 62211, upload-time = "2026-06-27T18:48:27.272Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/74/143ca60dd9bfa11ce0349ee58bbdd646798c8bdc031588d67a8bea96797d/pydantic_ai_skills-1.2.0-py3-none-any.whl", hash = "sha256:7ff4eb4b307deb6ef3bf31a6d9493c1e3a8e9b866a13b866a9ea4606bd914206", size = 63883, upload-time = "2026-07-15T02:37:24.117Z" },
 ]
 
 [[package]]
@@ -23607,14 +23602,14 @@ wheels = [
 
 [[package]]
 name = "types-paramiko"
-version = "3.5.0.20250801"
+version = "4.0.0.20260518"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/c4/4df427c835e9c795662241410732ab936c6f58be798ec25ce7015771c448/types_paramiko-3.5.0.20250801.tar.gz", hash = "sha256:e79ff84eaf44f2a5ad811743edef5d9c0cd6632a264a526f00405b87db1ec99b", size = 28838, upload-time = "2025-08-01T03:48:52.777Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/b6/4cdb11fb6006be6309844dc5f88b6efef3f5ea5352ade42a1e9308570e28/types_paramiko-4.0.0.20260518.tar.gz", hash = "sha256:286f6830945cba63797eedf375ed87138d93198121253afe66c5d6dbcf91318d", size = 29193, upload-time = "2026-05-18T06:06:36.776Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/5b/0f0bb1e45f7547d081ae9d490a88c6f6031d0f2c97459236e0a2a8b27207/types_paramiko-3.5.0.20250801-py3-none-any.whl", hash = "sha256:3e02a0fcf2b7e7b213e0cd569f7223ff9af417052a4d149d84172ebaa6fd742e", size = 39705, upload-time = "2025-08-01T03:48:51.855Z" },
+    { url = "https://files.pythonhosted.org/packages/44/a2/1a54b77758c9c175526bd0448de353f0563e71ba1ddc8bd4ac0c835deafd/types_paramiko-4.0.0.20260518-py3-none-any.whl", hash = "sha256:0ffaf1a6eb796833a49653cba4c7be13af51c8269d75234972d6239763dda270", size = 38791, upload-time = "2026-05-18T06:06:35.771Z" },
 ]
 
 [[package]]

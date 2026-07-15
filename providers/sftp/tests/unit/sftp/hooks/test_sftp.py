@@ -817,6 +817,10 @@ class TestSFTPHookAsync:
         ("mock_port", "mock_host_key"),
         [
             (22, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
+            (
+                22,
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY user@host",
+            ),
             (2222, "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
             (
                 2222,
@@ -848,7 +852,22 @@ class TestSFTPHookAsync:
         hook = SFTPHookAsync()
         await hook._get_conn()
 
-        assert hook.known_hosts == f"localhost {mock_host_key}".encode()
+        host_key_parts = mock_host_key.split()
+        expected_host_key = " ".join(host_key_parts[:2]) if len(host_key_parts) >= 2 else mock_host_key
+        assert hook.known_hosts == f"localhost {expected_host_key}".encode()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_parse_extras_dss_host_key_raises(self, mock_get_connection, mock_connect):
+        """Test that ssh-dss host_key is rejected."""
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            host_key="ssh-dss\tAAAAB3...", no_host_key_check=False
+        )
+
+        hook = SFTPHookAsync()
+        with pytest.raises(ValueError, match="DSA/DSS host keys"):
+            await hook._get_conn()
 
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
