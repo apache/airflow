@@ -263,6 +263,7 @@ class TestBeamRunPythonPipelineOperator:
             py_system_site_packages=False,
             process_line_callback=mock.ANY,
             is_dataflow_job_id_exist_callback=mock.ANY,
+            periodic_callback=mock.ANY,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -280,6 +281,40 @@ class TestBeamRunPythonPipelineOperator:
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         op.execute({})
         assert op.dataflow_config.job_name == op.task_id
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner_periodic_callback_fetches_job_id(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock, py_options
+    ):
+        """When launcher stdout does not emit a job-ID line, the periodic_callback must poll
+        the Dataflow API via fetch_job_id_by_name and set dataflow_job_id on the operator."""
+        op = BeamRunPythonPipelineOperator(
+            runner="DataflowRunner",
+            **self.default_op_kwargs,
+        )
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.return_value = JOB_ID
+
+        captured: dict = {}
+
+        def capture_start(**kwargs):
+            captured["periodic_callback"] = kwargs.get("periodic_callback")
+
+        beam_hook_mock.return_value.start_python_pipeline.side_effect = capture_start
+
+        op.execute({})
+
+        periodic_callback = captured.get("periodic_callback")
+        assert periodic_callback is not None, "periodic_callback was not passed to start_python_pipeline"
+
+        assert op.dataflow_job_id is None
+
+        periodic_callback()
+
+        assert op.dataflow_job_id == JOB_ID
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.assert_called_once()
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -486,6 +521,7 @@ class TestBeamRunJavaPipelineOperator:
             job_class=JOB_CLASS,
             process_line_callback=mock.ANY,
             is_dataflow_job_id_exist_callback=mock.ANY,
+            periodic_callback=mock.ANY,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -503,6 +539,41 @@ class TestBeamRunJavaPipelineOperator:
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         op.execute({})
         assert op.dataflow_config.job_name == op.task_id
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner_periodic_callback_fetches_job_id(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock
+    ):
+        """When launcher stdout does not emit a job-ID line, the periodic_callback must poll
+        the Dataflow API via fetch_job_id_by_name and set dataflow_job_id on the operator."""
+        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
+        op = BeamRunJavaPipelineOperator(
+            **self.default_op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
+        )
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.return_value = JOB_ID
+
+        captured: dict = {}
+
+        def capture_start(**kwargs):
+            captured["periodic_callback"] = kwargs.get("periodic_callback")
+
+        beam_hook_mock.return_value.start_java_pipeline.side_effect = capture_start
+
+        op.execute({})
+
+        periodic_callback = captured.get("periodic_callback")
+        assert periodic_callback is not None, "periodic_callback was not passed to start_java_pipeline"
+
+        assert op.dataflow_job_id is None
+
+        periodic_callback()
+
+        assert op.dataflow_job_id == JOB_ID
+        dataflow_hook_mock.return_value.fetch_job_id_by_name.assert_called_once()
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))

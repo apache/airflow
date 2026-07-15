@@ -112,6 +112,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            periodic_callback=None,
         )
 
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
@@ -176,6 +177,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            periodic_callback=None,
         )
 
     @pytest.mark.parametrize(
@@ -226,6 +228,7 @@ class TestBeamHook:
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
             working_directory=None,
             log=ANY,
+            periodic_callback=None,
         )
         mock_virtualenv.assert_called_once_with(
             venv_directory=mock.ANY,
@@ -282,6 +285,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            periodic_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("run_beam_command"))
@@ -311,6 +315,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            periodic_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
