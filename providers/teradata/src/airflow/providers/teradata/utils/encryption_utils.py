@@ -21,6 +21,8 @@ import secrets
 import string
 import subprocess
 
+from airflow.providers.teradata.utils.tpt_util import get_remote_os
+
 
 def generate_random_password(length=12):
     # Define the character set: letters, digits, and special characters
@@ -51,25 +53,27 @@ def generate_encrypted_file_with_openssl(file_path: str, password: str, out_file
 
 
 def decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, bteq_command_str):
-    # Run openssl decrypt command on remote machine
-    quoted_password = shell_quote_single(password)
+    remote_os = get_remote_os(ssh_client)
+    windows_remote = remote_os == "windows"
+
+    if windows_remote:
+        # Windows cmd.exe does not support single quotes; use double quotes with "" escaping
+        password_escaped = password.replace('"', '""')
+        quoted_password = f'"{password_escaped}"'
+    else:
+        # Unix shells require closing the single quote, adding an escaped quote, then reopening
+        password_escaped = password.replace("'", "'\\''")
+        quoted_password = f"'{password_escaped}'"
 
     decrypt_cmd = (
         f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:{quoted_password} -in {remote_enc_file} | "
         + bteq_command_str
     )
-    # Clear password to prevent lingering sensitive data
+    # Clear sensitive data from memory
     password = None
     quoted_password = None
     stdin, stdout, stderr = ssh_client.exec_command(decrypt_cmd)
-    # Wait for command to finish
     exit_status = stdout.channel.recv_exit_status()
     output = stdout.read().decode()
     err = stderr.read().decode()
     return exit_status, output, err
-
-
-def shell_quote_single(s):
-    # Escape single quotes in s, then wrap in single quotes
-    # In shell, to include a single quote inside single quotes, close, add '\'' and reopen
-    return "'" + s.replace("'", "'\\''") + "'"
