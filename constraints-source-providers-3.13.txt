@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-15T11:49:49.304582
+# This constraints file was automatically generated on 2026-07-15T18:01:22.476901
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -486,7 +486,6 @@ pagefind==1.5.2
 pagefind_bin==1.5.2
 pagerduty==6.3.0
 pandas-gbq==0.35.0
-pandas-stubs==3.0.3.260530
 pandas==2.3.3
 pandocfilters==1.5.1
 papermill==2.7.0
@@ -539,7 +538,7 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-skills==1.1.0
+pydantic-ai-skills==1.2.0
 pydantic-ai-slim==2.5.0
 pydantic-extra-types==2.11.1
 pydantic-graph==2.5.0
