@@ -2417,19 +2417,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate DagRuns
-        existing_dagrun_objects = (
-            session.scalars(
-                select(DagRun)
-                .where(
-                    tuple_(DagRun.dag_id, DagRun.logical_date).in_(
-                        (dm.dag_id, dm.next_dagrun) for dm in dag_models
-                    )
+        existing_dagrun_objects = session.scalars(
+            select(DagRun)
+            .where(
+                tuple_(DagRun.dag_id, DagRun.logical_date).in_(
+                    (dm.dag_id, dm.next_dagrun) for dm in dag_models
                 )
-                .options(load_only(DagRun.dag_id, DagRun.logical_date))
             )
-            .unique()
-            .all()
-        )
+            .options(load_only(DagRun.dag_id, DagRun.logical_date))
+        ).all()
         existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
 
         # backfill runs are not created by scheduler and their concurrency is separate
