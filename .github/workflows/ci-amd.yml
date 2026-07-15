@@ -37,6 +37,10 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-test
       - v[0-9]+-[0-9]+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
     types: [opened, reopened, synchronize, ready_for_review]
   push:
     # Post-merge pushes to release-prep / providers branches run on both
@@ -47,6 +51,8 @@ on:  # yamllint disable-line rule:truthy
     branches:
       - v[0-9]+-[0-9]+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - airflow-ctl/v[0-9]+-[0-9]+-test
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -141,6 +147,8 @@ jobs:
       run-event-driven-e2e-tests: ${{ steps.selective-checks.outputs.run-event-driven-e2e-tests }}
       run-java-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-java-sdk-e2e-tests }}
       run-go-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-go-sdk-e2e-tests }}
+      run-openlineage-e2e-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-tests }}
+      run-openlineage-e2e-compat-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-compat-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -435,7 +443,7 @@ jobs:
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
 
   providers:
-    name: "provider distributions tests"
+    name: "Provider distributions tests"
     uses: ./.github/workflows/test-providers.yml
     needs: [build-info, build-ci-images]
     permissions:
@@ -912,7 +920,13 @@ jobs:
       run-remote-logging-s3-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-s3-e2e-tests }}
       run-event-driven-e2e-tests: ${{ needs.build-info.outputs.run-event-driven-e2e-tests }}
       run-java-sdk-e2e-tests: ${{ needs.build-info.outputs.run-java-sdk-e2e-tests }}
+      java-sdk-version: ${{ needs.build-info.outputs.java-sdk-version }}
       run-go-sdk-e2e-tests: ${{ needs.build-info.outputs.run-go-sdk-e2e-tests }}
+      run-openlineage-e2e-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-tests }}
+      run-openlineage-e2e-compat-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-compat-tests }}
+      # yamllint disable rule:line-length
+      providers-compatibility-tests-matrix: >
+        ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}

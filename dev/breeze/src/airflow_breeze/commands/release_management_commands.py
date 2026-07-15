@@ -34,7 +34,7 @@ from copy import deepcopy
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from multiprocessing import Pool
+from multiprocessing import get_context
 from pathlib import Path
 from subprocess import DEVNULL
 from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple
@@ -285,11 +285,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.25"
+AIRFLOW_UV_VERSION = "0.11.26"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.5"
+PREK_VERSION = "0.4.6"
 HATCH_VERSION = "1.17.0"
 PYYAML_VERSION = "6.0.3"
 
@@ -3611,7 +3611,10 @@ def generate_providers_metadata(
     )
 
     console_print("\n[info]Checking provider.yaml versions[1:] against PyPI for stale entries...[/]\n")
-    with Pool() as pypi_pool:
+    # "spawn" (not the platform-default fork): the parent has already used GitPython and
+    # opened network sockets before reaching here, and forking that state into workers
+    # deadlocks. See get_all_constraint_files_and_airflow_releases for the same reasoning.
+    with get_context("spawn").Pool() as pypi_pool:
         pruned_per_provider = pypi_pool.map(prune_unreleased_versions_from_provider_yaml, package_ids)
     total_pruned = 0
     for pid, pruned in zip(package_ids, pruned_per_provider):
@@ -3636,7 +3639,7 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    with Pool() as pool:
+    with get_context("spawn").Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
             package_ids,

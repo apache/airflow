@@ -37,7 +37,6 @@ pytestmark = pytest.mark.db_test
 class TestDagVersion:
     def setup_method(self):
         clear_db_dags()
-        clear_db_dag_bundles()
 
     def teardown_method(self):
         # clear_db_dags() first: DagModel.bundle_name has an FK to dag_bundle.

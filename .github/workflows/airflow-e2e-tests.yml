@@ -52,6 +52,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Test mode - basic, remote_log, remote_log_elasticsearch, remote_log_opensearch, xcom_object_storage, event_driven, java_sdk, or go_sdk"  # yamllint disable-line rule:line-length
         type: string
         default: "basic"
+      java-sdk-version:
+        description: "JDK version used to build the Java SDK bundles natively (tracks the JAVA_SDK_VERSION breeze constant)"  # yamllint disable-line rule:line-length
+        type: string
+        default: "17"
 
   workflow_call:
     inputs:
@@ -83,6 +87,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Test mode - basic, remote_log, remote_log_elasticsearch, remote_log_opensearch, xcom_object_storage, event_driven, java_sdk, or go_sdk"  # yamllint disable-line rule:line-length
         type: string
         default: "basic"
+      java-sdk-version:
+        description: "JDK version used to build the Java SDK bundles natively (tracks the JAVA_SDK_VERSION breeze constant)"  # yamllint disable-line rule:line-length
+        type: string
+        default: "17"
 
 jobs:
   test-e2e-integration-tests:
@@ -113,11 +121,55 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
         id: breeze
+      # Only the java_sdk mode runs the Gradle builds; every other e2e mode skips the
+      # steps below. LANG_SDK_NATIVE_TOOLCHAIN=true (the same switch the lang-SDK k8s
+      # job uses) makes the e2e conftest build with the host toolchain provisioned
+      # here instead of ephemeral eclipse-temurin containers, skipping the
+      # toolchain-image pull; local runs keep the containerized build. Without the
+      # cache each run re-downloads the example bundles' full dependency tree (Spark
+      # alone is ~1GB) into a fresh ~/.gradle. The key carries a ``-vN-`` salt (bump
+      # to force-invalidate a poisoned cache) and runner.arch keys the cache per
+      # architecture: ~/.gradle/jdks holds arch-specific auto-provisioned JDKs (the
+      # example pins a Java 11 toolchain) and this job runs on amd64 and arm64.
+      - name: "Setup Java for the Java SDK build"
+        if: inputs.e2e_test_mode == 'java_sdk'
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520  # v5.4.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java-sdk-version }}
+      - name: "Restore Java SDK Gradle dependency cache"
+        if: inputs.e2e_test_mode == 'java_sdk'
+        id: gradle-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/jdks
+            !~/.gradle/caches/*.lock
+            !~/.gradle/caches/journal-1
+          key: e2e-java-sdk-gradle-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('java-sdk/**/*.gradle*', 'java-sdk/**/gradle.properties', 'java-sdk/gradle/wrapper/gradle-wrapper.properties', 'java-sdk/gradle/libs.versions.toml') }}  # yamllint disable-line rule:line-length
+          restore-keys: |
+            e2e-java-sdk-gradle-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: "Test e2e integration tests"
         run: breeze testing airflow-e2e-tests
         env:
           DOCKER_IMAGE: "${{ inputs.docker-image-tag }}"
           E2E_TEST_MODE: "${{ inputs.e2e_test_mode }}"
+          LANG_SDK_NATIVE_TOOLCHAIN: "${{ inputs.e2e_test_mode == 'java_sdk' && 'true' || 'false' }}"
+      - name: "Save Java SDK Gradle dependency cache"
+        # Saved even when the e2e tests fail: the Gradle warm-up is independent of
+        # test outcome, and actions/cache's post step would drop it on every red run.
+        if: always() && inputs.e2e_test_mode == 'java_sdk' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/jdks
+            !~/.gradle/caches/*.lock
+            !~/.gradle/caches/journal-1
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
       - name: Zip logs
         run: |
           cd ./airflow-e2e-tests && zip -r logs.zip logs
