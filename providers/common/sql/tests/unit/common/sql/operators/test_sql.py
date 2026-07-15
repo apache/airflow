@@ -876,6 +876,12 @@ class TestValueCheckOperator:
         with pytest.raises(AirflowException, match="Tolerance:100.0%"):
             operator.execute(context=MagicMock())
 
+    @pytest.mark.parametrize("record", [-110, -100, -90])
+    def test_negative_pass_value_with_tolerance(self, record):
+        operator = self._construct_operator("select value from tab1 limit 1;", -100, 0.1)
+
+        operator.check_value([record])
+
 
 class TestIntervalCheckOperator:
     def _construct_operator(self, table, metric_thresholds, ratio_formula, ignore_zero):
@@ -2043,6 +2049,16 @@ class TestSQLValueCheckOperatorBuildCheckResults:
         assert r.check_type == "accepted_range"
         assert r.expected == ">= 4.5, <= 5.5"
         assert r.params == {"pass_value": "5", "tolerance": 0.1}
+
+    def test_negative_numeric_tolerance_produces_accepted_range(self):
+        op = self._make_operator(pass_value=-100, tolerance=0.1)
+        results = op._build_check_results([-100])
+        assert len(results) == 1
+        r = results[0]
+        assert r.success is True
+        assert r.check_type == "accepted_range"
+        assert r.expected == ">= -110.0, <= -90.0"
+        assert r.params == {"pass_value": "-100", "tolerance": 0.1}
 
     def test_non_numeric_pass_value_is_accepted_values(self):
         op = self._make_operator(pass_value="hello")

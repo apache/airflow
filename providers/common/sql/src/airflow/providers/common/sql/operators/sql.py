@@ -1279,12 +1279,14 @@ class SQLValueCheckOperator(BaseSQLOperator):
     def _get_string_matches(self, records, pass_value_conv):
         return [str(record) == pass_value_conv for record in records]
 
+    def _get_tolerance_bounds(self, numeric_pass_value_conv):
+        margin = abs(numeric_pass_value_conv) * self.tol
+        return numeric_pass_value_conv - margin, numeric_pass_value_conv + margin
+
     def _get_numeric_matches(self, numeric_records, numeric_pass_value_conv):
         if self.has_tolerance:
-            return [
-                numeric_pass_value_conv * (1 - self.tol) <= record <= numeric_pass_value_conv * (1 + self.tol)
-                for record in numeric_records
-            ]
+            lower_bound, upper_bound = self._get_tolerance_bounds(numeric_pass_value_conv)
+            return [lower_bound <= record <= upper_bound for record in numeric_records]
 
         return [record == numeric_pass_value_conv for record in numeric_records]
 
@@ -1308,7 +1310,8 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
             pass_value_conv = _convert_to_float_if_possible(self.pass_value)
             if isinstance(pass_value_conv, float) and isinstance(self.tol, float):
-                expected_str = f">= {pass_value_conv * (1 - self.tol)}, <= {pass_value_conv * (1 + self.tol)}"
+                lower_bound, upper_bound = self._get_tolerance_bounds(pass_value_conv)
+                expected_str = f">= {lower_bound}, <= {upper_bound}"
                 check_type = "accepted_range"
 
             return [
