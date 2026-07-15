@@ -63,6 +63,17 @@ coordinator scans.
 The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
 **separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).
 
+## SDK sources always come from upstream main
+
+`go-sdk/` and `java-sdk/` are young, fast-moving directories that a release/backport branch may lack
+entirely or carry a stale, branch-cut-frozen copy of. So regardless of which branch/ref this repo is
+checked out at, `breeze k8s setup-lang-sdk-test` (and `run-complete-tests --lang-sdk-test`) always
+builds the Go bundle and Java jar from upstream `main`'s `go-sdk`/`java-sdk` — fetched fresh via
+`_lang_sdk_fetch_upstream_sdk_sources()` in `kubernetes_commands.py`, never from whatever's on disk.
+Everything else — `airflow-core/`, `task-sdk/`, the deployed Airflow image, and this directory's own
+`go_example`/`java_example` harness fixtures — still comes from the checked-out branch as before, so a
+backport of a core/task-sdk fix to a release-test branch keeps testing against current SDK code.
+
 ## Running it
 
 The artifacts, localstack, config, and Helm release are provisioned by a single breeze
