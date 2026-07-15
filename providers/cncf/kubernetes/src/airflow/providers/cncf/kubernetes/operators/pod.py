@@ -29,6 +29,7 @@ import re
 import shlex
 import string
 import time
+import warnings
 from collections.abc import Callable, Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager, suppress
 from enum import Enum
@@ -43,6 +44,7 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -84,7 +86,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     detect_pod_terminate_early_issues,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
 
 if AIRFLOW_V_3_1_PLUS:
@@ -112,6 +114,10 @@ log = logging.getLogger(__name__)
 alphanum_lower = string.ascii_lowercase + string.digits
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
+
+# Key used to persist/retrieve a submitted pod's identity in task_state_store across retries.
+# Renaming this on a deployed operator breaks in flight retries because the old key is already stored.
+POD_IDENTIFIER_STATE_KEY = "pod_identifier"
 
 
 class PodEventType(Enum):
@@ -170,8 +176,14 @@ class KubernetesPodOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
-    :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
-        during the next try. If False, always create a new pod for each try.
+    :param reattach_on_restart: deprecated, use ``durable`` instead. If the worker dies while the pod
+        is running, reattach and monitor during the next try. If False, always create a new pod for
+        each try.
+    :param durable: if the worker dies while the pod is running, reattach and monitor during the next
+        try instead of creating a duplicate pod. If False, always create a new pod for each try.
+        Supersedes ``reattach_on_restart``; on Airflow 3.3+ the reconnection uses a persisted pod
+        identity in task state store instead of a label search, removing the ambiguity failure a label
+        search can hit when more than one matching pod exists. Defaults to ``True``.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod after pod was scheduled.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
@@ -319,7 +331,7 @@ class KubernetesPodOperator(BaseOperator):
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         labels: dict | None = None,
-        reattach_on_restart: bool = True,
+        durable: bool = True,
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
         schedule_timeout_seconds: int | None = None,
@@ -377,6 +389,18 @@ class KubernetesPodOperator(BaseOperator):
         log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> None:
+        if "reattach_on_restart" in kwargs:
+            # Dropped from the named signature entirely so the warning fires on any explicit use,
+            # `True` or `False`.
+            reattach_on_restart = kwargs.pop("reattach_on_restart")
+            if AIRFLOW_V_3_3_PLUS:
+                warnings.warn(
+                    "`reattach_on_restart` is deprecated and will be removed in a future release. "
+                    "Use `durable` instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+            durable = reattach_on_restart
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
@@ -406,7 +430,11 @@ class KubernetesPodOperator(BaseOperator):
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
-        self.reattach_on_restart = reattach_on_restart
+        self.durable = durable
+        # `reattach_on_restart` is kept as an ordinary attribute (not a deprecated property) so
+        # internal reads of it do not themselves emit a deprecation warning; it always mirrors
+        # `self.durable`.
+        self.reattach_on_restart = durable
         self.get_logs = get_logs
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value
         # in the init method signature, to be compatible with subclasses overloading the class variable value.
@@ -610,9 +638,46 @@ class KubernetesPodOperator(BaseOperator):
         self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
         self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
 
+    def _get_pod_from_task_state_store(self, context: Context) -> k8s.V1Pod | None:
+        task_state_store = context.get("task_state_store")
+        if task_state_store is None:
+            return None
+        stored = task_state_store.get(POD_IDENTIFIER_STATE_KEY)
+        if not isinstance(stored, dict):
+            return None
+        name, namespace = stored.get("name"), stored.get("namespace")
+        if not isinstance(name, str) or not isinstance(namespace, str):
+            return None
+        try:
+            pod = self.hook.get_pod(name, namespace)
+        except ApiException as e:
+            if e.status != 404:
+                raise
+            self.log.warning(
+                "Pod %s/%s from task state store no longer exists, falling back to label search.",
+                namespace,
+                name,
+            )
+            return None
+        self.log_matching_pod(pod=pod, context=context)
+        return pod
+
+    def _persist_pod_identity_to_task_state_store(self, context: Context, pod: k8s.V1Pod) -> None:
+        task_state_store = context.get("task_state_store")
+        if task_state_store is None:
+            return
+        task_state_store.set(
+            POD_IDENTIFIER_STATE_KEY,
+            {"name": pod.metadata.name, "namespace": pod.metadata.namespace, "uid": pod.metadata.uid},
+        )
+
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
-            pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
+            pod = self._get_pod_from_task_state_store(context)
+            if pod is None:
+                pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
+                if pod is not None:
+                    self._persist_pod_identity_to_task_state_store(context, pod)
             if pod:
                 # If pod is terminated then delete the pod an create a new as not possible to get xcom
                 pod_phase = pod.status.phase if pod.status and pod.status.phase else None
@@ -640,7 +705,9 @@ class KubernetesPodOperator(BaseOperator):
                 self.log.info("Deleted pod to handle rerun and create new pod!")
 
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
-        self.pod_manager.create_pod(pod=pod_request_obj)
+        created_pod = self.pod_manager.create_pod(pod=pod_request_obj)
+        if self.reattach_on_restart:
+            self._persist_pod_identity_to_task_state_store(context, created_pod)
         return pod_request_obj
 
     def await_pod_start(self, pod: k8s.V1Pod) -> None:
