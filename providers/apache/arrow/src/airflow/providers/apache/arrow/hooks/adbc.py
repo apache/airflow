@@ -21,11 +21,11 @@ import contextlib
 import pathlib
 import re
 import sys
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
 from functools import cached_property
 from importlib import resources as importlib_resources
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from adbc_driver_manager.dbapi import Connection, connect
 from more_itertools import chunked
@@ -33,6 +33,9 @@ from pyarrow import RecordBatch, Schema, array, schema
 
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from adbc_driver_manager.dbapi import Cursor
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
@@ -221,6 +224,31 @@ class AdbcHook(DbApiHook):
         """Execute a statement using cursor.executemany."""
         cursor.executemany(statement, record_batch)
 
+    def _resolve_execute_batch(
+        self, cursor, executemany: bool, fast_executemany: bool
+    ) -> Callable[[Cursor, str, RecordBatch], None]:
+        """
+        Return the appropriate batch-execute callable for the given cursor.
+
+        Picks native Arrow bind when the cursor supports it; otherwise falls back
+        to executemany, optionally enabling fast_executemany on the cursor first.
+        """
+        use_native_bind = hasattr(cursor, "bind")
+
+        if not use_native_bind and (self.supports_executemany or executemany):
+            if fast_executemany:
+                with contextlib.suppress(AttributeError):
+                    cursor.fast_executemany = True
+                    self.log.info(
+                        "Fast_executemany is enabled for conn_id '%s'!",
+                        self.get_conn_id(),
+                    )
+
+        if use_native_bind:
+            self.log.info("Native Arrow bind supported!")
+            return self._execute_native_bind
+        return self._execute_executemany
+
     def insert_rows(
         self,
         table,
@@ -281,26 +309,9 @@ class AdbcHook(DbApiHook):
             )
 
             with closing(conn.cursor()) as cur:
-                use_native_bind = hasattr(cur, "bind")
-
-                # If native bind is not available, consider executemany path and
-                # try to enable fast_executemany if requested and supported.
-                if not use_native_bind and (self.supports_executemany or executemany):
-                    if fast_executemany:
-                        with contextlib.suppress(AttributeError):
-                            # Try to set the fast_executemany attribute
-                            cur.fast_executemany = True
-                            self.log.info(
-                                "Fast_executemany is enabled for conn_id '%s'!",
-                                self.get_conn_id(),
-                            )
-
-                # Choose the execution callable once based on cursor capability
-                if use_native_bind:
-                    self.log.info("Native Arrow bind supported!")
-                    execute_batch = self._execute_native_bind
-                else:
-                    execute_batch = self._execute_executemany
+                execute_batch = self._resolve_execute_batch(
+                    cur, executemany=executemany, fast_executemany=fast_executemany
+                )
 
                 for chunked_rows in chunked(rows, commit_every):
                     batch = self._to_record_batch(rows=chunked_rows, schema=table_schema)
