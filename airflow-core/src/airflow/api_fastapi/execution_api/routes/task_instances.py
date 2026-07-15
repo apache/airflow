@@ -303,9 +303,7 @@ def ti_run(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
             max_tries=ti.max_tries,
-            # TODO: Add variables and connections that are needed (and has perms) for the task
-            variables=[],
-            connections=[],
+
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )

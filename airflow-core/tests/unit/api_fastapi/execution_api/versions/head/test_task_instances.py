@@ -275,8 +275,6 @@ class TestTIRunState:
             "task_reschedule_count": 0,
             "max_tries": max_tries,
             "should_retry": should_retry,
-            "variables": [],
-            "connections": [],
             "xcom_keys_to_clear": [],
         }
         # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
@@ -686,8 +684,6 @@ class TestTIRunState:
             "task_reschedule_count": 0,
             "max_tries": 0,
             "should_retry": False,
-            "variables": [],
-            "connections": [],
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
@@ -761,8 +757,6 @@ class TestTIRunState:
             "task_reschedule_count": 0,
             "max_tries": 0,
             "should_retry": False,
-            "variables": [],
-            "connections": [],
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,

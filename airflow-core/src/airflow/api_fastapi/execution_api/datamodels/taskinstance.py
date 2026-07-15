@@ -35,8 +35,7 @@ from pydantic import (
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
-from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
+
 from airflow.utils.state import (
     DagRunState,
     IntermediateTIState,
@@ -405,12 +404,6 @@ class TIRunContext(BaseModel):
 
     max_tries: int
     """Maximum number of tries for the task instance (from DB)."""
-
-    variables: Annotated[list[VariableResponse], Field(default_factory=list)]
-    """Variables that can be accessed by the task instance."""
-
-    connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
-    """Connections that can be accessed by the task instance."""
 
     next_method: str | None = None
     """Method to call. Set when task resumes from a trigger."""

@@ -791,8 +791,6 @@ class TIRunContext(BaseModel):
     dag_run: DagRun
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
     max_tries: Annotated[int, Field(title="Max Tries")]
-    variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
-    connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
