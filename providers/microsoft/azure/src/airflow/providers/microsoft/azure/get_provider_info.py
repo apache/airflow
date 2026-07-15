@@ -400,16 +400,16 @@ def get_provider_info():
                         "label": "Azure Subscription ID",
                         "schema": {"type": ["string", "null"]},
                     },
+                   "cloud_environment": {
+                        "label": "Azure Cloud Environment",
+                        "schema": {"type": ["string", "null"]},
+                    },
                     "managed_identity_client_id": {
                         "label": "Managed Identity Client ID",
                         "schema": {"type": ["string", "null"]},
                     },
                     "workload_identity_tenant_id": {
                         "label": "Workload Identity Tenant ID",
-                        "schema": {"type": ["string", "null"]},
-                    },
-                    "cloud_environment": {
-                        "label": "Azure Cloud Environment",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
