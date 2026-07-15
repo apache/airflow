@@ -328,7 +328,7 @@ def get_grid_runs(
         limit=limit,
         return_total_entries=False,
     )
-    results = session.execute(dag_runs_select_filter).unique().all()
+    results = session.execute(dag_runs_select_filter).all()
     dag_runs = [run for run, _ in results]
     attach_dag_versions_to_runs(dag_runs, session=session)
     grid_runs = []

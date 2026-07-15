@@ -129,7 +129,7 @@ def get_deadlines(
         session=session,
     )
 
-    deadlines = session.scalars(deadlines_select).unique()
+    deadlines = session.scalars(deadlines_select)
 
     if dag_run_id != "~" and total_entries == 0:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))

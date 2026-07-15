@@ -140,9 +140,7 @@ def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI
             .options(joinedload(TI.rendered_task_instance_fields))
             .where(TI.id.in_([ti.id for ti in tis]))
             .execution_options(populate_existing=True)
-        )
-        .unique()
-        .all()
+        ).all()
     )
 
 
