@@ -16,16 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PropsWithChildren } from "react";
-import { useState } from "react";
 
-import { HoverContext } from "./Context";
-
-export const HoverProvider = ({ children }: PropsWithChildren) => {
-  const [hoveredRunId, setHoveredRunId] = useState<string | undefined>(undefined);
-  const [hoveredTaskId, setHoveredTaskId] = useState<string | undefined>(undefined);
-
-  const value = { hoveredRunId, hoveredTaskId, setHoveredRunId, setHoveredTaskId };
-
-  return <HoverContext.Provider value={value}>{children}</HoverContext.Provider>;
-};
+/*
+ * Grid/Gantt hover crosshair. The classes are toggled imperatively by
+ * useGridCrosshairHover (outside the React lifecycle), so hovering never
+ * re-renders the grid. Selected cells keep their own background.
+ */
+[data-run-id].grid-hover-col:not([data-selected="true"]),
+[data-task-id].grid-hover-row:not([data-selected="true"]) {
+  background-color: var(--chakra-colors-brand-muted);
+}
