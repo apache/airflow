@@ -38,7 +38,6 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/document_loader.rst",
-                    "/docs/apache-airflow-providers-common-ai/toolsets.rst",
                 ],
                 "tags": ["ai"],
             },
@@ -69,15 +68,9 @@ def get_provider_info():
             {
                 "integration-name": "Docker Sandboxes",
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
-                "how-to-guide": ["/docs/apache-airflow-providers-common-ai/toolsets.rst"],
                 "tags": ["software"],
             },
-            {
-                "integration-name": "Islo",
-                "external-doc-url": "https://docs.islo.dev/",
-                "how-to-guide": ["/docs/apache-airflow-providers-common-ai/toolsets.rst"],
-                "tags": ["service"],
-            },
+            {"integration-name": "Islo", "external-doc-url": "https://docs.islo.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {
