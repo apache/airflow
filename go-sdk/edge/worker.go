@@ -113,10 +113,10 @@ func Run(ctx context.Context) error {
 	}
 
 	w, err := NewWorker(conf)
-	w.logger.Info("Config", "config", conf)
 	if err != nil {
 		return err
 	}
+	w.logger.Info("Config", "config", conf)
 
 	err = w.Register(ctx)
 	if err != nil {

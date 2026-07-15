@@ -48,6 +48,15 @@ type WorkerConfig struct {
 	ApiURL          string       `mapstructure:"EDGE.API_URL"`
 }
 
+type workerConfigForLog WorkerConfig
+
+func (conf WorkerConfig) LogValue() slog.Value {
+	conf.ApiJWTSecretKey = "[redacted]"
+	conf.Issuer = "[redacted]"
+	conf.ApiURL = "[redacted]"
+	return slog.AnyValue(workerConfigForLog(conf))
+}
+
 type ClientConfig struct {
 	RetryCount    int           `mapstructure:"EDGE.API_RETRIES"`
 	StartWaitTime time.Duration `mapstructure:"EDGE.API_RETRY_WAIT_MIN"`
