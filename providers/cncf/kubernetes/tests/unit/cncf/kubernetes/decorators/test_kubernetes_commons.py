@@ -25,7 +25,7 @@ import pytest
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.taskinstance import get_template_context
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import setup, task, teardown
@@ -111,6 +111,12 @@ class TestKubernetesDecoratorsBase:
             }
         )
         self.mock_hook = mock.patch(HOOK_CLASS).start()
+
+        if AIRFLOW_V_3_3_PLUS:
+            mock.patch(
+                "airflow.sdk.execution_time.context.TaskStateStoreAccessor.get", return_value=None
+            ).start()
+            mock.patch("airflow.sdk.execution_time.context.TaskStateStoreAccessor.set").start()
 
         # Without this patch each time pod manager would try to extract logs from the pod
         # and log an error about it's inability to get containers for the log

@@ -647,6 +647,10 @@ class KubernetesPodOperator(BaseOperator):
             return None
         name, namespace = stored.get("name"), stored.get("namespace")
         if not isinstance(name, str) or not isinstance(namespace, str):
+            self.log.warning(
+                "Pod identity stored in task state store is malformed (%s), falling back to label search.",
+                stored,
+            )
             return None
         try:
             pod = self.hook.get_pod(name, namespace)
@@ -659,6 +663,9 @@ class KubernetesPodOperator(BaseOperator):
                 name,
             )
             return None
+        self.log.info(
+            "Reconnecting to pod %s/%s via identity persisted in task state store.", namespace, name
+        )
         self.log_matching_pod(pod=pod, context=context)
         return pod
 

@@ -202,6 +202,12 @@ specific pod -- no label search, and no possibility of the ambiguity failure
 (``FoundMoreThanOnePodFailure``) that a label search can hit when more than one matching pod
 exists.
 
+If no identity has been persisted yet to the task state store - either because this is the first attempt, or because the
+worker crashed in the narrow window after the pod was created but before its identity could be
+persisted, the operator falls back to the same label search ``reattach_on_restart`` has always
+used, so a running pod from a prior attempt is still found and reattached to rather than
+duplicated. Once an identity is persisted, subsequent retries skip the label search entirely.
+
 To always create a fresh pod on retry rather than reattaching, set ``durable=False``:
 
 .. code-block:: python
