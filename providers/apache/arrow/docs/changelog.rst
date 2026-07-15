@@ -33,6 +33,8 @@ Changelog
     This release of provider is only available for Airflow 2.10+ as explained in the
     Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
 
+Initial version of the provider.
+
 Misc
 ~~~~
 
@@ -42,8 +44,3 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Update description of provider.yaml dependencies (#50231)``
    * ``Avoid committing history for providers (#49907)``
-
-0.1.0
-.....
-
-Initial version of the provider.

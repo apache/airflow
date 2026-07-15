@@ -23,7 +23,11 @@ state: ready
 lifecycle: incubation
 source-date-epoch: 1744788833
 description: |
-  `Apache Arrow  <https://arrow.apache.org/>`__
+  `Apache Arrow <https://arrow.apache.org/>`__ provider for Airflow. Offers ``AdbcHook``,
+  a general-purpose hook that connects to any database supported by an
+  `Arrow Database Connectivity (ADBC) <https://arrow.apache.org/adbc/>`__ driver
+  (PostgreSQL, SQLite, DuckDB, Snowflake, BigQuery, Flight SQL, and more) and transfers data
+  as columnar Arrow ``RecordBatch`` objects for efficient, zero-copy bulk loads.
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have

@@ -72,7 +72,11 @@
 apache-airflow-providers-apache-arrow package
 ------------------------------------------------------
 
-`Apache Arrow  <https://arrow.apache.org/>`__
+`Apache Arrow <https://arrow.apache.org/>`__ provider for Airflow. Offers ``AdbcHook``,
+a general-purpose hook that connects to any database supported by an
+`Arrow Database Connectivity (ADBC) <https://arrow.apache.org/adbc/>`__ driver
+(PostgreSQL, SQLite, DuckDB, Snowflake, BigQuery, Flight SQL, and more) and transfers data
+as columnar Arrow ``RecordBatch`` objects for efficient, zero-copy bulk loads.
 
 
 Release: 0.1.0

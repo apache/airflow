@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-apache-arrow",
         "name": "Apache Arrow",
-        "description": "`Apache Arrow  <https://arrow.apache.org/>`__\n",
+        "description": "`Apache Arrow <https://arrow.apache.org/>`__ provider for Airflow. Offers ``AdbcHook``,\na general-purpose hook that connects to any database supported by an\n`Arrow Database Connectivity (ADBC) <https://arrow.apache.org/adbc/>`__ driver\n(PostgreSQL, SQLite, DuckDB, Snowflake, BigQuery, Flight SQL, and more) and transfers data\nas columnar Arrow ``RecordBatch`` objects for efficient, zero-copy bulk loads.\n",
         "integrations": [
             {
                 "integration-name": "Apache Arrow",

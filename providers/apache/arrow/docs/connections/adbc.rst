@@ -22,7 +22,11 @@ ADBC connection
 
 The ADBC connection type enables connection to any database that has an
 `Arrow Database Connectivity (ADBC) <https://arrow.apache.org/adbc/>`__ driver,
-such as PostgreSQL, SQLite, DuckDB, Snowflake, and Flight SQL servers.
+such as PostgreSQL, SQLite, DuckDB, Snowflake, BigQuery, and Flight SQL servers.
+
+Connections of this type are used by :class:`~airflow.providers.apache.arrow.hooks.adbc.AdbcHook`,
+which builds on top of :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` and transfers
+data as Apache Arrow :class:`~pyarrow.RecordBatch` objects for efficient, zero-copy bulk loads.
 
 Default Connection ID
 ---------------------
@@ -146,13 +150,17 @@ Extra (JSON)
 Examples
 --------
 
-SQLite in-memory database::
+SQLite in-memory database:
+
+.. code-block:: json
 
     {
       "driver": "adbc_driver_sqlite"
     }
 
-PostgreSQL with extra driver options::
+PostgreSQL with extra driver options:
+
+.. code-block:: json
 
     {
       "driver": "adbc_driver_postgresql",
@@ -165,3 +173,28 @@ PostgreSQL with extra driver options::
         "read_only": false
       }
     }
+
+Usage
+-----
+
+Use :class:`~airflow.providers.apache.arrow.hooks.adbc.AdbcHook` in a task to query or load data:
+
+.. code-block:: python
+
+    from airflow.providers.apache.arrow.hooks.adbc import AdbcHook
+
+
+    def load_data():
+        hook = AdbcHook(adbc_conn_id="my_adbc_conn")
+
+        # Run a query and get results as a list of tuples
+        records = hook.get_records("SELECT id, name FROM users WHERE active = 1")
+
+        # Bulk-insert rows in chunks of 5 000 using Arrow-native transfer
+        rows = [(1, "Alice"), (2, "Bob")]
+        hook.insert_rows(
+            table="users",
+            rows=rows,
+            target_fields=["id", "name"],
+            commit_every=5000,
+        )
