@@ -89,7 +89,7 @@ class TestMeasure:
 
     def test_builds_each_rules_sql_exactly_once_on_batch_failure(self, hook):
         hook.get_records.side_effect = RuntimeError("connection refused")
-        hook.get_first.return_value = (0,)
+        hook.get_first.side_effect = [(NULLS.rule_uid, 0), (VOLUME.rule_uid, 0)]
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
         engine = SQLDQEngine(hook)
 
@@ -100,7 +100,7 @@ class TestMeasure:
 
     def test_batch_failure_falls_back_to_per_rule_queries(self, hook):
         hook.get_records.side_effect = RuntimeError("connection refused")
-        hook.get_first.return_value = (0,)
+        hook.get_first.side_effect = [(NULLS.rule_uid, 0), (VOLUME.rule_uid, 0)]
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
 
         observations = SQLDQEngine(hook).measure(ruleset, "orders")
@@ -114,7 +114,10 @@ class TestMeasure:
     def test_batch_failure_fallback_isolates_a_single_bad_rule(self, hook):
         """One rule's query failing in the per-rule fallback must not fail the other rules."""
         hook.get_records.side_effect = RuntimeError("connection refused")
-        hook.get_first.side_effect = [(0,), RuntimeError("no such column: no_such_column")]
+        hook.get_first.side_effect = [
+            (NULLS.rule_uid, 0),
+            RuntimeError("no such column: no_such_column"),
+        ]
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
 
         observations = SQLDQEngine(hook).measure(ruleset, "orders")
