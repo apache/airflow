@@ -30,6 +30,13 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+* ``Allow Paramiko 5; legacy SHA-1 SSH algorithms are no longer supported``
+
+  Paramiko 5.0 removed support for RSA SHA-1 ``ssh-rsa`` signatures, SHA-1 key exchange
+  algorithms, and ``GSSAPI``. RSA keys are still supported, but servers must support modern
+  RSA SHA-2 algorithms such as ``rsa-sha2-256`` or ``rsa-sha2-512``. If your SFTP server only
+  supports legacy SHA-1 SSH algorithms, pin ``paramiko<5`` until the server is upgraded.
+
 * ``Bump minimum paramiko to 4.0.0; DSA/DSS keys are no longer supported (#54079)``
 
   This provider depends on paramiko 4.0+, which dropped ``DSS``/``DSA`` keys; see `paramiko changelog <https://www.paramiko.org/changelog.html>`__. To migrate: create a key pair that does not use ``DSA`` (Ed25519 or RSA are typical, e.g. ``ssh-keygen -t ed25519``), add the public key to the SFTP server, then update your Airflow SFTP (or shared SSH) connection so ``key_file`` or the ``private_key`` extra uses the new key, and ensure any ``host_key`` extra is not in ``ssh-dss`` form. If you are not ready to migrate keys, stay on a provider release that still pins ``paramiko<4`` until you can switch.
