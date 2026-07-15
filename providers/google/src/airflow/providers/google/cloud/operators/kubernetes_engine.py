@@ -447,7 +447,9 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
                     "body['node_config'] or body['initial_code_count'] are specified."
                 )
 
-        if not any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+        if not self._is_autopilot_cluster() and not any(
+            [self._body_field("node_config"), self._body_field("initial_node_count")]
+        ):
             if not self._body_field("node_pools"):
                 error_messages.append(
                     "Field body['node_pools'] is required if none of fields "
@@ -465,6 +467,12 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         if isinstance(self.body, dict):
             return self.body.get(field_name, default_value)
         return getattr(self.body, field_name, default_value)
+
+    def _is_autopilot_cluster(self) -> bool:
+        autopilot = self._body_field("autopilot")
+        if isinstance(autopilot, dict):
+            return bool(autopilot.get("enabled"))
+        return bool(getattr(autopilot, "enabled", False))
 
     def _alert_deprecated_body_fields(self) -> None:
         """Generate warning messages if deprecated fields were used in the body."""

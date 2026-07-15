@@ -102,6 +102,11 @@ GKE_CLUSTER_CREATE_BODY_DICT = {
 GKE_CLUSTER_CREATE_BODY_OBJECT = Cluster(
     name=GKE_CLUSTER_NAME, node_pools=[NodePool(name="a_node_pool", initial_node_count=1)]
 )
+GKE_AUTOPILOT_CLUSTER_CREATE_BODY_DICT = {
+    "name": GKE_CLUSTER_NAME,
+    "autopilot": {"enabled": True},
+}
+GKE_AUTOPILOT_CLUSTER_CREATE_BODY_OBJECT = Cluster(name=GKE_CLUSTER_NAME, autopilot={"enabled": True})
 GKE_CLUSTER_CREATE_BODY_DICT_DEPRECATED = {"name": GKE_CLUSTER_NAME, "initial_node_count": 1}
 GKE_CLUSTER_CREATE_BODY_OBJECT_DEPRECATED = Cluster(name=GKE_CLUSTER_NAME, initial_node_count=1)
 
@@ -419,7 +424,15 @@ class TestGKECreateClusterOperator:
         )
         assert set(GKECreateClusterOperator.template_fields) == expected_template_fields
 
-    @pytest.mark.parametrize("body", [GKE_CLUSTER_CREATE_BODY_DICT, GKE_CLUSTER_CREATE_BODY_OBJECT])
+    @pytest.mark.parametrize(
+        "body",
+        [
+            GKE_CLUSTER_CREATE_BODY_DICT,
+            GKE_CLUSTER_CREATE_BODY_OBJECT,
+            GKE_AUTOPILOT_CLUSTER_CREATE_BODY_DICT,
+            GKE_AUTOPILOT_CLUSTER_CREATE_BODY_OBJECT,
+        ],
+    )
     def test_body(self, body):
         op = GKECreateClusterOperator(
             task_id=TEST_TASK_ID,
