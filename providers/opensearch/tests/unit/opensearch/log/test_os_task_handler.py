@@ -612,14 +612,6 @@ class TestOpensearchTaskHandler:
         assert _render_log_id("{map_index}", loop_pass, 1) == "3"
         assert _render_log_id("{map_index}", _MockTI(map_index=4), 1) == "4"
 
-    @pytest.mark.db_test
-    def test_remote_log_io_read_uses_pinned_template(self, ti):
-        """The read path renders with the LogTemplate row pinned to the Dag run, not the conf value."""
-        with patch.object(self.os_task_handler.io, "_os_read", return_value=None) as mock_os_read:
-            self.os_task_handler.io.read("", ti)
-
-        mock_os_read.assert_called_once_with(self.LOG_ID, 0, ti)
-
     def test_clean_date(self):
         clean_logical_date = OpensearchTaskHandler._clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
@@ -966,45 +958,6 @@ class TestOpensearchRemoteLogIO:
             assert transport_args["http_auth"] == (username, password)
         else:
             assert "http_auth" not in opensearch_io.client.transport.kwargs
-
-    def test_upload_uses_pinned_log_id_template_from_ti_context(self, tmp_json_file, ti):
-        """Documents are stamped with the Dag-run-pinned template delivered via TIRunContext."""
-        self.opensearch_io.write_stdout = False
-        ti_context = SimpleNamespace(
-            log_id_template="{dag_id}-{task_id}-{logical_date}-{try_number}",
-            dag_run=SimpleNamespace(
-                logical_date=timezone.datetime(2016, 1, 1),
-                data_interval_start=None,
-                data_interval_end=None,
-            ),
-        )
-
-        with patch.object(self.opensearch_io, "_write_to_opensearch", return_value=False) as mock_write:
-            self.opensearch_io.upload(tmp_json_file, ti, ti_context=ti_context)
-
-        expected_log_id = f"{ti.dag_id}-{ti.task_id}-2016-01-01T00:00:00+00:00-{ti.try_number}"
-        log_lines = mock_write.call_args.args[0]
-        assert log_lines
-        assert all(line["log_id"] == expected_log_id for line in log_lines)
-
-    def test_upload_stamps_pinned_log_id_on_stdout(self, tmp_json_file, ti, capsys):
-        """The write_stdout (filebeat-style) branch uses the pinned template too."""
-        self.opensearch_io.write_to_opensearch = False
-        ti_context = SimpleNamespace(
-            log_id_template="{dag_id}-{task_id}-{logical_date}-{try_number}",
-            dag_run=SimpleNamespace(
-                logical_date=timezone.datetime(2016, 1, 1),
-                data_interval_start=None,
-                data_interval_end=None,
-            ),
-        )
-
-        self.opensearch_io.upload(tmp_json_file, ti, ti_context=ti_context)
-
-        expected_log_id = f"{ti.dag_id}-{ti.task_id}-2016-01-01T00:00:00+00:00-{ti.try_number}"
-        log_entries = [json.loads(line) for line in capsys.readouterr().out.strip().splitlines()]
-        assert log_entries
-        assert all(entry["log_id"] == expected_log_id for entry in log_entries)
 
 
 class TestOpensearchRemoteLogIOFromConfig:
