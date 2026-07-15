@@ -1223,7 +1223,6 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 processor.kill(signal.SIGKILL)
                 self._deregister_processor_sockets(processor)
-                processor.logger_filehandle.close()
                 processor.close()
                 self._file_stats.pop(file, None)
 
@@ -1662,7 +1661,6 @@ class DagFileProcessorManager(LoggingMixin):
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
             self._deregister_processor_sockets(processor)
-            processor.logger_filehandle.close()
             processor.close()
 
     def _add_files_to_queue(
