@@ -222,15 +222,13 @@ def patch_dag_run(
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
-    # Sort keys so that the "note" update happens before "state" update, so that the listeners called inside
-    # `patch_dag_run_state()` already receive updated DagRun object with note.
-    for attr_name, attr_value_raw in sorted(data.items()):
-        if attr_name == "state" and patch_body.state is not None:
-            patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
-        elif attr_name == "note":
-            updated_dag_run = session.get(DagRun, dag_run.id)
-            if updated_dag_run is not None:
-                patch_dag_run_note(dag_run=updated_dag_run, note=attr_value_raw, user=user)
+    # Apply "note" before "state" so listeners fired inside patch_dag_run_state() see the updated note.
+    if "note" in data:
+        updated_dag_run = session.get(DagRun, dag_run.id)
+        if updated_dag_run is not None:
+            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user=user)
+    if "state" in data and patch_body.state is not None:
+        patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
 
     final_dag_run = session.get(DagRun, dag_run.id)
     if not final_dag_run:
