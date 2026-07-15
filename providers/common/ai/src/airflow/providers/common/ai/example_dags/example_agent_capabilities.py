@@ -36,6 +36,10 @@ try:
 except Exception:
     SQLToolset = None  # type: ignore[assignment,misc]
 
+try:
+    from pydantic_ai_shields import InputGuard
+except ImportError:
+    InputGuard = None  # type: ignore[assignment,misc]
 # ---------------------------------------------------------------------------
 # 1. Thinking capability: enable model reasoning at a configurable effort level
 # ---------------------------------------------------------------------------
