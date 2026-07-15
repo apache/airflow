@@ -197,7 +197,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/pending_partitioned_dag_run/{dag_id}/{partition_key}:
+  /ui/pending_partitioned_dag_run/{dag_id}:
     get:
       tags:
       - PartitionedDagRun
@@ -215,7 +215,7 @@ paths:
           type: string
           title: Dag Id
       - name: partition_key
-        in: path
+        in: query
         required: true
         schema:
           type: string
@@ -473,6 +473,18 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          description: Filter Dags that have any DagRun in the given state. Only ``queued``
+            and ``running`` are supported.
+          title: Dag Run State
+        description: Filter Dags that have any DagRun in the given state. Only ``queued``
+          and ``running`` are supported.
       - name: bundle_name
         in: query
         required: false
@@ -1732,6 +1744,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/calendar/{dag_id}/deadlines:
+    get:
+      tags:
+      - Calendar
+      summary: Get Calendar Deadlines
+      description: Get aggregated deadline counts for a Dag, bucketed by deadline_time
+        and missed status.
+      operationId: get_calendar_deadlines
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          enum:
+          - hourly
+          - daily
+          type: string
+          default: daily
+          title: Granularity
+      - name: deadline_time_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gte
+      - name: deadline_time_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gt
+      - name: deadline_time_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lte
+      - name: deadline_time_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lt
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarDeadlineCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/teams:
     get:
       tags:
@@ -2064,6 +2153,42 @@ components:
       - type
       title: BaseNodeResponse
       description: Base Node serializer for responses.
+    CalendarDeadlineCollectionResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+        deadlines:
+          items:
+            $ref: '#/components/schemas/CalendarDeadlineResponse'
+          type: array
+          title: Deadlines
+      type: object
+      required:
+      - total_entries
+      - deadlines
+      title: CalendarDeadlineCollectionResponse
+      description: Response model for calendar deadline aggregation results.
+    CalendarDeadlineResponse:
+      properties:
+        date:
+          type: string
+          format: date-time
+          title: Date
+        missed:
+          type: boolean
+          title: Missed
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - date
+      - missed
+      - count
+      title: CalendarDeadlineResponse
+      description: Represents aggregated deadline counts for a specific calendar time
+        bucket.
     CalendarTimeRangeCollectionResponse:
       properties:
         total_entries:
@@ -3063,6 +3188,9 @@ components:
         has_missed_deadline:
           type: boolean
           title: Has Missed Deadline
+        has_note:
+          type: boolean
+          title: Has Note
         duration:
           type: number
           title: Duration
@@ -3078,6 +3206,7 @@ components:
       - state
       - run_type
       - has_missed_deadline
+      - has_note
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.

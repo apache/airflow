@@ -104,6 +104,13 @@ def get_provider_info():
                 "tags": ["azure"],
             },
             {
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
+                "external-doc-url": "https://ai.azure.com/api-reference/agents/",
+                "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/operators/ai_agents.rst"],
+                "logo": "/docs/integration-logos/Microsoft-Azure.png",
+                "tags": ["azure"],
+            },
+            {
                 "integration-name": "Microsoft Azure Service Bus",
                 "external-doc-url": "https://azure.microsoft.com/en-us/services/service-bus/",
                 "logo": "/docs/integration-logos/Service-Bus.svg",
@@ -157,6 +164,10 @@ def get_provider_info():
             {
                 "integration-name": "Microsoft Azure Batch",
                 "python-modules": ["airflow.providers.microsoft.azure.operators.batch"],
+            },
+            {
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
+                "python-modules": ["airflow.providers.microsoft.azure.operators.ai_agents"],
             },
             {
                 "integration-name": "Microsoft Azure Container Instances",
@@ -247,6 +258,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.batch"],
             },
             {
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
+                "python-modules": ["airflow.providers.microsoft.azure.hooks.ai_agents"],
+            },
+            {
                 "integration-name": "Microsoft Azure Data Lake Storage",
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.data_lake"],
             },
@@ -287,6 +302,10 @@ def get_provider_info():
             {
                 "integration-name": "Microsoft Azure Batch",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.batch"],
+            },
+            {
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.ai_agents"],
             },
             {
                 "integration-name": "Microsoft Azure Compute",
@@ -381,6 +400,43 @@ def get_provider_info():
                         "label": "Azure Subscription ID",
                         "schema": {"type": ["string", "null"]},
                     },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.microsoft.azure.hooks.ai_agents.AzureAIAgentsHook",
+                "hook-name": "Azure AI Foundry Hosted Agents",
+                "connection-type": "azure_ai_agents",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {
+                        "host": "Project Endpoint",
+                        "login": "Azure Client ID",
+                        "password": "Azure Secret",
+                    },
+                    "placeholders": {
+                        "host": "https://<aiservices-id>.services.ai.azure.com/api/projects/<project-name>",
+                        "login": "client_id (token credentials auth)",
+                        "password": "secret (token credentials auth)",
+                        "tenantId": "tenantId (token credentials auth)",
+                        "cloud_environment": "AzurePublicCloud (default) | AzureUSGovernment | AzureChinaCloud",
+                        "endpoint": "Overrides Project Endpoint from host",
+                    },
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "cloud_environment": {
+                        "label": "Azure Cloud Environment",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "endpoint": {"label": "Project Endpoint", "schema": {"type": ["string", "null"]}},
                     "managed_identity_client_id": {
                         "label": "Managed Identity Client ID",
                         "schema": {"type": ["string", "null"]},

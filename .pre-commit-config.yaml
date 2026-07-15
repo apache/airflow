@@ -270,7 +270,6 @@ repos:
         language: node
         files: >
           (?x)
-          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
           ^ts-sdk/src/generated/supervisor\.ts$|
           ^ts-sdk/scripts/generate-supervisor\.mjs$
         additional_dependencies: ['pnpm@10.28.1']
@@ -297,6 +296,16 @@ repos:
           ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
+      - id: sync-java-sdk-supervisor-schema
+        name: Sync Java SDK supervisor schema with configured version
+        description: "Download the Supervisor Schema when Java SDK's bundled schema.json drifts"
+        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncSupervisorSchema
+        language: system
+        pass_filenames: false
+        files: >
+          (?x)
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/sdk/schema/schema\.json$
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
@@ -999,6 +1008,43 @@ repos:
           ^scripts/ci/prek/generate_agent_skills\.py$
         pass_filenames: false
         additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      - id: run-skill-eval
+        name: Run skill-eval against AGENTS.md and cases
+        entry: ./dev/skill-evals/eval.py
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+        verbose: true
+      - id: view-skill-eval
+        name: View skill-eval results in browser (manual)
+        entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+      - id: check-eval-hash
+        name: Verify skill-eval ran on current AGENTS.md and cases
+        entry: ./scripts/ci/prek/check_eval_hash.py
+        language: python
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/cases/|
+          ^dev/skill-evals/last-eval-hash\.txt$
+        pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
