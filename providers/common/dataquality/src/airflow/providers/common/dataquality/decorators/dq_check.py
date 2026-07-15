@@ -77,6 +77,8 @@ class _DQCheckDecoratedOperator(DecoratedOperator, DQCheckOperator):
                     f"got {type(ruleset).__name__}"
                 )
             self.ruleset = ruleset
+        elif self.ruleset is SET_DURING_EXECUTION:
+            raise ValueError("ruleset is required, either directly or returned by @task.dq_check")
         return DQCheckOperator.execute(self, context)
 
 

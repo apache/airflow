@@ -75,6 +75,19 @@ fails normally -- only persisted data quality history is unavailable. There is n
 per-operator override: every check in a deployment shares one results store, so history stays
 available across tasks and Dags without stitching together several stores.
 
+Run quality checks inside your own tasks
+------------------------------------------
+
+If quality checks are one step inside a larger task, use
+:func:`~airflow.providers.common.dataquality.execution.run_quality_checks` directly, then call
+:func:`~airflow.providers.common.dataquality.execution.persist_quality_results` to write the same
+history records that ``DQCheckOperator`` writes:
+
+.. exampleinclude:: /../src/airflow/providers/common/dataquality/example_dags/example_dq_in_taskflow.py
+    :language: python
+    :start-after: [START howto_run_dq_inside_task]
+    :end-before: [END howto_run_dq_inside_task]
+
 Checking an asset
 --------------------
 

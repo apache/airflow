@@ -63,7 +63,7 @@ def results_backend(tmp_path):
     """Patch the module-level config lookup so persisted results land in an isolated tmp_path."""
     backend = ObjectStorageResultsBackend(results_path=f"file://{tmp_path}")
     with mock.patch(
-        "airflow.providers.common.dataquality.operators.dq_check.get_backend_from_config",
+        "airflow.providers.common.dataquality.execution.get_backend_from_config",
         return_value=backend,
     ):
         yield backend
@@ -237,7 +237,7 @@ class TestDQCheckOperatorExecute:
         mock_get_db_hook.return_value = hook
 
         with mock.patch(
-            "airflow.providers.common.dataquality.operators.dq_check.get_backend_from_config",
+            "airflow.providers.common.dataquality.execution.get_backend_from_config",
             return_value=backend,
         ):
             summary = operator.execute(make_context())
