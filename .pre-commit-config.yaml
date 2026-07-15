@@ -783,6 +783,7 @@ repos:
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
+          ^providers/common/dataquality/src/airflow/providers/common/dataquality/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^\.agents/skills/airflow-translations/|

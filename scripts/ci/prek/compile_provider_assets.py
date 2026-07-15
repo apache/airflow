@@ -80,6 +80,31 @@ PROVIDERS_PATHS = {
         / "dist",
         "hash": PROVIDERS_ROOT / "common" / "ai" / "www-hash.txt",
     },
+    "dataquality": {
+        "root": PROVIDERS_ROOT / "common" / "dataquality",
+        "www": PROVIDERS_ROOT
+        / "common"
+        / "dataquality"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "common"
+        / "dataquality"
+        / "plugins"
+        / "www",
+        "dist": PROVIDERS_ROOT
+        / "common"
+        / "dataquality"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "common"
+        / "dataquality"
+        / "plugins"
+        / "www"
+        / "dist",
+        "hash": PROVIDERS_ROOT / "common" / "dataquality" / "www-hash.txt",
+    },
 }
 
 

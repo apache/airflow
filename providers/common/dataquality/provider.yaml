@@ -29,7 +29,7 @@ description: |
 state: ready
 lifecycle: incubation
 source-date-epoch: 1751587200
-build-system: flit_core
+build-system: hatchling
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -53,6 +53,10 @@ operators:
 task-decorators:
   - class-name: airflow.providers.common.dataquality.decorators.dq_check.dq_check_task
     name: dq_check
+
+plugins:
+  - name: dataquality
+    plugin-class: airflow.providers.common.dataquality.plugins.dataquality_plugin.DataQualityPlugin
 
 config:
   common.dataquality:

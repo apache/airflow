@@ -46,6 +46,12 @@ def get_provider_info():
                 "name": "dq_check",
             }
         ],
+        "plugins": [
+            {
+                "name": "dataquality",
+                "plugin-class": "airflow.providers.common.dataquality.plugins.dataquality_plugin.DataQualityPlugin",
+            }
+        ],
         "config": {
             "common.dataquality": {
                 "description": "Configuration for the Data Quality provider results store.\n",

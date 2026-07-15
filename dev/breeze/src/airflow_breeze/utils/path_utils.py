@@ -477,6 +477,22 @@ COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH = COMMON_AI_PLUGIN_PATH / "node_modules"
 COMMON_AI_UI_PLUGIN_DIST_PATH = COMMON_AI_PLUGIN_PATH / "dist"
 COMMON_AI_PLUGIN_PREK_HOOK = "compile-common-ai-provider-assets"
 
+COMMON_DATAQUALITY_PLUGIN_PATH = (
+    AIRFLOW_PROVIDERS_ROOT_PATH
+    / "common"
+    / "dataquality"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "common"
+    / "dataquality"
+    / "plugins"
+    / "www"
+)
+COMMON_DATAQUALITY_UI_PLUGIN_NODE_MODULES_PATH = COMMON_DATAQUALITY_PLUGIN_PATH / "node_modules"
+COMMON_DATAQUALITY_UI_PLUGIN_DIST_PATH = COMMON_DATAQUALITY_PLUGIN_PATH / "dist"
+COMMON_DATAQUALITY_PLUGIN_PREK_HOOK = "compile-common-dataquality-provider-assets"
+
 
 DAGS_PATH = AIRFLOW_ROOT_PATH / "dags"
 FILES_PATH = AIRFLOW_ROOT_PATH / "files"
