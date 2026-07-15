@@ -125,11 +125,11 @@ attribute access (``result.field``).
 
 The declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
-the worker when it loads the DAG, before any task runs. The Pydantic class must
+the worker when it loads the Dag, before any task runs. The Pydantic class must
 be defined at **module scope** and bound to an attribute matching its
-``__name__``. Same-DAG downstream tasks need no configuration. The UI's XCom
+``__name__``. Same-Dag downstream tasks need no configuration. The UI's XCom
 viewer renders the value via the ``stringify`` path (no configuration needed;
-see the ``LLMOperator`` guide for the exact representation). Cross-DAG
+see the ``LLMOperator`` guide for the exact representation). Cross-Dag
 ``xcom_pull`` consumers still need the class ``qualname`` added to
 ``[core] allowed_deserialization_classes``.
 
@@ -154,6 +154,26 @@ tasks can consume it.
     :language: python
     :start-after: [START howto_agent_chain]
     :end-before: [END howto_agent_chain]
+
+
+.. _howto/operator:agent-dynamic-system-prompt:
+
+Dynamic System Prompt
+----------------------
+
+``system_prompt`` is a templated field, so instead of a static string it
+can be a Jinja expression that reads a value an earlier task already
+computed -- for example, tailoring the agent's instructions to a
+classification produced upstream.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_agent_dynamic_system_prompt]
+    :end-before: [END howto_agent_dynamic_system_prompt]
+
+Open the **Rendered Template** tab on the task instance to see the
+substituted ``system_prompt`` after Jinja fills in ``classify``'s XCom
+values.
 
 
 Multi-turn Sessions
@@ -207,18 +227,30 @@ fails mid-run (network error, timeout, transient API failure), a plain retry
 re-executes every LLM call and tool call from scratch -- repeating work that
 already succeeded and incurring additional cost.
 
-Setting ``durable=True`` caches each LLM response and tool result to
-ObjectStorage as it completes. On retry, completed steps are replayed from the
-cache and only the remaining steps run against the live model and tools. The
-cache is deleted after successful completion.
+Setting ``durable=True`` caches each LLM response and tool result as it
+completes. On retry, completed steps are replayed from the cache and only the
+remaining steps run against the live model and tools. The cache is deleted
+after successful completion.
 
 Durable execution only helps when the task has retries configured. Without
 retries there is nothing to replay.
 
 **Configuration**
 
-Set the cache location in ``airflow.cfg``. The task raises ``ValueError`` at
-runtime if ``durable=True`` and the option is missing.
+On **Airflow >= 3.3** the cache is stored in the
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>`,
+scoped to the task instance. No configuration is required; the store handles
+persistence across retries.
+
+By default each cached step is written to the Airflow metadata database. Model
+responses and large tool results can be sizable, so for agents with large
+payloads configure ``[workers] state_store_backend`` to offload step values to
+external storage (e.g. object storage) instead of the metadata database; the
+provider then stores only a reference in the database.
+
+On **Airflow < 3.3** the cache is persisted to ObjectStorage and the location
+must be set in ``airflow.cfg``. The task raises ``ValueError`` at runtime if
+``durable=True`` and the option is missing.
 
 .. code-block:: ini
 
@@ -251,10 +283,10 @@ cache:
 
 **How it works**
 
-1. On first execution, each LLM response and tool result is saved to a JSON
-   file as the agent progresses, together with a fingerprint of the request
-   that produced it (model, message history, settings, and tools for LLM
-   steps; tool name, arguments, and call id for tool steps).
+1. On first execution, each LLM response and tool result is saved as the agent
+   progresses, together with a fingerprint of the request that produced it
+   (model, message history, settings, and tools for LLM steps; tool name,
+   arguments, and call id for tool steps).
 2. If the task fails and Airflow retries it, completed steps are loaded from
    the cache and returned without calling the model or tool. Steps not yet in
    the cache proceed normally.
@@ -266,29 +298,31 @@ cache:
    an LLM step produces fresh tool call ids, so tool results recorded under
    the old conversation no longer match. A changed agent costs a re-run; it
    never replays responses that belong to a different conversation.
-4. After successful completion, the cache file is deleted.
+4. After successful completion, the cached steps are deleted.
 
 Replay verification compares the **requests** sent to models and tools, not
 the code behind them. Editing a tool's implementation between attempts does
 not invalidate an already-cached result for an identical call, and pointing
 ``llm_conn_id`` at a different endpoint serving the same model name does not
-invalidate cached responses -- delete the cache file to force a fully fresh
-run.
+invalidate cached responses -- clear the cache to force a fully fresh run.
 
 After the run, a single INFO summary line reports how many steps were
 replayed vs executed fresh. Per-step detail is available at DEBUG level.
 
-The cache file is named ``{dag_id}_{task_id}_{run_id}.json`` (with
-``_{map_index}`` appended for mapped tasks) and stored under the configured
-``durable_cache_path``. To force a completely fresh run, delete the cache file
-for that task.
+The cache is scoped to a single task instance (Dag id, run id, task id, and
+map index), so each run replays only its own steps. On Airflow >= 3.3 the cache
+lives in the task state store and is removed when the Dag run is cleaned up; on
+Airflow < 3.3 it is a JSON file named ``{dag_id}_{task_id}_{run_id}.json`` (with
+``_{map_index}`` appended for mapped tasks) under the configured
+``durable_cache_path``.
 
 .. note::
 
-    Runs that fail permanently (exhaust all retries) leave their cache file
-    behind. These orphaned files do not affect future DAG runs (each run gets
-    its own file) but will consume storage. Clean them up periodically or add
-    a lifecycle policy to the storage backend.
+    Runs that fail permanently (exhaust all retries) leave their cached steps
+    behind. These do not affect future Dag runs (each run is scoped separately).
+    On Airflow >= 3.3 they are reclaimed when the Dag run is removed; on Airflow
+    < 3.3 the orphaned JSON files consume storage until cleaned up, so add a
+    lifecycle policy to the storage backend or remove them periodically.
 
 **Side effects and idempotency**
 
@@ -346,7 +380,7 @@ Capabilities compose with toolsets -- pydantic-ai merges tools from both.
 
     ``agent_params`` is a templated field, which Airflow serializes by calling
     ``str()`` on values it doesn't natively understand. Capability instances
-    are not yet round-trip-safe through DAG serialization, so the examples
+    are not yet round-trip-safe through Dag serialization, so the examples
     below construct them inside the ``@dag`` function -- not at module level.
     First-class ``capabilities=`` support on ``AgentOperator`` (with proper
     serializer hooks) is tracked as a follow-up.
@@ -443,9 +477,10 @@ Parameters
   prone to runaway tool loops, so ``tool_calls_limit`` is a useful guardrail.
   See :ref:`howto/operator:llm` for an example. Default ``None``.
 - ``durable``: When ``True``, enables step-level caching of model responses and
-  tool results via ObjectStorage. On retry, cached steps are replayed instead of
-  re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``
-  config option to be set. Default ``False``.
+  tool results. On retry, cached steps are replayed instead of re-executing
+  expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
+  configuration needed); on older cores it requires the ``[common.ai]
+  durable_cache_path`` config option to be set. Default ``False``.
 - ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
   tool that the model drives by writing Python, executed in the Monty sandbox.
   Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
@@ -454,6 +489,29 @@ Parameters
   When set, the post-run transcript is pushed to XCom under the key
   ``message_history`` for the next run to resume. Default ``None`` (single-turn).
   See `Multi-turn Sessions`_.
+- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
+  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
+  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
+  downstream consumer needs the dict shape.
+
+**HITL Review parameters** (requires the ``hitl_review`` plugin -- see
+:doc:`../hitl_review` for the full review workflow):
+
+- ``enable_hitl_review``: When ``True``, the operator enters an iterative
+  review loop after the first generation. A human reviewer can approve,
+  reject, or request changes via the plugin's REST API at ``/hitl-review``
+  or through the **HITL Review** extra link on the task instance. Default
+  ``False``.
+- ``max_hitl_iterations``: Maximum outputs shown to the reviewer (1 = initial
+  output). When the reviewer requests changes at iteration >= this limit, the
+  task fails with ``HITLMaxIterationsError`` without calling the LLM. E.g. 5
+  allows changes at iterations 1-4. Default ``5``.
+- ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds
+  combined. ``None`` means no timeout (the operator blocks until a terminal
+  action).
+- ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
+  human response. Default ``10``.
 
 
 Logging

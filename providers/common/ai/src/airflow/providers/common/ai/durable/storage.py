@@ -26,10 +26,11 @@ from typing import Any
 import structlog
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse
 
-log = structlog.get_logger(logger_name="task")
-
 # Sentinel to distinguish "cached None" from "no cache entry" for tool results.
-_SENTINEL = "__durable_cached__"
+# Shared with the task state store backend so the envelope shape cannot drift.
+from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL as _SENTINEL
+
+log = structlog.get_logger(logger_name="task")
 
 SECTION = "common.ai"
 

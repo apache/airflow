@@ -23,13 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1781642052
+source-date-epoch: 1782937929
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
-  - 10.18.1
+  - 10.19.0
   - 10.18.0
   - 10.17.1
   - 10.17.0
@@ -489,6 +489,40 @@ config:
         type: integer
         example: ~
         default: "0"
+      pod_launch_failure_retries:
+        description: |
+          The number of times the executor will transparently requeue a task whose worker pod
+          failed before the task process started running (for example a node drain, autoscaler
+          scale-down, node boot race, or transient image pull failure). The task instance is
+          still in ``queued`` state in these cases, meaning no task code ran, so requeuing does
+          not consume a task-level retry.
+
+          This changes the previous default behavior: such tasks are now requeued once before
+          failing instead of failing on the first pod failure. Set this to 0 to restore the
+          previous behavior (fail immediately, no requeue).
+
+          Use -1 for unlimited requeues, but with caution: a pod that fails on every launch
+          (for example a misconfigured image that can never be pulled) will be requeued forever,
+          and with the default ``delete_worker_pods_on_failure = False`` the failed pods are not
+          cleaned up, so they accumulate.
+        version_added: 10.20.0
+        type: integer
+        example: ~
+        default: "1"
+      pod_launch_failure_excluded_container_reasons:
+        description: |
+          Comma-separated list of container termination reasons that are excluded from the
+          ``pod_launch_failure_retries`` requeue path even when the task instance is still in
+          ``queued`` state. Pods that fail with an excluded reason consume a normal task retry
+          instead of being transparently requeued. The default ``Error`` covers the case where
+          the container started executing but the worker process exited before writing
+          ``running`` to the database, which is most likely an Airflow-specific startup error
+          rather than a transient infrastructure event. Set to an empty value to requeue these
+          cases as well.
+        version_added: 10.20.0
+        type: string
+        example: ~
+        default: "Error"
 
 executors:
   - airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor

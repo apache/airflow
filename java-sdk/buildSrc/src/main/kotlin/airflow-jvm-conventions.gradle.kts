@@ -53,3 +53,17 @@ configure<SpotlessExtension> {
         endWithNewline()
     }
 }
+
+tasks.withType<Jar>().configureEach {
+    metaInf {
+        from(rootProject.layout.projectDirectory.file("LICENSE"))
+        from(rootProject.layout.projectDirectory.file("NOTICE"))
+    }
+}
+
+tasks.withType<AbstractArchiveTask>().configureEach {
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    dirPermissions { unix("755") }
+    filePermissions { unix("644") }
+}

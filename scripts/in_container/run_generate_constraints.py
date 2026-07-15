@@ -398,10 +398,15 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #   does not yet carry this cap, so we mirror it here so PyPI constraints stay installable
     #   until the SQLAlchemy fix is released. Tracked upstream at
     #   https://github.com/sqlalchemy/sqlalchemy/issues/13306
-    #
+    # * databricks-sql-connector>=4.0.0 - added to keep databricks-sql-connector from downgrading
+    #   because of https://github.com/apache/thrift/pull/3584 - which shipped thrift 0.24.0. Older
+    #   versions of databricks-sql-connector do not have the thrift<=0.23.0 limitation, so the
+    #   resolver preferred the latest thrift over the latest connector and downgraded the connector.
+    #   This is tracked in https://github.com/databricks/databricks-sql-python/issues/859
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
         "pymysql>=1.0.3,<1.2",
+        "databricks-sql-connector>=4.0.0",
     ]
 
     result = run_command(

@@ -22,8 +22,10 @@ import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, select
 
-from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
     QueryPartitionedDagRunDagIdFilter,
     QueryPartitionedDagRunHasCreatedDagRunIdFilter,
 )
@@ -244,6 +246,8 @@ def _build_response(row, required_count: int, received_count: int) -> Partitione
 )
 def get_partitioned_dag_runs(
     session: SessionDep,
+    limit: QueryLimit,
+    offset: QueryOffset,
     readable_dags_filter: ReadableDagsFilterDep,
     dag_id: QueryPartitionedDagRunDagIdFilter,
     has_created_dag_run_id: QueryPartitionedDagRunHasCreatedDagRunIdFilter,
@@ -268,14 +272,21 @@ def get_partitioned_dag_runs(
     readable_dag_ids = readable_dags_filter.value
     if readable_dag_ids is not None:
         query = query.where(AssetPartitionDagRun.target_dag_id.in_(readable_dag_ids))
-    query = query.order_by(AssetPartitionDagRun.created_at.desc())
+    query = query.order_by(AssetPartitionDagRun.created_at.desc(), AssetPartitionDagRun.id.desc())
+
+    query, total_entries = paginated_select(
+        statement=query,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
 
     if not (rows := session.execute(query).all()):
-        if dag_id.value is not None:
+        if dag_id.value is not None and total_entries == 0:
             dag_exists = session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value))
             if dag_exists is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found")
-        return PartitionedDagRunCollectionResponse(partitioned_dag_runs=[], total=0)
+        return PartitionedDagRunCollectionResponse(partitioned_dag_runs=[], total=total_entries)
 
     # Batch-fetch DagModels (for cached partition_mapper_info), required assets,
     # and APDR log entries in three single queries instead of N per-Dag queries.
@@ -336,14 +347,14 @@ def get_partitioned_dag_runs(
 
     model_data: dict[str, Any] = {
         "partitioned_dag_runs": results,
-        "total": len(results),
+        "total": total_entries,
         "asset_expressions": asset_expressions,
     }
     return PartitionedDagRunCollectionResponse.model_validate(model_data)
 
 
 @partitioned_dag_runs_router.get(
-    "/pending_partitioned_dag_run/{dag_id}/{partition_key}",
+    "/pending_partitioned_dag_run/{dag_id}",
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_pending_partitioned_dag_run(
@@ -352,6 +363,9 @@ def get_pending_partitioned_dag_run(
     session: SessionDep,
 ) -> PartitionedDagRunDetailResponse:
     """Return full details for pending PartitionedDagRun."""
+    # partition_key is a query param, not a path segment: it is a free-form key
+    # (up to 250 chars) that may itself contain "/", which would otherwise be
+    # ambiguous (or mis-routed) as a path segment.
     partitioned_dag_run = session.execute(
         select(
             AssetPartitionDagRun.id,
@@ -367,7 +381,11 @@ def get_pending_partitioned_dag_run(
             AssetPartitionDagRun.partition_key == partition_key,
             AssetPartitionDagRun.created_dag_run_id.is_(None),
         )
-    ).one_or_none()
+        # Duplicate pending rows for the same (dag_id, partition_key) can exist
+        # after a crash; mirror _get_or_create_apdr and work on the latest one.
+        .order_by(AssetPartitionDagRun.id.desc())
+        .limit(1)
+    ).first()
 
     if partitioned_dag_run is None:
         raise HTTPException(
@@ -441,9 +459,15 @@ def get_pending_partitioned_dag_run(
             required_keys = []
             received_count = 0
             required_count = 1
-        else:
+        elif is_rollup:
             received_count = len(received_keys)
             required_count = len(required_keys)
+        else:
+            # Match the list route's _compute_received_count: a non-rollup asset is
+            # satisfied by any single received event, so credit caps at 1 even if
+            # several distinct upstream keys mapped onto this one target key.
+            required_count = len(required_keys)
+            received_count = 1 if received_keys else 0
         assets.append(
             PartitionedDagRunAssetResponse(
                 asset_id=asset_row.id,

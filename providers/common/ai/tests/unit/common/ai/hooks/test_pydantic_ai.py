@@ -41,9 +41,9 @@ class TestPydanticAIHookInit:
         assert hook.model_id is None
 
     def test_custom_conn_id(self):
-        hook = PydanticAIHook(llm_conn_id="my_llm", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="my_llm", model_id="openai:gpt-5.6-sol")
         assert hook.llm_conn_id == "my_llm"
-        assert hook.model_id == "openai:gpt-5.3"
+        assert hook.model_id == "openai:gpt-5.6-sol"
 
     def test_azure_hook_uses_own_default_conn_name(self):
         """Subclass default_conn_name is used, not the base class value."""
@@ -69,7 +69,7 @@ class TestPydanticAIHookGetConn:
         mock_provider = MagicMock()
         mock_infer_provider_class.return_value = MagicMock(return_value=mock_provider)
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -82,7 +82,7 @@ class TestPydanticAIHookGetConn:
         assert result is mock_model
         mock_infer_model.assert_called_once()
         call_args = mock_infer_model.call_args
-        assert call_args[0][0] == "openai:gpt-5.3"
+        assert call_args[0][0] == "openai:gpt-5.6-sol"
         # provider_factory should be passed as keyword arg
         assert "provider_factory" in call_args[1]
 
@@ -120,7 +120,7 @@ class TestPydanticAIHookGetConn:
         mock_infer_model.return_value = MagicMock(spec=Model)
         mock_infer_provider_class.return_value = MagicMock(return_value=MagicMock())
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -131,7 +131,7 @@ class TestPydanticAIHookGetConn:
             hook.get_conn()
 
         # model_id param takes priority over extra
-        assert mock_infer_model.call_args[0][0] == "openai:gpt-5.3"
+        assert mock_infer_model.call_args[0][0] == "openai:gpt-5.6-sol"
 
     def test_get_conn_raises_when_no_model(self):
         hook = PydanticAIHook(llm_conn_id="test_conn")
@@ -188,7 +188,7 @@ class TestPydanticAIHookGetConn:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
             first = hook.get_conn()
@@ -205,7 +205,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -225,7 +225,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -245,7 +245,7 @@ class TestPydanticAIHookCreateAgent:
         )
 
     def test_create_agent_without_instructions_or_spec_file_raises(self):
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         with pytest.raises(ValueError, match="instructions is required"):
             hook.create_agent()
 
@@ -256,7 +256,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
             hook.create_agent(spec_file="/path/to/agent.yaml")
@@ -293,7 +293,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         spec_path = Path("/path/to/agent.yaml")
         with patch.object(hook, "get_connection", return_value=conn):
@@ -314,7 +314,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
             hook.create_agent(
@@ -336,7 +336,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
             hook.create_agent(output_type=dict, spec_file="/path/to/agent.yaml")
@@ -354,7 +354,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
             hook.create_agent(
@@ -377,7 +377,7 @@ class TestPydanticAIHookCreateAgentInstrumentation:
 
     @staticmethod
     def _hook() -> PydanticAIHook:
-        return PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        return PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
     def test_instrument_set_when_settings_returned(self, mock_settings):
@@ -404,12 +404,23 @@ class TestPydanticAIHookCreateAgentInstrumentation:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_caller_instrument_short_circuits(self, mock_infer_model, mock_settings, mock_agent_cls):
         """A caller that passes its own ``instrument`` wins; we don't override it."""
-        mock_infer_model.return_value = MagicMock(spec=Model)
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
         hook = self._hook()
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.create_agent(instructions="hi", instrument=False)
+            agent = hook.create_agent(instructions="hi", instrument=False)
 
+        # ``instrument`` is not an Agent() constructor kwarg in pydantic-ai 2.x:
+        # it must be stripped from the constructor call and applied through the
+        # ``agent.instrument`` property instead, and the provider's own
+        # auto-instrumentation must not override the caller's value.
+        mock_agent_cls.assert_called_once_with(
+            mock_model,
+            output_type=str,
+            instructions="hi",
+        )
+        assert agent.instrument is False
         mock_settings.assert_not_called()
 
 
@@ -419,7 +430,7 @@ class TestPydanticAIHookTestConnection:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",

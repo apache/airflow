@@ -471,8 +471,10 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
     :param configuration_overrides: The configuration overrides for the job run,
         specifically either application configuration or monitoring configuration.
     :param client_request_token: The client idempotency token of the job run request.
-        Use this if you want to specify a unique ID to prevent two jobs from getting started.
-        If no token is provided, a UUIDv4 token will be generated for you.
+        Pass an explicit value to make repeated submissions idempotent: EMR on EKS treats a
+        resubmission with the same token as the original run, so task retries return that run
+        instead of starting a new one. If no token is provided, a fresh UUIDv4 is generated on
+        every task attempt, so each retry starts a genuinely new job run.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -545,7 +547,7 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
         self.release_label = release_label
         self.job_driver = job_driver
         self.configuration_overrides = configuration_overrides or {}
-        self.client_request_token = client_request_token or str(uuid4())
+        self.client_request_token = client_request_token
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.max_polling_attempts = max_polling_attempts
@@ -575,13 +577,14 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
                 configuration_overrides, context
             )
 
+        client_request_token = self.client_request_token or str(uuid4())
         self.job_id = self.hook.submit_job(
             self.name,
             self.execution_role_arn,
             self.release_label,
             self.job_driver,
             configuration_overrides,
-            self.client_request_token,
+            client_request_token,
             self.tags,
             self.job_retry_max_attempts,
         )
