@@ -77,6 +77,7 @@ from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
+    AssetEventQueue,
     AssetModel,
     AssetPartitionDagRun,
     AssetWatcherModel,
@@ -85,6 +86,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    _register_queued_asset_event,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
@@ -335,6 +337,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
+        # Asset-event queue drain tuning. Read here (not per drain tick) so the drain loop stays free
+        # of conf lookups, which can hit the secret backend and break HA locks (see note above).
+        self._asset_event_queue_batch_size = conf.getint(
+            "scheduler", "asset_event_queue_batch_size", fallback=100
+        )
+        self._asset_event_queue_max_attempts = conf.getint(
+            "scheduler", "asset_event_queue_max_attempts", fallback=5
+        )
+        self._asset_event_queue_drain_interval = conf.getfloat(
+            "scheduler", "asset_event_queue_drain_interval", fallback=5.0
+        )
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
@@ -1786,6 +1799,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._remove_unreferenced_triggers,
+        )
+
+        timers.call_regular_interval(
+            self._asset_event_queue_drain_interval,
+            self._drain_asset_event_queue,
         )
 
         if any(x.is_local for x in self.executors):
@@ -3697,6 +3715,66 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .execution_options(synchronize_session="fetch")
         )
+
+    @provide_session
+    def _drain_asset_event_queue(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Process pending asset-event registrations enqueued by the execution API.
+
+        The task-success path commits an :class:`~airflow.models.asset.AssetEventQueue` marker
+        atomically with the task state instead of registering the events inline, so the scheduler
+        is the sole writer that runs ``register_asset_changes_in_db`` in a live deployment. We claim
+        a batch of pending rows in a single ``FOR UPDATE SKIP LOCKED`` query (so multiple schedulers
+        do not collide), register each row's events and delete it in the same transaction so it is
+        processed exactly once. A row that keeps failing is retried on later passes until it exceeds
+        ``asset_event_queue_max_attempts``, after which it is left in place (parked) and surfaced via
+        the ``asset.event_queue.failures`` metric for an operator to inspect.
+        """
+        max_attempts = self._asset_event_queue_max_attempts
+        rows = session.scalars(
+            with_row_locks(
+                select(AssetEventQueue)
+                .where(AssetEventQueue.attempts < max_attempts)
+                .order_by(AssetEventQueue.created_at)
+                .limit(self._asset_event_queue_batch_size),
+                of=AssetEventQueue,
+                session=session,
+                skip_locked=True,
+            )
+        ).all()
+
+        processed = 0
+        for row in rows:
+            ti_id = row.ti_id
+            try:
+                # Each row is registered in its own savepoint so one poison row rolls back alone
+                # instead of discarding the whole batch; the outer transaction commits once at the end.
+                with session.begin_nested():
+                    _register_queued_asset_event(row, session=session)
+                processed += 1
+            except Exception:
+                with session.begin_nested():
+                    row.attempts += 1
+                if row.attempts >= max_attempts:
+                    self.log.error(
+                        "Giving up on asset-event registration for task instance %s after %s "
+                        "attempts; the row is left in asset_event_queue for inspection.",
+                        ti_id,
+                        row.attempts,
+                    )
+                    stats.incr("asset.event_queue.failures")
+                else:
+                    self.log.warning(
+                        "Asset-event registration for task instance %s failed; will retry (attempt %s).",
+                        ti_id,
+                        row.attempts,
+                    )
+
+        session.commit()
+        if processed:
+            stats.incr("asset.event_queue.processed", processed)
+        pending = session.scalar(select(func.count()).select_from(AssetEventQueue))
+        stats.gauge("asset.event_queue.pending", pending or 0)
 
     @provide_session
     def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:

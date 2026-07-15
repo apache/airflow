@@ -51,6 +51,21 @@ In addition to scheduling Dags based on time, you can also schedule Dags to run 
 
     :ref:`asset_definitions` for how to declare assets.
 
+.. note::
+
+    Asset events are registered asynchronously. When a task succeeds, Airflow durably records its
+    asset events and the scheduler registers them shortly afterwards rather than inside the
+    task-completion request, usually within one scheduler loop and longer under heavy load.
+    Downstream asset-scheduled Dags are therefore triggered after a brief, eventually consistent
+    delay. The scheduler retries a queued registration up to ``[scheduler]
+    asset_event_queue_max_attempts`` times, after which the row is parked and reported via the
+    ``asset.event_queue.failures`` metric. Use the ``[scheduler] asset_event_queue_drain_interval``
+    option to tune how often the scheduler processes queued asset events.
+
+    ``dag.test`` runs without a scheduler, so it registers each task's asset events itself once
+    the task finishes; the events stay visible during the test, though downstream asset-scheduled
+    Dags are still only triggered by a running scheduler.
+
 Schedule Dags with assets
 -------------------------
 

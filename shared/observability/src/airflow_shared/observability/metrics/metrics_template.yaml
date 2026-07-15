@@ -318,6 +318,30 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "asset.event_queue.enqueued"
+    description: "Number of task-completion asset registrations written as a durable queue marker"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset.event_queue.processed"
+    description: "Number of asset event registrations drained from the queue by the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset.event_queue.failures"
+    description: "Number of asset event registrations parked after exceeding the retry limit"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "asset.event_queue.pending"
+    description: "Number of asset event registrations currently pending in the queue"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "deadline_alerts.deadline_created"
     description: "Number of deadline alerts created for a Dag run"
     type: "counter"

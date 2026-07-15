@@ -1571,6 +1571,16 @@ def _run_task(
                 break
             raise
 
+    # On success the execution API only enqueues the task's asset events as a durable marker;
+    # in a live deployment the scheduler drains that queue. dag.test runs in process with no
+    # scheduler, so register the events in line here (the same way the triggerer is run in
+    # process above) rather than leaving them stuck in the queue.
+    if ti.state == TaskInstanceState.SUCCESS:
+        from airflow.models.asset import register_pending_asset_events
+
+        with create_session() as session:
+            register_pending_asset_events(ti_ids=[ti.id], session=session)
+
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
     return taskrun_result
 

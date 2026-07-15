@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -77,7 +78,7 @@ from airflow.api_fastapi.execution_api.security import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
-from airflow.models.asset import AssetActive
+from airflow.models.asset import AssetActive, AssetEventQueue
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
@@ -96,6 +97,8 @@ from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
+
+    from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 
 router = VersionedAPIRouter()
 
@@ -499,6 +502,30 @@ def ti_update_state(
                 extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
+        # Durably record the successful task's asset events in the SAME transaction that commits the
+        # state, so the marker can never be lost in a crash between this commit and their
+        # registration. The scheduler drain is the single writer that registers them; the request
+        # never runs asset registration itself, which is what keeps the task_instance row lock short
+        # under high fan-out. Only a genuine RUNNING->SUCCESS transition reaches here (a duplicate
+        # SUCCESS->SUCCESS short-circuits earlier), so a completion is never enqueued twice.
+        if (
+            updated_state == TaskInstanceState.SUCCESS
+            and isinstance(ti_patch_payload, TISuccessStatePayload)
+            and (ti_patch_payload.task_outlets or ti_patch_payload.outlet_events)
+        ):
+            _enqueue_asset_events(
+                task_instance_id=task_instance_id,
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+                task_outlets=ti_patch_payload.task_outlets,
+                outlet_events=ti_patch_payload.outlet_events,
+                session=session,
+            )
+        # Commit the state, log entry and durable queue marker together so they land atomically and
+        # the row lock is released promptly.
+        session.commit()
     except DataError:
         # Let DataErrorHandler return a 422 (not the opaque 500 below).
         raise
@@ -525,7 +552,9 @@ def ti_update_state(
                     task_id=task_id,
                     map_index=map_index,
                 )
+                session.commit()
             except Exception:
+                session.rollback()
                 log.warning(
                     "Failed to clear task state on success",
                     dag_id=dag_id,
@@ -622,6 +651,58 @@ def _validate_outlet_event_partition_keys(outlet_events: list[dict[str, Any]]) -
             )
 
 
+def _asset_event_payload(
+    task_outlets: list[AssetProfile],
+    outlet_events: list[dict[str, Any]],
+    ti_key: dict[str, Any],
+) -> dict[str, Any]:
+    """Serialize a task's outlets, outlet events, and natural key into the queue row's JSON payload."""
+    return {
+        "task_outlets": [outlet.model_dump(mode="json") for outlet in task_outlets],
+        "outlet_events": outlet_events,
+        # The scheduler drain resolves the live task instance by this natural key rather than by the
+        # surrogate ``ti_id``. Clearing a task reassigns its uuid7 id, and relying on the foreign
+        # key's ON UPDATE CASCADE to re-point the row only works on Postgres -- SQLite does not
+        # enforce foreign keys in Airflow's production engine -- so a natural-key lookup is what
+        # keeps the pending events reachable on every backend.
+        "ti_key": ti_key,
+    }
+
+
+def _enqueue_asset_events(
+    *,
+    task_instance_id: UUID,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    map_index: int,
+    task_outlets: list[AssetProfile],
+    outlet_events: list[dict[str, Any]],
+    session: SessionDep,
+) -> None:
+    """
+    Add a durable queue marker for a completed task's asset events, without committing.
+
+    The caller commits this in the same transaction as the task-state update, so the marker and the
+    ``SUCCESS`` state land atomically: the events can never be lost in a crash between the state
+    commit and their registration. The scheduler drain is the single writer that later registers the
+    events and deletes the row. ``merge`` overwrites any pending row a retried completion left behind
+    rather than conflicting on the ``ti_id`` primary key.
+    """
+    session.merge(
+        AssetEventQueue(
+            ti_id=task_instance_id,
+            payload=_asset_event_payload(
+                task_outlets,
+                outlet_events,
+                {"dag_id": dag_id, "run_id": run_id, "task_id": task_id, "map_index": map_index},
+            ),
+            attempts=0,
+        )
+    )
+    stats.incr("asset.event_queue.enqueued")
+
+
 def _create_ti_state_update_query_and_update_state(
     *,
     ti_patch_payload: TIStateUpdate,
@@ -659,14 +740,6 @@ def _create_ti_state_update_query_and_update_state(
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
             query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
-        elif isinstance(ti_patch_payload, TISuccessStatePayload):
-            if ti is not None:
-                TI.register_asset_changes_in_db(
-                    ti,
-                    ti_patch_payload.task_outlets,
-                    ti_patch_payload.outlet_events,
-                    session=session,
-                )
         try:
             _emit_task_span(ti, state=updated_state)
         except Exception:

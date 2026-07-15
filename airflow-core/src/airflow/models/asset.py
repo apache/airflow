@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -786,6 +787,101 @@ class AssetDagRunQueue(Base):
         for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class AssetEventQueue(Base):
+    """
+    Durable marker of asset events a successful task emitted, awaiting registration.
+
+    On task success the execution API commits one of these rows atomically with the task
+    state instead of registering the asset events inline, so the ``ti_update_state`` request
+    holds the ``task_instance`` row lock only for the state write plus this insert rather than
+    for the whole ``register_asset_changes_in_db`` call (which was the source of API-server
+    lock contention under high fan-out). The scheduler drains this table, resolves the live
+    task instance by natural key, runs
+    :meth:`~airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db` to create
+    the ``AssetEvent`` and ``AssetDagRunQueue`` rows, and deletes the queue row once that write
+    commits. The in-process runner behind ``dag.test`` has no scheduler, so it drains the row
+    itself via :func:`register_pending_asset_events` right after the task finishes.
+
+    ``ti_id`` is the primary key: at most one pending registration exists per task
+    instance, and the row is cascade-deleted if the task instance is removed.
+    """
+
+    ti_id: Mapped[UUID] = mapped_column(sa.Uuid(), primary_key=True, nullable=False)
+    # Both the emitted task outlets and the outlet events live in one JSON payload
+    # (``{"task_outlets": [...], "outlet_events": [...], "ti_key": {...}}``). The queue is a durable
+    # buffer only ever read back in full when draining, so a single column keeps the enqueue cheap.
+    payload: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default=dict)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "asset_event_queue"
+    __table_args__ = (
+        PrimaryKeyConstraint(ti_id, name="asset_event_queue_pkey"),
+        ForeignKeyConstraint(
+            (ti_id,),
+            ["task_instance.id"],
+            name="aeq_ti_fkey",
+            ondelete="CASCADE",
+            # Referential cleanup only. Correctness on clear does not rely on these cascades:
+            # SQLite does not enforce foreign keys in Airflow's production engine, so they silently
+            # no-op there. The drain re-resolves the task instance by natural key instead, which
+            # survives the id reassignment a clear performs on every backend.
+            onupdate="CASCADE",
+        ),
+        Index("idx_asset_event_queue_created_at", created_at),
+    )
+
+    def __repr__(self):
+        return f"AssetEventQueue(ti_id={self.ti_id!r}, attempts={self.attempts!r})"
+
+
+def _register_queued_asset_event(row: AssetEventQueue, *, session: Session) -> None:
+    """
+    Register the asset events captured in one :class:`AssetEventQueue` row, then delete it.
+
+    Resolves the live task instance by natural key (``dag_id``/``run_id``/``task_id``/``map_index``)
+    rather than the surrogate ``ti_id``: clearing a task reassigns its id, so a lookup by the
+    enqueued id would miss the row on any backend that does not cascade the id change. If the task
+    instance no longer exists there is nothing to register and the row is simply dropped. The caller
+    owns the surrounding transaction (the scheduler wraps each row in a savepoint; the in-process
+    runner commits the session).
+    """
+    from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
+    from airflow.models.taskinstance import TaskInstance
+
+    payload = row.payload
+    ti_key = payload["ti_key"]
+    ti = session.scalar(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == ti_key["dag_id"],
+            TaskInstance.run_id == ti_key["run_id"],
+            TaskInstance.task_id == ti_key["task_id"],
+            TaskInstance.map_index == ti_key["map_index"],
+        )
+    )
+    if ti is not None:
+        task_outlets = [AssetProfile.model_validate(outlet) for outlet in payload["task_outlets"]]
+        TaskInstance.register_asset_changes_in_db(ti, task_outlets, payload["outlet_events"], session=session)
+    session.delete(row)
+
+
+def register_pending_asset_events(*, ti_ids: Iterable[UUID], session: Session) -> None:
+    """
+    Register queued asset events for the given task instances in line and commit.
+
+    The execution API records asset events on task success as durable
+    :class:`AssetEventQueue` markers that the scheduler drains. The in-process task runner
+    behind ``dag.test`` has no scheduler, so it calls this to register the events itself right
+    after a task succeeds, the same way it runs the triggerer in process. Best-effort and
+    unbatched: production contention handling and retry/park bookkeeping stay in the scheduler
+    drain (``SchedulerJobRunner._drain_asset_event_queue``).
+    """
+    rows = session.scalars(select(AssetEventQueue).where(AssetEventQueue.ti_id.in_(ti_ids))).all()
+    for row in rows:
+        _register_queued_asset_event(row, session=session)
+    session.commit()
 
 
 association_table = Table(
