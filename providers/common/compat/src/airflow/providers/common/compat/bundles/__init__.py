@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+import inspect
+
 import structlog
 
 from airflow.dag_processing.bundles.base import BaseDagBundle as _BaseDagBundle
 
-if hasattr(_BaseDagBundle, "_log"):
+if isinstance(inspect.getattr_static(_BaseDagBundle, "_log", None), property):
     # Modern Airflow already provides BaseDagBundle._log – use it as-is.
     BaseDagBundle = _BaseDagBundle
 else:
@@ -34,10 +36,11 @@ else:
         def _log(self):
             """Lazy structlog logger bound with common bundle context."""
             if not hasattr(self, "_compat_structlog"):
+                log_context = self._log_context() if hasattr(self, "_log_context") else {}
                 self._compat_structlog = structlog.get_logger(type(self).__module__).bind(
                     bundle_name=self.name,
                     version=self.version,
-                    **self._log_context(),
+                    **log_context,
                 )
             return self._compat_structlog
 
