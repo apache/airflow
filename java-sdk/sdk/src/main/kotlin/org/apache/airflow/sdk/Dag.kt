@@ -21,6 +21,21 @@ package org.apache.airflow.sdk
 
 import kotlin.Throws
 
+private val KEY_REGEX = Regex("""^[\p{L}\p{N}_.-]+$""")
+private const val MAX_KEY_LENGTH = 250
+
+private fun validateKey(
+  name: String,
+  value: String,
+) {
+  require(KEY_REGEX.matches(value)) {
+    "$name '$value' must be made of alphanumeric characters, dashes, dots, and underscores"
+  }
+  require(value.length <= MAX_KEY_LENGTH) {
+    "$name must be less than $MAX_KEY_LENGTH characters, not ${value.length}"
+  }
+}
+
 /**
  * A collection of tasks with directional dependencies.
  *
@@ -30,14 +45,21 @@ import kotlin.Throws
  * where the annotation processor generates the wiring for you. Only use this
  * class directly if you need to do low-level plumbing.
  *
- * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
- *    dashes, dots, or underscores; must be unique within a [Bundle].
+ * @param id Dag identifier. Must contain only alphanumeric characters, dashes,
+ *    dots, or underscores (max 250 characters); must be unique within a
+ *    [Bundle].
+ * @throws IllegalArgumentException if the ID is empty, too long, or contains
+ *    other characters.
  *
  * @see Builder.Dag
  */
 class Dag(
-  val id: String, // TODO: charset check?
+  val id: String,
 ) {
+  init {
+    validateKey("Dag ID", id)
+  }
+
   internal var tasks = mutableMapOf<String, Class<out Task>>()
 
   /**
@@ -46,17 +68,20 @@ class Dag(
    * The class must have a public no-argument constructor and implement [Task].
    * Task IDs must be unique within a Dag.
    *
-   * @param id Task identifier, unique within this Dag.
+   * @param id Task identifier, unique within this Dag. Must contain only
+   *    alphanumeric characters, dashes, dots, or underscores (max 250
+   *    characters).
    * @param definition Class that implements [Task]. Must have a public no-arg
    *    constructor.
    * @return This Dag, for chaining.
-   * @throws IllegalArgumentException if a task already exists in the Dag with
-   *    the same ID.
+   * @throws IllegalArgumentException if the ID is empty, too long, contains
+   *    other characters, or a task already exists in the Dag with the same ID.
    */
   fun addTask(
     id: String,
     definition: Class<out Task>,
   ): Dag {
+    validateKey("Task ID", id)
     require(tasks.putIfAbsent(id, definition) == null) {
       "Tasks in Dag have duplicate ID: $id"
     }
