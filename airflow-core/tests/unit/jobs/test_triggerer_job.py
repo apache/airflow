@@ -1157,10 +1157,18 @@ class TestTriggerRunner:
         mock_stats_incr.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_block_watchdog_logs_when_threshold_is_exceeded(self) -> None:
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    async def test_block_watchdog_logs_when_threshold_is_exceeded(self, team_name, expected_tags) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
             trigger_runner = TriggerRunner()
 
+        trigger_runner.team_name = team_name
         trigger_runner.log = AsyncMock()
 
         async def fake_sleep(_):
@@ -1178,7 +1186,7 @@ class TestTriggerRunner:
         assert "configured warning threshold" in log_message
         assert elapsed == pytest.approx(0.6)
         assert threshold == 0.5
-        mock_stats_incr.assert_called_once_with("triggers.blocked_main_thread")
+        mock_stats_incr.assert_called_once_with("triggers.blocked_main_thread", tags=expected_tags)
 
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
