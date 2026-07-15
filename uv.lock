@@ -6364,7 +6364,7 @@ requires-dist = [
     { name = "azure-mgmt-containerinstance", specifier = ">=10.1.0" },
     { name = "azure-mgmt-containerregistry", specifier = ">=8.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=3.0.0" },
-    { name = "azure-mgmt-datafactory", specifier = ">=2.0.0" },
+    { name = "azure-mgmt-datafactory", specifier = ">=10.0.0" },
     { name = "azure-mgmt-datalake-store", specifier = ">=0.5.0" },
     { name = "azure-mgmt-resource", specifier = ">=2.2.0" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
@@ -9726,16 +9726,16 @@ wheels = [
 
 [[package]]
 name = "azure-mgmt-datafactory"
-version = "9.3.0"
+version = "10.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-mgmt-core" },
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/5e/c28a8a50885185a9a06ff659594fec24f1a840622f21883b376358dd1188/azure_mgmt_datafactory-9.3.0.tar.gz", hash = "sha256:f5fdd5cd416f0ed71dfedf05dc7677b8f0e52f3428fd5b17b04c9200dd8d36b3", size = 494270, upload-time = "2026-03-11T07:52:35.206Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/f9/81397c6afd0fed926ffe3093d108d0392745bddc05c5dfc69880dfb70bb2/azure_mgmt_datafactory-10.0.0.tar.gz", hash = "sha256:c83eeb2b092c1f1e5bb2499ffbba6fd7809a1274739930f9db1e336273405587", size = 717334, upload-time = "2026-07-08T09:40:00.573Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/35/ea6a784652119a7373a730d0eb87d5c0b7d153721d7e23c8e9b76547aca4/azure_mgmt_datafactory-9.3.0-py3-none-any.whl", hash = "sha256:fddb855a27e3f7b78328f184df146d71e433e1dfb9cc4923ea503c53813f0504", size = 570055, upload-time = "2026-03-11T07:52:37.337Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/41/b5a74df49ed17aa27361fc55fd88a07bfe7c7a55bcb5ed210c0e0e712d57/azure_mgmt_datafactory-10.0.0-py3-none-any.whl", hash = "sha256:d0e93194c9e1cd820d2ed4f92813902af89cf4421c02e72a729ae32d87171198", size = 601269, upload-time = "2026-07-08T09:40:02.559Z" },
 ]
 
 [[package]]

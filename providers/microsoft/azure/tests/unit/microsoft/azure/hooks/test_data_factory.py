@@ -17,23 +17,12 @@
 from __future__ import annotations
 
 import os
-from collections import namedtuple
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from azure.core import MatchConditions
-from azure.core.pipeline.transport import HttpTransport
-from azure.mgmt.datafactory import DataFactoryManagementClient as SyncDataFactoryManagementClient
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient
-from azure.mgmt.datafactory.models import (
-    DataFlowResource,
-    Factory,
-    MappingDataFlow,
-    ScheduleTrigger,
-    ScheduleTriggerRecurrence,
-    TriggerResource,
-)
 
 from airflow.models.connection import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -42,8 +31,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
-    _build_if_match_kwargs,
-    _build_if_none_match_kwargs,
     get_field,
     provide_targeted_factory,
 )
@@ -163,78 +150,6 @@ def hook():
     return client
 
 
-class _RequestCaptured(Exception):
-    """Raised by _CaptureTransport so the request is inspected instead of sent."""
-
-
-class _CaptureTransport(HttpTransport):
-    """Record the request the real installed SDK builds, without any network I/O."""
-
-    def __init__(self):
-        self.last_request = None
-
-    def send(self, request, **kwargs):
-        self.last_request = request
-        raise _RequestCaptured
-
-    def open(self):
-        pass
-
-    def close(self):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        pass
-
-
-class _FakeCredential:
-    def get_token(self, *scopes, **kwargs):
-        return namedtuple("AccessToken", ["token", "expires_on"])("fake-token", 2**33)
-
-
-def _make_wire_client(transport: _CaptureTransport) -> SyncDataFactoryManagementClient:
-    return SyncDataFactoryManagementClient(_FakeCredential(), "subscription-id", transport=transport)
-
-
-def _get_conditional_headers(transport: _CaptureTransport) -> dict[str, str]:
-    return {
-        key.lower(): value
-        for key, value in transport.last_request.headers.items()
-        if key.lower() in ("if-match", "if-none-match")
-    }
-
-
-@pytest.mark.parametrize(
-    ("sdk_v10_plus", "if_match", "expected_kwargs"),
-    [
-        (True, '"abc123"', {"etag": '"abc123"', "match_condition": MatchConditions.IfNotModified}),
-        (True, None, {"etag": None, "match_condition": None}),
-        (False, '"abc123"', {"if_match": '"abc123"'}),
-        (False, None, {"if_match": None}),
-    ],
-)
-def test_build_if_match_kwargs(sdk_v10_plus, if_match, expected_kwargs):
-    with mock.patch(f"{MODULE}._ADF_SDK_V10_PLUS", sdk_v10_plus):
-        assert _build_if_match_kwargs(if_match) == expected_kwargs
-
-
-@pytest.mark.parametrize(
-    ("sdk_v10_plus", "if_none_match", "expected_kwargs"),
-    [
-        (True, '"abc123"', {"etag": '"abc123"', "match_condition": MatchConditions.IfModified}),
-        (True, None, {"etag": None, "match_condition": None}),
-        (False, '"abc123"', {"if_none_match": '"abc123"'}),
-        (False, None, {"if_none_match": None}),
-    ],
-)
-def test_build_if_none_match_kwargs(sdk_v10_plus, if_none_match, expected_kwargs):
-    with mock.patch(f"{MODULE}._ADF_SDK_V10_PLUS", sdk_v10_plus):
-        assert _build_if_none_match_kwargs(if_none_match) == expected_kwargs
-
-
 def parametrize(explicit_factory, implicit_factory):
     def wrapper(func):
         return pytest.mark.parametrize(
@@ -329,19 +244,17 @@ def test_create_factory(hook: AzureDataFactoryHook):
 
 
 @pytest.mark.parametrize(
-    ("if_match", "expected_headers"),
-    [('"abc123"', {"if-match": '"abc123"'}), (None, {})],
+    ("if_match", "expected_match_condition"),
+    [(None, None), ("etag-value", MatchConditions.IfNotModified)],
 )
-def test_update_factory(hook: AzureDataFactoryHook, if_match, expected_headers):
-    transport = _CaptureTransport()
-    with (
-        patch.object(hook, "get_conn", return_value=_make_wire_client(transport)),
-        patch.object(hook, "_factory_exists", return_value=True),
-        pytest.raises(_RequestCaptured),
-    ):
-        hook.update_factory(Factory(location="eastus"), RESOURCE_GROUP, FACTORY, if_match)
+def test_update_factory(hook: AzureDataFactoryHook, if_match, expected_match_condition):
+    with patch.object(hook, "_factory_exists") as mock_factory_exists:
+        mock_factory_exists.return_value = True
+        hook.update_factory(MODEL, RESOURCE_GROUP, FACTORY, if_match)
 
-    assert _get_conditional_headers(transport) == expected_headers
+    hook._conn.factories.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, MODEL, etag=if_match, match_condition=expected_match_condition
+    )
 
 
 def test_update_factory_non_existent(hook: AzureDataFactoryHook):
@@ -359,18 +272,15 @@ def test_delete_factory(hook: AzureDataFactoryHook):
 
 
 @pytest.mark.parametrize(
-    ("if_none_match", "expected_headers"),
-    [('"abc123"', {"if-none-match": '"abc123"'}), (None, {})],
+    ("if_none_match", "expected_match_condition"),
+    [(None, None), ("etag-value", MatchConditions.IfModified)],
 )
-def test_get_linked_service(hook: AzureDataFactoryHook, if_none_match, expected_headers):
-    transport = _CaptureTransport()
-    with (
-        patch.object(hook, "get_conn", return_value=_make_wire_client(transport)),
-        pytest.raises(_RequestCaptured),
-    ):
-        hook.get_linked_service(NAME, RESOURCE_GROUP, FACTORY, if_none_match)
+def test_get_linked_service(hook: AzureDataFactoryHook, if_none_match, expected_match_condition):
+    hook.get_linked_service(NAME, RESOURCE_GROUP, FACTORY, if_none_match)
 
-    assert _get_conditional_headers(transport) == expected_headers
+    hook._conn.linked_services.get.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, etag=if_none_match, match_condition=expected_match_condition
+    )
 
 
 def test_create_linked_service(hook: AzureDataFactoryHook):
@@ -436,54 +346,41 @@ def test_delete_dataset(hook: AzureDataFactoryHook):
 
 
 @pytest.mark.parametrize(
-    ("if_none_match", "expected_headers"),
-    [('"abc123"', {"if-none-match": '"abc123"'}), (None, {})],
+    ("if_none_match", "expected_match_condition"),
+    [(None, None), ("etag-value", MatchConditions.IfModified)],
 )
-def test_get_dataflow(hook: AzureDataFactoryHook, if_none_match, expected_headers):
-    transport = _CaptureTransport()
-    with (
-        patch.object(hook, "get_conn", return_value=_make_wire_client(transport)),
-        pytest.raises(_RequestCaptured),
-    ):
-        hook.get_dataflow(NAME, RESOURCE_GROUP, FACTORY, if_none_match)
+def test_get_dataflow(hook: AzureDataFactoryHook, if_none_match, expected_match_condition):
+    hook.get_dataflow(NAME, RESOURCE_GROUP, FACTORY, if_none_match)
 
-    assert _get_conditional_headers(transport) == expected_headers
+    hook._conn.data_flows.get.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, etag=if_none_match, match_condition=expected_match_condition
+    )
 
 
 @pytest.mark.parametrize(
-    ("if_match", "expected_headers"),
-    [('"abc123"', {"if-match": '"abc123"'}), (None, {})],
+    ("if_match", "expected_match_condition"),
+    [(None, None), ("etag-value", MatchConditions.IfNotModified)],
 )
-def test_create_dataflow(hook: AzureDataFactoryHook, if_match, expected_headers):
-    transport = _CaptureTransport()
-    with (
-        patch.object(hook, "get_conn", return_value=_make_wire_client(transport)),
-        patch.object(hook, "_dataflow_exists", return_value=False),
-        pytest.raises(_RequestCaptured),
-    ):
-        hook.create_dataflow(
-            NAME, DataFlowResource(properties=MappingDataFlow()), RESOURCE_GROUP, FACTORY, if_match
-        )
+def test_create_dataflow(hook: AzureDataFactoryHook, if_match, expected_match_condition):
+    hook.create_dataflow(NAME, MODEL, RESOURCE_GROUP, FACTORY, if_match)
 
-    assert _get_conditional_headers(transport) == expected_headers
+    hook._conn.data_flows.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL, etag=if_match, match_condition=expected_match_condition
+    )
 
 
 @pytest.mark.parametrize(
-    ("if_match", "expected_headers"),
-    [('"abc123"', {"if-match": '"abc123"'}), (None, {})],
+    ("if_match", "expected_match_condition"),
+    [(None, None), ("etag-value", MatchConditions.IfNotModified)],
 )
-def test_update_dataflow(hook: AzureDataFactoryHook, if_match, expected_headers):
-    transport = _CaptureTransport()
-    with (
-        patch.object(hook, "get_conn", return_value=_make_wire_client(transport)),
-        patch.object(hook, "_dataflow_exists", return_value=True),
-        pytest.raises(_RequestCaptured),
-    ):
-        hook.update_dataflow(
-            NAME, DataFlowResource(properties=MappingDataFlow()), RESOURCE_GROUP, FACTORY, if_match
-        )
+def test_update_dataflow(hook: AzureDataFactoryHook, if_match, expected_match_condition):
+    with patch.object(hook, "_dataflow_exists") as mock_dataflow_exists:
+        mock_dataflow_exists.return_value = True
+        hook.update_dataflow(NAME, MODEL, RESOURCE_GROUP, FACTORY, if_match)
 
-    assert _get_conditional_headers(transport) == expected_headers
+    hook._conn.data_flows.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL, etag=if_match, match_condition=expected_match_condition
+    )
 
 
 def test_update_dataflow_non_existent(hook: AzureDataFactoryHook):
@@ -608,25 +505,17 @@ def test_create_trigger(hook: AzureDataFactoryHook):
 
 
 @pytest.mark.parametrize(
-    ("if_match", "expected_headers"),
-    [('"abc123"', {"if-match": '"abc123"'}), (None, {})],
+    ("if_match", "expected_match_condition"),
+    [(None, None), ("etag-value", MatchConditions.IfNotModified)],
 )
-def test_update_trigger(hook: AzureDataFactoryHook, if_match, expected_headers):
-    transport = _CaptureTransport()
-    with (
-        patch.object(hook, "get_conn", return_value=_make_wire_client(transport)),
-        patch.object(hook, "_trigger_exists", return_value=True),
-        pytest.raises(_RequestCaptured),
-    ):
-        hook.update_trigger(
-            NAME,
-            TriggerResource(properties=ScheduleTrigger(recurrence=ScheduleTriggerRecurrence())),
-            RESOURCE_GROUP,
-            FACTORY,
-            if_match,
-        )
+def test_update_trigger(hook: AzureDataFactoryHook, if_match, expected_match_condition):
+    with patch.object(hook, "_trigger_exists") as mock_trigger_exists:
+        mock_trigger_exists.return_value = True
+        hook.update_trigger(NAME, MODEL, RESOURCE_GROUP, FACTORY, if_match)
 
-    assert _get_conditional_headers(transport) == expected_headers
+    hook._conn.triggers.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL, etag=if_match, match_condition=expected_match_condition
+    )
 
 
 def test_update_trigger_non_existent(hook: AzureDataFactoryHook):
