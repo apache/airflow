@@ -767,6 +767,29 @@ class TestBigQueryOpenLineageMixin:
 
         assert mock_emit_query_lineage.call_args.kwargs["additional_job_facets"] is None
 
+    @pytest.mark.parametrize(
+        "statistics",
+        [
+            {"startTime": "invalid", "endTime": "1600000005000"},
+            {"startTime": "1600000000000", "endTime": "invalid"},
+        ],
+    )
+    @patch("airflow.providers.openlineage.api.sql.emit_query_lineage")
+    def test_child_query_lineage_omits_partial_timestamps(self, mock_emit_query_lineage, statistics):
+        self.operator._emit_child_query_lineage(
+            task_instance=make_task_instance(),
+            child_index=1,
+            child_job_properties={
+                "configuration": {"jobType": "QUERY", "query": {}},
+                "statistics": statistics,
+            },
+            inputs=[],
+            outputs=[],
+        )
+
+        assert "start_time" not in mock_emit_query_lineage.call_args.kwargs
+        assert "end_time" not in mock_emit_query_lineage.call_args.kwargs
+
     @patch("airflow.providers.openlineage.api.sql.emit_query_lineage")
     def test_child_query_lineage_marks_failed_child_job(self, mock_emit_query_lineage):
         self.operator._emit_child_query_lineage(
