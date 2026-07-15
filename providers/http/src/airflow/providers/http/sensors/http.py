@@ -170,6 +170,7 @@ class HttpSensor(BaseSensorOperator):
                     headers=self.headers,
                     method=self.method,
                     extra_options=self.extra_options,
+                    response_error_codes_allowlist=self.response_error_codes_allowlist,
                     poke_interval=self.poke_interval,
                 ),
                 method_name="execute_complete",
