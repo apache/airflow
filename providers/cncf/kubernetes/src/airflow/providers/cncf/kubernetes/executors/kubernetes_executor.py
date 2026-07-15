@@ -322,6 +322,10 @@ class KubernetesExecutor(BaseExecutor):
         self.task_queue.put(
             KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
         )
+        self.running.add(key)
+        # We keep a temporary local record that we've handled this so we don't
+        # try and remove it from the QUEUED state while we process it
+        self.last_handled[key] = time.time()
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -347,7 +351,6 @@ class KubernetesExecutor(BaseExecutor):
 
             del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
 
     def sync(self) -> None:
         """Synchronize task state."""
