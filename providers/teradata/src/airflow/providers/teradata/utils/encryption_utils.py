@@ -18,23 +18,17 @@
 from __future__ import annotations
 
 import secrets
-import shlex
 import string
 import subprocess
 
 
 def generate_random_password(length=12):
-    # Define the character set: letters, digits, and special characters
     characters = string.ascii_letters + string.digits + string.punctuation
-    # Generate a random password
     password = "".join(secrets.choice(characters) for _ in range(length))
     return password
 
 
 def generate_encrypted_file_with_openssl(file_path: str, password: str, out_file: str):
-    # Write plaintext temporarily to file
-
-    # Run openssl enc with AES-256-CBC, pbkdf2, salt
     cmd = [
         "openssl",
         "enc",
@@ -54,25 +48,18 @@ def generate_encrypted_file_with_openssl(file_path: str, password: str, out_file
 
 
 def decrypt_remote_file_to_string(ssh_client, remote_enc_file, password, bteq_command_str):
-    # Run openssl decrypt command on remote machine
-    quoted_password = shell_quote_single(password)
-
+    # Use -pass stdin to avoid shell quoting on any OS and keep the passphrase
+    # out of the remote process table where ps could expose it.
     decrypt_cmd = (
-        f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:{quoted_password} -in {shlex.quote(remote_enc_file)} | "
-        + bteq_command_str
+        f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass stdin -in {remote_enc_file} | " + bteq_command_str
     )
+    stdin, stdout, stderr = ssh_client.exec_command(decrypt_cmd)
+    stdin.write(password + "\n")
+    stdin.flush()
+    stdin.channel.shutdown_write()
     # Clear password to prevent lingering sensitive data
     password = None
-    quoted_password = None
-    stdin, stdout, stderr = ssh_client.exec_command(decrypt_cmd)
-    # Wait for command to finish
     exit_status = stdout.channel.recv_exit_status()
     output = stdout.read().decode()
     err = stderr.read().decode()
     return exit_status, output, err
-
-
-def shell_quote_single(s):
-    # Escape single quotes in s, then wrap in single quotes
-    # In shell, to include a single quote inside single quotes, close, add '\'' and reopen
-    return "'" + s.replace("'", "'\\''") + "'"
