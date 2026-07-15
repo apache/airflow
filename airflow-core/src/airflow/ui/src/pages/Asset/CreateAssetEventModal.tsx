@@ -45,6 +45,7 @@ import TriggerDAGForm from "src/components/TriggerDag/TriggerDAGForm";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { Dialog, toaster } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import { toNullablePartitionKey } from "src/utils";
 
 type Props = {
   readonly asset: AssetResponse;
@@ -158,10 +159,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       data_interval_start: dataIntervalStart?.toISOString() ?? null,
       logical_date: logicalDate?.toISOString() ?? null,
       note: dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note,
-      partition_key:
-        dagRunRequestBody.partitionKey === undefined || dagRunRequestBody.partitionKey === ""
-          ? null
-          : dagRunRequestBody.partitionKey,
+      partition_key: toNullablePartitionKey(dagRunRequestBody.partitionKey),
     };
 
     materializeAsset({
@@ -175,7 +173,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       requestBody: {
         asset_id: asset.id,
         extra: JSON.parse(extra) as Record<string, unknown>,
-        partition_key: partitionKey === undefined || partitionKey === "" ? null : partitionKey,
+        partition_key: toNullablePartitionKey(partitionKey),
       },
     });
 
