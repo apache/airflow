@@ -18,6 +18,10 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+pytest.importorskip("airflow.dag_processing.bundles", reason="Requires Airflow 3+")
+
 from airflow.dag_processing.bundles.base import BaseDagBundle as CoreBaseDagBundle
 from airflow.providers.common.compat.bundles import BaseDagBundle
 
