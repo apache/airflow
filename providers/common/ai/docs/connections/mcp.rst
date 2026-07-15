@@ -150,9 +150,9 @@ into task logs) without ever being written to the connection:
         token_provider=mint_snowflake_jwt,
     )
 
-``token_provider`` is resolved in DAG code (it is a Python callable, not a stored
+``token_provider`` is resolved in Dag code (it is a Python callable, not a stored
 connection field), so the signing key stays in your environment and is never baked
-into the serialized DAG.
+into the serialized Dag.
 
 Secrets in stdio subprocess environments
 -----------------------------------------
@@ -193,5 +193,5 @@ managed as its own Airflow connection:
     :start-after: [START howto_toolset_mcp_env_provider]
     :end-before: [END howto_toolset_mcp_env_provider]
 
-Like ``token_provider``, ``env_provider`` is resolved in DAG code, so the secret is
-fetched at task-execution time and never baked into the serialized DAG.
+Like ``token_provider``, ``env_provider`` is resolved in Dag code, so the secret is
+fetched at task-execution time and never baked into the serialized Dag.

@@ -87,14 +87,15 @@ class _AssetMainOperator(PythonOperator):
 
         value: Any
         for key, param in inspect.signature(self.python_callable).parameters.items():
-            if param.default is not inspect.Parameter.empty:
-                value = param.default
-            elif key == "self":
+            # ``self``/``context``/``outlet_events`` are reserved keys.
+            if key == "self":
                 value = _fetch_asset(self._definition_name)
             elif key == "context":
                 value = context
             elif key == "outlet_events":
                 value = context["outlet_events"]
+            elif param.default is not inspect.Parameter.empty:
+                value = param.default
             else:
                 value = _fetch_asset(key)
             yield key, value
