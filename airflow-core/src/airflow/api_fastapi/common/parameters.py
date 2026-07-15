@@ -499,14 +499,10 @@ def search_param_factory(
         else "The pipe `|` is matched literally, not as an OR separator. "
     )
     DESCRIPTION = (
-        "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
+        "Case-insensitive substring match; `%` / `_` wildcards allowed. "
         f"{pipe_clause}"
-        "Regular expressions are **not** supported. "
-        "\n\n"
-        "**Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and "
-        "most of the time prevents the database from using B-tree indexes, which can be very "
-        "slow on large tables. Prefer the equivalent "
-        f"``{pattern_name.replace('_pattern', '_prefix_pattern')}`` parameter when possible."
+        f"Not index-friendly — prefer ``{pattern_name.replace('_pattern', '_prefix_pattern')}`` "
+        "on large tables."
     )
 
     def depends_search(
@@ -606,14 +602,10 @@ def prefix_search_param_factory(
         else "The pipe `|` is part of the prefix, not an OR separator. "
     )
     DESCRIPTION = (
-        "Prefix match — returns items whose value starts with the given string "
-        f"(case-sensitive, index-friendly). {pipe_clause}"
-        "Use `~` to match all. Wildcard characters (`%`, `_`) "
-        "are treated as literal characters. Trailing non-alphanumeric characters "
-        "in the prefix are stripped before matching so the range scan stays "
-        "index-compatible under locale-aware collations — e.g. `test_` effectively "
-        "matches items starting with `test`, and `s3://` matches items starting with "
-        "`s3`."
+        "Prefix match (case-sensitive, index-friendly). "
+        f"{pipe_clause}"
+        "`~` matches all; `%` / `_` are literal. Trailing non-alphanumerics are stripped "
+        "(e.g. `s3://` matches values starting with `s3`)."
     )
 
     def depends_prefix_search(
@@ -1151,6 +1143,19 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
             | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(dag_ids)))
             | (AssetModel.consuming_tasks.any(TaskInletAssetReference.dag_id.in_(dag_ids)))
         )
+
+
+class OnlyActiveFilter(BaseParam[bool]):
+    """Filter on asset activeness."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(AssetModel.active.has())
+        return select
+
+    @classmethod
+    def depends(cls, only_active: bool = True) -> OnlyActiveFilter:
+        return cls().set_value(only_active)
 
 
 class Range(BaseModel, Generic[T]):
@@ -1819,6 +1824,12 @@ QueryUriExactMatch = Annotated[
             ),
         )
     ),
+]
+QueryAssetGroupPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(AssetModel.group, "group_pattern"))
+]
+QueryAssetGroupPrefixPatternSearch = Annotated[
+    _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.group, "group_prefix_pattern"))
 ]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))

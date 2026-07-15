@@ -16,20 +16,42 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 
 import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import ColumnElement, and_, case, exists, func, select, true
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.assets import generate_assets_with_last_event_query
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.parameters import (
+    OnlyActiveFilter,
+    QueryAssetDagIdPatternSearch,
+    QueryAssetGroupPatternSearch,
+    QueryAssetGroupPrefixPatternSearch,
+    QueryAssetNamePatternSearch,
+    QueryAssetNamePrefixPatternSearch,
+    QueryLimit,
+    QueryOffset,
+    QueryUriExactMatch,
+    QueryUriPatternSearch,
+    QueryUriPrefixPatternSearch,
+    RangeFilter,
+    SortParam,
+    datetime_range_filter_factory,
+)
 from airflow.api_fastapi.common.partition_helpers import load_partitioned_timetable
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.assets import AssetCollectionResponse, AssetResponse
 from airflow.api_fastapi.core_api.datamodels.ui.assets import (
     NextRunAssetEventResponse,
     NextRunAssetsResponse,
 )
-from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    requires_access_asset,
+    requires_access_asset_alias,
+    requires_access_dag,
+)
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -47,6 +69,83 @@ if TYPE_CHECKING:
 log = structlog.get_logger(logger_name=__name__)
 
 assets_router = AirflowRouter(tags=["Asset"])
+
+
+@assets_router.get(
+    "/assets",
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+        Depends(requires_access_asset_alias(method="GET")),
+    ],
+    operation_id="get_assets_ui",
+)
+def get_assets(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    name_pattern: QueryAssetNamePatternSearch,
+    name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
+    uri: QueryUriExactMatch,
+    uri_pattern: QueryUriPatternSearch,
+    uri_prefix_pattern: QueryUriPrefixPatternSearch,
+    group_pattern: QueryAssetGroupPatternSearch,
+    group_prefix_pattern: QueryAssetGroupPrefixPatternSearch,
+    dag_ids: QueryAssetDagIdPatternSearch,
+    only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
+    last_asset_event_timestamp_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory(
+                "last_asset_event_timestamp", AssetEvent, attribute_name="timestamp"
+            )
+        ),
+    ],
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["id", "name", "uri", "group", "created_at", "updated_at"],
+                AssetModel,
+                {"last_asset_event_timestamp": AssetEvent.timestamp},
+            ).dynamic_depends(default="-last_asset_event_timestamp")
+        ),
+    ],
+    session: SessionDep,
+) -> AssetCollectionResponse:
+    """Get assets. Like the public endpoint, but also supports sorting by group and last asset event timestamp."""
+    assets_select, total_entries = paginated_select(
+        statement=generate_assets_with_last_event_query(),
+        filters=[
+            only_active,
+            name_pattern,
+            name_prefix_pattern,
+            uri,
+            uri_pattern,
+            uri_prefix_pattern,
+            group_pattern,
+            group_prefix_pattern,
+            dag_ids,
+            last_asset_event_timestamp_range,
+        ],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    # CASE key keeps assets with no event (NULL timestamp) last in both directions.
+    order_columns: list[ColumnElement] = []
+    for attr_name, column, is_desc in order_by.get_resolved_columns():
+        if attr_name == "last_asset_event_timestamp":
+            order_columns.append(case((column.is_(None), 1), else_=0))
+        order_columns.append(column.desc() if is_desc else column.asc())
+    assets_select = assets_select.order_by(None).order_by(*order_columns)
+
+    assets = [
+        AssetResponse.from_asset_row(asset, last_asset_event_id, last_asset_event_timestamp)
+        for asset, last_asset_event_id, last_asset_event_timestamp in session.execute(assets_select)
+    ]
+
+    return AssetCollectionResponse(assets=assets, total_entries=total_entries)
 
 
 @assets_router.get(

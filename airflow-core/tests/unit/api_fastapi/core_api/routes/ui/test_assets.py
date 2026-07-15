@@ -25,6 +25,7 @@ from sqlalchemy import select
 
 from airflow.models.asset import (
     AssetActive,
+    AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
@@ -39,7 +40,13 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_apdr, clear_db_dags, clear_db_pakl, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_apdr,
+    clear_db_assets,
+    clear_db_dags,
+    clear_db_pakl,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -471,3 +478,163 @@ class TestNextRunAssets:
         body = response.json()
         assert len(body["events"]) == 1
         assert body["events"][0]["asset_inactive"] is True
+
+
+class TestGetAssetsUi:
+    @pytest.fixture(autouse=True)
+    def cleanup_assets(self):
+        clear_db_assets()
+
+        yield
+
+        clear_db_assets()
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/assets")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/assets")
+        assert response.status_code == 403
+
+    def test_should_respond_200(self, test_client, session):
+        asset = AssetModel(name="ui_asset", uri="s3://bucket/ui_asset", group="asset")
+        session.add(asset)
+        session.add(AssetActive.for_asset(asset))
+        session.commit()
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert body["assets"][0]["name"] == "ui_asset"
+
+    def test_sort_by_last_asset_event_timestamp(self, test_client, session):
+        older = AssetModel(name="older", uri="s3://bucket/older", group="asset")
+        newer = AssetModel(name="newer", uri="s3://bucket/newer", group="asset")
+        session.add_all([older, newer])
+        session.add(AssetActive.for_asset(older))
+        session.add(AssetActive.for_asset(newer))
+        session.flush()
+
+        base = pendulum.datetime(2024, 1, 1)
+        session.add(AssetEvent(asset_id=older.id, timestamp=base))
+        session.add(AssetEvent(asset_id=newer.id, timestamp=base.add(days=1)))
+        session.commit()
+
+        response = test_client.get("/assets?order_by=last_asset_event_timestamp")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["older", "newer"]
+
+        response = test_client.get("/assets?order_by=-last_asset_event_timestamp")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["newer", "older"]
+
+    def test_default_sort_is_last_asset_event_timestamp_desc(self, test_client, session):
+        older = AssetModel(name="older", uri="s3://bucket/older_default", group="asset")
+        newer = AssetModel(name="newer", uri="s3://bucket/newer_default", group="asset")
+        session.add_all([older, newer])
+        session.add(AssetActive.for_asset(older))
+        session.add(AssetActive.for_asset(newer))
+        session.flush()
+
+        base = pendulum.datetime(2024, 1, 1)
+        session.add(AssetEvent(asset_id=older.id, timestamp=base))
+        session.add(AssetEvent(asset_id=newer.id, timestamp=base.add(days=1)))
+        session.commit()
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["newer", "older"]
+
+    def test_sort_by_last_asset_event_timestamp_puts_assets_without_events_last(self, test_client, session):
+        """
+        Regression test: assets that never had an event (NULL last_asset_event_timestamp)
+        must sort after assets with a real timestamp in both directions. Without an explicit
+        nulls_last(), Postgres's default (nulls sort as the largest value) would put these
+        assets *first* when sorting descending -- the opposite of what the UI needs.
+        """
+        never_updated = AssetModel(name="never_updated", uri="s3://bucket/never_updated", group="asset")
+        updated = AssetModel(name="updated", uri="s3://bucket/updated", group="asset")
+        session.add_all([never_updated, updated])
+        session.add(AssetActive.for_asset(never_updated))
+        session.add(AssetActive.for_asset(updated))
+        session.flush()
+
+        session.add(AssetEvent(asset_id=updated.id, timestamp=pendulum.datetime(2024, 1, 1)))
+        session.commit()
+
+        response = test_client.get("/assets?order_by=-last_asset_event_timestamp")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["updated", "never_updated"]
+
+        response = test_client.get("/assets?order_by=last_asset_event_timestamp")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["updated", "never_updated"]
+
+    def test_sort_by_group(self, test_client, session):
+        billing = AssetModel(name="billing_asset", uri="s3://bucket/billing_sort", group="billing")
+        marketing = AssetModel(name="marketing_asset", uri="s3://bucket/marketing_sort", group="marketing")
+        session.add_all([billing, marketing])
+        session.add(AssetActive.for_asset(billing))
+        session.add(AssetActive.for_asset(marketing))
+        session.commit()
+
+        response = test_client.get("/assets?order_by=group")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["billing_asset", "marketing_asset"]
+
+        response = test_client.get("/assets?order_by=-group")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["marketing_asset", "billing_asset"]
+
+    def test_filter_by_group_pattern(self, test_client, session):
+        billing = AssetModel(name="billing_asset", uri="s3://bucket/billing", group="billing")
+        marketing = AssetModel(name="marketing_asset", uri="s3://bucket/marketing", group="marketing")
+        session.add_all([billing, marketing])
+        session.add(AssetActive.for_asset(billing))
+        session.add(AssetActive.for_asset(marketing))
+        session.commit()
+
+        response = test_client.get("/assets?group_pattern=bill")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["billing_asset"]
+
+    def test_filter_by_last_asset_event_timestamp_range(self, test_client, session):
+        older = AssetModel(name="older", uri="s3://bucket/older_range", group="asset")
+        newer = AssetModel(name="newer", uri="s3://bucket/newer_range", group="asset")
+        session.add_all([older, newer])
+        session.add(AssetActive.for_asset(older))
+        session.add(AssetActive.for_asset(newer))
+        session.flush()
+
+        base = pendulum.datetime(2024, 1, 1)
+        session.add(AssetEvent(asset_id=older.id, timestamp=base))
+        session.add(AssetEvent(asset_id=newer.id, timestamp=base.add(days=10)))
+        session.commit()
+
+        response = test_client.get(
+            "/assets", params={"last_asset_event_timestamp_gte": base.add(days=5).isoformat()}
+        )
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["newer"]
+
+    def test_aliases_present_for_asset_via_alias(self, test_client, session):
+        """
+        Regression test for https://github.com/apache/airflow/issues/58058:
+        aliases must be visible via the Assets endpoints, not just fetchable
+        through the CLI/DB.
+        """
+        asset = AssetModel(name="alias_target", uri="s3://bucket/alias_target", group="asset")
+        alias = AssetAliasModel(name="my-alias", group="")
+        session.add_all([asset, alias])
+        session.flush()
+        session.add(AssetActive.for_asset(asset))
+        asset.aliases.append(alias)
+        session.commit()
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body["assets"]) == 1
+        assert body["assets"][0]["aliases"] == [{"id": alias.id, "name": "my-alias", "group": ""}]
