@@ -63,12 +63,25 @@ has the right symlink is a no-op.
 ln -s <main>/.apache-magpie <worktree>/.apache-magpie
 ```
 
+**Trusted external skill sources.** If the main checkout has a
+`.apache-magpie-sources/` directory (the adopter trusts at least
+one [external source](../../docs/skill-sources/README.md)), share
+it the same way so this worktree's source-skill symlinks resolve
+against one snapshot on disk:
+
+```bash
+# only when <main>/.apache-magpie-sources exists:
+ln -s <main>/.apache-magpie-sources <worktree>/.apache-magpie-sources
+```
+
 Then verify the chain end-to-end:
 
 - `ls -la <worktree>/.apache-magpie` returns a symlink pointing
   at `<main>/.apache-magpie`.
 - `ls <worktree>/.apache-magpie/skills/` lists the
   same skills as `ls <main>/.apache-magpie/skills/`.
+- when sources are in use, `ls -la <worktree>/.apache-magpie-sources`
+  is likewise a symlink to `<main>/.apache-magpie-sources`.
 
 ## Step 1b — Wire up the worktree's per-target symlinks
 
@@ -132,7 +145,7 @@ target.
 ## Step 1c — Add the worktree to its own project-local sandbox allowlists
 
 Defensive against
-[issue #197](https://github.com/apache/airflow-steward/issues/197) —
+[issue #197](https://github.com/apache/magpie/issues/197) —
 `sandbox.filesystem.allowRead: ["."]` does not in practice cover
 the worktree's working dir, so reads under this worktree fail
 under the sandbox until an explicit absolute path is added. See
@@ -173,6 +186,53 @@ one-line recap row for the Step 2 summary:
 `worktree-init` does **not** fail when the helper is absent;
 secure-agent isolation is independent of framework adoption.
 
+## Step 1d — Seed the worktree's agent-guard PreToolUse hook
+
+The committed `.claude/settings.json` wires the deterministic
+guard ([`tools/agent-guard`](../../tools/agent-guard/README.md))
+at `$CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py` — a
+**per-worktree** path. The script + its `guards.d/` are
+adopter-installed local files synced into the **main** checkout by
+[`adopt.md` Step 12 pass 1](adopt.md#step-12--post-install-sync--worktree-propagation--sandbox-allowlist--sanity-check)
+/ [`upgrade.md` Step 6b](upgrade.md#step-6b--sync-locally-installed-hooks-and-configuration)
+and **gitignored** ([`adopt.md` Step 7](adopt.md#step-7--gitignore-entries-fresh-only)).
+Because they are gitignored, no worktree inherits them via git —
+every worktree starts without the script and would run with the
+guard **silently inactive** until seeded.
+
+This is the agent-driven counterpart of the
+[post-checkout hook's agent-guard seeding](adopt.md#step-10--worktree-aware-post-checkout-hook-fresh-only):
+the git hook covers `git worktree add`, this step covers worktrees
+that pre-date the hook or where its best-effort copy did not run.
+
+Seed from the main checkout's already-synced copy — a plain file
+copy, the same `<main>` resolved in Step 0:
+
+```bash
+# Only when the main has a guard and this worktree has none — never
+# overwrite a copy the worktree already carries (worktree-local guards).
+if [ -f "<main>/.claude/hooks/agent-guard.py" ] &&
+   [ ! -f "<worktree>/.claude/hooks/agent-guard.py" ]; then
+  mkdir -p "<worktree>/.claude/hooks/guards.d"
+  cp "<main>/.claude/hooks/agent-guard.py" "<worktree>/.claude/hooks/agent-guard.py"
+  cp "<main>/.claude/hooks/guards.d/"*.py "<worktree>/.claude/hooks/guards.d/" 2>/dev/null || true
+fi
+```
+
+Idempotent: a no-op when the worktree already has the script, and
+a no-op when the main has no agent-guard yet (an adopter who has
+not run the Step 12 / Step 6b sync). Surface a one-line recap row
+for Step 2:
+
+- ✓ already present, OR
+- + seeded from `<main>` (script + N guards), OR
+- ⚠ main has no agent-guard yet — run `/magpie-setup` (or
+  `/magpie-setup upgrade`) from the main checkout to sync it.
+
+`worktree-init` does **not** fail when the main carries no
+agent-guard; the guard is an opt-in adopter-side file, and the
+worktree's framework-skill symlinks are usable without it.
+
 ## Step 2 — Recap
 
 Print a short summary:
@@ -185,6 +245,9 @@ Print a short summary:
   active target dir (`.agents/skills/`, the `.claude/`/`.github/`
   pair, any present holdout), split into *opt-in* and
   *always-on*, with per-skill ✓ / + / ↻ counts.
+- The sandbox-allowlist recap row from Step 1c.
+- The agent-guard recap row from Step 1d (✓ already present /
+  + seeded / ⚠ main has no agent-guard yet).
 - A reminder: `upgrade` from the main, not from the worktree.
 
 ## Inputs

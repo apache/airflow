@@ -44,13 +44,14 @@ import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
+import { useAutoRefresh, isStatePending, renderDuration, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
 import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
 import BulkMarkTaskInstancesAsButton from "./BulkMarkTaskInstancesAsButton";
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
+import TaskInstanceNoteButton from "./TaskInstanceNoteButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
@@ -235,6 +236,7 @@ const taskInstanceColumns = ({
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
+        <TaskInstanceNoteButton taskInstance={row.original} />
         <ClearTaskInstanceButton taskInstance={row.original} />
         <MarkTaskInstanceAsButton taskInstance={row.original} />
         <DeleteTaskInstanceButton taskInstance={row.original} />
@@ -251,6 +253,10 @@ const taskInstanceColumns = ({
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
+
+  // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
+
   const [searchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState({

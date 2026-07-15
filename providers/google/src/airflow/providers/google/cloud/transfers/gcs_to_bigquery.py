@@ -362,6 +362,7 @@ class GCSToBigQueryOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
+            use_legacy_sql=False,
         )
         self.hook = hook
         self.source_format = self.source_format.upper()
@@ -513,6 +514,7 @@ class GCSToBigQueryOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
+            use_legacy_sql=False,
         )
         if self.max_id_key:
             self.log.info("Selecting the MAX value from BigQuery column %r...", self.max_id_key)
@@ -854,6 +856,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 location=self.location,
                 impersonation_chain=self.impersonation_chain,
+                use_legacy_sql=False,
             )
 
         project_id = self.project_id or self.hook.project_id

@@ -130,7 +130,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -160,6 +160,18 @@ jobs:
       - name: "Show prek log on failure"
         run: cat ~/.cache/prek/prek.log || true
         if: failure()
+      - name: "Check PR title is not Conventional Commits"
+        # With "squash and merge" the PR title becomes the commit subject that lands on the
+        # target branch (individual commit subjects are often "fixup"/"apply review" and do
+        # not survive the squash), so the title is what we must validate. Read it from an env
+        # var rather than interpolating it into the script to avoid shell injection from a
+        # crafted PR title.
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PR_TITLE" \
+            | ./scripts/ci/prek/check_no_conventional_commit_message.py --from-stdin
 
   build-docs:
     timeout-minutes: 150
@@ -183,7 +195,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -351,7 +363,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -441,7 +453,7 @@ jobs:
           inputs.canary-run == 'true' &&
           (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6.1.1
+        uses: aws-actions/configure-aws-credentials@254c19bd240aabef8777f48595e9d2d7b972184b  # v6.2.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -476,12 +488,12 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           repository: "apache/airflow-client-python"
           fetch-depth: 1

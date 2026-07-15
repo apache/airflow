@@ -25,6 +25,7 @@ from datetime import datetime
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote
 
 import certifi
 import httpx
@@ -47,8 +48,8 @@ from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
-    AssetStorePutBody,
-    AssetStoreResponse,
+    AssetStateStorePutBody,
+    AssetStateStoreResponse,
     ConnectionResponse,
     ConnectionTestConnectionResponse,
     ConnectionTestResultBody,
@@ -66,8 +67,8 @@ from airflow.sdk.api.datamodels._generated import (
     TaskBreadcrumbsResponse,
     TaskInstanceState,
     TaskStatesResponse,
-    TaskStorePutBody,
-    TaskStoreResponse,
+    TaskStateStorePutBody,
+    TaskStateStoreResponse,
     TerminalStateNonSuccess,
     TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
@@ -580,8 +581,6 @@ class XComOperations:
         include_prior_dates: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
-        # TODO: check if we need to use map_index as params in the uri
-        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
@@ -621,8 +620,6 @@ class XComOperations:
         mapped_length: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
-        # TODO: check if we need to use map_index as params in the uri
-        # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params: dict[str, Any] = {}
         if dag_result:
             params["dag_result"] = dag_result
@@ -714,13 +711,13 @@ class XComOperations:
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
-class TaskStoreOperations:
+class TaskStateStoreOperations:
     __slots__ = ("client",)
 
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, ti_id: uuid.UUID, key: str) -> TaskStoreResponse | ErrorResponse:
+    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateStoreResponse | ErrorResponse:
         """Get a task store value from the API server."""
         try:
             resp = self.client.get(f"store/ti/{ti_id}/{key}")
@@ -729,11 +726,11 @@ class TaskStoreOperations:
                 log.debug("Task store key not found", ti_id=ti_id, key=key)
                 return ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": key})
             raise
-        return TaskStoreResponse.model_validate_json(resp.read())
+        return TaskStateStoreResponse.model_validate_json(resp.read())
 
     def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
         """Set a task store value via the API server."""
-        body = TaskStorePutBody(value=value, expires_at=expires_at)
+        body = TaskStateStorePutBody(value=value, expires_at=expires_at)
         self.client.put(f"store/ti/{ti_id}/{key}", content=body.model_dump_json())
         return OKResponse(ok=True)
 
@@ -742,14 +739,13 @@ class TaskStoreOperations:
         self.client.delete(f"store/ti/{ti_id}/{key}")
         return OKResponse(ok=True)
 
-    def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
+    def clear(self, ti_id: uuid.UUID) -> OKResponse:
         """Clear all task store keys for a task instance via the API server."""
-        params = {"all_map_indices": "true"} if all_map_indices else {}
-        self.client.delete(f"store/ti/{ti_id}", params=params)
+        self.client.delete(f"store/ti/{ti_id}")
         return OKResponse(ok=True)
 
 
-class AssetStoreOperations:
+class AssetStateStoreOperations:
     __slots__ = ("client",)
 
     def __init__(self, client: Client):
@@ -772,7 +768,7 @@ class AssetStoreOperations:
 
     def get(
         self, key: str, *, name: str | None = None, uri: str | None = None
-    ) -> AssetStoreResponse | ErrorResponse:
+    ) -> AssetStateStoreResponse | ErrorResponse:
         """Get an asset store value from the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
         try:
@@ -782,14 +778,16 @@ class AssetStoreOperations:
                 log.debug("Asset store key not found", name=name, uri=uri, key=key)
                 return ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": key})
             raise
-        return AssetStoreResponse.model_validate_json(resp.read())
+        return AssetStateStoreResponse.model_validate_json(resp.read())
 
     def set(
         self, key: str, value: JsonValue, *, name: str | None = None, uri: str | None = None
     ) -> OKResponse:
         """Set an asset store value via the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
-        self.client.put(endpoint, params=params, content=AssetStorePutBody(value=value).model_dump_json())
+        self.client.put(
+            endpoint, params=params, content=AssetStateStorePutBody(value=value).model_dump_json()
+        )
         return OKResponse(ok=True)
 
     def delete(self, key: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
@@ -860,6 +858,7 @@ class AssetEventOperations:
         before: datetime | None = None,
         ascending: bool = True,
         limit: int | None = None,
+        extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
         common_params: dict[str, Any] = {}
@@ -868,15 +867,20 @@ class AssetEventOperations:
         if before:
             common_params["before"] = before.isoformat()
         common_params["ascending"] = ascending
-        if limit:
+        if limit is not None:
             common_params["limit"] = limit
+        extra_params: list[tuple[str, str]] = []
+        if extra:
+            extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]
         if name or uri:
             resp = self.client.get(
-                "asset-events/by-asset", params={"name": name, "uri": uri, **common_params}
+                "asset-events/by-asset",
+                params=[*{"name": name, "uri": uri, **common_params}.items(), *extra_params],
             )
         elif alias_name:
             resp = self.client.get(
-                "asset-events/by-asset-alias", params={"name": alias_name, **common_params}
+                "asset-events/by-asset-alias",
+                params=[*{"name": alias_name, **common_params}.items(), *extra_params],
             )
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
@@ -987,7 +991,7 @@ class DagsOperations:
 
     def get(self, dag_id: str) -> DagResponse:
         """Get a DAG via the API server."""
-        resp = self.client.get(f"dags/{dag_id}")
+        resp = self.client.get(f"dags/{quote(dag_id, safe='')}")
         return DagResponse.model_validate_json(resp.read())
 
 
@@ -1266,15 +1270,15 @@ class Client(httpx.Client):
 
     @lru_cache()  # type: ignore[misc]
     @property
-    def task_store(self) -> TaskStoreOperations:
+    def task_state_store(self) -> TaskStateStoreOperations:
         """Operations related to task store."""
-        return TaskStoreOperations(self)
+        return TaskStateStoreOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
-    def asset_store(self) -> AssetStoreOperations:
+    def asset_state_store(self) -> AssetStateStoreOperations:
         """Operations related to asset store."""
-        return AssetStoreOperations(self)
+        return AssetStateStoreOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

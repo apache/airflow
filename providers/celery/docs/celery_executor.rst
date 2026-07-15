@@ -95,6 +95,27 @@ Some caveats:
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 
+Redis maintenance
+-----------------
+
+When Redis is used as the Celery broker, Airflow uses it for transient Celery messages: queued task
+commands, task acknowledgement data, and other broker-side state. Airflow task history, Dag runs,
+connections, Variables, and XCom records are stored in the Airflow metadata database and should be
+maintained with database tooling such as ``airflow db clean``. Cleaning the metadata database does not
+clean Redis, and cleaning Redis does not clean Airflow's metadata database.
+
+Do not flush or delete keys from the Redis database used by Airflow while schedulers or Celery workers
+are running. Removing broker keys while tasks are queued, running, or being acknowledged can lose
+pending work or make task state temporarily inconsistent. If you need to discard stale broker data
+after an outage, first stop Airflow schedulers and Celery workers, make sure there are no tasks that
+you intend to preserve in ``queued`` or ``running`` state, back up the Redis database if it is
+persistent, and then remove only the Redis database or keyspace configured in ``[celery] broker_url``.
+
+If you configured Redis as the Celery ``result_backend``, the same maintenance window should also
+account for result backend keys. Deleting those keys can remove Celery task result information that the
+scheduler may still query. For production deployments, Airflow recommends a database-backed result
+backend so broker cleanup and task-result storage are handled separately.
+
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 Architecture
@@ -202,6 +223,42 @@ During this process, two processes are created:
 | [10][12] **WorkerChildProcess** notifies the main process - **WorkerProcess** about the end of the task and the availability of subsequent tasks.
 | [11] **WorkerProcess** saves status information in **ResultBackend**.
 | [13] When **SchedulerProcess** asks **ResultBackend** again about the status, it will get information about the status of the task.
+
+.. _celery_executor:logging:
+
+Worker logging
+--------------
+
+By default the Celery worker writes plain-text logs to stdout. To emit structured
+JSON instead, enable it via the ``[logging]`` section (applies to all Airflow
+components) or override it for the worker alone with the ``[celery]`` section:
+
+.. code-block:: ini
+
+    # Global — affects the API server, scheduler, and workers:
+    [logging]
+    json_logs = True
+
+    # Or override for the Celery worker only, leaving other components unchanged:
+    [celery]
+    json_logs = True
+
+The lookup order is:
+
+1. ``[celery] json_logs`` — if set, takes precedence.
+2. ``[logging] json_logs`` — used when the celery-specific key is absent.
+3. ``False`` — the default when neither key is configured.
+
+This mirrors the existing ``[logging] CELERY_LOGGING_LEVEL`` /
+``[logging] LOGGING_LEVEL`` fallback already present in the worker startup
+code.
+
+.. note::
+
+    ``[logging] json_logs`` was added in Airflow 3.2.0. On older 3.x versions the
+    global key is silently ignored (``fallback=False``), so setting only
+    ``[celery] json_logs = True`` is the safe way to enable JSON logs regardless
+    of the core version.
 
 .. _celery_executor:queue:
 

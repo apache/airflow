@@ -629,12 +629,14 @@ class TestCliSubprocess:
 
         # Warm-up run
         subprocess.run(command, env=env, capture_output=True, check=False)
-        # Limit the number of samples otherwise the test will take a very long time
-        num_samples = 3
-        threshold = 5
+        # Take the min across several samples to measure best-case startup and tolerate transient CI
+        # slowness; keep the count bounded so the test does not take a very long time. The threshold is
+        # deliberately loose -- this guards against gross startup regressions, not small fluctuations,
+        # and a tight bound flakes on loaded/cold runners (e.g. the Pendulum2 special-test job).
+        num_samples = 5
+        threshold = 8
         raw_times = timeit.repeat(stmt=timing_code, setup=setup_code, number=1, repeat=num_samples)
         timing_result = min(raw_times)
-        # Minimum run time of Airflow CLI should at least be within 5s
         assert timing_result < threshold
 
     def test_airflow_config_contains_providers(self):

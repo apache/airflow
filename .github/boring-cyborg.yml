@@ -30,6 +30,9 @@ labelPRBasedOnFilePath:
   provider:amazon:
     - providers/amazon/**
 
+  provider:anthropic:
+    - providers/anthropic/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
@@ -110,6 +113,9 @@ labelPRBasedOnFilePath:
 
   provider:common-compat:
     - providers/common/compat/**
+
+  provider:common-dataquality:
+    - providers/common/dataquality/**
 
   provider:common-io:
     - providers/common/io/**
@@ -356,6 +362,24 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
+  # This should be copy of the "area:dev-tools" above minus contributing docs and some files that should
+  # only make sense in main - it should be updated when we switch maintenance branch.
+  # Scoped to PRs targeting `main` only — a PR opened directly against v3-3-test
+  # does not need a backport-to-v3-3-test label.
+  backport-to-v3-3-test:
+    paths:
+      - scripts/**/*
+      - dev/**/*
+      - .github/**/*
+      - Dockerfile.ci
+      - yamllint-config.yml
+      - .dockerignore
+      - .hadolint.yaml
+      - .pre-commit-config.yaml
+      - .rat-excludes
+    targetBranchFilter:
+      - ^main$
+
   # Apply to PRs touching airflow-ctl code so the release manager notices when a
   # fix should land on the airflow-ctl/v0-1-test maintenance branch.
   # Scoped to PRs targeting `main` only.
@@ -535,6 +559,18 @@ labelPRBasedOnFilePath:
 
   area:go-sdk:
     - go-sdk/**/*
+
+  area:java-sdk:
+    - java-sdk/**/*
+
+  area:ts-sdk:
+    - ts-sdk/**/*
+
+  "AIP-108: Coordinator":
+    - task-sdk/src/airflow/sdk/coordinators/**/*
+    - task-sdk/src/airflow/sdk/execution_time/coordinator.py
+    - task-sdk/tests/task_sdk/coordinators/**/*
+    - task-sdk/tests/task_sdk/execution_time/test_coordinator.py
 
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*

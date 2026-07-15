@@ -440,21 +440,24 @@ class KubernetesPodTrigger(BaseTrigger):
         @provide_session
         def get_task_instance(self, *, session: Session) -> TaskInstance:
             """Get the task instance for this trigger from the database (Airflow 2.x only)."""
+            ti = self.task_instance
+            if ti is None:
+                raise RuntimeError("task_instance is not set on the trigger")
             task_instance = session.scalar(
                 select(TaskInstance).where(
-                    TaskInstance.dag_id == self.task_instance.dag_id,
-                    TaskInstance.task_id == self.task_instance.task_id,
-                    TaskInstance.run_id == self.task_instance.run_id,
-                    TaskInstance.map_index == self.task_instance.map_index,
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
                 )
             )
             if task_instance is None:
                 raise AirflowException(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
+                    ti.dag_id,
+                    ti.task_id,
+                    ti.run_id,
+                    ti.map_index,
                 )
             return task_instance
 
