@@ -110,10 +110,23 @@ To delete an existing crawler, use
 
 .. _howto/operator:GlueCrawlerOperator:
 
+Legacy AWS Glue crawler operator
+================================
+
 .. warning::
   :class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator` is deprecated.
   Existing Dags can continue using it during the deprecation period, but new Dags should use the
   operation-specific operators above.
+
+The legacy operator creates or updates a crawler and then runs it. Existing Dags can continue using
+the same configuration while migrating each operation to the dedicated operators:
+
+.. code-block:: python
+
+    crawl_s3 = GlueCrawlerOperator(
+        task_id="crawl_s3",
+        config=glue_crawler_config,
+    )
 
 .. _howto/operator:GlueJobOperator:
 
