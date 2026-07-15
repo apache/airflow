@@ -44,6 +44,7 @@ from airflow_e2e_tests.constants import (
     GO_SDK_BUNDLE_NAME,
     GO_SDK_DAGS_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
+    GO_SDK_ROOT_PATH,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
@@ -499,53 +500,73 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     ``CGO_ENABLED=0``), so the stock Airflow worker image can exec it directly
     without a Go toolchain or any extra runtime installed -- see ``go.yml``.
     """
-    # Build + pack the example bundle inside an ephemeral Go container so the
-    # host does not need Go installed.
+    # `go tool airflow-go-pack` builds the bundle package, reads its
+    # --airflow-metadata, and appends the source + airflow-metadata.yaml + the
+    # AFBNDL01 trailer, writing a single self-contained executable bundle.
+    # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
+    #
+    # In native mode (used in CI, where the host already has a Go toolchain plus
+    # restored module/build caches via actions/setup-go) the host `go` runs the
+    # build directly, skipping the toolchain-image pull and the container
+    # workarounds below. The containerized path stays the default for local runs
+    # so a dev host needs no Go installed:
     #
     # --user keeps build outputs owned by the current user (not root).
     # HOME points at a writable, gitignored dir under go-sdk/bin so the Go build
     # and module caches persist between runs (first run downloads modules once;
     # subsequent runs skip straight to compilation).
-    # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
     # USER/HOME must be set because the SDK calls user.Current() at init; with
     # cgo disabled Go's pure-Go resolver reads those env vars instead of libc,
     # and panics if either is empty (the same vars are set on the worker in
     # go.yml so the packed binary runs the same way at execution time).
-    # `go tool airflow-go-pack` builds the bundle package, reads its
-    # --airflow-metadata, and appends the source + airflow-metadata.yaml + the
-    # AFBNDL01 trailer, writing a single self-contained executable bundle.
-    go_cache_home = "/repo/go-sdk/bin/.home"
-    bundle_out = f"/repo/go-sdk/bin/{GO_SDK_BUNDLE_NAME}"
-    console.print(f"[yellow]Building Go SDK example bundle ({GO_BUILDER_IMAGE})...")
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            f"HOME={go_cache_home}",
-            "-e",
-            "USER=airflow",
-            "-e",
-            "CGO_ENABLED=0",
-            # Mount the repo so the whole go-sdk module (go.mod, tool directive,
-            # example sources) is visible to `go tool`.
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            "/repo/go-sdk",
-            GO_BUILDER_IMAGE,
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            bundle_out,
-            GO_SDK_EXAMPLE_BUNDLE_PKG,
-        ],
-        check=True,
-    )
+    if LANG_SDK_NATIVE_TOOLCHAIN:
+        console.print("[yellow]Building Go SDK example bundle (host toolchain)...")
+        subprocess.run(
+            [
+                "go",
+                "tool",
+                "airflow-go-pack",
+                "--output",
+                str(GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME),
+                GO_SDK_EXAMPLE_BUNDLE_PKG,
+            ],
+            cwd=GO_SDK_ROOT_PATH,
+            env={**os.environ, "CGO_ENABLED": "0"},
+            check=True,
+        )
+    else:
+        go_cache_home = "/repo/go-sdk/bin/.home"
+        bundle_out = f"/repo/go-sdk/bin/{GO_SDK_BUNDLE_NAME}"
+        console.print(f"[yellow]Building Go SDK example bundle ({GO_BUILDER_IMAGE})...")
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "--user",
+                f"{os.getuid()}:{os.getgid()}",
+                "-e",
+                f"HOME={go_cache_home}",
+                "-e",
+                "USER=airflow",
+                "-e",
+                "CGO_ENABLED=0",
+                # Mount the repo so the whole go-sdk module (go.mod, tool directive,
+                # example sources) is visible to `go tool`.
+                "-v",
+                f"{AIRFLOW_ROOT_PATH}:/repo",
+                "-w",
+                "/repo/go-sdk",
+                GO_BUILDER_IMAGE,
+                "go",
+                "tool",
+                "airflow-go-pack",
+                "--output",
+                bundle_out,
+                GO_SDK_EXAMPLE_BUNDLE_PKG,
+            ],
+            check=True,
+        )
 
     # Copy the compose override into the temp directory.
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
