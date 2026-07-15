@@ -477,6 +477,7 @@ devtools
 df
 dictConfig
 dicts
+dimberman
 Dingding
 dingding
 dir
@@ -1054,6 +1055,7 @@ metastore
 metavar
 mget
 mgmt
+michalmisiewicz
 microservice
 microservices
 microsoft
