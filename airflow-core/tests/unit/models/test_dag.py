@@ -146,7 +146,6 @@ async def empty_callback_for_deadline():
 def clear_dags():
     clear_db_dags()
     clear_db_serialized_dags()
-    clear_db_dag_bundles()
     yield
     clear_db_dags()
     clear_db_serialized_dags()
@@ -2513,9 +2512,6 @@ class TestDagModel:
         clear_db_dag_bundles()
         clear_db_teams()
 
-    def setup_method(self):
-        self._clean()
-
     def teardown_method(self):
         self._clean()
 
@@ -3318,7 +3314,6 @@ class TestQueries:
     def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_runs()

@@ -61,7 +61,13 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "openai[datalib]>=2.37.0",
+    # The ``[datalib]`` extra of the ``openai`` SDK pulls in numpy / pandas /
+    # pandas-stubs. It was historically used by the SDK's legacy
+    # ``openai tools fine_tunes.prepare_data`` CLI, which was removed in
+    # openai 1.x. Nothing in this provider (source, tests, example DAGs, or
+    # cross-provider example DAGs) uses pandas or numpy, so ``[datalib]`` is
+    # pure transitive bloat here and is not required at runtime.
+    "openai>=2.37.0",
 ]
 
 [dependency-groups]

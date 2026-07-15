@@ -125,11 +125,11 @@ attribute access (``result.field``).
 
 The declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
-the worker when it loads the DAG, before any task runs. The Pydantic class must
+the worker when it loads the Dag, before any task runs. The Pydantic class must
 be defined at **module scope** and bound to an attribute matching its
-``__name__``. Same-DAG downstream tasks need no configuration. The UI's XCom
+``__name__``. Same-Dag downstream tasks need no configuration. The UI's XCom
 viewer renders the value via the ``stringify`` path (no configuration needed;
-see the ``LLMOperator`` guide for the exact representation). Cross-DAG
+see the ``LLMOperator`` guide for the exact representation). Cross-Dag
 ``xcom_pull`` consumers still need the class ``qualname`` added to
 ``[core] allowed_deserialization_classes``.
 
@@ -309,9 +309,9 @@ invalidate cached responses -- clear the cache to force a fully fresh run.
 After the run, a single INFO summary line reports how many steps were
 replayed vs executed fresh. Per-step detail is available at DEBUG level.
 
-The cache is scoped to a single task instance (DAG id, run id, task id, and
+The cache is scoped to a single task instance (Dag id, run id, task id, and
 map index), so each run replays only its own steps. On Airflow >= 3.3 the cache
-lives in the task state store and is removed when the DAG run is cleaned up; on
+lives in the task state store and is removed when the Dag run is cleaned up; on
 Airflow < 3.3 it is a JSON file named ``{dag_id}_{task_id}_{run_id}.json`` (with
 ``_{map_index}`` appended for mapped tasks) under the configured
 ``durable_cache_path``.
@@ -319,8 +319,8 @@ Airflow < 3.3 it is a JSON file named ``{dag_id}_{task_id}_{run_id}.json`` (with
 .. note::
 
     Runs that fail permanently (exhaust all retries) leave their cached steps
-    behind. These do not affect future DAG runs (each run is scoped separately).
-    On Airflow >= 3.3 they are reclaimed when the DAG run is removed; on Airflow
+    behind. These do not affect future Dag runs (each run is scoped separately).
+    On Airflow >= 3.3 they are reclaimed when the Dag run is removed; on Airflow
     < 3.3 the orphaned JSON files consume storage until cleaned up, so add a
     lifecycle policy to the storage backend or remove them periodically.
 
@@ -380,7 +380,7 @@ Capabilities compose with toolsets -- pydantic-ai merges tools from both.
 
     ``agent_params`` is a templated field, which Airflow serializes by calling
     ``str()`` on values it doesn't natively understand. Capability instances
-    are not yet round-trip-safe through DAG serialization, so the examples
+    are not yet round-trip-safe through Dag serialization, so the examples
     below construct them inside the ``@dag`` function -- not at module level.
     First-class ``capabilities=`` support on ``AgentOperator`` (with proper
     serializer hooks) is tracked as a follow-up.
@@ -489,6 +489,29 @@ Parameters
   When set, the post-run transcript is pushed to XCom under the key
   ``message_history`` for the next run to resume. Default ``None`` (single-turn).
   See `Multi-turn Sessions`_.
+- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
+  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
+  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
+  downstream consumer needs the dict shape.
+
+**HITL Review parameters** (requires the ``hitl_review`` plugin -- see
+:doc:`../hitl_review` for the full review workflow):
+
+- ``enable_hitl_review``: When ``True``, the operator enters an iterative
+  review loop after the first generation. A human reviewer can approve,
+  reject, or request changes via the plugin's REST API at ``/hitl-review``
+  or through the **HITL Review** extra link on the task instance. Default
+  ``False``.
+- ``max_hitl_iterations``: Maximum outputs shown to the reviewer (1 = initial
+  output). When the reviewer requests changes at iteration >= this limit, the
+  task fails with ``HITLMaxIterationsError`` without calling the LLM. E.g. 5
+  allows changes at iterations 1-4. Default ``5``.
+- ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds
+  combined. ``None`` means no timeout (the operator blocks until a terminal
+  action).
+- ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
+  human response. Default ``10``.
 
 
 Logging

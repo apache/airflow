@@ -158,7 +158,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
-- Do not use `caplog` in tests, prefer checking logic and not log output.
+- Do not assert on raw log text (`caplog.text` for example), these are legacy string matching APIs planned for removal. Structured assertions via `caplog` (which resolves to `cap_structlog` under structlog) are fine and preferred: `"event name" in caplog` or `{"event": ..., "field": ...} in caplog`.
 
 ## Output conventions
 

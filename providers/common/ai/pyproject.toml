@@ -92,7 +92,7 @@ dependencies = [
 # upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
 "skills" = [
     "apache-airflow-providers-git>=0.4.0",
-    "pydantic-ai-skills>=0.11.0",
+    "pydantic-ai-skills>=1.2.0",
 ]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
@@ -113,6 +113,7 @@ dependencies = [
     "langchain>=1.0.0",
 ]
 "llamaindex" = [
+    "dataclasses-json>=0.6.7",
     "llama-index-core>=0.13.0",
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
@@ -135,7 +136,7 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
-    "pydantic-ai-skills>=0.11.0",
+    "pydantic-ai-skills>=1.2.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
     "llama-index-core>=0.13.0",
