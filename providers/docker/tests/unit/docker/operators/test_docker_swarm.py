@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import re
 from unittest import mock
 
 import pytest
@@ -27,10 +28,13 @@ from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
+from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator, _generate_service_name
 
 
 class TestDockerSwarmOperator:
+    def test_generate_service_name(self):
+        assert re.fullmatch(r"custom-prefix-[A-Za-z0-9]{8}", _generate_service_name("custom-prefix"))
+
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_execute(self, types_mock, docker_api_client_patcher, caplog):
         mock_obj = mock.Mock()
