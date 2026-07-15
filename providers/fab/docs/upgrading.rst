@@ -29,8 +29,8 @@ upgrading to. If ``FABDBManager`` is included in the ``[database] external_db_ma
 be run automatically as part of the ``airflow db migrate`` command.
 
 .. note::
-    If FAB auth manager is configured as auth manager in your environment, ``FABDBManager`` is automatically added in the
-    ``[database] external_db_managers`` configuration.
+    If the FAB auth manager is configured as ``[core] auth_manager`` in your environment, Airflow automatically loads
+    ``FABDBManager`` and runs its migrations as part of the ``airflow db migrate`` command.
 
 How to upgrade
 ==============
