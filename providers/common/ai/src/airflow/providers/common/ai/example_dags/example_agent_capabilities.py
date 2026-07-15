@@ -26,7 +26,6 @@ support. A first-class ``capabilities=`` kwarg is on the roadmap.
 from __future__ import annotations
 
 from pydantic_ai.capabilities import Thinking, WebSearch
-from pydantic_ai_shields import InputGuard
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.compat.sdk import dag
