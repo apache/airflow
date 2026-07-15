@@ -18,30 +18,26 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.dataquality.assets import DQ_RESULT_EXTRA_KEY, get_asset_quality_config
-from airflow.providers.common.dataquality.backends import get_backend_from_config
-from airflow.providers.common.dataquality.engines.sql import SQLDQEngine
+from airflow.providers.common.dataquality.assets import get_asset_quality_config
 from airflow.providers.common.dataquality.exceptions import DQCheckFailedError
+from airflow.providers.common.dataquality.execution import (
+    DataQualityResult,
+    _resolve_ruleset,
+    persist_quality_results,
+    run_quality_checks,
+)
 from airflow.providers.common.dataquality.results import (
     ERROR,
     FAIL,
-    PASS,
     WARN,
-    DQRun,
     RuleResult,
-    build_summary,
 )
-from airflow.providers.common.dataquality.rules import RuleSet, describe_rule
 from airflow.providers.common.sql.operators.sql import BaseSQLOperator
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 
 if TYPE_CHECKING:
-    from airflow.providers.common.dataquality.engines.sql import Observation
-    from airflow.providers.common.dataquality.rules.rule import Condition, Dimension
-    from airflow.providers.common.sql.hooks.sql import DbApiHook
+    from airflow.providers.common.dataquality.rules import RuleSet
     from airflow.sdk import Asset, Context
 
 log = logging.getLogger(__name__)
@@ -118,117 +114,20 @@ class DQCheckOperator(BaseSQLOperator):
         self.fail_on = fail_on
 
     def execute(self, context: Context) -> dict[str, Any]:
-        ruleset = self._resolve_ruleset()
-        started_at = datetime.now(tz=timezone.utc).isoformat()
-        engine = self._get_engine(self.get_db_hook())
-        observations = engine.measure(ruleset, self.table, self.partition_clause)
-        results = [self._evaluate(observation) for observation in observations]
-        finished_at = datetime.now(tz=timezone.utc).isoformat()
-
-        run = self._build_run(context, ruleset, started_at, finished_at)
-        summary = build_summary(run, results)
+        result = run_quality_checks(
+            hook=self.get_db_hook(),
+            ruleset=_resolve_ruleset(self.ruleset),
+            table=self.table,
+            partition_clause=self.partition_clause,
+        )
+        results = list(result.results)
+        summary = self._persist_result(result, context)
         self._log_results(results, summary)
-        self._persist(run, results)
-        self._attach_to_outlet_events(context, summary)
         self._raise_for_failures(results, summary)
         return summary
 
-    def _get_engine(self, hook: DbApiHook) -> SQLDQEngine:
-        return SQLDQEngine(hook)
-
-    def _resolve_ruleset(self) -> RuleSet:
-        if self.ruleset is SET_DURING_EXECUTION:
-            raise ValueError("ruleset is required, either directly or returned by @task.dq_check")
-        if isinstance(self.ruleset, RuleSet):
-            return self.ruleset
-        if isinstance(self.ruleset, dict):
-            return RuleSet.from_dict(self.ruleset)
-        return RuleSet.from_file(self.ruleset)
-
-    @staticmethod
-    def _evaluate(observation: Observation) -> RuleResult:
-        rule = observation.rule
-        condition = cast("Condition", rule.condition)
-        dimension = cast("Dimension", rule.dimension)
-        error_message = observation.error_message
-        if error_message is None:
-            try:
-                passed = condition.evaluate(observation.observed_value)
-            except (TypeError, ValueError) as e:
-                passed = False
-                error_message = f"Could not evaluate observed value {observation.observed_value!r}: {e}"
-        else:
-            passed = False
-
-        if error_message is not None:
-            status = ERROR
-        elif passed:
-            status = PASS
-        else:
-            status = WARN if rule.severity == "warn" else FAIL
-        observed = observation.observed_value
-        if observed is not None and not isinstance(observed, int | float | str):
-            observed = str(observed)
-        return RuleResult(
-            rule_uid=rule.rule_uid,
-            rule_name=rule.name,
-            status=status,
-            observed_value=observed,
-            condition=condition.to_dict(),
-            dimension=dimension.value,
-            severity=rule.severity.value,
-            duration_ms=observation.duration_ms,
-            error_message=error_message,
-            description=rule.description or describe_rule(rule),
-            sql=observation.sql,
-        )
-
-    def _build_run(self, context: Context, ruleset: RuleSet, started_at: str, finished_at: str) -> DQRun:
-        ti = context["ti"]
-        return DQRun(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            try_number=ti.try_number,
-            map_index=ti.map_index if ti.map_index is not None else -1,
-            ruleset_name=ruleset.name,
-            table_ref=self.table,
-            asset_names=tuple(self._outlet_asset_names()),
-            started_at=started_at,
-            finished_at=finished_at,
-        )
-
-    def _outlet_asset_names(self) -> list[str]:
-        names = []
-        for outlet in self.outlets or []:
-            name = getattr(outlet, "name", None)
-            if name:
-                names.append(name)
-        return names
-
-    def _persist(self, run: DQRun, results: list[RuleResult]) -> None:
-        backend = get_backend_from_config()
-        if backend is None:
-            self.log.info("No [common.dataquality] results_path configured; skipping results persistence")
-            return
-        # Persistence is best-effort: an unreachable results store leaves a gap in
-        # history but must not change the outcome of the check itself.
-        try:
-            backend.write_run(run, results)
-        except Exception:
-            self.log.exception("Failed to persist data quality results; continuing")
-
-    def _attach_to_outlet_events(self, context: Context, summary: dict[str, Any]) -> None:
-        try:
-            outlet_events = context["outlet_events"]
-        except KeyError:
-            return
-        for outlet in self.outlets or []:
-            if getattr(outlet, "name", None):
-                try:
-                    outlet_events[outlet].extra[DQ_RESULT_EXTRA_KEY] = summary
-                except Exception:
-                    self.log.warning("Could not attach dq summary to outlet event for %s", outlet)
+    def _persist_result(self, result: DataQualityResult, context: Context) -> dict[str, Any]:
+        return persist_quality_results(result, context=context, outlets=list(self.outlets or ()))
 
     def _log_results(self, results: list[RuleResult], summary: dict[str, Any]) -> None:
         for result in results:
