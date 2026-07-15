@@ -194,13 +194,10 @@ def patch_dag_run_state(
 ) -> None:
     """Set a Dag Run's state (success/queued/failed), firing the matching listener hooks."""
     if state == DagRunMutableStates.SUCCESS:
-        _, running_tis = set_dag_run_state_to_success(
+        _, killed_tis = set_dag_run_state_to_success(
             dag=dag, run_id=dag_run.run_id, commit=True, session=session
         )
-        try:
-            _emit_state_listener_hooks(running_tis, TaskInstanceState.SUCCESS)
-        except Exception:
-            log.exception("error calling listener")
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.SUCCESS)
         try:
             if dag_run.dag is None:
                 dag_run.dag = dag
@@ -216,13 +213,10 @@ def patch_dag_run_state(
         # Not notifying on queued - only notifying on RUNNING, which happens in the scheduler.
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
     elif state == DagRunMutableStates.FAILED:
-        _, running_tis = set_dag_run_state_to_failed(
+        _, killed_tis = set_dag_run_state_to_failed(
             dag=dag, run_id=dag_run.run_id, commit=True, session=session
         )
-        try:
-            _emit_state_listener_hooks(running_tis, TaskInstanceState.FAILED)
-        except Exception:
-            log.exception("error calling listener")
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.FAILED)
         try:
             if dag_run.dag is None:
                 dag_run.dag = dag
