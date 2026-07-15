@@ -253,8 +253,6 @@ class TestTIRunState:
         result = response.json()
         assert result == {
             "dag_run": {
-                "dag_id": ti.dag_id,
-                "run_id": "test",
                 "clear_number": 0,
                 "logical_date": instant_str,
                 "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
