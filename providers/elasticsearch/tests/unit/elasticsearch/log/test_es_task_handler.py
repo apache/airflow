@@ -23,6 +23,7 @@ import logging
 import re
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import Mock, patch
 from urllib.parse import quote
@@ -490,6 +491,22 @@ class TestElasticsearchTaskHandler:
     def test_render_log_id(self, ti):
         assert _render_log_id(self.es_task_handler.log_id_template, ti, 1) == self.LOG_ID
 
+    @pytest.mark.db_test
+    def test_render_log_id_uses_pinned_template(self, ti):
+        """The handler renders with the LogTemplate row pinned to the Dag run, not the conf value."""
+        logical_date = ti.get_dagrun().logical_date
+        expected = f"{self.DAG_ID}-{self.TASK_ID}-{logical_date.isoformat()}-{self.TRY_NUM}"
+        assert self.es_task_handler._render_log_id(ti, self.TRY_NUM) == expected
+
+    @pytest.mark.db_test
+    def test_remote_log_io_read_uses_pinned_template(self, ti):
+        with mock.patch.object(self.es_task_handler.io, "_es_read", return_value=None) as mock_es_read:
+            self.es_task_handler.io.read("", ti)
+
+        logical_date = ti.get_dagrun().logical_date
+        expected = f"{self.DAG_ID}-{self.TASK_ID}-{logical_date.isoformat()}-{self.TRY_NUM}"
+        mock_es_read.assert_called_once_with(expected, 0, ti, source_includes=mock.ANY)
+
     def test_clean_date(self):
         clean_logical_date = _clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
@@ -517,8 +534,13 @@ class TestElasticsearchTaskHandler:
             offset_field=self.offset_field,
             frontend=es_frontend,
         )
+        # The URL renders with the log id template pinned to the Dag run by the ``ti`` fixture
+        # (`{dag_id}-{task_id}-{logical_date}-{try_number}`), not the configured template.
+        logical_date = ti.get_dagrun().logical_date
+        expected_date = _clean_date(logical_date) if json_format else logical_date.isoformat()
+        expected_log_id = f"{self.DAG_ID}-{self.TASK_ID}-{expected_date}-{self.TRY_NUM}"
         assert es_task_handler.get_external_log_url(ti, ti.try_number) == expected_url.format(
-            log_id=quote(self.LOG_ID)
+            log_id=quote(expected_log_id)
         )
 
     @pytest.mark.parametrize(
@@ -855,6 +877,54 @@ class TestElasticsearchRemoteLogIO:
 
     def test_upload_returns_early_when_ti_is_none(self, tmp_json_file):
         self.elasticsearch_io.upload(tmp_json_file, ti=None)
+
+    def test_upload_uses_pinned_log_id_template_from_ti_context(self, tmp_json_file, ti):
+        """Documents are stamped with the Dag-run-pinned template delivered via TIRunContext."""
+        ti_context = SimpleNamespace(
+            log_id_template="{dag_id}-{task_id}-{logical_date}-{try_number}",
+            dag_run=SimpleNamespace(
+                logical_date=datetime(2016, 1, 1),
+                data_interval_start=None,
+                data_interval_end=None,
+            ),
+        )
+
+        with patch.object(self.elasticsearch_io, "_write_to_es", return_value=False) as mock_write:
+            self.elasticsearch_io.upload(tmp_json_file, ti, ti_context=ti_context)
+
+        expected_log_id = f"{ti.dag_id}-{ti.task_id}-2016-01-01T00:00:00+00:00-{ti.try_number}"
+        log_lines = mock_write.call_args.args[0]
+        assert log_lines
+        assert all(line["log_id"] == expected_log_id for line in log_lines)
+
+    def test_upload_stamps_pinned_log_id_on_stdout(self, tmp_json_file, ti, capsys):
+        """The write_stdout (filebeat-style) branch uses the pinned template too."""
+        self.elasticsearch_io.write_to_es = False
+        ti_context = SimpleNamespace(
+            log_id_template="{dag_id}-{task_id}-{logical_date}-{try_number}",
+            dag_run=SimpleNamespace(
+                logical_date=datetime(2016, 1, 1),
+                data_interval_start=None,
+                data_interval_end=None,
+            ),
+        )
+
+        self.elasticsearch_io.upload(tmp_json_file, ti, ti_context=ti_context)
+
+        expected_log_id = f"{ti.dag_id}-{ti.task_id}-2016-01-01T00:00:00+00:00-{ti.try_number}"
+        log_entries = [json.loads(line) for line in capsys.readouterr().out.strip().splitlines()]
+        assert log_entries
+        assert all(entry["log_id"] == expected_log_id for entry in log_entries)
+
+    def test_upload_falls_back_to_configured_template_without_ti_context(self, tmp_json_file, ti, capsys):
+        self.elasticsearch_io.write_to_es = False
+
+        self.elasticsearch_io.upload(tmp_json_file, ti)
+
+        expected_log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+        log_entries = [json.loads(line) for line in capsys.readouterr().out.strip().splitlines()]
+        assert log_entries
+        assert all(entry["log_id"] == expected_log_id for entry in log_entries)
 
 
 class TestFormatErrorDetail:

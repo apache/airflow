@@ -3540,6 +3540,23 @@ class TestInProcessClient:
         assert called == 1
 
 
+def _forget_module(monkeypatch, name: str) -> None:
+    """
+    Drop a module from ``sys.modules`` so the code under test re-imports it fresh.
+
+    Besides the ``sys.modules`` entry, pin the attribute on the parent package so monkeypatch
+    restores it at teardown too: the re-import rebinds it to the fresh module object, and a
+    binding left stale would make later tests' ``mock.patch("<name>.<attr>")`` patch the wrong
+    module object on Python < 3.12, where dotted patch targets resolve through getattr on the
+    parent package rather than through ``sys.modules``.
+    """
+    parent_name, _, attr_name = name.rpartition(".")
+    parent = sys.modules.get(parent_name)
+    if parent is not None and hasattr(parent, attr_name):
+        monkeypatch.setattr(parent, attr_name, getattr(parent, attr_name))
+    monkeypatch.delitem(sys.modules, name, raising=False)
+
+
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
@@ -3555,9 +3572,9 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
     pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
 
     # This test is a little bit overly specific to how the logging is currently configured :/
-    monkeypatch.delitem(sys.modules, "airflow.logging_config")
-    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
-    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+    _forget_module(monkeypatch, "airflow.logging_config")
+    _forget_module(monkeypatch, "airflow.config_templates.airflow_local_settings")
+    _forget_module(monkeypatch, "airflow.sdk.log")
 
     def handle_request(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -3603,7 +3620,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             if remote_logging and expected_env:
                 connection_available = {"available": False, "conn_uri": None}
 
-                def mock_upload_to_remote(process_log, ti):
+                def mock_upload_to_remote(process_log, ti, ti_context=None):
                     connection_available["available"] = expected_env in os.environ
                     connection_available["conn_uri"] = os.environ.get(expected_env)
 
@@ -3652,6 +3669,51 @@ def test_log_upload_failures_are_non_fatal(mocker):
     )
 
 
+def test_on_child_started_retains_ti_context(mocker, make_ti_context):
+    ti_context = make_ti_context()
+    client = mocker.MagicMock()
+    client.task_instances.start.return_value = ti_context
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=client,
+        process=mocker.MagicMock(),
+    )
+    mocker.patch.object(ActivitySubprocess, "send_msg")
+
+    proc._on_child_started(
+        ti=TaskInstance(id=TI_ID, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()),
+        dag_rel_path="test.py",
+        bundle_info=FAKE_BUNDLE,
+        sentry_integration="",
+    )
+
+    assert proc._ti_context is ti_context
+
+
+def test_upload_logs_forwards_ti_context(mocker, make_ti_context):
+    """The supervisor passes the retained TIRunContext to the remote log uploader."""
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    proc.ti = mocker.MagicMock()
+    proc._ti_context = make_ti_context()
+
+    mocker.patch("airflow.sdk.execution_time.supervisor._remote_logging_conn")
+    upload_to_remote = mocker.patch("airflow.sdk.log.upload_to_remote")
+
+    proc._upload_logs()
+
+    upload_to_remote.assert_called_once_with(proc.process_log, proc.ti, ti_context=proc._ti_context)
+
+
 def test_logs_uploaded_even_when_state_update_fails(mocker):
     """`wait()` must upload remote logs even if the final state update raises.
 
@@ -3691,9 +3753,9 @@ def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
     from airflow.models.connection import Connection as CoreConnection
     from airflow.sdk.definitions.connection import Connection as SDKConnection
 
-    monkeypatch.delitem(sys.modules, "airflow.logging_config")
-    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
-    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+    _forget_module(monkeypatch, "airflow.logging_config")
+    _forget_module(monkeypatch, "airflow.config_templates.airflow_local_settings")
+    _forget_module(monkeypatch, "airflow.sdk.log")
 
     conn_id = "s3_conn_logs"
     conn_uri = "aws:///?region_name=us-east-1"
@@ -3846,9 +3908,9 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     import gc
     import weakref
 
-    monkeypatch.delitem(sys.modules, "airflow.logging_config")
-    monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
-    monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
+    _forget_module(monkeypatch, "airflow.logging_config")
+    _forget_module(monkeypatch, "airflow.config_templates.airflow_local_settings")
+    _forget_module(monkeypatch, "airflow.sdk.log")
 
     from airflow.sdk.execution_time import supervisor
 

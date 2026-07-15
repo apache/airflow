@@ -51,6 +51,7 @@ from airflow.providers.elasticsearch.log.es_response import ElasticSearchRespons
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_2_PLUS:
@@ -75,6 +76,8 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     EsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
+
+log = logging.getLogger(__name__)
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
@@ -192,14 +195,60 @@ def _strip_userinfo(url: str) -> str:
     return parsed._replace(netloc=netloc).geturl()
 
 
-def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+def _render_log_id(
+    log_id_template: str,
+    ti: TaskInstance | TaskInstanceKey | RuntimeTI,
+    try_number: int,
+    *,
+    dag_run: Any = None,
+    json_format: bool = False,
+) -> str:
+    # Templates pinned by older LogTemplate rows may use date placeholders (e.g. the pre-2.3
+    # default `{dag_id}-{task_id}-{logical_date}-{try_number}`), and str.format raises KeyError
+    # on any missing name, so always supply the full set.
+    def format_date(value: datetime | None) -> str:
+        if json_format:
+            return _clean_date(value)
+        return value.isoformat() if value else ""
+
+    logical_date = format_date(getattr(dag_run, "logical_date", None))
     return log_id_template.format(
         dag_id=ti.dag_id,
         task_id=ti.task_id,
         run_id=getattr(ti, "run_id", ""),
         try_number=try_number,
         map_index=getattr(ti, "map_index", ""),
+        logical_date=logical_date,
+        execution_date=logical_date,
+        data_interval_start=format_date(getattr(dag_run, "data_interval_start", None)),
+        data_interval_end=format_date(getattr(dag_run, "data_interval_end", None)),
     )
+
+
+def _resolve_log_id_template(
+    ti: TaskInstance | TaskInstanceKey | RuntimeTI, default_template: str
+) -> tuple[str, DagRun | None]:
+    """
+    Fetch the Dag-run-pinned log id template and the Dag run from the metadata DB.
+
+    Falls back to the configured template when the DB is not reachable (e.g. on workers, which
+    receive the pinned template through ``TIRunContext`` instead).
+    """
+    if not hasattr(ti, "get_dagrun"):
+        # A worker-side RuntimeTI: don't even open a session, the metadata DB is out of reach.
+        return default_template, None
+    try:
+        with create_session() as session:
+            dag_run = ti.get_dagrun(session=session)  # type: ignore[union-attr]
+            if USE_PER_RUN_LOG_ID:
+                return dag_run.get_log_template(session=session).elasticsearch_id, dag_run
+            return default_template, dag_run
+    except Exception:
+        log.warning(
+            "Could not fetch the Dag-run-pinned log id template; falling back to the configured one",
+            exc_info=True,
+        )
+        return default_template, None
 
 
 def _clean_date(value: datetime | None) -> str:
@@ -377,6 +426,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         extra_fields = self.json_fields if self.json_format and not AIRFLOW_V_3_0_PLUS else []
         return self.io._get_source_includes(extra_fields=extra_fields)
 
+    def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+        log_id_template, dag_run = _resolve_log_id_template(ti, self.log_id_template)
+        return _render_log_id(log_id_template, ti, try_number, dag_run=dag_run, json_format=self.json_format)
+
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
     ) -> tuple[EsLogMsgType, LogMetadata]:
@@ -407,7 +460,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             metadata["offset"] = 0
 
         offset = metadata["offset"]
-        log_id = _render_log_id(self.log_id_template, ti, try_number)
+        log_id = self._render_log_id(ti, try_number)
         response = self.io._es_read(log_id, offset, ti, source_includes=self._get_es_source_includes())
         # TODO: Can we skip group logs by host ?
         if response is not None and response.hits:
@@ -529,7 +582,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                         _clean_date(ti.logical_date) if AIRFLOW_V_3_0_PLUS else _clean_date(ti.execution_date)
                     ),
                     "try_number": str(ti.try_number),
-                    "log_id": _render_log_id(self.log_id_template, ti, ti.try_number),
+                    "log_id": self._render_log_id(ti, ti.try_number),
                 },
             )
 
@@ -595,7 +648,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param try_number: task instance try_number to read logs from.
         :return: URL to the external log collection service
         """
-        log_id = _render_log_id(self.log_id_template, task_instance, try_number)
+        log_id = self._render_log_id(task_instance, try_number)
         scheme = "" if "://" in self.frontend else "https://"
         return scheme + self.frontend.format(log_id=quote(log_id))
 
@@ -702,8 +755,13 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             ["@timestamp", *TASK_LOG_FIELDS, self.host_field, self.offset_field, *extra_fields]
         )
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
-        """Write the log to ElasticSearch."""
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None, *, ti_context: Any = None) -> None:
+        """
+        Write the log to ElasticSearch.
+
+        :param ti_context: the ``TIRunContext`` the supervisor received at task start, carrying the
+            Dag-run-pinned log id template; when absent, fall back to the configured template.
+        """
         if ti is None:
             return
 
@@ -714,7 +772,14 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         else:
             local_loc = self.base_log_folder.joinpath(path)
 
-        log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
+        log_id_template = getattr(ti_context, "log_id_template", None) or self.log_id_template
+        log_id = _render_log_id(
+            log_id_template,
+            ti,
+            ti.try_number,
+            dag_run=getattr(ti_context, "dag_run", None),
+            json_format=self.json_format,
+        )
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
 
@@ -784,7 +849,14 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             return False
 
     def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
-        log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
+        log_id_template, dag_run = _resolve_log_id_template(ti, self.log_id_template)
+        log_id = _render_log_id(
+            log_id_template,
+            ti,
+            ti.try_number,
+            dag_run=dag_run,
+            json_format=self.json_format,
+        )
         self.log.info("Reading log %s from Elasticsearch", log_id)
         offset = 0
         response = self._es_read(log_id, offset, ti, source_includes=self._get_source_includes())
