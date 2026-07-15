@@ -12099,6 +12099,18 @@
                             "type": "integer",
                             "default": 1234
                         },
+                        "metrics": {
+                            "description": "Expose the git-sync metrics endpoint by adding a named container port and enabling metrics on the git-sync http server.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable the git-sync metrics port.",
+                                    "type": "boolean",
+                                    "default": false
+                                }
+                            }
+                        },
                         "recommendedProbeSetting": {
                             "description": "Setting this to true, will remove readiness probe usage and configure liveness probe to use a dedicated Git-Sync liveness service.",
                             "type": "boolean",

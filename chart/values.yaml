@@ -4494,6 +4494,11 @@ dags:
     # default one and old one will be removed
     recommendedProbeSetting: false
 
+    # Expose git-sync metrics by adding a named container port.
+    # Requires the git-sync http server, which is bound on httpPort.
+    metrics:
+      enabled: false
+
     startupProbe:
       enabled: true
       timeoutSeconds: 1
