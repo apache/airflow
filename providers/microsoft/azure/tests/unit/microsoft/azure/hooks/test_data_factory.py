@@ -247,7 +247,7 @@ def test_update_factory(hook: AzureDataFactoryHook):
         mock_factory_exists.return_value = True
         hook.update_factory(MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.factories.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, MODEL, None)
+    hook._conn.factories.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, MODEL, etag=None)
 
 
 def test_update_factory_non_existent(hook: AzureDataFactoryHook):
@@ -267,7 +267,7 @@ def test_delete_factory(hook: AzureDataFactoryHook):
 def test_get_linked_service(hook: AzureDataFactoryHook):
     hook.get_linked_service(NAME, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.linked_services.get.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, None)
+    hook._conn.linked_services.get.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, etag=None)
 
 
 def test_create_linked_service(hook: AzureDataFactoryHook):
@@ -335,13 +335,13 @@ def test_delete_dataset(hook: AzureDataFactoryHook):
 def test_get_dataflow(hook: AzureDataFactoryHook):
     hook.get_dataflow(NAME, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.data_flows.get.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, None)
+    hook._conn.data_flows.get.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, etag=None)
 
 
 def test_create_dataflow(hook: AzureDataFactoryHook):
     hook.create_dataflow(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.data_flows.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, None)
+    hook._conn.data_flows.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, etag=None)
 
 
 def test_update_dataflow(hook: AzureDataFactoryHook):
@@ -349,7 +349,7 @@ def test_update_dataflow(hook: AzureDataFactoryHook):
         mock_dataflow_exists.return_value = True
         hook.update_dataflow(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.data_flows.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, None)
+    hook._conn.data_flows.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, etag=None)
 
 
 def test_update_dataflow_non_existent(hook: AzureDataFactoryHook):
@@ -478,7 +478,7 @@ def test_update_trigger(hook: AzureDataFactoryHook):
         mock_trigger_exists.return_value = True
         hook.update_trigger(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.triggers.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, None)
+    hook._conn.triggers.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, etag=None)
 
 
 def test_update_trigger_non_existent(hook: AzureDataFactoryHook):

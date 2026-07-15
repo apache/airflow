@@ -278,7 +278,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Factory {factory!r} does not exist.")
 
         return self.get_conn().factories.create_or_update(
-            resource_group_name, factory_name, factory, if_match, **config
+            resource_group_name, factory_name, factory, etag=if_match, **config
         )
 
     @provide_targeted_factory
@@ -339,7 +339,7 @@ class AzureDataFactoryHook(BaseHook):
         :return: The linked service.
         """
         return self.get_conn().linked_services.get(
-            resource_group_name, factory_name, linked_service_name, if_none_match, **config
+            resource_group_name, factory_name, linked_service_name, etag=if_none_match, **config
         )
 
     def _linked_service_exists(self, resource_group_name, factory_name, linked_service_name) -> bool:
@@ -549,7 +549,7 @@ class AzureDataFactoryHook(BaseHook):
         :return: The DataFlowResource.
         """
         return self.get_conn().data_flows.get(
-            resource_group_name, factory_name, dataflow_name, if_none_match, **config
+            resource_group_name, factory_name, dataflow_name, etag=if_none_match, **config
         )
 
     def _dataflow_exists(
@@ -597,7 +597,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Dataflow {dataflow_name!r} does not exist.")
 
         return self.get_conn().data_flows.create_or_update(
-            resource_group_name, factory_name, dataflow_name, dataflow, if_match, **config
+            resource_group_name, factory_name, dataflow_name, dataflow, etag=if_match, **config
         )
 
     @provide_targeted_factory
@@ -627,7 +627,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Dataflow {dataflow_name!r} already exists.")
 
         return self.get_conn().data_flows.create_or_update(
-            resource_group_name, factory_name, dataflow_name, dataflow, if_match, **config
+            resource_group_name, factory_name, dataflow_name, dataflow, etag=if_match, **config
         )
 
     @provide_targeted_factory
@@ -923,7 +923,7 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Trigger {trigger_name!r} does not exist.")
 
         return self.get_conn().triggers.create_or_update(
-            resource_group_name, factory_name, trigger_name, trigger, if_match, **config
+            resource_group_name, factory_name, trigger_name, trigger, etag=if_match, **config
         )
 
     @provide_targeted_factory
