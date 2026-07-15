@@ -71,6 +71,7 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator
+    from pathlib import Path
 
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
@@ -397,8 +398,35 @@ def _update_import_errors(
     bundle_name: str,
     import_errors: dict[tuple[str, str], str],
     session: Session,
+    *,
+    bundle_path: Path | None = None,
 ):
     from airflow.listeners.listener import get_listener_manager
+
+    def _listener_filename(
+        relative_fileloc: str, bundle_name_: str, import_error: ParseImportError | None = None
+    ) -> str | None:
+        """
+        Build the file path handed to import-error listeners.
+
+        When the bundle path is known (the DAG processor threads it down from the
+        already-initialised bundle) we build the path directly. This avoids calling
+        ``ParseImportError.full_file_path()``, which re-instantiates the DAG bundle --
+        and, for some bundle types (e.g. the Git bundle), resolves a Connection --
+        inside this parsing transaction, where it can roll back the pending import
+        error row. Falls back to ``full_file_path()`` only when the bundle path was
+        not provided.
+        """
+        if bundle_path is not None:
+            return str(bundle_path / relative_fileloc)
+        if import_error is None:
+            import_error = session.scalar(
+                select(ParseImportError).where(
+                    ParseImportError.bundle_name == bundle_name_,
+                    ParseImportError.filename == relative_fileloc,
+                )
+            )
+        return import_error.full_file_path() if import_error is not None else None
 
     # Check existing import errors BEFORE deleting, so we can determine if we should update or create
     existing_import_error_files = set(
@@ -436,15 +464,10 @@ def _update_import_errors(
             # sending notification when an existing dag import error occurs
             try:
                 # todo: make listener accept bundle_name and relative_filename
-                import_error = session.scalar(
-                    select(ParseImportError).where(
-                        ParseImportError.bundle_name == bundle_name_,
-                        ParseImportError.filename == relative_fileloc,
-                    )
-                )
-                if import_error is not None:
+                filename = _listener_filename(relative_fileloc, bundle_name_)
+                if filename is not None:
                     get_listener_manager().hook.on_existing_dag_import_error(
-                        filename=import_error.full_file_path(), stacktrace=stacktrace
+                        filename=filename, stacktrace=stacktrace
                     )
             except Exception:
                 log.exception("error calling listener")
@@ -458,9 +481,11 @@ def _update_import_errors(
             session.add(import_error)
             # sending notification when a new dag import error occurs
             try:
-                get_listener_manager().hook.on_new_dag_import_error(
-                    filename=import_error.full_file_path(), stacktrace=stacktrace
-                )
+                filename = _listener_filename(relative_fileloc, bundle_name, import_error)
+                if filename is not None:
+                    get_listener_manager().hook.on_new_dag_import_error(
+                        filename=filename, stacktrace=stacktrace
+                    )
             except Exception:
                 log.exception("error calling listener")
         session.execute(
@@ -494,6 +519,7 @@ def update_dag_parsing_results_in_db(
         DagWarningType.RUNTIME_VARYING_VALUE,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
+    bundle_path: Path | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -515,6 +541,10 @@ def update_dag_parsing_results_in_db(
     :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
+    :param bundle_path: Filesystem path of the already-initialised DAG bundle. When provided, it is
+        used to build the file path passed to import-error listeners without re-instantiating the
+        bundle inside this transaction. If None, ``ParseImportError.full_file_path()`` is used as a
+        fallback.
     """
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
@@ -571,6 +601,7 @@ def update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,
+            bundle_path=bundle_path,
         )
     except Exception:
         log.exception("Error logging import errors!")

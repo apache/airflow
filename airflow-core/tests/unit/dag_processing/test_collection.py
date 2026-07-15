@@ -22,6 +22,7 @@ import logging
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
@@ -39,6 +40,7 @@ from airflow.dag_processing.collection import (
     _get_latest_runs_stmt,
     _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
+    _update_import_errors,
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
@@ -904,6 +906,45 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 0
         assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
+
+    @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_import_error_listener_uses_bundle_path_without_full_file_path(
+        self, mock_full_path, session, dag_import_error_listener, testing_dag_bundle
+    ):
+        """
+        Import errors are persisted and the listener filename is built from ``bundle_path``.
+
+        ``ParseImportError.full_file_path()`` re-instantiates the DAG bundle (and, for some
+        bundle types such as the Git bundle, resolves an Airflow Connection); calling it inside
+        the parsing transaction could roll back the not-yet-flushed import error row, leaving the
+        DAG marked as broken while nothing showed up in the UI. When the caller threads the
+        already-known ``bundle_path`` down, the filename is built directly and
+        ``full_file_path()`` must not be called at all.
+        """
+        bundle_path = Path("/opt/airflow/bundles/testing")
+        import_errors = {("testing", "abc.py"): "AnImportError"}
+        _update_import_errors(
+            files_parsed={("testing", "abc.py")},
+            bundle_name="testing",
+            import_errors=import_errors,
+            session=session,
+            bundle_path=bundle_path,
+        )
+        session.flush()
+
+        # The bundle-instantiating full_file_path() must not be used when bundle_path is given.
+        mock_full_path.assert_not_called()
+
+        # The import error is still persisted.
+        persisted = session.scalars(select(ParseImportError)).all()
+        assert len(persisted) == 1
+        assert persisted[0].bundle_name == "testing"
+        assert persisted[0].filename == "abc.py"
+        assert persisted[0].stacktrace == "AnImportError"
+
+        # The listener still received the correct filename, built from bundle_path.
+        assert dag_import_error_listener.new[str(bundle_path / "abc.py")] == "AnImportError"
 
     @patch.object(ParseImportError, "full_file_path")
     @mark_fab_auth_manager_test
