@@ -324,7 +324,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         if disable_verify_ssl is True:
             _disable_verify_ssl()
-        enable_tcp_keepalive = disable_tcp_keepalive is not True
+        use_tcp_keepalive = disable_tcp_keepalive is not True
 
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
@@ -333,7 +333,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
-                should_enable_tcp_keepalive=enable_tcp_keepalive,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         if kubeconfig_path is not None:
@@ -347,7 +347,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
-                should_enable_tcp_keepalive=enable_tcp_keepalive,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         if kubeconfig is not None:
@@ -366,7 +366,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
-                should_enable_tcp_keepalive=enable_tcp_keepalive,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         if self.config_dict:
@@ -380,13 +380,13 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
-                should_enable_tcp_keepalive=enable_tcp_keepalive,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         return self._get_default_client(
             cluster_context=cluster_context,
             disable_verify_ssl=disable_verify_ssl,
-            should_enable_tcp_keepalive=enable_tcp_keepalive,
+            should_enable_tcp_keepalive=use_tcp_keepalive,
         )
 
     def _get_default_client(
