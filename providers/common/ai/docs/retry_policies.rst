@@ -18,7 +18,8 @@
 LLM Retry Policies
 ===================
 
-.. versionadded:: 3.3.0
+.. note::
+    Requires Airflow >= 3.3.0.
 
 The ``LLMRetryPolicy`` uses an LLM to classify task errors and make intelligent
 retry decisions. It works with any LLM provider supported by pydantic-ai
@@ -40,7 +41,7 @@ Setup
    - **Connection Id**: ``pydanticai_default``
    - **Connection Type**: ``Pydantic AI``
    - **Password**: Your API key
-   - **Extra**: ``{"model": "anthropic:claude-haiku-4-5-20251001"}``
+   - **Extra**: ``{"model": "anthropic:claude-haiku-4-5"}``
 
 Usage
 -----

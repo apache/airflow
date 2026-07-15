@@ -128,7 +128,7 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-4-20250514, openai:gpt-5)",
+                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
                         "schema": {"type": ["string", "null"]},
                     }
                 },
@@ -305,7 +305,7 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Chat Model",
-                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-3-7-sonnet).\n",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-sonnet-5).\n",
                         "schema": {"type": ["string", "null"]},
                     },
                     "embed_model": {

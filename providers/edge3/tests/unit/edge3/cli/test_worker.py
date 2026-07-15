@@ -164,6 +164,18 @@ class TestEdgeWorker:
                 importlib.reload(cli_parser)
                 self.parser = cli_parser.get_parser()
 
+    @pytest.fixture(autouse=True)
+    def reset_maintenance_state(self):
+        # EdgeWorker keeps runtime state in class attributes and some tests set them
+        # on class level. Reset before each test so state does not leak between tests.
+        EdgeWorker.maintenance_mode = False
+        EdgeWorker.maintenance_comments = None
+        try:
+            yield
+        finally:
+            EdgeWorker.maintenance_mode = False
+            EdgeWorker.maintenance_comments = None
+
     @pytest.fixture
     def cli_worker_with_team(self, tmp_path: Path) -> EdgeWorker:
         test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, team_name="team_a")
