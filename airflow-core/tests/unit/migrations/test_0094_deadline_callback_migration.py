@@ -207,9 +207,7 @@ class TestMigration0094NestedKwargsEncoding:
             _migration._upgrade_mysql_sqlite(conn, batch_size=10)
 
         with engine.connect() as conn:
-            raw = json.loads(
-                conn.execute(sa.text("SELECT data FROM callback")).mappings().one()["data"]
-            )
+            raw = json.loads(conn.execute(sa.text("SELECT data FROM callback")).mappings().one()["data"])
 
         # nested dicts are wrapped (not bare) ...
         assert raw["__var"]["kwargs"]["__type"] == "dict"
