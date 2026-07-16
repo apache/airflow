@@ -6000,7 +6000,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "ibm-db", specifier = ">=3.0.0" },
+    { name = "ibm-db", specifier = ">=3.2.0" },
     { name = "ibm-db-sa", specifier = ">=0.4.0" },
     { name = "methodtools", specifier = ">=0.4.7" },
 ]
