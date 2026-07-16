@@ -200,11 +200,8 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         error_result = get_from_nullable_chain(child_job_properties, ["status", "errorResult"])
         start_time = self._get_bigquery_job_datetime(child_job_properties, "startTime")
         end_time = self._get_bigquery_job_datetime(child_job_properties, "endTime")
-        timestamp_kwargs = (
-            {"start_time": start_time, "end_time": end_time}
-            if start_time is not None and end_time is not None
-            else {}
-        )
+        if start_time is None or end_time is None:
+            start_time = end_time = None
         emit_query_lineage(
             query_id=get_from_nullable_chain(child_job_properties, ["jobReference", "jobId"]),
             query_source_namespace=BIGQUERY_NAMESPACE,
@@ -214,7 +211,8 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
             query_text=None,
             inputs=inputs,
             outputs=outputs,
-            **timestamp_kwargs,
+            start_time=start_time,
+            end_time=end_time,
             is_successful=error_result is None,
             error_message=error_result.get("message") if error_result else None,
             task_instance=task_instance,

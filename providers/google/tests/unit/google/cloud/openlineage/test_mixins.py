@@ -787,8 +787,8 @@ class TestBigQueryOpenLineageMixin:
             outputs=[],
         )
 
-        assert "start_time" not in mock_emit_query_lineage.call_args.kwargs
-        assert "end_time" not in mock_emit_query_lineage.call_args.kwargs
+        assert mock_emit_query_lineage.call_args.kwargs["start_time"] is None
+        assert mock_emit_query_lineage.call_args.kwargs["end_time"] is None
 
     @patch("airflow.providers.openlineage.api.sql.emit_query_lineage")
     def test_child_query_lineage_marks_failed_child_job(self, mock_emit_query_lineage):
