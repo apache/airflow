@@ -87,6 +87,7 @@ class PreemptibilityType(Enum):
 class ConfidentialInstanceType(Enum):
     """Contains possible Type values of Confidential Instance applicable for every secondary worker of Cluster."""
 
+    CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED = "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED"
     SEV = "SEV"
     SEV_SNP = "SEV_SNP"
     TDX = "TDX"
