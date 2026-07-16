@@ -1128,6 +1128,37 @@ class TestCLIDBClean:
             fallback_cleanup_on_null=False,
         )
 
+    @pytest.mark.parametrize(
+        ("extra_args", "expected"), [(["--fallback-cleanup-on-null"], True), ([], False)]
+    )
+    @patch("airflow.cli.commands.db_command.run_cleanup")
+    def test_fallback_cleanup_on_null(self, run_cleanup_mock, extra_args, expected):
+        """When --fallback-cleanup-on-null is passed, fallback_cleanup_on_null should be True."""
+        args = self.parser.parse_args(
+            [
+                "db",
+                "clean",
+                "--clean-before-timestamp",
+                "2021-01-01",
+                *extra_args,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            dag_ids=None,
+            exclude_dag_ids=None,
+            clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
+            verbose=False,
+            confirm=True,
+            skip_archive=False,
+            batch_size=None,
+            error_on_cleanup_failure=False,
+            fallback_cleanup_on_null=expected,
+        )
+
     @patch("airflow.cli.commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_export_archived_records(self, os_mock, export_archived_mock):
