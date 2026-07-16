@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-16T10:19:08.974555
+# This constraints file was automatically generated on 2026-07-16T17:05:47.284260
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -41,7 +41,7 @@ Flask-SQLAlchemy==3.1.1
 Flask-Session==0.8.0
 Flask-WTF==1.3.0
 Flask==3.1.3
-GitPython==3.1.50
+GitPython==3.1.51
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.12
@@ -76,7 +76,7 @@ aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.1.2
-aiosqlite==0.21.0
+aiosqlite==0.22.1
 airbyte-api==0.53.0
 akeyless==5.0.28
 alembic==1.18.5
