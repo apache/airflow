@@ -437,6 +437,16 @@ Parameters
   :class:`~airflow.providers.common.ai.skills.GitSkills`.
 - ``exclude_tools``: Optional set of skill tool names to hide from the agent
   (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+- ``exclude_resources``: Optional glob patterns to exclude from resource
+  discovery, added on top of the built-in defaults (``__pycache__``, ``*.pyc``,
+  ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every readable text file
+  it contains as a resource; these patterns keep matched files out of the
+  resource list and the ``read_skill_resource`` tool (e.g.
+  ``["*.env", "secrets/*"]``). Each pattern matches the full skill-relative path
+  or any single path component. This hides files from resource discovery only --
+  it does not stop a skill's ``run_skill_script`` from reading them off disk, so
+  pair it with ``exclude_tools={"run_skill_script"}`` when the files are
+  genuinely sensitive.
 
 Using Agent Skills with other frameworks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -621,7 +621,7 @@ def get_dag_runs(
                 dag_run_select, token, order_by, session.get_bind().dialect.name, is_backward=is_backward
             )
 
-        fetched = list(session.scalars(dag_run_select).unique())
+        fetched = list(session.scalars(dag_run_select))
         has_more = len(fetched) > page_limit
         dag_runs = fetched[:page_limit]
 
@@ -651,7 +651,7 @@ def get_dag_runs(
         limit=limit,
         session=session,
     )
-    dag_runs = list(session.scalars(dag_run_select).unique())
+    dag_runs = list(session.scalars(dag_run_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
@@ -933,7 +933,7 @@ def get_list_dag_runs_batch(
         session=session,
     )
 
-    dag_runs = list(session.scalars(dag_runs_select).unique())
+    dag_runs = list(session.scalars(dag_runs_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(

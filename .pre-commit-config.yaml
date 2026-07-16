@@ -945,7 +945,7 @@ repos:
         entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
         language: python
         files: \.py$
-        exclude: ^(tests/|.*/tests/)
+        exclude: ^(tests/|.*/tests/|airflow-core/src/airflow/observability/stats\.py$|task-sdk/src/airflow/sdk/observability/stats\.py$)
         pass_filenames: true
         additional_dependencies: ["PyYAML>=6.0", "rich>=13.6.0"]
       - id: check-boring-cyborg-configuration
