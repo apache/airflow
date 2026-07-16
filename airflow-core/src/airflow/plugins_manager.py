@@ -366,7 +366,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
         }
     plugins_info = []
     for plugin in _get_plugins()[0]:
-        info: dict[str, Any] = {"name": plugin.name}
+        info: dict[str, Any] = {"name": plugin.name, "team_name": plugin.team_name}
         for attr in attrs_to_dump:
             if attr in ("global_operator_extra_links", "operator_extra_links"):
                 info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
@@ -422,3 +422,40 @@ def get_priority_weight_strategy_plugins() -> dict[str, type[PriorityWeightStrat
 def get_import_errors() -> dict[str, str]:
     """Get import errors encountered during plugin loading."""
     return _get_plugins()[1]
+
+
+def validate_plugin_teams() -> None:
+    """
+    Validate that every team-scoped plugin references a team that exists in the database.
+
+    Only enforced when multi-team mode is enabled. This must run in a context with
+    metadata database access (the API server) — never in the Dag processor, triggerer,
+    or workers, which reach the database only through the Execution API.
+
+    Raises ``AirflowConfigException`` if any plugin declares a ``team_name`` that is not
+    present in the database, naming the offending plugins and unknown teams so the
+    misconfiguration can be fixed quickly.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return
+
+    from airflow.exceptions import AirflowConfigException
+    from airflow.models.team import Team
+
+    known_teams = Team.get_all_team_names()
+    unknown_by_plugin = {
+        plugin.name: plugin.team_name
+        for plugin in _get_plugins()[0]
+        if plugin.team_name is not None and plugin.team_name not in known_teams
+    }
+    if unknown_by_plugin:
+        lines = [
+            f"  - Plugin '{plugin_name}' is assigned to team '{team_name}', which does not exist."
+            for plugin_name, team_name in unknown_by_plugin.items()
+        ]
+        raise AirflowConfigException(
+            "Some plugins are assigned to teams that do not exist:\n"
+            + "\n".join(lines)
+            + "\n\nCreate a team with `airflow teams create <team_name>`, "
+            "or update the plugin to use an existing team."
+        )

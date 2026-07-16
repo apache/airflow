@@ -314,6 +314,8 @@ jobs:
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   ci-image-checks:
     name: "CI image checks"
@@ -909,6 +911,7 @@ jobs:
       run-remote-logging-s3-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-s3-e2e-tests }}
       run-event-driven-e2e-tests: ${{ needs.build-info.outputs.run-event-driven-e2e-tests }}
       run-java-sdk-e2e-tests: ${{ needs.build-info.outputs.run-java-sdk-e2e-tests }}
+      java-sdk-version: ${{ needs.build-info.outputs.java-sdk-version }}
       run-go-sdk-e2e-tests: ${{ needs.build-info.outputs.run-go-sdk-e2e-tests }}
       run-openlineage-e2e-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-tests }}
       run-openlineage-e2e-compat-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-compat-tests }}

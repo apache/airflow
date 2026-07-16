@@ -973,16 +973,12 @@ def post_clear_task_instances(
     # dag.clear() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if task_instances:
-        task_instances = (
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in task_instances]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+        task_instances = session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in task_instances]))
+            .execution_options(populate_existing=True)
+        ).all()
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
@@ -1139,16 +1135,12 @@ def patch_task_instance_dry_run(
     # set_task_instance_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if tis:
-        tis = (
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in tis]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+        tis = session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in tis]))
+            .execution_options(populate_existing=True)
+        ).all()
 
     return TaskInstanceCollectionResponse(
         task_instances=[

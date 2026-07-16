@@ -202,6 +202,27 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
             log.info("Not skipping teardown task '%s'", ti.task_id)
 
 
+def _add_and_prime_mapped_ti(
+    ti: TaskInstance,
+    task: Operator,
+    dag_run: DagRun,
+    *,
+    session: Session,
+    context_carrier: dict | None = None,
+) -> None:
+    """
+    Attach a newly-created mapped TI to the session and prime its ``dag_run`` cache.
+
+    :meta private:
+    """
+    task_instance_mutation_hook(ti, dag_run=dag_run)
+    session.add(ti)
+    if context_carrier is not None:
+        ti.context_carrier = context_carrier
+    ti.refresh_from_task(task, dag_run=dag_run)
+    set_committed_value(ti, "dag_run", dag_run)
+
+
 def _recalculate_dagrun_queued_at_deadlines(
     dagrun: DagRun, new_queued_at: datetime, session: Session
 ) -> None:
