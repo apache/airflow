@@ -49,12 +49,12 @@ for the full reference, including providers that
 don't need an API key (Bedrock, Vertex AI).
 
 The quickest way to set one up is an environment variable. Replace
-``openai:gpt-5.3`` with a model you have access to and ``sk-...`` with your
+``openai:gpt-5.6-sol`` with a model you have access to and ``sk-...`` with your
 actual API key:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5.3"}}'
+    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5.6-sol"}}'
 
 Or add it through the Airflow UI (``Admin > Connections``) or the CLI (``airflow connections add``).
 
