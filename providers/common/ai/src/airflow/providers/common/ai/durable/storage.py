@@ -64,18 +64,26 @@ class DurableStorage:
     :param task_id: Task ID of the running task.
     :param run_id: DAG run ID.
     :param map_index: Map index for mapped tasks (``-1`` for non-mapped).
+    :param cache_id: Optional explicit cache key. When omitted, the cache key
+        is derived from dag_id/task_id/run_id/map_index.
     """
 
     def __init__(
         self,
         *,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
+        dag_id: str = "",
+        task_id: str = "",
+        run_id: str = "",
         map_index: int = -1,
+        cache_id: str | None = None,
     ) -> None:
-        suffix = f"_{map_index}" if map_index >= 0 else ""
-        self._cache_id = f"{dag_id}_{task_id}_{run_id}{suffix}"
+        if cache_id is not None:
+            self._cache_id = cache_id
+        else:
+            if not dag_id or not task_id or not run_id:
+                raise ValueError("dag_id, task_id, and run_id must be provided when cache_id is not set.")
+            suffix = f"_{map_index}" if map_index >= 0 else ""
+            self._cache_id = f"{dag_id}_{task_id}_{run_id}{suffix}"
         self._cache: dict[str, Any] | None = None
 
     def _get_path(self):

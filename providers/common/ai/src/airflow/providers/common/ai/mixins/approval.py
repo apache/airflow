@@ -163,17 +163,21 @@ class LLMApprovalMixin:
             timeout=self.approval_timeout,
         )
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
         """
         Resume after human review.
 
         Called automatically by Airflow when the HITL trigger fires.
         Returns the original or reviewer-modified output on approval.
+        Subclasses may override this method and return a different type
+        (e.g. ``dict[str, Any]``); the base implementation returns ``str``.
 
         :param context: Airflow task context.
         :param generated_output: The output that was deferred for review.
         :param event: Trigger event payload containing ``chosen_options``,
             ``params_input``, and ``responded_by_user``.
+        :returns: The approved (and optionally modified) output.  Subclasses
+            may return a richer type after post-processing the approved string.
         :raises HITLRejectException: If the reviewer rejected the output.
         :raises HITLTriggerEventError: If the trigger reported an error.
         :raises HITLTimeoutError: If the approval timed out.
