@@ -87,7 +87,6 @@ class PreemptibilityType(Enum):
 class ConfidentialInstanceType(Enum):
     """Contains possible Type values of Confidential Instance applicable for every secondary worker of Cluster."""
 
-    CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED = "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED"
     SEV = "SEV"
     SEV_SNP = "SEV_SNP"
     TDX = "TDX"
@@ -297,7 +296,7 @@ class ClusterGenerator:
         idle_stop_ttl: int | None = None,
         auto_stop_time: datetime | None = None,
         auto_stop_ttl: int | None = None,
-        confidential_instance_config: dict | ConfidentialInstanceConfig | None = None,
+        confidential_instance_config: ConfidentialInstanceConfig | None = None,
         customer_managed_key: str | None = None,
         enable_component_gateway: bool | None = False,
         driver_pool_size: int = 0,
@@ -567,7 +566,7 @@ class ClusterGenerator:
             if self.secondary_worker_instance_flexibility_policy:
                 cluster_data["secondary_worker_config"]["instance_flexibility_policy"] = {
                     "instance_selection_list": [
-                        {k: v for k, v in vars(s).items() if v is not None}
+                        vars(s)
                         for s in self.secondary_worker_instance_flexibility_policy.instance_selection_list
                     ]
                 }
