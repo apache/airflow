@@ -128,6 +128,60 @@ class TestBaseHook:
             )
         assert result is not None
 
+    def test_get_hook_preserves_original_conn_id_when_backend_rewrites_alias(self):
+        """
+        When a secrets backend rewrites alias → canonical on the returned Connection,
+        the hook's conn_name_attr must remain the original alias so that any future
+        get_connection() call stays on the registered key.
+        """
+        alias = "my-llm-alias"
+        canonical = "my-llm-alias.gpt-4o.prod"
+
+        class _FakeHook:
+            conn_name_attr = "my_conn_id"
+            my_conn_id = canonical
+
+        fake_hook = _FakeHook()
+        mock_conn = MagicMock()
+        mock_conn.get_hook.return_value = fake_hook
+
+        with patch.object(BaseHook, "get_connection", return_value=mock_conn):
+            result = BaseHook.get_hook(alias)
+
+        assert result.my_conn_id == alias
+
+    def test_get_hook_no_rewriting_leaves_conn_id_unchanged(self):
+        """When conn.conn_id matches the lookup key (no alias rewriting), the hook is unchanged."""
+        conn_id = "my_plain_conn"
+
+        class _FakeHook:
+            conn_name_attr = "my_conn_id"
+            my_conn_id = conn_id
+
+        fake_hook = _FakeHook()
+        mock_conn = MagicMock()
+        mock_conn.get_hook.return_value = fake_hook
+
+        with patch.object(BaseHook, "get_connection", return_value=mock_conn):
+            result = BaseHook.get_hook(conn_id)
+
+        assert result.my_conn_id == conn_id
+
+    def test_get_hook_without_conn_name_attr_is_returned_unchanged(self):
+        """Hooks without conn_name_attr are returned as-is — no AttributeError."""
+
+        class _MinimalHook:
+            pass
+
+        fake_hook = _MinimalHook()
+        mock_conn = MagicMock()
+        mock_conn.get_hook.return_value = fake_hook
+
+        with patch.object(BaseHook, "get_connection", return_value=mock_conn):
+            result = BaseHook.get_hook("some_conn")
+
+        assert result is fake_hook
+
     def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):
         path = tmp_path / "conn.env"
         path.write_text("CONN_A=mysql://host_a")

@@ -836,58 +836,7 @@ class TestPydanticAIVertexHook:
 
 
 class TestPydanticAIHookGetHook:
-    """Tests for PydanticAIHook.get_hook — especially alias-rewriting secrets backends."""
-
-    def test_get_hook_preserves_original_conn_id_when_backend_rewrites_alias(self):
-        """
-        When a secrets backend rewrites alias → canonical on the returned Connection,
-        the hook's llm_conn_id must remain the original alias so that any future
-        get_connection() call stays on the queryable key.
-        """
-        alias = "openai.my_alias"
-        canonical = "openai.my_alias.gpt_5_3_chat.prod"
-
-        # Simulate a connection returned by a rewriting secrets backend:
-        # conn.conn_id is the canonical id, not the alias used to look it up.
-        canonical_conn = Connection(
-            conn_id=canonical,
-            conn_type="pydanticai-azure",
-            password="secret-key",
-            host="https://myresource.openai.azure.com",
-            extra='{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}',
-        )
-
-        # connection.get_hook() returns a hook with llm_conn_id=canonical (the
-        # standard behaviour — it passes conn.conn_id to the hook constructor).
-        hook_with_canonical = PydanticAIAzureHook(llm_conn_id=canonical)
-
-        with (
-            patch.object(PydanticAIHook, "get_connection", return_value=canonical_conn),
-            patch.object(canonical_conn, "get_hook", return_value=hook_with_canonical),
-        ):
-            hook = PydanticAIHook.get_hook(alias, hook_params={"model_id": None})
-
-        # llm_conn_id must be the alias, not the canonical id written by the backend.
-        assert hook.llm_conn_id == alias
-
-    def test_get_hook_no_rewriting_normal_airflow(self):
-        """When conn.conn_id matches the lookup key (vanilla Airflow), the hook is unchanged."""
-        conn_id = "my_openai_conn"
-        conn = Connection(
-            conn_id=conn_id,
-            conn_type="pydanticai",
-            password="sk-key",
-            extra='{"model": "openai:gpt-5.3"}',
-        )
-        hook_from_conn = PydanticAIHook(llm_conn_id=conn_id)
-
-        with (
-            patch.object(PydanticAIHook, "get_connection", return_value=conn),
-            patch.object(conn, "get_hook", return_value=hook_from_conn),
-        ):
-            hook = PydanticAIHook.get_hook(conn_id)
-
-        assert hook.llm_conn_id == conn_id
+    """Tests for alias-rewriting secrets-backend behaviour specific to PydanticAI hooks."""
 
     def test_get_conn_uses_alias_not_canonical_after_rewrite(self):
         """

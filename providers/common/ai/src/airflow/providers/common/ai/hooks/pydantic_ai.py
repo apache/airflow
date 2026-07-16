@@ -98,31 +98,6 @@ class PydanticAIHook(BaseHook):
     # Core connection / agent API
     # ------------------------------------------------------------------
 
-    @classmethod
-    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> PydanticAIHook:
-        """
-        Return the PydanticAIHook subclass matching the connection's ``conn_type``.
-
-        Overrides :meth:`~airflow.providers.common.compat.sdk.BaseHook.get_hook` to
-        preserve the original ``conn_id`` on the returned hook instance.  The base
-        implementation passes ``conn.conn_id`` to the hook constructor, which may
-        differ from the lookup key when a secrets backend rewrites an alias to a
-        canonical id on the returned
-        :class:`~airflow.sdk.definitions.connection.Connection`.  Using the rewritten
-        id as ``llm_conn_id`` causes a subsequent :meth:`get_conn` call to re-fetch by
-        the canonical id — a key the secrets backend does not recognize.
-
-        Restoring ``llm_conn_id`` to the caller's original ``conn_id`` (the queryable
-        alias) ensures that every secrets-backend lookup uses the registered key.
-
-        :param conn_id: Connection ID (may be a secrets-backend alias).
-        :param hook_params: Extra keyword arguments forwarded to the hook constructor.
-        :return: Configured :class:`PydanticAIHook` (or the matching subclass).
-        """
-        hook = super().get_hook(conn_id, hook_params=hook_params)
-        setattr(hook, hook.conn_name_attr, conn_id)
-        return hook
-
     def _get_provider_kwargs(
         self,
         api_key: str | None,

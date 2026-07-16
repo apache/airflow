@@ -77,6 +77,31 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
+    def _hook_from_connection(cls, connection: Connection, conn_id: str, hook_params: dict | None = None):
+        """
+        Build a hook from *connection* and re-key it to *conn_id*.
+
+        Secrets backends may rewrite the ``conn_id`` on the
+        :class:`~airflow.sdk.definitions.connection.Connection` they return (e.g. a
+        Vault alias resolved to a canonical, environment-specific id).  If that
+        rewritten id is left on the hook, any subsequent ``get_connection()`` call
+        inside the hook will try to fetch by the canonical id — a key the secrets
+        backend does not recognize.
+
+        Re-keying to the caller's original *conn_id* ensures every secrets-backend
+        lookup continues to use the registered alias.
+
+        :param connection: Connection object returned by the secrets backend.
+        :param conn_id: Original connection ID as supplied by the caller (the registered alias).
+        :param hook_params: Extra keyword arguments forwarded to the hook constructor.
+        :return: Hook instance keyed to *conn_id*.
+        """
+        hook = connection.get_hook(hook_params=hook_params)
+        if hasattr(hook, "conn_name_attr"):
+            setattr(hook, hook.conn_name_attr, conn_id)
+        return hook
+
+    @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
         """
         Return default hook for this connection id.
@@ -86,7 +111,7 @@ class BaseHook(LoggingMixin):
         :return: default hook for this connection
         """
         connection = cls.get_connection(conn_id)
-        return connection.get_hook(hook_params=hook_params)
+        return cls._hook_from_connection(connection, conn_id, hook_params=hook_params)
 
     @classmethod
     async def aget_hook(cls, conn_id: str, hook_params: dict | None = None):
@@ -103,7 +128,7 @@ class BaseHook(LoggingMixin):
         :return: default hook for this connection
         """
         connection = await cls.aget_connection(conn_id)
-        return connection.get_hook(hook_params=hook_params)
+        return cls._hook_from_connection(connection, conn_id, hook_params=hook_params)
 
     def get_conn(self) -> Any:
         """Return connection for the hook."""
