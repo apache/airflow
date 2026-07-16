@@ -36,7 +36,7 @@ else:
         def _log(self):
             """Lazy structlog logger bound with common bundle context."""
             if not hasattr(self, "_compat_structlog"):
-                log_context = self._log_context() if hasattr(self, "_log_context") else {}
+                log_context = self._get_log_context() if hasattr(self, "_get_log_context") else {}
                 self._compat_structlog = structlog.get_logger(type(self).__module__).bind(
                     bundle_name=self.name,
                     version=self.version,

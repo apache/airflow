@@ -336,3 +336,56 @@ def test_version_data_defaults_to_none():
     """Test that version_data defaults to None when not provided."""
     bundle = BasicBundle(name="test")
     assert bundle.version_data is None
+
+
+class BundleWithContext(BaseDagBundle):
+    @property
+    def path(self) -> Path:
+        return Path("/tmp")
+
+    def get_current_version(self) -> str | None: ...
+
+    def refresh(self) -> None: ...
+
+    def _get_log_context(self) -> dict:
+        return {"custom_key": "custom_value"}
+
+
+def test_log_is_lazy_and_cached():
+    """_log is only created on first access and the same object is returned on repeated access."""
+    bundle = BasicBundle(name="lazy-test")
+    assert bundle._BaseDagBundle__log is None
+    first = bundle._log
+    assert first is not None
+    assert bundle._log is first
+
+
+def test_log_includes_bundle_name_and_version():
+    """_log is bound with bundle_name and version."""
+    import structlog.testing
+
+    bundle = BasicBundle(name="ctx-bundle", version="v1.2.3")
+    with structlog.testing.capture_logs() as cap:
+        bundle._log.info("test event")
+    assert cap[0]["bundle_name"] == "ctx-bundle"
+    assert cap[0]["version"] == "v1.2.3"
+
+
+def test_log_includes_subclass_context():
+    """Keys returned by _get_log_context() are merged into the bound logger."""
+    import structlog.testing
+
+    bundle = BundleWithContext(name="ctx-bundle", version="v2")
+    with structlog.testing.capture_logs() as cap:
+        bundle._log.info("test event")
+    assert cap[0]["custom_key"] == "custom_value"
+
+
+def test_log_setter_allows_direct_assignment():
+    """Assigning self._log directly (as legacy providers do) must not raise AttributeError."""
+    import structlog
+
+    bundle = BasicBundle(name="setter-test")
+    custom_logger = structlog.get_logger("custom").bind(bundle_name="setter-test")
+    bundle._log = custom_logger
+    assert bundle._log is custom_logger
