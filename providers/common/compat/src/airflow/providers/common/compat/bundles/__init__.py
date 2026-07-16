@@ -44,5 +44,9 @@ else:
                 )
             return self._compat_structlog
 
+        @_log.setter
+        def _log(self, value) -> None:
+            self._compat_structlog = value
+
 
 __all__ = ["BaseDagBundle"]
