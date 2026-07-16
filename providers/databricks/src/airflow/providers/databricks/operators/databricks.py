@@ -1679,16 +1679,10 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         super().__init__(**kwargs)
 
         if self._databricks_workflow_task_group is not None:
-            # Conditionally set operator_extra_links based on Airflow version. In Airflow 3, only show the job run link.
-            # In Airflow 2, show the job run link and the repair link.
-            # TODO: Once we expand the plugin functionality in Airflow 3.1, this can be re-evaluated on how to handle the repair link.
-            if AIRFLOW_V_3_0_PLUS:
-                self.operator_extra_links = (WorkflowJobRunLink(),)
-            else:
-                self.operator_extra_links = (
-                    WorkflowJobRunLink(),
-                    WorkflowJobRepairSingleTaskLink(),
-                )
+            self.operator_extra_links = (
+                WorkflowJobRunLink(),
+                WorkflowJobRepairSingleTaskLink(),
+            )
         else:
             # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
             self.operator_extra_links = (DatabricksJobRunLink(),)
