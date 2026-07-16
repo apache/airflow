@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.dynamodb import DynamoDBValueSensorTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -123,7 +123,7 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
         validated_event = validate_execute_complete_event(event)
 
         if validated_event["status"] != "success":
-            raise AirflowException(f"Trigger error: event is {validated_event}")
+            raise RuntimeError(f"Trigger error: event is {validated_event}")
         self.log.info("DynamoDB attribute value match found; sensor complete.")
 
     def poke(self, context: Context) -> bool:

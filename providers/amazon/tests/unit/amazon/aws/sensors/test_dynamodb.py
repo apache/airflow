@@ -23,7 +23,7 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 from airflow.providers.amazon.aws.triggers.dynamodb import DynamoDBValueSensorTrigger
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 
 class TestDynamoDBValueSensor:
@@ -169,7 +169,7 @@ class TestDynamoDBValueSensor:
         )
         event = {"status": "failed"}
         message = f"Trigger error: event is {event}"
-        with pytest.raises(AirflowException, match=message):
+        with pytest.raises(RuntimeError, match=message):
             sensor.execute_complete(context={}, event=event)
 
 
