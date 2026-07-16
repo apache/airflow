@@ -134,6 +134,7 @@ See the Optional dependencies table below for the exact package each extra insta
     Operators <operators/index>
     Examples <examples>
     Retry Policies <retry_policies>
+    Self-hosted models <self_hosted_models>
     HITL Review <hitl_review>
     Observability <observability>
 
