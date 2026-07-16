@@ -1366,10 +1366,10 @@ Quantiles
 quantiles
 Qubole
 qubole
+queryable
 querybook
 Querybooks
 querybooks
-queryable
 queryParameters
 queueing
 quicksight
