@@ -112,11 +112,6 @@
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "Przewiń: {{arrow}}",
-    "openGraphFilters": "Filtry zadań: Ctrl+Shift+F",
-    "toggleGroup": "Przełącz grupę: Space"
-  },
   "notFound": {
     "back": "Wróć",
     "backToDags": "Powrót do Dagów",

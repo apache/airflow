@@ -109,11 +109,6 @@
     "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})",
     "warning": "AVERTISSEMENT"
   },
-  "navigation": {
-    "navigation": "Navigation : {{arrow}}",
-    "openGraphFilters": "Filtres de tâches : Ctrl+Maj+F",
-    "toggleGroup": "Basculer le groupe : Espace"
-  },
   "notFound": {
     "back": "Retour",
     "backToDags": "Retour aux Dags",

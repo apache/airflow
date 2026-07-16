@@ -107,6 +107,7 @@ class PluginResponse(BaseModel):
     """Plugin serializer."""
 
     name: str
+    team_name: str | None = None
     macros: list[str]
     flask_blueprints: list[str]
     fastapi_apps: list[FastAPIAppResponse]

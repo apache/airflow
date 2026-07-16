@@ -111,6 +111,42 @@ example_agent_operator_hook()
 
 
 # ---------------------------------------------------------------------------
+# 2b. Hook-based tools against a GET-only endpoint (self-hosted models tutorial)
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_self_hosted]
+@dag(tags=["example"])
+def example_agent_self_hosted():
+    from airflow.providers.http.hooks.http import HttpHook
+
+    # The OpenAI-compatible model list (GET /v1/models) is GET-only; HttpHook defaults to POST.
+    http_hook = HttpHook(http_conn_id="my_api", method="GET")
+
+    AgentOperator(
+        task_id="list_models",
+        prompt="Which models are available?",
+        llm_conn_id="pydanticai_default",
+        system_prompt=(
+            "You are an API assistant. Use the tools to answer questions; "
+            "the server's model list is served at GET /v1/models."
+        ),
+        toolsets=[
+            HookToolset(
+                http_hook,
+                allowed_methods=["run"],
+                tool_name_prefix="http_",
+            )
+        ],
+    )
+
+
+# [END howto_agent_self_hosted]
+
+example_agent_self_hosted()
+
+
+# ---------------------------------------------------------------------------
 # 3. @task.agent decorator with dynamic prompt
 # ---------------------------------------------------------------------------
 
