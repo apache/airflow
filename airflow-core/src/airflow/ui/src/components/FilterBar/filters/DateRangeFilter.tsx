@@ -148,7 +148,6 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
                 endDateValue={endDateValue}
                 getFieldError={getFieldError}
                 handleInputChange={handleInputChange}
-                onApply={applyDateRange}
                 onChange={onChange}
                 setEditingState={setEditingState}
                 startDateValue={startDateValue}

@@ -19,7 +19,7 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import type { TFunction } from "i18next";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
@@ -304,7 +304,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
 
   const hasValidationErrors = editingState.validationErrors.length > 0;
 
-  const applyDateRange = useCallback(() => {
+  const applyDateRange = () => {
     const { inputs } = editingState;
     const errors = validateInputs(inputs);
 
@@ -325,7 +325,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       endDate: endDateTime,
       startDate: startDateTime,
     });
-  }, [editingState, onChange, selectedTimezone, value]);
+  };
 
   return {
     editingState,
