@@ -24,14 +24,14 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request, status
-from sqlalchemy.exc import DatabaseError, DataError, IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.utils.strings import get_random_string
 
 T = TypeVar("T", bound=Exception)
-DBError = TypeVar("DBError", bound=DatabaseError)
+DBError = TypeVar("DBError", bound=SQLAlchemyError)
 
 log = logging.getLogger(__name__)
 
@@ -54,52 +54,6 @@ class _DatabaseDialect(Enum):
     POSTGRES = "postgres"
 
 
-def _build_database_error_response(
-    exc: Exception,
-    status_code: int,
-    reason: str,
-    statement: str | None = None,
-    orig_error: str | None = None,
-) -> None:
-    """
-    Build and raise HTTPException with common database error handling logic.
-
-    Extracts statement and original error, logs them, and constructs an HTTP response
-    based on the expose_stacktrace configuration.
-    """
-    if statement is None:
-        statement = getattr(exc, "statement", "hidden")
-    if orig_error is None:
-        orig_error = getattr(exc, "orig", "hidden")
-
-    exception_id = get_random_string()
-    stacktrace = "".join(traceback.format_tb(exc.__traceback__))
-    log_message = f"Error with id {exception_id}, statement: {statement}\n{stacktrace}"
-    log.error(log_message)
-
-    if conf.get("api", "expose_stacktrace") == "True":
-        message = log_message
-        statement_out = str(statement)
-        orig_error_out = str(orig_error)
-    else:
-        message = (
-            "Serious error when handling your request. Check logs for more details - "
-            f"you will find it in api server when you look for ID {exception_id}"
-        )
-        statement_out = "hidden"
-        orig_error_out = "hidden"
-
-    raise HTTPException(
-        status_code=status_code,
-        detail={
-            "reason": reason,
-            "statement": statement_out,
-            "orig_error": orig_error_out,
-            "message": message,
-        },
-    )
-
-
 class _DatabaseErrorHandler(BaseErrorHandler[DBError]):
     """
     Base for handlers that turn a SQLAlchemy error into an actionable HTTP response.
@@ -116,16 +70,40 @@ class _DatabaseErrorHandler(BaseErrorHandler[DBError]):
     def _should_handle(self, exc: DBError) -> bool:
         return True
 
+    def _raise_database_error_response(self, exc: DBError) -> None:
+        statement = getattr(exc, "statement", "hidden")
+        orig_error = getattr(exc, "orig", "hidden")
+        exception_id = get_random_string()
+        stacktrace = "".join(traceback.format_tb(exc.__traceback__))
+        log_message = f"Error with id {exception_id}, statement: {statement}\n{stacktrace}"
+        log.error(log_message)
+
+        if conf.get("api", "expose_stacktrace") == "True":
+            message = log_message
+            statement_out = str(statement)
+            orig_error_out = str(orig_error)
+        else:
+            message = (
+                "Serious error when handling your request. Check logs for more details - "
+                f"you will find it in api server when you look for ID {exception_id}"
+            )
+            statement_out = "hidden"
+            orig_error_out = "hidden"
+
+        raise HTTPException(
+            status_code=self.status_code,
+            detail={
+                "reason": self.reason,
+                "statement": statement_out,
+                "orig_error": orig_error_out,
+                "message": message,
+            },
+        )
+
     def exception_handler(self, request: Request, exc: DBError):
         if not self._should_handle(exc):
             return
-        _build_database_error_response(
-            exc=exc,
-            status_code=self.status_code,
-            reason=self.reason,
-            statement=str(exc.statement),
-            orig_error=str(exc.orig),
-        )
+        self._raise_database_error_response(exc)
 
 
 class _UniqueConstraintErrorHandler(_DatabaseErrorHandler[IntegrityError]):
@@ -198,24 +176,14 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
         )
 
 
-class SQLAlchemyErrorHandler(BaseErrorHandler[SQLAlchemyError]):
+class SQLAlchemyErrorHandler(_DatabaseErrorHandler[SQLAlchemyError]):
     """Generic handler for SQLAlchemyError -> 500 responses."""
+
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    reason = "Database error"
 
     def __init__(self):
         super().__init__(SQLAlchemyError)
-
-    def exception_handler(self, request: Request, exc: SQLAlchemyError):
-        statement = getattr(exc, "statement", "hidden")
-        orig_error = getattr(exc, "orig", "hidden")
-        # SQLAlchemyError may not have statement/orig attributes; guard access
-        log.exception("Error with id will be generated for statement: %s", statement, exc_info=exc)
-        _build_database_error_response(
-            exc=exc,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            reason="Database error",
-            statement=str(statement),
-            orig_error=str(orig_error),
-        )
 
 
 ERROR_HANDLERS: list[BaseErrorHandler] = [
