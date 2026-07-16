@@ -1544,7 +1544,8 @@ def _run_task(
                 trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
-                # Merge (not replace) so defer()-time kwargs survive, matching the production triggerer path.
+                # Add the trigger event to the kwargs the task passed to defer(), instead of
+                # discarding them, so the resume method still receives those kwargs.
                 if event:
                     next_kwargs = deserialize(msg.next_kwargs) if msg.next_kwargs else {}
                     if TYPE_CHECKING:
