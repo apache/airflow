@@ -16,14 +16,51 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+from pathlib import Path
 from unittest import mock
 
 import pytest
+import structlog.testing
 
 pytest.importorskip("airflow.dag_processing.bundles", reason="Requires Airflow 3+")
 
 from airflow.dag_processing.bundles.base import BaseDagBundle as CoreBaseDagBundle
 from airflow.providers.common.compat.bundles import BaseDagBundle
+
+from tests_common.test_utils.config import conf_vars
+
+
+def _make_bundle_class(base):
+    """Return a concrete bundle subclass with the given base."""
+
+    class _DummyBundle(base):
+        @property
+        def path(self) -> Path:
+            return Path("/tmp")
+
+        def initialize(self) -> None:
+            pass
+
+        def get_current_version(self):
+            return None
+
+        def refresh(self) -> None:
+            pass
+
+    return _DummyBundle
+
+
+@pytest.fixture
+def legacy_compat_base():
+    """Yield the compat BaseDagBundle as it would appear on an older Airflow without _log."""
+    import airflow.providers.common.compat.bundles as mod
+
+    with mock.patch.object(CoreBaseDagBundle, "_log", None, create=True):
+        importlib.reload(mod)
+        yield mod.BaseDagBundle
+    # Reload again outside the patch so the real module is back in sys.modules.
+    importlib.reload(mod)
 
 
 class TestDagBundleCompat:
@@ -38,92 +75,29 @@ class TestDagBundleCompat:
 
     def test_log_property_on_subclass_instance(self, tmp_path):
         """_log returns a bound structlog logger on concrete bundle subclasses."""
-        from pathlib import Path
-
-        from tests_common.test_utils.config import conf_vars
-
-        class _DummyBundle(BaseDagBundle):
-            @property
-            def path(self) -> Path:
-                return tmp_path
-
-            def initialize(self) -> None:
-                pass
-
-            def get_current_version(self):
-                return None
-
-            def refresh(self) -> None:
-                pass
-
+        DummyBundle = _make_bundle_class(BaseDagBundle)
         with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
-            bundle = _DummyBundle(name="test-bundle")
+            bundle = DummyBundle(name="test-bundle")
 
-        log = bundle._log
-        assert log is not None
-        # Calling _log twice returns the same (cached) logger.
-        assert bundle._log is log
+        first = bundle._log
+        assert first is not None
+        assert bundle._log is first  # cached
 
     def test_log_is_bound_with_context(self, tmp_path):
         """_log includes bundle_name and version in its bound variables."""
-        from pathlib import Path
-
-        from tests_common.test_utils.config import conf_vars
-
-        class _DummyBundle(BaseDagBundle):
-            @property
-            def path(self) -> Path:
-                return tmp_path
-
-            def initialize(self) -> None:
-                pass
-
-            def get_current_version(self):
-                return None
-
-            def refresh(self) -> None:
-                pass
-
+        DummyBundle = _make_bundle_class(BaseDagBundle)
         with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
-            bundle = _DummyBundle(name="my-bundle", version="abc123")
+            bundle = DummyBundle(name="my-bundle", version="abc123")
 
-        log = bundle._log
-        # structlog bound loggers expose their bindings via _context
-        ctx = log._context if hasattr(log, "_context") else {}
-        assert ctx.get("bundle_name") == "my-bundle"
-        assert ctx.get("version") == "abc123"
+        with structlog.testing.capture_logs() as cap:
+            bundle._log.info("test event")
+        assert cap[0]["bundle_name"] == "my-bundle"
+        assert cap[0]["version"] == "abc123"
 
-    def test_compat_subclass_provides_log_when_missing(self, tmp_path):
+    def test_compat_subclass_provides_log_when_missing(self, tmp_path, legacy_compat_base):
         """Even when the installed BaseDagBundle has no _log, the compat class fills it in."""
-        from pathlib import Path
-
-        from tests_common.test_utils.config import conf_vars
-
-        # Simulate an older Airflow version by temporarily hiding _log from
-        # the core class; the compat class must still expose it.
-        with mock.patch.object(CoreBaseDagBundle, "_log", None, create=True):
-            from importlib import reload
-
-            import airflow.providers.common.compat.bundles as mod
-
-            reload(mod)
-            CompatBase = mod.BaseDagBundle
-
-        class _DummyBundle(CompatBase):
-            @property
-            def path(self) -> Path:
-                return tmp_path
-
-            def initialize(self) -> None:
-                pass
-
-            def get_current_version(self):
-                return None
-
-            def refresh(self) -> None:
-                pass
-
+        DummyBundle = _make_bundle_class(legacy_compat_base)
         with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
-            bundle = _DummyBundle(name="legacy-bundle")
+            bundle = DummyBundle(name="legacy-bundle")
 
         assert bundle._log is not None
