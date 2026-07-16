@@ -22,7 +22,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -38,26 +39,70 @@ from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 
-async def has_xcom_access(
+def has_xcom_access(
     dag_id: str,
     run_id: str,
     task_id: str,
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
+    session: SessionDep,
     token=CurrentTIToken,
 ) -> bool:
-    """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
+    """
+    Check whether the requesting task may access the XCom for ``dag_id``.
+
+    In multi-team mode, XCom access is scoped by team ownership (resolved via the
+    ``dag -> bundle -> team`` chain). There is no cross-team XCom sharing:
+
+    * reads (``GET``/``HEAD``) are allowed for the requester's own team or for
+      global (teamless) dags;
+    * writes and deletes are allowed only for the requester's own team; a team
+      task may not mutate a global dag's XCom, mirroring how team-scoped
+      Variables and Connections behave.
+
+    When multi-team mode is disabled this is a no-op and all access is allowed,
+    consistent with Airflow's single-team security model where workers within a
+    deployment trust each other. Note this enforces the boundary at the Execution
+    API only; it does not constrain code paths with direct database access (e.g.
+    the Dag File Processor or Triggerer).
+    """
+    from airflow.configuration import conf
 
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
 
     log.debug(
-        "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
+        "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
         "write" if write else "read",
         token.id,
         xcom_key,
+        dag_id,
     )
-    return True
+
+    if not conf.getboolean("core", "multi_team"):
+        return True
+
+    from airflow.api_fastapi.execution_api.security import (
+        _team_name_for_dag_stmt,
+        _team_name_for_ti_stmt,
+    )
+
+    requester_team = session.scalar(_team_name_for_ti_stmt(token.id))
+    target_team = session.scalar(_team_name_for_dag_stmt(dag_id))
+
+    # Same team (including a teamless task accessing a global, teamless dag) is always allowed.
+    if target_team == requester_team:
+        return True
+    # Reads may additionally reach global (teamless) dags; writes and deletes may not.
+    if not write and target_team is None:
+        return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "reason": "access_denied",
+            "message": "Task does not have access to this XCom in multi-team mode",
+        },
+    )
 
 
 router = APIRouter(
@@ -389,17 +434,35 @@ def set_xcom(
     # means loading the serialized dag and that seems like a relatively costly operation for minimal benefit
     # (the mapped task would fail in a moment as it can't be expanded anyway.)
     try:
-        # We expect serialised value from the caller - sdk, do not serialise in here
-        XComModel.set(
-            key=key,
-            value=value,
-            run_id=run_id,
-            task_id=task_id,
-            dag_id=dag_id,
-            map_index=map_index,
-            serialize=False,
-            dag_result=dag_result,
-            session=session,
+        # Use a savepoint so that an IntegrityError on the XCom write does not
+        # roll back the task-map merge that may have already been flushed above.
+        with session.begin_nested():
+            # We expect serialised value from the caller - sdk, do not serialise in here
+            XComModel.set(
+                key=key,
+                value=value,
+                run_id=run_id,
+                task_id=task_id,
+                dag_id=dag_id,
+                map_index=map_index,
+                serialize=False,
+                dag_result=dag_result,
+                session=session,
+            )
+    except IntegrityError:
+        # A concurrent or retried write for the same (dag_id, run_id, task_id, key,
+        # map_index) committed first.  The savepoint was rolled back automatically;
+        # fall through to an explicit UPDATE so the latest value wins.
+        session.execute(
+            update(XComModel)
+            .where(
+                XComModel.key == key,
+                XComModel.run_id == run_id,
+                XComModel.task_id == task_id,
+                XComModel.dag_id == dag_id,
+                XComModel.map_index == map_index,
+            )
+            .values(value=value, dag_result=dag_result)
         )
     except ValueError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
@@ -437,5 +500,4 @@ def delete_xcom(
         XComModel.map_index == map_index,
     )
     session.execute(query)
-    session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}
