@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-16T06:01:14.873181
+# This constraints file was automatically generated on 2026-07-16T10:18:19.140309
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -87,7 +87,7 @@ asn1crypto==1.5.1
 ast_serialize==0.6.0
 astor==0.8.1
 astroid==4.1.2
-asttokens==3.0.1
+asttokens==3.0.2
 async-timeout==4.0.3
 asyncpg==0.31.0
 asyncssh==2.24.0
@@ -432,7 +432,7 @@ mypy-boto3-appflow==1.43.23
 mypy-boto3-rds==1.43.30
 mypy-boto3-redshift-data==1.43.0
 mypy-boto3-s3==1.43.31
-mypy==2.1.0
+mypy==2.2.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.6.0
 mysqlclient==2.2.8
@@ -617,7 +617,7 @@ roman-numerals==4.1.0
 rpds-py==2026.6.3
 rsa==4.9.1
 ruamel.yaml==0.19.1
-ruff==0.15.20
+ruff==0.15.21
 s3fs==2026.6.0
 s3transfer==0.17.1
 sagemaker_studio==1.0.26
@@ -706,7 +706,7 @@ truststore==0.10.4
 twine==6.2.0
 typer==0.26.8
 types-Deprecated==1.3.1.20260520
-types-Markdown==3.10.2.20260518
+types-Markdown==3.10.2.20260712
 types-PyMySQL==1.1.0.20260518
 types-PyYAML==6.0.12.20260518
 types-aiofiles==25.1.0.20260518
@@ -714,7 +714,7 @@ types-cachetools==7.0.0.20260518
 types-certifi==2021.10.8.3
 types-cffi==2.0.0.20260518
 types-croniter==6.2.4.20260711
-types-docutils==0.22.3.20260518
+types-docutils==0.22.3.20260712
 types-paramiko==4.0.0.20260518
 types-protobuf==7.34.1.20260518
 types-pyOpenSSL==24.1.0.20240722
@@ -722,7 +722,7 @@ types-python-dateutil==2.9.0.20260518
 types-python-slugify==8.0.2.20240310
 types-pytz==2026.2.0.20260518
 types-redis==4.6.0.20241004
-types-requests==2.33.0.20260518
+types-requests==2.33.0.20260712
 types-setuptools==83.0.0.20260706
 types-tabulate==0.10.0.20260508
 types-toml==0.10.8.20260518
@@ -738,7 +738,7 @@ urllib3==2.7.0
 userpath==1.9.2
 uuid6==2025.0.1
 uuid_utils==0.17.0
-uv==0.11.26
+uv==0.11.28
 uvicorn==0.51.0
 uvloop==0.22.1
 validators==0.35.0
