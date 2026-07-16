@@ -70,8 +70,8 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-ibm-db2
------------------------------------------
+apache-airflow-providers-ibm-db2 package
+------------------------------------------------------
 
 `IBM Db2 <https://www.ibm.com/products/db2>`__
 
@@ -82,26 +82,53 @@ Provider package
 ----------------
 
 This package is for the ``ibm.db2`` provider.
-All classes for this package are in the ``airflow.providers.ibm.db2`` python package.
+All classes for this package are included in the ``airflow.providers.ibm.db2`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.11+ installation via
-``pip install apache-airflow-providers-ibm-db2``
+You can install this package on top of an existing Airflow installation via
+``pip install apache-airflow-providers-ibm-db2``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.11.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-===========================================  ==================
-PIP package                                  Version required
-===========================================  ==================
-``apache-airflow``                           ``>=2.11.0``
-``apache-airflow-providers-common-compat``   ``>=1.12.0``
-``apache-airflow-providers-common-sql``      ``>=1.32.0``
-``ibm-db``                                   ``>=3.0.0``
-``ibm-db-sa``                                ``>=0.4.0``
-``methodtools``                              ``>=0.4.7``
-===========================================  ==================
+==========================================  ======================================
+PIP package                                 Version required
+==========================================  ======================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
+``ibm-db``                                  ``>=3.0.0``
+``ibm-db-sa``                               ``>=0.4.0``
+``methodtools``                             ``>=0.4.7``
+==========================================  ======================================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-ibm-db2[openlineage]
+
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+===============  ========================================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-ibm-db2 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_db2-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_db2-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_db2-0.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ibm-db2 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_db2-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_db2-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ibm_db2-0.1.0-py3-none-any.whl.sha512>`__)
