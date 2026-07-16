@@ -75,14 +75,14 @@ If release name contains chart name it will be used as a full name.
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
-        key: connection
+        key: {{ template "airflow_metadata_secret_key" . }}
   {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
   - name: AIRFLOW_CONN_AIRFLOW_DB
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
-        key: connection
+        key: {{ template "airflow_metadata_secret_key" . }}
   {{- end }}
   {{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
   {{- $workersKedaNeedsDbConn := and .Values.workers.celery.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer))) }}
@@ -114,14 +114,14 @@ If release name contains chart name it will be used as a full name.
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
-        key: connection
+        key: {{ template "airflow_result_backend_secret_key" . }}
     {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_broker_url_secret" . }}
-        key: connection
+        key: {{ template "airflow_broker_url_secret_key" . }}
     {{- end }}
   {{- end }}
   {{- if and .Values.elasticsearch.enabled .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
@@ -449,6 +449,30 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "airflow_result_backend_secret" -}}
   {{- default (printf "%s-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
+{{- end }}
+
+{{- define "airflow_metadata_secret_key" -}}
+  {{- if .Values.data.metadataSecretName -}}
+    {{- .Values.data.metadataSecretKey | default "connection" -}}
+  {{- else -}}
+    connection
+  {{- end -}}
+{{- end }}
+
+{{- define "airflow_result_backend_secret_key" -}}
+  {{- if .Values.data.resultBackendSecretName -}}
+    {{- .Values.data.resultBackendSecretKey | default "connection" -}}
+  {{- else -}}
+    connection
+  {{- end -}}
+{{- end }}
+
+{{- define "airflow_broker_url_secret_key" -}}
+  {{- if .Values.data.brokerUrlSecretName -}}
+    {{- .Values.data.brokerUrlSecretKey | default "connection" -}}
+  {{- else -}}
+    connection
+  {{- end -}}
 {{- end }}
 
 {{- define "airflow_pod_template_file" -}}
