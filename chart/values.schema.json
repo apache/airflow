@@ -6504,6 +6504,102 @@
                     "type": "boolean",
                     "default": false
                 },
+                "httpRoute": {
+                    "description": "Kubernetes Gateway API (HTTPRoute) configuration for Flower.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable Flower HTTPRoute resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "labels": {
+                            "description": "Extra labels for the Flower HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "annotations": {
+                            "description": "Annotations for the Flower HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "parentRefs": {
+                            "description": "List of parent Gateway references this HTTPRoute attaches to. Required when enabled.",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "default": null,
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "description": "Name of the referenced Gateway.",
+                                        "type": "string"
+                                    },
+                                    "namespace": {
+                                        "description": "Namespace of the referenced Gateway. Defaults to the local namespace.",
+                                        "type": "string"
+                                    },
+                                    "sectionName": {
+                                        "description": "Name of the Gateway listener section this route attaches to.",
+                                        "type": "string"
+                                    },
+                                    "port": {
+                                        "description": "Port of the Gateway listener this route attaches to.",
+                                        "type": "integer"
+                                    },
+                                    "kind": {
+                                        "description": "Kind of the referenced resource. Defaults to `Gateway`.",
+                                        "type": "string"
+                                    },
+                                    "group": {
+                                        "description": "API group of the referenced resource. Defaults to `gateway.networking.k8s.io`.",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ]
+                            }
+                        },
+                        "hostnames": {
+                            "description": "Hostnames this HTTPRoute should match (templated). Empty matches all.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "path": {
+                            "description": "Default routing rule path (used only when `flower.httpRoute.rules` is empty).",
+                            "type": "string",
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the default path: PathPrefix, Exact, or RegularExpression.",
+                            "type": "string",
+                            "default": "PathPrefix"
+                        },
+                        "rules": {
+                            "description": "Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`. Each entry follows the upstream Gateway API `HTTPRouteRule` schema.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        }
+                    }
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration.",
                     "type": "object",

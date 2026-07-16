@@ -2327,6 +2327,54 @@ flower:
   # If True, and using CeleryExecutor, will deploy flower app.
   enabled: false
 
+  # Kubernetes Gateway API (HTTPRoute) configuration for Flower.
+  # Requires the Gateway API CRDs to be installed in the cluster
+  # (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
+  # The HTTPRoute references an externally managed Gateway via `parentRefs`.
+  # This is an alternative to the Flower Ingress (`ingress.flower`);
+  # the two are mutually exclusive and enabling both will fail rendering.
+  httpRoute:
+    # Enable Flower HTTPRoute resource.
+    # Mutually exclusive with `ingress.flower.enabled`; enable only one of them.
+    enabled: false
+
+    # Extra labels for the Flower HTTPRoute
+    labels: {}
+
+    # Annotations for the Flower HTTPRoute
+    annotations: {}
+
+    # List of parent Gateway references this HTTPRoute attaches to. Required when enabled.
+    # Defaults to `~` (null) so the schema's `minItems: 1` fails fast on an explicitly
+    # empty list (`[]`); a still-null value while enabled is caught by the template guard.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference
+    parentRefs: ~
+    # - name: my-gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+
+    # Hostnames this HTTPRoute should match (templated). Empty matches all.
+    hostnames: []
+    # - "flower.example.com"
+
+    # Default routing rule path (used only when `flower.httpRoute.rules` is empty)
+    path: "/"
+
+    # The pathType for the default path. PathPrefix | Exact | RegularExpression
+    pathType: PathPrefix
+
+    # Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`.
+    # Use this for non-standard Flower service port layouts.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteRule
+    rules: []
+    # - matches:
+    #     - path:
+    #         type: PathPrefix
+    #         value: /
+    #   backendRefs:
+    #     - name: my-flower-service
+    #       port: 5555
+
   livenessProbe:
     initialDelaySeconds: 10
     timeoutSeconds: 5
