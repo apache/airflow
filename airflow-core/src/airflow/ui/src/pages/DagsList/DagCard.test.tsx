@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
 import type { PropsWithChildren } from "react";
@@ -207,6 +207,36 @@ describe("DagCard", () => {
     expect(latestRunElement).toBeInTheDocument();
     // Should contain the formatted latest run timestamp (formatted for GMT timezone)
     expect(latestRunElement).toHaveTextContent("2025-09-19 19:22:00");
+  });
+
+  it("DagCard should share one tooltip controller across recent runs", async () => {
+    vi.useFakeTimers();
+    renderCard(mockDag);
+
+    const recentRuns = screen.getAllByTestId("recent-run");
+    const tooltipOwners = new Set(recentRuns.map((run) => run.getAttribute("data-ownedby")));
+    const secondRecentRun = recentRuns.at(1);
+
+    try {
+      expect(recentRuns).toHaveLength(mockDag.latest_dag_runs.length);
+      expect(tooltipOwners.size).toBe(1);
+      expect(tooltipOwners.has(null)).toBe(false);
+      expect(secondRecentRun).toBeDefined();
+
+      if (secondRecentRun === undefined) {
+        throw new Error("Expected at least two recent runs");
+      }
+
+      await act(async () => {
+        fireEvent.focus(secondRecentRun);
+        fireEvent.pointerEnter(secondRecentRun);
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("2025-09-19 19:21:00");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("DagCard should render next run section with timestamp", () => {

@@ -56,6 +56,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Java SDK e2e tests (true/false)"
         required: true
         type: string
+      java-sdk-version:
+        description: "JDK version used to build the Java SDK bundles natively in the e2e tests"
+        required: true
+        type: string
       run-go-sdk-e2e-tests:
         description: "Whether to run Go SDK e2e tests (true/false)"
         required: true
@@ -320,6 +324,7 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "java_sdk"
+      java-sdk-version: "${{ inputs.java-sdk-version }}"
     if: inputs.canary-run == 'true' || inputs.run-java-sdk-e2e-tests == 'true'
   test-e2e-integration-tests-go-sdk:
     name: "Go SDK e2e tests with PROD image"
