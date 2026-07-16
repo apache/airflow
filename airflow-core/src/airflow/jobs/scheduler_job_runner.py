@@ -2682,6 +2682,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                     AssetEvent.timestamp <= triggered_date,
                     AssetEvent.timestamp > func.coalesce(*event_window_floor),
+                    # A gated run consumes events newer than its run_after (the slot
+                    # time), so the previous-run floor alone would re-attribute them to
+                    # the next run; skip events already consumed by this Dag's runs.
+                    ~AssetEvent.created_dagruns.any(DagRun.dag_id == dag_id),
                 )
                 .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             )
