@@ -67,7 +67,7 @@ Setup Steps:
 .. code-block:: none
 
     *** Found remote logs:
-    ***   * https://my-container.blob.core.windows.net/path/to/logs/dag_id=tutorial_dag/run_id=manual.../task_id=load/attempt=1.log
+    ***   * https://my-account.blob.core.windows.net/my-container/path/to/logs/dag_id=tutorial_dag/run_id=manual.../task_id=load/attempt=1.log
     [2023-07-23, 03:52:47] {taskinstance.py:1144} INFO - Dependencies all met...
 
 **Note** that the path to the remote log file is listed in the second line.
