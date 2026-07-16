@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS private keys and ssh-dss host keys are no longer supported (#54079)``
+
+  Paramiko 4.0 removed DSS/DSA support; see `paramiko changelog <https://www.paramiko.org/changelog.html>`__ for upstream details. If you use a DSA private key in an SSH connection, generate a new key (for example ``ssh-keygen -t ed25519`` or ``-t rsa``), install the public key on the server, and point your Airflow connection at the new key file or ``private_key`` extra. If you pin the remote host with a ``host_key`` extra in ``ssh-dss`` form, obtain the server's current RSA, ECDSA, or Ed25519 host key and replace the value. The same constraints apply to SFTP connections that rely on paramiko via the SSH provider.
+
 5.0.4
 .....
 

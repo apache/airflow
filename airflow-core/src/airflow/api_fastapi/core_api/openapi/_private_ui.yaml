@@ -197,7 +197,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/pending_partitioned_dag_run/{dag_id}/{partition_key}:
+  /ui/pending_partitioned_dag_run/{dag_id}:
     get:
       tags:
       - PartitionedDagRun
@@ -215,7 +215,7 @@ paths:
           type: string
           title: Dag Id
       - name: partition_key
-        in: path
+        in: query
         required: true
         schema:
           type: string
@@ -3188,6 +3188,9 @@ components:
         has_missed_deadline:
           type: boolean
           title: Has Missed Deadline
+        has_note:
+          type: boolean
+          title: Has Note
         duration:
           type: number
           title: Duration
@@ -3203,6 +3206,7 @@ components:
       - state
       - run_type
       - has_missed_deadline
+      - has_note
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.

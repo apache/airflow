@@ -16,6 +16,7 @@ export class AssetService {
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
      * @param data.namePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * @param data.uri Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``uri_prefix_pattern`` parameter when possible.
@@ -35,6 +36,7 @@ export class AssetService {
                 offset: data.offset,
                 name_pattern: data.namePattern,
                 name_prefix_pattern: data.namePrefixPattern,
+                uri: data.uri,
                 uri_pattern: data.uriPattern,
                 uri_prefix_pattern: data.uriPrefixPattern,
                 dag_ids: data.dagIds,
@@ -479,7 +481,8 @@ export class BackfillService {
                 403: 'Forbidden',
                 404: 'Not Found',
                 409: 'Conflict',
-                422: 'Validation Error'
+                422: 'Validation Error',
+                503: 'Service Unavailable'
             }
         });
     }
@@ -597,7 +600,8 @@ export class BackfillService {
                 403: 'Forbidden',
                 404: 'Not Found',
                 409: 'Conflict',
-                422: 'Validation Error'
+                422: 'Validation Error',
+                503: 'Service Unavailable'
             }
         });
     }
@@ -4723,9 +4727,11 @@ export class PartitionedDagRunService {
     public static getPendingPartitionedDagRun(data: GetPendingPartitionedDagRunData): CancelablePromise<GetPendingPartitionedDagRunResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}',
+            url: '/ui/pending_partitioned_dag_run/{dag_id}',
             path: {
-                dag_id: data.dagId,
+                dag_id: data.dagId
+            },
+            query: {
                 partition_key: data.partitionKey
             },
             errors: {

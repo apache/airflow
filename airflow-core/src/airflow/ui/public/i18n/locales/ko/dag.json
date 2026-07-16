@@ -102,9 +102,6 @@
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
     "warning": "경고"
   },
-  "navigation": {
-    "openGraphFilters": "태스크 필터: Ctrl+Shift+F"
-  },
   "notFound": {
     "back": "뒤로",
     "backToDags": "Dags로 돌아가기",
