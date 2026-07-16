@@ -70,6 +70,7 @@ EXCLUDED_COMMANDS = {
     "dags delete",
     "dags get-import-error",
     "dags get-tags",
+    "tasks logs",
 }
 
 

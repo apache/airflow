@@ -243,4 +243,18 @@ describe("DateRangeFilter", () => {
       renderFilter(props);
     });
   });
+
+  describe("Regression: Date Range Auto-Submit", () => {
+    it("does not call onChange on valid keystroke", async () => {
+      renderFilter();
+      const onChange = defaultProps.onChange;
+      const { startDateInput } = getInputs();
+
+      changeDateInput(startDateInput, "2024/01/15");
+      await waitFor(() => {
+        // onChange should NOT be called when typing — only on popover close
+        expect(onChange).not.toHaveBeenCalled();
+      });
+    });
+  });
 });
