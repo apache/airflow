@@ -42,6 +42,7 @@ Create an ECR repository
 
 To create an ECR repository, use
 :class:`~airflow.providers.amazon.aws.operators.ecr.EcrCreateRepositoryOperator`.
+This operator can provision a repository before a workflow builds or pushes container images.
 The operator returns the complete response from the Boto3 ``create_repository`` API operation.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_ecr.py
@@ -57,6 +58,7 @@ Set an ECR repository policy
 
 To set the repository policy for an ECR repository, use
 :class:`~airflow.providers.amazon.aws.operators.ecr.EcrSetRepositoryPolicyOperator`.
+This operator can configure permissions such as cross-account access to images stored in the repository.
 The operator returns the complete response from the Boto3 ``set_repository_policy`` API operation.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_ecr.py
@@ -72,6 +74,7 @@ Delete an ECR repository
 
 To delete an ECR repository, use
 :class:`~airflow.providers.amazon.aws.operators.ecr.EcrDeleteRepositoryOperator`.
+This operator can clean up temporary repositories or repositories that are no longer needed.
 Set ``force=True`` to delete a repository that contains images. The operator returns the complete response
 from the Boto3 ``delete_repository`` API operation.
 
