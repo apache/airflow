@@ -27,6 +27,7 @@ import pytest
 import pytz
 from cryptography.fernet import Fernet
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
@@ -254,6 +255,33 @@ def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected
 
     with assert_queries_count(expected_query_count, session=session):
         Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+
+
+@patch("airflow.models.trigger.AssetManager.register_asset_change")
+def test_submit_event_retries_on_transient_db_error(mock_register_asset_change, session):
+    """
+    A transient database error during the asset-event fan-out rolls back the whole transaction,
+    so submit_event must replay it from the start.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    asset = AssetModel("test")
+    asset.add_trigger(trigger, "test_asset_watcher")
+    session.add(asset)
+    session.commit()
+    trigger_id = trigger.id
+
+    deadlock = OperationalError(
+        "INSERT INTO asset_dag_run_queue",
+        {},
+        Exception("(1213, 'Deadlock found when trying to get lock; try restarting transaction')"),
+    )
+    mock_register_asset_change.side_effect = [deadlock, None]
+
+    Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+
+    assert mock_register_asset_change.call_count == 2
 
 
 def test_submit_failure(session, create_task_instance):

@@ -37,7 +37,7 @@ from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
-from airflow.utils.retries import run_with_db_retries
+from airflow.utils.retries import retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -270,12 +270,17 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    @retry_db_transaction
     def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
         """
         Fire an event.
 
         Resume all tasks that were in deferred state.
         Send an event to all assets associated to the trigger.
+
+        Retried as a whole on transient database errors, e.g. a deadlock
+        while fanning an asset event out to consumer Dags. Such errors abort
+        the entire transaction, so the retry must replay it from the start.
         """
         # Resume deferred tasks
         for task_instance in session.scalars(

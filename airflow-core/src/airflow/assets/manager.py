@@ -518,13 +518,21 @@ class AssetManager(LoggingMixin):
         # mapped) tasks update the same asset, this can fail with a unique
         # constraint violation.
         #
-        # If we support it, use ON CONFLICT to do nothing, otherwise
+        # If we support it, use ON CONFLICT / ON DUPLICATE KEY to do nothing, otherwise
         # "fallback" to running this in a nested transaction. This is needed
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
-        if get_dialect_name(session) == "postgresql":
-            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
-        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)
+        #
+        # Rows are inserted in sorted order so concurrent fan-outs acquire
+        # row locks in a consistent order, which prevents deadlocks (a
+        # set's iteration order differs between processes).
+        dag_ids = sorted(dag.dag_id for dag in non_partitioned_dags)
+        dialect = get_dialect_name(session)
+        if dialect == "postgresql":
+            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, dag_ids, session)
+        if dialect == "mysql":
+            return cls._queue_dagruns_nonpartitioned_mysql(asset_id, dag_ids, session)
+        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, dag_ids, session)
 
     @classmethod
     def _queue_partitioned_dags(
@@ -790,10 +798,10 @@ class AssetManager(LoggingMixin):
 
     @classmethod
     def _queue_dagruns_nonpartitioned_slow_path(
-        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+        cls, asset_id: int, dag_ids: list[str], session: Session
     ) -> None:
-        def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
+        for dag_id in dag_ids:
+            item = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#using-savepoint
             try:
@@ -801,19 +809,26 @@ class AssetManager(LoggingMixin):
                     session.merge(item)
             except exc.IntegrityError:
                 cls.logger().debug("Skipping record %s", item, exc_info=True)
-            return dag.dag_id
+        cls.logger().debug("consuming dag ids %s", dag_ids)
 
-        queued_results = (_queue_dagrun_if_needed(dag) for dag in dags_to_queue)
-        if queued_dag_ids := [r for r in queued_results if r is not None]:
-            cls.logger().debug("consuming dag ids %s", queued_dag_ids)
+    @classmethod
+    def _queue_dagruns_nonpartitioned_mysql(cls, asset_id: int, dag_ids: list[str], session: Session) -> None:
+        from sqlalchemy.dialects.mysql import insert
+
+        # The ON DUPLICATE KEY UPDATE skips duplicates while still throwing errors for other critical issues.
+        stmt = insert(AssetDagRunQueue).values(
+            [{"asset_id": asset_id, "target_dag_id": dag_id} for dag_id in dag_ids]
+        )
+        stmt = stmt.on_duplicate_key_update(target_dag_id=stmt.inserted.target_dag_id)
+        session.execute(stmt)
 
     @classmethod
     def _queue_dagruns_nonpartitioned_postgres(
-        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+        cls, asset_id: int, dag_ids: list[str], session: Session
     ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
+        values = [{"target_dag_id": dag_id} for dag_id in dag_ids]
         stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
 

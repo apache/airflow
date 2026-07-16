@@ -26,6 +26,7 @@ from unittest import mock
 
 import pytest
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -148,6 +149,91 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
+    def test_register_asset_change_twice_deduplicates_queue_records(self, session, mock_task_instance):
+        """Fanning out the same asset again must tolerate the already-queued rows, on every backend."""
+        asset_manager = AssetManager()
+
+        asset = Asset(uri="test://asset1", name="test_asset_uri", group="asset")
+        bundle_name = "testing"
+
+        dag1 = DagModel(dag_id="dag1", is_stale=False, bundle_name=bundle_name)
+        dag2 = DagModel(dag_id="dag2", is_stale=False, bundle_name=bundle_name)
+        session.add_all([dag1, dag2])
+
+        asm = AssetModel(uri="test://asset1/", name="test_asset_uri", group="asset")
+        session.add(asm)
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        session.execute(delete(AssetDagRunQueue))
+        session.flush()
+
+        for _ in range(2):
+            asset_manager.register_asset_change(
+                task_instance=mock_task_instance, asset=asset, session=session
+            )
+            session.flush()
+
+        assert (
+            session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asm.id))
+            == 2
+        )
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    @pytest.mark.parametrize(
+        ("dialect", "expected_helper"),
+        [
+            ("postgresql", "_queue_dagruns_nonpartitioned_postgres"),
+            ("mysql", "_queue_dagruns_nonpartitioned_mysql"),
+            ("sqlite", "_queue_dagruns_nonpartitioned_slow_path"),
+        ],
+    )
+    @mock.patch.object(AssetManager, "_queue_dagruns_nonpartitioned_slow_path", autospec=True)
+    @mock.patch.object(AssetManager, "_queue_dagruns_nonpartitioned_mysql", autospec=True)
+    @mock.patch.object(AssetManager, "_queue_dagruns_nonpartitioned_postgres", autospec=True)
+    @mock.patch("airflow.assets.manager.get_dialect_name", autospec=True)
+    def test_queue_dagruns_dispatches_by_dialect_with_sorted_dag_ids(
+        self, mock_get_dialect_name, mock_postgres, mock_mysql, mock_slow_path, dialect, expected_helper
+    ):
+        mock_get_dialect_name.return_value = dialect
+        dags_to_queue = {DagModel(dag_id=dag_id) for dag_id in ("dag_b", "dag_a", "dag_c")}
+        session = mock.Mock(spec=Session)
+
+        AssetManager._queue_dagruns(
+            asset_id=1,
+            dags_to_queue=dags_to_queue,
+            partition_key=None,
+            partition_date=None,
+            event=mock.Mock(spec=AssetEvent),
+            task_instance=None,
+            session=session,
+        )
+
+        helper_mocks = {
+            "_queue_dagruns_nonpartitioned_postgres": mock_postgres,
+            "_queue_dagruns_nonpartitioned_mysql": mock_mysql,
+            "_queue_dagruns_nonpartitioned_slow_path": mock_slow_path,
+        }
+        for name, helper_mock in helper_mocks.items():
+            if name == expected_helper:
+                helper_mock.assert_called_once_with(1, ["dag_a", "dag_b", "dag_c"], session)
+            else:
+                helper_mock.assert_not_called()
+
+    def test_queue_dagruns_nonpartitioned_mysql_single_multi_row_upsert(self):
+        session = mock.Mock(spec=Session)
+
+        AssetManager._queue_dagruns_nonpartitioned_mysql(42, ["dag_a", "dag_b"], session)
+
+        session.execute.assert_called_once()
+        stmt = session.execute.call_args.args[0]
+        sql = str(stmt.compile(dialect=mysql.dialect(), compile_kwargs={"literal_binds": True}))
+        # NULL is a compile-time placeholder: the created_at default is evaluated per row at execution.
+        assert (
+            "INSERT INTO asset_dag_run_queue (asset_id, target_dag_id, created_at) "
+            "VALUES (42, 'dag_a', NULL), (42, 'dag_b', NULL) "
+            "ON DUPLICATE KEY UPDATE target_dag_id = VALUES(target_dag_id)"
+        ) in sql
 
     @pytest.mark.usefixtures("clear_assets")
     def test_register_asset_change_with_alias(
