@@ -43,6 +43,22 @@ as well as the `task_success_overtime <https://airflow.apache.org/docs/apache-ai
 configuration in Airflow config.
 
 
+Scheduler CPU or memory growing steadily while OpenLineage is enabled
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In provider versions that submit bound adapter methods to the DAG-run event process pool, each pool worker
+built a new OpenLineage client — including a new transport set — for every DAG-run state change, and the
+clients were never closed. With transports that start background worker threads (e.g. the ``datadog``
+transport), each DAG-run event leaked one thread inside the scheduler, so scheduler CPU and memory climbed
+steadily over hours and recovered only on a scheduler restart.
+
+**Possible Solution**
+
+Upgrade to a provider version that reuses a single per-process adapter in the pool workers. If you cannot
+upgrade yet, prefer a transport that does not start background worker threads (e.g. plain ``http``) for the
+affected destination, or restart the scheduler to reclaim the leaked threads as a stopgap.
+
+
 Missing lineage from EmptyOperators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -61,8 +77,8 @@ facets are not emitted outside task execution and thus are not applicable in thi
 
 To determine which operators will emit OpenLineage events ahead of time, DagRun START events contain AirflowJobFacet
 with a list of tasks, where each task contains an ``emits_ol_events`` boolean. This checks if the operator is empty,
-has callbacks or outlets, and whether task lineage has not been :ref:`selectively disabled <config:openlineage__selective_enable>`
-or :ref:`disabled for operator <config:openlineage__disabled_for_operators>`.
+has callbacks or outlets, and whether task lineage has not been suppressed by an
+:ref:`emission_policy <emission_policy:openlineage>` rule.
 
 
 Limited lineage from PythonOperator
@@ -208,7 +224,7 @@ You can also use some simple transport like the ``ConsoleTransport`` to print ev
 
 - Verify the documentation of provider and `client <https://openlineage.io/docs/client/python>`_, maybe something has changed.
 - Configuration present: Ensure a working transport is configured. See :ref:`Transport <config:openlineage__transport>`.
-- Disabled settings: Verify you did not disable the integration globally via :ref:`Disabled <config:openlineage__disabled>` or selectively via :ref:`Disabled for operators <config:openlineage__disabled_for_operators>` or :ref:`Selective Enable <config:openlineage__selective_enable>` policy.
+- Disabled settings: Verify you did not disable the integration globally via :ref:`Disabled <config:openlineage__disabled>` or selectively via an :ref:`emission_policy <emission_policy:openlineage>` rule (or the deprecated :ref:`Disabled for operators <config:openlineage__disabled_for_operators>` / :ref:`Selective Enable <config:openlineage__selective_enable>` options).
 - Extraction precedence: If inputs/outputs are missing, remember the order described in :ref:`extraction_precedence:openlineage`.
 - Custom extractors registration: If using custom extractors, confirm they are registered via :ref:`Extractors <config:openlineage__extractors>` and importable by both Scheduler and Workers.
 - Environment variables: For legacy environments, note the backwards-compatibility env vars in :ref:`Backwards Compatibility <configuration_backwards_compatibility:openlineage>` (e.g., ``OPENLINEAGE_URL``) but prefer Airflow config.
@@ -221,7 +237,7 @@ No events emitted at all:
 
   - Ensure the provider is installed and at a supported Airflow version (see provider "Requirements").
   - Check :ref:`Disabled <config:openlineage__disabled>` is not set to ``true``.
-  - If using selective enablement, verify :ref:`Selective Enable <config:openlineage__selective_enable>` and that the DAG/task is enabled via ``enable_lineage``.
+  - Check your :ref:`emission_policy <emission_policy:openlineage>`: a global ``{"scope": {}, "controls": {"emit": false}}`` rule (or a matching dag / operator / task-scoped rule) silences events. Scheduler / worker logs INFO-level ``emission_policy: 'emit' disabled for ...`` lines whenever a rule suppresses an event.
   - Confirm the OpenLineage plugin/listener is loaded in Scheduler/Worker logs.
 
 Events emitted but not received by backend
@@ -256,8 +272,11 @@ Spark jobs missing parent linkage or transport settings
 
 Very large event payloads or serialization failures
 
-  - If :ref:`Include Full Task Info <config:openlineage__include_full_task_info>` is enabled, events may become large; consider disabling or trimming task parameters.
-  - :ref:`Disable Source Code <config:openlineage__disable_source_code>` can reduce payloads for Python/Bash operators that include source code by default.
+  - Use :ref:`emission_policy <emission_policy:openlineage>` to trim what gets emitted. Per-control rules let you scope the change (global, per-dag, per-task, or per-operator-class) rather than flipping a deployment-wide toggle:
+
+    - ``{"scope": {}, "controls": {"include_full_task_info": false}}`` keeps the ``AirflowRunFacet`` slim instead of including the full serialized task.
+    - ``{"scope": {}, "controls": {"include_source_code": false}}`` drops the ``SourceCodeJobFacet`` for Python / Bash operators.
+    - ``{"scope": {}, "controls": {"extract_operator_metadata": false}}`` skips the entire extraction pipeline, producing a minimal event.
 
 
 6. Check for open bugs and issues in the provider and the client

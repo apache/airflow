@@ -42,11 +42,10 @@ passed to any pydantic-ai ``Agent``, including via
 .. note::
 
     ``AgentOperator`` accepts **any** ``AbstractToolset`` implementation — not
-    just the Airflow-native toolsets above. PydanticAI's own MCP server
-    classes (``MCPServerStreamableHTTP``, ``MCPServerSSE``, ``MCPServerStdio``)
-    and third-party toolsets work too. The Airflow-native toolsets add
-    connection management, secret backend integration, and the connection UI,
-    but you are not locked in.
+    just the Airflow-native toolsets above. PydanticAI's own ``MCPToolset``
+    (built over a FastMCP transport) and third-party toolsets work too. The
+    Airflow-native toolsets add connection management, secret backend
+    integration, and the connection UI, but you are not locked in.
 
 
 Using Toolsets Directly with PydanticAI
@@ -155,10 +154,10 @@ the validator, so ``SHOW`` is recognized on databases that support it (Snowflake
 MySQL, etc.); on databases without ``SHOW`` it stays rejected. Data-modifying
 statements remain blocked -- including ones hidden behind ``DESCRIBE``/``EXPLAIN``
 (e.g. ``EXPLAIN DELETE ...``, ``DESCRIBE DROP TABLE ...``), which the validator
-rejects by scanning the parsed statement for write operations. Like ``SELECT``,
-metadata statements are not scoped by ``allowed_tables`` (see
-:ref:`allowed-tables-limitation`) -- an agent can ``DESCRIBE`` a table outside the
-list, so rely on database permissions to restrict access.
+rejects by scanning the parsed statement for write operations. When
+``allowed_tables`` is set it scopes these statements too: a ``DESCRIBE`` names a
+table, so its target must be on the list, while ``SHOW`` enumerates objects beyond
+any single table and is rejected outright (see :ref:`allowed-tables-enforcement`).
 
 Multi-schema warehouses
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -186,11 +185,13 @@ Parameters
 ^^^^^^^^^^
 
 - ``db_conn_id``: Airflow connection ID for the database.
-- ``allowed_tables``: Restrict which tables the agent can discover via
-  ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables in
-  ``schema``. Entries may be schema-qualified (``"SCHEMA.TABLE"``) to span
-  multiple schemas; see above. Matching is case-insensitive.
-  See :ref:`allowed-tables-limitation` for an important caveat.
+- ``allowed_tables``: Restrict the agent to a fixed set of tables. ``None``
+  (default) exposes all tables in ``schema``. Entries may be schema-qualified
+  (``"SCHEMA.TABLE"``) to span multiple schemas; see above. Matching is
+  case-insensitive. When set, the list is enforced on ``query`` and
+  ``check_query`` as well as discovery -- every table a query references must be
+  on it. See :ref:`allowed-tables-enforcement` for what this does and does not
+  guarantee.
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
@@ -314,10 +315,17 @@ Parameters
   ``"weather_get_forecast"``).
 - ``token_provider``: Optional zero-argument callable returning a bearer token.
   When set, it overrides the connection's static ``password`` for the
-  ``Authorization`` header and is called each time the server connection is
-  established -- use it for short-lived or minted tokens (e.g. a Snowflake
-  managed MCP server authenticated with a key-pair JWT). See
+  ``Authorization`` header. Called once, the first time this toolset
+  establishes a connection -- use it for short-lived or minted tokens (e.g. a
+  Snowflake managed MCP server authenticated with a key-pair JWT). See
   :ref:`howto/connection:mcp`.
+- ``env_provider``: Optional zero-argument callable returning a
+  ``dict[str, str]`` merged over the connection's ``Extra.env`` (winning on key
+  conflicts) for the ``stdio`` subprocess environment -- use it when the
+  credential a local stdio MCP server needs lives in a different connection, or
+  is minted fresh per call (e.g. a Splunk/Vault token), rather than storing it
+  statically here. Called once, the first time this toolset establishes a
+  connection. See :ref:`howto/connection:mcp`.
 
 Using Multiple MCP Servers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -334,29 +342,30 @@ Using Multiple MCP Servers
         ],
     )
 
-Direct PydanticAI MCP Servers
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Direct PydanticAI MCP Toolsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For prototyping or when you want full PydanticAI control, you can pass MCP
-server instances directly — no Airflow connection needed:
+For prototyping or when you want full PydanticAI control, you can pass
+``MCPToolset`` instances directly — no Airflow connection needed:
 
 .. code-block:: python
 
-    from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerStdio
+    from fastmcp.client.transports import StdioTransport
+    from pydantic_ai.mcp import MCPToolset
 
     AgentOperator(
         task_id="direct_mcp",
         prompt="What tools are available?",
         llm_conn_id="pydanticai_default",
         toolsets=[
-            MCPServerStreamableHTTP("http://localhost:3001/mcp"),
-            MCPServerStdio("uvx", args=["mcp-run-python"]),
+            MCPToolset("http://localhost:3001/mcp"),
+            MCPToolset(StdioTransport(command="uvx", args=["mcp-run-python"])),
         ],
     )
 
-This works because PydanticAI's MCP server classes implement
-``AbstractToolset``. The tradeoff: URLs and credentials are hardcoded in DAG
-code instead of being managed through Airflow connections and secret backends.
+This works because PydanticAI's ``MCPToolset`` implements ``AbstractToolset``.
+The tradeoff: URLs and credentials are hardcoded in Dag code instead of being
+managed through Airflow connections and secret backends.
 
 
 .. _agent-skills:
@@ -383,8 +392,8 @@ extra to use it:
 
 Each source is a local directory or a connection-resolved
 :class:`~airflow.providers.common.ai.skills.GitSkills`. Sources are resolved when
-the agent enters the toolset, on the worker -- never while the DAG processor
-parses the file -- so a Git token is never baked into the serialized DAG, and
+the agent enters the toolset, on the worker -- never while the Dag processor
+parses the file -- so a Git token is never baked into the serialized Dag, and
 cloned repositories are removed when the run ends.
 
 A local directory of ``SKILL.md`` bundles:
@@ -416,7 +425,7 @@ need strict isolation.
 
     Skill bundles can contain scripts that the agent may run on the worker via
     the ``run_skill_script`` tool. For a remote source, anyone who can modify the
-    repository can introduce code that executes on your worker, outside DAG
+    repository can introduce code that executes on your worker, outside Dag
     review and versioning. Point ``GitSkills`` at a trusted repository, pin
     ``branch`` to a trusted ref, and treat skill contents as code that runs in
     your environment.
@@ -428,6 +437,16 @@ Parameters
   :class:`~airflow.providers.common.ai.skills.GitSkills`.
 - ``exclude_tools``: Optional set of skill tool names to hide from the agent
   (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+- ``exclude_resources``: Optional glob patterns to exclude from resource
+  discovery, added on top of the built-in defaults (``__pycache__``, ``*.pyc``,
+  ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every readable text file
+  it contains as a resource; these patterns keep matched files out of the
+  resource list and the ``read_skill_resource`` tool (e.g.
+  ``["*.env", "secrets/*"]``). Each pattern matches the full skill-relative path
+  or any single path component. This hides files from resource discovery only --
+  it does not stop a skill's ``run_skill_script`` from reading them off disk, so
+  pair it with ``exclude_tools={"run_skill_script"}`` when the files are
+  genuinely sensitive.
 
 Using Agent Skills with other frameworks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -525,6 +544,29 @@ Security
 LLM agents call tools based on natural-language reasoning. This makes them
 powerful but introduces risks that don't exist with deterministic operators.
 
+What the agent can and cannot reach
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An agent's reach is exactly the set of tools you register on it, and nothing
+more. The model never executes arbitrary code: it can only request one of the
+tools you provided, and pydantic-ai rejects any tool name outside that set
+before it runs. If no registered tool can read the environment, the
+filesystem, or other connections, the model cannot reach them, regardless of
+what the prompt instructs it to do.
+
+This is what "untrusted" means in this context. The Dag file itself is
+author-written and trusted, exactly like any other Dag. What is untrusted is
+the model's *output*: the tool-call requests and text it generates. That output
+is confined to your registered tools and bounded by the tool-call budget. An
+agent cannot create a new connection, read another connection's credentials, or
+run a shell command unless a tool you registered exposes that capability.
+
+The corollary is that every tool you add widens the blast radius, and a custom
+toolset is only as safe as you make it. A tool that returns ``os.environ`` or
+runs shell commands hands the model whatever that tool can reach. Audit any
+custom toolset, and any MCP server you connect through ``MCPToolset``, against
+the same standard the bundled toolsets below are built to.
+
 Defense Layers
 ^^^^^^^^^^^^^^
 
@@ -538,13 +580,13 @@ No single layer is sufficient — they work together.
      - What it does
      - What it does NOT do
    * - **Airflow Connections**
-     - Credentials are stored in Airflow's secret backend, never in DAG code.
+     - Credentials are stored in Airflow's secret backend, never in Dag code.
        The LLM agent cannot see API keys or database passwords.
      - Does not prevent the agent from using the connection to access data
        the connection has access to.
    * - **HookToolset: explicit allow-list**
      - Only methods listed in ``allowed_methods`` are exposed as tools.
-       Auto-discovery is not supported. Methods are validated at DAG parse
+       Auto-discovery is not supported. Methods are validated at Dag parse
        time.
      - Does not restrict what arguments the agent passes to allowed methods.
    * - **SQLToolset: read-only by default**
@@ -560,36 +602,62 @@ No single layer is sufficient — they work together.
        INTO, and other non-SELECT statements.
      - Does not prevent the agent from reading any registered data source.
    * - **SQLToolset: allowed_tables**
-     - Restricts which tables appear in ``list_tables`` and ``get_schema``
-       responses, limiting the agent's knowledge of the schema.
-     - Does **not** validate table references in SQL queries. The agent can
-       still query unlisted tables if it guesses the name. See
-       :ref:`allowed-tables-limitation` below.
+     - Restricts the agent to listed tables across ``list_tables``,
+       ``get_schema``, ``query``, and ``check_query``. Queries are parsed and
+       every referenced table (including via subqueries, CTEs, JOINs, and
+       ``DESCRIBE``) is checked against the list before execution.
+     - Cannot police data reached through side-effecting scalar functions
+       (e.g. ``pg_read_file``), and is only as exact as the SQL parser. Pair it
+       with least-privilege database grants. See
+       :ref:`allowed-tables-enforcement` below.
    * - **SQLToolset: max_rows**
      - Truncates query results to ``max_rows`` (default 50), preventing the
        agent from pulling entire tables into context.
      - Does not limit the number of queries the agent can make.
+   * - **MCPToolset: external server**
+     - Connects the agent to tools exposed by an MCP server, authenticated
+       through an Airflow connection.
+     - Does **not** constrain what those tools do. An MCP server can expose
+       shell, filesystem, or network access. Run only trusted servers and
+       audit the tools they expose.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.
      - Requires explicit configuration — the default allows many rounds.
 
 
-.. _allowed-tables-limitation:
+.. _allowed-tables-enforcement:
 
-The ``allowed_tables`` Limitation
-"""""""""""""""""""""""""""""""""
+How ``allowed_tables`` Is Enforced
+""""""""""""""""""""""""""""""""""
 
-``allowed_tables`` is a **metadata filter**, not an access control mechanism.
-It hides table names from ``list_tables`` and blocks ``get_schema`` for
-unlisted tables, but does not parse SQL queries to validate table references.
+When ``allowed_tables`` is set it governs every tool, not just discovery:
 
-An LLM can craft ``SELECT * FROM secrets`` even when
-``allowed_tables=["orders"]``. Parsing SQL for table references (including
-CTEs, subqueries, aliases, and vendor-specific syntax) is complex and
-error-prone; we chose not to provide a false sense of security.
+- ``list_tables`` and ``get_schema`` only reveal listed tables.
+- ``query`` and ``check_query`` parse the SQL with `sqlglot
+  <https://github.com/tobymao/sqlglot>`_ and reject it before execution if it
+  references any table that is not on the list. Tables reached indirectly are
+  caught too -- through subqueries, CTEs, JOINs, set operations (``UNION`` etc.),
+  ``DESCRIBE``, catalog views such as ``information_schema``, and DML. CTE
+  references are excluded by lexical scope, so a same-named CTE in another scope
+  cannot hide a real table, and the database/catalog is part of the match, so a
+  cross-database reference like ``otherdb.public.orders`` is refused.
+- Constructs the list cannot describe are rejected outright while it is active:
+  table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
+  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), and **inline
+  comments** -- the last because parser-vs-engine differences hide in comments
+  (MySQL executes ``/*! ... */`` while sqlglot and other engines ignore it).
 
-For query-level restrictions, use database permissions:
+So ``SELECT * FROM secrets`` with ``allowed_tables=["orders"]`` is refused, and
+the rejection is handed back to the agent so it can re-target an allowed table.
+
+This is a strong **application-level guardrail**, but it is not a substitute for
+database permissions. It cannot police data reached through a function whose
+argument is itself SQL or a path: ``pg_read_file('/etc/passwd')`` reads a file,
+and ``query_to_xml('SELECT * FROM other_table', ...)`` or a scalar ``dblink``
+reads a table through a string the parser cannot inspect. Any query the engine
+parses differently from sqlglot is also a residual gap. For a hard boundary, also
+run the connection as a least-privilege role:
 
 .. code-block:: sql
 
@@ -598,8 +666,10 @@ For query-level restrictions, use database permissions:
     GRANT SELECT ON orders, customers TO airflow_agent_reader;
     -- Use this role's credentials in the Airflow connection
 
-The Airflow connection should use a database user with the minimum privileges
-required.
+Defense in depth: the allow-list contains the agent's *intent* (and gives it a
+correctable error), while the database role is the boundary that holds even if
+the agent reaches data the parser cannot see. The connection should use a
+database user with the minimum privileges required.
 
 
 HookToolset Guidelines
@@ -659,7 +729,7 @@ Production Checklist
 Before deploying an agent task to production:
 
 1. **Connection credentials**: Use Airflow's secret backend. Never hardcode
-   API keys in DAG files.
+   API keys in Dag files.
 2. **Database permissions**: Create a dedicated database user with minimum
    required grants. Don't reuse the admin connection.
 3. **Tool allow-list**: Review ``allowed_methods`` / ``allowed_tables``. The

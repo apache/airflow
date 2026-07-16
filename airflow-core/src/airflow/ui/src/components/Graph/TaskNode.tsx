@@ -19,6 +19,7 @@
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
+import { AiOutlineGroup } from "react-icons/ai";
 
 import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
@@ -45,6 +46,7 @@ export const TaskNode = ({
     operator,
     setupTeardownType,
     taskInstance,
+    team,
     tooltip,
     width = 0,
   },
@@ -111,7 +113,7 @@ export const TaskNode = ({
             width={`${width + (isSelected ? 4 : 0)}px`}
           >
             <HStack>
-              <TaskIcon />
+              {isGroup ? <AiOutlineGroup /> : <TaskIcon />}
               <LinkOverlay asChild>
                 <TaskLink
                   childCount={thisChildCount}
@@ -133,6 +135,18 @@ export const TaskNode = ({
             >
               {isGroup ? translate("graph.taskGroup") : displayOperator}
             </Text>
+            {team !== undefined && team !== null ? (
+              <Text
+                color="fg.muted"
+                fontSize="xs"
+                fontStyle="italic"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+              >
+                {team}
+              </Text>
+            ) : undefined}
             {taskInstance === undefined ? undefined : (
               <HStack>
                 <StateBadge fontSize="xs" state={taskInstance.state}>

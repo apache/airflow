@@ -20,7 +20,7 @@
 
 Airflow 101: Building Your First Workflow
 =========================================
-Welcome to world of Apache Airflow! In this tutorial, we'll guide you through the essential concepts of Airflow, helping
+Welcome to the world of Apache Airflow! In this tutorial, we'll guide you through the essential concepts of Airflow, helping
 you understand how to write your first Dag. Whether you're familiar with Python or just starting out, we'll make the
 journey enjoyable and straightforward.
 
@@ -74,7 +74,7 @@ parameters in a dictionary. The latter approach is usually more efficient and cl
 
 |
 
-If you want to dive deeper into the parameters of the BaseOperator, take a look at the documentation for
+If you want to dive deeper into the parameters of the ``BaseOperator``, take a look at the documentation for
 :py:class:`airflow.sdk.BaseOperator` documentation.
 
 Creating a Dag
@@ -100,7 +100,7 @@ focus on the ``BashOperator`` to execute some simple bash commands.
 Defining Tasks
 --------------
 To use an operator, you must instantiate it as a task. Tasks dictate how the operator will perform its work within the
-Dag's context. In the example below, we instantiate the BashOperator twice to run two different bash scripts. The
+Dag's context. In the example below, we instantiate the ``BashOperator`` twice to run two different bash scripts. The
 ``task_id`` serves as a unique identifier for each task.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
@@ -153,9 +153,14 @@ For more information on the variables and macros that can be referenced in templ
 
 Adding Dag and Tasks documentation
 ----------------------------------
-You can add documentation to your Dag or individual tasks. While Dag documentation currently supports markdown, task
-documentation can be in plain text, markdown reStructuredText, JSON, or YAML. It's a good practice to include
-documentation at the start of your Dag file.
+You can add documentation to your Dag or individual tasks. Dag documentation is rendered as Markdown in the UI.
+Task documentation can be in plain text, markdown, reStructuredText, JSON, or YAML. When you use ``doc_md`` for
+task documentation, Airflow renders common Markdown features such as inline code, fenced code blocks, fenced code blocks
+in ``math`` that render with KaTeX, and Mermaid diagrams in ``mermaid`` fences.
+
+In the tutorial Dag, the ``print_date`` task uses ``doc_md`` to explain the bash command it runs, describe the
+downstream ``sleep`` and ``templated`` tasks, and show the Markdown features available in the Task Instance Details
+page. It's a good practice to keep this documentation close to the task it describes.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -165,11 +170,7 @@ documentation at the start of your Dag file.
 
 |
 
-.. image:: ../img/ui-light/task_doc.png
-
-|
-
-.. image:: ../img/ui-light/dag_doc.png
+.. image:: ../img/ui-light/task_doc_md.png
 
 Setting up Dependencies
 -----------------------
@@ -262,9 +263,9 @@ You can test specific task instances for a designated *logical date*. This simul
 a particular date and time.
 
 .. note::
-  Notice that the scheduler runs your task *for* a specific date and time, not necessarily *at* that date or time.
+  Notice that the Scheduler runs your task *for* a specific date and time, not necessarily *at* that date or time.
   The *logical date* is the timestamp that a Dag run is **named after**, and it typically corresponds to the **end**
-  of the time period your workflow is operating on — or the time at which the Dag run was manually triggered.
+  of the time period your workflow is operating on - or the time at which the Dag run was manually triggered.
 
   Airflow uses this logical date to organize and track each run; it's how you refer to a specific execution in the UI,
   logs, and code. When triggering a Dag via the UI or API, you can supply your own logical date to run the workflow

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
@@ -70,29 +70,13 @@ if TYPE_CHECKING:
 
 
 class CompatConnection(Protocol):
-    """Protocol for type hinting psycopg2 and psycopg3 connection objects."""
+    """Protocol for the common interface shared by psycopg2 and psycopg3 connection objects."""
 
     def cursor(self, *args, **kwargs) -> Any: ...
     def commit(self) -> None: ...
     def close(self) -> None: ...
-
-    # Context manager support
-    def __enter__(self) -> CompatConnection: ...
+    def __enter__(self) -> Any: ...
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
-
-    # Common properties
-    @property
-    def notices(self) -> list[Any]: ...
-
-    # psycopg3 specific (optional)
-    @property
-    def adapters(self) -> Any: ...
-
-    @property
-    def row_factory(self) -> Any: ...
-
-    # Optional method for psycopg3
-    def add_notice_handler(self, handler: Any) -> None: ...
 
 
 class PostgresHook(DbApiHook):
@@ -741,3 +725,42 @@ class PostgresHook(DbApiHook):
 
         self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
         return None
+
+    def upsert_rows(
+        self,
+        table: str,
+        rows: Iterable[tuple[Any, ...]],
+        target_fields: list[str],
+        conflict_fields: list[str],
+        update_fields: list[str] | None = None,
+        commit_every: int = 1000,
+        *,
+        fast_executemany: bool = False,
+        autocommit: bool = False,
+    ) -> None:
+        """
+        Upsert rows into a PostgreSQL table using ``ON CONFLICT``.
+
+        :param table: Name of the target table.
+        :param rows: Rows to upsert.
+        :param target_fields: Non-empty column names used in the ``INSERT`` statement.
+        :param conflict_fields: Non-empty column names used in the ``ON CONFLICT`` clause.
+        :param update_fields: Columns updated on conflict. If omitted, all
+            non-conflict columns are updated. If an empty list is provided,
+            conflicting rows are ignored via ``DO NOTHING``.
+        :param commit_every: Maximum number of rows per transaction. Default value is 1000.
+        :param fast_executemany: Use ``psycopg2.extras.execute_batch`` for improved
+            batch performance.
+        :param autocommit: Connection autocommit setting.
+        """
+        return self.insert_rows(
+            table=table,
+            rows=rows,
+            target_fields=target_fields,
+            replace_index=conflict_fields,
+            replace_target=update_fields,
+            commit_every=commit_every,
+            replace=True,
+            fast_executemany=fast_executemany,
+            autocommit=autocommit,
+        )

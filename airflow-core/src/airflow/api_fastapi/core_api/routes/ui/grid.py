@@ -65,10 +65,10 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     task_group_to_dict_grid,
 )
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -291,8 +291,14 @@ def get_grid_runs(
         .correlate(DagRun)
         .label("has_missed_deadline")
     )
+    has_note_subq = (
+        exists()
+        .where(DagRunNote.dag_run_id == DagRun.id, DagRunNote.content.isnot(None))
+        .correlate(DagRun)
+        .label("has_note")
+    )
     base_query = (
-        select(DagRun, has_missed_deadline)
+        select(DagRun, has_missed_deadline, has_note_subq)
         .where(DagRun.dag_id == dag_id)
         .options(
             load_only(
@@ -328,11 +334,11 @@ def get_grid_runs(
         limit=limit,
         return_total_entries=False,
     )
-    results = session.execute(dag_runs_select_filter).unique().all()
-    dag_runs = [run for run, _ in results]
+    results = session.execute(dag_runs_select_filter).all()
+    dag_runs = [run for run, _, _ in results]
     attach_dag_versions_to_runs(dag_runs, session=session)
     grid_runs = []
-    for run, has_missed in results:
+    for run, has_missed, has_note in results:
         grid_runs.append(
             GridRunsResponse.model_validate(
                 {
@@ -346,6 +352,7 @@ def get_grid_runs(
                     "run_type": run.run_type,
                     "dag_versions": run.dag_versions,
                     "has_missed_deadline": has_missed,
+                    "has_note": has_note,
                 }
             )
         )
@@ -373,6 +380,7 @@ def _build_ti_summaries(
             start_date=ti.start_date,
             end_date=ti.end_date,
             dag_version_number=getattr(ti, "version_number", None),
+            has_note=bool(getattr(ti, "has_note", False)),
         )
     if not ti_details:
         return None
@@ -467,6 +475,13 @@ def get_grid_ti_summaries_stream(
         # database connection open for the entire stream duration.
         # See https://github.com/apache/airflow/issues/65010.
 
+        has_note_subq = (
+            exists()
+            .where(TaskInstanceNote.ti_id == TaskInstance.id, TaskInstanceNote.content.isnot(None))
+            .correlate(TaskInstance)
+            .label("has_note")
+        )
+
         for run_id in run_ids or []:
             with create_session(scoped=False) as session:
                 tis = session.execute(
@@ -477,6 +492,7 @@ def get_grid_ti_summaries_stream(
                         TaskInstance.start_date,
                         TaskInstance.end_date,
                         DagVersion.version_number,
+                        has_note_subq,
                     )
                     .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
                     .where(TaskInstance.dag_id == dag_id)

@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, ClassVar
 
 import attrs
 
+from airflow.sdk.definitions.partition_mappers.wait_policy import WaitForAll, WaitPolicy
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.window import Window
 
@@ -54,16 +56,24 @@ class RollupMapper(PartitionMapper):
     """
     Partition mapper that rolls up many upstream keys into one downstream key.
 
-    Compose a ``upstream_mapper`` (which normalizes each upstream key to the
+    Compose an ``upstream_mapper`` (which normalizes each upstream key to the
     downstream granularity) with a ``window`` that declares the full set of
-    upstream keys required for a given downstream key. The scheduler holds
-    the Dag run until every upstream key in the window has arrived.
+    upstream keys required for a given downstream key, and a
+    ``wait_policy`` that decides when the downstream Dag run fires given
+    the expected window and the upstream keys that have actually arrived.
+
+    The ``wait_policy`` is a :class:`WaitPolicy` instance. The default
+    ``WaitForAll()`` fires only when every expected upstream key has arrived.
+    ``MinimumCount(n)`` fires once at least ``n`` keys have arrived when
+    ``n`` is positive, or once at most ``-n`` keys are still missing when
+    ``n`` is negative.
     """
 
     is_rollup: ClassVar[bool] = True
 
     upstream_mapper: PartitionMapper = attrs.field(kw_only=True)
     window: Window = attrs.field(kw_only=True)
+    wait_policy: WaitPolicy = attrs.field(factory=WaitForAll, kw_only=True)
 
     def __attrs_post_init__(self) -> None:
         # Mirrors the core-side ``RollupMapper.__init__`` check so user code
@@ -72,12 +82,11 @@ class RollupMapper(PartitionMapper):
         # would otherwise be swallowed by the bare ``except`` in
         # ``_create_dagruns_for_partitioned_asset_dags`` and surface only as
         # "Failed to deserialize Dag" spam).
-        if self.upstream_mapper.expected_decoded_type is str and self.window.expected_decoded_type is not str:
+        if self.upstream_mapper.expected_decoded_type is not self.window.expected_decoded_type:
             raise TypeError(
                 f"{type(self.window).__name__} expects decoded values of type "
                 f"{self.window.expected_decoded_type.__name__!r}, but "
-                f"{type(self.upstream_mapper).__name__} decodes to 'str' (SDK PartitionMapper default). "
-                f"Pair the window with an upstream mapper whose 'expected_decoded_type' is "
-                f"{self.window.expected_decoded_type.__name__}, or use a window whose "
-                f"'expected_decoded_type' accepts str."
+                f"{type(self.upstream_mapper).__name__} decodes to "
+                f"{self.upstream_mapper.expected_decoded_type.__name__!r}. Pair a window and an "
+                f"upstream mapper whose 'expected_decoded_type' match."
             )

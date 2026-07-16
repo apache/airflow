@@ -106,7 +106,6 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -201,6 +200,27 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
+
+
+def _add_and_prime_mapped_ti(
+    ti: TaskInstance,
+    task: Operator,
+    dag_run: DagRun,
+    *,
+    session: Session,
+    context_carrier: dict | None = None,
+) -> None:
+    """
+    Attach a newly-created mapped TI to the session and prime its ``dag_run`` cache.
+
+    :meta private:
+    """
+    task_instance_mutation_hook(ti, dag_run=dag_run)
+    session.add(ti)
+    if context_carrier is not None:
+        ti.context_carrier = context_carrier
+    ti.refresh_from_task(task, dag_run=dag_run)
+    set_committed_value(ti, "dag_run", dag_run)
 
 
 def _recalculate_dagrun_queued_at_deadlines(
@@ -407,7 +427,12 @@ def clear_task_instances(
             session.merge(ti)
 
     if dag_run_state is not False and tis:
-        from airflow.models.dagrun import DagRun  # Avoid circular import
+        from airflow.models.dagrun import (  # Avoid circular import
+            DagRun,
+            dagrun_trace_attributes,
+            parent_trace_context,
+            trace_sampled_override,
+        )
 
         run_ids_by_dag_id = defaultdict(set)
         for instance in tis:
@@ -429,7 +454,10 @@ def clear_task_instances(
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
             dr.context_carrier = new_dagrun_trace_carrier(
-                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None
+                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None,
+                attributes=dagrun_trace_attributes(dr),
+                force_sampled=trace_sampled_override(dr.conf),
+                parent_context=parent_trace_context(dr.conf),
             )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
@@ -593,9 +621,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     )
     _rendered_map_index: Mapped[str | None] = mapped_column("rendered_map_index", String(250), nullable=True)
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
@@ -1505,7 +1530,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         stats.timing(
             f"task.{metric_name}",
             timing,
-            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+            tags={**self.stats_tags, "queue": self.queue},
         )
 
     def clear_next_method_args(self) -> None:
@@ -1524,6 +1549,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session = NEW_SESSION,
     ) -> None:
+        # Fast path: a task with no outlets and no outlet events has nothing to
+        # register. Returning early avoids the AssetModel lookup below (which
+        # would run with empty IN () clauses) and all downstream work. This is
+        # the common case -- most tasks declare no outlets -- and it sits on the
+        # task-success path that gates scheduling the next task.
+        if not task_outlets and not outlet_events:
+            return
+
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
@@ -1546,6 +1579,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 OutletEventPayload(extra=outlet_event["extra"], partition_key=partition_key)
             )
         dag_run_partition_key = ti.dag_run.partition_key
+        dag_run_partition_date = ti.dag_run.partition_date
 
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
@@ -1581,6 +1615,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     asset=am,
                     extra=None,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 return
@@ -1588,11 +1623,26 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 effective_pk = (
                     payload.partition_key if payload.partition_key is not None else dag_run_partition_key
                 )
+                # Carry partition_date only when the effective key matches the
+                # DagRun's — the run-level date refers to the run-level key and
+                # would mis-label an event emitted for a different partition.
+                if effective_pk == dag_run_partition_key:
+                    payload_partition_date = dag_run_partition_date
+                else:
+                    payload_partition_date = None
+                    if dag_run_partition_date is not None:
+                        ti.log.debug(
+                            "Task-emitted partition_key %r differs from DagRun partition_key %r; "
+                            "consumer partition_date will be None.",
+                            payload.partition_key,
+                            dag_run_partition_key,
+                        )
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
                     extra=payload.extra,
                     partition_key=effective_pk,
+                    partition_date=payload_partition_date,
                     session=session,
                 )
 
@@ -1676,6 +1726,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 if event is None:
@@ -1688,6 +1739,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
                         partition_key=dag_run_partition_key,
+                        partition_date=dag_run_partition_date,
                         session=session,
                     )
 
@@ -2253,9 +2305,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return query.values(
                 {
                     "end_date": end_date,
-                    "duration": (
-                        (func.strftime("%s", end_date) - func.strftime("%s", cls.start_date))
-                        + func.round((func.strftime("%f", end_date) - func.strftime("%f", cls.start_date)), 3)
+                    "duration": func.round(
+                        (func.julianday(end_date) - func.julianday(cls.start_date)) * 86400, 3
                     ),
                 }
             )
@@ -2421,19 +2472,7 @@ def _get_relevant_map_indexes(
     # and "ti_count == ancestor_ti_count" does not work, since the further
     # expansion may be of length 1.
     if not _is_further_mapped_inside(relative, common_ancestor):
-        # During mapped task group expansion, upstream placeholder task instances
-        # (map_index = -1) may already have been replaced by their first expanded
-        # successor (map_index = 0) while downstream task instances are still
-        # unexpanded and continue resolving dependencies against the placeholder index.
-        resolved_map_index = (
-            0
-            if _should_use_post_expansion_placeholder(
-                task=task, relative=relative, map_index=ancestor_map_index, run_id=run_id, session=session
-            )
-            else ancestor_map_index
-        )
-
-        return resolved_map_index
+        return ancestor_map_index
 
     # Otherwise we need a partial aggregation for values from selected task
     # instances in the ancestor's expansion context.
@@ -2505,48 +2544,6 @@ def find_relevant_relatives(
     _visit_relevant_relatives_for_normal(normal_tasks)
     _visit_relevant_relatives_for_mapped(mapped_tasks)
     return visited
-
-
-def _should_use_post_expansion_placeholder(
-    *,
-    task: Operator,
-    relative: Operator,
-    map_index: int,
-    run_id: str,
-    session: Session,
-) -> bool:
-    """
-    Determine whether upstream dependency resolution should use map_index = 0.
-
-    Returns True when the upstream placeholder task instance
-    (map_index = -1) has already been replaced by its post-expansion
-    successor (map_index = 0).
-    """
-    if map_index != -1:
-        return False
-
-    rows = session.execute(
-        select(TaskInstance.task_id, TaskInstance.map_index).where(
-            TaskInstance.dag_id == relative.dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.task_id.in_([task.task_id, relative.task_id]),
-            TaskInstance.map_index.in_([-1, 0]),
-        )
-    ).all()
-
-    task_to_map_indexes: dict[str, set[int]] = defaultdict(set)
-    for task_id, mi in rows:
-        task_to_map_indexes[task_id].add(mi)
-
-    # We only rewrite when:
-    # 1) the current task is still using the placeholder (-1)
-    # 2) the upstream placeholder (-1) no longer exists
-    # 3) the post-expansion placeholder (0) does exist
-    return (
-        -1 in task_to_map_indexes[task.task_id]
-        and -1 not in task_to_map_indexes[relative.task_id]
-        and 0 in task_to_map_indexes[relative.task_id]
-    )
 
 
 class TaskInstanceNote(Base):

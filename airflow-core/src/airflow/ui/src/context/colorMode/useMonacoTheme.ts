@@ -16,10 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Monaco } from "@monaco-editor/react";
+import type { useMonaco } from "@monaco-editor/react";
 import { formatHex, parse } from "culori";
 
 import { useColorMode } from "./useColorMode";
+
+// @monaco-editor/react's exported `Monaco` type aliases an extension-less deep
+// monaco-editor import that monaco 0.55's package `exports` map no longer resolves,
+// collapsing it to `any`. Derive it from `useMonaco`'s return type instead, which
+// resolves through monaco's proper package entry point.
+export type Monaco = NonNullable<ReturnType<typeof useMonaco>>;
 
 const LIGHT_THEME_NAME = "airflow-light";
 const DARK_THEME_NAME = "airflow-dark";

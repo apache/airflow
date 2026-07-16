@@ -40,17 +40,61 @@
     "parseDuration": "مدة التحليل:",
     "parsedAt": "تم تحليلها في:"
   },
+  "deadlineAlerts": {
+    "completionRule": "يجب الإكمال خلال {{interval}} من {{reference}}",
+    "count_few": "{{count}} مواعيد نهائية",
+    "count_many": "{{count}} موعداً نهائياً",
+    "count_one": "موعد نهائي واحد",
+    "count_other": "{{count}} موعد نهائي",
+    "count_two": "موعدان نهائيان",
+    "count_zero": "لا توجد مواعيد نهائية",
+    "referenceType": {
+      "AverageRuntimeDeadline": "متوسط زمن التشغيل",
+      "DagRunLogicalDateDeadline": "التاريخ المنطقي",
+      "DagRunQueuedAtDeadline": "وقت الانتظار في الطابور"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "الفعلي",
+    "expected": "المتوقّع",
+    "finishedEarly": "اكتمل قبل الموعد النهائي بـ{{duration}}",
+    "finishedLate": "اكتمل بعد الموعد النهائي بـ{{duration}}",
+    "label": "الموعد النهائي",
+    "met": "تم الالتزام",
+    "missed": "فائت",
+    "missedCount_few": "{{count}} مواعيد نهائية فائتة",
+    "missedCount_many": "{{count}} موعداً نهائياً فائتاً",
+    "missedCount_one": "موعد نهائي فائت واحد",
+    "missedCount_other": "{{count}} موعد نهائي فائت",
+    "missedCount_two": "موعدان نهائيان فائتان",
+    "missedCount_zero": "لا توجد مواعيد نهائية فائتة",
+    "mixedCount": "{{missedCount}} فائتة، {{upcomingCount}} قادمة",
+    "stillRunning": "لا يزال قيد التشغيل",
+    "upcoming": "قادمة",
+    "upcomingCount_few": "{{count}} مواعيد نهائية قادمة",
+    "upcomingCount_many": "{{count}} موعداً نهائياً قادماً",
+    "upcomingCount_one": "موعد نهائي قادم واحد",
+    "upcomingCount_other": "{{count}} موعد نهائي قادم",
+    "upcomingCount_two": "موعدان نهائيان قادمان",
+    "upcomingCount_zero": "لا توجد مواعيد نهائية قادمة"
+  },
   "extraLinks": "روابط إضافية",
   "grid": {
     "buttons": {
+      "newerRuns": "تشغيلات أحدث",
+      "olderRuns": "تشغيلات أقدم",
       "resetToLatest": "إعادة تعيين إلى الأحدث",
       "toggleGroup": "تفعيل المجموعة"
-    }
+    },
+    "runTypeLegend": "مفتاح أنواع التشغيل"
   },
   "header": {
     "buttons": {
       "advanced": "متقدم",
       "dagDocs": "وثائق Dag"
+    },
+    "status": {
+      "deactivated": "غير مفعّل"
     }
   },
   "logs": {
@@ -65,13 +109,20 @@
     },
     "info": "معلومات",
     "noTryNumber": "لا يوجد رقم محاولة",
+    "search": {
+      "matchCount": "{{current}} من {{total}}",
+      "noMatches": "لا توجد مطابقات",
+      "placeholder": "ابحث في السجلات..."
+    },
     "settings": "سجل الإعدادات",
     "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})",
     "warning": "تحذير"
   },
-  "navigation": {
-    "navigation": "التنقل: {{arrow}}",
-    "toggleGroup": "تبديل المجموعة: المسافة"
+  "notFound": {
+    "back": "رجوع",
+    "backToDags": "العودة إلى Dags",
+    "message": "Dag \"{{dagId}}\" غير موجود.",
+    "title": "Dag غير موجود"
   },
   "overview": {
     "buttons": {
@@ -102,6 +153,10 @@
       "assetEvent_two": "تم إنشاء واقعتين أصل",
       "assetEvent_zero": "لا توجد أي واقعة أصل"
     },
+    "deadlines": {
+      "showAll": "عرض الكل",
+      "title": "المواعيد النهائية"
+    },
     "failedLogs": {
       "hideLogs": "إخفاء السجلات",
       "showLogs": "إظهار السجلات",
@@ -131,11 +186,38 @@
     "graphDirection": {
       "label": "اتجاه الرسم البياني"
     },
+    "graphFilters": {
+      "clearFilters": "مسح المرشحات",
+      "durationGte": "الحد الأدنى للمدة (ث)",
+      "durationGteHint": "بالنسبة للمهام المعيّنة، يقيس الامتداد الإجمالي عبر جميع المثيلات",
+      "mapIndex": "الحد الأدنى لفهرس الخريطة",
+      "mapIndexHint": "يعرض المهام المعيّنة موسعة حتى هذا الفهرس على الأقل",
+      "selectStatus": "اختر الحالة",
+      "selectTaskGroup": "اختر مجموعة المهام",
+      "title": "مرشحات المهام"
+    },
+    "showVersionIndicator": {
+      "label": "إظهار مؤشر الإصدار",
+      "options": {
+        "hideAll": "إخفاء الكل",
+        "showAll": "إظهار الكل",
+        "showBundleVersion": "إظهار إصدار الحزمة",
+        "showDagVersion": "إظهار إصدار Dag"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "التصفية النشطة",
       "clearFilter": "مسح التصفية",
       "clickTask": "انقر على مهمة لاختيارها كجذر للتصفية",
+      "depth": "العمق",
+      "direction": "الاتجاه",
       "label": "تصفية",
+      "mode": "النمط",
+      "modeTooltip": "يبقي النمط الثابت العرض الحالي عند التنقل بين المهام المختلفة، بينما يحدّث نمط العبور المرشح النشط تلقائياً إلى المهمة التي تم النقر عليها لتسهيل استكشاف Dag.",
+      "modes": {
+        "static": "ثابت",
+        "traverse": "عبور"
+      },
       "options": {
         "both": "المهام السابقة واللاحقة",
         "downstream": "المهام اللاحقة",
@@ -175,12 +257,34 @@
     "renderedTemplates": "القوالب المعروضة",
     "requiredActions": "إجراءات مطلوبة",
     "runs": "تشغيلات",
+    "storage": "التخزين",
     "taskInstances": "مثيلات المهام",
+    "taskStore": "مخزن المهام",
     "tasks": "المهام",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "طي جميع مجموعات المهام",
     "expandAll": "توسيع جميع مجموعات المهام"
+  },
+  "taskStore": {
+    "add": "إضافة مخزن المهام",
+    "clearAll": {
+      "resource": "كل مخزن المهام",
+      "title": "مسح كل مخزن المهام",
+      "warning": "سيتم مسح كل مخزن المهام. لن تتمكن المهام التي تستخدم هذا المخزن لتتبع العمل الخارجي من الاستئناف دون إعادة التشغيل من البداية."
+    },
+    "delete": "حذف مخزن المهام",
+    "deleteWarning": "ستفقد المهمة هذه الذاكرة المحفوظة. إذا كانت المهمة تستخدم هذا المفتاح لتتبع عمل خارجي (مثل معرّف وظيفة خارجية)، فلن تتمكن من استئنافه.",
+    "edit": "تعديل مخزن المهام",
+    "emptyStore": "يخزّن مخزن المهام قيماً تستمر عبر إعادات المحاولة. يمكن للعمّال الكتابة إلى مخزن المهام عبر Task SDK.",
+    "expiresAt": {
+      "column": "تنتهي الصلاحية في",
+      "custom": "مخصص",
+      "default": "افتراضي ({{interval}})",
+      "label": "انتهاء الصلاحية",
+      "never": "أبداً"
+    },
+    "title": "مخزن المهام"
   }
 }

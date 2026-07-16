@@ -32,7 +32,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
-_SUPPORTED_BACKEND_AUTH_TYPES = ("api_key", "uid")
+_SUPPORTED_BACKEND_AUTH_TYPES = ("api_key", "uid", "aws_iam", "gcp", "azure_ad")
+_CLOUD_AUTH_TYPES = ("aws_iam", "gcp", "azure_ad")
 _DEFAULT_TOKEN_TTL = 600  # 10 minutes
 
 
@@ -62,9 +63,21 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
     (when ``global_secrets_path`` is set) or ``{base_path}/{key}`` (default).
     Team-scoped lookup can be disabled with ``use_team_secrets_path = False``.
 
-    Only ``api_key`` and ``uid`` authentication types are supported in the
-    secrets backend.  For cloud-based authentication (``aws_iam``, ``gcp``,
-    ``azure_ad``) or other advanced methods, use ``AkeylessHook`` directly.
+    Supported authentication types:
+
+    * ``api_key`` -- authenticate with Access ID + Access Key.
+    * ``uid`` -- use a pre-existing Universal Identity token.
+    * ``aws_iam`` -- authenticate using the host's AWS IAM role (ideal for
+      Amazon MWAA and EC2/ECS/EKS workloads).
+    * ``gcp`` -- authenticate using GCP workload identity (ideal for Google
+      Managed Service for Apache Airflow and GCE/GKE workloads).
+    * ``azure_ad`` -- authenticate using Azure AD identity (ideal for Azure
+      workloads).
+
+    Cloud-based auth types (``aws_iam``, ``gcp``, ``azure_ad``) require the
+    optional ``akeyless_cloud_id`` package::
+
+        pip install apache-airflow-providers-akeyless[cloud_id]
 
     :param connections_path: Akeyless path prefix for Connections (None to disable).
     :param variables_path: Akeyless path prefix for Variables (None to disable).
@@ -77,7 +90,10 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
     :param api_url: Akeyless API endpoint.
     :param access_id: Access ID.
     :param access_key: Access Key (for ``api_key`` auth).
-    :param access_type: Auth type (``api_key`` or ``uid``).
+    :param access_type: Auth type (``api_key``, ``uid``, ``aws_iam``, ``gcp``,
+        or ``azure_ad``).
+    :param gcp_audience: GCP audience for ``gcp`` auth (optional).
+    :param azure_object_id: Azure AD Object ID for ``azure_ad`` auth (optional).
     :param token_ttl: Seconds to cache the API token before refreshing (default 600).
     """
 
@@ -132,6 +148,13 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
 
         if self._access_type == "uid":
             token = self._extra["uid_token"]
+        elif self._access_type in _CLOUD_AUTH_TYPES:
+            body = akeyless.Auth(
+                access_id=self._access_id,
+                access_type=self._access_type,
+                cloud_id=self._get_cloud_id(),
+            )
+            token = self._client.auth(body).token
         else:
             body = akeyless.Auth(access_id=self._access_id, access_key=self._access_key)
             token = self._client.auth(body).token
@@ -139,6 +162,24 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         self._cached_token = token
         self._token_expiry = now + self._token_ttl
         return token
+
+    def _get_cloud_id(self) -> str:
+        """Generate a cloud identity token for AWS IAM / GCP / Azure AD auth."""
+        try:
+            from akeyless_cloud_id import CloudId
+        except ImportError:
+            raise ImportError(
+                f"`akeyless_cloud_id` is required for {self._access_type} authentication. "
+                "Install it with: pip install apache-airflow-providers-akeyless[cloud_id]"
+            )
+        cid = CloudId()
+        if self._access_type == "aws_iam":
+            return cid.generate()
+        if self._access_type == "gcp":
+            return cid.generateGcp(self._extra.get("gcp_audience"))
+        if self._access_type == "azure_ad":
+            return cid.generateAzure(self._extra.get("azure_object_id"))
+        raise ValueError(f"No cloud-id generator for {self._access_type!r}")
 
     def _get_secret(self, base_path: str | None, key: str) -> str | None:
         if base_path is None:

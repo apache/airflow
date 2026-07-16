@@ -160,7 +160,7 @@ not matter because any single hit forces the full matrix:
 flowchart TD
     A([full_tests_needed]) --> M{_should_run_all_tests_and_versions?}
     M -->|yes| T[TRUE - full matrix]
-    M -->|no| E1{environment files?<br/>.github/workflows, dev/breeze/src,<br/>Dockerfile, scripts/ci, ...}
+    M -->|no| E1{environment files?<br/>test workflows, dev/breeze/src,<br/>Dockerfile, scripts/ci/docker-compose+kubernetes, ...<br/>excl. prek + non-test workflows}
     E1 -->|yes| T
     E1 -->|no| E2{API contract / codegen?<br/>generated OpenAPI spec or generator}
     E2 -->|yes| T
@@ -240,8 +240,11 @@ representative examples (file → effect):
 | `airflow-core/src/airflow/jobs/scheduler_job_runner.py` | unit tests with **all** core test types                            | a core/other file → escape hatch runs all core types |
 | `pyproject.toml`                                       | **full matrix, all versions**                                        | dependency surface changed → `_should_run_all_tests_and_versions` |
 | `.github/workflows/ci-amd.yml` or `dev/breeze/src/...` | **full matrix**                                                      | environment files → can change the whole CI environment |
+| `.github/workflows/codeql-analysis.yml` (non-test workflow) | **basic checks only**                                           | non-test workflow → cannot affect tests (env-files carve-out) |
+| `scripts/ci/prek/check_*.py` (static-check hook)       | CI image + static checks, **no full matrix**                         | prek hooks are static checks → `Prek files` carve-out |
 | the generated OpenAPI spec                             | **full matrix**                                                      | the API *contract* ripples to UI codegen + every client |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
+| `task-sdk/.../task_runner.py` or `airflow-core/tests/integration/otel/...` | the `otel` core integration                       | matches `OTEL_FILES`; the otel integration tests assert the span hierarchy task_runner emits |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
 
 The "complexity" you feel reading the code is just *many* such rules stacked up — each one on its own
@@ -279,9 +282,11 @@ flowchart TD
 2. **Pull request, core change** (`scheduler_job_runner.py`). Still `full_tests_needed=False`, but the
    core/other escape hatch adds **all core test types**. Providers are not pulled in (no provider files
    changed). Default versions.
-3. **Pull request that changes `pyproject.toml`** (or `.github/workflows/...`, or the OpenAPI spec).
-   `full_tests_needed=True` (and for `pyproject.toml` also `all_versions=True`). The PR runs the **full
-   matrix** — same as a canary — because the change can affect everything.
+3. **Pull request that changes `pyproject.toml`** (or a *test* workflow like `.github/workflows/ci-amd.yml`,
+   or the OpenAPI spec). `full_tests_needed=True` (and for `pyproject.toml` also `all_versions=True`). The
+   PR runs the **full matrix** — same as a canary — because the change can affect everything. (A *non-test*
+   workflow such as `codeql-analysis.yml`, or a `scripts/ci/prek/...` static-check hook, does **not** force
+   the full matrix — see the `Environment files` carve-outs above.)
 4. **Push / merge to `main`.** `_should_run_all_tests_and_versions()` is true for PUSH on `main` →
    `full_tests_needed=True`, `all_versions=True`, `is_canary_run=True`. The full matrix plus all
    canary-only jobs run. This is the safety net that backstops aggressive PR-time optimisation.
@@ -312,8 +317,7 @@ all versions), the cause is almost always a single rule that fired. To find it:
    pushing.
 3. **Check the usual escalation triggers** (any one of these forces the full matrix):
    * an **environment file** changed — `.github/workflows/*`, `dev/breeze/src/*`, `Dockerfile*`,
-     `scripts/ci/*`, `scripts/docker/*`, `generated/provider_dependencies.json` (often this is the
-     surprise: editing CI/breeze itself runs everything);
+     `scripts/ci/*`, `scripts/docker/*`, (often this is the surprise: editing CI/breeze itself runs everything);
    * **`pyproject.toml`** or generated provider dependencies changed (also forces `all_versions`);
    * the **generated OpenAPI spec** or the client generator changed (the API contract);
    * **`tests/utils`** or **git/standard provider** files changed;
@@ -334,7 +338,16 @@ The authoritative, exhaustive rule list (kept in sync with the code) is in
 We have the following Groups of files for CI that determine which tests are run:
 
 * `Environment files` - if any of those changes, that forces 'full tests needed' mode, because changes
-  there might simply change the whole environment of what is going on in CI (Container image, dependencies)
+  there might simply change the whole environment of what is going on in CI (Container image, dependencies).
+  Two deliberate carve-outs do **not** force full tests: **static-check hooks** (`scripts/ci/prek/...`)
+  drive prek static checks rather than the test matrix, so they only trigger the CI image build (via the
+  `Prek files` group) — `mypy-scripts` and the image-based static checks still run, but the full test
+  matrix does not; and **non-test workflows** (`.github/workflows/` for security scans, doc publishing,
+  notifications, backporting, calendar/stale bots, …) cannot change test outcomes. Workflows that run or
+  configure the test suite (`ci-amd`, `ci-arm`, `run-unit-tests`, `k8s-tests`, `helm-tests`, image builds,
+  …) still force the full matrix.
+* `Prek files` - `scripts/ci/prek/...` static-check hooks. They do not force full tests, but they trigger
+  the CI image build so `mypy-scripts` and the image-based static checks run for a prek-only change.
 * `Python production files` and `Javascript production files` - this area is useful in CodeQL Security scanning
   - if any of the python or javascript files for airflow "production" changed, this means that the security
     scans should run
@@ -387,8 +400,8 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 
 * `Full tests` case is enabled when the event is PUSH **to `main`**, SCHEDULE or WORKFLOW_DISPATCH, or we
   miss commit info, or any of the important environment files (`pyproject.toml`, `Dockerfile`, `scripts`,
-  `generated/provider_dependencies.json` etc.) changed, or the API *contract* changed (the generated
-  OpenAPI spec or the client generator — plain API source/test edits that leave the committed spec
+  etc.) changed, or the API *contract* changed (the generated OpenAPI spec or the client generator —
+  plain API source/test edits that leave the committed spec
   untouched do **not** force full tests), or `tests/utils` / git / standard provider files changed, or
   when the `full tests needed` label is set.
   That enables all matrix combinations of variables (representative) and all possible test type. No further
@@ -414,6 +427,21 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     of affected providers (but not recursively - only direct dependencies are added)
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
+* `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
+  `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
+  `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
+  openlineage e2e suite change — and always on `canary` runs (where `full tests needed` also
+  covers core/task-sdk changes). Like the other deployed e2e suites, enabling them forces
+  `PROD Image building`.
+* `OpenLineage E2E compat tests` (the same suite rerun against older released Airflow versions with
+  current provider code, exposed as the `run-openlineage-e2e-compat-tests` output) are costly, so
+  they do NOT run on every OpenLineage PR: on `canary` runs, when the `full tests needed` label is
+  explicitly set, or when a file that drives the compat setup but does not itself force the full
+  matrix changes — the shared e2e harness
+  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`) or the compat Dockerfile
+  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`). The compat workflow
+  (`.github/workflows/openlineage-e2e-compat-tests.yml`) matches `ENVIRONMENT_FILES` and so already
+  forces the full matrix — the same rationale as `run-ui-e2e-tests`.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
@@ -467,6 +495,10 @@ when some files are not changed. Those are the rules implemented:
   * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
     wrapper, which downloads the Gradle distribution, so we avoid that download on PRs that do
     not touch `java-sdk/`)
+  * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
+    skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
+    wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
+    the ts-sdk follow-up PR's job, not the schema author's)
   * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
     `check-provider-yaml-valid` check is skipped
 
@@ -518,6 +550,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
+| java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
 | kind-version                                            | Which Kind version to use for tests                                                                     | v0.24.0                                  |      |
 | kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.10-v1.25.2 3.11-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |
@@ -556,23 +589,6 @@ GitHub Actions to pass the list of parameters to a command to execute
 | upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)          | false                                    |      |
 
 
-[1] Note for deciding if `full tests needed` mode is enabled and provider.yaml files.
-
-When we decided whether to run `full tests` we do not check (directly) if provider.yaml files changed,
-even if they are single source of truth for provider dependencies and when you add a dependency there,
-the environment changes and generally full tests are advised.
-
-This is because provider.yaml change will automatically trigger (via `update-provider-dependencies` prek)
-generation of `generated/provider_dependencies.json` and `pyproject.toml` gets updated as well. This is a far
-better indication if we need to run full tests than just checking if provider.yaml files changed, because
-provider.yaml files contain more information than just dependencies - they are the single source of truth
-for a lot of information for each provider and sometimes (for example when we update provider documentation
-or when new Hook class is added), we do not need to run full tests.
-
-That's why we do not base our `full tests needed` decision on changes in dependency files that are generated
-from the `provider.yaml` files, but on `generated/provider_dependencies.json` and `pyproject.toml` files being
-modified. This can be overridden by setting `full tests needed` label in the PR.
-
 ## Committer vs. Non-committer PRs
 
 There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
@@ -595,8 +611,7 @@ builds that also have `canary` label set to also switch the `canary` builds to p
 If you are testing CI workflow changes and want to test it for more complete matrix combinations generated by
 the jobs - you can set `all versions` label in the PR. This will run the PRs with the same combinations
 of versions as the `canary` main build. Using `all versions` is automatically set when build dependencies
-change in `pyproject.toml` or when dependencies change for providers in `generated/provider_dependencies.json`
-or when `hatch_build.py` changes.
+change in `pyproject.toml`.
 
 If you are running an `apache` PR, you can also set `canary` label for such PR and in this case, all the
 `canary` properties of build will be used: `self-hosted` runners, `full tests needed` mode, `all versions`
@@ -604,7 +619,7 @@ as well as all canary-specific jobs will run there. You can modify this behaviou
 applying `use public runners`, and `default versions only` labels to the PR as well which will still run
 a `canary` equivalent build but with public runners an default Python/K8S versions only - respectively.
 
-If you are testing CI workflow changes and change `pyproject.toml` or `generated/provider_dependencies.json`
+If you are testing CI workflow changes and change `pyproject.toml`
 and you want to limit the number of matrix combinations generated by
 the jobs - you can set `default versions only` label in the PR. This will limit the number of versions
 used in the matrix to the default ones (default Python version and default Kubernetes version).
@@ -627,6 +642,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 |----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
 | all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
 | allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| area:kubernetes-tests            | run-kubernetes-tests             | If set, the Kubernetes tests job is run regardless of changed files (does not force the full test matrix). |
 | canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
 | default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |

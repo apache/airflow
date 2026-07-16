@@ -31,6 +31,7 @@ from google.cloud.container_v1.types import Cluster
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
+    GKEClusterConnection,
     GKEHook,
     GKEKubernetesAsyncHook,
     GKEKubernetesHook,
@@ -484,6 +485,32 @@ class TestGKEKubernetesHookDeployments:
         if api_client is None:
             mock_get_conn.assert_called_once()
         mock_super.return_value.apply_from_yaml_file.assert_called_once_with(**expected_kwargs)
+
+
+class TestGKEClusterConnection:
+    @pytest.mark.parametrize("expired", [False, True])
+    def test_registers_bearer_token_for_client_35_and_36(self, expired):
+        # The bearer token and its "Bearer" prefix must be registered under both the client-35.x key
+        # ('authorization') and the client-36.x key ('BearerToken', renamed in
+        # https://github.com/kubernetes-client/python/issues/2582). Asserting the registration
+        # directly verifies both-version support regardless of which client CI installed; the
+        # auth_settings() check then confirms the installed client emits the prefixed header.
+        credentials = mock.MagicMock()
+        credentials.token = "the-token"
+        credentials.expired = expired
+        credentials.refresh = lambda request: setattr(credentials, "token", "the-token")
+        conn = GKEClusterConnection(
+            cluster_url="https://cluster",
+            ssl_ca_cert=None,
+            credentials=credentials,
+            use_dns_endpoint=True,
+        )
+
+        config = conn.get_conn().configuration
+
+        assert config.api_key == {"authorization": "the-token", "BearerToken": "the-token"}
+        assert config.api_key_prefix == {"authorization": "Bearer", "BearerToken": "Bearer"}
+        assert config.auth_settings()["BearerToken"]["value"] == "Bearer the-token"
 
 
 class TestGKEKubernetesAsyncHook:
