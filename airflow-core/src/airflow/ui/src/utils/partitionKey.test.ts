@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { describe, it, expect } from "vitest";
 
-export { capitalize } from "./capitalize";
-export { getDuration, renderDuration } from "./datetimeUtils";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { getMetaKey } from "./getMetaKey";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { toNullablePartitionKey } from "./partitionKey";
+
+describe("toNullablePartitionKey", () => {
+  it.each([
+    { description: "undefined", expected: null, input: undefined },
+    { description: "empty string", expected: null, input: "" },
+    { description: "a non-empty string", expected: "2026-07-15", input: "2026-07-15" },
+  ])("returns $expected for $description", ({ expected, input }) => {
+    expect(toNullablePartitionKey(input)).toBe(expected);
+  });
+});
