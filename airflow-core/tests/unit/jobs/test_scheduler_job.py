@@ -762,6 +762,34 @@ class TestSchedulerJob:
             callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
             assert callback_lookups == []
 
+    def test_process_executor_events_queued_event_does_not_take_row_lock(self, dag_maker, session):
+        dag_id = "test_process_executor_events_queued_event_does_not_take_row_lock"
+        task_id = "dummy_task"
+
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task1 = EmptyOperator(task_id=task_id)
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti1.state = State.QUEUED
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.QUEUED, "executor-123"
+
+        with mock.patch(
+            "airflow.jobs.scheduler_job_runner.with_row_locks",
+            side_effect=AssertionError("with_row_locks should not be called for QUEUED-only events"),
+        ):
+            self.job_runner._process_executor_events(executor=executor, session=session)
+
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.QUEUED
+        assert ti1.external_executor_id == "executor-123"
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_event_missing_dag(
