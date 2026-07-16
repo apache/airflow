@@ -19,6 +19,7 @@
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
+import { AiOutlineGroup } from "react-icons/ai";
 
 import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
@@ -112,7 +113,7 @@ export const TaskNode = ({
             width={`${width + (isSelected ? 4 : 0)}px`}
           >
             <HStack>
-              <TaskIcon />
+              {isGroup ? <AiOutlineGroup /> : <TaskIcon />}
               <LinkOverlay asChild>
                 <TaskLink
                   childCount={thisChildCount}
