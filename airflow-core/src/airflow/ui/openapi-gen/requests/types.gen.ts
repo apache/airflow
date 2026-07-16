@@ -1534,6 +1534,7 @@ export type PluginImportErrorResponse = {
  */
 export type PluginResponse = {
     name: string;
+    team_name?: string | null;
     macros: Array<(string)>;
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
@@ -8371,7 +8372,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+    '/ui/pending_partitioned_dag_run/{dag_id}': {
         get: {
             req: GetPendingPartitionedDagRunData;
             res: {
