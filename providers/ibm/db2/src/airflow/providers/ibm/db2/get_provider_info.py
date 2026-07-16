@@ -35,17 +35,9 @@ def get_provider_info():
             }
         ],
         "dialects": [
-            {
-                "dialect-type": "db2",
-                "dialect-class-name": "airflow.providers.ibm.db2.dialects.db2.Db2Dialect",
-            }
+            {"dialect-type": "db2", "dialect-class-name": "airflow.providers.ibm.db2.dialects.db2.Db2Dialect"}
         ],
-        "hooks": [
-            {
-                "integration-name": "IBM Db2",
-                "python-modules": ["airflow.providers.ibm.db2.hooks.db2"],
-            }
-        ],
+        "hooks": [{"integration-name": "IBM Db2", "python-modules": ["airflow.providers.ibm.db2.hooks.db2"]}],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.ibm.db2.hooks.db2.Db2Hook",
@@ -53,11 +45,7 @@ def get_provider_info():
                 "hook-name": "IBM Db2",
                 "ui-field-behaviour": {
                     "hidden-fields": [],
-                    "relabeling": {
-                        "schema": "Database",
-                        "login": "Username",
-                        "password": "Password",
-                    },
+                    "relabeling": {"schema": "Database", "login": "Username", "password": "Password"},
                     "placeholders": {
                         "host": "localhost",
                         "port": "50000",
@@ -70,31 +58,22 @@ def get_provider_info():
                 "conn-fields": {
                     "SECURITY": {
                         "label": "Security Protocol",
-                        "schema": {
-                            "type": ["string", "null"],
-                            "enum": ["", "SSL"],
-                        },
+                        "schema": {"type": ["string", "null"], "enum": ["", "SSL"]},
                         "description": "Security protocol for the connection (leave empty for no SSL, or set to SSL for encrypted connections)",
                     },
                     "SSLServerCertificate": {
                         "label": "SSL Server Certificate Path",
-                        "schema": {
-                            "type": ["string", "null"],
-                        },
+                        "schema": {"type": ["string", "null"]},
                         "description": "Path to the SSL server certificate file (required when SECURITY is SSL)",
                     },
                     "CurrentSchema": {
                         "label": "Current Schema",
-                        "schema": {
-                            "type": ["string", "null"],
-                        },
+                        "schema": {"type": ["string", "null"]},
                         "description": "Default schema to use for unqualified table names",
                     },
                     "ConnectTimeout": {
                         "label": "Connection Timeout",
-                        "schema": {
-                            "type": ["integer", "null"],
-                        },
+                        "schema": {"type": ["integer", "null"]},
                         "description": "Connection timeout in seconds (0 means no timeout)",
                     },
                     "Authentication": {
