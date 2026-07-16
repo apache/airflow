@@ -186,19 +186,21 @@ class TestKubernetesPodOperator:
         self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start")
         self.await_pod_completion_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
-        self.task_state_store_get_patch = patch(
-            "airflow.sdk.execution_time.context.TaskStateStoreAccessor.get", return_value=None
-        )
-        self.task_state_store_set_patch = patch(
-            "airflow.sdk.execution_time.context.TaskStateStoreAccessor.set"
-        )
         self.watch_pod_events_mock = self.watch_pod_events.start()
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
         self.await_pod_mock = self.await_pod_completion_patch.start()
         self._default_client_mock = self._default_client_patch.start()
-        self.task_state_store_get_patch.start()
-        self.task_state_store_set_patch.start()
+
+        try:
+            from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+        except ImportError:
+            # Airflow versions < 3.3, do not have task_state_store
+            pass
+        else:
+            patch.object(TaskStateStoreAccessor, "get", return_value=None).start()
+            patch.object(TaskStateStoreAccessor, "set").start()
+
         self.dag_maker = dag_maker
 
         yield
@@ -2489,6 +2491,8 @@ class TestKubernetesPodOperatorDurableExecution:
     def setup_tests(self):
         self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
         self.create_mock = self.create_pod_patch.start()
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self._default_client_mock = self._default_client_patch.start()
 
         yield
 

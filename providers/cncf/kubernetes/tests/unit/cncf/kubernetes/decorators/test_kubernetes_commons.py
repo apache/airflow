@@ -25,7 +25,7 @@ import pytest
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.taskinstance import get_template_context
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import setup, task, teardown
@@ -90,6 +90,13 @@ class TestKubernetesDecoratorsBase:
         self.dag = self.dag_maker.dag
 
         self.mock_create_pod = mock.patch(f"{POD_MANAGER_CLASS}.create_pod").start()
+        self.mock_create_pod.return_value = mock.MagicMock(
+            **{
+                "metadata.name": "test-pod",
+                "metadata.namespace": "default",
+                "metadata.uid": "test-uid",
+            }
+        )
         self.mock_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start").start()
         self.mock_watch_pod_events = mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events").start()
         self.mock_await_xcom_sidecar_container_start = mock.patch(
@@ -112,11 +119,16 @@ class TestKubernetesDecoratorsBase:
         )
         self.mock_hook = mock.patch(HOOK_CLASS).start()
 
-        if AIRFLOW_V_3_3_PLUS:
-            mock.patch(
-                "airflow.sdk.execution_time.context.TaskStateStoreAccessor.get", return_value=None
-            ).start()
-            mock.patch("airflow.sdk.execution_time.context.TaskStateStoreAccessor.set").start()
+        try:
+            from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+        except ImportError:
+            # Airflow versions without task_state_store (e.g. pre-3.3, or pre-3.0 where
+            # airflow.sdk doesn't exist at all) don't define this class -- nothing to patch,
+            # context.get("task_state_store") already returns None on those versions.
+            pass
+        else:
+            mock.patch.object(TaskStateStoreAccessor, "get", return_value=None).start()
+            mock.patch.object(TaskStateStoreAccessor, "set").start()
 
         # Without this patch each time pod manager would try to extract logs from the pod
         # and log an error about it's inability to get containers for the log
