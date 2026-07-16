@@ -913,9 +913,15 @@ class AssetPartitionDagRun(Base):
     We can look up the AssetEvents that contribute to AssetPartitionDagRun entities
     with the PartitionedAssetKeyLog mapping table.
 
-    Where dag_run_id is null, the dag run has not yet been created.
-    We should not allow more than one like this. But to guard against
-    an accident, we should always work on the latest one.
+    Rows are never deleted from this table, so multiple records with the same
+    target_dag_id / partition_key are expected in general; each dag run that
+    gets created leaves its APDR record behind.
+
+    Where created_dag_run_id is null, the dag run has not yet been created.
+    We should not allow more than one row with the same target_dag_id /
+    partition_key where created_dag_run_id is null, and this is what the
+    `_lock_asset_model` mutex control is for. In case a duplicate somehow
+    gets created, we always work on the latest matching APDR record.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
