@@ -490,14 +490,21 @@ class TestValidatePluginTeams:
 
     @conf_vars({("core", "multi_team"): "True"})
     @mock.patch("airflow.models.team.Team.get_all_team_names", return_value={"team_a"})
-    def test_raises_for_unknown_team(self, mock_get_all_team_names):
+    def test_get_fastapi_plugins_records_unknown_team_import_error(self, mock_get_all_team_names, caplog):
         from airflow import plugins_manager
-        from airflow.exceptions import AirflowConfigException
 
         class TeamPlugin(AirflowPlugin):
             name = "team_plugin"
             team_name = "unknown_team"
 
-        with mock_plugin_manager(plugins=[TeamPlugin()]):
-            with pytest.raises(AirflowConfigException, match="team_plugin.*unknown_team"):
-                plugins_manager.validate_plugin_teams()
+        # get_fastapi_plugins() is what init_plugins() calls, so validation runs
+        # automatically: a plugin on a nonexistent team is recorded as an import error
+        # and warned, not raised, so the API server and every other plugin still start.
+        with mock_plugin_manager(plugins=[TeamPlugin()], import_errors={}):
+            with caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+                plugins_manager.get_fastapi_plugins()
+            recorded = plugins_manager.get_import_errors()
+
+        assert "unknown_team" in recorded["team_plugin"]
+        warnings = [msg for _, level, msg in caplog.record_tuples if level == logging.WARNING]
+        assert any("team_plugin" in msg and "unknown_team" in msg for msg in warnings)
