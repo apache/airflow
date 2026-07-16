@@ -156,6 +156,17 @@ log = logging.getLogger(__name__)
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
 
 
+def _id_token_claims_options(client_id: str) -> dict[str, Any]:
+    """
+    Build the claims options used to validate an OAuth ID token.
+
+    ``authlib``'s ``validate_aud`` is a no-op unless an ``aud`` option is supplied, so the audience has to
+    be pinned explicitly here for OIDC Core 3.1.3.7 to hold: an ID token is only for us if it was issued to
+    our own ``client_id``.
+    """
+    return {"aud": {"essential": True, "values": [client_id]}}
+
+
 class FabException(Exception):
     """Custom exception for FAB security manager."""
 
@@ -404,11 +415,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return resp.json()
         return {}
 
-    def _validate_jwt(self, id_token, jwks):
+    def _validate_jwt(self, id_token, jwks, audience):
         from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
         keyset = JsonWebKey.import_key_set(jwks)
-        claims = authlib_jwt.decode(id_token, keyset)
+        claims = authlib_jwt.decode(id_token, keyset, claims_options=_id_token_claims_options(audience))
         claims.validate()
         log.info("JWT token is validated")
         return claims
@@ -421,7 +432,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if jwks_uri:
                 jwks = self._get_authentik_jwks(jwks_uri)
                 if jwks:
-                    return self._validate_jwt(id_token, jwks)
+                    return self._validate_jwt(id_token, jwks, self.oauth_remotes["authentik"].client_id)
             else:
                 log.error("jwks_uri not specified in OAuth Providers, could not verify token signature")
         else:
@@ -2429,7 +2440,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
             keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())  # type: ignore
-            claims = authlib_jwt.decode(id_token, keyset)
+            claims = authlib_jwt.decode(
+                id_token,
+                keyset,
+                claims_options=_id_token_claims_options(self.oauth_remotes["azure"].client_id),
+            )
             claims.validate()
             return claims
 

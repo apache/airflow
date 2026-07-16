@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
 from unittest.mock import Mock, call
 
@@ -36,6 +37,21 @@ from airflow.providers.fab.auth_manager.security_manager.override import (
     FabAirflowSecurityManagerOverride,
     FabException,
 )
+
+
+def _generate_jwks():
+    """Return a private signing key and the matching public JWKS."""
+    from authlib.jose import JsonWebKey
+
+    key = JsonWebKey.generate_key("RSA", 2048, is_private=True)
+    return key, {"keys": [key.as_dict(is_private=False)]}
+
+
+def _sign_id_token(key, claims):
+    from authlib.jose import jwt as authlib_jwt
+
+    payload = {"iss": "https://issuer.example", "exp": int(time.time()) + 3600, **claims}
+    return authlib_jwt.encode({"alg": "RS256", "kid": key.as_dict()["kid"]}, payload, key).decode()
 
 
 class EmptySecurityManager(FabAirflowSecurityManagerOverride):
@@ -503,6 +519,76 @@ class TestFabAirflowSecurityManagerOverride:
 
         mock_jwks.assert_not_called()
         assert result == {"oid": "user-1"}
+
+    def test_decode_and_validate_azure_jwt_rejects_foreign_audience(self):
+        """An id_token minted for another client is rejected even though its signature is valid.
+
+        The Microsoft JWKS are the ``/common/`` multi-tenant keyset, so a token from any Azure AD tenant
+        carries a signature that verifies against it.
+        """
+        from authlib.jose.errors import InvalidClaimError
+
+        key, jwks = _generate_jwks()
+        id_token = _sign_id_token(key, {"aud": "some-other-client", "oid": "attacker"})
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {"azure": Mock(client_kwargs={}, client_id="airflow-client-id")}
+
+        with mock.patch.object(EmptySecurityManager, "_get_microsoft_jwks", return_value=jwks):
+            with pytest.raises(InvalidClaimError, match="aud"):
+                sm._decode_and_validate_azure_jwt(id_token)
+
+    def test_decode_and_validate_azure_jwt_accepts_own_audience(self):
+        """An id_token issued to the configured client_id still validates."""
+        key, jwks = _generate_jwks()
+        id_token = _sign_id_token(key, {"aud": "airflow-client-id", "oid": "user-1"})
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {"azure": Mock(client_kwargs={}, client_id="airflow-client-id")}
+
+        with mock.patch.object(EmptySecurityManager, "_get_microsoft_jwks", return_value=jwks):
+            claims = sm._decode_and_validate_azure_jwt(id_token)
+
+        assert claims["oid"] == "user-1"
+
+    def test_get_authentik_token_info_rejects_foreign_audience(self):
+        """An id_token minted for another client of the same authentik instance is rejected."""
+        from authlib.jose.errors import InvalidClaimError
+
+        key, jwks = _generate_jwks()
+        id_token = _sign_id_token(key, {"aud": "some-other-client", "nickname": "attacker"})
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "authentik": Mock(
+                client_kwargs={},
+                client_id="airflow-client-id",
+                server_metadata={"jwks_uri": "https://authentik.example/jwks"},
+            )
+        }
+
+        with mock.patch.object(EmptySecurityManager, "_get_authentik_jwks", return_value=jwks):
+            with pytest.raises(InvalidClaimError, match="aud"):
+                sm._get_authentik_token_info(id_token)
+
+    def test_get_authentik_token_info_accepts_own_audience(self):
+        """An id_token issued to the configured client_id still validates."""
+        key, jwks = _generate_jwks()
+        id_token = _sign_id_token(key, {"aud": "airflow-client-id", "nickname": "user-1"})
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "authentik": Mock(
+                client_kwargs={},
+                client_id="airflow-client-id",
+                server_metadata={"jwks_uri": "https://authentik.example/jwks"},
+            )
+        }
+
+        with mock.patch.object(EmptySecurityManager, "_get_authentik_jwks", return_value=jwks):
+            claims = sm._get_authentik_token_info(id_token)
+
+        assert claims["nickname"] == "user-1"
 
 
 def test_ldap_search_escapes_username_and_validates_filter():
