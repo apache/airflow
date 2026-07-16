@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, VStack } from "@chakra-ui/react";
+import { Button, HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import { MdAccessTime } from "react-icons/md";
@@ -36,6 +36,7 @@ type DateRangeInputsProps = {
     field: "end" | "start",
     inputType: "date" | "time",
   ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
+  readonly onApply?: () => void;
   readonly onChange: (value: DateRangeValue) => void;
   readonly setEditingState: React.Dispatch<React.SetStateAction<DateRangeEditingState>>;
   readonly startDateValue: dayjs.Dayjs | undefined;
@@ -48,6 +49,7 @@ export const DateRangeInputs = ({
   endDateValue,
   getFieldError,
   handleInputChange,
+  onApply,
   onChange,
   setEditingState,
   startDateValue,
@@ -55,6 +57,12 @@ export const DateRangeInputs = ({
   value,
 }: DateRangeInputsProps) => {
   const { selectedTimezone } = useTimezone();
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" && onApply) {
+      onApply();
+    }
+  };
 
   const getBorderColor = (fieldName: ValidationError["field"]) => {
     if (getFieldError(fieldName)) {
@@ -137,6 +145,7 @@ export const DateRangeInputs = ({
           onClear={() => clearField("start")}
           onDateBlur={handleDateBlur("start")}
           onFocus={handleFocus("start")}
+          onKeyDown={handleKeyDown}
           placeholder={DATE_INPUT_FORMAT}
         />
 
@@ -151,6 +160,7 @@ export const DateRangeInputs = ({
           onClear={() => clearField("end")}
           onDateBlur={handleDateBlur("end")}
           onFocus={handleFocus("end")}
+          onKeyDown={handleKeyDown}
           placeholder={DATE_INPUT_FORMAT}
         />
       </HStack>
@@ -165,6 +175,7 @@ export const DateRangeInputs = ({
           inputValue={editingState.inputs.startTime}
           label={translate("common:filters.startTime")}
           onClear={clearTime("start")}
+          onKeyDown={handleKeyDown}
           placeholder={TIME_INPUT_FORMAT}
         />
 
@@ -177,6 +188,7 @@ export const DateRangeInputs = ({
           inputValue={editingState.inputs.endTime}
           label={translate("common:filters.endTime")}
           onClear={clearTime("end")}
+          onKeyDown={handleKeyDown}
           placeholder={TIME_INPUT_FORMAT}
         />
       </HStack>
@@ -185,6 +197,20 @@ export const DateRangeInputs = ({
         <Text color="danger.fg" fontSize="xs" textAlign="center">
           {getFieldError("range")?.message}
         </Text>
+      )}
+
+      {onApply && (
+        <Button
+          borderRadius="md"
+          colorPalette="blue"
+          disabled={editingState.validationErrors.length > 0}
+          mt={1}
+          onClick={onApply}
+          size="sm"
+          width="full"
+        >
+          Apply
+        </Button>
       )}
     </VStack>
   );

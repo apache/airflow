@@ -37,6 +37,7 @@ type DateInputProps = {
   readonly onClear: () => void;
   readonly onDateBlur?: () => void;
   readonly onFocus?: () => void;
+  readonly onKeyDown?: (event: React.KeyboardEvent) => void;
   readonly placeholder: string;
 };
 
@@ -51,6 +52,7 @@ export const DateInput = ({
   onClear,
   onDateBlur,
   onFocus,
+  onKeyDown,
   placeholder,
 }: DateInputProps) => {
   const fieldName = inputType === "date" ? field : (`${field}Time` as const);
@@ -69,6 +71,7 @@ export const DateInput = ({
           onBlur={onDateBlur}
           onChange={handleInputChange(field, inputType)}
           onFocus={onFocus}
+          onKeyDown={onKeyDown}
           placeholder={placeholder}
           value={inputValue}
           w="full"

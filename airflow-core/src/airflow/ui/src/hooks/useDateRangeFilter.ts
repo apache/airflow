@@ -19,7 +19,7 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import type { TFunction } from "i18next";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
@@ -260,20 +260,6 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
         const newInputs = { ...prev.inputs, [inputKey]: inputValue };
         const validationErrors = validateInputs(newInputs);
 
-        const dateStr = field === "start" ? newInputs.start : newInputs.end;
-        const timeStr = field === "start" ? newInputs.startTime : newInputs.endTime;
-
-        if (dayjs(dateStr, DATE_INPUT_FORMAT, true).isValid()) {
-          const combinedDateTime = combineDateAndTime(dateStr, timeStr, selectedTimezone);
-
-          if (Boolean(combinedDateTime)) {
-            onChange({
-              ...value,
-              [field === "start" ? "startDate" : "endDate"]: combinedDateTime,
-            });
-          }
-        }
-
         return {
           ...prev,
           inputs: newInputs,
@@ -318,6 +304,29 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
 
   const hasValidationErrors = editingState.validationErrors.length > 0;
 
+  const applyDateRange = useCallback(() => {
+    const { inputs } = editingState;
+    const errors = validateInputs(inputs);
+
+    // Don't apply if there are validation errors
+    if (errors.length > 0) {
+      return;
+    }
+
+    const startDateTime = inputs.start
+      ? combineDateAndTime(inputs.start, inputs.startTime, selectedTimezone)
+      : undefined;
+    const endDateTime = inputs.end
+      ? combineDateAndTime(inputs.end, inputs.endTime, selectedTimezone)
+      : undefined;
+
+    onChange({
+      ...value,
+      endDate: endDateTime,
+      startDate: startDateTime,
+    });
+  }, [editingState, onChange, selectedTimezone, value]);
+
   return {
     editingState,
     endDateValue,
@@ -328,5 +337,6 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
     hasValidationErrors,
     setEditingState,
     startDateValue,
+    applyDateRange,
   };
 };
