@@ -203,12 +203,10 @@ def requires_access_dag_from_file_token(
     method: ResourceMethod,
 ) -> Callable[[str, Request, BaseUser, Session], None]:
     """
-    Authorize the caller against the Dags a signed ``file_token`` resolves to.
+    Authorize the caller against the DAGs referenced by a signed ``file_token``.
 
-    For endpoints keyed on a ``file_token`` rather than a ``dag_id`` (e.g. reparse). The token
-    is decoded to the file it points at, and the caller is authorized against exactly the Dags
-    defined in that file — never against a request parameter.
-    """
+    For ``file_token`` based endpoints (such as ``reparse``), the token is resolved to its referenced file, and authorization is performed against exactly the DAGs defined in that file, never against a request parameter.
+"""
 
     def inner(
         file_token: str,
