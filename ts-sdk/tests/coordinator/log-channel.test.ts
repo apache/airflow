@@ -135,7 +135,7 @@ describe("LogChannel", () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
     root.child("child");
-    const sock = (root as unknown as { sock: net.Socket }).sock;
+    const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
 
     try {
       sock.emit("error", new Error("boom"));
@@ -166,7 +166,7 @@ describe("LogChannel", () => {
   it("reports close-time socket errors", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
-    const sock = (root as unknown as { sock: net.Socket }).sock;
+    const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
 
     try {
       sock.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
@@ -176,6 +176,72 @@ describe("LogChannel", () => {
       write.mockRestore();
       await root.close();
       await fx.sockClosed;
+    }
+  });
+
+  it("warns once and falls back to stderr after an unexpected disconnect", async () => {
+    const serverSocks: net.Socket[] = [];
+    const received: Buffer[] = [];
+    const server = net.createServer((sock) => {
+      serverSocks.push(sock);
+      sock.on("data", (chunk) => received.push(chunk));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as net.AddressInfo).port;
+
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = await LogChannel.connect(`127.0.0.1:${port}`);
+    const child = root.child("comm");
+    const shared = (root as unknown as { shared: { connected: boolean } }).shared;
+    try {
+      root.info("before disconnect");
+      await vi.waitFor(() => expect(readRecords(received)).toHaveLength(1));
+
+      serverSocks[0]!.destroy();
+      await vi.waitFor(() => expect(shared.connected).toBe(false));
+      expect(write).toHaveBeenCalledWith(
+        "[ts-sdk] log socket closed unexpectedly; further logs go to stderr\n",
+      );
+
+      root.info("while disconnected");
+      child.debug("child while disconnected");
+      const stderrRecords = write.mock.calls
+        .map((call) => String(call[0]))
+        .filter((line) => line.startsWith("{"))
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+      expect(stderrRecords.map((r) => r["event"])).toEqual([
+        "[ts-sdk] while disconnected",
+        "[ts-sdk.comm] child while disconnected",
+      ]);
+      expect(readRecords(received)).toHaveLength(1);
+    } finally {
+      write.mockRestore();
+      await root.close();
+      server.close();
+    }
+  });
+
+  it("close() while disconnected resolves and drops later records", async () => {
+    const serverSocks: net.Socket[] = [];
+    const server = net.createServer((sock) => serverSocks.push(sock));
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as net.AddressInfo).port;
+
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = await LogChannel.connect(`127.0.0.1:${port}`);
+    try {
+      await vi.waitFor(() => expect(serverSocks).toHaveLength(1));
+      serverSocks[0]!.destroy();
+      const shared = (root as unknown as { shared: { connected: boolean } }).shared;
+      await vi.waitFor(() => expect(shared.connected).toBe(false));
+
+      await root.close();
+      write.mockClear();
+      root.info("dropped after close");
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+      server.close();
     }
   });
 });
