@@ -384,7 +384,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/gcs_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.gcs_to_wasb
 
-
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
     hook-name: "Azure"
@@ -415,6 +414,10 @@ connection-types:
           type: ["string", "null"]
       workload_identity_tenant_id:
         label: Workload Identity Tenant ID
+        schema:
+          type: ["string", "null"]
+      cloud_environment:
+        label: Azure Cloud Environment
         schema:
           type: ["string", "null"]
   - hook-class-name: airflow.providers.microsoft.azure.hooks.ai_agents.AzureAIAgentsHook

@@ -27,7 +27,7 @@ import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
-import { createErrorToaster } from "src/utils";
+import { createErrorToaster, toNullablePartitionKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -108,7 +108,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         data_interval_start: formattedDataIntervalStart,
         logical_date: formattedLogicalDate,
         note: checkNote,
-        partition_key: dagRunRequestBody.partitionKey ?? null,
+        partition_key: toNullablePartitionKey(dagRunRequestBody.partitionKey),
       },
     });
   };
