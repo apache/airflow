@@ -66,8 +66,15 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import TypedDict
 
 ISO_SUFFIX_Z = "Z"
+PREPARE_BREEZE_STEP_PREFIX = "Prepare breeze & CI image"
+
+
+class JobDuration(TypedDict):
+    duration: float
+    prepare_breeze_duration: float | None
 
 
 def env_float(name: str, default: float) -> float:
@@ -171,6 +178,25 @@ def format_duration(seconds: float) -> str:
     return f"{minutes}m {secs:02d}s"
 
 
+def format_duration_delta(seconds: float) -> str:
+    """Format a duration delta with an explicit sign."""
+    if seconds < 0:
+        return f"-{format_duration(abs(seconds))}"
+    return f"+{format_duration(seconds)}"
+
+
+def format_prepare_breeze_timing(regression: dict) -> str | None:
+    """Format prepare breeze timing details for a job regression."""
+    if prepare_breeze := regression.get("prepare_breeze"):
+        return (
+            f"{PREPARE_BREEZE_STEP_PREFIX}: "
+            f"{format_duration(prepare_breeze['baseline'])} → "
+            f"{format_duration(prepare_breeze['latest'])} "
+            f"({format_duration_delta(prepare_breeze['increase'])})"
+        )
+    return None
+
+
 # Wall-clock shorter than this almost always means a run that was cancelled,
 # skipped by selective checks, or never really executed the test matrix — not a
 # representative "main build". Such runs would corrupt the duration baseline.
@@ -227,8 +253,18 @@ def get_recent_runs(
     return runs
 
 
-def get_run_jobs(repo: str, run_id: int) -> dict[str, float]:
-    """Return a mapping of job name -> duration in seconds for a single run.
+def get_prepare_breeze_step_duration(job: dict) -> float | None:
+    """Return the prepare breeze step duration for a job, when the step exists."""
+    for step in job.get("steps", []):
+        name = step.get("name", "")
+        if not name.startswith(PREPARE_BREEZE_STEP_PREFIX):
+            continue
+        return duration_seconds(step.get("startedAt"), step.get("completedAt"))
+    return None
+
+
+def get_run_jobs(repo: str, run_id: int) -> dict[str, JobDuration]:
+    """Return a mapping of job name -> duration details for a single run.
 
     Only jobs that completed successfully are included, so that a job which was
     cancelled or skipped on a particular run does not pollute its duration trend.
@@ -247,7 +283,7 @@ def get_run_jobs(repo: str, run_id: int) -> dict[str, float]:
     except json.JSONDecodeError:
         return {}
 
-    durations: dict[str, float] = {}
+    durations: dict[str, JobDuration] = {}
     for job in data.get("jobs", []):
         if job.get("conclusion") != "success":
             continue
@@ -256,7 +292,12 @@ def get_run_jobs(repo: str, run_id: int) -> dict[str, float]:
             continue
         name = job.get("name", "unknown")
         # A matrix can surface the same job name more than once per run; keep the longest.
-        durations[name] = max(durations.get(name, 0.0), seconds)
+        existing = durations.get(name)
+        if existing is None or seconds > existing["duration"]:
+            durations[name] = {
+                "duration": seconds,
+                "prepare_breeze_duration": get_prepare_breeze_step_duration(job),
+            }
     return durations
 
 
@@ -297,14 +338,22 @@ def analyze_jobs(
 ) -> list[dict]:
     """Fetch per-job durations and return the jobs whose latest duration regressed."""
     latest_job_durations: dict[str, list[float]] = {}
+    latest_prepare_breeze_durations: dict[str, list[float]] = {}
     for run in latest_runs:
-        for name, seconds in get_run_jobs(repo, run["id"]).items():
-            latest_job_durations.setdefault(name, []).append(seconds)
+        for name, job_data in get_run_jobs(repo, run["id"]).items():
+            latest_job_durations.setdefault(name, []).append(job_data["duration"])
+            prepare_breeze_duration = job_data["prepare_breeze_duration"]
+            if prepare_breeze_duration is not None:
+                latest_prepare_breeze_durations.setdefault(name, []).append(prepare_breeze_duration)
 
     baseline_job_durations: dict[str, list[float]] = {}
+    baseline_prepare_breeze_durations: dict[str, list[float]] = {}
     for run in baseline_runs:
-        for name, seconds in get_run_jobs(repo, run["id"]).items():
-            baseline_job_durations.setdefault(name, []).append(seconds)
+        for name, job_data in get_run_jobs(repo, run["id"]).items():
+            baseline_job_durations.setdefault(name, []).append(job_data["duration"])
+            prepare_breeze_duration = job_data["prepare_breeze_duration"]
+            if prepare_breeze_duration is not None:
+                baseline_prepare_breeze_durations.setdefault(name, []).append(prepare_breeze_duration)
 
     regressions: list[dict] = []
     for name, latest_values in latest_job_durations.items():
@@ -315,6 +364,16 @@ def analyze_jobs(
             latest_values, baseline_values, rel_threshold, min_abs_increase_seconds
         )
         if regression:
+            latest_prepare_breeze_values = latest_prepare_breeze_durations.get(name, [])
+            baseline_prepare_breeze_values = baseline_prepare_breeze_durations.get(name, [])
+            if latest_prepare_breeze_values and len(baseline_prepare_breeze_values) >= min_baseline_runs:
+                latest_prepare_breeze = median(latest_prepare_breeze_values)
+                baseline_prepare_breeze = median(baseline_prepare_breeze_values)
+                regression["prepare_breeze"] = {
+                    "latest": latest_prepare_breeze,
+                    "baseline": baseline_prepare_breeze,
+                    "increase": latest_prepare_breeze - baseline_prepare_breeze,
+                }
             regression["job"] = name
             regressions.append(regression)
 
@@ -373,11 +432,14 @@ def format_slack_message(
     if job_regressions:
         lines = ["*Jobs that got slower:*"]
         for reg in job_regressions[:15]:
-            lines.append(
+            line = (
                 f"• *{escape_slack_mrkdwn(reg['job'])}* — "
                 f"{format_duration(reg['baseline'])} → *{format_duration(reg['latest'])}* "
                 f"(+{round(reg['rel_increase'] * 100, 1)}%)"
             )
+            if prepare_breeze_timing := format_prepare_breeze_timing(reg):
+                line += f"\n  {escape_slack_mrkdwn(prepare_breeze_timing)}"
+            lines.append(line)
         text = "\n".join(lines)
         if len(text) > 2900:
             text = text[:2900] + "\n_...truncated_"
@@ -470,8 +532,11 @@ def write_step_summary(
             "|-----|----------|--------|----------|",
         ]
         for reg in job_regressions[:25]:
+            job = reg["job"]
+            if prepare_breeze_timing := format_prepare_breeze_timing(reg):
+                job += f"<br>{prepare_breeze_timing}"
             lines.append(
-                f"| {reg['job']} | {format_duration(reg['baseline'])} | "
+                f"| {job} | {format_duration(reg['baseline'])} | "
                 f"{format_duration(reg['latest'])} | +{round(reg['rel_increase'] * 100, 1)}% |"
             )
         lines.append("")

@@ -143,7 +143,6 @@ def clean_database():
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     clear_db_triggers()
@@ -1004,6 +1003,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
                 dag_data=ANY,
+                queued_at=ANY,
             )
         )
         # OK, now remove it from the DB
@@ -1546,6 +1546,53 @@ class TestTriggerRunner:
         # The test passes if no exceptions were raised during trigger creation
         trigger_instance.cancel()
         await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.stats.timing")
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    async def test_create_triggers_emits_queue_delay_metric(
+        self,
+        mock_get_trigger_by_classpath,
+        mock_decrypt_kwargs,
+        mock_timing,
+        team_name,
+        expected_tags,
+    ):
+        mock_decrypt_kwargs.return_value = {"moment": timezone.utcnow() + datetime.timedelta(hours=1)}
+
+        workload = workloads.RunTrigger.model_construct(
+            id=1,
+            classpath="abc",
+            encrypted_kwargs="fake",
+            queued_at=100.0,
+        )
+
+        runner = TriggerRunner()
+        runner.team_name = team_name
+        runner.to_create.append(workload)
+
+        with patch(
+            "airflow.jobs.triggerer_job_runner.time.time",
+            return_value=101.5,
+        ):
+            await runner.create_triggers()
+
+        mock_timing.assert_called_once_with(
+            "triggerer.trigger_queue_delay",
+            1500,
+            tags=expected_tags,
+        )
 
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)

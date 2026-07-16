@@ -313,6 +313,7 @@ class messages:
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
         type: Literal["StartTriggerer"] = "StartTriggerer"
+        team_name: str | None = None
 
     class TriggerStateChanges(BaseModel):
         """
@@ -552,7 +553,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             **kwargs,
         )
 
-        msg = messages.StartTriggerer()
+        team_name = kwargs.get("team_name")
+        msg = messages.StartTriggerer(team_name=team_name)
         proc.send_msg(msg, request_id=0)
         return proc
 
@@ -973,8 +975,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
         cancel_trigger_ids = self.running_triggers - requested_trigger_ids
+
         if new_trigger_ids:
-            self.creating_triggers.extend(self.build_trigger_workloads(new_trigger_ids))
+            workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
+
+            queued_at = time.time()
+
+            for workload in workloads_to_create:
+                workload.queued_at = queued_at
+
+            self.creating_triggers.extend(workloads_to_create)
 
         if cancel_trigger_ids:
             # Enqueue orphaned triggers for cancellation
@@ -1171,6 +1181,9 @@ class TriggerRunner:
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
 
+    # Team associated with this triggerer instance.
+    team_name: str | None
+
     # Should-we-stop flag
     stop: bool = False
     _stop_event: anyio.Event | None = None
@@ -1188,6 +1201,7 @@ class TriggerRunner:
         self.to_cancel = deque()
         self.events = deque()
         self.failed_triggers = deque()
+        self.team_name = None
         self.job_id = None
         self._stop_event = None
         self._shared_streams = SharedStreamManager(
@@ -1306,6 +1320,8 @@ class TriggerRunner:
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
+        self.team_name = msg.team_name
+
         await self.comms_decoder.start_reader()
 
     @classmethod
@@ -1337,7 +1353,6 @@ class TriggerRunner:
             if trigger_id in self.triggers:
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
                 continue
-
             try:
                 trigger_class = self.get_trigger_by_classpath(workload.classpath)
             except BaseException as e:
@@ -1384,6 +1399,12 @@ class TriggerRunner:
             if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
                 trigger_instance.asset_state_store = AssetStateStoreAccessors(
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
+                )
+            if workload.queued_at is not None:
+                stats.timing(
+                    "triggerer.trigger_queue_delay",
+                    int((time.time() - workload.queued_at) * 1000),
+                    tags=prune_dict({"team_name": self.team_name}),
                 )
 
             self.triggers[trigger_id] = {

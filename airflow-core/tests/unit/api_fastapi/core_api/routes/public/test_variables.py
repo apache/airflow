@@ -141,7 +141,6 @@ class TestVariableEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self):
         clear_db_variables()
-        clear_db_teams()
         with conf_vars({("core", "multi_team"): "True"}):
             yield
 

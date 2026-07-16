@@ -64,7 +64,7 @@ describe("getDuration & formatDuration", () => {
     expect(getDuration(null, null)).toBe(undefined);
     expect(getDuration(undefined, undefined)).toBe(undefined);
     expect(getDuration(null, "2024-03-14T10:00:10.000Z")).toBe(undefined);
-    expect(renderDuration(0.000_01)).toBe(undefined);
+    expect(renderDuration(0.00001)).toBe(undefined);
   });
 
   it("falls back to current time when endDate is null (running task)", () => {
@@ -85,12 +85,12 @@ describe("getDuration & formatDuration", () => {
   });
 
   it("handles floating point milliseconds", () => {
-    expect(renderDuration(dayjs.duration(10.000_499_738, "seconds"))).toBe("00:00:10");
-    expect(renderDuration(10.000_499_738)).toBe("00:00:10");
-    expect(renderDuration(dayjs.duration(10.000_500, "seconds"))).toBe("00:00:10.001");
-    expect(renderDuration(10.000_500)).toBe("00:00:10.001");
-    expect(renderDuration(dayjs.duration(10.838_999_738, "seconds"))).toBe("00:00:10.839");
-    expect(renderDuration(10.838_999_738)).toBe("00:00:10.839");
+    expect(renderDuration(dayjs.duration(10.000499738, "seconds"))).toBe("00:00:10");
+    expect(renderDuration(10.000499738)).toBe("00:00:10");
+    expect(renderDuration(dayjs.duration(10.0005, "seconds"))).toBe("00:00:10.001");
+    expect(renderDuration(10.0005)).toBe("00:00:10.001");
+    expect(renderDuration(dayjs.duration(10.838999738, "seconds"))).toBe("00:00:10.839");
+    expect(renderDuration(10.838999738)).toBe("00:00:10.839");
   });
 });
 
