@@ -68,20 +68,33 @@ class ExasolHook(DbApiHook):
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
     def get_conn(self) -> ExaConnection:
-        conn = self.get_connection(self.get_conn_id())
+        airflow_conn = self.get_connection(self.get_conn_id())
         conn_args = {
-            "dsn": f"{conn.host}:{conn.port}",
-            "user": conn.login,
-            "password": conn.password,
-            "schema": self.schema or conn.schema,
+            "dsn": f"{airflow_conn.host}:{airflow_conn.port}",
+            "user": airflow_conn.login,
+            "password": airflow_conn.password,
+            "schema": self.schema or airflow_conn.schema,
         }
         # check for parameters in conn.extra
-        for arg_name, arg_val in conn.extra_dejson.items():
+        for arg_name, arg_val in airflow_conn.extra_dejson.items():
             if arg_name in ["compression", "encryption", "json_lib", "client_name"]:
                 conn_args[arg_name] = arg_val
 
-        conn = pyexasol.connect(**conn_args)
-        return conn
+        exa_conn = pyexasol.connect(**conn_args)
+        return exa_conn
+
+    @staticmethod
+    def _validate_query_params(
+        parameters: Iterable | Mapping[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if parameters is None:
+            return None
+        if not isinstance(parameters, dict):
+            raise TypeError(
+                f"Exasol (pyexasol) only supports named/dict-style query parameters, "
+                f"got {type(parameters).__name__!r}. Pass a dict instead, e.g. {{'col': 'value'}}."
+            )
+        return parameters
 
     @property
     def sqlalchemy_scheme(self) -> str:
@@ -145,7 +158,7 @@ class ExasolHook(DbApiHook):
         ``pyexasol.ExaConnection.export_to_pandas``.
         """
         with closing(self.get_conn()) as conn:
-            df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
+            df = conn.export_to_pandas(sql, query_params=self._validate_query_params(parameters), **kwargs)
             return df
 
     @deprecated(
@@ -178,17 +191,19 @@ class ExasolHook(DbApiHook):
 
     def get_records(
         self,
-        sql: str | list[str],
+        sql: str,
         parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> list[dict | tuple[Any, ...]]:
         """
         Execute the SQL and return a set of records.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        if not isinstance(sql, str):
+            raise TypeError("ExasolHook.get_records() only accepts a single SQL string, not a list.")
+        query_params = self._validate_query_params(parameters)
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, query_params)) as cur:
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -197,15 +212,17 @@ class ExasolHook(DbApiHook):
             )
             return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
+    def get_first(self, sql: str, parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
         Execute the SQL and return the first resulting row.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        if not isinstance(sql, str):
+            raise TypeError("ExasolHook.get_first() only accepts a single SQL string, not a list.")
+        query_params = self._validate_query_params(parameters)
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, query_params)) as cur:
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -329,12 +346,13 @@ class ExasolHook(DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
+        query_params = self._validate_query_params(parameters)
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
             results = []
             for sql_statement in sql_list:
                 self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                with closing(conn.execute(sql_statement, parameters)) as exa_statement:
+                with closing(conn.execute(sql_statement, query_params)) as exa_statement:
                     if handler is not None:
                         result = self._make_common_data_structure(handler(exa_statement))
 

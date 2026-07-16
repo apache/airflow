@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+4.10.5
+......
+
+Misc
+~~~~
+
+* ``Migrate Exasol provider to pyexasol 2.x (#69123)``
+
 4.10.4
 ......
 

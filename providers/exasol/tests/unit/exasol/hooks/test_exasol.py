@@ -194,11 +194,31 @@ class TestExasolHook:
 
     def test_run_with_parameters(self):
         sql = "SQL"
-        parameters = ("param1", "param2")
+        parameters = {"param1": "value1", "param2": "value2"}
         self.db_hook.run(sql, autocommit=True, parameters=parameters)
         self.conn.set_autocommit.assert_called_once_with(True)
         self.conn.execute.assert_called_once_with(sql, parameters)
         self.conn.commit.assert_not_called()
+
+    def test_run_with_non_dict_parameters_raises(self):
+        with pytest.raises(TypeError, match="only supports named/dict-style query parameters"):
+            self.db_hook.run("SQL", parameters=("param1", "param2"))
+        self.conn.execute.assert_not_called()
+
+    @pytest.mark.parametrize("method", ["get_records", "get_first"])
+    def test_get_records_and_get_first_reject_list_sql(self, method):
+        with pytest.raises(TypeError, match="only accepts a single SQL string"):
+            getattr(self.db_hook, method)(["SELECT 1", "SELECT 2"])
+
+    @pytest.mark.parametrize("method", ["get_records", "get_first"])
+    def test_get_records_and_get_first_reject_non_dict_parameters(self, method):
+        with pytest.raises(TypeError, match="only supports named/dict-style query parameters"):
+            getattr(self.db_hook, method)("SELECT 1", parameters=("p1",))
+
+    def test_get_df_pandas_rejects_non_dict_parameters(self):
+        with pytest.raises(TypeError, match="only supports named/dict-style query parameters"):
+            self.db_hook.get_df("SQL", df_type="pandas", parameters=("p1",))
+        self.conn.export_to_pandas.assert_not_called()
 
     def test_run_multi_queries(self):
         sql = ["SQL1", "SQL2"]
