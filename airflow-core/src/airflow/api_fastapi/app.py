@@ -132,11 +132,8 @@ def create_app(apps: str = "all") -> FastAPI:
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:
-        from airflow import plugins_manager
-
         app.state.dag_bag = dag_bag
         init_plugins(app)
-        plugins_manager.validate_plugin_teams()
         init_auth_manager(app)
         init_flask_plugins(app)
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
