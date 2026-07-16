@@ -34,6 +34,8 @@ from pathlib import Path
 
 import sqlalchemy as sa
 
+from airflow.serialization.serialized_objects import BaseSerialization
+
 from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 
 _MIGRATION_PATH = (
@@ -134,7 +136,9 @@ class TestMigration0094NullCallbackRepair:
         assert deadline_rows[0]["callback_id"] == callback_rows[0]["id"]
         assert deadline_rows[0]["missed"] == 0  # SQLite: False -> 0
 
-        cb_data = json.loads(callback_rows[0]["data"])
+        # callback.data must be extended-serialized so it round-trips through the
+        # runtime's ExtendedJSON/BaseSerialization read path.
+        cb_data = BaseSerialization.deserialize(json.loads(callback_rows[0]["data"]))
         assert cb_data["path"] == ""
         assert cb_data["kwargs"] == {}
         assert cb_data["dag_id"] == "test_dag"
@@ -171,8 +175,60 @@ class TestMigration0094NullCallbackRepair:
                 .all()
             )
 
-        by_id = {r["deadline_id"]: json.loads(r["data"]) for r in rows}
+        by_id = {r["deadline_id"]: BaseSerialization.deserialize(json.loads(r["data"])) for r in rows}
         assert by_id[null_id]["path"] == ""
         assert by_id[null_id]["kwargs"] == {}
         assert by_id[valid_id]["path"] == "mymodule.cb"
         assert by_id[valid_id]["kwargs"] == {"k": "v"}
+
+
+class TestMigration0094NestedKwargsEncoding:
+    """
+    Regression for the scheduler CrashLoopBackOff (#69980): callback kwargs containing a
+    nested dict must be extended-serialized so BaseSerialization.deserialize can read them.
+    """
+
+    def test_nested_kwargs_round_trip_through_deserialize(self):
+        engine = _make_engine()
+        deadline_id = uuid.uuid4().hex
+        nested_kwargs = {"env": "prod", "priority": "critical", "tags": {"team": "de", "product": "dl"}}
+        callback = json.dumps(
+            {
+                "__data__": {"path": "mymodule.cb", "kwargs": nested_kwargs},
+                "__classname__": "airflow.sdk.definitions.deadline.AsyncCallback",
+                "__version__": 0,
+            }
+        )
+        with engine.begin() as conn:
+            _insert_dagrun(conn)
+            _insert_deadline(conn, deadline_id, callback=callback)
+
+        with engine.begin() as conn:
+            _migration._upgrade_mysql_sqlite(conn, batch_size=10)
+
+        with engine.connect() as conn:
+            raw = json.loads(
+                conn.execute(sa.text("SELECT data FROM callback")).mappings().one()["data"]
+            )
+
+        # nested dicts are wrapped (not bare) ...
+        assert raw["__var"]["kwargs"]["__type"] == "dict"
+        assert raw["__var"]["kwargs"]["__var"]["tags"]["__type"] == "dict"
+        # ... and the whole payload round-trips through the real deserializer.
+        assert BaseSerialization.deserialize(raw)["kwargs"] == nested_kwargs
+
+    def test_encode_decode_helpers_round_trip(self):
+        """The upgrade encoder matches canonical serialize; the downgrade decoder inverts it."""
+        original = {
+            "path": "m.cb",
+            "kwargs": {"env": "prod", "tags": {"team": "de"}},
+            "prefix": "deadline_alerts",
+        }
+        encoded = _migration._serialize_extended(original)
+        # encoder output equals what BaseSerialization.serialize would produce, and round-trips
+        assert encoded == BaseSerialization.serialize(original)
+        assert BaseSerialization.deserialize(encoded) == original
+        # downgrade decoder inverts the encoder ...
+        assert _migration._deserialize_extended(encoded) == original
+        # ... and is lenient: decoding already-raw (pre-fix) kwargs is a no-op
+        assert _migration._deserialize_extended(original) == original
