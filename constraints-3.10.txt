@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-15T18:02:36.733762
+# This constraints file was automatically generated on 2026-07-16T06:04:48.951788
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -203,7 +203,7 @@ arrow==1.4.0
 asana==5.2.5
 asgiref==3.11.1
 asn1crypto==1.5.1
-asttokens==3.0.1
+asttokens==3.0.2
 async-timeout==5.0.1
 asyncpg==0.31.0
 asyncssh==2.24.0
@@ -686,7 +686,7 @@ truststore==0.10.4
 typer==0.26.8
 types-protobuf==7.34.1.20260518
 types-pytz==2026.2.0.20260518
-types-requests==2.33.0.20260518
+types-requests==2.33.0.20260712
 typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.16.0
