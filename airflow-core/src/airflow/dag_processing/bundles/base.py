@@ -365,6 +365,11 @@ class BaseDagBundle(ABC):
             )
         return self.__log
 
+    @_log.setter
+    def _log(self, value) -> None:
+        """Allow subclasses to bind their own logger (kept for bundles released before the lazy property)."""
+        self.__log = value
+
     @property
     @abstractmethod
     def path(self) -> Path:
