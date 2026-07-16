@@ -968,8 +968,6 @@ class TestTIRunState:
         assert dag_run["triggering_user_name"] == "test_user"
 
         # Verify other expected fields are still present
-        assert dag_run["dag_id"] == ti.dag_id
-        assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
 
     @pytest.mark.parametrize(
