@@ -1332,6 +1332,28 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].last_finish_time > original_stat.last_finish_time
         assert manager._file_stats[file].num_dags == 0
 
+    def test_handle_parsing_result_persists_when_bundle_version_cache_is_missing(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_stats[file] = DagFileStat()
+
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
+
+        with mock.patch.object(manager, "persist_parsing_result") as mock_persist:
+            manager.handle_parsing_result(file, processor, session=session)
+
+        mock_persist.assert_called_once_with(
+            bundle_name="testing",
+            bundle_version=None,
+            version_data=None,
+            parsing_result=processor.parsing_result,
+            run_duration=mock.ANY,
+            relative_fileloc="abc.txt",
+            session=session,
+        )
+
     def test_collect_results_processes_remaining_files_when_one_persist_fails(self, session):
         manager = DagFileProcessorManager(max_runs=1)
         file_a = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
