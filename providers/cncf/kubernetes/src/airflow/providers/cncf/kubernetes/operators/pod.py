@@ -176,14 +176,16 @@ class KubernetesPodOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
-    :param reattach_on_restart: deprecated, use ``durable`` instead. If the worker dies while the pod
-        is running, reattach and monitor during the next try. If False, always create a new pod for
-        each try.
+    :param reattach_on_restart: deprecated for Airflow 3.3+, use ``durable`` instead. If the worker dies
+        while the pod is running, reattach and monitor during the next try. If False, always create a
+        new pod for each try.
     :param durable: if the worker dies while the pod is running, reattach and monitor during the next
         try instead of creating a duplicate pod. If False, always create a new pod for each try.
         Supersedes ``reattach_on_restart``; on Airflow 3.3+ the reconnection uses a persisted pod
         identity in task state store instead of a label search, removing the ambiguity failure a label
-        search can hit when more than one matching pod exists. Defaults to ``True``.
+        search can hit when more than one matching pod exists. Defaults to ``True``. On Airflow
+        versions below 3.3, ``durable`` still works but falls back to the same label-search reattach
+        behavior as ``reattach_on_restart``, since task state store is unavailable.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod after pod was scheduled.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
