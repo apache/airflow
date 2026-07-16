@@ -1534,6 +1534,7 @@ export type PluginImportErrorResponse = {
  */
 export type PluginResponse = {
     name: string;
+    team_name?: string | null;
     macros: Array<(string)>;
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;

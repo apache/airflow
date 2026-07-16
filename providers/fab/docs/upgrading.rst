@@ -25,12 +25,12 @@ Why you need to upgrade
 The FAB provider is a separate package from Airflow and it is released independently. Starting from version 1.3.0, FAB
 can now run its own migrations if you are on Airflow 3. Newer FAB versions can contain database migrations, so you
 must run ``airflow fab-db migrate`` to migrate your database with the schema changes in the FAB version you are
-upgrading to. If ``FABDBManager`` is included in the ``[core] external_db_managers`` configuration, the migrations will
+upgrading to. If ``FABDBManager`` is included in the ``[database] external_db_managers`` configuration, the migrations will
 be run automatically as part of the ``airflow db migrate`` command.
 
 .. note::
-    If FAB auth manager is configured as auth manager in your environment, ``FABDBManager`` is automatically added in the
-    ``[core] external_db_managers`` configuration.
+    If the FAB auth manager is configured as ``[core] auth_manager`` in your environment, Airflow automatically loads
+    ``FABDBManager`` and runs its migrations as part of the ``airflow db migrate`` command.
 
 How to upgrade
 ==============

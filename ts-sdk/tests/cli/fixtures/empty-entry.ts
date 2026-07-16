@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export { HoverProvider } from "./HoverProvider";
-export { useHover } from "./useHover";
-export type { HoverContextType } from "./Context";
+
+import { startCoordinator } from "../../../src/index.js";
+
+await startCoordinator();
