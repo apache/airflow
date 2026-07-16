@@ -98,6 +98,38 @@ class PydanticAIHook(BaseHook):
     # Core connection / agent API
     # ------------------------------------------------------------------
 
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> PydanticAIHook:
+        """
+        Return the :class:`PydanticAIHook` subclass matching the connection's ``conn_type``.
+
+        Overrides :meth:`~airflow.sdk.bases.hook.BaseHook.get_hook` to guarantee that the
+        hook's ``llm_conn_id`` always equals the *caller's* ``conn_id``, even when the
+        underlying secrets backend rewrites it.
+
+        Some secrets backends (e.g. a custom Vault provider that supports
+        environment-independent connection aliases) return a
+        :class:`~airflow.sdk.definitions.connection.Connection` whose ``conn_id`` has been
+        resolved to a canonical, environment-specific key (e.g. ``"openai.prod"``).  Without
+        this override, the hook would be constructed with that canonical id, and any subsequent
+        :meth:`get_conn` call would try to fetch it from the secrets backend — a key it does
+        not recognize — raising :class:`~airflow.exceptions.AirflowNotFoundException`.
+
+        ``BaseHook`` applies the same fix from Airflow 3.4 onwards.  This override ensures
+        correct behavior on earlier Airflow versions too: providers are independently
+        releasable, so upgrading the provider alone should be sufficient to unblock users
+        regardless of which Airflow minor version they run.
+
+        :param conn_id: Connection ID as supplied by the caller; may be a secrets-backend alias.
+        :param hook_params: Extra keyword arguments forwarded to the hook constructor.
+        :return: Configured :class:`PydanticAIHook` (or the matching subclass) with
+            ``llm_conn_id`` set to *conn_id*.
+        """
+        hook = super().get_hook(conn_id, hook_params=hook_params)
+        # On Airflow < 3.4 super() does not rekey; setattr is a no-op on >= 3.4.
+        setattr(hook, hook.conn_name_attr, conn_id)
+        return hook
+
     def _get_provider_kwargs(
         self,
         api_key: str | None,
