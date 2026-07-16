@@ -214,16 +214,14 @@ def ti_run(
             previous_state=previous_state,
         )
 
-        # TODO: Pass a RFC 9457 compliant error message in "detail" field
-        # https://datatracker.ietf.org/doc/html/rfc9457
-        # to provide more information about the error
-        # FastAPI will automatically convert this to a JSON response
-        # This might be added in FastAPI in https://github.com/fastapi/fastapi/issues/10370
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
+                "type": "about:blank",
+                "title": "Conflict",
+                "status": status.HTTP_409_CONFLICT,
+                "detail": "TI was not in a state where it could be marked as running",
                 "reason": "invalid_state",
-                "message": "TI was not in a state where it could be marked as running",
                 "previous_state": previous_state,
             },
         )

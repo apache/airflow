@@ -857,7 +857,10 @@ class TestTIRunState:
         assert response.status_code == 409
         assert response.json() == {
             "detail": {
-                "message": "TI was not in a state where it could be marked as running",
+                "type": "about:blank",
+                "title": "Conflict",
+                "status": 409,
+                "detail": "TI was not in a state where it could be marked as running",
                 "previous_state": initial_ti_state,
                 "reason": "invalid_state",
             }

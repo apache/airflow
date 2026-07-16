@@ -365,8 +365,11 @@ class TestTaskInstanceOperations:
                     409,
                     json={
                         "detail": {
+                            "type": "about:blank",
+                            "title": "Conflict",
+                            "status": 409,
+                            "detail": "TI was not in a state where it could be marked as running",
                             "reason": "invalid_state",
-                            "message": "TI was not in a state where it could be marked as running",
                             "previous_state": "running",
                         }
                     },
@@ -389,8 +392,11 @@ class TestTaskInstanceOperations:
                     409,
                     json={
                         "detail": {
+                            "type": "about:blank",
+                            "title": "Conflict",
+                            "status": 409,
+                            "detail": "TI was not in a state where it could be marked as running",
                             "reason": "invalid_state",
-                            "message": "TI was not in a state where it could be marked as running",
                             "previous_state": previous_state,
                         }
                     },
