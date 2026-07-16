@@ -240,6 +240,7 @@ class GlueCrawlerDeleteOperator(_GlueCrawlerBaseOperator):
         self.log.info("Deleted AWS Glue crawler %s", self.crawler_name)
 
 
+# TODO: Remove GlueCrawlerOperator in Amazon provider 11.0.0 or later.
 class GlueCrawlerOperator(GlueCrawlerRunOperator):
     """
     Create, update and run an AWS Glue crawler.
