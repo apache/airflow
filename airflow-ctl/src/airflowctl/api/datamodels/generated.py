@@ -830,6 +830,7 @@ class MaterializeAssetBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class NewTaskResponse(BaseModel):
@@ -1160,6 +1161,7 @@ class TriggerDAGRunPostBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class TriggerResponse(BaseModel):
@@ -1998,6 +2000,7 @@ class PluginResponse(BaseModel):
     """
 
     name: Annotated[str, Field(title="Name")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
     macros: Annotated[list[str], Field(title="Macros")]
     flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
     fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
