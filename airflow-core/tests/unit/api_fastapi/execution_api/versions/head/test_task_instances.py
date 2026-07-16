@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import UUID, uuid4
@@ -1513,10 +1513,10 @@ class TestTIUpdateState:
                 session=session,
             )
             # simulate a task that started 1 hour ago
-            ti.start_date = timezone.datetime(2024, 11, 22) - timedelta(hours=1)
+            ti.start_date = datetime(2024, 11, 22, tzinfo=timezone.utc) - timedelta(hours=1)
             session.commit()
 
-            instant = timezone.datetime(2024, 11, 22)
+            instant = datetime(2024, 11, 22, tzinfo=timezone.utc)
             time_machine.move_to(instant, tick=False)
 
             payload = {

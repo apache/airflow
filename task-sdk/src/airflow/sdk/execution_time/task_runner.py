@@ -2086,13 +2086,12 @@ def _run_execute_callable(
     ctx.run(ExecutorSafeguard.tracker.set, task)
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
-        from airflow.utils.timezone import utcnow
 
         timeout_seconds = task.execution_timeout.total_seconds()
         
         # If the task resumes from deferral, subtract the time already spent
         if ti.start_date:
-            time_passed = (utcnow() - ti.start_date).total_seconds()
+            time_passed = (datetime.now(tz=timezone.utc) - ti.start_date).total_seconds()
             timeout_seconds -= time_passed
 
         try:
