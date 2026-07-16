@@ -37,6 +37,7 @@ export const useDags = ({
   pendingHitl,
   tags,
   tagsMatchMode,
+  teams,
 }: {
   advancedSearch?: boolean;
   dagDisplayNamePattern?: string;
@@ -54,6 +55,7 @@ export const useDags = ({
   pendingHitl?: boolean;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
+  teams?: Array<string>;
 }) => {
   const refetchInterval = useAutoRefresh({});
 
@@ -75,6 +77,7 @@ export const useDags = ({
       paused,
       tags,
       tagsMatchMode,
+      teams,
     },
     undefined,
     {
