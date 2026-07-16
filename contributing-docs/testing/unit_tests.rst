@@ -658,7 +658,7 @@ You can make the code conditional and mock out ``Variable`` to avoid hitting the
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Handle collection of the test by non-db case
-        Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
+        Variable = mock.MagicMock(spec=Variable)  # type: ignore[misc] # noqa: F811
     else:
         initial_db_init()
 

@@ -93,7 +93,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/celery/ @hussein-awala @dheerajturaga
 /providers/cncf/kubernetes @jedcunningham @hussein-awala @jscheffl
 /providers/common/messaging/ @vincbeck
-/providers/common/ai/ @gopidesupavan @kaxil
+/providers/common/ai/ @gopidesupavan @kaxil @Lee-W
 /providers/dbt/cloud/ @josh-fell
 /providers/edge3/ @jscheffl @dheerajturaga
 /providers/fab/ @vincbeck
@@ -169,6 +169,8 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 # AIP-108 - Coordinators
 /task-sdk/src/airflow/sdk/coordinators/ @jason810496 @uranusjr
 /task-sdk/src/airflow/sdk/execution_time/coordinator.py @jason810496 @uranusjr
+/task-sdk/tests/task_sdk/coordinators/ @jason810496 @uranusjr
+/task-sdk/tests/task_sdk/execution_time/test_coordinator.py @jason810496 @uranusjr
 
 # Golang SDK
 /go-sdk/ @ashb @amoghrajesh @jason810496

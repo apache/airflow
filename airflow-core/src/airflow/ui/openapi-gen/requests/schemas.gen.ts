@@ -4572,7 +4572,7 @@ export const $DagVersionResponse = {
 
 export const $DagWarningType = {
     type: 'string',
-    enum: ['asset conflict', 'non-existent pool', 'runtime varying value'],
+    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
     title: 'DagWarningType',
     description: `Enum for DAG warning types.
 
@@ -5652,6 +5652,17 @@ export const $MaterializeAssetBody = {
                 }
             ],
             title: 'Partition Key'
+        },
+        bundle_version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Version'
         }
     },
     additionalProperties: false,
@@ -5790,6 +5801,17 @@ export const $PluginResponse = {
         name: {
             type: 'string',
             title: 'Name'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         },
         macros: {
             items: {
@@ -7959,6 +7981,17 @@ export const $TriggerDAGRunPostBody = {
                 }
             ],
             title: 'Partition Key'
+        },
+        bundle_version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Version'
         }
     },
     additionalProperties: false,
@@ -9910,6 +9943,10 @@ export const $GridRunsResponse = {
             type: 'boolean',
             title: 'Has Missed Deadline'
         },
+        has_note: {
+            type: 'boolean',
+            title: 'Has Note'
+        },
         duration: {
             type: 'number',
             title: 'Duration',
@@ -9917,7 +9954,7 @@ export const $GridRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'has_missed_deadline', 'duration'],
+    required: ['dag_id', 'run_id', 'queued_at', 'start_date', 'end_date', 'run_after', 'state', 'run_type', 'has_missed_deadline', 'has_note', 'duration'],
     title: 'GridRunsResponse',
     description: 'Base Node serializer for responses.'
 } as const;
