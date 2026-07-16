@@ -37,7 +37,7 @@ if TYPE_CHECKING:
         from importlib import metadata
     else:
         import importlib_metadata as metadata
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
     from types import ModuleType
 
     from ..listeners.listener import ListenerManager
@@ -87,17 +87,46 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
-class ExternalViewDict(TypedDict):
-    """Dictionary structure for entries in AirflowPlugin.external_views."""
+class _BaseUIDict(TypedDict):
+    """Shared UI fields mirroring ``BaseUIResponse``."""
 
     name: str
-    href: str
     icon: NotRequired[str]
     icon_dark_mode: NotRequired[str]
     url_route: NotRequired[str]
     category: NotRequired[str]
-    destination: NotRequired[Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]]
     nav_top_level: NotRequired[bool]
+
+
+class ExternalViewDict(_BaseUIDict):
+    """Dictionary structure for entries in AirflowPlugin.external_views."""
+
+    href: str
+    destination: NotRequired[Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]]
+
+
+class ReactAppDict(_BaseUIDict):
+    """Dictionary structure for entries in AirflowPlugin.react_apps."""
+
+    bundle_url: str
+    destination: NotRequired[Literal["nav", "dag", "dag_run", "task", "task_instance", "base", "dashboard"]]
+
+
+class FastAPIAppDict(TypedDict):
+    """Dictionary structure for entries in AirflowPlugin.fastapi_apps."""
+
+    app: Any
+    url_prefix: str
+    name: NotRequired[str]
+
+
+class FastAPIRootMiddlewareDict(TypedDict):
+    """Dictionary structure for entries in AirflowPlugin.fastapi_root_middlewares."""
+
+    middleware: Any
+    args: NotRequired[list[Any]]
+    kwargs: NotRequired[dict[str, Any]]
+    name: NotRequired[str]
 
 
 class AirflowPlugin:
@@ -113,13 +142,13 @@ class AirflowPlugin:
     team_name: str | None = None
 
     source: AirflowPluginSource | None = None
-    macros: list[Any] = []
+    macros: list[Callable[..., Any]] = []
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
-    fastapi_apps: list[Any] = []
-    fastapi_root_middlewares: list[Any] = []
+    fastapi_apps: list[FastAPIAppDict] = []
+    fastapi_root_middlewares: list[FastAPIRootMiddlewareDict] = []
     external_views: list[ExternalViewDict] = []
-    react_apps: list[Any] = []
+    react_apps: list[ReactAppDict] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
