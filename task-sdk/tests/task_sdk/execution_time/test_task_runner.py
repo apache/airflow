@@ -5817,6 +5817,16 @@ class TestRunExecuteCallable:
 class TestCallbackSpans:
     """Tests for spans emitted around task callback / pre-post-execute invocations."""
 
+    @pytest.fixture(autouse=True)
+    def _sampled_carrier_provider(self):
+        """Make new_dagrun_trace_carrier produce a SAMPLED carrier (see TestDetailSpan)."""
+        provider = TracerProvider()
+        with mock.patch(
+            "airflow._shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ):
+            yield
+
     @staticmethod
     def _make_tracer(exporter):
         provider = TracerProvider()
