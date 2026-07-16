@@ -1514,17 +1514,50 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/harness.py",),
             {
                 "run-openlineage-e2e-tests": "true",
+                "run-openlineage-e2e-compat-tests": "false",
                 "prod-image-build": "true",
             },
-            id="Run OpenLineage e2e tests when the e2e harness changes",
+            id="Run OpenLineage e2e tests (not the costly compat matrix) when the OL e2e suite changes",
         ),
         pytest.param(
             ("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
             {
                 "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "false",
                 "prod-image-build": "false",
             },
             id="Do not run OpenLineage e2e tests for unrelated provider change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e compat tests when the shared e2e harness (conftest) changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/openlineage-compat.Dockerfile",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e compat tests when the compat Dockerfile changes",
+        ),
+        pytest.param(
+            (".github/workflows/openlineage-e2e-compat-tests.yml",),
+            {
+                # The compat workflow matches ENVIRONMENT_FILES, so it forces the full matrix.
+                # The compat therefore runs via full_tests_needed, not via OPENLINEAGE_E2E_COMPAT_FILES.
+                "run-openlineage-e2e-tests": "true",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "true",
+            },
+            id="Compat workflow change forces the full matrix (compat runs via full_tests_needed)",
         ),
         (
             pytest.param(

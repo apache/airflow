@@ -5802,6 +5802,17 @@ export const $PluginResponse = {
             type: 'string',
             title: 'Name'
         },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
         macros: {
             items: {
                 type: 'string'

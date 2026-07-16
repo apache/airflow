@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext } from "react";
 
-export type HoverContextType = {
-  hoveredRunId: string | undefined;
-  hoveredTaskId: string | undefined;
-  setHoveredRunId: (runId: string | undefined) => void;
-  setHoveredTaskId: (taskId: string | undefined) => void;
-};
+import { registerTask, startCoordinator } from "../../../src/index.js";
 
-export const HoverContext = createContext<HoverContextType | undefined>(undefined);
+registerTask({ dagId: "fixture_dag", taskId: "extract" }, async () => "extracted");
+registerTask({ dagId: "fixture_dag", taskId: "transform" }, async () => "transformed");
+registerTask({ dagId: "other_dag", taskId: "solo" }, async () => undefined);
+
+await startCoordinator();
