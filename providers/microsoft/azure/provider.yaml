@@ -416,6 +416,10 @@ connection-types:
         label: Workload Identity Tenant ID
         schema:
           type: ["string", "null"]
+      cloud_environment:
+        label: Azure Cloud Environment
+        schema:
+          type: ["string", "null"]
   - hook-class-name: airflow.providers.microsoft.azure.hooks.ai_agents.AzureAIAgentsHook
     hook-name: "Azure AI Foundry Hosted Agents"
     connection-type: azure_ai_agents
