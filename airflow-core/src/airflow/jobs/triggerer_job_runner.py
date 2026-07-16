@@ -876,7 +876,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         )
 
         serialized_dag_model = dag_bag.get_serialized_dag_model(
-            version_id=trigger.task_instance.dag_version_id,
+            version_id=trigger.task_instance.get_dagrun(session=session).created_dag_version_id
+            or trigger.task_instance.dag_version_id,
             session=session,
         )
 

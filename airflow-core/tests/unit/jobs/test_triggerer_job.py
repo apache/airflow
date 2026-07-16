@@ -609,6 +609,48 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
 
 
+def test_create_workload_resolves_serialized_dag_from_run_created_version(jobless_supervisor, mocker):
+    """If the run and the task point at different DAG versions, the trigger should load the run's version."""
+    run_version = uuid.uuid4()
+    bumped_ti_version = uuid.uuid4()
+    assert run_version != bumped_ti_version
+
+    trigger = mocker.Mock()
+    trigger.id = 8
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance.dag_version_id = bumped_ti_version
+    trigger.task_instance.task_id = "t"
+    trigger.task_instance.trigger_timeout = None
+
+    dag_run = mocker.Mock()
+    dag_run.created_dag_version_id = run_version
+    dag_run.dag_run_data.model_dump.return_value = {}
+    trigger.task_instance.get_dagrun.return_value = dag_run
+
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        return_value=mocker.Mock(spec=TaskInstanceDTO),
+    )
+
+    dag_bag = mocker.Mock()
+    serialized_dag_model = mocker.Mock()
+    task = mocker.Mock(start_from_trigger=True)
+    serialized_dag_model.dag.get_task.return_value = task
+    serialized_dag_model.data = {}
+    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+
+    session = mocker.Mock()
+    jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=dag_bag,
+        render_log_fname=mocker.Mock(return_value="/logs/ti"),
+        session=session,
+    )
+
+    dag_bag.get_serialized_dag_model.assert_called_once_with(version_id=run_version, session=session)
+
+
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
     """_create_workload() should populate watched_assets when trigger.task_instance is None and assets exist."""
     asset1 = mocker.Mock(spec=Asset)
