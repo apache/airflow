@@ -5987,9 +5987,7 @@ openlineage = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
-    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -6012,9 +6010,7 @@ provides-extras = ["openlineage"]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]

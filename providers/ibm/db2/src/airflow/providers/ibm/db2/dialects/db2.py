@@ -36,18 +36,17 @@ class Db2Dialect(Dialect):
         :param table: Name of the target table
         :param values: The row to insert/update
         :param target_fields: The names of the columns to fill in the table
-        :param kwargs: Additional parameters, including:
-            - replace_index: List of column names to use for matching (defaults to primary keys)
+        :param kwargs: Additional parameters, including replace_index: list of column names
+            to use for matching (defaults to primary keys)
         :return: The generated MERGE SQL statement
 
-        Example generated SQL:
+        Example generated SQL::
+
             MERGE INTO table AS t
             USING (VALUES (?, ?, ?)) AS s(col1, col2, col3)
             ON t.pk = s.pk
-            WHEN MATCHED THEN
-                UPDATE SET t.col1 = s.col1, t.col2 = s.col2
-            WHEN NOT MATCHED THEN
-                INSERT (col1, col2, col3) VALUES (s.col1, s.col2, s.col3)
+            WHEN MATCHED THEN UPDATE SET t.col1 = s.col1, t.col2 = s.col2
+            WHEN NOT MATCHED THEN INSERT (col1, col2, col3) VALUES (s.col1, s.col2, s.col3)
         """
         # Validate target_fields
         if not target_fields:

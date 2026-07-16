@@ -115,7 +115,7 @@ class Db2Hook(DbApiHook):
 
     def get_uri(self) -> str:
         """
-        Return connection URI for SQLAlchemy using ibm-db-sa dialect.
+        Return connection URI for SQLAlchemy using the ``ibm-db-sa`` dialect.
 
         Includes extra connection parameters (like SSL configuration) as query parameters.
 
@@ -152,9 +152,8 @@ class Db2Hook(DbApiHook):
         """
         Get column names for a table, excluding identity columns.
 
-        Uses SQLAlchemy inspector to detect identity columns via the autoincrement flag.
-        Identity columns (GENERATED ALWAYS AS IDENTITY) are automatically excluded
-        from the returned list, as they should not be specified in INSERT statements.
+        Uses the SQLAlchemy inspector to detect identity columns (``GENERATED ALWAYS AS IDENTITY``)
+        and exclude them from the result, as they should not appear in INSERT statements.
 
         :param table: Table name
         :param schema: Schema name (optional, uses connection schema if not provided)
