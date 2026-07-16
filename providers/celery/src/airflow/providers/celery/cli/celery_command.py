@@ -39,6 +39,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
@@ -263,12 +264,19 @@ def worker(args):
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging
 
-        _celery_json = config.get("celery", "json_logs", fallback="")
-        if _celery_json and _celery_json.lower() != "none":
-            json_output = config.getboolean("celery", "json_logs")
+        if AIRFLOW_V_3_1_PLUS:
+            _celery_json = config.get("celery", "json_logs", fallback="")
+            if _celery_json and _celery_json.lower() != "none":
+                json_output = config.getboolean("celery", "json_logs")
+            else:
+                json_output = config.getboolean("logging", "json_logs", fallback=False)
+            configure_logging(output=sys.stdout.buffer, json_output=json_output)
         else:
-            json_output = config.getboolean("logging", "json_logs", fallback=False)
-        configure_logging(output=sys.stdout.buffer, json_output=json_output)
+            # Airflow 3.0.x ships an SDK whose configure_logging predates the
+            # json_output parameter (added in the Task SDK 1.1 / Airflow 3.1
+            # structlog migration). Passing it there raises TypeError and crashes
+            # the worker, so honor json_logs only from 3.1 onwards.
+            configure_logging(output=sys.stdout.buffer)
     else:
         # Disable connection pool so that celery worker does not hold an unnecessary db connection
         settings.reconfigure_orm(disable_connection_pool=True)

@@ -1083,7 +1083,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1109,7 +1109,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1155,7 +1155,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1178,7 +1178,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1201,7 +1201,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
-                "prod-image-build": "false",
+                # common providers feed OpenLineage e2e tests, which need the PROD image.
+                "prod-image-build": "true",
+                "run-openlineage-e2e-tests": "true",
+                # ordinary OL PR (no canary, no "full tests needed" label): compat matrix stays off.
+                "run-openlineage-e2e-compat-tests": "false",
                 "run-helm-tests": "false",
                 "run-unit-tests": "true",
                 "run-amazon-tests": "false",
@@ -1430,6 +1434,24 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run java unit and e2e tests for java-sdk source change",
         ),
         pytest.param(
+            ("java-sdk/README.md",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip java unit and e2e tests for java-sdk README-only change",
+        ),
+        pytest.param(
+            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip java unit and e2e tests for java-sdk ADR-only change",
+        ),
+        pytest.param(
             ("airflow-e2e-tests/docker/java.yml",),
             {
                 "run-java-sdk-tests": "false",
@@ -1471,6 +1493,71 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "true",
             },
             id="Run go e2e tests when ExecutableCoordinator changes",
+        ),
+        pytest.param(
+            ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
+            {
+                "run-openlineage-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests for openlineage provider change",
+        ),
+        pytest.param(
+            ("providers/common/compat/src/airflow/providers/common/compat/sdk.py",),
+            {
+                "run-openlineage-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests for common provider change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/harness.py",),
+            {
+                "run-openlineage-e2e-tests": "true",
+                "run-openlineage-e2e-compat-tests": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e tests (not the costly compat matrix) when the OL e2e suite changes",
+        ),
+        pytest.param(
+            ("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Do not run OpenLineage e2e tests for unrelated provider change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e compat tests when the shared e2e harness (conftest) changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/openlineage-compat.Dockerfile",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e compat tests when the compat Dockerfile changes",
+        ),
+        pytest.param(
+            (".github/workflows/openlineage-e2e-compat-tests.yml",),
+            {
+                # The compat workflow matches ENVIRONMENT_FILES, so it forces the full matrix.
+                # The compat therefore runs via full_tests_needed, not via OPENLINEAGE_E2E_COMPAT_FILES.
+                "run-openlineage-e2e-tests": "true",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "true",
+            },
+            id="Compat workflow change forces the full matrix (compat runs via full_tests_needed)",
         ),
         (
             pytest.param(
@@ -1630,6 +1717,16 @@ def test_expected_output_pull_request_main(
             ("SECURITY.md",),
             True,
             id="ktlint skipped when no java-sdk files change",
+        ),
+        pytest.param(
+            ("java-sdk/README.md",),
+            True,
+            id="ktlint skipped when only java-sdk docs change",
+        ),
+        pytest.param(
+            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
+            True,
+            id="ktlint skipped when only java-sdk ADR docs change",
         ),
     ],
 )
@@ -2042,6 +2139,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "run-mypy-providers": "true",
                     "run-ui-e2e-tests": "true",
+                    "run-openlineage-e2e-compat-tests": "true",
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if no version label is set",
