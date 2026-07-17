@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
@@ -35,6 +36,87 @@ if TYPE_CHECKING:
 
 
 class TestTaskDoneTrigger:
+    def test_deprecated_region_alias(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="region"):
+            trigger = TaskDoneTrigger(
+                cluster="cluster",
+                task_arn="task_arn",
+                waiter_delay=5,
+                waiter_max_attempts=10,
+                aws_conn_id="my_conn",
+                region="eu-west-1",
+            )
+        assert trigger.region_name == "eu-west-1"
+        _, kwargs = trigger.serialize()
+        assert kwargs["region_name"] == "eu-west-1"
+        assert "region" not in kwargs
+
+    def test_serialize_includes_generic_hook_params(self):
+        trigger = TaskDoneTrigger(
+            cluster="cluster",
+            task_arn="task_arn",
+            waiter_delay=5,
+            waiter_max_attempts=10,
+            aws_conn_id="my_conn",
+            region_name="eu-west-1",
+            log_group="lg",
+            log_stream="ls",
+            verify=False,
+            botocore_config={"read_timeout": 7},
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.ecs.TaskDoneTrigger"
+        assert kwargs == {
+            "cluster": "cluster",
+            "task_arn": "task_arn",
+            "waiter_delay": 5,
+            "waiter_max_attempts": 10,
+            "aws_conn_id": "my_conn",
+            "region_name": "eu-west-1",
+            "log_group": "lg",
+            "log_stream": "ls",
+            "verify": False,
+            "botocore_config": {"read_timeout": 7},
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.ecs.AwsLogsHook")
+    @mock.patch("airflow.providers.amazon.aws.triggers.ecs.EcsHook")
+    async def test_run_builds_hooks_with_generic_params(self, ecs_hook_cls, logs_hook_cls):
+        def make_hook(client):
+            ctx = mock.MagicMock()
+            ctx.__aenter__ = AsyncMock(return_value=client)
+            ctx.__aexit__ = AsyncMock(return_value=False)
+            instance = mock.MagicMock()
+            instance.get_async_conn = AsyncMock(return_value=ctx)
+            return instance
+
+        ecs_client = mock.MagicMock()
+        ecs_client.get_waiter().wait = AsyncMock()
+        ecs_hook_cls.return_value = make_hook(ecs_client)
+        logs_hook_cls.return_value = make_hook(mock.MagicMock())
+
+        trigger = TaskDoneTrigger(
+            cluster="cluster",
+            task_arn="task_arn",
+            waiter_delay=0,
+            waiter_max_attempts=10,
+            aws_conn_id="my_conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 7},
+        )
+        await trigger.run().asend(None)
+
+        expected = {
+            "aws_conn_id": "my_conn",
+            "region_name": "eu-west-1",
+            "verify": False,
+            "config": {"read_timeout": 7},
+        }
+        ecs_hook_cls.assert_called_once_with(**expected)
+        logs_hook_cls.assert_called_once_with(**expected)
+
     @pytest.mark.asyncio
     @mock.patch.object(EcsHook, "get_async_conn")
     # this mock is only necessary to avoid a "No module named 'aiobotocore'" error in the LatestBoto CI step

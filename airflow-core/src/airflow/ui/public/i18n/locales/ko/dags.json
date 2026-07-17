@@ -76,6 +76,11 @@
       "upstream": "업스트림"
     }
   },
+  "runStateCounts": {
+    "label": "실행 상태",
+    "loading": "실행 상태 개수 로드 중...",
+    "tooltip": "{{state}}: {{formattedCount}} — 클릭하여 실행 필터링"
+  },
   "search": {
     "advanced": "고급 검색",
     "clear": "검색 지우기",

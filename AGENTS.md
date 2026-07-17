@@ -158,7 +158,12 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Use `@pytest.mark.db_test` for tests that require database access.
 - Test fixtures: `devel-common/src/tests_common/pytest_plugin.py`.
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
-- Do not use `caplog` in tests, prefer checking logic and not log output.
+- Do not assert on raw log text (`caplog.text` for example), these are legacy string matching APIs planned for removal. Structured assertions via `caplog` (which resolves to `cap_structlog` under structlog) are fine and preferred: `"event name" in caplog` or `{"event": ..., "field": ...} in caplog`.
+
+## Output conventions
+
+- Put any files you generate (PR reviews, reports, scratch output) under `files/`.
+- Create `files/` if it doesn't exist.
 
 
 ## Commits and PRs
@@ -168,6 +173,15 @@ Write commit messages focused on user impact, not implementation details.
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
+  (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
+  prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
+  every commit of the PR.
+
+**Always run `prek install` before committing any code.** It installs the
+`commit-msg` hook (in addition to `pre-commit`) so the Conventional Commits guard
+runs locally; a clone that ran `prek install` before this hook existed must re-run
+it to pick up the new hook type.
 
 Use the **imperative mood** and a plain message — do **not** use Conventional Commits prefixes
 (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
@@ -456,9 +470,9 @@ including the `@<github-handle>` in the `Drafted-by: … reviewed by
 message — and replying within a thread to people already actively
 participating in that same PR/issue discussion.
 
-## apache-steward framework
+## apache-magpie framework
 
-This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
 framework via the snapshot mechanism. The framework provides the
 `pr-management-*` skills (triage, code-review, stats, mentor); they are
 gitignored symlinks into the `.apache-magpie/` snapshot directory.
@@ -468,12 +482,21 @@ invocable. Run `/magpie-setup` (or follow
 [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
 it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
 contributor-facing summary of the adoption + setup flow lives in the
-[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
+[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 
 Adopter-specific modifications to framework-skill workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
 the snapshot directly. Framework changes go via PR to
-[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+[`apache/magpie`](https://github.com/apache/magpie).
+
+### Reviewing pull requests
+
+With apache-magpie installed locally, use the
+`magpie-pr-management-code-review` skill for PR code review. It posts
+findings as **inline review comments** anchored to `file:line`, presented
+**individually for accept/skip** before anything is submitted — prefer it
+over an ad-hoc review pass or a generic review command. A body-only review
+is the explicit opt-out (`inline:off`).
 
 ## Boundaries
 

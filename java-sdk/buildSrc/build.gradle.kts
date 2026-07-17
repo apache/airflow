@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     `kotlin-dsl`
 }
@@ -25,6 +27,15 @@ repositories {
     mavenCentral()
     gradlePluginPortal()
 }
+
+// Pin Java and Kotlin bytecode targets so they stay aligned to avoid warning on
+// misaligned Java and Kotlin target versions. (This is for the build logic and
+// unrelated to the Java 11 target set in the SDK modules.)
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_11 } }
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0")

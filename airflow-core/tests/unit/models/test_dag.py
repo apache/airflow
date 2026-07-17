@@ -22,6 +22,7 @@ import logging
 import os
 import pickle
 import re
+import time
 from contextlib import nullcontext
 from datetime import timedelta
 from pathlib import Path
@@ -62,8 +63,10 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.trigger import handle_event_submit
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -71,7 +74,7 @@ from airflow.sdk import (
     DAG,
     BaseOperator,
     CronPartitionTimetable,
-    PartitionAtRuntime,
+    PartitionedAtRuntime,
     TaskGroup,
     setup,
     task as task_decorator,
@@ -83,6 +86,8 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
+from airflow.sdk.exceptions import TaskAwaitingInput
+from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import coerce_to_core_timetable
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -93,6 +98,7 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -140,7 +146,6 @@ async def empty_callback_for_deadline():
 def clear_dags():
     clear_db_dags()
     clear_db_serialized_dags()
-    clear_db_dag_bundles()
     yield
     clear_db_dags()
     clear_db_serialized_dags()
@@ -1559,7 +1564,7 @@ class TestDag:
         """DagRun-level type check rejects int partition_key even for partitioned Dags."""
         with dag_maker(
             "test_create_dagrun_partitioned_int_key",
-            schedule=PartitionAtRuntime(),
+            schedule=PartitionedAtRuntime(),
         ):
             ...
         with pytest.raises(
@@ -1575,6 +1580,38 @@ class TestDag:
                 partition_key=123,
             )
 
+    def test_create_dagrun_partition_key_validated_against_requested_version(self, dag_maker, session):
+        """create_dagrun validates partition_key against the requested bundle version, not the latest."""
+        dag_id = "test_create_dagrun_partition_key_bundle_version"
+
+        with dag_maker(
+            dag_id,
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+            bundle_version="v1",
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+
+        with dag_maker(dag_id, schedule=None, bundle_version="v2", session=session):
+            EmptyOperator(task_id="task")
+        session.commit()
+
+        scheduler_dag_v2 = dag_maker.serialized_dag
+
+        # Latest (v2) is not partitioned, but the requested v1 is: the key must be
+        # accepted against v1 rather than rejected against the latest dag.
+        dr = scheduler_dag_v2.create_dagrun(
+            run_id="manual__partition_key_from_v1",
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            triggered_by=DagRunTriggeredByType.TEST,
+            partition_key="my-key",
+            bundle_version="v1",
+            session=session,
+        )
+        assert dr.partition_key == "my-key"
+
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
         ("partition_key", "schedule", "should_raise"),
@@ -1582,7 +1619,7 @@ class TestDag:
             ("my-key", None, True),
             (None, None, False),
             ("my-key", CronPartitionTimetable("@daily", timezone="UTC"), False),
-            ("my-key", PartitionAtRuntime(), False),
+            ("my-key", PartitionedAtRuntime(), False),
         ],
     )
     def test_serialized_dag_validate_partition_key(
@@ -1825,6 +1862,101 @@ class TestDag:
         mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
+
+    @staticmethod
+    def _make_awaiting_input_dag(dag_id, resume_calls):
+        """Build a Dag whose single task parks in AWAITING_INPUT (Human-in-the-loop)."""
+
+        class AskOperator(BaseOperator):
+            def execute(self, context):
+                upsert_hitl_detail(
+                    ti_id=context["task_instance"].id,
+                    options=["Approve", "Reject"],
+                    subject="Deploy?",
+                    multiple=False,
+                    params={},
+                )
+                raise TaskAwaitingInput(method_name="execute_complete")
+
+            def execute_complete(self, context, event):
+                resume_calls.append((event["chosen_options"], event["params_input"]))
+                return event["chosen_options"]
+
+        dag = DAG(dag_id=dag_id, schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            AskOperator(task_id="ask")
+        sync_dag_to_db(dag)
+        return dag
+
+    @pytest.mark.execution_timeout(60)
+    def test_dag_test_hitl_task_stays_parked_until_external_response(
+        self, testing_dag_bundle, monkeypatch, caplog
+    ):
+        """
+        The dag.test() contract for Human-in-the-loop: a task that parks in AWAITING_INPUT is
+        never resolved by dag.test() itself. The run waits until a response recorded from
+        outside (here through an independent session, the way the API response handler does)
+        flips it back to SCHEDULED, at which point the loop resumes it.
+
+        The loop's time.sleep is the synchronization point: patching it to deliver the
+        external response keeps the test deterministic, with no real-time waits.
+        """
+        resume_calls: list = []
+        dag = self._make_awaiting_input_dag("test_dag_test_hitl_external", resume_calls)
+
+        parked_states_seen = []
+        spins = 0
+
+        def deliver_external_response():
+            """Record an Approve through an independent session, as the API handler would."""
+            with create_session(scoped=False) as external_session:
+                parked_ti = external_session.scalar(
+                    select(TI).where(
+                        TI.dag_id == "test_dag_test_hitl_external",
+                        TI.task_id == "ask",
+                        TI.state == TaskInstanceState.AWAITING_INPUT,
+                    )
+                )
+                if parked_ti is None:
+                    return
+                parked_states_seen.append(parked_ti.state)
+                detail = external_session.get(HITLDetail, parked_ti.id)
+                detail.chosen_options = ["Approve"]
+                detail.params_input = {}
+                detail.responded_at = timezone.utcnow()
+                detail.responded_by = {"id": "external", "name": "external"}
+                external_session.add(detail)
+                handle_event_submit(
+                    TriggerEvent(detail.as_resume_event_payload()),
+                    task_instance=parked_ti,
+                    session=external_session,
+                )
+
+        def respond_once_waiting(seconds):
+            # Replaces the loop's real sleep to keep the test fast, and delivers the response
+            # only once dag.test() has logged that it is parked on the HITL task -- so the
+            # assertions below prove the task resumed through the new awaiting_input branch
+            # rather than any other path.
+            nonlocal spins
+            spins += 1
+            assert spins < 50, "dag.test() never logged that it was waiting on the parked task"
+            if "Waiting for Human-in-the-loop input" in caplog.text:
+                deliver_external_response()
+
+        monkeypatch.setattr(time, "sleep", respond_once_waiting)
+
+        with caplog.at_level(logging.INFO, logger="airflow.sdk.definitions.dag"):
+            dr = dag.test()
+
+        # The task must take the new "waiting for input" branch, not the old "unrunnable" one.
+        assert "Waiting for Human-in-the-loop input" in caplog.text
+        assert "No tasks to run" not in caplog.text
+
+        ti = dr.get_task_instance("ask")
+        assert ti is not None
+        assert ti.state == TaskInstanceState.SUCCESS
+        assert parked_states_seen == [TaskInstanceState.AWAITING_INPUT]
+        assert resume_calls == [(["Approve"], {})]
 
     def test_dag_connection_file(self, tmp_path, testing_dag_bundle):
         test_connections_string = """
@@ -2379,9 +2511,6 @@ class TestDagModel:
         clear_db_runs()
         clear_db_dag_bundles()
         clear_db_teams()
-
-    def setup_method(self):
-        self._clean()
 
     def teardown_method(self):
         self._clean()
@@ -3185,7 +3314,6 @@ class TestQueries:
     def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_runs()
@@ -4280,6 +4408,92 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
 
     # but it only gets stamped on the dag run when bundle versioning not disabled
     assert dr.bundle_version == expected
+
+
+def test_create_dagrun_uses_resolved_bundle_version_for_integrity(dag_maker, session, clear_dags):
+    """
+    When no explicit bundle_version is passed, the live dag drives TI creation and
+    created_dag_version points to the latest serialized version.  DagRun.bundle_version
+    still records the DagModel.bundle_version for auditing purposes.
+    """
+    with dag_maker(
+        dag_id="test_dag_bundle_version_integrity",
+        session=session,
+        serialized=True,
+        bundle_version="v1",
+    ) as _dag_v1:
+        EmptyOperator(task_id="t1")
+
+    with dag_maker(
+        dag_id="test_dag_bundle_version_integrity",
+        session=session,
+        serialized=True,
+        bundle_version="v2",
+    ) as dag_v2:
+        EmptyOperator(task_id="t1")
+        EmptyOperator(task_id="t2")
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_v2.dag_id))
+    dag_model.bundle_version = "v1"
+    session.commit()
+
+    dr = dag_v2.create_dagrun(
+        run_id="bundle_version_integrity",
+        run_after=pendulum.now(),
+        run_type="manual",
+        triggered_by=DagRunTriggeredByType.TEST,
+        state=None,
+    )
+
+    # DagRun.bundle_version records the DagModel value at trigger time (audit field).
+    assert dr.bundle_version == "v1"
+    # created_dag_version reflects the latest serialized version (v2), not the DagModel audit value.
+    assert dr.created_dag_version.bundle_version == "v2"
+    # TIs come from the live dag (dag_v2 with t1+t2), not from the old serialized version.
+    assert {ti.task_id for ti in dr.get_task_instances(session=session)} == {"t1", "t2"}
+
+
+def test_create_dagrun_without_bundle_version_uses_live_dag(dag_maker, session, clear_dags):
+    """
+    When no explicit bundle_version is passed, TIs are created from the live dag even if
+    DagModel.bundle_version points to an older version.  This confirms backfills and other
+    callers that don't pass bundle_version are unaffected by the bundle_version feature.
+    """
+    with dag_maker(
+        dag_id="test_dag_backfill_bundle_version",
+        session=session,
+        serialized=True,
+        bundle_version="v1",
+    ) as _dag_v1:
+        EmptyOperator(task_id="t1")
+
+    with dag_maker(
+        dag_id="test_dag_backfill_bundle_version",
+        session=session,
+        serialized=True,
+        bundle_version="v2",
+    ) as dag_v2:
+        EmptyOperator(task_id="t1")
+        EmptyOperator(task_id="t2")
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_v2.dag_id))
+    dag_model.bundle_version = "v1"
+    session.commit()
+
+    dr = dag_v2.create_dagrun(
+        run_id="no_bundle_version_uses_live_dag",
+        run_after=pendulum.now(),
+        run_type="manual",
+        triggered_by=DagRunTriggeredByType.TEST,
+        state=None,
+    )
+
+    # TIs come from the live dag (dag_v2), not from the v1 serialized version.
+    assert {ti.task_id for ti in dr.get_task_instances(session=session)} == {"t1", "t2"}
+    # created_dag_version reflects the latest serialization (v2).
+    assert dr.created_dag_version.bundle_version == "v2"
+    # DagRun.bundle_version still records the DagModel value at trigger time.
+    assert dr.bundle_version == "v1"
 
 
 def test_get_run_data_interval():

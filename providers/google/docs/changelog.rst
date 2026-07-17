@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+22.2.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Log SQL query on its own line in BigQueryInsertJobOperator (#69386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+
+22.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GKE provider 401 on kubernetes client 36.x (#69032)``
+
+Misc
+~~~~
+
+* ``Deprecate implicit legacy SQL default in BigQuery operators (#67113)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky CloudSQL custom-universe trigger test on loaded runners (#68981)``
+
 22.2.0
 ......
 

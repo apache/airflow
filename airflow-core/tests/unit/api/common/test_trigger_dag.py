@@ -25,7 +25,7 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import InvalidPartitionKeyError
 from airflow.models import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -43,7 +43,6 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 def clean_db():
     clear_db_runs()
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_serialized_dags()
     yield
     clear_db_runs()
@@ -129,18 +128,18 @@ def test_trigger_dag_raises_invalid_partition_key_for_cron_partition_timetable(d
         )
 
 
-def test_trigger_dag_partition_at_runtime_leaves_partition_date_none(dag_maker, session):
-    """PartitionAtRuntime Dags accept arbitrary keys; partition_date stays None."""
+def test_trigger_dag_partitioned_at_runtime_leaves_partition_date_none(dag_maker, session):
+    """PartitionedAtRuntime Dags accept arbitrary keys; partition_date stays None."""
     with dag_maker(
         session=session,
-        dag_id="TEST_PARTITION_AT_RUNTIME",
-        schedule=PartitionAtRuntime(),
+        dag_id="TEST_PARTITIONED_AT_RUNTIME",
+        schedule=PartitionedAtRuntime(),
     ):
         EmptyOperator(task_id="mytask")
     session.commit()
 
     dag_run = trigger_dag(
-        dag_id="TEST_PARTITION_AT_RUNTIME",
+        dag_id="TEST_PARTITIONED_AT_RUNTIME",
         triggered_by=DagRunTriggeredByType.REST_API,
         partition_key="arbitrary-runtime-key",
         session=session,

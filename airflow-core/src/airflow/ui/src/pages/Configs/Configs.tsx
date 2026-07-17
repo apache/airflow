@@ -25,6 +25,7 @@ import { useConfigServiceGetConfig } from "openapi/queries";
 import type { ConfigOption } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { useDocumentTitle } from "src/utils";
 
 type ConfigColums = {
   section: string;
@@ -50,6 +51,9 @@ const createColumns = (translate: TFunction): Array<ColumnDef<ConfigColums>> => 
 
 export const Configs = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
+  useDocumentTitle(translate("common:admin.Config"));
+
   const { data, error } = useConfigServiceGetConfig();
 
   const columns = createColumns(translate);

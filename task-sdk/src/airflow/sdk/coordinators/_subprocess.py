@@ -72,16 +72,26 @@ def _socket_address(value: tuple | str) -> tuple[str, int] | None:
         return None
     host, port = value[:2]
     host = str(host)
-    # Canonicalize IPv4-mapped IPv6 ("::ffff:127.0.0.1" -> "127.0.0.1") so a dual-stack
-    # client (e.g. the JVM, shown v4-mapped in /proc/net/tcp6) matches the AF_INET
-    # supervisor socket's plain-IPv4 address in the ownership check below.
+    # Canonicalize an IPv4 address that a dual-stack client embeds in IPv6 so it matches
+    # the AF_INET supervisor socket's plain-IPv4 address in the ownership check below. A
+    # dual-stack JVM's loopback connection is rendered in two different forms depending on
+    # the platform, and both must collapse to plain "127.0.0.1":
+    #   * IPv4-mapped     "::ffff:127.0.0.1" -> "127.0.0.1"  (Linux, via /proc/net/tcp6)
+    #   * IPv4-compatible "::127.0.0.1"      -> "127.0.0.1"  (macOS, via psutil)
+    # Otherwise the JVM's connection fails the check and every Java task is rejected with
+    # "process exited with 1 before connecting".
     try:
         parsed = ipaddress.ip_address(host)
     except ValueError:
         pass
     else:
-        if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is not None:
-            host = str(parsed.ipv4_mapped)
+        if isinstance(parsed, ipaddress.IPv6Address):
+            if parsed.ipv4_mapped is not None:
+                host = str(parsed.ipv4_mapped)
+            elif 1 < int(parsed) <= 0xFFFFFFFF:
+                # IPv4-compatible IPv6: ::/96 with the IPv4 in the low 32 bits. Exclude
+                # "::" (unspecified) and "::1" (IPv6 loopback), which are not IPv4.
+                host = str(ipaddress.IPv4Address(int(parsed)))
     return host, int(port)
 
 

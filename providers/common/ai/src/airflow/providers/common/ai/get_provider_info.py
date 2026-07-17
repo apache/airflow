@@ -92,7 +92,7 @@ def get_provider_info():
                 "description": "Options for the ``apache-airflow-providers-common-ai`` provider.\n",
                 "options": {
                     "durable_cache_path": {
-                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True``. Each task\nexecution writes a single JSON file under this path containing its\ncached model responses and tool results, so that on retry the agent\ncan replay completed steps instead of re-issuing LLM calls and tool\ninvocations. The file is deleted on successful task completion.\n\nRequired when ``durable=True`` is used. Any scheme supported by\n``airflow.sdk.ObjectStoragePath`` is accepted (``file://``, ``s3://``,\n``gs://``, ``azure://``, ...).\n",
+                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True`` on Airflow\n**< 3.3**. Each task execution writes a single JSON file under this\npath containing its cached model responses and tool results, so that\non retry the agent can replay completed steps instead of re-issuing\nLLM calls and tool invocations. The file is deleted on successful task\ncompletion.\n\nRequired for ``durable=True`` only on Airflow < 3.3. On Airflow >= 3.3\nthe cache is stored in the AIP-103 task state store and this option is\nignored. Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is\naccepted (``file://``, ``s3://``, ``gs://``, ``azure://``, ...).\n",
                         "version_added": "0.1.0",
                         "type": "string",
                         "example": "file:///tmp/airflow_durable_cache",
@@ -128,7 +128,7 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-4-20250514, openai:gpt-5)",
+                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
                         "schema": {"type": ["string", "null"]},
                     }
                 },
@@ -305,7 +305,7 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Chat Model",
-                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-3-7-sonnet).\n",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-sonnet-5).\n",
                         "schema": {"type": ["string", "null"]},
                     },
                     "embed_model": {

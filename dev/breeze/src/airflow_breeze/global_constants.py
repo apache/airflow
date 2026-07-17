@@ -21,6 +21,7 @@ Global constants that are used by all other Breeze components.
 from __future__ import annotations
 
 import platform
+import re
 from enum import Enum
 from pathlib import Path
 
@@ -72,6 +73,17 @@ CUSTOM_BACKEND = "custom"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND, CUSTOM_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
+# Docker images that specific provider tests pull directly via testcontainers (bypassing docker
+# compose, so the "docker compose pull" pre-pull does not cover them). Keyed by the provider
+# distribution (dotted id) whose tests pull them, so an image is only pre-pulled when that provider's
+# tests are actually in the run. Pre-pulling (in CI only, before the timed run) keeps the pull -- slow
+# on cold caches, notably the GitHub-hosted ARM canary -- out of the per-test setup timeout. Keep the
+# tags in sync with the provider test conftests that use them (currently
+# providers/mongo/tests/conftest.py: MONGO_IMAGE + the testcontainers ryuk reaper).
+TESTCONTAINERS_IMAGES_BY_PROVIDER: dict[str, list[str]] = {
+    "mongo": ["mongo:8.0", "testcontainers/ryuk:0.8.1"],
+}
+
 TESTABLE_CORE_INTEGRATIONS = ["kerberos", "otel", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
@@ -218,6 +230,10 @@ GOLANG_WORKER = "go"
 JAVA_SDK = "java"
 ALLOWED_SDKS = [JAVA_SDK]
 
+# JDK version used to build the Java SDK and its example bundles (e.g. the lang-SDK k8s system test).
+# Keep in sync with the toolchain the Java SDK Gradle build targets.
+JAVA_SDK_VERSION = "17"
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
@@ -285,7 +301,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.2"
-UV_VERSION = "0.11.21"
+UV_VERSION = "0.11.28"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -293,6 +309,7 @@ REGULAR_DOC_PACKAGES = [
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
+    "java-sdk",
     "task-sdk",
     "apache-airflow-ctl",
 ]
@@ -311,6 +328,11 @@ class TarBallType(Enum):
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
+]
+
+SCHEMA_DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/schemas/",
+    "s3://staging-docs-airflow-apache-org/schemas/",
 ]
 
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
@@ -710,6 +732,15 @@ def get_task_sdk_version():
     return task_sdk_version
 
 
+def get_java_sdk_version() -> str:
+    """Read the Java SDK version from 'java-sdk/gradle.properties'."""
+    props_path = AIRFLOW_ROOT_PATH / "java-sdk" / "gradle.properties"
+    for line in props_path.read_text().splitlines():
+        if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
+            return match.group(1)
+    raise RuntimeError(f"Java SDK version not found in {props_path}")
+
+
 @clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
@@ -812,7 +843,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai opensearch",
+        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica common.ai opensearch",
         "run-unit-tests": "true",
     },
     {
@@ -830,6 +861,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "3.2.2",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.3.0",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
