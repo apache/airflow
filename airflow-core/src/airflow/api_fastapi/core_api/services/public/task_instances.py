@@ -49,7 +49,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.configuration import conf
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners.listener import get_listener_manager_for_dag
 from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -106,20 +106,23 @@ def _validate_patch_task_instance_body(
     return body.model_dump(include=fields_to_update, by_alias=True)
 
 
-def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInstanceState) -> None:
+def _emit_state_listener_hooks(
+    updated_tis: list[TI], new_state: str | TaskInstanceState, session: Session
+) -> None:
     """Fire listener hooks for the given TIs based on their new state. Listener errors are logged."""
     for ti in updated_tis:
+        listener_manager = get_listener_manager_for_dag(ti.dag_id, session=session)
         try:
             if new_state == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+                listener_manager.hook.on_task_instance_success(previous_state=None, task_instance=ti)
             elif new_state == TaskInstanceState.FAILED:
-                get_listener_manager().hook.on_task_instance_failed(
+                listener_manager.hook.on_task_instance_failed(
                     previous_state=None,
                     task_instance=ti,
                     error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
                 )
             elif new_state == TaskInstanceState.SKIPPED:
-                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
+                listener_manager.hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
         except Exception:
             log.exception("error calling listener")
 
@@ -265,7 +268,7 @@ def _patch_task_instance_state(
     if data["new_state"] == TaskInstanceState.SUCCESS:
         _clear_task_state_store_on_success(updated_tis, session)
 
-    _emit_state_listener_hooks(updated_tis, data["new_state"])
+    _emit_state_listener_hooks(updated_tis, data["new_state"], session)
 
     return updated_tis
 
@@ -300,7 +303,7 @@ def _patch_task_group_state(
     if data["new_state"] == TaskInstanceState.SUCCESS:
         _clear_task_state_store_on_success(updated_tis, session)
 
-    _emit_state_listener_hooks(updated_tis, data["new_state"])
+    _emit_state_listener_hooks(updated_tis, data["new_state"], session)
 
     return updated_tis
 

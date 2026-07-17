@@ -58,7 +58,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners.listener import get_listener_manager_for_dag
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
@@ -197,11 +197,11 @@ def patch_dag_run_state(
         _, killed_tis = set_dag_run_state_to_success(
             dag=dag, run_id=dag_run.run_id, commit=True, session=session
         )
-        _emit_state_listener_hooks(killed_tis, TaskInstanceState.SUCCESS)
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.SUCCESS, session)
         try:
             if dag_run.dag is None:
                 dag_run.dag = dag
-            get_listener_manager().hook.on_dag_run_success(
+            get_listener_manager_for_dag(dag_run.dag_id, session=session).hook.on_dag_run_success(
                 dag_run=dag_run,
                 msg=f"Dag Run's state was manually set to `{DagRunMutableStates.SUCCESS.value}`.",
             )
@@ -216,11 +216,11 @@ def patch_dag_run_state(
         _, killed_tis = set_dag_run_state_to_failed(
             dag=dag, run_id=dag_run.run_id, commit=True, session=session
         )
-        _emit_state_listener_hooks(killed_tis, TaskInstanceState.FAILED)
+        _emit_state_listener_hooks(killed_tis, TaskInstanceState.FAILED, session)
         try:
             if dag_run.dag is None:
                 dag_run.dag = dag
-            get_listener_manager().hook.on_dag_run_failed(
+            get_listener_manager_for_dag(dag_run.dag_id, session=session).hook.on_dag_run_failed(
                 dag_run=dag_run,
                 msg=f"Dag Run's state was manually set to `{DagRunMutableStates.FAILED.value}`.",
             )

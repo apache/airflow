@@ -62,6 +62,7 @@ from sqlalchemy.orm import (
     declared_attr,
     joinedload,
     mapped_column,
+    object_session,
     relationship,
     synonym,
     validates,
@@ -83,7 +84,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, NotMapped, TaskNotFound
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners.listener import get_listener_manager_for_dag
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
@@ -1491,12 +1492,13 @@ class DagRun(Base, LoggingMixin):
 
     def notify_dagrun_state_changed(self, msg: str):
         try:
+            listener_manager = get_listener_manager_for_dag(self.dag_id, session=object_session(self))
             if self.state == DagRunState.RUNNING:
-                get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
+                listener_manager.hook.on_dag_run_running(dag_run=self, msg=msg)
             elif self.state == DagRunState.SUCCESS:
-                get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
+                listener_manager.hook.on_dag_run_success(dag_run=self, msg=msg)
             elif self.state == DagRunState.FAILED:
-                get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+                listener_manager.hook.on_dag_run_failed(dag_run=self, msg=msg)
         except Exception:
             self.log.exception("Error while calling listener")
         # deliberately not notifying on QUEUED

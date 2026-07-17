@@ -20,16 +20,22 @@ import contextlib
 import logging
 import os
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 
+from airflow._shared.listeners.listener import ListenerManager
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, run_job
+from airflow.listeners import hookimpl, listener as listener_module
+from airflow.plugins_manager import AirflowPlugin, integrate_listener_plugins
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from unit.listeners import (
     class_listener,
     full_listener,
@@ -184,3 +190,104 @@ def test_listener_logs_call(caplog, create_task_instance, listener_manager, *, s
     assert listener_logs[3][-1].startswith("Calling 'on_task_instance_success' with {'")
     assert listener_logs[4][-1].startswith("Hook impls: [<HookImpl plugin")
     assert listener_logs[5][-1] == "Result from 'on_task_instance_success': []"
+
+
+class _RecordingListener:
+    """Minimal task-instance listener used to verify registration/isolation."""
+
+    @hookimpl
+    def on_task_instance_running(self, previous_state, task_instance):
+        pass
+
+
+def _make_team_plugin(name: str, team_name: str | None, listener: object) -> AirflowPlugin:
+    plugin = AirflowPlugin()
+    plugin.name = name
+    plugin.team_name = team_name
+    plugin.listeners = [listener]
+    return plugin
+
+
+@pytest.fixture
+def team_listener_plugins():
+    global_listener = _RecordingListener()
+    team_a_listener = _RecordingListener()
+    team_b_listener = _RecordingListener()
+    plugins = [
+        _make_team_plugin("global_plugin", None, global_listener),
+        _make_team_plugin("team_a_plugin", "team_a", team_a_listener),
+        _make_team_plugin("team_b_plugin", "team_b", team_b_listener),
+    ]
+    return plugins, global_listener, team_a_listener, team_b_listener
+
+
+class TestIntegrateListenerPluginsTeamFiltering:
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_team_manager_gets_global_and_own_team_only(self, team_listener_plugins):
+        plugins, global_listener, team_a_listener, team_b_listener = team_listener_plugins
+        manager = ListenerManager()
+        with mock_plugin_manager(plugins=plugins):
+            integrate_listener_plugins(manager, team_name="team_a")
+
+        registered = set(manager.pm.get_plugins())
+        assert global_listener in registered
+        assert team_a_listener in registered
+        assert team_b_listener not in registered
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_global_manager_gets_only_global(self, team_listener_plugins):
+        plugins, global_listener, team_a_listener, team_b_listener = team_listener_plugins
+        manager = ListenerManager()
+        with mock_plugin_manager(plugins=plugins):
+            integrate_listener_plugins(manager, team_name=None)
+
+        registered = set(manager.pm.get_plugins())
+        assert global_listener in registered
+        assert team_a_listener not in registered
+        assert team_b_listener not in registered
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_multi_team_disabled_registers_all_listeners(self, team_listener_plugins):
+        plugins, global_listener, team_a_listener, team_b_listener = team_listener_plugins
+        manager = ListenerManager()
+        with mock_plugin_manager(plugins=plugins):
+            integrate_listener_plugins(manager, team_name="team_a")
+
+        registered = set(manager.pm.get_plugins())
+        assert {global_listener, team_a_listener, team_b_listener} <= registered
+
+
+class TestGetListenerManagerTeamKeying:
+    def test_global_calls_return_same_instance(self):
+        listener_module._build_listener_manager.cache_clear()
+        default_manager = listener_module.get_listener_manager()
+        assert default_manager is listener_module.get_listener_manager(None)
+        assert default_manager is listener_module.get_listener_manager(team_name=None)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_distinct_team_returns_distinct_instance(self):
+        listener_module._build_listener_manager.cache_clear()
+        with mock_plugin_manager(plugins=[]):
+            global_manager = listener_module.get_listener_manager()
+            team_manager = listener_module.get_listener_manager("team_a")
+        assert global_manager is not team_manager
+
+
+class TestGetListenerManagerForDag:
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_returns_global_manager_when_multi_team_disabled(self):
+        with mock.patch("airflow.models.dag.DagModel.get_team_name") as mock_get_team_name:
+            resolved = listener_module.get_listener_manager_for_dag("some_dag")
+        assert resolved is listener_module.get_listener_manager()
+        mock_get_team_name.assert_not_called()
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_resolves_team_and_returns_team_manager(self):
+        listener_module._build_listener_manager.cache_clear()
+        with mock_plugin_manager(plugins=[]):
+            with mock.patch(
+                "airflow.models.dag.DagModel.get_team_name", return_value="team_a"
+            ) as mock_get_team_name:
+                resolved = listener_module.get_listener_manager_for_dag("some_dag")
+            assert resolved is listener_module.get_listener_manager("team_a")
+        mock_get_team_name.assert_called_once()
