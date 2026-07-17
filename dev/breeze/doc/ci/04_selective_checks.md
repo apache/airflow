@@ -310,7 +310,7 @@ all versions), the cause is almost always a single rule that fired. To find it:
 2. **Reproduce locally** with Breeze, pointing at the squashed commit of your change:
 
    ```bash
-   breeze selective-checks --commit-ref <commit_sha>
+   breeze ci selective-check --commit-ref <commit_sha>
    ```
 
    It prints the same outputs and the same `[warning]` reasons CI uses, so you can iterate without
