@@ -1103,6 +1103,25 @@ def test_topological_sort_reverse_declared_order_matches_sweep():
     assert pass_number_order == sweep_order
 
 
+def test_topological_sort_reuses_cached_group_dict():
+    with DAG("test_group_dict_cache", schedule=None, start_date=DEFAULT_DATE) as test_dag:
+        with TaskGroup("a"):
+            EmptyOperator(task_id="task")
+        with TaskGroup("b"):
+            EmptyOperator(task_id="task")
+
+    root = test_dag.task_group
+    assert root.get_task_group_dict() is root.get_task_group_dict()
+    assert root._get_task_group_dict_cached.cache_info().misses == 1
+
+    for group in root.children.values():
+        if isinstance(group, TaskGroup):
+            group.topological_sort()
+    cache_info = root._get_task_group_dict_cached.cache_info()
+    assert cache_info.misses == 1
+    assert cache_info.hits >= len(root.children)
+
+
 def test_topological_sort_padded_reverse_chain_uses_pass_numbering(monkeypatch):
     dag = _make_padded_reverse_chain(chain_length=80, independent_count=80)
     called = {"value": False}

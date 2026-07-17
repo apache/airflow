@@ -173,8 +173,14 @@ class SerializedTaskGroup(DAGNode):
                     yield from recurse_for_first_non_teardown(task)
 
     def get_task_group_dict(self) -> dict[str | None, SerializedTaskGroup]:
-        """Create a flat dict of group_id: TaskGroup."""
+        """Create a flat dict of group_id: TaskGroup. Cached per instance/DAG."""
+        return self._get_task_group_dict_cached()
 
+    # methodtools.lru_cache has no type stubs, so it widens this method's return type to
+    # Any for every caller; kept private behind the explicitly-typed wrapper above so mypy
+    # still trusts get_task_group_dict()'s declared return type.
+    @methodtools.lru_cache(maxsize=None)
+    def _get_task_group_dict_cached(self) -> dict[str | None, SerializedTaskGroup]:
         def build_map(node: DAGNode) -> Generator[tuple[str | None, SerializedTaskGroup]]:
             if not isinstance(node, SerializedTaskGroup):
                 return
