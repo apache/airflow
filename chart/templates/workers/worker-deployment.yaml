@@ -123,6 +123,11 @@ spec:
           {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if not $persistence }}
+      # Fix TaskInstance hostname service resolution for Deployments
+      # https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-hostname-and-subdomain-field
+      subdomain: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
+      {{- end }}
       {{- if .Values.workers.celery.runtimeClassName }}
       runtimeClassName: {{ .Values.workers.celery.runtimeClassName }}
       {{- end }}
