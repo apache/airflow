@@ -540,3 +540,26 @@ class TestConnection:
             "test_conn2": None,
         }
         clear_db_connections()
+
+    def test_port_validation(self):
+        """Test that Connection model validates the port field correctly."""
+        # Valid ports
+        assert Connection(conn_id="test_port_1", port=80).port == 80
+        assert Connection(conn_id="test_port_2", port="8080").port == 8080
+        assert Connection(conn_id="test_port_3", port=None).port is None
+        assert Connection(conn_id="test_port_4", port="").port is None
+        assert Connection(conn_id="test_port_5", port="  ").port is None
+
+        # Invalid ports - out of range
+        with pytest.raises(ValueError, match="The `port` field must be a value between 1 and 65535"):
+            Connection(conn_id="test_port_fail_1", port=70000)
+
+        with pytest.raises(ValueError, match="The `port` field must be a value between 1 and 65535"):
+            Connection(conn_id="test_port_fail_2", port=0)
+
+        with pytest.raises(ValueError, match="The `port` field must be a value between 1 and 65535"):
+            Connection(conn_id="test_port_fail_3", port=-80)
+
+        # Invalid ports - type errors
+        with pytest.raises(ValueError, match="Expected integer value for `port`"):
+            Connection(conn_id="test_port_fail_4", port="invalid_port")
