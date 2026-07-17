@@ -1478,6 +1478,33 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run go unit and e2e tests for go-sdk source change",
         ),
         pytest.param(
+            ("go-sdk/go.mod",),
+            {
+                "run-go-sdk-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go unit and e2e tests for go-sdk dependency change",
+        ),
+        pytest.param(
+            ("go-sdk/README.md",),
+            {
+                "run-go-sdk-tests": "false",
+                "run-go-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip go unit and e2e tests for go-sdk README-only change",
+        ),
+        pytest.param(
+            ("go-sdk/adr/0001-bundle-packing-options.md",),
+            {
+                "run-go-sdk-tests": "false",
+                "run-go-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip go unit and e2e tests for go-sdk ADR-only change",
+        ),
+        pytest.param(
             ("airflow-e2e-tests/docker/go.yml",),
             {
                 "run-go-sdk-tests": "false",
