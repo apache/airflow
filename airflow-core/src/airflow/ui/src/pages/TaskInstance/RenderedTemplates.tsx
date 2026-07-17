@@ -47,7 +47,7 @@ const RenderedTemplatesContent = () => {
             if (value !== null && value !== undefined) {
               const renderedValue =
                 typeof value === "string"
-                  ? value.split("\\n").join("\n").replaceAll(/\\$/gmu, "")
+                  ? value.replaceAll("\\n", "\n").replaceAll(/\\$/gmu, "")
                   : JSON.stringify(value, null, 2);
               const language = detectLanguage(renderedValue);
 
