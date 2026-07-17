@@ -3719,13 +3719,13 @@ def test_run_kubernetes_tests_forced_by_label_with_no_changed_files():
 
 
 @pytest.mark.parametrize("files", [("INTHEWILD.md",), ()], ids=["unrelated-file", "no-files"])
-def test_prod_image_build_forced_by_e2e_test_label(files):
+def test_prod_image_build_forced_by_e2e_tests_label(files):
     checks = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         default_branch="main",
-        pr_labels=("area:e2e-test",),
+        pr_labels=("area:e2e-tests",),
     )
     assert checks.prod_image_build is True
     assert checks.full_tests_needed is False
