@@ -1,0 +1,1 @@
+Fix ``Mark Task Instance as...`` dialog defaulting to also marking downstream task instances (without running them) instead of only the selected task instance.
