@@ -115,7 +115,7 @@ class PydanticAIHook(BaseHook):
         :meth:`get_conn` call would try to fetch it from the secrets backend — a key it does
         not recognize — raising :class:`~airflow.exceptions.AirflowNotFoundException`.
 
-        ``BaseHook`` applies the same fix as of Airflow 3.4.  This override ensures
+        ``BaseHook`` applies the same fix as of Airflow 3.4. This override ensures
         correct behavior on earlier Airflow versions too: providers are independently
         releasable, so upgrading the provider alone should be sufficient to unblock users
         regardless of which Airflow minor version they run.
