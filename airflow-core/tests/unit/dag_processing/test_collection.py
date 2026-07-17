@@ -1010,7 +1010,8 @@ class TestUpdateDagParsingResults:
         bundle_path = tmp_path / "bundle"
         bundle_path.mkdir()
         dag_file = bundle_path / "broken.py"
-        dag_file.write_text("raise ImportError('broken dag')")
+        # Must mention both "airflow" and "dag" or DAG_DISCOVERY_SAFE_MODE skips the file.
+        dag_file.write_text("from airflow.sdk import DAG\nraise ImportError('broken dag')")
 
         dagbag = DagBag(dag_folder=str(dag_file), bundle_path=bundle_path, bundle_name="testing")
         assert dagbag.import_errors
