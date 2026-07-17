@@ -25,7 +25,12 @@ if TYPE_CHECKING:
     from botocore.client import BaseClient
 
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
-from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
+from airflow.providers.amazon.aws.operators.glue_crawler import (
+    GlueCrawlerCreateOperator,
+    GlueCrawlerDeleteOperator,
+    GlueCrawlerRunOperator,
+    GlueCrawlerUpdateOperator,
+)
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -75,12 +80,19 @@ datasource.toDF().write.format('csv').mode("append").save('s3://{bucket_name}/ou
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def glue_cleanup(crawler_name: str, job_name: str, db_name: str) -> None:
+def delete_glue_resources(job_name: str, db_name: str) -> None:
     client: BaseClient = boto3.client("glue")
 
-    client.delete_crawler(Name=crawler_name)
     client.delete_job(JobName=job_name)
     client.delete_database(Name=db_name)
+
+
+@task
+def verify_crawler_description(crawler_name: str, expected_description: str) -> None:
+    client: BaseClient = boto3.client("glue")
+
+    crawler = client.get_crawler(Name=crawler_name)["Crawler"]
+    assert crawler["Description"] == expected_description
 
 
 with DAG(
@@ -101,9 +113,15 @@ with DAG(
 
     glue_crawler_config = {
         "Name": glue_crawler_name,
+        "Description": "Glue crawler created by the Amazon provider system test",
         "Role": role_arn,
         "DatabaseName": glue_db_name,
         "Targets": {"S3Targets": [{"Path": f"{bucket_name}/input"}]},
+    }
+    updated_crawler_description = "Glue crawler updated by the Amazon provider system test"
+    updated_glue_crawler_config = {
+        **glue_crawler_config,
+        "Description": updated_crawler_description,
     }
 
     create_bucket = S3CreateBucketOperator(
@@ -127,15 +145,37 @@ with DAG(
         replace=True,
     )
 
-    # [START howto_operator_glue_crawler]
-    crawl_s3 = GlueCrawlerOperator(
-        task_id="crawl_s3",
+    # [START howto_operator_glue_crawler_create]
+    create_crawler = GlueCrawlerCreateOperator(
+        task_id="create_crawler",
         config=glue_crawler_config,
     )
-    # [END howto_operator_glue_crawler]
+    # [END howto_operator_glue_crawler_create]
 
-    # GlueCrawlerOperator waits by default, setting as False to test the Sensor below.
-    crawl_s3.wait_for_completion = False
+    # [START howto_operator_glue_crawler_update]
+    update_crawler = GlueCrawlerUpdateOperator(
+        task_id="update_crawler",
+        config=updated_glue_crawler_config,
+    )
+    # [END howto_operator_glue_crawler_update]
+
+    verify_crawler_update = verify_crawler_description(glue_crawler_name, updated_crawler_description)
+
+    # [START howto_operator_glue_crawler_run_deferrable]
+    run_crawler_deferrable = GlueCrawlerRunOperator(
+        task_id="run_crawler_deferrable",
+        crawler_name=glue_crawler_name,
+        deferrable=True,
+    )
+    # [END howto_operator_glue_crawler_run_deferrable]
+
+    # [START howto_operator_glue_crawler_run]
+    run_crawler = GlueCrawlerRunOperator(
+        task_id="run_crawler",
+        crawler_name=glue_crawler_name,
+        deferrable=False,
+    )
+    # [END howto_operator_glue_crawler_run]
 
     # [START howto_sensor_glue_crawler]
     wait_for_crawl = GlueCrawlerSensor(
@@ -179,6 +219,14 @@ with DAG(
     # [END howto_sensor_glue]
     wait_for_job.poke_interval = 5
 
+    # [START howto_operator_glue_crawler_delete]
+    delete_crawler = GlueCrawlerDeleteOperator(
+        task_id="delete_crawler",
+        crawler_name=glue_crawler_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_glue_crawler_delete]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         trigger_rule=TriggerRule.ALL_DONE,
@@ -204,13 +252,18 @@ with DAG(
         upload_csv,
         upload_script,
         # TEST BODY
-        crawl_s3,
+        create_crawler,
+        update_crawler,
+        verify_crawler_update,
+        run_crawler_deferrable,
+        run_crawler,
         wait_for_crawl,
         wait_for_catalog_partition,
         submit_glue_job,
         wait_for_job,
         # TEST TEARDOWN
-        glue_cleanup(glue_crawler_name, glue_job_name, glue_db_name),
+        delete_crawler,
+        delete_glue_resources(glue_job_name, glue_db_name),
         delete_bucket,
         log_cleanup,
     )

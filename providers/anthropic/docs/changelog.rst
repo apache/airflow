@@ -24,3 +24,15 @@ Changelog
 .....
 
 Initial version of the provider.
+
+Features
+~~~~~~~~
+
+* ``Add Anthropic provider ('apache-airflow-providers-anthropic') (#69003)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Validate trigger events in Anthropic deferrable tasks (#69379)``
+   * ``Reject invalid Amazon Bedrock model IDs in the Anthropic provider (#69404)``
+   * ``Fix aws_region platform list in Anthropic connection docs (#69373)``
+   * ``Regenerate Anthropic provider docs to remove stale common.compat extra (#69363)``

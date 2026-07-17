@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
+    "anyRunState": "Any run",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
       "unfavorite": "Unfavorite"
     },
+    "lastRunState": "Last run",
     "paused": {
       "active": "Active",
       "all": "All",
@@ -75,6 +77,11 @@
       "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream"
     }
+  },
+  "runStateCounts": {
+    "label": "Run states",
+    "loading": "Loading run state counts",
+    "tooltip": "{{state}}: {{formattedCount}} — click to filter runs"
   },
   "search": {
     "advanced": "Advanced Search",

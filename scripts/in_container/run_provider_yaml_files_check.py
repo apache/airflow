@@ -50,6 +50,11 @@ from airflow.cli.commands.info_command import Architecture
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
+# check_provider_conn_fields lives in scripts/ci/prek/ which is not on sys.path when
+# this script runs inside Breeze; resolve it relative to this file.
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ci" / "prek"))
+from check_provider_conn_fields import check_conn_fields_for_entry
+
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.
 
@@ -471,6 +476,62 @@ def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict
                 hook_class_names, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
             )
     return num_connection_types, num_errors
+
+
+@run_check("Checking that conn-fields in provider.yaml match get_connection_form_widgets() of the hook class")
+def check_conn_fields_match_form_widgets(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    """
+    For every connection-type entry that both declares ``conn-fields`` and whose
+    hook overrides ``get_connection_form_widgets()``, verify the two sets are
+    identical — stale YAML keys (in ``conn-fields`` but not in the hook) and
+    missing YAML keys (in the hook but absent from ``conn-fields``) are both
+    reported as errors.
+    """
+    num_checks = 0
+    num_errors = 0
+
+    for yaml_file_path, provider_data in yaml_files.items():
+        for conn_type_entry in provider_data.get("connection-types", []):
+            num_checks += 1
+            for error in check_conn_fields_for_entry(conn_type_entry, yaml_file_path, _get_widget_keys):
+                errors.append(error)
+                num_errors += 1
+
+    return num_checks, num_errors
+
+
+def _get_widget_keys(hook_class_name: str) -> set[str] | None:
+    """
+    Import *hook_class_name* and return the keys of ``get_connection_form_widgets()``.
+
+    Returns ``None`` when the hook or its UI dependencies cannot be imported,
+    or when the hook does not override ``get_connection_form_widgets()`` (meaning it
+    has no custom connection fields and the conn-fields check should be skipped).
+    Raises for unexpected errors so ``check_conn_fields_for_entry`` can convert them
+    to an error string.
+    """
+    try:
+        module_name, class_name = hook_class_name.rsplit(".", maxsplit=1)
+        with warnings.catch_warnings(record=True):
+            hook_class = getattr(importlib.import_module(module_name), class_name)
+    except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
+        return None
+
+    # Only validate hooks that override get_connection_form_widgets() in their own __dict__,
+    # because that method is the source-of-truth for what conn-fields should be declared.
+    # Hooks that inherit it without overriding have no provider-specific widget definition
+    # to diff against, so the check is intentionally skipped for them.  As of writing this
+    # includes HttpHook, the common/ai hooks, and AzureComputeHook — any provider whose hook
+    # falls into this category will NOT be validated here, even if it declares conn-fields.
+    if "get_connection_form_widgets" not in hook_class.__dict__:
+        return None
+
+    with warnings.catch_warnings(record=True):
+        try:
+            form_widgets: dict[str, Any] = hook_class.get_connection_form_widgets()
+            return set(form_widgets.keys())
+        except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
+            return None
 
 
 @run_check("Checking that hook classes defining conn_type are registered in connection-types")
@@ -1046,6 +1107,7 @@ if __name__ == "__main__":
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_hook_class_name_entries_in_connection_types(all_parsed_yaml_files)
+    check_conn_fields_match_form_widgets(all_parsed_yaml_files)
     check_hook_classes_with_conn_type_are_registered(all_parsed_yaml_files)
     check_executor_classes(all_parsed_yaml_files)
     check_queue_classes(all_parsed_yaml_files)
