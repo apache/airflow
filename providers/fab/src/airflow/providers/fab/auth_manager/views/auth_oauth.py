@@ -45,14 +45,10 @@ class CustomAuthOAuthView(AuthOAuthView):
     @expose("/login/<provider>")
     def login(self, provider=None):
         """
-        OAuth login handler that corrects the URL scheme behind a TLS-terminating proxy.
+        OAuth login handler that corrects the URL scheme behind a reverse proxy.
 
-        When Airflow runs behind a reverse proxy that terminates TLS and forwards
-        requests as HTTP, ``wsgi.url_scheme`` is ``http``, so the redirect URI built
-        by ``url_for(..., _external=True)`` uses ``http://`` even though the public
-        endpoint is ``https://``. If the proxy sets ``X-Forwarded-Proto``, honour it
-        here so the generated redirect URI matches the external scheme regardless of
-        whether ProxyFix is configured.
+        When the proxy sets ``X-Forwarded-Proto``, honour it here so the generated
+        redirect URI matches the external scheme regardless of ProxyFix config.
 
         Args:
             provider: OAuth provider name (e.g., 'azure', 'google', 'github')
