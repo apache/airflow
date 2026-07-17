@@ -89,14 +89,14 @@ You can find the provider distributions dependencies and extras in the README.md
 package (in `providers/<PROVIDER>` folder of this repository) as well as in the PyPI installation page.
 
 The sources released in SVN allow to build all the provider distributions by the user, following the
-instructions and scripts provided. Those are also "official_source releases" as described in the
+instructions and scripts provided. Those are also "official source releases" as described in the
 [ASF Release Policy](http://www.apache.org/legal/release-policy.html) and they are available
 via [Official Apache Download for providers](https://downloads.apache.org/airflow/providers/).
 
 The full provider's list can be found here:
 [Provider distributions reference](https://s.apache.org/airflow-docs)
 
-There are also convenience packages released as "apache-airflow-providers"separately in PyPI.
+There are also convenience packages released as "apache-airflow-providers" separately in PyPI.
 [PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers)
 
 And available in PyPI:
