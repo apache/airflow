@@ -206,7 +206,7 @@ def requires_access_dag_from_file_token(
     Authorize the caller against the DAGs referenced by a signed ``file_token``.
 
     For ``file_token`` based endpoints (such as ``reparse``), the token is resolved to its referenced file, and authorization is performed against exactly the DAGs defined in that file, never against a request parameter.
-"""
+    """
 
     def inner(
         file_token: str,
