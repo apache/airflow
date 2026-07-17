@@ -139,6 +139,10 @@ def get_provider_info():
                         "label": "Private key (Text)",
                         "schema": {"type": ["string", "null"], "format": "password"},
                     },
+                    "workload_identity_provider": {
+                        "label": "Workload Identity Provider",
+                        "schema": {"type": ["string", "null"]},
+                    },
                     "insecure_mode": {
                         "label": "Insecure Mode",
                         "schema": {"type": ["boolean", "null"]},

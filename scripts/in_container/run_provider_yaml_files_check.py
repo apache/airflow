@@ -481,14 +481,11 @@ def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict
 @run_check("Checking that conn-fields in provider.yaml match get_connection_form_widgets() of the hook class")
 def check_conn_fields_match_form_widgets(yaml_files: dict[str, dict]) -> tuple[int, int]:
     """
-    For every connection-type entry whose hook declares ``conn-fields``,
-    verify that every key in ``conn-fields`` also exists in the hook's
-    ``get_connection_form_widgets()``.
-
-    ``conn-fields`` is optional and is intentionally allowed to be a *subset*
-    of the hook's form widgets (the new React UI may expose fewer fields than
-    the legacy Flask form), so extra hook widgets are not flagged — only
-    ``conn-fields`` keys absent from the hook are reported as stale.
+    For every connection-type entry that both declares ``conn-fields`` and whose
+    hook overrides ``get_connection_form_widgets()``, verify the two sets are
+    identical — stale YAML keys (in ``conn-fields`` but not in the hook) and
+    missing YAML keys (in the hook but absent from ``conn-fields``) are both
+    reported as errors.
     """
     num_checks = 0
     num_errors = 0
