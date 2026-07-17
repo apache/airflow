@@ -65,7 +65,6 @@ bundles:
   - integration-name: GIT (Git)
     python-modules:
       - airflow.providers.git.bundles.git
-      - airflow.providers.git.bundles.gitsync
 
 
 connection-types:
