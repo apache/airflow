@@ -120,6 +120,25 @@ def _retryable_error_async(exception: BaseException) -> bool:
     return exception.status >= 500
 
 
+class _ConnectionSession(Session):
+    """
+    Session that drops Connection-supplied headers when a redirect leaves the original host.
+
+    ``requests`` only strips ``Authorization``, but an HTTP Connection may carry its
+    credentials under any header name, so those need the same treatment.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.connection_headers: set[str] = set()
+
+    def rebuild_auth(self, prepared_request: PreparedRequest, response: Response) -> None:
+        super().rebuild_auth(prepared_request, response)
+        if self.should_strip_auth(response.request.url, prepared_request.url):
+            for header in self.connection_headers:
+                prepared_request.headers.pop(header, None)
+
+
 class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
@@ -196,7 +215,7 @@ class HttpHook(BaseHook):
         :param extra_options: additional options to be used when executing the request
         :return: A configured requests.Session object.
         """
-        session = Session()
+        session: Session = _ConnectionSession()
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
         session = self._configure_session_from_auth(session, connection)  # type: ignore[arg-type]
@@ -268,6 +287,9 @@ class HttpHook(BaseHook):
             session.headers.update(conn_extra_options)
         except TypeError:
             self.log.warning("Connection to %s has invalid extra field.", connection.host)
+        else:
+            if isinstance(session, _ConnectionSession):
+                session.connection_headers.update(conn_extra_options)
 
         return session
 
