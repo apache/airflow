@@ -1222,6 +1222,71 @@ class TestConnection(TestConnectionEndpoint):
         assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @pytest.mark.parametrize(
+        "override",
+        [
+            pytest.param({"host": "other_host"}, id="host-changed"),
+            pytest.param({"host": "stored_host", "port": 9999}, id="port-changed"),
+        ],
+    )
+    def test_should_reject_test_when_target_overridden_without_credentials(
+        self, test_client, session, override
+    ):
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="sqlite",
+                host="stored_host",
+                port=1234,
+                password="existing_password",
+            )
+        )
+        session.commit()
+
+        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", **override}
+        response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 400
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @pytest.mark.parametrize(
+        ("override", "expected_password"),
+        [
+            pytest.param(
+                {"host": "stored_host", "port": 1234}, "existing_password", id="same-target-reuses-stored"
+            ),
+            pytest.param(
+                {"host": "other_host", "password": "supplied_password"},
+                "supplied_password",
+                id="overridden-target-uses-supplied-creds",
+            ),
+        ],
+    )
+    def test_stored_secret_reused_only_for_same_target(
+        self, test_client, session, override, expected_password
+    ):
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="sqlite",
+                host="stored_host",
+                port=1234,
+                password="existing_password",
+            )
+        )
+        session.commit()
+
+        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", **override}
+
+        with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
+            mock_test.return_value = (True, "mocked")
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        tested_connection = mock_test.call_args.args[0]
+        assert tested_connection.password == expected_password
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_test_new_connection_without_existing(self, test_client):
         body = {
             "connection_id": "non_existent_conn",
