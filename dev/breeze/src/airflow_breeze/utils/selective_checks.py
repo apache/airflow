@@ -462,7 +462,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^java-sdk/(?!.*\.md$).*",
         ],
         FileGroupForCi.TS_SDK_FILES: [
-            r"^ts-sdk/",
+            # `.md` excluded — doc-only edits do not affect the generated supervisor schema.
+            r"^ts-sdk/(?!.*\.md$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",

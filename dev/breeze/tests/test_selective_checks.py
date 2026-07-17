@@ -1788,6 +1788,16 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
             True,
             id="skipped when no ts-sdk files change",
         ),
+        pytest.param(
+            ("ts-sdk/README.md",),
+            True,
+            id="skipped when only ts-sdk docs change",
+        ),
+        pytest.param(
+            ("ts-sdk/example/README.md",),
+            True,
+            id="skipped when only nested ts-sdk docs change",
+        ),
     ],
 )
 def test_check_ts_sdk_supervisor_schema_hook_only_runs_for_relevant_changes(
