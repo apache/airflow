@@ -77,7 +77,7 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def _hook_from_connection(cls, connection: Connection, conn_id: str, hook_params: dict | None = None):
+    def _build_hook_from_connection(cls, connection: Connection, conn_id: str, hook_params: dict | None = None) -> BaseHook:
         """
         Build a hook from *connection* and re-key it to *conn_id*.
 
