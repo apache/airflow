@@ -1,0 +1,1 @@
+secrets-backends/index.rst secrets-backends/hashicorp-vault-secrets-backend.rst

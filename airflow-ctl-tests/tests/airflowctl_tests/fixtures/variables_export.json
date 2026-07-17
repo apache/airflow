@@ -1,0 +1,8 @@
+{
+    "test_import_var": "import_value",
+    "test_import_var_with_desc": {
+        "description": "Test variable with description",
+        "value": "import_value_with_description"
+    },
+    "test_key": "updated_value"
+}

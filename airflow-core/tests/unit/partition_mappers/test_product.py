@@ -1,0 +1,162 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import pytest
+
+from airflow.partition_mappers.identity import IdentityMapper
+from airflow.partition_mappers.product import ProductMapper
+from airflow.partition_mappers.temporal import StartOfDayMapper, StartOfHourMapper
+from airflow.serialization.decoders import decode_partition_mapper
+from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.enums import Encoding
+
+
+class TestProductMapper:
+    def test_to_downstream(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        assert pm.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00") == "2024-01-15T10|2024-01-15"
+
+    def test_to_downstream_wrong_segment_count(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        with pytest.raises(ValueError, match="Expected 2 segments"):
+            pm.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00|extra")
+
+    def test_to_downstream_single_segment_for_two_mappers(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        with pytest.raises(ValueError, match="Expected 2 segments"):
+            pm.to_downstream("2024-01-15T10:30:00")
+
+    def test_custom_delimiter(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper(), delimiter="::")
+        assert pm.to_downstream("2024-01-15T10:30:00::2024-01-15T10:30:00") == "2024-01-15T10::2024-01-15"
+
+    def test_custom_delimiter_wrong_segment_count(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper(), delimiter="::")
+        with pytest.raises(ValueError, match="Expected 2 segments"):
+            pm.to_downstream("2024-01-15T10:30:00::2024-01-15T10:30:00::extra")
+
+    def test_serialize(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        result = pm.serialize()
+        assert result == {
+            "delimiter": "|",
+            "mappers": [
+                encode_partition_mapper(StartOfHourMapper()),
+                encode_partition_mapper(StartOfDayMapper()),
+            ],
+        }
+
+    def test_serialize_custom_delimiter(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper(), delimiter="::")
+        result = pm.serialize()
+        assert result == {
+            "delimiter": "::",
+            "mappers": [
+                encode_partition_mapper(StartOfHourMapper()),
+                encode_partition_mapper(StartOfDayMapper()),
+            ],
+        }
+
+    def test_deserialize(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        serialized = pm.serialize()
+        restored = ProductMapper.deserialize(serialized)
+        assert isinstance(restored, ProductMapper)
+        assert len(restored.mappers) == 2
+        assert restored.delimiter == "|"
+        assert restored.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00") == "2024-01-15T10|2024-01-15"
+
+    def test_deserialize_custom_delimiter(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper(), delimiter="::")
+        serialized = pm.serialize()
+        restored = ProductMapper.deserialize(serialized)
+        assert isinstance(restored, ProductMapper)
+        assert restored.delimiter == "::"
+        assert (
+            restored.to_downstream("2024-01-15T10:30:00::2024-01-15T10:30:00") == "2024-01-15T10::2024-01-15"
+        )
+
+    def test_deserialize_backward_compat(self):
+        """Deserializing data without delimiter field defaults to '|'."""
+        data = {
+            "mappers": [
+                encode_partition_mapper(StartOfHourMapper()),
+                encode_partition_mapper(StartOfDayMapper()),
+            ],
+        }
+        restored = ProductMapper.deserialize(data)
+        assert restored.delimiter == "|"
+
+    def test_three_mappers(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper(), IdentityMapper())
+        assert (
+            pm.to_downstream("2024-01-15T10:30:00|2024-01-15T10:30:00|raw") == "2024-01-15T10|2024-01-15|raw"
+        )
+
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        """max_downstream_keys=5 survives encode_partition_mapper → decode_partition_mapper."""
+        mapper = ProductMapper(StartOfHourMapper(), StartOfDayMapper(), max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        """max_downstream_keys must NOT appear in the encoded payload when not set (zero-bloat contract)."""
+        mapper = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var
+
+    @pytest.mark.parametrize(
+        ("mapper", "downstream_key", "expected"),
+        [
+            pytest.param(
+                ProductMapper(StartOfDayMapper(), IdentityMapper()),
+                "2024-01-15|us-east-1",
+                datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc),
+                id="one-temporal-one-categorical-returns-temporal-anchor",
+            ),
+            pytest.param(
+                ProductMapper(IdentityMapper(), StartOfDayMapper()),
+                "us-east-1|2024-01-15",
+                datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc),
+                id="categorical-first-temporal-second-returns-temporal-anchor",
+            ),
+            pytest.param(
+                ProductMapper(StartOfDayMapper(), StartOfHourMapper()),
+                "2024-01-15|2024-01-15T10",
+                None,
+                id="two-temporal-children-returns-none",
+            ),
+            pytest.param(
+                ProductMapper(IdentityMapper(), IdentityMapper()),
+                "us-east-1|batch-42",
+                None,
+                id="all-categorical-returns-none",
+            ),
+            pytest.param(
+                ProductMapper(StartOfDayMapper(), IdentityMapper()),
+                "2024-01-15",
+                None,
+                id="wrong-segment-count-returns-none",
+            ),
+        ],
+    )
+    def test_to_partition_date(self, mapper, downstream_key, expected):
+        assert mapper.to_partition_date(downstream_key) == expected

@@ -1,0 +1,325 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+LocalExecutor.
+
+.. seealso::
+    For more information on how the LocalExecutor works, take a look at the guide:
+    :ref:`executor:LocalExecutor`
+"""
+
+from __future__ import annotations
+
+import contextlib
+import ctypes
+import multiprocessing
+import multiprocessing.sharedctypes
+import os
+import sys
+from multiprocessing import Queue, SimpleQueue
+from typing import TYPE_CHECKING
+
+import structlog
+
+from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
+
+# add logger to parameter of setproctitle to support logging
+if sys.platform == "darwin":
+    setproctitle = lambda title, logger: logger.debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import setproctitle as real_setproctitle
+
+    setproctitle = lambda title, logger: real_setproctitle(title)
+
+if TYPE_CHECKING:
+    from airflow.executors.workloads import ExecutorWorkload
+    from airflow.executors.workloads.types import WorkloadResultType
+
+
+def _get_executor_process_title_prefix(team_name: str | None) -> str:
+    """
+    Build the process title prefix for LocalExecutor workers.
+
+    :param team_name: Team name from executor configuration
+    """
+    team_suffix = f" [{team_name}]" if team_name else ""
+    return f"airflow worker -- LocalExecutor{team_suffix}:"
+
+
+def _run_worker(
+    logger_name: str,
+    input: SimpleQueue[ExecutorWorkload | None],
+    output: Queue[WorkloadResultType],
+    unread_messages: multiprocessing.sharedctypes.Synchronized[int],
+    team_conf,
+):
+    import signal
+
+    # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    log = structlog.get_logger(logger_name)
+    log.info("Worker starting up pid=%d", os.getpid())
+
+    while True:
+        setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} <idle>", log)
+        try:
+            workload = input.get()
+        except EOFError:
+            log.info(
+                "Failed to read tasks from the task queue because the other "
+                "end has closed the connection. Terminating worker %s.",
+                multiprocessing.current_process().name,
+            )
+            break
+
+        if workload is None:
+            # Received poison pill, no more tasks to run
+            return
+
+        # Decrement this as soon as we pick up a message off the queue
+        with unread_messages:
+            unread_messages.value -= 1
+
+        if workload.running_state is not None:
+            output.put((workload.key, workload.running_state, None))
+
+        try:
+            BaseExecutor.run_workload(
+                workload,
+                server=get_execution_api_server_url(team_conf),
+                proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
+                subprocess_logs_to_stdout=True,
+            )
+            output.put((workload.key, workload.success_state, None))
+        except Exception as e:
+            log.exception("Workload execution failed.", workload_type=type(workload).__name__)
+            output.put((workload.key, workload.failure_state, e))
+
+
+class LocalExecutor(BaseExecutor):
+    """
+    LocalExecutor executes tasks locally in parallel.
+
+    It uses the multiprocessing Python library and queues to parallelize the execution of tasks.
+
+    :param parallelism: how many parallel processes are run in the executor, must be > 0
+    """
+
+    is_local: bool = True
+    is_mp_using_fork: bool
+
+    supports_multi_team: bool = True
+    serve_logs: bool = True
+    supports_callbacks: bool = True
+    supports_connection_test: bool = True
+
+    activity_queue: SimpleQueue[ExecutorWorkload | None]
+    result_queue: SimpleQueue[WorkloadResultType]
+    workers: dict[int, multiprocessing.Process]
+    _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Resolve the start method at instantiation, not at import: the component CLI entry may have
+        # set it via [<component>]/[core] mp_start_method before the executor is created.
+        self.is_mp_using_fork = multiprocessing.get_start_method() == "fork"
+
+        # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
+        # configuration object. This allows the changes to be backwards compatible with older versions of
+        # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
+        if not hasattr(self, "conf"):
+            from airflow.configuration import conf
+
+            self.conf = conf
+
+    def start(self) -> None:
+        """Start the executor."""
+        # We delay opening these queues until the start method mostly for unit tests. ExecutorLoader caches
+        # instances, so each test reusues the same instance! (i.e. test 1 runs, closes the queues, then test 2
+        # comes back and gets the same LocalExecutor instance, so we have to open new here.)
+        self.activity_queue = SimpleQueue()
+        self.result_queue = SimpleQueue()
+        self.workers = {}
+
+        # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
+        # (it looks like an int to python)
+
+        self._unread_messages = multiprocessing.Value(ctypes.c_uint)
+
+        if self.is_mp_using_fork:
+            # This creates the maximum number of worker processes (parallelism) at once
+            # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+            self._spawn_workers_with_gc_freeze(self.parallelism)
+
+    def _check_workers(self):
+        # Reap any dead workers
+        to_remove = set()
+        for pid, proc in self.workers.items():
+            if not proc.is_alive():
+                to_remove.add(pid)
+                proc.close()
+
+        if to_remove:
+            self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
+
+        with self._unread_messages:
+            num_outstanding = self._unread_messages.value
+
+        if num_outstanding <= 0 or self.activity_queue.empty():
+            # Nothing to do. Future enhancement if someone wants: shut down workers that have been idle for N
+            # seconds
+            return
+
+        # If we're using spawn in multiprocessing (default on macOS now) to start tasks, this can get called a
+        # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
+        # create too much
+        if num_outstanding and len(self.workers) < self.parallelism:
+            if self.is_mp_using_fork:
+                # This creates the maximum number of worker processes at once
+                # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+                self._spawn_workers_with_gc_freeze(self.parallelism - len(self.workers))
+            else:
+                # This only creates one worker, which is fine as we call this directly after putting a message on
+                # activity_queue in execute_async when using spawn in multiprocessing
+                self._spawn_worker()
+
+    def _spawn_worker(self):
+        p = multiprocessing.Process(
+            target=_run_worker,
+            kwargs={
+                "logger_name": self.log.name,
+                "input": self.activity_queue,
+                "output": self.result_queue,
+                "unread_messages": self._unread_messages,
+                "team_conf": self.conf,
+            },
+        )
+        p.start()
+        if TYPE_CHECKING:
+            assert p.pid  # Since we've called start
+        self.workers[p.pid] = p
+
+    def _spawn_workers_with_gc_freeze(self, spawn_number):
+        """
+        Freeze the GC before forking worker process and unfreeze it after forking.
+
+        This is done to prevent memory increase due to COW (Copy-on-Write) by moving all
+        existing objects to the permanent generation before forking the process. After forking,
+        unfreeze is called to ensure there is no impact on gc operations
+        in the original running process.
+
+        Ref: https://docs.python.org/3/library/gc.html#gc.freeze
+        """
+        import gc
+
+        gc.freeze()
+        try:
+            for _ in range(spawn_number):
+                self._spawn_worker()
+        finally:
+            gc.unfreeze()
+
+    def sync(self) -> None:
+        """Sync will get called periodically by the heartbeat method."""
+        self._read_results()
+        self._check_workers()
+
+    def _read_results(self):
+        try:
+            while not self.result_queue.empty():
+                key, state, exc = self.result_queue.get()
+                self.change_state(key, state)
+        except (OSError, EOFError):
+            self.log.exception("Error reading from result queue")
+
+    def end(self) -> None:
+        """End the executor."""
+        self.log.info(
+            "Shutting down LocalExecutor"
+            "; waiting for running tasks to finish.  Signal again if you don't want to wait."
+        )
+
+        # We can't tell which proc will pick which close message up, so we send all the messages, and then
+        # wait on all the procs
+
+        for proc in self.workers.values():
+            # Send the shutdown message once for each alive worker
+            if proc.is_alive():
+                self.activity_queue.put(None)
+
+        # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
+        # Otherwise, a worker blocked on putting results into a full result_queue pipe will never exit,
+        # and an unbounded proc.join() will hang the scheduler indefinitely.
+        try:
+            for proc in self.workers.values():
+                while proc.is_alive():
+                    self._read_results()
+                    proc.join(timeout=0.05)
+        except (KeyboardInterrupt, SystemExit):
+            self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
+            for proc in self.workers.values():
+                self._terminate_worker_process(proc)
+            raise
+        finally:
+            # Process any extra results before closing
+            self._read_results()
+
+            for proc in self.workers.values():
+                with contextlib.suppress(ValueError):
+                    proc.close()
+
+            self.activity_queue.close()
+            self.result_queue.close()
+
+    def terminate(self):
+        """Terminate all worker processes under control of the executor forcefully."""
+        self.log.info("Terminating all LocalExecutor worker processes.")
+        for proc in self.workers.values():
+            self._terminate_worker_process(proc)
+
+    def _terminate_worker_process(self, proc: multiprocessing.Process) -> None:
+        """Terminate a worker process, escalating to kill if it stays alive."""
+        if not proc.is_alive():
+            return
+
+        proc.terminate()
+        proc.join(timeout=0.2)
+        if proc.is_alive():
+            self.log.warning("Worker process %s did not stop after SIGTERM. Sending SIGKILL.", proc.pid)
+            proc.kill()
+            proc.join(timeout=0.2)
+
+    def _process_workloads(self, workload_list):
+        for workload in workload_list:
+            self.activity_queue.put(workload)
+            # A valid workload will exist in exactly one of these dicts.
+            # One pop will succeed, the others will return None gracefully.
+            removed = (
+                self.queued_tasks.pop(workload.key, None)
+                or self.queued_callbacks.pop(workload.key, None)
+                or self.queued_connection_tests.pop(workload.key, None)
+            )
+            if not removed:
+                raise KeyError(f"Workload {workload.key} was not found in any queue")
+        with self._unread_messages:
+            self._unread_messages.value += len(workload_list)
+        self._check_workers()

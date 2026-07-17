@@ -1,0 +1,7 @@
+Improved performance of rendered task instance fields cleanup for DAGs with many mapped tasks (~42x faster).
+
+The config ``max_num_rendered_ti_fields_per_task`` is renamed to ``num_dag_runs_to_retain_rendered_fields``
+(old name still works with deprecation warning).
+
+Retention is now based on the N most recent dag runs rather than N most recent task executions,
+which may result in fewer records retained for conditional/sparse tasks.

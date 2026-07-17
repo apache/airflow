@@ -1,0 +1,472 @@
+{
+    "Airflow": {
+        "actions": {
+            "Asset.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Asset"]
+                }
+            },
+            "Asset.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Asset"]
+                }
+            },
+            "Asset.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Asset"]
+                }
+            },
+            "Asset.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Asset"]
+                }
+            },
+            "AssetAlias.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["AssetAlias"]
+                }
+            },
+            "AssetAlias.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["AssetAlias"]
+                }
+            },
+            "Backfill.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Backfill"]
+                }
+            },
+            "Backfill.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Backfill"]
+                }
+            },
+            "Backfill.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Backfill"]
+                }
+            },
+            "Backfill.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Backfill"]
+                }
+            },
+            "Connection.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Connection.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Connection.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Connection.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Connection.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Custom.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Custom.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Custom.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Custom.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Custom.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Configuration.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Configuration"]
+                }
+            },
+            "Configuration.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Configuration"]
+                }
+            },
+            "Dag.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "type": "String",
+                                "required": false
+                            },
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            },
+                            "team_name": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            },
+                            "team_name": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            },
+                            "team_name": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            },
+                            "team_name": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Menu.MENU": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Menu"]
+                }
+            },
+            "Pool.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Pool.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Pool.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Pool.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Pool.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Team.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Team"]
+                }
+            },
+            "Team.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Team"]
+                }
+            },
+            "Variable.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Variable.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Variable.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Variable.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Variable.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "View.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["View"]
+                }
+            }
+        },
+        "entityTypes": {
+            "Asset":  {},
+            "AssetAlias":  {},
+            "Backfill":  {},
+            "Configuration": {},
+            "Connection": {},
+            "Custom": {},
+            "Dag": {},
+            "Menu": {},
+            "Pool": {},
+            "Team": {},
+            "Group": {},
+            "User": {
+                "memberOfTypes": [
+                    "Group"
+                ]
+            },
+            "Variable": {},
+            "View": {}
+        }
+    }
+}

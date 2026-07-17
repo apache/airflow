@@ -1,0 +1,1630 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of contents**
+
+- [What the airflow-ctl distribution is](#what-the-airflow-ctl-distribution-is)
+- [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
+- [The airflow-ctl distributions](#the-airflow-ctl-distributions)
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
+- [Decide when to release](#decide-when-to-release)
+- [Airflow-ctl release branches](#airflow-ctl-release-branches)
+  - [When to create the X.Y branches](#when-to-create-the-xy-branches)
+  - [Add branch protection for the new stable branch](#add-branch-protection-for-the-new-stable-branch)
+  - [Choosing the branch to release from](#choosing-the-branch-to-release-from)
+  - [Sync `-test` to `-stable` before the GA / patch RC](#sync--test-to--stable-before-the-ga--patch-rc)
+- [Airflow-ctl versioning](#airflow-ctl-versioning)
+- [Prepare Regular airflow-ctl distributions (RC)](#prepare-regular-airflow-ctl-distributions-rc)
+  - [Bump the version and generate release notes](#bump-the-version-and-generate-release-notes)
+  - [Commit the version bump and release notes via a merged PR](#commit-the-version-bump-and-release-notes-via-a-merged-pr)
+  - [Build airflow-ctl distributions for SVN apache upload](#build-airflow-ctl-distributions-for-svn-apache-upload)
+  - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
+  - [Add tags in git](#add-tags-in-git)
+  - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
+  - [Publish the Regular distributions to PyPI (release candidates)](#publish-the-regular-distributions-to-pypi-release-candidates)
+  - [Prepare documentation in Staging](#prepare-documentation-in-staging)
+  - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
+  - [Prepare voting email for airflow-ctl release candidate](#prepare-voting-email-for-airflow-ctl-release-candidate)
+  - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
+  - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
+- [Publish release](#publish-release)
+- [Set variables](#set-variables)
+  - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
+  - [Publish release to SVN](#publish-release-to-svn)
+  - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
+  - [Add the final release tag in git](#add-the-final-release-tag-in-git)
+  - [Publish documentation](#publish-documentation)
+  - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
+  - [Announce about the release in Apache Airflow Slack](#announce-about-the-release-in-apache-airflow-slack)
+  - [Add Blog post about the release](#add-blog-post-about-the-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
+  - [Close the testing status issue](#close-the-testing-status-issue)
+- [Additional processes](#additional-processes)
+  - [Fixing released documentation](#fixing-released-documentation)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+------------------------------------------------------------------------------------------------------------
+
+# What the airflow-ctl distribution is
+
+The distribution is separate packages that implement remote CLI for Apache Airflow.
+
+The Release Manager prepares `airflow-ctl` packages separately from the main Airflow Release, using
+`breeze` commands and accompanying scripts. This document provides an overview of the command line tools
+needed to prepare the packages.
+
+NOTE!! When you have problems with any of those commands that run inside `breeze` docker image, you
+can run the command with `--debug` flag that will drop you in the shell inside the image and will
+print the command that you should run.
+
+# Collect ambiguities during the release (for a follow-up doc PR)
+
+These instructions are imperfect. Every release uncovers at least one command
+that has drifted, one step that is under-documented, or one automation that
+silently did the wrong thing. As you run through this document, jot down any
+such observations in a scratch file kept **outside** the repo (anywhere that
+is not tracked by git — a note in your home directory, a scratchpad, a
+gist). Once the release has landed, turn those notes into a follow-up PR
+against this document.
+
+Keeping the scratch file out of the repo avoids accidentally committing
+release-manager notes along with the release-prep PR, and makes it obvious
+that the notes are input to the next doc PR rather than something to keep
+around long-term.
+
+# The airflow-ctl distributions
+
+The prerequisites to release airflow-ctl are described in [README.md](README.md).
+
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
+
+Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
+code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
+and security team should be pinged to review and resolve them.
+
+# Decide when to release
+
+You can release `airflow-ctl` distributions separately from the main Airflow on an ad-hoc basis,
+whenever we find that airflow-ctl needs to be released - due to new features or due to bug fixes.
+
+# Airflow-ctl release branches
+
+Airflow-ctl maintains its own pair of release branches per minor line,
+independent from core Airflow's `vX-Y-test` / `vX-Y-stable` branches. This
+gives airflow-ctl its own release cadence (SEMVER, bumped separately from
+Airflow) without coupling to the core Airflow maintenance branches.
+
+The branches are:
+
+- **`main`** — all airflow-ctl development happens here.
+- **`airflow-ctl/vX-Y-test`** — maintenance branch for the X.Y line. Bug
+  fixes that should land in an X.Y.Z patch release are cherry-picked from
+  `main` onto this branch. PRs for backports (including
+  `backport-to-airflow-ctl-vX-Y-test` label-triggered automated backports)
+  target this branch.
+- **`airflow-ctl/vX-Y-stable`** — release-cut branch for the X.Y line.
+  Each RC at GA and each patch RC is cut from this branch after a sync
+  PR from `-test` → `-stable`. This branch is protected in `.asf.yaml` —
+  all merges require a reviewed PR and linear history.
+
+The two branches start identical when they are cut and then diverge:
+`-test` continuously accumulates cherry-picks, while `-stable` receives
+only the periodic sync PRs that anchor each release tag.
+
+## When to create the X.Y branches
+
+Create `airflow-ctl/vX-Y-test` and `airflow-ctl/vX-Y-stable` **before cutting
+the first RC of a new minor line** (e.g. before `0.2.0rc1`). All
+airflow-ctl releases — including the very first RC of a new minor —
+are cut from these branches; **releases are never cut from `main`**.
+If the branches for the line you are about to release do not yet exist,
+create them (and their branch protection) before continuing with any
+other release step.
+
+Both branches are created from the **latest core Airflow `vX-Y-stable`
+branch** (the branch that anchors the most recently released core Airflow
+X.Y.Z — e.g. `v3-2-stable` after 3.2.1 has shipped), so that the
+airflow-ctl line is anchored to the Airflow minor it ships alongside.
+
+Branch from `vX-Y-stable`, **not** `vX-Y-test`: `vX-Y-test` may already
+contain cherry-picks destined for the next core Airflow patch (e.g.
+3.2.2) that have not been released yet and are not compatible with the
+airflow-ctl version you are cutting. Similarly, do **not** branch from
+`main` — `main` may already contain core Airflow changes belonging to
+the next minor that are not compatible with the airflow-ctl version you
+are cutting.
+
+```shell script
+# CTL_VERSION_BRANCH: the airflow-ctl X-Y line, e.g. 0-2 for the 0.2.x line.
+export CTL_VERSION_BRANCH=0-2
+# AIRFLOW_STABLE_BRANCH: the core Airflow vX-Y-stable branch anchoring the
+# most recently released X.Y.Z, e.g. v3-2-stable.
+export AIRFLOW_STABLE_BRANCH=v3-2-stable
+
+git fetch upstream
+git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-test" "upstream/${AIRFLOW_STABLE_BRANCH}"
+git push upstream "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
+git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
+git push upstream "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+```
+
+## Add branch protection for the new stable branch
+
+Open a PR against `main` that adds `airflow-ctl/vX-Y-stable` to the
+`protected_branches:` section of [`.asf.yaml`](../.asf.yaml), matching the
+settings used for other stable branches:
+
+```yaml
+  protected_branches:
+    ...
+    airflow-ctl/v0-2-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
+```
+
+Once the PR merges, Apache INFRA picks up the new protection automatically.
+`airflow-ctl/vX-Y-test` is intentionally **not** protected — the release
+manager needs to push cherry-picks and the sync-PR merge commits onto it
+directly.
+
+Also create the `backport-to-airflow-ctl-vX-Y-test` label so the automated
+backport workflow can target the new branch, and wire it up in
+[`.github/boring-cyborg.yml`](../.github/boring-cyborg.yml) the same way
+as the existing `backport-to-vX-Y-test` labels:
+
+```shell script
+gh label create "backport-to-airflow-ctl-v${CTL_VERSION_BRANCH}-test" \
+    --repo apache/airflow \
+    --description "Backport to airflow-ctl/v${CTL_VERSION_BRANCH}-test" \
+    --color 0e8a16
+```
+
+## Choosing the branch to release from
+
+Every RC is cut from a maintenance branch. Pick between `-test` and
+`-stable` based on the stage of the release:
+
+- **First RC of a new minor line (X.Y.0rc1)** — cut from
+  `airflow-ctl/vX-Y-test` using the "shortcut" below. The first RC is
+  unlikely to be approved on the first try, so going straight from the
+  test branch avoids the overhead of a sync PR that you would have to
+  redo for every subsequent RC.
+- **Subsequent RCs during the X.Y.0 RC cycle** — cherry-pick fixes onto
+  `airflow-ctl/vX-Y-test`, then cut the next RC directly from `-test`.
+- **GA of a minor and every patch release (X.Y.0 final, X.Y.1, ...)** —
+  open a sync PR from `airflow-ctl/vX-Y-test` → `airflow-ctl/vX-Y-stable`
+  (see below), wait for it to merge, then cut the RC from
+  `airflow-ctl/vX-Y-stable`.
+
+Releases are **never cut from `main`** — if the `airflow-ctl/vX-Y-*`
+branches for the target line do not exist yet, create them using "When to
+create the X.Y branches" above before proceeding.
+
+> [!TIP]
+> **Shortcut for first RC candidates:** when preparing the first RC
+> for a new minor (e.g. `0.2.0rc1`), the release manager may cut the RC
+> directly from `airflow-ctl/vX-Y-test` without opening a sync PR to
+> `airflow-ctl/vX-Y-stable`. However, they **must** verify that the
+> `airflow-ctl/vX-Y-test` push CI action ("Tests" workflow) has succeeded
+> before cutting the RC.
+
+Before cutting an RC, confirm the set of commits on the maintenance
+branch is what you expect:
+
+```shell script
+# airflow-ctl commits on the test branch since the previous release.
+git log --oneline \
+    "airflow-ctl/${PREVIOUS_VERSION}..upstream/airflow-ctl/v${CTL_VERSION_BRANCH}-test" -- airflow-ctl/
+# Compare against main to spot commits that have NOT yet been cherry-picked.
+git log --oneline \
+    "airflow-ctl/${PREVIOUS_VERSION}..upstream/main" -- airflow-ctl/
+```
+
+Everywhere below that mentions "the release branch", substitute
+`upstream/airflow-ctl/v${CTL_VERSION_BRANCH}-stable` (or `-test` under the
+first-RC shortcut). In particular:
+
+- The release-prep PR (`Commit the version bump and release notes via a
+  merged PR`) targets `airflow-ctl/vX-Y-stable` (or `-test` under the
+  first-RC shortcut).
+- `git tag -s airflow-ctl/${VERSION_RC} <release-branch-commit>` — the
+  tag must point at a commit on the release branch.
+- After the release lands, forward-port any doc / fix PRs created during
+  the release (for example, a follow-up PR fixing an ambiguity in this
+  document) to `main` so they do not get lost.
+
+## Sync `-test` to `-stable` before the GA / patch RC
+
+Before cutting a GA RC or any patch RC, open a PR from
+`airflow-ctl/vX-Y-test` into `airflow-ctl/vX-Y-stable`:
+
+```shell script
+gh pr create \
+    --base "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" \
+    --head "airflow-ctl/v${CTL_VERSION_BRANCH}-test" \
+    --title "airflow-ctl ${VERSION}: test to stable" \
+    --body "Sync airflow-ctl/v${CTL_VERSION_BRANCH}-test into airflow-ctl/v${CTL_VERSION_BRANCH}-stable for airflow-ctl ${VERSION} release."
+```
+
+Wait for CI to pass and for the PR to be approved.
+
+> [!IMPORTANT]
+> **Merge the sync PR as a fast-forward, not as a squash or rebase.**
+> `airflow-ctl/vX-Y-stable` enforces `required_linear_history: true`,
+> which permits squash, rebase, *and* fast-forward merges. Squash and
+> rebase both **rewrite the commit SHAs** from `-test`, so the rc tag
+> you cut afterwards points at a different commit than the release-prep
+> PR that was reviewed and merged into `-test`. Fast-forward preserves
+> the original SHAs and makes the `-stable` history a clean extension
+> of `-test` — which is what the rc tag, the testing-status issue, and
+> the SVN source tarball all need to agree on.
+>
+> The GitHub web UI does not offer "fast-forward" for protected
+> branches; use the CLI against the unprotected remote ref, then close
+> the PR as merged (GitHub auto-closes the PR once its head commit
+> appears on the target branch):
+>
+> ```shell script
+> git fetch apache
+> git push apache \
+>     "apache/airflow-ctl/v${CTL_VERSION_BRANCH}-test:refs/heads/airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+> ```
+>
+> The `:refs/heads/…` form pushes the remote-tracking ref of
+> `-test` directly onto `-stable`. Apache INFRA's branch protection
+> allows the release manager this fast-forward push because
+> `required_linear_history: true` is satisfied (no merge commit is
+> introduced) and `required_pull_request_reviews` is satisfied by the
+> PR you opened above.
+
+After the sync lands, pull `airflow-ctl/vX-Y-stable` locally before
+continuing to the "Commit the version bump and release notes via a
+merged PR" step — the release-prep PR also targets
+`airflow-ctl/vX-Y-stable`.
+
+```shell script
+git fetch upstream
+git checkout "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+git reset --hard "upstream/airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+```
+
+# Airflow-ctl versioning
+
+We are using the [SEMVER](https://semver.org/) versioning scheme for the `airflow-ctl` distributions. This is in order
+to give the users confidence about maintaining backwards compatibility in the new releases of those
+packages.
+
+Decision made in [VOTE for RC Release](https://lists.apache.org/thread/cnz3k2pox69ddkk647mt8gpfy0t70f94) made the starting version from `1.*` to `0.*`.
+This caused a side effect where we won't be able to use following versions in further releases which are yanked.
+
+- [1.0.0b1](https://pypi.org/project/apache-airflow-ctl/1.0.0b1/)
+- [1.0.0rc1](https://pypi.org/project/apache-airflow-ctl/1.0.0rc1/)
+- [1.0.0rc2](https://pypi.org/project/apache-airflow-ctl/1.0.0rc2/)
+
+Set version env variables — **all commands in this document rely on these being set in your
+current shell session**. Replace the values with the actual versions for your release.
+
+```shell script
+export PREVIOUS_VERSION=0.1.3
+export VERSION=0.1.4
+export VERSION_SUFFIX=rc1
+export VERSION_RC=${VERSION}${VERSION_SUFFIX}
+```
+
+Verify they are set before running any command:
+
+```shell script
+echo "Previous: ${PREVIOUS_VERSION}  Current: ${VERSION}  RC: ${VERSION_RC}"
+```
+
+# Prepare Regular airflow-ctl distributions (RC)
+
+## Bump the version and generate release notes
+
+The `apache-airflow-ctl` version is read by `hatch` from
+`airflow-ctl/src/airflowctl/__init__.py` (`[tool.hatch.version].path` in
+`airflow-ctl/pyproject.toml`). Before anything else, bump it to the version you
+are releasing:
+
+```shell script
+sed -i.bak -E "s/^__version__ = \".*\"/__version__ = \"${VERSION}\"/" \
+    ${AIRFLOW_REPO_ROOT:-$(pwd -P)}/airflow-ctl/src/airflowctl/__init__.py
+rm ${AIRFLOW_REPO_ROOT:-$(pwd -P)}/airflow-ctl/src/airflowctl/__init__.py.bak
+```
+
+Then generate the RST changelog for the new release by running:
+
+```shell script
+breeze release-management generate-airflowctl-changelog \
+    --previous-release "airflow-ctl/${PREVIOUS_VERSION}" \
+    --version "${VERSION}"
+```
+
+`--current-release` defaults to `HEAD` so you do not need to tag first.
+The command fetches PR metadata from GitHub. Export `GITHUB_TOKEN` before
+running it (`gh auth login` if you have not already). The command categorises
+each merged PR into one of:
+
+- **Significant Changes** — PRs whose title starts with `feat`, `add`, or `allow`
+- **Bug Fixes** — PRs whose title starts with `fix`
+- **Improvements** — everything else that is user-visible
+- **Miscellaneous** — CI / build / upgrade changes
+
+By default, the new section is **prepended** to `airflow-ctl/RELEASE_NOTES.rst` before the
+previous version entry. Pass `--output-file -` to print to stdout instead, or
+`--output-file <path>` to write to a different file.
+
+The auto-categorisation is a best-effort keyword match, so **manual review of
+the generated section is required**. Typical cleanups:
+
+- Move CI / build / dependency-bump entries out of *Significant Changes* or
+  *Improvements* and into *Miscellaneous* — or drop the *Miscellaneous* section
+  entirely, since its items have no user impact.
+- Strip leaked branch prefixes (`[main]`, `[v3-X-test]`) from PR titles.
+- Security fixes sometimes land in *Improvements*; move them to *Bug Fixes*.
+- API-server-only changes that touched only `airflowctl` datamodels can be
+  re-worded to make the "datamodels only" scope clear, or dropped if they are
+  not user-observable through the CLI.
+- Also clean up any stale files in `airflow-ctl/newsfragments/` that describe
+  changes already released in a previous version. The changelog generator does
+  **not** consume newsfragments — it works off `git log` — so stale fragments
+  will not appear in the generated output, but they mislead readers.
+
+## Commit the version bump and release notes via a merged PR
+
+The release tag must point at a commit on the release branch —
+`airflow-ctl/vX-Y-stable`, or `airflow-ctl/vX-Y-test` under the first-RC
+shortcut (see "Choosing the branch to release from" above) — that
+contains both the bumped `__version__` and the new `RELEASE_NOTES.rst`
+section. This means the release-prep changes MUST be merged to the
+release branch before tagging.
+
+When opening the PR, set `--base` to match the branch you are releasing
+from:
+
+- GA / patch release → `--base "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"`
+- first-RC shortcut → `--base "airflow-ctl/v${CTL_VERSION_BRANCH}-test"`
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT:-$(pwd -P)}
+git checkout -b "prepare-airflow-ctl-${VERSION_RC}"
+git add airflow-ctl/src/airflowctl/__init__.py airflow-ctl/RELEASE_NOTES.rst
+# Also `git rm` any stale newsfragments you cleaned up
+git commit -m "Prepare airflow-ctl ${VERSION_RC} release"
+
+# Push to your fork (origin), NOT to upstream (apache/airflow)
+git push -u origin "prepare-airflow-ctl-${VERSION_RC}"
+
+# Open the PR in the browser, pre-filled. Adjust --base to the release branch.
+gh pr create --web \
+    --base "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" \
+    --title "Prepare airflow-ctl ${VERSION_RC} release" \
+    --body "Bump \`__version__\` to ${VERSION} and regenerate \`RELEASE_NOTES.rst\`."
+```
+
+Wait for CI to pass and for the PR to be merged to the release branch.
+**Do not tag until the PR is merged** — the tag must point at the merge
+commit.
+
+After the PR merges, pull the release branch before continuing so that
+your local `HEAD` matches the commit you are about to tag:
+
+```shell script
+# Substitute the branch you are releasing from.
+RELEASE_BRANCH="airflow-ctl/v${CTL_VERSION_BRANCH}-stable"   # or -test under the first-RC shortcut
+git checkout "${RELEASE_BRANCH}"
+git pull upstream "${RELEASE_BRANCH}"
+```
+
+## Build airflow-ctl distributions for SVN apache upload
+
+Those packages might get promoted  to "final" packages by just renaming the files, so internally they
+should keep the final version number without the rc suffix, even if they are rc1/rc2/... candidates.
+
+They also need to be signed and have checksum files. You can generate the checksum/signature files by running
+the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
+generates corresponding .asc and .sha512 files for each file to sign.
+note: sign script uses `libassuan` and `gnupg` if you don't have them installed run:
+
+MacOS:
+
+```shell script
+brew install libassuan
+brew install gnupg
+```
+
+Linux (Debian/Ubuntu):
+
+```shell script
+sudo apt-get install libassuan-dev gnupg
+```
+
+### Verify your GPG signing key is ready
+
+Before you spend 10+ minutes building artifacts only to discover that signing
+fails, run these checks once:
+
+```shell script
+# 1. The apache.org key has a secret signing subkey available locally.
+gpg --list-secret-keys apache.org
+
+# 2. Signing actually works (exits 0, writes a .asc, verifies cleanly).
+echo test > /tmp/sign-check && \
+    gpg --yes --armor --local-user apache.org \
+        --output /tmp/sign-check.asc --detach-sig /tmp/sign-check && \
+    gpg --verify /tmp/sign-check.asc /tmp/sign-check && \
+    rm -f /tmp/sign-check /tmp/sign-check.asc && \
+    echo "GPG signing OK"
+
+# 3. The fingerprint of your signing (sub)key appears in the Airflow KEYS file.
+#    Without this, PMC verifiers cannot validate the release.
+FINGERPRINT=$(gpg --list-keys --with-colons apache.org | awk -F: '/^fpr:/ {print $10; exit}')
+curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | \
+    grep -q "${FINGERPRINT}" && echo "Key ${FINGERPRINT} is in KEYS" || \
+    echo "MISSING: add your key to KEYS before releasing"
+```
+
+If any of these fail, fix them before the build step. For first-time release
+managers, adding your key to the `KEYS` file is a separate PR against
+`https://dist.apache.org/repos/dist/release/airflow/` (SVN).
+
+`sign.sh` defaults to `SIGN_WITH=apache.org`. If your `apache.org` uid resolves
+to multiple keys (rare), set `SIGN_WITH` explicitly to the fingerprint of the
+key you want to use.
+
+## Build and sign the source and convenience packages
+
+**Docker vs local hatch:** the `prepare-airflow-ctl-distributions` command has
+two backends. Default to Docker unless you have a specific reason not to:
+
+- **Docker (preferred, default):** reproducible build in a clean container,
+  no local Python state to pollute.
+- **`--use-local-hatch`:** faster iteration when you are debugging the build
+  itself, but requires `hatch` installed locally and your local environment to
+  match the reproducible-build expectations.
+
+* Cleanup dist folder:
+
+```shell script
+export AIRFLOW_REPO_ROOT=$(pwd -P)
+rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
+```
+
+## Add tags in git
+
+These instructions assume the standard remote naming convention
+(`upstream` → `apache/airflow`, `origin` → your fork). Set tags for airflow-ctl
+in the repo.
+
+**Prerequisite:** the version-bump + release-notes PR from "Commit the version
+bump and release notes via a merged PR" must already be merged, and your local
+target branch must be fast-forwarded to that merge commit. The tag should
+point at that commit.
+
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+```shell script
+git tag -s "airflow-ctl/${VERSION_RC}"
+git push upstream "airflow-ctl/${VERSION_RC}"
+```
+
+* Release candidate packages. **Default to the Docker build** per the
+  "Docker vs local hatch" note above — only add `--use-local-hatch` if
+  you are actively debugging the build itself:
+
+```shell script
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --version-suffix ""
+breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
+```
+
+The `prepare-*-distributions` commands (no matter if docker or local hatch is used) should produce the
+reproducible `.whl`, `.tar.gz` packages in the dist folder.
+The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
+
+
+* Sign all your packages
+
+```shell script
+pushd dist
+../dev/sign.sh *
+popd
+```
+
+If you see ``Library not loaded error`` it means that you are missing `libassuan` and `gnupg`.
+check above steps to install them.
+
+## Commit the source packages to Apache SVN repo
+
+* Push the artifacts to ASF dev dist repo
+
+```shell script
+# First clone the repo if you do not have it
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
+
+# Create a new folder for the release.
+cd asf-dist/dev/airflow/airflow-ctl
+
+# Remove previously released versions
+svn rm *
+
+mkdir -p ${VERSION_RC}
+cd ${VERSION_RC}
+
+# Move the artifacts to svn folder
+mv ${AIRFLOW_REPO_ROOT}/dist/* .
+
+cd ..
+
+# Add and commit
+svn add *
+svn commit -m "Add artifacts for Airflow CTL ${VERSION_RC}"
+
+cd ${AIRFLOW_REPO_ROOT}
+```
+
+Verify that the files are available at
+[airflow-ctl](https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/)
+
+You should see only airflow-ctl that you are about to release.
+If you are seeing others there is an issue.
+You can remove the redundant airflow-ctl files manually with:
+
+```shell script
+svn rm -rf file_name  // repeat that for every folder/file
+svn commit -m "delete old airflow-ctl"
+```
+
+## Publish the Regular distributions to PyPI (release candidates)
+
+In order to publish release candidate to PyPI you just need to build and release packages.
+The packages should however contain the rcN suffix in the version file name but not internally in the package,
+so you need to use `--version-suffix` switch to prepare those packages.
+Note that these are different packages than the ones used for SVN upload
+though they should be generated from the same sources.
+
+* Generate the packages with the rc<X> version (specify the version suffix with PyPI switch). Note that
+you should clean up dist folder before generating the packages, so you will only have the right packages there.
+
+```shell script
+rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
+
+breeze release-management prepare-airflow-ctl-distributions --version-suffix "${VERSION_SUFFIX}" --distribution-format both
+```
+
+* Run the pre-upload sanity checks below. These are all local and idempotent —
+  run them every release as a one-block paste, no per-release edits needed.
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}/dist
+
+# 1. Verify dist/ contains EXACTLY the 2 PyPI artifacts and nothing else
+#    (no -source.tar.gz — that one is for SVN, not PyPI; no *.asc / *.sha512).
+expected=2
+actual=$(ls -1 | wc -l | tr -d ' ')
+[ "${actual}" = "${expected}" ] && echo "OK: ${expected} files in dist/" \
+    || { echo "FAIL: expected ${expected} files, got ${actual}:"; ls -1; exit 1; }
+ls -1 | grep -vE '\.(whl|tar\.gz)$' && { echo "FAIL: unexpected file type"; exit 1; } \
+    || echo "OK: only .whl and .tar.gz present"
+ls -1 | grep -E 'source\.tar\.gz$' && { echo "FAIL: -source.tar.gz must not go to PyPI"; exit 1; } \
+    || echo "OK: no source tarball in dist/"
+
+# 2. Verify each filename contains the expected rc suffix
+for f in apache_airflow_ctl-${VERSION_RC}-py3-none-any.whl apache_airflow_ctl-${VERSION_RC}.tar.gz; do
+    [ -f "${f}" ] && echo "OK: ${f} exists" \
+        || { echo "FAIL: ${f} missing"; exit 1; }
+done
+
+# 3. Verify the wheel's embedded version matches (hatch-vcs or manual __version__ path).
+python -m zipfile -e apache_airflow_ctl-${VERSION_RC}-py3-none-any.whl /tmp/whl-check/
+grep -E "^Version: ${VERSION_RC}$" /tmp/whl-check/apache_airflow_ctl-*.dist-info/METADATA \
+    && echo "OK: wheel METADATA Version is ${VERSION_RC}" \
+    || { echo "FAIL: wheel METADATA does not report ${VERSION_RC}"; exit 1; }
+rm -rf /tmp/whl-check
+
+# 4. twine's built-in README/metadata check
+twine check ${AIRFLOW_REPO_ROOT}/dist/*
+
+# 5. Sanity-install in a throwaway venv and import
+uv venv --python 3.12 /tmp/airflowctl-install-check
+uv pip install --python /tmp/airflowctl-install-check/bin/python \
+    ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_ctl-${VERSION_RC}-py3-none-any.whl
+/tmp/airflowctl-install-check/bin/airflowctl version && \
+    echo "OK: airflowctl command runs from wheel"
+rm -rf /tmp/airflowctl-install-check
+
+cd ${AIRFLOW_REPO_ROOT}
+```
+
+* Configure a short-lived PyPI token for this upload only. **Until Trusted
+  Publishing is deployed for apache-airflow-ctl on PyPI**, the recommended
+  practice is:
+
+  1. Log in to https://pypi.org and create an API token right before the
+     upload step. **Scope caveat:** you would ideally create a
+     project-scoped token for `apache-airflow-ctl` alone, but PyPI only
+     allows project-scoped tokens for projects you already own/maintain on
+     that account. Most Airflow release managers do not have per-project
+     owner rights on `apache-airflow-ctl`, so in practice you will need to
+     create an account-wide ("all projects") token. That is acceptable
+     **only if** you treat it as single-use and delete it immediately
+     after the upload (step 4 below). Never keep an all-projects token on
+     disk longer than the upload itself.
+  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
+     `TWINE_PASSWORD=pypi-...`).
+  3. Run the upload (below).
+  4. **Immediately delete the token** from the PyPI web UI after the upload
+     completes. Do not keep long-lived release-manager tokens on disk.
+
+  This is a defence-in-depth practice: the RM machine becomes a one-time
+  release vehicle, not a persistent point of compromise.
+
+* Upload the package to PyPI:
+
+```shell script
+twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
+```
+
+* Confirm that the packages are available under the links printed and look good.
+
+
+## Prepare documentation in Staging
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in the staging S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
+
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+breeze workflow-run publish-docs --ref airflow-ctl/${VERSION_RC} apache-airflow-ctl
+```
+
+The `--ref` parameter should be the tag of the release candidate you are publishing.
+
+You can also add the `--site-env` parameter should be set to `staging` for pre-release
+versions or `live` for final releases. The default option is `auto` if the tag is rc it
+publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+One of the interesting features of publishing this way is that you can also rebuild historical version of
+the documentation with patches applied to the documentation (if they can be applied cleanly).
+
+Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
+separated by commas and the workflow will apply those commits to the documentation before
+building it (don't forget to add --skip-write-to-stable-folder if you are publishing
+previous version of the distribution). Example:
+
+```shell script
+breeze workflow-run publish-docs --ref airflow-ctl/1.0.0 --site-env live \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d --skip-write-to-stable-folder \
+  apache.hive
+```
+
+Other available parameters can be found with:
+
+```shell
+breeze workflow-run publish-docs --help
+```
+
+### Manually using GitHub Actions
+
+There are two steps to publish the documentation:
+
+1. Publish the documentation to the staging S3 bucket.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+
+You should specify the final tag to use to build the docs and `apache-airflow-ctl` as package.
+
+After that step, the documentation should be available under the http://airflow.staged.apache.org URL
+After that step, the documentation should be available under the http://airflow.staged.apache.org URL
+(also present in the PyPI packages) but stable links and drop-down boxes should not be yet updated.
+
+2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
+
+Before doing it - review the state of removed, suspended, new packages in
+[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+Make sure to use `staging` branch to run the workflow.
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+branch="add-documentation-airflow-ctl-${VERSION_RC}"
+git checkout -b "${branch}"
+git add .
+git commit -m "Add documentation for airflow-ctl - ${VERSION_RC}"
+git push --set-upstream origin "${branch}"
+```
+
+Merging the PR with the index changes to `staging` will trigger site publishing.
+
+If you do not need to merge a PR, you should manually run the
+[Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` repository to refresh indexes and drop-downs.
+
+After that build from PR or workflow completes, the new version should be available in the drop-down
+list and stable links should be updated, also Fastly cache will be invalidated.
+
+## Prepare issue in GitHub to keep status of testing
+
+Generate the GitHub issue body that asks contributors to test the RC (the
+command falls back to the local `gh auth token` if `GITHUB_TOKEN` is not
+already exported, so no env setup is required):
+
+```shell script
+breeze release-management generate-issue-content-airflow-ctl \
+    --previous-release "airflow-ctl/${PREVIOUS_VERSION}" \
+    --current-release "airflow-ctl/${VERSION_RC}" \
+    > /tmp/issue_airflowctl_${VERSION_RC}.md
+```
+
+Review `/tmp/issue_airflowctl_${VERSION_RC}.md` — it lists every airflow-ctl
+PR merged between the two refs with the contributors tagged, plus a summary
+line at the bottom. Edit if any of the auto-tagged contributors should not
+be pinged on a test-status issue.
+
+Then open the issue in `apache/airflow` with the standard `testing status`
+label:
+
+```shell script
+gh issue create --repo apache/airflow \
+    --title "Status of testing of Apache Airflow CTL ${VERSION_RC}" \
+    --body-file /tmp/issue_airflowctl_${VERSION_RC}.md \
+    --label "testing status"
+```
+
+Keep the URL returned by the command — you will reference it in the voting
+email (next section) and in the `Close the testing status issue` step at
+the end of the release.
+
+### Carry over checked boxes from the previous RC
+
+When cutting a follow-up RC (e.g. `rc3` after `rc2` was voted down), the
+items that testers already verified on the previous RC should be
+pre-checked in the new issue — otherwise testers waste time retesting
+unchanged fixes, and cross-RC progress is harder to see. Carry the
+state over like this:
+
+```shell script
+# PREVIOUS_RC_ISSUE is the previous-RC testing-status issue number
+# NEW_RC_ISSUE is the issue you just opened above
+PREVIOUS_RC_ISSUE=65497
+NEW_RC_ISSUE=65643
+
+python3 <<PY
+import json, re, subprocess
+
+def body(n):
+    return json.loads(subprocess.check_output(
+        ["gh", "issue", "view", str(n), "--repo", "apache/airflow", "--json", "body"]
+    ))["body"]
+
+prev = body(${PREVIOUS_RC_ISSUE})
+new = body(${NEW_RC_ISSUE})
+
+# PR numbers checked in the previous RC
+prev_checked = set()
+for line in prev.splitlines():
+    if re.match(r'^- \[[xX]\] ', line):
+        prev_checked.update(re.findall(r'#(\d+)', line))
+
+# For each unchecked line in the new RC, pre-check it if any PR number on
+# that line was already verified in the previous RC. Backport lines like
+# "[v3-2-test] X (#orig) (#backport)" match on either number.
+pre_checked = []
+out = []
+for line in new.splitlines():
+    m = re.match(r'^- \[ \] (.*)', line)
+    if m and set(re.findall(r'#(\d+)', m.group(1))) & prev_checked:
+        out.append(f"- [x] {m.group(1)}")
+        pre_checked.append(m.group(1).split('](')[0].lstrip('['))
+    else:
+        out.append(line)
+
+with open("/tmp/rc-body-carried-over.md", "w") as f:
+    f.write("\n".join(out))
+print(f"Pre-checked {len(pre_checked)} items carried over from #${PREVIOUS_RC_ISSUE}:")
+for t in pre_checked:
+    print(f"  ✓ {t[:100]}")
+PY
+
+gh issue edit ${NEW_RC_ISSUE} --repo apache/airflow \
+    --body-file /tmp/rc-body-carried-over.md
+
+# Post a comment explaining what was carried over, so contributors who
+# signed the items off last time are not pinged to retest.
+gh issue comment ${NEW_RC_ISSUE} --repo apache/airflow --body \
+"Pre-checked N items that were already verified on the previous RC \
+(#${PREVIOUS_RC_ISSUE}) and are present in this RC unchanged — direct \
+cherry-picks or \`[v3-2-test]\` backports of the same fix. Items left \
+unchecked are either new in this RC or were not verified on the previous \
+one."
+```
+
+Review the diff after the edit — occasionally a v3-2-test backport PR
+number does not appear on the same line as the original main-branch PR
+(e.g. when the original was squashed to hide its number), in which case
+the carry-over misses it and the release manager must check the box
+manually.
+
+## Prepare voting email for airflow-ctl release candidate
+
+Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/
+
+
+Subject:
+
+```shell script
+cat <<EOF
+[VOTE] Release Airflow CTL ${VERSION} from ${VERSION_RC}
+EOF
+```
+
+Body:
+
+```shell script
+cat <<EOF
+The release candidate for **Apache Airflow Ctl**: ${VERSION_RC}  is now available for testing!
+
+This email is calling for a vote on the release, which will last at least until the
+DATE_HERE and until 3 binding +1 votes have been received.
+
+Consider this my +1 (binding) vote.
+
+The apache-airflow-ctl ${VERSION_RC} package is available at: https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/${VERSION_RC}/
+
+The "apache-airflow-ctl" packages are:
+
+   - *apache_airflow_ctl-${VERSION}-source.tar.gz* is a source release that comes
+     with INSTALL instructions.
+   - *apache_airflow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
+   - *apache_airflow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
+
+Public keys are available at: https://dist.apache.org/repos/dist/release/airflow/KEYS
+
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
+
+Only votes from PMC members are binding, but all members of the community are encouraged to test the release and vote with "(non-binding)".
+
+The test procedure for PMC members is described in: https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOWCTL.md#verify-the-release-candidate-by-pmc-members
+
+The test procedure for contributors and members of the community who would like to test this RC is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOWCTL.md#verify-the-release-candidate-by-contributors
+
+Please note that the version number excludes the 'rcX' string, so it's now simply ${VERSION} for the apache-airflow-ctl package.
+This will allow us to rename the artifact without modifying the artifact checksums when we actually release.
+
+*Docs* (for preview): https://airflow.staged.apache.org/docs/apache-airflow-ctl/${VERSION}/index.html
+
+*Release Notes*: https://github.com/apache/airflow/blob/airflow-ctl/${VERSION_RC}/airflow-ctl/RELEASE_NOTES.rst
+
+*Testing Instructions using PyPI*:
+
+The packages are available in PyPI: https://pypi.org/project/apache-airflow-ctl/${VERSION_RC}/
+
+You can build a virtualenv that installs this and other required packages like this:
+
+uv venv
+uv pip install -U apache-airflow-ctl==${VERSION_RC}
+
+Regards,
+<Your name>
+
+EOF
+```
+
+## Verify the release candidate by PMC members
+
+### SVN check
+
+The files should be present in
+[Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/airflow-ctl/)
+
+The following files should be present (6 files):
+
+* .tar.gz + .asc + .sha512 (one set of files)
+* -py3-none-any.whl + .asc + .sha512 (one set of files)
+
+As a PMC member, you should be able to clone the SVN repository:
+
+```shell script
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow
+```
+
+Or update it if you already checked it out:
+
+```shell script
+cd asf-dist/dev/airflow
+svn update .
+```
+
+Set an environment variable: PATH_TO_AIRFLOW_SVN to the root of folder where you have airflow-ctl
+
+```shell script
+cd asf-dist/dev/airflow
+export PATH_TO_AIRFLOW_SVN=$(pwd -P)
+```
+
+### Reproducible package builds checks
+
+For Airflow-ctl distributions we introduced a reproducible build mechanism - which means that whoever wants
+to use sources of Airflow from the release tag, can reproducibly build the same "wheel" and "sdist"
+packages as the release manager and they will be byte-by-byte identical, which makes them easy to
+verify - if they came from the same sources. This build is only done using released dependencies
+from PyPI and source code in our repository - no other binary dependencies are used during the build
+process and if the packages produced are byte-by-byte identical with the one we create from tagged sources
+it means that the build has a verified provenance.
+
+How to verify it:
+
+1) Set variables and change directory where your airflow sources are checked out
+
+```shell
+VERSION=0.1.0
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
+cd "${AIRFLOW_REPO_ROOT}"
+```
+
+Choose the tag you used for release:
+
+```shell
+cd "${AIRFLOW_REPO_ROOT}"
+git fetch upstream --tags --force
+git checkout airflow-ctl/${VERSION_RC}
+```
+
+3) Remove all the packages you have in dist folder
+
+```shell
+rm -rf dist/*
+```
+
+4) Build the packages using checked out sources
+
+```shell
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --version-suffix ""
+breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
+```
+
+5) Switch to the folder where you checked out the SVN dev files
+
+```shell
+cd ${PATH_TO_AIRFLOW_SVN}/airflow-ctl/${VERSION_RC}
+```
+
+6) Compare the packages in SVN to the ones you just built
+
+```shell
+for i in *.tar.gz *.whl
+do
+   echo -n "$i:"; diff $i ${AIRFLOW_REPO_ROOT}/dist/$i && echo "No diff found"
+done
+```
+
+You should see output similar to:
+
+```
+apache_airflow_ctl-0.1.4.tar.gz:No diff found
+```
+
+You can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
+
+```shell script
+breeze release-management check-release-files airflow-ctl --version ${VERSION_RC} --path-to-airflow-svn=${PATH_TO_AIRFLOW_SVN}
+```
+
+You will see commands that you can execute to check installation of the distributions in containers.
+
+### Licence check
+
+This can be done with the Apache RAT tool.
+
+Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
+
+You can run this command to do it for you (including checksum verification for your own security):
+
+```shell script
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
+```
+
+Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+
+```shell script
+rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/airflow-ctl/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+```
+
+Run the check:
+
+```shell script
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+```
+
+You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
+
+```
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
+INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
+INFO: Excluding MISC collection.
+INFO: Excluding HIDDEN_DIR collection.
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+INFO: RAT summary:
+INFO:   Approved:  15615
+INFO:   Archives:  2
+INFO:   Binaries:  813
+INFO:   Document types:  5
+INFO:   Ignored:  2392
+INFO:   License categories:  2
+INFO:   License names:  2
+INFO:   Notices:  216
+INFO:   Standards:  15609
+INFO:   Unapproved:  0
+INFO:   Unknown:  0
+```
+
+There should be no files reported as Unknown or Unapproved. The files that are unknown or unapproved should be shown with a line starting with `!`.
+
+For example:
+
+```
+! Unapproved:         1    A count of unapproved licenses.
+! /CODE_OF_CONDUCT.md
+```
+
+
+### Signature check
+
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
+[KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
+
+Download the KEYS file from the above link and save it locally.
+
+You can import the whole KEYS file into gpg by running the following command:
+
+```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
+gpg --import KEYS
+```
+
+You can also import the keys individually from a keyserver. The below one uses Kaxil's key and
+retrieves it from the default GPG keyserver
+[OpenPGP.org](https://keys.openpgp.org):
+
+```shell script
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
+```
+
+You should choose to import the key when asked.
+
+Note that by being default, the OpenPGP server tends to be overloaded often and might respond with
+errors or timeouts. Many of the release managers also uploaded their keys to the
+[GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
+
+```shell script
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
+```
+
+Once you have the keys, the signatures can be verified by running this:
+
+```shell script
+for i in *.asc
+do
+   echo -e "Checking $i\n"; gpg --verify $i
+done
+```
+
+This should produce results similar to the below. The "Good signature from ..." is indication
+that the signatures are correct. Do not worry about the "not certified with a trusted signature"
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
+[KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
+
+```
+Checking apache-airflow-ctl-1.0.0rc1.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
+gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
+gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+```
+
+### SHA512 check
+
+Run this:
+
+```shell script
+for i in *.sha512
+do
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
+done
+```
+
+You should get output similar to:
+
+```
+Checking apache-airflow_ctl-1.0.0.tar.gz.sha512
+Checking apache_airflow_ctl-1.0.0-py3-none-any.whl.sha512
+Checking apache_airflow_ctl-1.0.0-source.tar.gz.sha512
+
+```
+
+## Verify the release candidate by Contributors
+
+This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
+actual users of Apache Airflow test it in their own staging/test installations. Each release candidate
+is available on PyPI apart from SVN packages, so everyone should be able to install
+the release candidate version.
+
+Breeze allows you to easily install and run pre-release candidates by following simple instructions
+described in
+[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/contributing-docs/testing/testing_packages.rst)
+
+But you can use any of the installation methods you prefer (you can even install it via the binary wheels
+downloaded from the SVN).
+
+### Installing in your local virtualenv
+
+```shell
+pip install apache-airflow-ctl==<VERSION>rc<X>
+```
+
+### Additional Verification
+
+Once you install and run Airflow, you can perform any verification you see as necessary to check
+that the Airflow works as you expected.
+
+### Non-interactive smoke test against a live API
+
+The [`dev/verify_airflow_ctl_rc.sh`](verify_airflow_ctl_rc.sh) helper exercises `airflowctl`
+end-to-end against a live API server in a single non-interactive `breeze shell` invocation: it boots
+`airflow standalone`, installs the RC, authenticates, and runs a handful of commands (`dags list`,
+`pools list`, `connections list`, `variables list`).
+
+```shell
+# install the RC from PyPI (published with the rcN suffix)
+CTL_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
+    "bash dev/verify_airflow_ctl_rc.sh"
+
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
+CTL_WHEEL=/opt/airflow/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl \
+    breeze shell --load-example-dags --backend sqlite "bash dev/verify_airflow_ctl_rc.sh"
+```
+
+The script prints `AIRFLOW_CTL_RC_VERIFY: OK` on success.
+
+> [!NOTE]
+> In a headless container the OS keyring has no backend, so `airflowctl auth login` with a
+> username/password fails (it tries to create an encrypted keyring and prompts for a password).
+> The headless path — which the script uses — is to mint a token with `airflowctl auth token` and
+> export it as `AIRFLOW_CLI_TOKEN`; `airflowctl auth login --skip-keyring` still persists the
+> api-url so subsequent commands know where to connect.
+
+
+# Publish release
+
+# Set variables
+
+```shell
+VERSION="<here put the version - for example 0.1.1>"
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
+export RELEASE_MANAGER_NAME="<Your Name>"
+```
+
+## Summarize the voting for the Apache Airflow release
+
+Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
+
+Email subject:
+
+```
+cat <<EOF
+[RESULT][VOTE] Airflow Ctl - release ${VERSION} from ${VERSION_RC}
+EOF
+```
+
+Email content:
+
+```
+cat <<EOF
+Hello,
+
+Apache Airflow Ctl prepared with version ${VERSION} from ${VERSION_RC} have been accepted.
+
+3 "+1" binding votes received:
+- FIRST LAST NAME (binding)
+- FIRST LAST NAME (binding)
+- FIRST LAST NAME (binding)
+
+2 "+1" non-binding votes received:
+- FIRST LAST NAME
+- FIRST LAST NAME
+
+Vote thread: https://lists.apache.org/thread/cs6mcvpn2lk9w2p4oz43t20z3fg5nl7l
+
+I'll continue with the release process, and the release announcement will follow shortly.
+
+Cheers,
+${RELEASE_MANAGER_NAME}
+EOF
+```
+
+## Publish release to SVN
+
+The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries
+again, and gives a clearer history in the svn commit logs.
+
+We also need to archive older releases before copying the new ones
+[Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
+
+```bash
+cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
+# Set AIRFLOW_REPO_ROOT to the path of your git repo
+export AIRFLOW_REPO_ROOT="$(pwd -P)"
+
+# Go the folder where you have checked out the release repo from SVN
+# Make sure this is direct directory and a symbolic link
+# Otherwise 'svn mv' errors out if it is with "E200033: Another process is blocking the working copy database
+cd "<ROOT_WHERE_YOUR_ASF_DIST_IS_CREATED>"
+
+export ASF_DIST_PARENT="$(pwd -P)"
+# make sure physical path is used, in case original directory is symbolically linked
+cd "${ASF_DIST_PARENT}"
+
+# or clone it if it's not done yet
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+# Update to latest version
+svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
+
+SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/airflow-ctl"
+
+# Create airflow-ctl folder if it does not exist
+# All latest releases are kept in this one folder without version sub-folder
+cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
+mkdir -pv airflow-ctl/${VERSION}
+cd airflow-ctl/${VERSION}
+svn add .
+
+# Copy your airflow-ctl with the target name to dist directory and to SVN
+rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
+
+for file in "${SOURCE_DIR}"/${VERSION_RC}/*
+do
+ base_file=$(basename ${file})
+ cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
+ svn mv "${file}" "${base_file//rc[0-9]/}"
+done
+
+# Prune older airflow-ctl release folders. Move UP one level first — the
+# script operates on its current working directory and prunes version-named
+# subdirectories, keeping only the latest version. Inside the new
+# ${VERSION} folder there are only artifact files, so we must run it from
+# asf-dist/release/airflow/airflow-ctl/ (parent). The script's scope is
+# limited to cwd, so it will NOT touch sibling directories such as the
+# airflow, helm-chart, or provider release folders.
+cd ..
+
+# Check which directories are going to be removed. Check if this looks right
+uv run "${AIRFLOW_REPO_ROOT}/dev/prune_old_dirs.py"
+
+# Remove old release directories
+uv run "${AIRFLOW_REPO_ROOT}/dev/prune_old_dirs.py" --execute
+
+# You need to do go to the asf-dist directory in order to commit both dev and release together
+cd ${ASF_DIST_PARENT}/asf-dist
+# Commit to SVN
+svn commit -m "Release Airflow Ctl ${VERSION}"
+```
+
+Verify that the packages appear in
+[airflow-ctl](https://dist.apache.org/repos/dist/release/airflow/airflow-ctl)
+
+You are expected to see all latest versions of airflow-ctl.
+The ones you are about to release (with new version) and the ones that are not part of the current release.
+
+## Publish the packages to PyPI
+
+By that time the packages should be in your dist folder.
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+git checkout airflow-ctl/${VERSION_RC}
+```
+
+example `git checkout airflow-ctl/1.0.0rc1`
+
+Note you probably will see message `You are in 'detached HEAD' state.`
+This is expected, the RC tag is most likely behind the release branch
+you released from (`airflow-ctl/vX-Y-stable`, or `-test` under the
+first-RC shortcut).
+
+* Remove the source tarball from dist folder as we do not upload it to PyPI
+
+```shell script
+rm -f ${AIRFLOW_REPO_ROOT}/dist/*-source.tar.gz*
+```
+
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
+```
+
+* Upload the package to PyPi:
+
+```shell script
+twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
+```
+
+* Verify that the packages are available under the links printed.
+
+Copy links to updated package and save it on the side. You will need it for the announcement message.
+
+* Again, confirm that the packages are available under the links printed.
+
+
+## Add the final release tag in git
+
+These instructions assume the standard remote naming convention
+(`upstream` → `apache/airflow`, `origin` → your fork). Set tags for airflow-ctl
+in the repo.
+
+Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+
+```shell script
+git tag -s airflow-ctl/${VERSION}
+git push upstream airflow-ctl/${VERSION}
+```
+
+## Publish documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in the `live` S3 bucket, and the site is
+kept in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site),
+but the documentation source code and build tools are available in the `apache/airflow` repository, so
+you need to run several workflows to publish the documentation. More details about it can be found in
+[Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
+emergency cases.
+
+We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+  unset GITHUB_TOKEN
+  breeze workflow-run publish-docs --ref airflow-ctl/${VERSION}  apache-airflow-ctl
+```
+
+The `--ref` parameter should be the tag of the final candidate you are publishing.
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases. the default option is `auto`
+if the tag is rc it publishes to `staging` bucket, otherwise it publishes to `live` bucket.
+
+Other available parameters can be found with:
+
+```shell
+breeze workflow-run publish-docs --help
+```
+
+### Manually using GitHub Actions
+
+There are two steps to publish the documentation:
+
+1. Publish the documentation to the live S3 bucket.
+
+The release manager publishes the documentation using GitHub Actions workflow
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+
+After that step, the documentation should be available under the http://airflow.apache.org URL
+(also present in the PyPI packages) but stable links and drop-down boxes should not be yet updated.
+
+After that build from PR or workflow completes, the new version should be available in the drop-down
+list and stable links should be updated, also Fastly cache will be invalidated.
+
+## Notify developers of release
+
+Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
+the artifacts have been published.
+
+Subject:
+
+```
+cat <<EOF
+[ANNOUNCE] Apache Airflow CTl ${VERSION} from ${VERSION_RC} released
+EOF
+```
+
+Body:
+
+```
+cat <<EOF
+Dear Airflow community,
+
+I'm happy to announce that new version of the Airflow Ctl package prepared: ${VERSION} from ${VERSION_RC} were just released.
+
+The source release, as well as the binary releases, are available here:
+
+https://airflow.apache.org/docs/apache-airflow-ctl/stable/installation/installing-from-sources.html
+
+You can install the ctl via PyPI: https://airflow.apache.org/docs/apache-airflow-ctl/stable/installation/installing-from-pypi.html
+
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
+
+----
+
+The package can be found in PyPI at this link: https://pypi.org/project/apache-airflow-ctl/${VERSION}/
+
+Cheers,
+${RELEASE_MANAGER_NAME}
+EOF
+```
+
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+Note If you choose sending it with your email client make sure the email is set to plain text mode.
+Trying to send HTML content will result in failure.
+
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
+
+## Announce about the release in social media
+
+```
+📣 We've just released Apache Airflow CTL 0.1.0 🎉
+
+This is the first official release of the `airflowctl` - new tool to remotely interact with your Airflow 3
+
+📦 PyPI: https://lnkd.in/dXaiFa2H
+📚 Docs: https://lnkd.in/dYEaSkuT
+🛠 Release Notes: https://lnkd.in/dzibW7W8
+
+Thanks to all the contributors who made this possible.
+```
+
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+
+Make sure attach the release image generated with Figma to the post.
+If you don't have access to the account ask a PMC member to post.
+
+------------------------------------------------------------------------------------------------------------
+
+## Announce about the release in Apache Airflow Slack
+
+Post the same announcement in the `#announcements` channel of the Apache Airflow Slack workspace.
+
+## Add Blog post about the release
+
+Add a blog post about the release in https://apache.airflow.org/ by modifying the
+`landing-pages/site/content/en/announcements/_index.md` in the `apache/airflow-site` repository.
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
+
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
+```
+Thank you everyone. Airflow-ctl is released.
+```
+
+# Additional processes
+
+## Fixing released documentation
+
+Sometimes we want to rebuild the documentation with some fixes that were merged in main
+branch, for example when there are html layout changes or typo fixes, or formatting issue fixes.
+
+In this case the process is as follows:
+
+* When you want to re-publish `airflow-ctl/X.Y.Z` docs, create (or pull if already created)
+  `airflow-ctl/X.Y.Z-docs` branch
+* Cherry-pick changes you want to add and push to the main `apache/airflow` repo
+* Run the publishing workflow.
+
+In case you are releasing latest released version of airflow-ctl (which should be most of the cases), run this:
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref airflow-ctl/X.Y.Z-docs \
+   --skip-tag-validation \
+   apache-airflow-ctl
+```
+
+In case you are releasing an older version of airflow-ctl, you should skip writing to the stable folder
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref airflow-ctl/X.Y.Z-docs \
+   --skip-tag-validation \
+   --skip-write-to-stable-folder \
+   apache-airflow-ctl
+```

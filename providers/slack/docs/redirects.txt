@@ -1,0 +1,1 @@
+operators/slack_operator_howto_guide.rst operators/slack_api.rst

@@ -1,0 +1,1259 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import contextlib
+import importlib
+import json
+import logging
+import os
+import signal
+import subprocess
+import sys
+from datetime import datetime
+from io import StringIO
+from multiprocessing import Process
+from pathlib import Path
+from typing import TYPE_CHECKING
+from unittest import mock
+from unittest.mock import call, patch
+
+import anyio
+import pytest
+import time_machine
+from aiohttp import ClientResponseError, RequestInfo
+from yarl import URL
+
+from airflow.cli import cli_parser
+from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.edge3.cli import edge_command
+from airflow.providers.edge3.cli.dataclasses import Job
+from airflow.providers.edge3.cli.signalling import SIG_STATUS
+from airflow.providers.edge3.cli.worker import EdgeWorker
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerModel,
+    EdgeWorkerState,
+    EdgeWorkerVersionException,
+)
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+from airflow.providers.edge3.worker_api.datamodels import (
+    EdgeJobFetched,
+    WorkerRegistrationReturn,
+    WorkerSetStateReturn,
+)
+from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+
+if TYPE_CHECKING:
+    from airflow.executors.workloads import ExecuteCallback
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads import ExecuteCallback
+
+pytest.importorskip("pydantic", minversion="2.0.0")
+pytestmark = [pytest.mark.asyncio]
+
+
+MOCK_COMMAND = {
+    "token": "mock",
+    "ti": {
+        "id": "4d828a62-a417-4936-a7a6-2b3fabacecab",
+        "task_id": "mock",
+        "dag_id": "mock",
+        "run_id": "mock",
+        "try_number": 1,
+        "dag_version_id": "01234567-89ab-cdef-0123-456789abcdef",
+        "pool_slots": 1,
+        "queue": "default",
+        "priority_weight": 1,
+        "start_date": "2023-01-01T00:00:00+00:00",
+        "map_index": -1,
+    },
+    "dag_rel_path": "mock.py",
+    "log_path": "mock.log",
+    "bundle_info": {"name": "hello", "version": "abc"},
+    "type": "ExecuteTask",
+}
+
+MOCK_CALLBACK_COMMAND = {
+    "token": "mock",
+    "callback": {
+        "id": "12345678-1234-5678-1234-567812345678",
+        "fetch_method": "import_path",
+        "data": {
+            "path": "builtins.dict",
+            "kwargs": {"a": 1, "b": 2, "c": 3},
+        },
+    },
+    "dag_rel_path": "test.py",
+    "log_path": "test.log",
+    "bundle_info": {"name": "test_bundle", "version": "1.0"},
+    "type": "ExecuteCallback",
+}
+
+
+class _MockProcess(Process):
+    def __init__(self, returncode=None):
+        self.generated_returncode = returncode
+        self._is_alive = False
+
+    def poll(self):
+        pass
+
+    @property
+    def returncode(self):
+        return self.generated_returncode
+
+    @property
+    def exitcode(self):
+        return self.generated_returncode
+
+    def is_alive(self):
+        return self._is_alive
+
+    def terminate(self):
+        self._is_alive = False
+
+    def kill(self):
+        self._is_alive = False
+
+    def join(self, timeout=None):
+        pass
+
+
+class _MockPopen(subprocess.Popen):
+    def __init__(self, returncode: int | None = None, pid: int = 1234):
+        self.returncode = returncode
+        self.pid = pid
+
+    def poll(self):
+        return self.returncode
+
+
+class TestEdgeWorker:
+    @pytest.fixture(autouse=True)
+    def setup_parser(self):
+        if AIRFLOW_V_3_2_PLUS:
+            importlib.reload(cli_parser)
+            self.parser = cli_parser.get_parser()
+        else:
+            with patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_executor_names",
+            ) as mock_get_executor_names:
+                mock_get_executor_names.return_value = [
+                    mock.MagicMock(
+                        name="EdgeExecutor", module_path="airflow.providers.edge3.executors.EdgeExecutor"
+                    )
+                ]
+                importlib.reload(cli_parser)
+                self.parser = cli_parser.get_parser()
+
+    @pytest.fixture(autouse=True)
+    def reset_maintenance_state(self):
+        # EdgeWorker keeps runtime state in class attributes and some tests set them
+        # on class level. Reset before each test so state does not leak between tests.
+        EdgeWorker.maintenance_mode = False
+        EdgeWorker.maintenance_comments = None
+        try:
+            yield
+        finally:
+            EdgeWorker.maintenance_mode = False
+            EdgeWorker.maintenance_comments = None
+
+    @pytest.fixture
+    def cli_worker_with_team(self, tmp_path: Path) -> EdgeWorker:
+        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, team_name="team_a")
+        return test_worker
+
+    @pytest.fixture
+    def mock_joblist(self, tmp_path: Path) -> list[Job]:
+        logfile = tmp_path / "file.log"
+        logfile.touch()
+
+        return [
+            Job(
+                edge_job=EdgeJobFetched(
+                    dag_id="test",
+                    task_id="test1",
+                    run_id="test",
+                    map_index=-1,
+                    try_number=1,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND,  # type: ignore[arg-type]
+                ),
+                process=_MockProcess(),
+                logfile=logfile,
+                logsize=0,
+            ),
+        ]
+
+    @pytest.fixture
+    def worker_with_job(self, tmp_path: Path, mock_joblist: list[Job]) -> EdgeWorker:
+        test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+        EdgeWorker.jobs = mock_joblist
+        return test_worker
+
+    @pytest.fixture
+    def worker_with_job_and_sysinfo(self, tmp_path: Path, mock_joblist: list[Job]) -> EdgeWorker:
+        with conf_vars(
+            {
+                (
+                    "edge",
+                    "extended_system_info_function",
+                ): "airflow.providers.edge3.cli.example_extended_sysinfo.get_example_extended_sysinfo"
+            }
+        ):
+            test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+            EdgeWorker.jobs = mock_joblist
+            return test_worker
+
+    @pytest.fixture
+    def mock_edgeworker(self) -> EdgeWorkerModel:
+        test_edgeworker = EdgeWorkerModel(
+            worker_name="test_edge_worker",
+            state="idle",
+            queues=["default"],
+        )
+        return test_edgeworker
+
+    def test_worker_with_team_name(self, cli_worker_with_team: EdgeWorker):
+        assert cli_worker_with_team.team_name == "team_a"
+
+    def test_worker_without_team_name(self, tmp_path: Path):
+        worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+        assert worker.team_name is None
+
+    @pytest.mark.parametrize(
+        ("configs", "expected_url"),
+        [
+            (
+                {("edge", "api_url"): "https://api-host/edge_worker/v1/rpcapi"},
+                "https://api-host/execution",
+            ),
+            (
+                {("edge", "api_url"): "https://api:1234/subpath/edge_worker/v1/rpcapi"},
+                "https://api:1234/subpath/execution",
+            ),
+            (
+                {
+                    ("edge", "api_url"): "https://api-endpoint",
+                    ("core", "execution_api_server_url"): "https://other-endpoint",
+                },
+                "https://other-endpoint",
+            ),
+            (
+                {("core", "execution_api_server_url"): "https://direct-execution-endpoint"},
+                "https://direct-execution-endpoint",
+            ),
+        ],
+    )
+    def test_execution_api_server_url(
+        self,
+        configs,
+        expected_url,
+        tmp_path,
+    ):
+        with conf_vars(configs):
+            test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+            url = test_worker._execution_api_server_url
+            assert url == expected_url
+
+    @pytest.mark.parametrize(
+        ("has_fork", "use_new_interpreter", "expected_launch_method"),
+        [
+            pytest.param(True, False, "fork", id="fork_available_config_false"),
+            pytest.param(True, True, "subprocess", id="fork_available_config_true"),
+            pytest.param(False, False, "subprocess", id="fork_unavailable_config_false"),
+            pytest.param(False, True, "subprocess", id="fork_unavailable_config_true"),
+        ],
+    )
+    def test_launch_job_honors_execute_tasks_new_python_interpreter(
+        self,
+        has_fork,
+        use_new_interpreter,
+        expected_launch_method,
+        monkeypatch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        if not has_fork:
+            monkeypatch.delattr(os, "fork", raising=False)
+        worker_with_job.conf = mock.MagicMock()
+        worker_with_job.conf.getboolean.return_value = use_new_interpreter
+        edge_job = worker_with_job.jobs[0].edge_job
+        workload = edge_job.command
+        logfile = tmp_path / "mock.log"
+        subprocess_process = _MockPopen(returncode=None)
+        stderr_file_path = tmp_path / "stderr.log"
+        fork_process = _MockProcess()
+        error_file_path = tmp_path / "fork-error.log"
+
+        with (
+            patch.object(
+                worker_with_job, "_launch_job_subprocess", return_value=(subprocess_process, stderr_file_path)
+            ) as mock_launch_subprocess,
+            patch.object(
+                worker_with_job, "_launch_job_fork", return_value=(fork_process, error_file_path)
+            ) as mock_launch_fork,
+        ):
+            job = worker_with_job._launch_job(edge_job, workload, logfile)
+
+        if has_fork:
+            worker_with_job.conf.getboolean.assert_called_once_with(
+                "core", "execute_tasks_new_python_interpreter", fallback=False
+            )
+        else:
+            worker_with_job.conf.getboolean.assert_not_called()
+        if expected_launch_method == "subprocess":
+            assert job.process is subprocess_process
+            assert job.stderr_file_path == stderr_file_path
+            mock_launch_subprocess.assert_called_once_with(workload)
+            mock_launch_fork.assert_not_called()
+        else:
+            assert job.process is fork_process
+            assert job.stderr_file_path == error_file_path
+            mock_launch_fork.assert_called_once_with(workload)
+            mock_launch_subprocess.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.subprocess.Popen")
+    def test_launch_job_subprocess_uses_fresh_interpreter_and_spools_stderr(
+        self,
+        mock_popen,
+        worker_with_job: EdgeWorker,
+    ):
+        process = _MockPopen(returncode=None, pid=4321)
+        mock_popen.return_value = process
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        workload = worker_with_job.jobs[0].edge_job.command
+        stderr_file_path = None
+
+        try:
+            returned_process, stderr_file_path = worker_with_job._launch_job_subprocess(workload)
+            assert returned_process is process
+
+            popen_args, popen_kwargs = mock_popen.call_args
+            assert popen_args[0] == [
+                sys.executable,
+                "-m",
+                "airflow.sdk.execution_time.execute_workload",
+                "--json-string",
+                workload.model_dump_json(),
+            ]
+            assert (
+                popen_kwargs["env"]["AIRFLOW__CORE__EXECUTION_API_SERVER_URL"]
+                == "https://mock-server/execution"
+            )
+            assert popen_kwargs["start_new_session"] is True
+            assert popen_kwargs["stderr"] is not subprocess.PIPE
+            assert Path(popen_kwargs["stderr"].name) == stderr_file_path
+        finally:
+            if stderr_file_path:
+                stderr_file_path.unlink(missing_ok=True)
+
+    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow < 3.3.0 where supervise was used")
+    @pytest.mark.asyncio
+    async def test_supervise_launch_pre_3_3(
+        self,
+        mock_supervise,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        mock_supervise.return_value = 0
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+
+        # The child process must exit 0 on success so the parent's Job.is_success check passes.
+        assert exc_info.value.code == 0
+        assert not error_file_path.exists()  # no error written on success
+
+    @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    @pytest.mark.asyncio
+    async def test_supervise_launch(
+        self,
+        mock_run_workload,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        mock_run_workload.return_value = 0
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+
+        # The child process must exit 0 on success so the parent's Job.is_success check passes.
+        assert exc_info.value.code == 0
+        assert not error_file_path.exists()  # no error written on success
+
+    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow < 3.3.0 where supervise was used")
+    @pytest.mark.asyncio
+    async def test_supervise_launch_fail_pre_3_3(
+        self,
+        mock_supervise,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        mock_supervise.side_effect = Exception("Supervise failed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+
+        assert exc_info.value.code == 1
+        assert error_file_path.exists()
+        assert "Supervise failed" in error_file_path.read_text()
+
+    @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    @pytest.mark.asyncio
+    async def test_supervise_launch_fail(
+        self,
+        mock_run_workload,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        mock_run_workload.side_effect = Exception("Supervise failed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+
+        assert exc_info.value.code == 1
+        assert error_file_path.exists()
+        assert "Supervise failed" in error_file_path.read_text()
+
+    @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Requires the fork start method")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    def test_fork_child_exits_nonzero_when_supervisor_raises(
+        self,
+        mock_run_workload,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        """
+        A supervisor exception must make the forked child terminate with a non-zero exit code so the
+        parent's Job.is_success reports the failure.
+        """
+        import multiprocessing
+
+        mock_run_workload.side_effect = RuntimeError("supervisor crashed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+
+        # Use the fork context explicitly so the child inherits the patched run_workload in memory.
+        process = multiprocessing.get_context("fork").Process(
+            target=worker_with_job._run_job_via_supervisor,
+            kwargs={"workload": edge_job.command, "error_file_path": error_file_path},
+        )
+        process.start()
+        process.join(timeout=30)
+
+        # With ``return 1`` this would have been 0; ``sys.exit(1)`` propagates the non-zero code.
+        assert process.exitcode == 1
+        # And the parent's success check therefore reports failure instead of a false success.
+        job = Job(edge_job=edge_job, process=process, logfile=tmp_path / "file.log")  # type: ignore[arg-type]
+        assert job.is_success is False
+        # Confirm the non-zero exit came from the supervisor failure path (not an unrelated early error).
+        assert error_file_path.exists()
+        assert "supervisor crashed" in error_file_path.read_text()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_no_job(
+        self,
+        mock_launch_job,
+        mock_jobs_fetch,
+        worker_with_job: EdgeWorker,
+    ):
+        mock_jobs_fetch.return_value = None
+
+        await worker_with_job.fetch_and_run_job()
+
+        mock_jobs_fetch.assert_called_once()
+        assert len(worker_with_job.jobs) == 1  # no new job added
+        mock_launch_job.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch.object(Job, "is_running", property(lambda _: False))
+    @patch.object(Job, "is_success", property(lambda _: True))
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_one_job(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_launch_job,
+        mock_jobs_fetch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(), tmp_path / "mock.log")
+        worker_with_job.concurrency = 1  # only one job at a time
+        assert worker_with_job.free_concurrency == 0
+
+        await worker_with_job.fetch_and_run_job()
+
+        mock_jobs_fetch.assert_called_once()
+        fetch_args = mock_jobs_fetch.call_args
+        assert fetch_args.args[3] is None  # team_name should be None
+        mock_launch_job.assert_called_once_with(
+            edge_job, edge_job.command, Path(worker_with_job.base_log_folder, "mock.log")
+        )
+        assert mock_jobs_set_state.call_count == 2
+        mock_push_log_chunks.assert_called_once()
+        assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
+        mock_logs_push.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_fork_failure_pushes_error_to_logs(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_jobs_fetch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.return_value = edge_job
+        worker_with_job.concurrency = 1
+        process = _MockProcess(returncode=1)
+        error_file_path = tmp_path / "fork-error.log"
+        error_file_path.write_text(
+            "Traceback (most recent call last):\n  ...\nRuntimeError: supervisor crashed\n"
+        )
+        launched_job = Job(edge_job, process, tmp_path / "mock.log", stderr_file_path=error_file_path)
+
+        with patch.object(worker_with_job, "_launch_job", return_value=launched_job):
+            await worker_with_job.fetch_and_run_job()
+
+        mock_jobs_fetch.assert_called_once()
+        mock_push_log_chunks.assert_called_once()
+        assert mock_jobs_set_state.call_args_list[-1].args[1] == TaskInstanceState.FAILED
+        log_chunk_data = mock_logs_push.call_args.kwargs["log_chunk_data"]
+        assert "Task fork exited with code 1" in log_chunk_data
+        assert "RuntimeError: supervisor crashed" in log_chunk_data
+        assert not error_file_path.exists()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch.object(Job, "is_running", property(lambda _: False))
+    @patch.object(Job, "is_success", property(lambda _: False))
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_one_job_fail(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_launch_job,
+        mock_jobs_fetch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(), tmp_path / "mock.log")
+        worker_with_job.concurrency = 1  # only one job at a time
+        assert worker_with_job.free_concurrency == 0
+
+        await worker_with_job.fetch_and_run_job()
+
+        mock_jobs_fetch.assert_called_once()
+        mock_launch_job.assert_called_once_with(
+            edge_job, edge_job.command, Path(worker_with_job.base_log_folder, "mock.log")
+        )
+        assert mock_jobs_set_state.call_count == 2
+        mock_push_log_chunks.assert_called_once()
+        assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
+        mock_logs_push.assert_called_once()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_subprocess_failure_pushes_stderr_to_logs(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_jobs_fetch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.return_value = edge_job
+        worker_with_job.concurrency = 1
+        process = _MockPopen(returncode=1, pid=5678)
+        stderr_file_path = tmp_path / "subprocess-stderr.log"
+        stderr_file_path.write_text("ModuleNotFoundError: No module named 'common'\n")
+        launched_job = Job(edge_job, process, tmp_path / "mock.log", stderr_file_path=stderr_file_path)
+
+        with patch.object(worker_with_job, "_launch_job", return_value=launched_job):
+            await worker_with_job.fetch_and_run_job()
+
+        mock_jobs_fetch.assert_called_once()
+        mock_push_log_chunks.assert_called_once()
+        assert mock_jobs_set_state.call_args_list[-1].args[1] == TaskInstanceState.FAILED
+        log_chunk_data = mock_logs_push.call_args.kwargs["log_chunk_data"]
+        assert "Task subprocess exited with code 1" in log_chunk_data
+        assert "ModuleNotFoundError: No module named 'common'" in log_chunk_data
+        assert not stderr_file_path.exists()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state", side_effect=RuntimeError("set state failed"))
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_cleans_up_when_mark_running_fails(
+        self,
+        mock_jobs_fetch,
+        _mock_jobs_set_state,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.return_value = edge_job
+        stderr_file_path = tmp_path / "cleanup-marker.log"
+        stderr_file_path.write_text("cleanup me")
+        launched_job = Job(
+            edge_job,
+            _MockProcess(returncode=None),
+            tmp_path / "mock.log",
+            stderr_file_path=stderr_file_path,
+        )
+
+        with (
+            patch.object(worker_with_job, "_launch_job", return_value=launched_job),
+            pytest.raises(RuntimeError, match="set state failed"),
+        ):
+            await worker_with_job.fetch_and_run_job()
+
+        assert launched_job not in worker_with_job.jobs
+        assert not stderr_file_path.exists()
+
+    @time_machine.travel(datetime.now(), tick=False)
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_push_logs_in_chunks(self, mock_logs_push, worker_with_job: EdgeWorker):
+        job = EdgeWorker.jobs[0]
+        await anyio.Path(job.logfile).write_text("some log content")
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job._push_logs_in_chunks(job)
+
+        assert len(EdgeWorker.jobs) == 1
+        mock_logs_push.assert_called_once_with(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="some log content"
+        )
+
+    @time_machine.travel(datetime.now(), tick=False)
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_check_running_jobs_log_push_increment(self, mock_logs_push, worker_with_job: EdgeWorker):
+        job = EdgeWorker.jobs[0]
+        aio_logfile = anyio.Path(job.logfile)
+        await aio_logfile.write_text("hello ")
+        job.logsize = (await aio_logfile.stat()).st_size
+        await aio_logfile.write_text("hello world")
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job._push_logs_in_chunks(job)
+        assert len(EdgeWorker.jobs) == 1
+        mock_logs_push.assert_called_once_with(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="world"
+        )
+
+    @time_machine.travel(datetime.now(), tick=False)
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_check_running_jobs_log_push_chunks(self, mock_logs_push, worker_with_job: EdgeWorker):
+        worker_with_job.push_log_chunk_size = 4
+
+        job = EdgeWorker.jobs[0]
+        job.logfile.write_bytes("log1log2ülog3".encode("latin-1"))
+
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job._push_logs_in_chunks(job)
+        assert len(EdgeWorker.jobs) == 1
+        calls = mock_logs_push.call_args_list
+        assert len(calls) == 4
+        assert calls[0] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log1"
+        )
+        assert calls[1] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log2"
+        )
+        assert calls[2] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="\\xfc"
+        )
+        assert calls[3] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log3"
+        )
+
+    @patch("airflow.providers.edge3.cli.worker.logger")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch("airflow.providers.edge3.cli.worker.aio_open", side_effect=FileNotFoundError)
+    @pytest.mark.asyncio
+    async def test_push_logs_in_chunks_swallow_file_not_found_during_read(
+        self,
+        _mock_aio_open,
+        mock_logs_push,
+        mock_logger,
+        worker_with_job: EdgeWorker,
+    ):
+        job = EdgeWorker.jobs[0]
+        await anyio.Path(job.logfile).write_text("some log content")
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job._push_logs_in_chunks(job)
+
+        mock_logs_push.assert_not_called()
+        mock_logger.exception.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("drain", "maintenance_mode", "jobs", "expected_state"),
+        [
+            pytest.param(False, False, False, EdgeWorkerState.IDLE, id="idle"),
+            pytest.param(False, False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
+            pytest.param(False, True, False, EdgeWorkerState.MAINTENANCE_MODE, id="maintenance_no_job"),
+            pytest.param(
+                False, True, True, EdgeWorkerState.MAINTENANCE_PENDING, id="maintenance_running_jobs"
+            ),
+            pytest.param(True, False, False, EdgeWorkerState.OFFLINE, id="shut_down"),
+            pytest.param(True, False, True, EdgeWorkerState.TERMINATING, id="terminating"),
+            pytest.param(True, True, False, EdgeWorkerState.OFFLINE_MAINTENANCE, id="offline_maintenance"),
+            pytest.param(True, True, True, EdgeWorkerState.TERMINATING, id="maintenance_shut_down"),
+        ],
+    )
+    @patch("airflow.providers.edge3.cli.worker.worker_set_state")
+    async def test_heartbeat(
+        self, mock_set_state, drain, maintenance_mode, jobs, expected_state, worker_with_job: EdgeWorker
+    ):
+        if not jobs:
+            EdgeWorker.jobs = []
+        EdgeWorker.drain = drain
+        EdgeWorker.maintenance_mode = maintenance_mode
+        mock_set_state.return_value = WorkerSetStateReturn(
+            state=EdgeWorkerState.RUNNING, queues=["queue1", "queue2"]
+        )
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job.heartbeat()
+        assert mock_set_state.call_args.args[1] == expected_state
+        assert mock_set_state.call_args.kwargs.get("team_name") is None
+        queue_list = worker_with_job.queues or []
+        assert len(queue_list) == 2
+        assert "queue1" in (queue_list)
+        assert "queue2" in (queue_list)
+
+    @patch("airflow.providers.edge3.cli.worker.worker_set_state")
+    async def test_heartbeat_adopts_remote_concurrency(self, mock_set_state, worker_with_job: EdgeWorker):
+        EdgeWorker.jobs = []
+        EdgeWorker.drain = False
+        EdgeWorker.maintenance_mode = False
+        mock_set_state.return_value = WorkerSetStateReturn(
+            state=EdgeWorkerState.IDLE, queues=None, concurrency=32
+        )
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job.heartbeat()
+        assert worker_with_job.concurrency == 32
+
+    @patch("airflow.providers.edge3.cli.worker.worker_set_state")
+    async def test_heartbeat_no_concurrency_override_keeps_startup_value(
+        self, mock_set_state, worker_with_job: EdgeWorker
+    ):
+        EdgeWorker.jobs = []
+        EdgeWorker.drain = False
+        EdgeWorker.maintenance_mode = False
+        original_concurrency = worker_with_job.concurrency
+        mock_set_state.return_value = WorkerSetStateReturn(
+            state=EdgeWorkerState.IDLE, queues=None, concurrency=None
+        )
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job.heartbeat()
+        assert worker_with_job.concurrency == original_concurrency
+
+    @patch("airflow.providers.edge3.cli.worker.worker_set_state")
+    async def test_version_mismatch(self, mock_set_state, worker_with_job):
+        mock_set_state.side_effect = EdgeWorkerVersionException("")
+        await worker_with_job.heartbeat()
+        assert worker_with_job.drain
+
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_disabled(
+        self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 0
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 0.0
+        mock_monotonic.return_value = 9999.0
+        assert await worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_within_deadline(
+        self, mock_monotonic, mock_kill, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 120.0  # 20s < 60s
+        assert await worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_sigterm_on_deadline(
+        self, mock_monotonic, mock_kill, mock_logs_push, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain_kill_grace_sec = 30
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 170.0  # 70s >= 60s, first trigger
+        assert await worker_with_job._enforce_drain_timeout() is False
+        mock_kill.assert_called_once_with(4242, signal.SIGTERM)
+        assert worker_with_job.drain_timed_out is True
+        assert worker_with_job.drain_kill_deadline == 200.0
+        mock_logs_push.assert_called_once()
+        assert "SIGTERM" in mock_logs_push.call_args.kwargs["log_chunk_data"]
+
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch("airflow.providers.edge3.cli.worker.os.kill")
+    @patch("airflow.providers.edge3.cli.worker.time.monotonic")
+    async def test_enforce_drain_timeout_sigkill_after_grace(
+        self, mock_monotonic, mock_kill, mock_logs_push, worker_with_job: EdgeWorker
+    ):
+        worker_with_job.drain_timeout_sec = 60
+        worker_with_job.drain_kill_grace_sec = 30
+        worker_with_job.drain = True
+        worker_with_job.drain_started_at = 100.0
+        worker_with_job.drain_timed_out = True
+        worker_with_job.drain_kill_deadline = 200.0
+        worker_with_job.jobs[0].process = mock.MagicMock(pid=4242)
+        mock_monotonic.return_value = 210.0  # past kill deadline
+        assert await worker_with_job._enforce_drain_timeout() is True
+        mock_kill.assert_called_once_with(4242, signal.SIGKILL)
+        mock_logs_push.assert_called_once()
+        assert "SIGKILL" in mock_logs_push.call_args.kwargs["log_chunk_data"]
+
+    @pytest.mark.parametrize(
+        "http_error",
+        [
+            pytest.param(404, id="HTTP 404 Not Found"),
+            pytest.param(405, id="HTTP 405 Method Not Allowed"),
+        ],
+    )
+    @patch("airflow.providers.edge3.cli.worker.worker_register")
+    async def test_start_missing_apiserver(
+        self, mock_register_worker, http_error, worker_with_job: EdgeWorker
+    ):
+        mock_register_worker.side_effect = ClientResponseError(
+            request_info=RequestInfo(url=URL("mock.com"), method="GET", headers=None),  # type:ignore[arg-type]
+            message=f"Something with {http_error}: Means API is not active",
+            status=http_error,
+            history=(),
+        )
+        with pytest.raises(SystemExit, match=r"API endpoint is not ready"):
+            await worker_with_job.start()
+
+    @patch("airflow.providers.edge3.cli.worker.worker_register")
+    async def test_start_server_error(self, mock_register_worker, worker_with_job: EdgeWorker):
+        mock_register_worker.side_effect = ClientResponseError(
+            request_info=RequestInfo(url=URL("mock.com"), method="GET", headers=None),  # type:ignore[arg-type]
+            message="Something other error not FourhundretFour",
+            status=500,
+            history=(),
+        )
+        with pytest.raises(SystemExit, match=r"Something other"):
+            await worker_with_job.start()
+
+    @patch("airflow.providers.edge3.cli.worker.worker_register")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker.loop")
+    @patch("airflow.providers.edge3.cli.worker.worker_set_state")
+    async def test_start_and_run_one(
+        self, mock_set_state, mock_loop, mock_register, worker_with_job: EdgeWorker
+    ):
+        def stop_running():
+            worker_with_job.drain = True
+            worker_with_job.jobs = []
+
+        mock_loop.side_effect = stop_running
+        mock_register.side_effect = [WorkerRegistrationReturn(last_update=datetime.now())]
+
+        await worker_with_job.start()
+
+        mock_register.assert_called_once()
+        register_args = mock_register.call_args.args
+        assert register_args[4] is None  # team_name should be None
+        mock_loop.assert_called_once()
+        assert mock_set_state.call_count == 1
+
+    @pytest.mark.parametrize(
+        ("automatic_maintenance_on", "sysinfo_status", "expected_maintenance_mode"),
+        [
+            pytest.param("Warning", logging.INFO, False, id="Warning 20"),
+            pytest.param("Warning", logging.WARNING, True, id="Warning 30"),
+            pytest.param("Warning", logging.ERROR, True, id="Warning 40"),
+            pytest.param("Error", logging.INFO, False, id="Error 20"),
+            pytest.param("Error", logging.WARNING, False, id="Error 30"),
+            pytest.param("Error", logging.ERROR, True, id="Error 40"),
+            pytest.param("Gargelfu", logging.ERROR, False, id="Gargelfu 40"),
+            pytest.param("Off", logging.ERROR, False, id="Off 40"),
+            pytest.param(None, logging.ERROR, False, id="None 40"),
+        ],
+    )
+    def test_adjust_maintenance_mode_based_on_sysinfo_on(
+        self,
+        automatic_maintenance_on: str,
+        sysinfo_status: int,
+        expected_maintenance_mode: bool,
+        worker_with_job: EdgeWorker,
+    ):
+        worker_with_job.maintenance_mode = False
+        worker_with_job.automatic_maintenance_on = (automatic_maintenance_on or "off").lower()
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
+        assert worker_with_job.maintenance_mode is expected_maintenance_mode
+
+    @pytest.mark.parametrize(
+        ("automatic_maintenance_exit", "sysinfo_status", "expected_maintenance_mode"),
+        [
+            pytest.param("Info", logging.INFO, False, id="Info 20"),
+            pytest.param("Info", logging.WARNING, True, id="Info 30"),
+            pytest.param("Info", logging.ERROR, True, id="Info 40"),
+            pytest.param("Warning", logging.INFO, False, id="Warning 20"),
+            pytest.param("Warning", logging.WARNING, False, id="Warning 30"),
+            pytest.param("Warning", logging.ERROR, True, id="Warning 40"),
+            pytest.param("Gargelfu", logging.ERROR, True, id="Gargelfu 40"),
+            pytest.param("Off", logging.ERROR, True, id="Off 40"),
+            pytest.param(None, logging.ERROR, True, id="None 40"),
+        ],
+    )
+    def test_adjust_maintenance_mode_based_on_sysinfo_exit(
+        self,
+        automatic_maintenance_exit: str,
+        sysinfo_status: int,
+        expected_maintenance_mode: bool,
+        worker_with_job: EdgeWorker,
+    ):
+        # Set initial error status
+        worker_with_job.automatic_maintenance_on = "warning"
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": logging.ERROR})
+        assert worker_with_job.maintenance_mode is True
+
+        worker_with_job.automatic_maintenance_exit = (automatic_maintenance_exit or "off").lower()
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
+        assert worker_with_job.maintenance_mode is expected_maintenance_mode
+
+    def test_adjust_maintenance_mode_based_on_sysinfo_no_exit(self, worker_with_job: EdgeWorker):
+        """Ensure maintenance is not automatically exited if made manually on, even if sysinfo status improves."""
+        # Set initial error status
+        worker_with_job.automatic_maintenance_exit = "warning"
+        worker_with_job.maintenance_mode = True  # simulate manual maintenance mode activation
+        worker_with_job.maintenance_comments = "Manually set for testing"
+
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": logging.INFO})
+        assert worker_with_job.maintenance_mode is True
+        assert worker_with_job.maintenance_comments == "Manually set for testing"
+
+    @pytest.mark.asyncio
+    async def test_get_sysinfo(self, worker_with_job: EdgeWorker):
+        concurrency = 8
+        worker_with_job.concurrency = concurrency
+        sysinfo = await worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
+        assert sysinfo["status"] == logging.INFO
+        assert "status_text" not in sysinfo  # is only defined if extended sysinfo provides this field
+        assert sysinfo["concurrency"] == concurrency
+
+    @pytest.mark.asyncio
+    async def test_get_sysinfo_version_mismatch(self, worker_with_job: EdgeWorker):
+        worker_with_job.versions_match = False  # Simulate version mismatch to verify sysinfo
+        sysinfo = await worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
+        assert sysinfo["status"] == logging.WARNING
+        assert "status_text" in sysinfo
+
+    @pytest.mark.asyncio
+    async def test_get_sysinfo_extended(self, worker_with_job_and_sysinfo: EdgeWorker):
+        concurrency = 42
+        worker_with_job_and_sysinfo.concurrency = concurrency
+        sysinfo = await worker_with_job_and_sysinfo._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job_and_sysinfo.worker_start_time
+        assert "status" in sysinfo
+        assert "status_text" in sysinfo
+        assert "disk_free_gb" in sysinfo
+        assert sysinfo["concurrency"] == concurrency
+
+    @pytest.mark.db_test
+    def test_list_edge_workers(self, mock_edgeworker: EdgeWorkerModel):
+        args = self.parser.parse_args(["edge", "list-workers", "--output", "json"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with (
+                patch(
+                    "airflow.providers.edge3.cli.edge_command._check_valid_db_connection",
+                ),
+                patch(
+                    "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
+                    return_value=[mock_edgeworker],
+                ),
+            ):
+                edge_command.list_edge_workers(args)
+                out = temp_stdout.getvalue()
+                edge_workers = json.loads(out)
+        for key in [
+            "worker_name",
+            "state",
+            "queues",
+            "jobs_active",
+            "concurrency",
+            "free_concurrency",
+            "maintenance_comment",
+        ]:
+            assert key in edge_workers[0]
+        assert any("test_edge_worker" in h["worker_name"] for h in edge_workers)
+
+
+class TestSignalHandling:
+    """Regression tests for the SIGTERM-storm fix (Bug B)."""
+
+    # Override the module-level ``pytestmark = [pytest.mark.asyncio]`` — these
+    # tests are intentionally synchronous.
+    pytestmark: list = []
+
+    @staticmethod
+    def _make_workload():
+        # Pydantic coerces MOCK_COMMAND (dict) into a real ExecuteTask via
+        # EdgeJobFetched's field validator, giving us a workload with
+        # attribute access (``.ti.dag_id`` etc.) that the code path needs.
+        return EdgeJobFetched(
+            dag_id="test",
+            task_id="test1",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        ).command
+
+    @staticmethod
+    def _make_job(tmp_path: Path) -> Job:
+        logfile = tmp_path / "job.log"
+        logfile.touch()
+        proc = mock.Mock()
+        proc.pid = 12345
+        return Job(
+            edge_job=EdgeJobFetched(
+                dag_id="test",
+                task_id="test1",
+                run_id="test",
+                map_index=-1,
+                try_number=1,
+                concurrency_slots=1,
+                command=MOCK_COMMAND,  # type: ignore[arg-type]
+            ),
+            process=proc,
+            logfile=logfile,
+            logsize=0,
+        )
+
+    @pytest.fixture
+    def worker_with_one_job(self, tmp_path: Path):
+        worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+        EdgeWorker.jobs = [self._make_job(tmp_path)]
+        EdgeWorker.drain = False
+        try:
+            yield worker
+        finally:
+            EdgeWorker.jobs = []
+            EdgeWorker.drain = False
+
+    def test_reset_parent_signal_state_clears_all_handlers(self):
+        from airflow.providers.edge3.cli.worker import _reset_parent_signal_state
+
+        original = {
+            signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+            signal.SIGINT: signal.getsignal(signal.SIGINT),
+            SIG_STATUS: signal.getsignal(SIG_STATUS),
+        }
+        sentinel = lambda *_: None
+        signal.signal(signal.SIGTERM, sentinel)
+        signal.signal(signal.SIGINT, sentinel)
+        signal.signal(SIG_STATUS, sentinel)
+        try:
+            _reset_parent_signal_state()
+            assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL
+            assert signal.getsignal(signal.SIGINT) is signal.SIG_DFL
+            assert signal.getsignal(SIG_STATUS) is signal.SIG_DFL
+            assert signal.set_wakeup_fd(-1) == -1
+        finally:
+            for sig, prev in original.items():
+                signal.signal(sig, prev)
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    def test_run_job_via_supervisor_resets_signals_before_supervise(self, tmp_path):
+        """Reset must run first: before ``os.setpgrp`` and before ``supervise``."""
+        worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
+        worker.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        order = mock.MagicMock()
+        with (
+            mock.patch(
+                "airflow.providers.edge3.cli.worker._reset_parent_signal_state",
+                side_effect=lambda: order("reset"),
+            ),
+            mock.patch("os.setpgrp", side_effect=lambda: order("setpgrp")),
+            mock.patch(
+                "airflow.executors.base_executor.BaseExecutor.run_workload",
+                side_effect=lambda **_: (order("supervise"), 0)[1],
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                worker._run_job_via_supervisor(
+                    workload=self._make_workload(),
+                    error_file_path=tmp_path / "fork-error.log",
+                )
+        assert exc_info.value.code == 0
+        assert [c.args[0] for c in order.call_args_list] == ["reset", "setpgrp", "supervise"]
+
+    def test_shutdown_handler_is_idempotent(self, worker_with_one_job):
+        with mock.patch("os.kill") as m_kill:
+            worker_with_one_job.shutdown_handler()
+            worker_with_one_job.shutdown_handler()
+            worker_with_one_job.shutdown_handler()
+        assert m_kill.call_count == 1
+        assert worker_with_one_job.drain is True
+
+    def test_shutdown_handler_does_not_call_setpgid(self, worker_with_one_job):
+        with mock.patch("os.setpgid") as m_setpgid, mock.patch("os.kill"):
+            worker_with_one_job.shutdown_handler()
+        m_setpgid.assert_not_called()
+
+    def test_shutdown_handler_tolerates_dead_child(self, worker_with_one_job):
+        with mock.patch("os.kill", side_effect=ProcessLookupError):
+            worker_with_one_job.shutdown_handler()
+        assert worker_with_one_job.drain is True
+
+
+class TestEdgeJobFetchedSerialization:
+    """Test that EdgeJobFetched serializes and deserializes with both ExecuteTask and ExecuteCallback."""
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
+    def test_serialize_with_execute_callback(self):
+        fetched = EdgeJobFetched(
+            dag_id=EXECUTE_CALLBACK_TAG,
+            task_id="12345678-1234-5678-1234-567812345678",
+            run_id=f"{EXECUTE_CALLBACK_TAG}-12345678-1234-5678-1234-567812345678",
+            map_index=-1,
+            try_number=0,
+            concurrency_slots=1,
+            command=MOCK_CALLBACK_COMMAND,  # type: ignore[arg-type]
+        )
+        serialized = fetched.model_dump_json()
+        deserialized = EdgeJobFetched(**json.loads(serialized))
+
+        assert deserialized.dag_id == EXECUTE_CALLBACK_TAG
+        assert deserialized.command.type == EXECUTE_CALLBACK_TAG
+        assert isinstance(deserialized.command, ExecuteCallback)

@@ -1,0 +1,275 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+from uuid import UUID
+
+import pytest
+import svcs
+from fastapi import APIRouter, FastAPI, Request, Security
+from fastapi.testclient import TestClient
+from structlog.testing import capture_logs
+
+from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
+from airflow.api_fastapi.execution_api.security import (
+    ExecutionAPIRoute,
+    _jwt_bearer,
+    get_team_name_dep,
+    require_auth,
+)
+
+
+class TestTIClaims:
+    def test_defaults_scope_and_retains_extra(self):
+        claims = TIClaims(team="data")
+
+        assert claims.scope == "execution"
+        assert claims.team == "data"
+
+    def test_accepts_sub_as_extra_claim(self):
+        claims = TIClaims(sub="not-a-uuid")
+
+        assert claims.sub == "not-a-uuid"
+
+
+class TestExecutionAPIRoute:
+    """Unit tests for ExecutionAPIRoute precomputing allowed_token_types from Security scopes."""
+
+    def test_defaults_to_execution_only(self):
+        route = ExecutionAPIRoute(
+            path="/test",
+            endpoint=lambda: None,
+            dependencies=[Security(require_auth)],
+        )
+        assert route.allowed_token_types == frozenset({"execution"})
+
+    def test_extracts_token_scopes(self):
+        route = ExecutionAPIRoute(
+            path="/test",
+            endpoint=lambda: None,
+            dependencies=[
+                Security(require_auth),
+                Security(require_auth, scopes=["token:execution", "token:workload"]),
+            ],
+        )
+        assert route.allowed_token_types == frozenset({"execution", "workload"})
+
+    def test_ignores_non_token_scopes(self):
+        route = ExecutionAPIRoute(
+            path="/test",
+            endpoint=lambda: None,
+            dependencies=[
+                Security(require_auth, scopes=["ti:self", "token:execution"]),
+            ],
+        )
+        assert route.allowed_token_types == frozenset({"execution"})
+
+    def test_rejects_invalid_token_types(self):
+        with pytest.raises(ValueError, match="Invalid token types"):
+            ExecutionAPIRoute(
+                path="/test",
+                endpoint=lambda: None,
+                dependencies=[
+                    Security(require_auth, scopes=["token:bogus"]),
+                ],
+            )
+
+
+class TestTokenTypeScopeEnforcement:
+    """End-to-end: ExecutionAPIRoute + require_auth enforce token types via Security scopes."""
+
+    @pytest.fixture
+    def token_type_app(self):
+        """
+        Mirrors the real router structure: an authenticated_router with Security(require_auth),
+        a child ti_id_router with ExecutionAPIRoute and ti:self, and a specific endpoint on that
+        router opting in to workload tokens via endpoint-level Security scopes.
+        """
+        app = FastAPI()
+
+        authenticated_router = APIRouter(dependencies=[Security(require_auth)])
+        ti_id_router = APIRouter(
+            route_class=ExecutionAPIRoute,
+            dependencies=[Security(require_auth, scopes=["ti:self"])],
+        )
+
+        @ti_id_router.get("/{task_instance_id}/state")
+        def default_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        @ti_id_router.get(
+            "/{task_instance_id}/run",
+            dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
+        )
+        def workload_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        authenticated_router.include_router(ti_id_router, prefix="/task-instances")
+        app.include_router(authenticated_router)
+
+        return app
+
+    TI_ID = "00000000-0000-0000-0000-000000000001"
+
+    def _override_jwt(self, app, scope: TokenScope):
+        ti_id = self.TI_ID
+
+        async def mock_jwt(request: Request):
+            claims = TIClaims(scope=scope)
+            return TIToken(id=UUID(ti_id), claims=claims)
+
+        app.dependency_overrides[_jwt_bearer] = mock_jwt
+
+    def test_workload_token_rejected_on_default_route(self, token_type_app):
+        self._override_jwt(token_type_app, "workload")
+        client = TestClient(token_type_app)
+
+        resp = client.get(f"/task-instances/{self.TI_ID}/state", headers={"Authorization": "Bearer fake"})
+        assert resp.status_code == 403
+        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+
+    def test_workload_token_accepted_on_opted_in_route(self, token_type_app):
+        self._override_jwt(token_type_app, "workload")
+        client = TestClient(token_type_app)
+
+        resp = client.get(f"/task-instances/{self.TI_ID}/run", headers={"Authorization": "Bearer fake"})
+        assert resp.status_code == 200
+
+    def test_execution_token_accepted_on_both_routes(self, token_type_app):
+        self._override_jwt(token_type_app, "execution")
+        client = TestClient(token_type_app)
+
+        state = client.get(f"/task-instances/{self.TI_ID}/state", headers={"Authorization": "Bearer fake"})
+        run = client.get(f"/task-instances/{self.TI_ID}/run", headers={"Authorization": "Bearer fake"})
+        assert state.status_code == 200
+        assert run.status_code == 200
+
+
+class TestJWTBearerLogging:
+    @pytest.fixture
+    def app(self):
+        app = FastAPI()
+        app.state.svcs_registry = svcs.Registry()
+
+        @app.get("/protected")
+        def protected(token: TIToken = Security(require_auth)):
+            return {"id": str(token.id)}
+
+        return app
+
+    @pytest.mark.parametrize(
+        "bearer_credential",
+        [
+            pytest.param("eyJ.invalid.jwt", id="jwt-looking-token"),
+            pytest.param("opaque-token-value", id="opaque-token"),
+        ],
+    )
+    def test_validation_failure_does_not_log_supplied_credential(self, app, bearer_credential):
+        validator = MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = ValueError("invalid token")
+        app.state.svcs_registry.register_value(JWTValidator, validator)
+        client = TestClient(app)
+
+        with capture_logs() as logs:
+            response = client.get(
+                "/protected",
+                headers={"Authorization": f"Bearer {bearer_credential}"},
+            )
+
+        assert response.status_code == 403
+        assert response.json() == {"detail": "Invalid auth token"}
+        validator.avalidated_claims.assert_awaited_once_with(bearer_credential, {})
+        assert any(log["event"] == "Failed to validate JWT" for log in logs)
+        assert bearer_credential not in repr(logs)
+        assert "invalid token" not in response.text
+
+
+class TestTiSelfScopeEnforcement:
+    """Routes with the ``ti:self`` scope reject mismatched JWT subjects."""
+
+    PATH_TI_ID = "00000000-0000-0000-0000-000000000001"
+    OTHER_TI_ID = "00000000-0000-0000-0000-000000000002"
+
+    @pytest.fixture
+    def app(self):
+        """One router enforces ti:self, another doesn't — to confirm enforcement is opt-in."""
+        app = FastAPI()
+
+        authenticated_router = APIRouter(dependencies=[Security(require_auth)])
+        ti_self_router = APIRouter(dependencies=[Security(require_auth, scopes=["ti:self"])])
+
+        @ti_self_router.get("/{task_instance_id}/state")
+        def state_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        @authenticated_router.get("/no-scope/{task_instance_id}")
+        def no_scope_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        authenticated_router.include_router(ti_self_router, prefix="/ti")
+        app.include_router(authenticated_router)
+        return app
+
+    def _override_jwt(self, app: FastAPI, token_ti_id: UUID):
+        async def mock_jwt(request: Request):
+            return TIToken(id=token_ti_id, claims=TIClaims(scope="execution"))
+
+        app.dependency_overrides[_jwt_bearer] = mock_jwt
+
+    def test_matching_subject_is_accepted(self, app):
+        self._override_jwt(app, self.PATH_TI_ID)
+        client = TestClient(app)
+
+        resp = client.get(
+            f"/ti/{self.PATH_TI_ID}/state",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 200
+
+    def test_mismatched_subject_is_rejected(self, app):
+        """A task cannot read or write another task's resources."""
+        self._override_jwt(app, self.OTHER_TI_ID)
+        client = TestClient(app)
+
+        resp = client.get(
+            f"/ti/{self.PATH_TI_ID}/state",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 403
+        assert "does not match" in resp.json()["detail"]
+
+
+class TestGetTeamNameDep:
+    """Tests for get_team_name_dep avoiding unnecessary async sessions."""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_without_session_when_multi_team_disabled(self):
+        """When multi_team=False, no async session should be created."""
+        token = MagicMock(spec=TIToken)
+
+        with (
+            patch("airflow.configuration.conf.getboolean", return_value=False),
+            patch("airflow.utils.session.create_session_async") as mock_create_session,
+        ):
+            result = await get_team_name_dep(token=token)
+
+        assert result is None
+        mock_create_session.assert_not_called()

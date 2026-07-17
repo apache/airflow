@@ -1,0 +1,144 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+
+Thank you for installing Apache {{ title .Chart.Name }} {{ .Values.airflowVersion }}!
+
+Your release is named {{ .Release.Name }}.
+
+{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled }}
+You can now access your service(s) by following defined Ingress urls:
+
+{{- if and .Values.ingress.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
+Flower Dashboard:
+{{- range .Values.ingress.flower.hosts }}
+      {{- $path := $.Values.ingress.flower.path -}}
+      {{- $hostname := "" -}}
+      {{- $tlsEnabled := false -}}
+      {{- if . | kindIs "string" | not }}
+      {{- $hostname := .name -}}
+      {{- $tlsEnabled := (and .tls .tls.enabled) -}}
+      {{- end }}
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $path }}{{ if (hasSuffix "/" $path) | not }}/{{ end }}
+{{- end }}
+{{- end }}
+{{- else }}
+You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
+
+Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" . }}-api-server {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+
+{{- if .Values.flower.enabled }}
+{{- if contains "CeleryExecutor" .Values.executor }}
+Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.createUserJob.enabled }}
+Default user (Airflow UI) Login credentials:
+    username: {{ .Values.createUserJob.defaultUser.username }}
+    password: {{ .Values.createUserJob.defaultUser.password }}
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+Default Postgres connection credentials:
+    username: {{ .Values.data.metadataConnection.user }}
+    password: {{ .Values.data.metadataConnection.pass }}
+    port: {{ .Values.data.metadataConnection.port }}
+
+{{- end }}
+
+{{- if not .Values.fernetKeySecretName }}
+
+You can get Fernet Key value by running the following:
+
+    echo Fernet Key: $(kubectl get secret --namespace {{ .Release.Namespace }} {{ include "airflow.fullname" . }}-fernet-key -o jsonpath="{.data.fernet-key}" | base64 --decode)
+
+{{- end }}
+
+{{- if contains "KubernetesExecutor" .Values.executor }}
+{{- if and (not .Values.logs.persistence.enabled) (eq (lower (tpl .Values.config.logging.remote_logging .)) "false") }}
+
+WARNING:
+    Kubernetes workers task logs may not persist unless you configure log persistence or remote logging!
+    Logging options can be found at: https://airflow.apache.org/docs/helm-chart/stable/manage-logs.html
+    (This warning can be ignored if logging is configured with environment variables or secrets backend)
+
+{{- end }}
+{{- end }}
+
+{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret (not .Values.dags.gitSync.knownHosts)}}
+
+#####################################################
+#  WARNING: You should set dags.gitSync.knownHosts  #
+#####################################################
+
+You are using ssh authentication for your gitsync repo, however you currently have SSH known_hosts verification disabled,
+making you susceptible to man-in-the-middle attacks!
+
+Information on how to set knownHosts can be found here:
+https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhosts
+
+{{- end }}
+
+{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.readinessProbe }}
+
+ DEPRECATION WARNING:
+    `dags.gitSync.readinessProbe` section has been removed as Git-Sync is not service-type object.
+    Please remove overwrite values of section, if defined, as support it will be removed in a future release.
+
+{{- end }}
+
+{{- if .Values.flower.extraNetworkPolicies }}
+
+DEPRECATION WARNING:
+   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.peers`.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.dags.gitSync.recommendedProbeSetting }}
+
+ DEPRECATION WARNING:
+    Dags Git-Sync bevaiour with `dags.gitSync.recommendedProbeSetting` equal `false` is deprecated and will be removed in future.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (or .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
+#####################################################
+#  WARNING: You should set a static API secret key  #
+#####################################################
+You are using a dynamically generated API secret key, which can lead to
+unnecessary restarts of your Airflow components.
+
+Information on how to set a static API secret key can be found here:
+https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
+
+{{- end }}
+
+{{- if or .Values.postgresql.postgresqlUsername .Values.postgresql.postgresqlPassword }}
+
+   {{ fail "postgresql.postgresqlUsername and postgresql.postgresqlPassword are no longer supported. If you wish to use the 'postgres' user, set its password with postgresql.auth.postgresPassword. If you wish to create a different user, do so with postgresql.auth.username and postgresql.auth.password." }}
+
+{{- end }}
+
+{{- if ne .Values.executor (tpl .Values.config.core.executor $) }}
+   {{ fail "Please configure the executor with `executor`, not `config.core.executor`." }}
+{{- end }}

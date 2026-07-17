@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+set -euo pipefail
+
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+AIRFLOW_SOURCES=$(cd "${MY_DIR}/../.." && pwd)
+
+COLOR_RED=$'\e[31m'
+COLOR_GREEN=$'\e[32m'
+COLOR_YELLOW=$'\e[33m'
+COLOR_BLUE=$'\e[34m'
+COLOR_RESET=$'\e[0m'
+
+UV_VERSION="0.11.28"
+
+SHIM_DIR="${HOME}/.local/bin"
+SHIM_PATH="${SHIM_DIR}/breeze"
+
+# Marker line embedded in the shim — used to tell our own shim apart from a
+# foreign breeze binary (e.g. left over from `uv tool install`).
+SHIM_MARKER="# Apache Airflow breeze shim — managed by scripts/tools/setup_breeze (ADR 0017)."
+
+# Shim body version, stamped into the shim as a "# breeze-shim-version: N" line.
+# Bump this whenever the shim body below changes. On startup breeze reads this
+# value from the sources it operates on and compares it with the version baked
+# into the installed shim; if the installed shim is older it warns the user to
+# re-run this script. See warn_if_shim_outdated() in
+# dev/breeze/src/airflow_breeze/utils/path_utils.py.
+SHIM_VERSION="1"
+
+# The shim itself. Runs breeze via 'uvx' against the dev/breeze folder of the
+# *current* git worktree, so multiple checkouts / agentic worktrees never
+# share a single global install. See ADR 0017.
+#
+# When invoked outside any Airflow worktree (e.g. from an SVN release checkout
+# such as asf-dist during a provider release), the shim falls back to, in order:
+# $AIRFLOW_REPO_ROOT (exported by the release docs) if it points at a worktree,
+# then the worktree this shim was installed from (AIRFLOW_SOURCES, baked in below).
+read -r -d '' BREEZE_SHIM_BODY <<BREEZE_SHIM || true
+#!/usr/bin/env bash
+${SHIM_MARKER}
+# breeze-shim-version: ${SHIM_VERSION}
+# Runs breeze from the dev/breeze folder of the current git worktree via 'uvx',
+# so each worktree (e.g. parallel agentic runs) gets its own ephemerally-installed
+# breeze tied to that worktree's source.
+#
+# Resolution order for the Airflow sources breeze runs from:
+#   1. the current git worktree (per-worktree isolation — see ADR 0017);
+#   2. \$AIRFLOW_REPO_ROOT, if exported and pointing at an Airflow worktree — the
+#      release docs export this, so breeze resolves the same way across every
+#      release process regardless of where the shim was installed from;
+#   3. the install-time fallback baked in below (the worktree setup_breeze ran from).
+# Steps 2 and 3 apply only when the current directory is not an Airflow worktree,
+# so the fallbacks never override a real worktree and isolation is preserved.
+set -e
+# Install-time fallback: the Airflow sources 'scripts/tools/setup_breeze' was run
+# from. Used only when the current directory is not an Airflow worktree.
+fallback_root="${AIRFLOW_SOURCES}"
+repo_root=\$(git rev-parse --show-toplevel 2>/dev/null) || repo_root=""
+if [ -n "\${repo_root}" ] && [ -d "\${repo_root}/dev/breeze" ]; then
+    breeze_root="\${repo_root}"
+elif [ -n "\${AIRFLOW_REPO_ROOT:-}" ] && [ -d "\${AIRFLOW_REPO_ROOT}/dev/breeze" ]; then
+    breeze_root="\${AIRFLOW_REPO_ROOT}"
+elif [ -d "\${fallback_root}/dev/breeze" ]; then
+    breeze_root="\${fallback_root}"
+else
+    echo "breeze: not inside an Airflow worktree, AIRFLOW_REPO_ROOT is unset or not an Airflow worktree, and the install-time fallback '\${fallback_root}/dev/breeze' is missing — re-run scripts/tools/setup_breeze" >&2
+    exit 1
+fi
+exec env AIRFLOW_ROOT_PATH="\${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \\
+    uvx --from "\${breeze_root}/dev/breeze" --quiet breeze "\$@"
+BREEZE_SHIM
+
+function manual_instructions() {
+    echo
+    echo "${COLOR_BLUE}Please complete the setup manually:${COLOR_RESET}"
+    echo
+    echo "  1. Install uv (any reasonably recent version, >= ${UV_VERSION}):"
+    echo
+    echo "        python -m pip install \"uv>=${UV_VERSION}\""
+    echo
+    echo "  2. Make sure ${SHIM_DIR} exists and is on your PATH."
+    echo
+    echo "  3. Write the following file to ${SHIM_PATH} and mark it executable (chmod +x):"
+    echo
+    echo "${BREEZE_SHIM_BODY}" | sed 's/^/        /'
+    echo
+    exit 1
+}
+
+function ensure_uv_installed() {
+    if ! command -v "uv" >/dev/null 2>/dev/null; then
+        echo
+        echo "${COLOR_RED}'uv' is not on PATH. It is required to run breeze via uvx.${COLOR_RESET}"
+        export TIMEOUT=0
+        if "${MY_DIR}/confirm" "Installing uv via pip"; then
+            python -m pip install "uv>=${UV_VERSION}" --upgrade
+            echo
+            echo "${COLOR_YELLOW}Please close and re-open the shell, then re-run this script.${COLOR_RESET}"
+            echo
+            exit
+        else
+            manual_instructions
+        fi
+    fi
+}
+
+function fail_on_legacy_global_install() {
+    # If a previous setup did `uv tool install -e ./dev/breeze`, both that install
+    # and our shim want to live at ~/.local/bin/breeze. Refuse to proceed until
+    # the user removes the legacy install — silent overwrite would corrupt uv's
+    # tool state and confuse later upgrades.
+    local legacy_uv=0 legacy_pipx=0
+    if uv tool list 2>/dev/null | grep -q '^apache-airflow-breeze\b'; then
+        legacy_uv=1
+    fi
+    if command -v pipx >/dev/null 2>&1 && pipx list --short 2>/dev/null | grep -q '^apache-airflow-breeze\b'; then
+        legacy_pipx=1
+    fi
+    if [[ ${legacy_uv} -eq 0 && ${legacy_pipx} -eq 0 ]]; then
+        return
+    fi
+    echo
+    echo "${COLOR_RED}A legacy global breeze install was detected.${COLOR_RESET}"
+    echo "${COLOR_YELLOW}It must be removed before installing the new shim, otherwise both${COLOR_RESET}"
+    echo "${COLOR_YELLOW}write to ${SHIM_PATH} and conflict. Run:${COLOR_RESET}"
+    echo
+    if [[ ${legacy_uv} -eq 1 ]]; then
+        echo "    uv tool uninstall apache-airflow-breeze"
+    fi
+    if [[ ${legacy_pipx} -eq 1 ]]; then
+        echo "    pipx uninstall apache-airflow-breeze"
+    fi
+    echo
+    echo "${COLOR_YELLOW}Then re-run this script.${COLOR_RESET}"
+    echo
+    exit 1
+}
+
+function check_shim_dir_on_path() {
+    case ":${PATH}:" in
+        *":${SHIM_DIR}:"*) return ;;
+    esac
+    echo
+    echo "${COLOR_YELLOW}Note: ${SHIM_DIR} is not on your PATH.${COLOR_RESET}"
+    echo "${COLOR_YELLOW}Add this to your shell rc to make 'breeze' available:${COLOR_RESET}"
+    echo
+    echo "    export PATH=\"${SHIM_DIR}:\$PATH\""
+    echo
+}
+
+function install_breeze_shim() {
+    mkdir -p "${SHIM_DIR}"
+
+    # If something exists at SHIM_PATH that we did not write, do not overwrite it
+    # silently — it could be the user's own script.
+    if [[ -e "${SHIM_PATH}" ]] && ! grep -qF "${SHIM_MARKER}" "${SHIM_PATH}"; then
+        echo
+        echo "${COLOR_RED}${SHIM_PATH} already exists and is not the breeze shim managed by this script.${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Inspect it; if it is safe to replace, remove it and re-run this script.${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+
+    if [[ -f "${SHIM_PATH}" ]] && grep -qF "${SHIM_MARKER}" "${SHIM_PATH}"; then
+        # Refresh in place — body might have changed across releases.
+        printf '%s\n' "${BREEZE_SHIM_BODY}" > "${SHIM_PATH}"
+        chmod +x "${SHIM_PATH}"
+        echo "${COLOR_GREEN}Refreshed breeze shim at ${SHIM_PATH}.${COLOR_RESET}"
+        return
+    fi
+
+    export TIMEOUT=0
+    if "${MY_DIR}/confirm" "Install breeze shim at ${SHIM_PATH}"; then
+        printf '%s\n' "${BREEZE_SHIM_BODY}" > "${SHIM_PATH}"
+        chmod +x "${SHIM_PATH}"
+        echo "${COLOR_GREEN}Installed breeze shim at ${SHIM_PATH}.${COLOR_RESET}"
+    else
+        manual_instructions
+    fi
+}
+
+ensure_uv_installed
+fail_on_legacy_global_install
+install_breeze_shim
+check_shim_dir_on_path
+
+echo
+echo "${COLOR_GREEN}Breeze is configured. Run 'breeze' from any Airflow worktree.${COLOR_RESET}"
+echo

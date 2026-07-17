@@ -1,0 +1,30 @@
+Apache Airflow
+Copyright 2016-2026 The Apache Software Foundation
+
+This product includes software developed at The Apache Software
+Foundation (http://www.apache.org/).
+
+=======================================================================
+
+hue:
+-----
+This product contains a modified portion of 'Hue' developed by Cloudera, Inc.
+(https://github.com/cloudera/hue/).
+
+* Copyright 2009-2017 Cloudera Inc.
+
+
+Chakra UI:
+-----
+This product contains a modified portion of 'Chakra UI' developed by Segun Adebayo.
+(https://github.com/chakra-ui/chakra-ui).
+
+* Copyright 2019, Segun Adebayo
+
+
+Monaco Editor:
+-----
+This product contains 'Monaco Editor' developed by Microsoft Corporation.
+(https://github.com/microsoft/monaco-editor).
+
+* Copyright (c) 2016 - present Microsoft Corporation

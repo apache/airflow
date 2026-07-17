@@ -1,0 +1,68 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "اصل",
+      "extra": "إضافي",
+      "user": "مستخدم",
+      "when": "متى"
+    },
+    "filters": {
+      "eventType": "نوع الأصل"
+    },
+    "title": "سجل المراجعة"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "اسم التنبيه",
+      "deadlineTime": "وقت الموعد النهائي",
+      "status": "الحالة"
+    },
+    "deadline_few": "المواعيد النهائية",
+    "deadline_many": "المواعيد النهائية",
+    "deadline_one": "الموعد النهائي",
+    "deadline_other": "المواعيد النهائية",
+    "deadline_two": "الموعدان النهائيان",
+    "deadline_zero": "لا توجد مواعيد نهائية",
+    "filters": {
+      "status": "الحالة",
+      "statusOptions": {
+        "all": "الكل",
+        "missed": "فائت",
+        "pending": "قيد الانتظار"
+      }
+    },
+    "title": "المواعيد النهائية"
+  },
+  "xcom": {
+    "add": {
+      "error": "فشل في إضافة XCom",
+      "errorTitle": "خطأ",
+      "success": "تمت إضافة XCom بنجاح",
+      "successTitle": "تمت إضافة XCom",
+      "title": "إضافة XCom"
+    },
+    "columns": {
+      "dag": "Dag",
+      "key": "مفتاح",
+      "value": "قيمة"
+    },
+    "delete": {
+      "error": "فشل في حذف XCom",
+      "errorTitle": "خطأ",
+      "success": "تم حذف XCom بنجاح",
+      "successTitle": "تم حذف XCom",
+      "title": "حذف XCom",
+      "warning": "هل أنت متأكد أنك تريد حذف هذا XCom؟ لا يمكن التراجع عن هذا الإجراء."
+    },
+    "edit": {
+      "error": "فشل في تحديث XCom",
+      "errorTitle": "خطأ",
+      "success": "تم تحديث XCom بنجاح",
+      "successTitle": "تم تحديث XCom",
+      "title": "تعديل XCom"
+    },
+    "key": "مفتاح",
+    "title": "(XCom) إكس كوم",
+    "value": "قيمة"
+  }
+}

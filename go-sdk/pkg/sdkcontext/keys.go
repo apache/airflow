@@ -1,0 +1,54 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package sdkcontext
+
+type (
+	workoadContextKey   struct{}
+	apiClientContextKey struct{}
+	workerContextKey    struct{}
+	runtimeTIContextKey struct{}
+	runtimeContextKey   struct{}
+	sdkClientContextKey struct{}
+)
+
+var (
+	// WorkloadContextKey stores the current workload
+	//
+	// workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
+	WorkloadContextKey  = workoadContextKey{}
+	RuntimeTIContextKey = runtimeTIContextKey{}
+	ApiClientContextKey = apiClientContextKey{}
+	WorkerContextKey    = workerContextKey{}
+
+	// RuntimeContextKey stores the public, task-facing runtime context
+	// (task instance identifiers and the Dag run's scheduling timestamps).
+	// The coordinator-mode runtime populates it from StartupDetails; the
+	// bundle runtime reads it to inject an sdk.TIRunContext parameter into
+	// task functions rather than exposing this key directly. Its value type
+	// is sdk.TIRunContext (built over a placeholder base context; the bundle
+	// runtime rebuilds it around the live task context at injection time),
+	// but this package does not import sdk to avoid an import cycle.
+	RuntimeContextKey = runtimeContextKey{}
+
+	// SdkClientContextKey, when present, holds an sdk.Client implementation
+	// that should be injected into task functions instead of constructing a
+	// default HTTP-backed client. The coordinator-mode runtime uses this to
+	// route task SDK calls (GetVariable, GetConnection, ...) over the
+	// supervisor comm socket rather than to the Execution API.
+	SdkClientContextKey = sdkClientContextKey{}
+)

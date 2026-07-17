@@ -1,0 +1,54 @@
+{
+  "additional_data": "資源額外資訊",
+  "asset_many": "資源",
+  "asset_one": "資源",
+  "assetStateStore": {
+    "add": "新增資源儲存區",
+    "clearAll": {
+      "resource": "所有資源儲存區",
+      "title": "清除所有資源儲存區",
+      "warning": "所有資源儲存區將被清空。使用此儲存區協調工作的任務將失去其持久化的記憶資料。"
+    },
+    "delete": "刪除資源儲存區",
+    "deleteWarning": "此資源將失去這筆持久化的儲存資料。",
+    "edit": "編輯資源儲存區",
+    "emptyState": "資源儲存區會儲存綁定於資源識別的值，並在所有 Dag 執行間共用。工作節點可透過 Task SDK 寫入資源儲存區。",
+    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "資源儲存區"
+  },
+  "consumingDags": "消費者 Dags",
+  "consumingTasks": "消費者任務",
+  "createEvent": {
+    "button": "建立事件",
+    "manual": {
+      "description": "手動建立資源事件",
+      "extra": "資源事件額外資訊",
+      "label": "手動"
+    },
+    "materialize": {
+      "description": "觸發資源上游的 Dag",
+      "descriptionWithDag": "觸發此資源上游的 Dag: {{dagName}}",
+      "label": "實體化",
+      "unpauseDag": "觸發時取消暫停 {{dagName}}"
+    },
+    "success": {
+      "manualDescription": "已成功手動建立資源事件。",
+      "manualTitle": "已建立資源事件",
+      "materializeDescription": "已成功觸發上游 Dag {{dagId}}。",
+      "materializeTitle": "正在實體化資源"
+    },
+    "title": "為 {{name}} 建立資源事件"
+  },
+  "events": "資源事件",
+  "extra": "額外資源資訊",
+  "group": "群組",
+  "lastAssetEvent": "最後資源事件",
+  "name": "名稱",
+  "producingTasks": "生產者任務",
+  "scheduledDags": "已排程的 Dags",
+  "scheduling": "排程",
+  "searchPlaceholder": "搜尋資源",
+  "taskDependencies": "任務相依性"
+}

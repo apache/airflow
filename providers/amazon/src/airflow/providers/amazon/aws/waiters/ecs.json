@@ -1,0 +1,55 @@
+{
+    "version": 2,
+    "waiters": {
+        "cluster_active": {
+            "operation": "DescribeClusters",
+            "delay": 15,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "expected": "ACTIVE",
+                    "matcher": "pathAny",
+                    "state": "success",
+                    "argument": "clusters[].status"
+                },
+                {
+                    "expected": "FAILED",
+                    "matcher": "pathAny",
+                    "state": "failure",
+                    "argument": "clusters[].status"
+                },
+                {
+                    "expected": "INACTIVE",
+                    "matcher": "pathAny",
+                    "state": "failure",
+                    "argument": "clusters[].status"
+                },
+                {
+                  "expected": "MISSING",
+                  "matcher": "pathAny",
+                  "state": "failure",
+                  "argument": "failures[].reason"
+                }
+            ]
+        },
+        "cluster_inactive": {
+            "operation": "DescribeClusters",
+            "delay": 15,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "expected": "INACTIVE",
+                    "matcher": "pathAny",
+                    "state": "success",
+                    "argument": "clusters[].status"
+                },
+                {
+                  "expected": "MISSING",
+                  "matcher": "pathAny",
+                  "state": "success",
+                  "argument": "failures[].reason"
+                }
+            ]
+        }
+    }
+}

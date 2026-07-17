@@ -1,0 +1,461 @@
+{
+  "admin": {
+    "Config": "تكوينات",
+    "Connections": "وصلات",
+    "Plugins": "إضافات",
+    "Pools": "مجموعة موارد",
+    "Providers": "حُزم",
+    "Variables": "متغيرات"
+  },
+  "allOperators": "جميع المُشغِّلات",
+  "appearance": {
+    "appearance": "المظهر",
+    "darkMode": "الوضع الداكن",
+    "lightMode": "الوضع الفاتح",
+    "systemMode": "اتّباع إعداد النظام"
+  },
+  "asset_few": "أصول",
+  "asset_many": "أصول",
+  "asset_one": "أصل",
+  "asset_other": "أصول",
+  "asset_two": "أصلان",
+  "asset_zero": "لا يوجد أي أصل",
+  "assetEvent_few": "وقائعات أصول",
+  "assetEvent_many": "وقائعات أصول",
+  "assetEvent_one": "واقعة أصل",
+  "assetEvent_other": "وقائعات أصول",
+  "assetEvent_two": "واقعتا أصل",
+  "assetEvent_zero": "لا يوجد أي واقعة أصل",
+  "assetInactive": {
+    "tooltip": "تم إلغاء تفعيل الأصل السابق؛ يحتفظ المُجَدْوِل بتقييم التقسيمات حتى إعادة تفعيله."
+  },
+  "backfill_few": "إعادات ملء",
+  "backfill_many": "إعادات ملء",
+  "backfill_one": "إعادة ملء",
+  "backfill_other": "إعادات ملء",
+  "backfill_two": "إعادتا ملء",
+  "backfill_zero": "لا يوجد أي إعادة ملء",
+  "browse": {
+    "auditLog": "سجل المراجعة",
+    "deadlines": "المواعيد النهائية",
+    "jobs": "الوظائف",
+    "requiredActions": "إجراءات مطلوبة",
+    "xcoms": "(XComs) إكس كوم"
+  },
+  "collapseAllExtra": "طي جميع الJSON الإضافية",
+  "collapseDetailsPanel": "طي لوحة التفاصيل",
+  "consumingAsset": "الأصل المستهلك",
+  "createdAssetEvent_few": "تم إنشاء واقعات أصل",
+  "createdAssetEvent_many": "تم إنشاء واقعات أصل",
+  "createdAssetEvent_one": "تم إنشاء واقعة أصل",
+  "createdAssetEvent_other": "تم إنشاء واقعات أصل",
+  "createdAssetEvent_two": "تم إنشاء واقعتا أصل",
+  "createdAssetEvent_zero": "لم يتم إنشاء أي واقعة أصل",
+  "dag_few": "Dags",
+  "dag_many": "Dags",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dag_two": "2 Dags",
+  "dag_zero": "لا يوجد أي Dag",
+  "dagDetails": {
+    "catchup": "إلحاق",
+    "dagRunTimeout": "مهلة تشغيل الDag",
+    "defaultArgs": "متغيرات افتراضية",
+    "description": "وصف",
+    "documentation": "توثيق الDag",
+    "fileLocation": "موقع الملف",
+    "hasTaskConcurrencyLimits": "لديه حدود تزامن المهام",
+    "lastExpired": "انتهت صلاحيته آخر مرة في",
+    "lastParseDuration": "مدة التحليل الأخير",
+    "lastParsed": "تم تحليله آخر مرة في",
+    "latestDagVersion": "آخر إصدار لDag",
+    "latestRun": "آخر تشغيل",
+    "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
+    "maxActiveTasks": "الحد الأقصى للمهام النشطة",
+    "maxConsecutiveFailedDagRuns": "الحد الأقصى للتشغيلات الفاشلة المتتالية للDag",
+    "nextRun": "التشغيل التالي",
+    "owner": "المالك",
+    "params": "معاملات",
+    "schedule": "جدولة",
+    "tags": "وسوم"
+  },
+  "dagId": "معرف Dag",
+  "dagRun": {
+    "conf": "تكوين",
+    "dagVersions": "إصدار(ات) Dag",
+    "dataIntervalEnd": "نهاية فترة البيانات",
+    "dataIntervalStart": "بداية فترة البيانات",
+    "durationStats": {
+      "mean": "المتوسط",
+      "mode": "المنوال"
+    },
+    "expectedDuration": "المدة المتوقعة",
+    "lastSchedulingDecision": "آخر قرار جدولة",
+    "mappedPartitionKey": "مفتاح التقسيم المعيَّن",
+    "partitionKey": "مفتاح التقسيم",
+    "queuedAt": "في الطابور في",
+    "runAfter": "تشغيل بعد",
+    "runType": "نوع التشغيل",
+    "sourceAssetEvent": "واقعة أصل مصدر",
+    "triggeredBy": "تم إطلاقه بواسطة",
+    "triggeringUser": "المستخدم صاحب الاطلاق"
+  },
+  "dagRun_few": "مثيلات تشغيل لDag",
+  "dagRun_many": "مثيلات تشغيل لDag",
+  "dagRun_one": "مثيل تشغيل لDag",
+  "dagRun_other": "مثيلات تشغيل لDag",
+  "dagRun_two": "مثيلا تشغيل لDag",
+  "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
+  "dagRunId": "معرف تشغيل الDag",
+  "dagWarnings": "تحذيرات الDag",
+  "defaultToGraphView": "عرض الرسم البياني تلقائياً",
+  "defaultToGridView": "عرض الشبكة تلقائياً",
+  "delete": "حذف",
+  "diff": "الفرق",
+  "diffCompareWith": "قارن مع",
+  "diffExit": "إنهاء المقارنة",
+  "diffSelectVersionToCompare": "اختر إصدارًا للمقارنة",
+  "direction": "الاتجاه",
+  "docs": {
+    "documentation": "توثيق",
+    "githubRepo": "مستودع GitHub",
+    "restApiReference": "مرجع REST API"
+  },
+  "download": {
+    "download": "تنزيل",
+    "hotkey": "d",
+    "tooltip": "اضغط على {{hotkey}} لتنزيل السجلات"
+  },
+  "duration": "المدة",
+  "edit": "تعديل",
+  "endDate": "تاريخ الانتهاء",
+  "error": {
+    "back": "رجوع",
+    "defaultMessage": "حدث خطأ غير متوقع",
+    "home": "الصفحة الرئيسية",
+    "invalidUrl": "الصفحة غير موجودة. يرجى التحقق من الرابط والمحاولة مرة أخرى.",
+    "notFound": "غير موجود",
+    "title": "خطأ"
+  },
+  "errors": {
+    "forbidden": {
+      "description": "ليس لديك إذن لتنفيذ هذا الإجراء.",
+      "title": "تم رفض الوصول"
+    }
+  },
+  "expand": {
+    "collapse": "طي",
+    "expand": "توسيع",
+    "hotkey": "e",
+    "tooltip": "اضغط {{hotkey}} للتوسيع"
+  },
+  "expandAllExtra": "توسيع جميع الJSON الإضافية",
+  "expression": {
+    "all": "الكل",
+    "and": "و",
+    "any": "أي",
+    "or": "أو"
+  },
+  "filter": "فلتر",
+  "filters": {
+    "durationFrom": "المدة من",
+    "durationTo": "المدة إلى",
+    "endTime": "وقت الانتهاء",
+    "logicalDateFrom": "من التاريخ المنطقي",
+    "logicalDateTo": "إلى التاريخ المنطقي",
+    "runAfterFrom": "من تشغيل بعد",
+    "runAfterTo": "إلى تشغيل بعد",
+    "searchAsset": "بحث عن أصل",
+    "selectDateRange": "اختر نطاق التاريخ",
+    "startTime": "وقت البدء"
+  },
+  "generateToken": "توليد رمز",
+  "key": "المفتاح",
+  "logicalDate": "التاريخ المنطقي",
+  "logout": "تسجيل الخروج",
+  "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
+  "mapIndex": "فهرس الخريطة",
+  "modal": {
+    "add": "إضافة",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": {
+      "button": "حذف",
+      "confirmation": "هل أنت متأكد من أنك تريد حذف {{resourceName}}؟ لا يمكن التراجع عن هذا الإجراء."
+    },
+    "save": "حفظ"
+  },
+  "nav": {
+    "admin": "إدارة",
+    "assets": "أصول",
+    "browse": "تصفح",
+    "dags": "Dags",
+    "docs": "وثائق",
+    "home": "الصفحة الرئيسية",
+    "legacyFabViews": "عروض قديمة",
+    "plugins": "إضافات",
+    "security": "الأمان"
+  },
+  "noItemsFound": "لم يتم العثور على {{modelName}}",
+  "note": {
+    "add": "إضافة",
+    "dagRun": "تشغيل Dag",
+    "label": "وسم",
+    "placeholder": "أضف ملاحظة...",
+    "taskInstance": "مثيل المهمة"
+  },
+  "overallStatus": "الحالة العامة",
+  "partitionedDagRun_few": "تشغيلات Dag مُجزأة",
+  "partitionedDagRun_many": "تشغيل Dag مُجزأ",
+  "partitionedDagRun_one": "تشغيل Dag مُجزأ",
+  "partitionedDagRun_other": "تشغيلات Dag مُجزأة",
+  "partitionedDagRun_two": "تشغيلا Dag مُجزآن",
+  "partitionedDagRun_zero": "لا توجد تشغيلات Dag مُجزأة",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "أحداث الأصول المستلمة"
+  },
+  "pendingDagRun_few": "{{count}} تشغيلات Dag مُعلّقة",
+  "pendingDagRun_many": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_one": "تشغيل Dag مُعلّق واحد",
+  "pendingDagRun_other": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_two": "تشغيلا Dag مُعلّقان",
+  "pendingDagRun_zero": "لا توجد تشغيلات Dag مُعلّقة",
+  "reset": "إعادة تعيين",
+  "runId": "معرف التشغيل",
+  "runTypes": {
+    "asset_materialization": "تجسيد الأصل",
+    "asset_triggered": "مُشغل بواسطة الأصل",
+    "backfill": "تعبئة رجعية",
+    "manual": "يدوي",
+    "scheduled": "مجدول"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "الأسفل",
+      "top": "الأعلى"
+    },
+    "tooltip": "اضغط {{hotkey}} للتمرير إلى {{direction}}"
+  },
+  "search": {
+    "advanced": {
+      "description": "طابِق في أي موضع داخل القيمة (بحث عن سلسلة جزئية). يكون أبطأ في البيئات الكبيرة لأنه لا يمكنه استخدام فهرس B-tree الافتراضي. راجع قسم الوثائق الخاص بفهارس البيانات الوصفية المخصصة للتفاصيل.",
+      "title": "مطابقة في أي موضع"
+    }
+  },
+  "security": {
+    "actions": "إجراءات",
+    "permissions": "صلاحيات",
+    "resources": "موارد",
+    "roles": "أدوار",
+    "users": "مستخدمون"
+  },
+  "selectLanguage": "اختيار اللغة",
+  "selected": "محدد",
+  "showDetailsPanel": "إظهار لوحة التفاصيل",
+  "signedInAs": "تم تسجيل الدخول باسم",
+  "source": {
+    "hide": "إخفاء المصدر",
+    "hotkey": "s",
+    "show": "إظهار المصدر"
+  },
+  "sourceAssetEvent_few": "واقعات أصل مصدر",
+  "sourceAssetEvent_many": "واقعات أصل مصدر",
+  "sourceAssetEvent_one": "واقعة أصل مصدر",
+  "sourceAssetEvent_other": "واقعات أصل مصدر",
+  "sourceAssetEvent_two": "واقعتا أصل مصدر",
+  "sourceAssetEvent_zero": "لا يوجد أي واقعة أصل مصدر",
+  "startDate": "تاريخ البدء",
+  "state": "الحالة",
+  "states": {
+    "awaiting_input": "بانتظار الإدخال",
+    "deferred": "مؤجل",
+    "failed": "فشِل",
+    "no_status": "بلا حالة",
+    "none": "لا شيء",
+    "open": "مفتوح",
+    "planned": "مخطط",
+    "queued": "في الانتظار",
+    "removed": "محذوف",
+    "restarting": "إعادة التشغيل",
+    "running": "قيد التشغيل",
+    "scheduled": "مجدول",
+    "skipped": "متجاوز",
+    "success": "ناجح",
+    "up_for_reschedule": "جاهز لإعادة الجدولة",
+    "up_for_retry": "جاهز للمحاولة مرة أخرى",
+    "upstream_failed": "فشِل في المهام السابقة"
+  },
+  "table": {
+    "completedAt": "اكتمل في",
+    "createdAt": "تم الإنشاء في",
+    "filterByTag": "تصفية الDags حسب الوسم",
+    "filterColumns": "تصفية أعمدة الجدول",
+    "filterReset_few": "مسح الفلاتر",
+    "filterReset_many": "مسح الفلاتر",
+    "filterReset_one": "مسح الفلتر",
+    "filterReset_other": "مسح الفلاتر",
+    "filterReset_two": "مسح الفلترين",
+    "filterReset_zero": "لا يوجد أي فلتر لمسحه",
+    "from": "من",
+    "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
+    "noTagsFound": "لم يتم العثور على وسوم",
+    "tagMode": {
+      "all": "الكل",
+      "any": "اي شيء"
+    },
+    "tagPlaceholder": "تصفية حسب الوسم",
+    "to": "إلى",
+    "updatedAt": "تم التحديث في"
+  },
+  "task": {
+    "dependsOnPast": "يعتمد على الماضي",
+    "documentation": "وثائق المهمة",
+    "lastInstance": "آخر مثيل",
+    "operator": "المشغل",
+    "retries": "إعادات المحاولة",
+    "triggerRule": "احكام التشغيل",
+    "waitForDownstream": "انتظار المهام اللاحقة"
+  },
+  "task_few": "مهام",
+  "task_many": "مهام",
+  "task_one": "مهمة",
+  "task_other": "مهام",
+  "task_two": "مهمتان",
+  "task_zero": "لا يوجد أي مهمة",
+  "taskGroup": {
+    "documentation": "توثيق مجموعة المهام"
+  },
+  "taskGroup_few": "مجموعات المهام",
+  "taskGroup_many": "مجموعة مهام",
+  "taskGroup_one": "مجموعة مهام",
+  "taskGroup_other": "مجموعات المهام",
+  "taskGroup_two": "مجموعتا مهام",
+  "taskGroup_zero": "لا توجد مجموعات مهام",
+  "taskId": "معرف المهمة",
+  "taskInstance": {
+    "dagVersion": "إصدار الDag",
+    "executor": "منفذ",
+    "executorConfig": "تكوين المنفذ",
+    "hostname": "اسم المضيف",
+    "maxTries": "الحد الأقصى للمحاولات",
+    "pid": "معرف العملية",
+    "pool": "مجموعة الموارد",
+    "poolSlots": "حصص مجموعة الموارد",
+    "priorityWeight": "وزن الأولوية",
+    "queue": "طابور",
+    "queuedWhen": "في الطابور في",
+    "renderedMapIndex": "فهرس الخريطة المعروض",
+    "scheduledWhen": "مجدول في",
+    "triggerer": {
+      "assigned": "مُطلِق مُخصص",
+      "class": "فئة المُطلِق",
+      "createdAt": "تاريخ إنشاء المُطلِق",
+      "id": "معرف المُطلِق",
+      "latestHeartbeat": "آخر نبضة للمُطلِق",
+      "title": "معلومات المُطلِق"
+    },
+    "unixname": "اسم الUnix"
+  },
+  "taskInstance_few": "مثيلات المهمة",
+  "taskInstance_many": "مثيلات المهمة",
+  "taskInstance_one": "مثيل المهمة",
+  "taskInstance_other": "مثيلات المهمة",
+  "taskInstance_two": "مثيلا المهمة",
+  "taskInstance_zero": "لا يوجد أي مثيل للمهمة",
+  "timeRange": {
+    "last12Hours": "آخر 12 ساعة",
+    "last24Hours": "آخر 24 ساعة",
+    "lastHour": "الساعة الماضية",
+    "pastWeek": "الأسبوع الماضي"
+  },
+  "timestamp": {
+    "hide": "إخفاء الأختام الزمنية",
+    "hotkey": "t",
+    "show": "إظهار الأختام الزمنية"
+  },
+  "timezone": "المنطقة الزمنية",
+  "timezoneModal": {
+    "current-timezone": "المنطقة الزمنية الحالية",
+    "placeholder": "اختر المنطقة الزمنية",
+    "title": "اختيار المنطقة الزمنية",
+    "utc": "UTC (التوقيت العالمي المنسق)"
+  },
+  "toaster": {
+    "bulkClear": {
+      "error": "فشل طلب المسح المجمع لـ{{resourceName}}",
+      "success": {
+        "description": "تم مسح {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "title": "تم إرسال طلب المسح المجمع لـ{{resourceName}}"
+      }
+    },
+    "bulkDelete": {
+      "error": "فشل طلب حذف الرُزمة ل{{resourceName}}",
+      "success": {
+        "description": "تم حذف {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "title": "تم إرسال طلب الحذف المجمع ل{{resourceName}}"
+      }
+    },
+    "bulkUpdate": {
+      "error": "فشل طلب التحديث المجمع لـ{{resourceName}}",
+      "success": {
+        "description": "تم تحديث {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "title": "تم إرسال طلب التحديث المجمع لـ{{resourceName}}"
+      }
+    },
+    "create": {
+      "error": "فشل طلب الإنشاء {{resourceName}}",
+      "success": {
+        "description": "تم إنشاء {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب الإنشاء {{resourceName}}"
+      }
+    },
+    "delete": {
+      "error": "فشل طلب حذف {{resourceName}}",
+      "success": {
+        "description": "تم حذف {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب الحذف {{resourceName}}"
+      }
+    },
+    "import": {
+      "error": "فشل طلب استيراد {{resourceName}}",
+      "success": {
+        "description": "تم استيراد {{count}} {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب الاستيراد {{resourceName}}"
+      }
+    },
+    "update": {
+      "error": "فشل طلب تحديث {{resourceName}}",
+      "success": {
+        "description": "تم تحديث {{resourceName}} بنجاح.",
+        "title": "تم إرسال طلب التحديث {{resourceName}}"
+      }
+    }
+  },
+  "tokenGeneration": {
+    "apiToken": "رمز API",
+    "cliToken": "رمز CLI",
+    "errorDescription": "حدث خطأ أثناء توليد الرمز. يُرجى المحاولة مرة أخرى.",
+    "errorTitle": "فشل توليد الرمز",
+    "generate": "توليد",
+    "selectType": "اختر نوع الرمز المراد توليده.",
+    "title": "توليد رمز",
+    "tokenExpiresIn": "تنتهي صلاحية هذا الرمز خلال {{duration}}.",
+    "tokenGenerated": "تم توليد الرمز الخاص بك.",
+    "tokenShownOnce": "سيتم عرض هذا الرمز مرة واحدة فقط. انسخه الآن."
+  },
+  "total": "إجمالي {{state}}",
+  "triggered": "مُشغل",
+  "tryNumber": "محاولة رقم",
+  "user": "المستخدم",
+  "validation": {
+    "mustBeAtLeast": "يجب أن يكون على الأقل {{min}}.",
+    "mustBeValidNumber": "يجب أن يكون رقماً صالحاً."
+  },
+  "value": "القيمة",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "اضغط {{hotkey}} لتبديل الالتفاف",
+    "unwrap": "إلغاء التفاف",
+    "wrap": "التفاف"
+  }
+}

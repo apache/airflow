@@ -1,0 +1,335 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+airflow.sdk API Reference
+=========================
+
+This page documents the full public API exposed in Airflow 3.0+ via the Task SDK python module.
+
+If something is not on this page it is best to assume that it is not part of the public API and use of it is entirely at your own risk
+-- we won't go out of our way break usage of them, but we make no promises either.
+
+Defining Dags
+-------------
+.. autoapiclass:: airflow.sdk.DAG
+
+
+Configuration
+-------------
+
+The ``conf`` object is available as part of the Task SDK. It provides an interface to the
+configurations, allowing you to read and interact with Airflow configuration values.
+
+
+Macros
+------
+
+The ``macros`` module is available as part of the Task SDK. It provides builtin utility functions
+for date manipulation and other common operations in Jinja templates and task code.
+
+Available functions include:
+
+- ``ds_add(ds, days)`` - Add or subtract days from a date string
+- ``ds_format(ds, input_format, output_format)`` - Format datetime strings
+- ``ds_format_locale(ds, input_format, output_format, locale)`` - Format datetime strings with locale support
+- ``datetime_diff_for_humans(dt, since)`` - Human-readable datetime differences
+
+The module also provides direct access to commonly used standard library modules:
+``json``, ``time``, ``uuid``, ``dateutil``, and ``random``.
+
+Decorators
+----------
+.. autoapifunction:: airflow.sdk.dag
+.. autoapifunction:: airflow.sdk.task
+
+Task Decorators:
+
+- ``@task.run_if(condition, skip_message=None)``
+  Run the task only if the given condition is met; otherwise the task is skipped.  The condition is a callable
+  that receives the task execution context and returns either a boolean or a tuple ``(bool, message)``.
+- ``@task.skip_if(condition, skip_message=None)``
+  Skip the task if the given condition is met, raising a skip exception with an optional message.
+- Provider-specific task decorators under ``@task.<provider>``, e.g. ``@task.python``, ``@task.docker``, etc., dynamically loaded from registered providers.
+
+.. autoapifunction:: airflow.sdk.task_group
+
+.. autoapifunction:: airflow.sdk.setup
+
+.. autoapifunction:: airflow.sdk.teardown
+
+.. autofunction:: airflow.sdk.task
+.. autofunction:: airflow.sdk.result
+.. autofunction:: airflow.sdk.setup
+.. autofunction:: airflow.sdk.teardown
+.. autofunction:: airflow.sdk.asset
+
+
+Bases
+-----
+.. autoapiclass:: airflow.sdk.BaseAsyncOperator
+
+.. autoapiclass:: airflow.sdk.BaseBranchOperator
+
+.. autoapiclass:: airflow.sdk.BaseOperator
+
+.. autoapiclass:: airflow.sdk.BaseSensorOperator
+
+.. autoapiclass:: airflow.sdk.BaseNotifier
+
+.. autoapiclass:: airflow.sdk.BaseOperatorLink
+
+.. autoapiclass:: airflow.sdk.BaseXCom
+
+.. autoapiclass:: airflow.sdk.BranchMixIn
+
+.. autoapiclass:: airflow.sdk.PokeReturnValue
+
+.. autoapiclass:: airflow.sdk.SkipMixin
+
+.. autoclass:: airflow.sdk.ResumableJobMixin
+
+.. autoapiclass:: airflow.sdk.BaseHook
+
+Callbacks
+---------
+.. autoclass:: airflow.sdk.AsyncCallback
+
+.. autoclass:: airflow.sdk.SyncCallback
+
+Deadline Alerts
+---------------
+.. autoclass:: airflow.sdk.DeadlineAlert
+
+.. autoclass:: airflow.sdk.DeadlineReference
+
+Connections & Variables
+-----------------------
+.. autoapiclass:: airflow.sdk.Connection
+
+.. autoapiclass:: airflow.sdk.Variable
+
+Tasks & Operators
+-----------------
+.. autoapiclass:: airflow.sdk.TaskGroup
+
+.. autoclass:: airflow.sdk.TaskInstance
+
+.. autoapiclass:: airflow.sdk.XComArg
+
+.. autoapifunction:: airflow.sdk.literal
+
+.. autoapiclass:: airflow.sdk.Param
+
+.. autoclass:: airflow.sdk.ParamsDict
+
+.. autoclass:: airflow.sdk.TriggerRule
+
+.. autoapifunction:: airflow.sdk.get_current_context
+
+.. autoapifunction:: airflow.sdk.get_parsing_context
+
+Retry Policies
+--------------
+Retry policies let you configure per-exception retry behaviour as a parameter on any
+task or operator without modifying task code. See the Retry Policies section of the
+Tasks page in the core docs for usage and design rationale.
+
+.. autoapiclass:: airflow.sdk.RetryPolicy
+
+.. autoapiclass:: airflow.sdk.ExceptionRetryPolicy
+
+.. autoapiclass:: airflow.sdk.RetryRule
+
+.. autoapiclass:: airflow.sdk.RetryDecision
+
+.. autoclass:: airflow.sdk.RetryAction
+
+State Enums
+-----------
+.. autoclass:: airflow.sdk.TaskInstanceState
+
+.. autoclass:: airflow.sdk.DagRunState
+
+.. autoclass:: airflow.sdk.WeightRule
+
+Setting Dependencies
+~~~~~~~~~~~~~~~~~~~~
+.. autoapifunction:: airflow.sdk.chain
+
+.. autoapifunction:: airflow.sdk.chain_linear
+
+.. autoapifunction:: airflow.sdk.cross_downstream
+
+Edges & Labels
+~~~~~~~~~~~~~~
+.. autoapiclass:: airflow.sdk.EdgeModifier
+
+.. autoapiclass:: airflow.sdk.Label
+
+Assets
+------
+.. autoapiclass:: airflow.sdk.Asset
+
+.. autoapiclass:: airflow.sdk.AssetAccessControl
+
+.. autoapiclass:: airflow.sdk.AssetAlias
+
+.. autoapiclass:: airflow.sdk.AssetAll
+
+.. autoapiclass:: airflow.sdk.AssetAny
+
+.. autoapiclass:: airflow.sdk.AssetWatcher
+
+.. autoapiclass:: airflow.sdk.Metadata
+
+Timetables
+----------
+.. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
+
+.. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.CronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.CronPartitionTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.EventsTimetable
+
+.. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.PartitionedAtRuntime
+
+.. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
+
+
+Partition Mapper
+----------------
+
+.. autoapiclass:: airflow.sdk.PartitionMapper
+
+.. autoapiclass:: airflow.sdk.ChainMapper
+
+.. autoapiclass:: airflow.sdk.IdentityMapper
+
+.. autoapiclass:: airflow.sdk.StartOfHourMapper
+
+.. autoapiclass:: airflow.sdk.StartOfDayMapper
+
+.. autoapiclass:: airflow.sdk.StartOfWeekMapper
+
+.. autoapiclass:: airflow.sdk.StartOfMonthMapper
+
+.. autoapiclass:: airflow.sdk.StartOfQuarterMapper
+
+.. autoapiclass:: airflow.sdk.StartOfYearMapper
+
+.. autoapiclass:: airflow.sdk.RollupMapper
+
+.. autoapiclass:: airflow.sdk.WaitForAll
+
+.. autoapiclass:: airflow.sdk.MinimumCount
+
+.. autoapiclass:: airflow.sdk.ProductMapper
+
+.. autoapiclass:: airflow.sdk.AllowedKeyMapper
+
+.. autoapiclass:: airflow.sdk.FanOutMapper
+
+.. autoapiclass:: airflow.sdk.FixedKeyMapper
+
+Rollup Windows
+~~~~~~~~~~~~~~
+
+.. autoapiclass:: airflow.sdk.Window
+
+.. autoapiclass:: airflow.sdk.HourWindow
+
+.. autoapiclass:: airflow.sdk.DayWindow
+
+.. autoapiclass:: airflow.sdk.WeekWindow
+
+.. autoapiclass:: airflow.sdk.MonthWindow
+
+.. autoapiclass:: airflow.sdk.QuarterWindow
+
+.. autoapiclass:: airflow.sdk.YearWindow
+
+.. autoapiclass:: airflow.sdk.SegmentWindow
+
+I/O Helpers
+-----------
+.. autoapiclass:: airflow.sdk.ObjectStoragePath
+
+Lineage
+-------
+The ``lineage`` module is available as part of the Task SDK. It provides the public hook lineage
+collector interfaces used to capture and retrieve asset lineage metadata during task execution.
+
+.. autoapimodule:: airflow.sdk.lineage
+
+Coordinators
+------------
+
+Coordinators bridge the Airflow worker and a non-Python language runtime.
+See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a conceptual overview.
+
+.. rubric:: JVM
+
+.. autoapiclass:: airflow.sdk.coordinators.java.JavaCoordinator
+
+.. rubric:: Native executable (e.g. Go)
+
+.. autoapiclass:: airflow.sdk.coordinators.executable.ExecutableCoordinator
+
+Execution Time Components
+-------------------------
+.. rubric:: Context
+
+.. autoapiclass:: airflow.sdk.Context
+
+The ``Context`` object represents the execution-time context available to tasks.
+It corresponds to the same context that is exposed to Jinja templates during task execution.
+
+For a complete list of available context variables (such as ``dag_run``,
+``task_instance``, ``logical_date``, etc.), see the
+:ref:`Templates reference <templates-ref>`.
+
+.. rubric:: Task State
+
+.. autodata:: airflow.sdk.NEVER_EXPIRE
+
+.. rubric:: Logging
+
+.. autofunction:: airflow.sdk.log.mask_secret
+
+Observability
+-------------
+.. autoclass:: airflow.sdk.Trace
+
+Everything else
+---------------
+
+.. autoapimodule:: airflow.sdk
+  :members:
+  :special-members: __version__
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAccessControl, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
+  :undoc-members:
+  :imported-members:
+  :no-index:

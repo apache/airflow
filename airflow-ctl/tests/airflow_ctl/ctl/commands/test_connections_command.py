@@ -1,0 +1,260 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import json
+from unittest import mock
+from unittest.mock import patch
+
+import httpx
+import pytest
+
+from airflowctl.api.client import Client, ClientKind
+from airflowctl.api.datamodels.generated import (
+    BulkActionOnExistence,
+    BulkActionResponse,
+    BulkResponse,
+    ConnectionBody,
+    ConnectionCollectionResponse,
+    ConnectionResponse,
+)
+from airflowctl.ctl import cli_parser
+from airflowctl.ctl.commands import connection_command
+
+
+class TestCliConnectionCommands:
+    connection_id = "test_connection"
+    export_file_name = "exported_json.json"
+    parser = cli_parser.get_parser()
+    connection_collection_response = ConnectionCollectionResponse(
+        connections=[
+            ConnectionResponse(
+                connection_id=connection_id,
+                conn_type="test_type",
+                host="test_host",
+                login="test_login",
+                password="test_password",
+                port=1234,
+                extra="{}",
+                description="Test connection description",
+            )
+        ],
+        total_entries=1,
+    )
+    bulk_response_success = BulkResponse(
+        create=BulkActionResponse(success=[connection_id], errors=[]), update=None, delete=None
+    )
+    bulk_response_error = BulkResponse(
+        create=BulkActionResponse(
+            success=[],
+            errors=[
+                {
+                    "error": f"The connection with these connection_ids: {{'{connection_id}'}} already exist.",
+                    "status_code": 409,
+                }
+            ],
+        ),
+        update=None,
+        delete=None,
+    )
+
+    def test_import_success(self, api_client_maker, tmp_path, monkeypatch):
+        api_client = api_client_maker(
+            path="/api/v2/connections",
+            response_json=self.bulk_response_success.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        monkeypatch.chdir(tmp_path)
+        expected_json_path = tmp_path / self.export_file_name
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "test_type",
+                "host": "test_host",
+                "login": "test_login",
+                "password": "test_password",
+                "port": 1234,
+                "extra": "{}",
+                "description": "Test connection description",
+                "connection_id": self.connection_id,
+            }
+        }
+
+        expected_json_path.write_text(json.dumps(connection_file))
+        connection_command.import_(
+            self.parser.parse_args(["connections", "import", expected_json_path.as_posix()]),
+            api_client=api_client,
+        )
+
+    def test_import_error(self, api_client_maker, tmp_path, monkeypatch):
+        api_client = api_client_maker(
+            path="/api/v2/connections",
+            response_json=self.bulk_response_error.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        monkeypatch.chdir(tmp_path)
+        expected_json_path = tmp_path / self.export_file_name
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "test_type",
+                "host": "test_host",
+                "login": "test_login",
+                "password": "test_password",
+                "port": 1234,
+                "extra": "{}",
+                "description": "Test connection description",
+                "connection_id": self.connection_id,
+            }
+        }
+
+        expected_json_path.write_text(json.dumps(connection_file))
+        with pytest.raises(SystemExit) as exc_info:
+            connection_command.import_(
+                self.parser.parse_args(["connections", "import", expected_json_path.as_posix()]),
+                api_client=api_client,
+            )
+        assert exc_info.value.code == 1
+
+    def test_import_without_extra_field(self, api_client_maker, tmp_path, monkeypatch):
+        """Import succeeds when JSON omits the ``extra`` field (#62653).
+
+        Before the fix, ``v.get("extra", {})`` returned ``{}`` (a dict) when
+        the key was absent, but ``ConnectionBody.extra`` expects ``str | None``,
+        causing a Pydantic ``ValidationError``.
+        """
+        api_client = api_client_maker(
+            path="/api/v2/connections",
+            response_json=self.bulk_response_success.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        # Intentionally omit "extra" (and several other optional keys) to
+        # mirror a minimal real-world connection JSON export.
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "test_type",
+                "host": "test_host",
+            }
+        }
+
+        json_path.write_text(json.dumps(connection_file))
+
+        with patch(
+            "airflowctl.ctl.commands.connection_command.ConnectionBody",
+            wraps=ConnectionBody,
+        ) as mock_body:
+            connection_command.import_(
+                self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+                api_client=api_client,
+            )
+
+        # Verify that ``extra`` was passed as None (not {} which would fail
+        # Pydantic validation) and all other absent keys default correctly.
+        mock_body.assert_called_once_with(
+            connection_id=self.connection_id,
+            conn_type="test_type",
+            host="test_host",
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+            description="",
+        )
+
+    def test_import_preserves_schema(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "postgres",
+                "host": "test_host",
+                "schema": "warehouse",
+            }
+        }
+
+        json_path.write_text(json.dumps(connection_file))
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == "/api/v2/connections"
+            request_body = json.loads(request.content.decode())
+            entity = request_body["actions"][0]["entities"][0]
+            assert entity["schema"] == "warehouse"
+            assert "schema_" not in entity
+            return httpx.Response(200, json=self.bulk_response_success.model_dump())
+
+        api_client = Client(
+            base_url="test://server",
+            transport=httpx.MockTransport(handle_request),
+            token="",
+            kind=ClientKind.CLI,
+        )
+
+        connection_command.import_(
+            self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+            api_client=api_client,
+        )
+
+    @pytest.mark.parametrize(
+        ("action_on_existing_key", "expected_enum"),
+        [
+            ("overwrite", BulkActionOnExistence.OVERWRITE),
+            ("skip", BulkActionOnExistence.SKIP),
+            ("fail", BulkActionOnExistence.FAIL),
+        ],
+    )
+    def test_import_action_on_existing_key(self, tmp_path, action_on_existing_key, expected_enum):
+        expected_json_path = tmp_path / self.export_file_name
+        connection_file = {
+            self.connection_id: {
+                "conn_type": "test_type",
+                "host": "test_host",
+                "extra": "{}",
+                "connection_id": self.connection_id,
+            }
+        }
+        expected_json_path.write_text(json.dumps(connection_file))
+
+        mock_client = mock.MagicMock(spec=Client)
+        mock_response = mock.MagicMock()
+        mock_response.create.success = [self.connection_id]
+        mock_response.create.errors = []
+        mock_client.connections.bulk.return_value = mock_response
+
+        connection_command.import_(
+            self.parser.parse_args(
+                [
+                    "connections",
+                    "import",
+                    expected_json_path.as_posix(),
+                    "--action-on-existing-key",
+                    action_on_existing_key,
+                ]
+            ),
+            api_client=mock_client,
+        )
+
+        mock_client.connections.bulk.assert_called_once()
+        bulk_body = mock_client.connections.bulk.call_args[0][0]
+        action = bulk_body.actions[0]
+        assert action.action_on_existence == expected_enum

@@ -1,0 +1,1368 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import base64
+import contextlib
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import tempfile
+import time
+import uuid
+from collections.abc import Iterator
+from functools import cached_property
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import requests
+
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowNotFoundException,
+    BaseHook,
+    conf as airflow_conf,
+)
+from airflow.security.kerberos import renew_from_kt
+from airflow.utils.log.logging_mixin import LoggingMixin
+
+with contextlib.suppress(ImportError, NameError):
+    from airflow.providers.cncf.kubernetes import kube_client
+
+if TYPE_CHECKING:
+    from requests.auth import AuthBase
+
+DEFAULT_SPARK_BINARY = "spark-submit"
+ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"]
+
+_K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
+
+
+class SparkSubmitHook(BaseHook, LoggingMixin):
+    """
+    Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
+
+    :param conf: Arbitrary Spark configuration properties
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
+        in Airflow administration. When an invalid connection_id is supplied, it will default
+        to yarn.
+    :param files: Upload additional files to the executor running the job, separated by a
+        comma. Files will be placed in the working directory of each executor.
+        For example, serialized objects.
+    :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
+    :param archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
+        the application working directory.
+    :param driver_class_path: Additional, driver-specific, classpath settings.
+    :param jars: Submit additional jars to upload and place them in driver and executor classpaths.
+    :param java_class: the main class of the Java application
+    :param packages: Comma-separated list of maven coordinates of jars to include on the
+        driver and executor classpaths
+    :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
+        while resolving the dependencies provided in 'packages'
+    :param repositories: Comma-separated list of additional remote repositories to search
+        for the maven coordinates given with 'packages'
+    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
+        (Default: all the available cores on the worker)
+    :param executor_cores: (Standalone, YARN and Kubernetes only) Number of cores per
+        executor (Default: 2)
+    :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
+    :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
+    :param keytab: Full path to the file that contains the keytab
+                        (will overwrite any keytab defined in the connection's extra JSON)
+    :param principal: The name of the kerberos principal used for keytab
+                        (will overwrite any principal defined in the connection's extra JSON)
+    :param proxy_user: User to impersonate when submitting the application
+    :param name: Name of the job (default airflow-spark)
+    :param num_executors: Number of executors to launch
+    :param status_poll_interval: Seconds to wait between polls of driver status in cluster
+        mode (Default: 1). Controls three polling loops — each enforces its own minimum:
+
+        - Spark standalone driver-status tracker (no minimum)
+        - YARN ResourceManager REST API, when ``yarn_track_via_rm_api=True`` (10s minimum)
+        - Kubernetes API, when ``track_driver_via_k8s_api=True`` (20s minimum)
+    :param application_args: Arguments for the application being submitted
+    :param env_vars: Environment variables for spark-submit. It
+        supports yarn and k8s mode too.
+    :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
+    :param spark_binary: The command to use for spark submit.
+                         Some distros may use spark2-submit or spark3-submit.
+                         (will overwrite any spark_binary defined in the connection's extra JSON)
+    :param properties_file: Path to a file from which to load extra properties. If not
+                              specified, this will look for conf/spark-defaults.conf.
+    :param yarn_queue: The name of the YARN queue to which the application is submitted.
+                        (will overwrite any yarn queue defined in the connection's extra JSON)
+    :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as an client.
+                        (will overwrite any deployment mode defined in the connection's extra JSON)
+    :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
+        on keytab for Kerberos login
+    :param post_submit_commands: Optional list of shell commands to run after the Spark
+        job finishes (on both success and on_kill). Useful for cleaning up sidecars such
+        as Istio (e.g. ``["curl -X POST localhost:15020/quitquitquit"]``). Each command
+        is executed via the shell; failures produce a warning but do not fail the task.
+    :param track_driver_via_k8s_api: If True (when master is Kubernetes and
+        ``deploy_mode`` is ``cluster``), release the ``spark-submit`` JVM once the
+        driver pod has been created, then poll the Kubernetes API for the pod phase
+        until the application reaches a terminal state. The polling interval is
+        controlled by ``status_poll_interval`` with a 20-second minimum. This frees
+        the worker from holding the long-lived submit JVM (~500 MB). Defaults to
+        ``False``.
+    :param yarn_track_via_rm_api: If True (when master is YARN and ``deploy_mode``
+        is ``cluster``), release the ``spark-submit`` JVM once the application has
+        been submitted to YARN, then poll the YARN ResourceManager REST API
+        (``GET /ws/v1/cluster/apps/{appId}``) until the application reaches a
+        final state. The polling interval is controlled by ``status_poll_interval``
+        with a 10-second minimum. This frees the worker from holding the
+        long-lived submit JVM. Requires the Spark connection's
+        ``extra`` JSON to set ``yarn_resourcemanager_webapp_address``
+        (e.g. ``http://rm:8088``). Cluster-side driver logs should be used after
+        the switch to polling. Defaults to ``False``.
+    :param yarn_rm_auth: Optional ``requests.auth.AuthBase`` instance used for
+        every call to the YARN ResourceManager REST API (status polling and
+        kill). When omitted, Kerberos-enabled Spark connections with both
+        ``keytab`` and ``principal`` configured use ``requests-kerberos``
+        automatically. Defaults to ``None`` (no auth for non-Kerberos
+        connections).
+    """
+
+    conn_name_attr = "conn_id"
+    default_conn_name = "spark_default"
+    conn_type = "spark"
+    hook_name = "Spark"
+
+    # YARN ApplicationReport final-application-status values.
+    # See org.apache.hadoop.yarn.api.records.FinalApplicationStatus.
+    _YARN_FINAL_SUCCESS = "SUCCEEDED"
+    _YARN_FINAL_FAILURES = frozenset({"FAILED", "KILLED"})
+    _YARN_FINAL_UNDEFINED = "UNDEFINED"
+    _YARN_WAIT_APP_COMPLETION_CONF = "spark.yarn.submit.waitAppCompletion"
+    _YARN_RM_WEBAPP_ADDRESS_EXTRA_KEY = "yarn_resourcemanager_webapp_address"
+    _HTTP_TIMEOUT = (5, 30)  # (connect, read) seconds, matches old CLI 30s read budget
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Spark connection."""
+        return {
+            "hidden_fields": ["schema", "login", "password", "extra"],
+            "relabeling": {},
+            "placeholders": {
+                "keytab": "<base64 encoded Keytab Content>",
+            },
+        }
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to Spark connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+        from wtforms.validators import Optional, any_of
+
+        return {
+            "queue": StringField(
+                lazy_gettext("YARN queue"),
+                widget=BS3TextFieldWidget(),
+                description="Default YARN queue to use",
+                validators=[Optional()],
+            ),
+            "deploy-mode": StringField(
+                lazy_gettext("Deploy mode"),
+                widget=BS3TextFieldWidget(),
+                description="Must be client or cluster",
+                validators=[any_of(["client", "cluster"])],
+                default="client",
+            ),
+            "spark-binary": StringField(
+                lazy_gettext("Spark binary"),
+                widget=BS3TextFieldWidget(),
+                description=f"Must be one of: {', '.join(ALLOWED_SPARK_BINARIES)}",
+                validators=[any_of(ALLOWED_SPARK_BINARIES)],
+                default=DEFAULT_SPARK_BINARY,
+            ),
+            "namespace": StringField(
+                lazy_gettext("Kubernetes namespace"), widget=BS3TextFieldWidget(), validators=[Optional()]
+            ),
+            "principal": StringField(
+                lazy_gettext("Principal"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional()],
+            ),
+            "keytab": PasswordField(
+                lazy_gettext("Keytab"),
+                widget=BS3PasswordFieldWidget(),
+                description="Run the command `base64 <your-keytab-path>` and use its output.",
+                validators=[Optional()],
+            ),
+            "rest-scheme": StringField(
+                lazy_gettext("REST scheme"),
+                widget=BS3TextFieldWidget(),
+                description="Scheme for the Spark standalone REST API (http or https). Default: http.",
+                validators=[Optional()],
+            ),
+            "rest-port": StringField(
+                lazy_gettext("REST port"),
+                widget=BS3TextFieldWidget(),
+                description="Port for the Spark standalone REST API (spark.master.rest.port). Default: 6066.",
+                validators=[Optional()],
+            ),
+            "yarn_resourcemanager_webapp_address": StringField(
+                lazy_gettext("YARN ResourceManager webapp address"),
+                widget=BS3TextFieldWidget(),
+                description=(
+                    "YARN ResourceManager webapp URL (e.g. http://rm.example.com:8088), "
+                    "required when yarn_track_via_rm_api=True on SparkSubmitOperator / "
+                    "SparkSubmitHook. Mirrors Hadoop's yarn.resourcemanager.webapp.address."
+                ),
+                validators=[Optional()],
+            ),
+        }
+
+    def __init__(
+        self,
+        conf: dict[str, Any] | None = None,
+        conn_id: str = "spark_default",
+        files: str | None = None,
+        py_files: str | None = None,
+        archives: str | None = None,
+        driver_class_path: str | None = None,
+        jars: str | None = None,
+        java_class: str | None = None,
+        packages: str | None = None,
+        exclude_packages: str | None = None,
+        repositories: str | None = None,
+        total_executor_cores: int | None = None,
+        executor_cores: int | None = None,
+        executor_memory: str | None = None,
+        driver_memory: str | None = None,
+        keytab: str | None = None,
+        principal: str | None = None,
+        proxy_user: str | None = None,
+        name: str = "default-name",
+        num_executors: int | None = None,
+        status_poll_interval: int = 1,
+        application_args: list[Any] | None = None,
+        env_vars: dict[str, Any] | None = None,
+        verbose: bool = False,
+        spark_binary: str | None = None,
+        properties_file: str | None = None,
+        yarn_queue: str | None = None,
+        deploy_mode: str | None = None,
+        *,
+        use_krb5ccache: bool = False,
+        post_submit_commands: list[str] | None = None,
+        track_driver_via_k8s_api: bool = False,
+        yarn_track_via_rm_api: bool = False,
+        yarn_rm_auth: AuthBase | None = None,
+    ) -> None:
+        super().__init__()
+        self._conf = conf or {}
+        self._conn_id = conn_id
+        self._files = files
+        self._py_files = py_files
+        self._archives = archives
+        self._driver_class_path = driver_class_path
+        self._jars = jars
+        self._java_class = java_class
+        self._packages = packages
+        self._exclude_packages = exclude_packages
+        self._repositories = repositories
+        self._total_executor_cores = total_executor_cores
+        self._executor_cores = executor_cores
+        self._executor_memory = executor_memory
+        self._driver_memory = driver_memory
+        self._keytab = keytab
+        self._principal = self._resolve_kerberos_principal(principal) if use_krb5ccache else principal
+        self._use_krb5ccache = use_krb5ccache
+        self._proxy_user = proxy_user
+        self._name = name
+        self._num_executors = num_executors
+        self._status_poll_interval = status_poll_interval
+        self._application_args = application_args
+        self._env_vars = env_vars
+        self._verbose = verbose
+        self._submit_sp: Any | None = None
+        self._yarn_application_id: str | None = None
+        self._kubernetes_driver_pod: str | None = None
+        self._kubernetes_application_id: str | None = None
+        self.spark_binary = spark_binary
+        self._properties_file = properties_file
+        self._yarn_queue = yarn_queue
+        self._deploy_mode = deploy_mode
+        self._connection = self._resolve_connection()
+        self._is_yarn = "yarn" in self._connection["master"]
+        self._is_yarn_cluster_mode = self._is_yarn and self._connection["deploy_mode"] == "cluster"
+        self._is_kubernetes = "k8s" in self._connection["master"]
+        if self._is_kubernetes and kube_client is None:
+            raise RuntimeError(
+                f"{self._connection['master']} specified by kubernetes dependencies are not installed!"
+            )
+
+        self._track_driver_via_k8s_api = track_driver_via_k8s_api
+        self._should_track_driver_status = self._resolve_should_track_driver_status()
+        self._driver_id: str | None = None
+        self._driver_status: str | None = None
+        self._spark_exit_code: int | None = None
+        self._env: dict[str, Any] | None = None
+        self._post_submit_commands: list[str] = list(post_submit_commands) if post_submit_commands else []
+        self._post_submit_commands_done: bool = False
+        self._yarn_track_via_rm_api = yarn_track_via_rm_api
+        self._yarn_rm_auth = yarn_rm_auth
+        # Cached after first successful resolution so the polling loop in
+        # `_track_yarn_application` does not re-fetch the Spark connection
+        # (and re-hit any configured Secrets Backend) on every iteration.
+        self._yarn_rm_base_url: str | None = None
+
+    def _resolve_should_track_driver_status(self) -> bool:
+        """
+        Check if we should track the driver status.
+
+        If so, we should send subsequent spark-submit status requests after the
+        initial spark-submit request.
+
+        :return: if the driver status should be tracked
+        """
+        return "spark://" in self._connection["master"] and self._connection["deploy_mode"] == "cluster"
+
+    def _should_track_driver_via_k8s_api(self) -> bool:
+        return (
+            self._track_driver_via_k8s_api
+            and self._is_kubernetes
+            and self._connection["deploy_mode"] == "cluster"
+        )
+
+    def _validate_track_driver_via_k8s_api_config(self) -> None:
+        if not self._is_kubernetes:
+            raise ValueError(
+                "`track_driver_via_k8s_api=True` requires Spark master to be Kubernetes (k8s://...)."
+            )
+        if self._connection["deploy_mode"] != "cluster":
+            raise ValueError(
+                "`track_driver_via_k8s_api=True` requires `deploy_mode='cluster'`; "
+                f"got deploy_mode={self._connection['deploy_mode']!r}."
+            )
+        if not self._connection.get("namespace"):
+            raise ValueError(
+                "`track_driver_via_k8s_api=True` requires a namespace; "
+                "set it in the connection extra as `namespace` or via `spark.kubernetes.namespace` in conf."
+            )
+        if str(self._conf.get(_K8S_WAIT_APP_COMPLETION_CONF, "")).lower() == "true":
+            raise ValueError(
+                f"`track_driver_via_k8s_api=True` is incompatible with "
+                f"`{_K8S_WAIT_APP_COMPLETION_CONF}=true`; remove it from your conf or set it to 'false'."
+            )
+
+    def _should_track_yarn_application_via_rm_api(self) -> bool:
+        """Return whether this submit should switch to YARN RM REST API polling."""
+        return self._yarn_track_via_rm_api and self._is_yarn and self._connection["deploy_mode"] == "cluster"
+
+    def _validate_yarn_track_via_rm_api_config(self) -> None:
+        """Validate that YARN RM REST API tracking can run for this submit."""
+        if not self._yarn_track_via_rm_api:
+            return
+        if not self._is_yarn:
+            raise ValueError("`yarn_track_via_rm_api=True` requires Spark master to be YARN.")
+        if self._connection["deploy_mode"] != "cluster":
+            raise ValueError(
+                "`yarn_track_via_rm_api=True` requires `deploy_mode='cluster'`; "
+                f"got {self._connection['deploy_mode']!r}."
+            )
+        self._get_yarn_rm_base_url()
+        self._resolved_yarn_rm_auth
+
+    def _resolve_connection(self) -> dict[str, Any]:
+        # Build from connection master or default to yarn if not available
+        conn_data: dict[str, Any] = {
+            "master": "yarn",
+            "queue": None,  # yarn queue
+            "deploy_mode": None,
+            "spark_binary": self.spark_binary or DEFAULT_SPARK_BINARY,
+            "namespace": None,
+            "principal": self._principal,
+            "keytab": self._keytab,
+            # fallback if connection lookup fails; overridden by rest-scheme/rest-port extras below
+            "rest_scheme": "http",
+            "rest_port": 6066,
+        }
+
+        try:
+            # Master can be local, yarn, spark://HOST:PORT, mesos://HOST:PORT and
+            # k8s://https://<HOST>:<PORT>
+            conn = self.get_connection(self._conn_id)
+
+            # When connection is created from URI, the scheme (spark://, k8s://, etc.)
+            # is stored in conn_type, and conn.host contains only the hostname.
+            # When created from UI, conn_type is typically "spark" and conn.host
+            # may contain the full master URL (e.g., k8s://https://host).
+            if conn.conn_type == "spark" and conn.host and ("://" in conn.host or not conn.port):
+                # UI-based spark connection where host contains the full master URL
+                conn_data["master"] = conn.host
+            else:
+                # Reconstruct URL with conn_type as protocol
+                conn_data["master"] = f"{conn.conn_type}://{conn.host or ''}"
+
+            # Append port if provided
+            conn_data["master"] = f"{conn_data['master']}:{conn.port}" if conn.port else conn_data["master"]
+
+            # Determine optional yarn queue from the extra field
+            extra = conn.extra_dejson
+            conn_data["queue"] = self._yarn_queue if self._yarn_queue else extra.get("queue")
+            conn_data["deploy_mode"] = self._deploy_mode if self._deploy_mode else extra.get("deploy-mode")
+            if not self.spark_binary:
+                self.spark_binary = extra.get("spark-binary", DEFAULT_SPARK_BINARY)
+                if self.spark_binary is not None and self.spark_binary not in ALLOWED_SPARK_BINARIES:
+                    raise ValueError(
+                        f"The spark-binary extra can be one of {ALLOWED_SPARK_BINARIES} and it"
+                        f" was `{self.spark_binary}`. Please make sure your spark binary is one of the"
+                        f" allowed ones and that it is available on the PATH"
+                    )
+            conn_spark_home = extra.get("spark-home")
+            if conn_spark_home:
+                raise ValueError(
+                    "The `spark-home` extra is not allowed any more. Please make sure one of"
+                    f" {ALLOWED_SPARK_BINARIES} is available on the PATH, and set `spark-binary`"
+                    " if needed."
+                )
+            conn_data["spark_binary"] = self.spark_binary
+            conn_data["namespace"] = extra.get("namespace")
+            conn_data["rest_scheme"] = extra.get("rest-scheme", "http")
+            conn_data["rest_port"] = int(extra.get("rest-port", 6066))
+            if conn_data["principal"] is None:
+                conn_data["principal"] = extra.get("principal")
+            if conn_data["keytab"] is None:
+                base64_keytab = extra.get("keytab")
+                if base64_keytab is not None:
+                    conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
+                        base64_keytab, conn_data["principal"]
+                    )
+        except AirflowException:
+            self.log.info(
+                "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
+            )
+
+        if "spark.kubernetes.namespace" in self._conf:
+            conn_data["namespace"] = self._conf["spark.kubernetes.namespace"]
+
+        return conn_data
+
+    def get_conn(self) -> Any:
+        pass
+
+    def _create_keytab_path_from_base64_keytab(self, base64_keytab: str, principal: str | None) -> str:
+        _uuid = uuid.uuid4()
+        temp_dir_path = Path(tempfile.gettempdir()).resolve()
+        temp_file_name = f"airflow_keytab-{principal or _uuid}"
+
+        keytab_path = temp_dir_path / temp_file_name
+        staging_path = temp_dir_path / f".{temp_file_name}.{_uuid}"
+
+        try:
+            keytab = base64.b64decode(base64_keytab)
+        except Exception as err:
+            self.log.error("Failed to decode base64 keytab: %s", err)
+            raise AirflowException("Failed to decode base64 keytab") from err
+
+        # If a keytab file with the same content exists, return its path for the --keytab argument.
+        if keytab_path.exists():
+            with open(keytab_path, "rb") as f:
+                existing_keytab = f.read()
+            if existing_keytab == keytab:
+                self.log.info("Keytab file already exists and is the same as the provided keytab")
+                return str(keytab_path)
+
+        # Generate a new keytab file from the base64 encoded keytab value to use as a --keytab argument.
+        try:
+            with open(staging_path, "wb") as f:
+                self.log.info("Saving keytab to %s", staging_path)
+                f.write(keytab)
+
+            self.log.info("Moving keytab from %s to %s", staging_path, keytab_path)
+            shutil.move(str(staging_path), str(keytab_path))
+            return str(keytab_path)
+        except Exception as err:
+            self.log.error("Failed to save keytab: %s", err)
+            raise AirflowException("Failed to save keytab") from err
+        finally:
+            if staging_path.exists():
+                self.log.info("Removing staging keytab file: %s", staging_path)
+                staging_path.unlink()
+
+    def _get_spark_binary_path(self) -> list[str]:
+        # Assume that spark-submit is present in the path to the executing user
+        return [self._connection["spark_binary"]]
+
+    def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
+        # Mask any password related fields in application args with key value pair
+        # where key contains password (case insensitive), e.g. HivePassword='abc'
+        connection_cmd_masked = re.sub(
+            r"("
+            r"\S*?"  # Match all non-whitespace characters before...
+            r"(?:secret|password)"  # ...literally a "secret" or "password"
+            # word (not capturing them).
+            r"\S*?"  # All non-whitespace characters before either...
+            r"(?:=|\s+)"  # ...an equal sign or whitespace characters
+            # (not capturing them).
+            r"(['\"]?)"  # An optional single or double quote.
+            r")"  # This is the end of the first capturing group.
+            r"(?:(?!\2\s).)*"  # All characters between optional quotes
+            # (matched above); if the value is quoted,
+            # it may contain whitespace.
+            r"(\2)",  # Optional matching quote.
+            r"\1******\3",
+            " ".join(connection_cmd),
+            flags=re.I,
+        )
+
+        return connection_cmd_masked
+
+    def _build_spark_common_args(self) -> list[str]:
+        """
+        Build common Spark arguments that are shared between spark-submit and spark-pipelines.
+
+        :return: list of common spark arguments
+        """
+        args = []
+
+        # The url of the spark master
+        args += ["--master", self._connection["master"]]
+
+        for key in self._conf:
+            args += ["--conf", f"{key}={self._conf[key]}"]
+        if self._should_track_yarn_application_via_rm_api():
+            wait_app_completion = self._conf.get(self._YARN_WAIT_APP_COMPLETION_CONF)
+            if wait_app_completion is not None:
+                if str(wait_app_completion).strip().lower() != "false":
+                    raise ValueError(
+                        f"`{self._YARN_WAIT_APP_COMPLETION_CONF}=false` is required when "
+                        "`yarn_track_via_rm_api=True`."
+                    )
+            else:
+                args += ["--conf", f"{self._YARN_WAIT_APP_COMPLETION_CONF}=false"]
+        if self._env_vars and (self._is_kubernetes or self._is_yarn):
+            if self._is_yarn:
+                tmpl = "spark.yarn.appMasterEnv.{}={}"
+                # Allow dynamic setting of hadoop/yarn configuration environments
+                self._env = self._env_vars
+            else:
+                tmpl = "spark.kubernetes.driverEnv.{}={}"
+            for key in self._env_vars:
+                args += ["--conf", tmpl.format(key, str(self._env_vars[key]))]
+        elif self._env_vars and self._connection["deploy_mode"] != "cluster":
+            self._env = self._env_vars  # Do it on Popen of the process
+        elif self._env_vars and self._connection["deploy_mode"] == "cluster":
+            raise AirflowException("SparkSubmitHook env_vars is not supported in standalone-cluster mode.")
+        if self._is_kubernetes and self._connection["namespace"]:
+            args += [
+                "--conf",
+                f"spark.kubernetes.namespace={self._connection['namespace']}",
+            ]
+        if self._properties_file:
+            args += ["--properties-file", self._properties_file]
+        if self._files:
+            args += ["--files", self._files]
+        if self._py_files:
+            args += ["--py-files", self._py_files]
+        if self._archives:
+            args += ["--archives", self._archives]
+        if self._driver_class_path:
+            args += ["--driver-class-path", self._driver_class_path]
+        if self._jars:
+            args += ["--jars", self._jars]
+        if self._packages:
+            args += ["--packages", self._packages]
+        if self._exclude_packages:
+            args += ["--exclude-packages", self._exclude_packages]
+        if self._repositories:
+            args += ["--repositories", self._repositories]
+        if self._num_executors:
+            args += ["--num-executors", str(self._num_executors)]
+        if self._total_executor_cores:
+            args += ["--total-executor-cores", str(self._total_executor_cores)]
+        if self._executor_cores:
+            args += ["--executor-cores", str(self._executor_cores)]
+        if self._executor_memory:
+            args += ["--executor-memory", self._executor_memory]
+        if self._driver_memory:
+            args += ["--driver-memory", self._driver_memory]
+        if self._connection["keytab"]:
+            args += ["--keytab", self._connection["keytab"]]
+        if self._connection["principal"]:
+            args += ["--principal", self._connection["principal"]]
+        if self._use_krb5ccache:
+            if not os.getenv("KRB5CCNAME"):
+                raise AirflowException(
+                    "KRB5CCNAME environment variable required to use ticket ccache is missing."
+                )
+            args += ["--conf", "spark.kerberos.renewal.credentials=ccache"]
+        if self._proxy_user:
+            args += ["--proxy-user", self._proxy_user]
+        if self._name:
+            args += ["--name", self._name]
+        if self._java_class:
+            args += ["--class", self._java_class]
+        if self._verbose:
+            args += ["--verbose"]
+        if self._connection["queue"]:
+            args += ["--queue", self._connection["queue"]]
+        if self._connection["deploy_mode"]:
+            args += ["--deploy-mode", self._connection["deploy_mode"]]
+
+        if self._should_track_driver_via_k8s_api():
+            if _K8S_WAIT_APP_COMPLETION_CONF not in self._conf:
+                args += ["--conf", f"{_K8S_WAIT_APP_COMPLETION_CONF}=false"]
+
+        return args
+
+    def _build_spark_submit_command(self, application: str) -> list[str]:
+        """
+        Construct the spark-submit command to execute.
+
+        :param application: command to append to the spark-submit command
+        :return: full command to be executed
+        """
+        connection_cmd = self._get_spark_binary_path()
+        connection_cmd.extend(self._build_spark_common_args())
+
+        # The actual script to execute
+        connection_cmd += [application]
+
+        # Append any application arguments
+        if self._application_args:
+            connection_cmd += self._application_args
+
+        self.log.info("Spark-Submit cmd: %s", self._mask_cmd(connection_cmd))
+
+        return connection_cmd
+
+    def _build_track_driver_status_command(self) -> list[str]:
+        """
+        Construct the command to poll the driver status.
+
+        :return: full command to be executed
+        """
+        curl_max_wait_time = 30
+        spark_host = self._connection["master"]
+        if spark_host.endswith(":6066"):
+            spark_host = spark_host.replace("spark://", "http://")
+            connection_cmd = [
+                "/usr/bin/curl",
+                "--max-time",
+                str(curl_max_wait_time),
+                f"{spark_host}/v1/submissions/status/{self._driver_id}",
+            ]
+            self.log.info(connection_cmd)
+
+            # The driver id so we can poll for its status
+            if not self._driver_id:
+                raise AirflowException(
+                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
+                )
+
+        else:
+            connection_cmd = self._get_spark_binary_path()
+
+            # The url to the spark master
+            connection_cmd += ["--master", self._connection["master"]]
+
+            # The driver id so we can poll for its status
+            if self._driver_id:
+                connection_cmd += ["--status", self._driver_id]
+            else:
+                raise AirflowException(
+                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
+                )
+
+        self.log.debug("Poll driver status cmd: %s", connection_cmd)
+
+        return connection_cmd
+
+    def _resolve_kerberos_principal(self, principal: str | None) -> str:
+        """Resolve kerberos principal."""
+        # todo: remove try/exception when min airflow version is 3.0
+        from airflow.security import kerberos
+
+        try:
+            func = kerberos.get_kerberos_principal
+        except AttributeError:
+            # Fallback for older versions of Airflow
+            func = getattr(kerberos, "get_kerberos_principle")
+        return func(principal)
+
+    def _run_post_submit_commands(self) -> None:
+        """
+        Run any post-submit shell commands configured on this hook.
+
+        Called after the Spark job finishes (success or on_kill). Typical use case
+        is killing sidecars like Istio that don't shut down automatically.
+        Failures are logged as warnings and never raise.
+        Guaranteed to run at most once per hook instance even if called from both
+        the poll-loop finally and on_kill (e.g. after a SIGTERM).
+        """
+        if self._post_submit_commands_done:
+            return
+        self._post_submit_commands_done = True
+        for cmd in self._post_submit_commands:
+            self.log.debug("Running post-submit command: %s", cmd)
+            try:
+                result = subprocess.run(
+                    shlex.split(cmd),
+                    shell=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    check=False,
+                    timeout=30,
+                )
+                self.log.debug("Post-submit command output:\n%s", result.stdout[:2000])
+                if result.returncode != 0:
+                    self.log.warning(
+                        "Post-submit command exited with non-zero code %d: %s",
+                        result.returncode,
+                        cmd,
+                    )
+            except subprocess.TimeoutExpired:
+                self.log.warning("Post-submit command timed out (30s): %s", cmd)
+            except Exception as exc:
+                self.log.warning("Post-submit command raised an exception: %s. Error: %s", cmd, exc)
+
+    def submit(self, application: str = "", **kwargs: Any) -> str | None:
+        """
+        Remote Popen to execute the spark-submit job.
+
+        :param application: Submitted application, jar or py file
+        :param kwargs: extra arguments to Popen (see subprocess.Popen)
+        """
+        self._validate_yarn_track_via_rm_api_config()
+        spark_submit_cmd = self._build_spark_submit_command(application)
+
+        if self._env:
+            env = os.environ.copy()
+            env.update(self._env)
+            kwargs["env"] = env
+
+        self._submit_sp = subprocess.Popen(
+            spark_submit_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=-1,
+            universal_newlines=True,
+            **kwargs,
+        )
+
+        self._process_spark_submit_log(iter(self._submit_sp.stdout))  # type: ignore
+        returncode = self._submit_sp.wait()
+
+        # Check spark-submit return code. In Kubernetes mode, also check the value
+        # of exit code in the log, as it may differ.
+        # When polling via K8s API, spark-submit exits after pod creation (waitAppCompletion=false)
+        # so _spark_exit_code is never set by the JVM watcher — skip that check entirely.
+        try:
+            if returncode or (
+                self._is_kubernetes
+                and not self._should_track_driver_via_k8s_api()
+                and self._spark_exit_code != 0
+            ):
+                if self._is_kubernetes:
+                    raise AirflowException(
+                        f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
+                        f"Kubernetes spark exit code is: {self._spark_exit_code}"
+                    )
+                raise AirflowException(
+                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
+                )
+
+            if self._should_track_yarn_application_via_rm_api():
+                if not self._yarn_application_id:
+                    raise RuntimeError("No YARN application id found after spark-submit completed.")
+                return self._driver_id
+
+            if self._should_track_driver_status and self._driver_id is None:
+                raise AirflowException(
+                    "No driver id is known: something went wrong when executing the spark submit command"
+                )
+        finally:
+            # K8s-API tracking defers post-submit commands to _poll_k8s_driver_via_api's finally
+            # block so they run once after the driver reaches a terminal state. Spark cluster-mode
+            # driver tracking defers them to poll_until_complete for the same reason. All other
+            # modes run them here, immediately after spark-submit exits.
+            if not self._should_track_driver_status and not self._should_track_driver_via_k8s_api():
+                self._run_post_submit_commands()
+
+        return self._driver_id
+
+    def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
+        """
+        Process the log files and extract useful information out of it.
+
+        If the deploy-mode is 'client', log the output of the submit command as those
+        are the output logs of the Spark worker directly.
+
+        Remark: If the driver needs to be tracked for its status, the log-level of the
+        spark deploy needs to be at least INFO (log4j.logger.org.apache.spark.deploy=INFO)
+
+        :param itr: An iterator which iterates over the input of the subprocess
+        """
+        # Consume the iterator
+        for line_raw in itr:
+            line = line_raw.strip()
+            # If we run yarn cluster mode, we want to extract the application id from
+            # the logs so we can kill the application when we stop it unexpectedly
+            if self._is_yarn and self._connection["deploy_mode"] == "cluster":
+                match = re.search("application[0-9_]+", line)
+                if match:
+                    self._yarn_application_id = match.group(0)
+                    self.log.info("Identified spark application id: %s", self._yarn_application_id)
+
+            # If we run Kubernetes cluster mode, we want to extract the driver pod id
+            # from the logs so we can kill the application when we stop it unexpectedly
+            elif self._is_kubernetes:
+                # Two log formats exist across Spark versions:
+                # "pod name: <name>-driver" and "submission ID spark:<name>-driver"
+                match_driver_pod = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver$)", line)
+                if match_driver_pod:
+                    self._kubernetes_driver_pod = match_driver_pod.group(1)
+                    self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
+                if not self._kubernetes_driver_pod:
+                    match_submission_id = re.search(r"submission ID spark:(.+?-driver)", line)
+                    if match_submission_id:
+                        self._kubernetes_driver_pod = match_submission_id.group(1)
+                        self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
+
+                match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
+                if match_application_id:
+                    self._kubernetes_application_id = match_application_id.group(1)
+                    self.log.info("Identified spark application id: %s", self._kubernetes_application_id)
+
+                # Store the Spark Exit code
+                # Cluster mode requires the Exit code to determine the program status
+                if self._connection.get("deploy_mode") == "cluster":
+                    match_exit_code = re.search(r"\s*[eE]xit code: (\d+)", line)
+                    if match_exit_code:
+                        self._spark_exit_code = int(match_exit_code.group(1))
+                else:
+                    self._spark_exit_code = 0
+
+            # if we run in standalone cluster mode and we want to track the driver status
+            # we need to extract the driver id from the logs. This allows us to poll for
+            # the status using the driver id. Also, we can kill the driver when needed.
+            elif self._should_track_driver_status and not self._driver_id:
+                match_driver_id = re.search(r"driver-[0-9\-]+", line)
+                if match_driver_id:
+                    self._driver_id = match_driver_id.group(0)
+                    self.log.info("identified spark driver id: %s", self._driver_id)
+
+            self.log.info(line)
+
+    def _start_yarn_application_status_tracking(self, application_id: str) -> None:
+        """
+        Poll the YARN ResourceManager REST API until the application reaches a terminal state.
+
+        Raises ``RuntimeError`` if the application fails or if too many consecutive RM
+        request failures occur.
+
+        Possible statuses (from YARN state + finalStatus):
+
+        NEW
+            Application has been created but not yet submitted to the scheduler
+        NEW_SAVING
+            Application metadata is being persisted before scheduling
+        SUBMITTED
+            Application has been submitted and is waiting to be scheduled
+        ACCEPTED
+            Application has been accepted by the scheduler and is queued
+        RUNNING
+            Application is actively executing on the cluster
+        SUCCEEDED
+            Application completed successfully (state=FINISHED, finalStatus=SUCCEEDED)
+        FAILED
+            Application terminated unsuccessfully — covers YARN state FAILED, KILLED,
+            or FINISHED with a non-SUCCEEDED finalStatus
+        """
+        self.log.info(
+            "Tracking YARN application %s via ResourceManager REST API polling",
+            application_id,
+        )
+        poll_interval = max(self._status_poll_interval, 10)
+        consecutive_failures = 0
+        max_consecutive_failures = 10
+        heartbeat_interval = 10
+        poll_count = 0
+        last_state: str | None = None
+
+        while True:
+            self.log.debug("Polling YARN RM REST API for application %s", application_id)
+            try:
+                state, final_status = self._query_yarn_application_status(application_id)
+            except RuntimeError as exc:
+                consecutive_failures += 1
+                if consecutive_failures > max_consecutive_failures:
+                    raise RuntimeError(
+                        f"Giving up tracking YARN application {application_id} after "
+                        f"{max_consecutive_failures} consecutive YARN RM REST API "
+                        f"failures. Last error: {exc}"
+                    ) from exc
+                self.log.warning(
+                    "Transient YARN RM REST API failure (%d/%d): %s",
+                    consecutive_failures,
+                    max_consecutive_failures,
+                    exc,
+                )
+                time.sleep(poll_interval)
+                continue
+            consecutive_failures = 0
+            poll_count += 1
+
+            if state != last_state:
+                self.log.info("YARN application %s status: %s", application_id, state)
+                last_state = state
+            elif poll_count % heartbeat_interval == 0:
+                self.log.info("YARN application %s is still %s", application_id, state)
+
+            if state in self._YARN_FINAL_FAILURES:
+                raise RuntimeError(
+                    f"YARN application {application_id} ended with state: {state}, "
+                    f"final status: {final_status}"
+                )
+            if final_status == self._YARN_FINAL_SUCCESS:
+                return
+            if final_status in self._YARN_FINAL_FAILURES:
+                raise RuntimeError(
+                    f"YARN application {application_id} ended with final status: {final_status}"
+                )
+            if final_status != self._YARN_FINAL_UNDEFINED:
+                raise RuntimeError(
+                    f"YARN application {application_id} returned unexpected final status: {final_status}"
+                )
+            time.sleep(poll_interval)
+
+    def _get_yarn_rm_base_url(self) -> str:
+        """
+        Resolve the YARN ResourceManager webapp base URL from the Spark connection.
+
+        Reads the ``yarn_resourcemanager_webapp_address`` key from the Spark
+        connection's ``extra`` JSON. Bare ``host:port`` values get ``http://``
+        prepended; fully-qualified URLs are used as-is. Trailing slashes stripped.
+        The resolved URL is cached on the hook instance so the polling loop does
+        not re-fetch the connection (or re-hit any Secrets Backend) on every iteration.
+        """
+        if self._yarn_rm_base_url is not None:
+            return self._yarn_rm_base_url
+        try:
+            conn = self.get_connection(self._conn_id)
+        except AirflowNotFoundException:
+            conn = None
+        raw = ""
+        if conn is not None:
+            raw = (conn.extra_dejson.get(self._YARN_RM_WEBAPP_ADDRESS_EXTRA_KEY) or "").strip()
+        if not raw:
+            raise ValueError(
+                f"`yarn_track_via_rm_api=True` requires the Spark connection's `extra` to set "
+                f"`{self._YARN_RM_WEBAPP_ADDRESS_EXTRA_KEY}` (e.g. `http://rm.example.com:8088`)."
+            )
+        url = raw if "://" in raw else f"http://{raw}"
+        self._yarn_rm_base_url = url.rstrip("/")
+        return self._yarn_rm_base_url
+
+    @cached_property
+    def _resolved_yarn_rm_auth(self) -> AuthBase | None:
+        """
+        Resolve the auth object for YARN ResourceManager REST API requests.
+
+        Explicit ``yarn_rm_auth`` wins. If omitted, Kerberos-enabled Spark
+        connections automatically use ``requests_kerberos.HTTPKerberosAuth``.
+        """
+        if self._yarn_rm_auth is not None:
+            return self._yarn_rm_auth
+        if self._connection.get("keytab") and self._connection.get("principal"):
+            try:
+                from requests_kerberos import HTTPKerberosAuth
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Kerberos credentials are configured for Spark submit, but `requests-kerberos` "
+                    "is not installed. Install `requests-kerberos` to use "
+                    "`yarn_track_via_rm_api=True` with Kerberos, or pass `yarn_rm_auth` explicitly."
+                ) from exc
+            return HTTPKerberosAuth()
+
+        return None
+
+    def _query_yarn_application_status(self, application_id: str) -> tuple[str, str]:
+        """GET ``/ws/v1/cluster/apps/{id}`` once and return ``app.state`` and ``app.finalStatus``."""
+        url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}"
+        try:
+            resp = requests.get(url, auth=self._resolved_yarn_rm_auth, timeout=self._HTTP_TIMEOUT)
+        except requests.exceptions.RequestException as exc:
+            raise RuntimeError(
+                f"YARN RM REST API request for application {application_id} failed: {exc}"
+            ) from exc
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"YARN RM REST API returned HTTP {resp.status_code} for application "
+                f"{application_id}: {resp.text[:200]}"
+            )
+        try:
+            app = resp.json()["app"]
+            return app["state"], app["finalStatus"]
+        except (ValueError, KeyError, TypeError) as exc:
+            raise RuntimeError(
+                f"YARN RM REST API returned unexpected payload for application "
+                f"{application_id}: {resp.text[:200]}"
+            ) from exc
+
+    def _kill_yarn_application(self, application_id: str) -> None:
+        """PUT ``/ws/v1/cluster/apps/{id}/state`` to kill the application (best-effort)."""
+        try:
+            url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}/state"
+            auth = self._resolved_yarn_rm_auth
+        except (ValueError, RuntimeError) as exc:
+            self.log.warning(
+                "Cannot send YARN kill for %s: %s",
+                application_id,
+                exc,
+            )
+            return
+        try:
+            resp = requests.put(
+                url,
+                json={"state": "KILLED"},
+                auth=auth,
+                timeout=self._HTTP_TIMEOUT,
+            )
+        except requests.exceptions.RequestException as exc:
+            self.log.warning("YARN kill request for %s failed: %s", application_id, exc)
+            return
+        self.log.info("YARN kill request for %s returned HTTP %s", application_id, resp.status_code)
+
+    def _process_spark_status_log(self, itr: Iterator[Any]) -> None:
+        """
+        Parse the logs of the spark driver status query process.
+
+        :param itr: An iterator which iterates over the input of the subprocess
+        """
+        driver_found = False
+        valid_response = False
+        # Consume the iterator
+        for line_raw in itr:
+            line = line_raw.strip()
+
+            # A valid Spark status response should contain a submissionId
+            if "submissionId" in line:
+                valid_response = True
+
+            # Check if the log line is about the driver status and extract the status.
+            if "driverState" in line:
+                self._driver_status = line.split(" : ")[1].replace(",", "").replace('"', "").strip()
+                driver_found = True
+
+            self.log.debug("spark driver status log: %s", line)
+
+        if valid_response and not driver_found:
+            self._driver_status = "UNKNOWN"
+
+    def _start_driver_status_tracking(self) -> None:
+        """
+        Poll the driver based on self._driver_id to get the status.
+
+        Finish successfully when the status is FINISHED.
+        Finish failed when the status is ERROR/UNKNOWN/KILLED/FAILED.
+
+        Possible status:
+
+        SUBMITTED
+            Submitted but not yet scheduled on a worker
+        RUNNING
+            Has been allocated to a worker to run
+        FINISHED
+            Previously ran and exited cleanly
+        RELAUNCHING
+            Exited non-zero or due to worker failure, but has not yet
+            started running again
+        UNKNOWN
+            The status of the driver is temporarily not known due to
+            master failure recovery
+        KILLED
+            A user manually killed this driver
+        FAILED
+            The driver exited non-zero and was not supervised
+        ERROR
+            Unable to run or restart due to an unrecoverable error
+            (e.g. missing jar file)
+        """
+        # When your Spark Standalone cluster is not performing well
+        # due to misconfiguration or heavy loads.
+        # it is possible that the polling request will timeout.
+        # Therefore we use a simple retry mechanism.
+        missed_job_status_reports = 0
+        max_missed_job_status_reports = 10
+
+        # Keep polling as long as the driver is processing
+        while self._driver_status not in ["FINISHED", "UNKNOWN", "KILLED", "FAILED", "ERROR"]:
+            # Sleep for n seconds as we do not want to spam the cluster
+            time.sleep(self._status_poll_interval)
+
+            self.log.debug("polling status of spark driver with id %s", self._driver_id)
+
+            poll_drive_status_cmd = self._build_track_driver_status_command()
+            status_process: Any = subprocess.Popen(
+                poll_drive_status_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                bufsize=-1,
+                universal_newlines=True,
+            )
+
+            self._process_spark_status_log(iter(status_process.stdout))
+            returncode = status_process.wait()
+
+            if returncode:
+                if missed_job_status_reports < max_missed_job_status_reports:
+                    missed_job_status_reports += 1
+                else:
+                    raise AirflowException(
+                        f"Failed to poll for the driver status {max_missed_job_status_reports} times: "
+                        f"returncode = {returncode}"
+                    )
+
+    def _poll_k8s_driver_via_api(self) -> str | None:
+        """
+        Poll the K8s driver pod phase until it reaches a terminal state.
+
+        Returns the terminal phase string (e.g. ``"Succeeded"``) on normal completion,
+        or ``None`` if the pod vanished mid-poll (404 — likely deleted by ``on_kill``).
+        Raises ``RuntimeError`` on failure phases or unrecoverable API errors.
+        """
+        pod_name = self._kubernetes_driver_pod
+        namespace = self._connection["namespace"]
+        app_id = self._kubernetes_application_id or pod_name
+
+        client = kube_client.get_kube_client()
+        poll_interval = max(self._status_poll_interval, 20)
+        if poll_interval != self._status_poll_interval:
+            self.log.info(
+                "status_poll_interval=%ds is below the 20s minimum for K8s API polling; using 20s.",
+                self._status_poll_interval,
+            )
+        # Mirror `missed_job_status_reports` / `max_missed_job_status_reports` from
+        # `_start_driver_status_tracking`: tolerate transient failures before giving up.
+        consecutive_unknown = 0
+        max_consecutive_unknown = 3
+        consecutive_api_errors = 0
+        max_consecutive_api_errors = 3
+        consecutive_pending = 0
+        pending_warn_threshold = 10
+
+        try:
+            if not pod_name:
+                raise ValueError("K8s driver pod name not set; cannot poll status.")
+            while True:
+                try:
+                    pod = client.read_namespaced_pod(pod_name, namespace)
+                    consecutive_api_errors = 0
+                except kube_client.ApiException as e:
+                    if e.status == 404:
+                        self.log.info(
+                            "Driver pod %s not found (404); pod was likely deleted by on_kill. Exiting poll loop.",
+                            pod_name,
+                        )
+                        return None
+                    consecutive_api_errors += 1
+                    self.log.warning(
+                        "ApiException polling pod %s (%d/%d): %s",
+                        pod_name,
+                        consecutive_api_errors,
+                        max_consecutive_api_errors,
+                        e,
+                    )
+                    if consecutive_api_errors >= max_consecutive_api_errors:
+                        raise RuntimeError(
+                            f"K8s API unreachable after {consecutive_api_errors} consecutive errors "
+                            f"while polling {app_id}; giving up."
+                        ) from e
+                    time.sleep(poll_interval)
+                    continue
+
+                phase = pod.status.phase or "Initializing"
+                self.log.info("Application status for %s (phase: %s)", app_id, phase)
+                if phase == "Succeeded":
+                    if pod.status.container_statuses:
+                        cs = pod.status.container_statuses[0]
+                        if cs.state and cs.state.terminated:
+                            t = cs.state.terminated
+                            self.log.info(
+                                "Container final status: exit_code=%s reason=%s started_at=%s finished_at=%s",
+                                t.exit_code,
+                                t.reason,
+                                t.started_at,
+                                t.finished_at,
+                            )
+                    terminal_phase = phase
+                    break
+                if phase == "Failed":
+                    container_state = ""
+                    if pod.status.container_statuses:
+                        cs = pod.status.container_statuses[0]
+                        if cs.state and cs.state.terminated:
+                            container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
+                    raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
+                if phase == "Pending":
+                    consecutive_pending += 1
+                    if consecutive_pending == pending_warn_threshold:
+                        self.log.warning(
+                            "Driver pod %s has been Pending for %d polls (~%ds); "
+                            "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
+                            pod_name,
+                            consecutive_pending,
+                            consecutive_pending * poll_interval,
+                        )
+                else:
+                    consecutive_pending = 0
+
+                if phase == "Unknown":
+                    consecutive_unknown += 1
+                    if consecutive_unknown >= max_consecutive_unknown:
+                        raise RuntimeError(
+                            f"Spark application {app_id} reported Unknown phase "
+                            f"{consecutive_unknown} times consecutively; giving up."
+                        )
+                else:
+                    consecutive_unknown = 0
+                time.sleep(poll_interval)
+            # Pod deletion is best-effort cleanup. If it fails (e.g. already garbage collected or RBAC
+            # denied), suppress the error so terminal_phase is still returned and the task
+            # succeeds. Raising here would skip the task_store write and force an unnecessary retry.
+            with contextlib.suppress(Exception):
+                self._delete_driver_pod()
+            return terminal_phase
+        finally:
+            self._run_post_submit_commands()
+
+    def _build_spark_driver_kill_command(self) -> list[str]:
+        """
+        Construct the spark-submit command to kill a driver.
+
+        :return: full command to kill a driver
+        """
+        # Assume that spark-submit is present in the path to the executing user
+        connection_cmd = [self._connection["spark_binary"]]
+
+        # The url to the spark master
+        connection_cmd += ["--master", self._connection["master"]]
+
+        # The actual kill command
+        if self._driver_id:
+            connection_cmd += ["--kill", self._driver_id]
+
+        self.log.debug("Spark-Kill cmd: %s", connection_cmd)
+
+        return connection_cmd
+
+    def _delete_driver_pod(self) -> None:
+        """Delete the Kubernetes driver pod, logging a warning on failure."""
+        import kubernetes
+
+        self.log.info("Deleting driver pod %s on Kubernetes", self._kubernetes_driver_pod)
+        try:
+            client = kube_client.get_kube_client()
+            client.delete_namespaced_pod(
+                self._kubernetes_driver_pod,
+                self._connection["namespace"],
+                body=kubernetes.client.V1DeleteOptions(),
+                pretty=True,
+            )
+            self.log.info("Deleted driver pod %s", self._kubernetes_driver_pod)
+        except kube_client.ApiException:
+            self.log.exception(
+                "Exception when attempting to delete driver pod %s", self._kubernetes_driver_pod
+            )
+
+    def on_kill(self) -> None:
+        """Kill Spark submit command."""
+        self.log.debug("Kill Command is being called")
+
+        if self._should_track_driver_status and self._driver_id:
+            self.log.info("Killing driver %s on cluster", self._driver_id)
+
+            kill_cmd = self._build_spark_driver_kill_command()
+            with subprocess.Popen(kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as driver_kill:
+                self.log.info(
+                    "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
+                )
+
+        if self._should_track_driver_via_k8s_api() and self._kubernetes_driver_pod:
+            # spark-submit exits early under waitAppCompletion=false, so _submit_sp.poll() is
+            # not None during the poll loop — the deletion block below is skipped on kill.
+            self._delete_driver_pod()
+
+        if self._submit_sp and self._submit_sp.poll() is None:
+            self.log.info("Sending kill signal to %s", self._connection["spark_binary"])
+            self._submit_sp.kill()
+
+            # Legacy YARN CLI kill — gated on a live `_submit_sp` to preserve
+            # pre-`yarn_track_via_rm_api` behavior. The REST kill path below is
+            # the opt-in replacement and is intentionally not gated this way:
+            # `yarn_track_via_rm_api=True` deliberately terminates `_submit_sp`
+            # after submission, so by the time `on_kill` fires the gate would
+            # always be False and the YARN app would never be killed.
+            if self._yarn_application_id and not self._yarn_track_via_rm_api:
+                kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
+                env = {**os.environ, **(self._env or {})}
+                if self._connection["keytab"] is not None and self._connection["principal"] is not None:
+                    # Renewal failures from `renew_from_kt` are ignored here — a
+                    # non-renewable ticket should not block the YARN kill attempt.
+                    renew_from_kt(
+                        self._connection["principal"],
+                        self._connection["keytab"],
+                        exit_on_fail=False,
+                    )
+                    env["KRB5CCNAME"] = airflow_conf.get_mandatory_value("kerberos", "ccache")
+                with subprocess.Popen(
+                    kill_cmd,
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                ) as yarn_kill:
+                    self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
+
+            if self._kubernetes_driver_pod:
+                self._delete_driver_pod()
+
+        # Opt-in REST kill path — uses the same RM endpoint as polling, no
+        # `yarn` CLI dependency on the worker. Independent of `_submit_sp`
+        # state because `yarn_track_via_rm_api=True` deliberately terminates
+        # `_submit_sp` right after submission to free the JVM.
+        if self._yarn_application_id and self._yarn_track_via_rm_api:
+            self._kill_yarn_application(self._yarn_application_id)
+
+        self._run_post_submit_commands()
+
+    def query_yarn_application_status(self, application_id: str) -> str:
+        """
+        Return a normalized single string status for the ResumableJobMixin interface.
+
+        - Active states (NEW, NEW_SAVING, SUBMITTED, ACCEPTED, RUNNING) are returned as-is.
+        - Terminal states are collapsed to "SUCCEEDED" or "FAILED" with the following rules:
+            - FINISHED + finalStatus SUCCEEDED -> "SUCCEEDED"
+            - FINISHED + any other finalStatus -> "FAILED"
+            - FAILED or KILLED -> "FAILED"
+        """
+        state, final_status = self._query_yarn_application_status(application_id)
+        if state in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}:
+            return state
+        if state == "FINISHED" and final_status == self._YARN_FINAL_SUCCESS:
+            return "SUCCEEDED"
+        return "FAILED"

@@ -1,0 +1,54 @@
+{
+  "additional_data": "Dades addicionals",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "assetStateStore": {
+    "add": "Afegir magatzem d'Asset",
+    "clearAll": {
+      "resource": "tot el magatzem d'Asset",
+      "title": "Netejar tot el magatzem d'Asset",
+      "warning": "S'esborrarà tot el magatzem d'Asset. Les tasques que utilitzen aquest magatzem per coordinar feina perdran la seva memòria persistent."
+    },
+    "delete": "Eliminar magatzem d'Asset",
+    "deleteWarning": "L'Asset perdrà aquesta entrada de magatzem persistent.",
+    "edit": "Editar magatzem d'Asset",
+    "emptyState": "El magatzem d'Asset emmagatzema valors limitats a una identitat d'Asset, compartits entre totes les execucions de Dag. Els workers poden escriure al magatzem d'Asset mitjançant el Task SDK.",
+    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Magatzem d'Asset"
+  },
+  "consumingDags": "Dags consumidors",
+  "consumingTasks": "Tasques consumidores",
+  "createEvent": {
+    "button": "Crear esdeveniment",
+    "manual": {
+      "description": "Crear manualment un esdeveniment d'Asset",
+      "extra": "Camps suplementaris de l'esdeveniment d'Asset",
+      "label": "Manual"
+    },
+    "materialize": {
+      "description": "Executa el Dag en amunt d'aquest Asset",
+      "descriptionWithDag": "Executa el Dag en amunt d'aquest Asset: {{dagName}}",
+      "label": "Materialitzar",
+      "unpauseDag": "Reactivar {{dagName}} a l'executar"
+    },
+    "success": {
+      "manualDescription": "La creació manual de l'esdeveniment d'Asset ha estat exitosa.",
+      "manualTitle": "Esdeveniment d'Asset creat",
+      "materializeDescription": "El Dag aigües amunt {{dagId}} s'ha executat exitosament.",
+      "materializeTitle": "Materialitzant l'Asset"
+    },
+    "title": "Crear esdeveniment d'Asset per {{name}}"
+  },
+  "events": "Esdeveniments",
+  "extra": "Extra",
+  "group": "Grup",
+  "lastAssetEvent": "Darrer esdeveniment d'Asset",
+  "name": "Nom",
+  "producingTasks": "Tasques productores",
+  "scheduledDags": "Dags programats",
+  "scheduling": "Programats",
+  "searchPlaceholder": "Cercar Assets",
+  "taskDependencies": "Dependències de tasca"
+}

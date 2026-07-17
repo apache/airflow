@@ -1,0 +1,1 @@
+Prevent JWT tokens from appearing in task logs by excluding the token field from workload object representations.

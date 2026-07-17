@@ -1,0 +1,1288 @@
+#!/usr/bin/env python
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# /// script
+# requires-python = ">=3.10,<3.11"
+# dependencies = [
+#   "packaging>=25",
+#   "pyyaml>=6.0.2",
+#   "requests>=2.31.0",
+#   "rich>=13.6.0",
+# ]
+# ///
+#
+# DEBUGGING
+# * You can set UPGRADE_ALL_BY_DEFAULT to "false" to only upgrade those versions that
+#   are set by UPGRADE_NNNNNNN (NNNNNNN > thing to upgrade version)
+# * You can set VERBOSE="true" to see requests being made
+# * You can set UPGRADE_NNNNNNN_INCLUDE_PRE_RELEASES="true"
+
+from __future__ import annotations
+
+import os
+import re
+import subprocess
+import sys
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from pathlib import Path
+
+import requests
+from common_prek_utils import (
+    AIRFLOW_CORE_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    console,
+    read_default_python_major_minor_version_for_images,
+    retrieve_gh_token,
+)
+from packaging.version import Version
+
+DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
+
+# Module-level GitHub token, set during main() via retrieve_gh_token()
+_github_token: str | None = None
+
+
+# List of files to update and whether to keep total length of the original value when replacing.
+FILES_TO_UPDATE: list[tuple[Path, bool]] = [
+    (AIRFLOW_ROOT_PATH / "Dockerfile", False),
+    (AIRFLOW_ROOT_PATH / "Dockerfile.ci", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "check_imports_in_providers.py", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "ruff_format.py", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
+    (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
+    (
+        AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "commands"
+        / "release_management_commands.py",
+        False,
+    ),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
+    (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
+    (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / "go-sdk" / ".pre-commit-config.yaml", False),
+    # Files that pin Docker Hub `alpine:` / `busybox:` tags and should be
+    # auto-bumped alongside the rest of the "important versions". Adding new
+    # call sites? Add them here too — the regex in SIMPLE_VERSION_PATTERNS
+    # only mutates files in this list.
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "utils"
+        / "xcom_sidecar.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "system"
+        / "cncf"
+        / "kubernetes"
+        / "example_kubernetes.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "system"
+        / "cncf"
+        / "kubernetes"
+        / "example_kubernetes_async.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "unit"
+        / "cncf"
+        / "kubernetes"
+        / "operators"
+        / "test_pod.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "kubernetes-tests"
+        / "tests"
+        / "kubernetes_tests"
+        / "test_kubernetes_pod_operator.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "commands"
+        / "kubernetes_commands.py",
+        False,
+    ),
+]
+for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
+    FILES_TO_UPDATE.append((file, False))
+
+PREK_DIR_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek"
+for file in PREK_DIR_PATH.rglob("*"):
+    if file.is_file() and file.name != "upgrade_important_versions.py" and not file.suffix == ".pyc":
+        FILES_TO_UPDATE.append((file, False))
+
+
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+COOLDOWN_DAYS = 4
+
+ROOT_PYPROJECT_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
+
+# Package-level cooldown overrides parsed from `[tool.uv.exclude-newer-package]`
+# (and its `[tool.uv.pip.exclude-newer-package]` twin) in the root pyproject.toml.
+# Populated by `_load_manual_cooldown_overrides()` at startup; lookups are
+# case-folded so PyPI casings like "PyYAML" still hit the lowercased TOML keys.
+_MANUAL_COOLDOWN_OVERRIDES: dict[str, float] = {}
+
+
+def _parse_duration_hours(value: str) -> float | None:
+    """Parse a `uv` duration string like "6 hours" or "1 day" into hours.
+
+    Returns None for unrecognised shapes (e.g. ISO timestamps), which are valid
+    `exclude-newer-package` values but don't translate to a relative cooldown.
+    """
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*(minute|minutes|hour|hours|day|days)\s*$", value)
+    if not m:
+        return None
+    amount = float(m.group(1))
+    unit = m.group(2)
+    if unit.startswith("minute"):
+        return amount / 60.0
+    if unit.startswith("hour"):
+        return amount
+    return amount * 24
+
+
+_AUTO_BLOCK_END_SENTINELS = (
+    "# End of automatically generated exclude-newer-package entries",
+    "# End of automatically generated exclude-newer-package-pip entries",
+)
+_SECTION_HEADER_RE = re.compile(r"^\[", re.MULTILINE)
+_OVERRIDE_ENTRY_RE = re.compile(r"^([A-Za-z0-9_.-]+)\s*=\s*[\"']([^\"']+)[\"']\s*(?:#.*)?$")
+
+
+def _iter_manual_override_blocks(text: str):
+    """Yield `(start, end, block_text)` for each manual exclude-newer-package block."""
+    for sentinel in _AUTO_BLOCK_END_SENTINELS:
+        idx = text.find(sentinel)
+        if idx == -1:
+            continue
+        block_start = idx + len(sentinel)
+        next_section = _SECTION_HEADER_RE.search(text, block_start)
+        block_end = next_section.start() if next_section else len(text)
+        yield block_start, block_end, text[block_start:block_end]
+
+
+def _parse_manual_overrides(text: str) -> dict[str, float]:
+    """Read manual `exclude-newer-package` overrides keyed by lowercased package name.
+
+    Only duration-shaped values (e.g. `"12 hours"`, `"1 day"`) are returned; boolean
+    overrides for first-party packages (`apache-airflow-* = false`) live inside the
+    auto-generated blocks and are intentionally skipped — they aren't cooldown
+    overrides, just opt-outs that don't need PyPI checks.
+    """
+    overrides: dict[str, float] = {}
+    for _, _, block in _iter_manual_override_blocks(text):
+        for line in block.splitlines():
+            match = _OVERRIDE_ENTRY_RE.match(line.strip())
+            if not match:
+                continue
+            hours = _parse_duration_hours(match.group(2))
+            if hours is not None:
+                overrides[match.group(1).lower()] = hours
+    return overrides
+
+
+def _load_manual_cooldown_overrides() -> None:
+    """Populate `_MANUAL_COOLDOWN_OVERRIDES` from the root pyproject.toml."""
+    global _MANUAL_COOLDOWN_OVERRIDES
+    try:
+        text = ROOT_PYPROJECT_PATH.read_text()
+    except OSError:
+        _MANUAL_COOLDOWN_OVERRIDES = {}
+        return
+    _MANUAL_COOLDOWN_OVERRIDES = _parse_manual_overrides(text)
+    if VERBOSE and _MANUAL_COOLDOWN_OVERRIDES:
+        console.print(f"[bright_blue]Manual cooldown overrides loaded: {_MANUAL_COOLDOWN_OVERRIDES}")
+
+
+def _is_version_within_cooldown(releases: dict, version: str, cooldown_hours: float | None = None) -> bool:
+    """Return True if the given version was uploaded within the cooldown period.
+
+    `cooldown_hours` defaults to the global `COOLDOWN_DAYS` window; pass an
+    explicit value to honour a per-package override.
+    """
+    files = releases.get(version, [])
+    if not files:
+        return False
+    upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
+    effective_hours = COOLDOWN_DAYS * 24 if cooldown_hours is None else cooldown_hours
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=effective_hours)
+    return upload_time > cutoff
+
+
+def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
+    if not should_upgrade:
+        return ""
+    if VERBOSE:
+        console.print(f"[bright_blue]Fetching latest version for {package_name} from PyPI")
+    response = requests.get(
+        f"https://pypi.org/pypi/{package_name}/json", headers={"User-Agent": "Python requests"}
+    )
+    response.raise_for_status()  # Ensure we got a successful response
+    data = response.json()
+    releases = data["releases"]
+    include_pre = os.environ.get(f"UPGRADE_{package_name.upper()}_INCLUDE_PRE_RELEASES", "")
+    if include_pre:
+        sorted_versions = sorted([Version(v) for v in releases.keys()])
+    else:
+        sorted_versions = sorted([Version(v) for v in releases.keys() if not Version(v).is_prerelease])
+    # A per-package override in pyproject.toml's `[tool.uv.exclude-newer-package]`
+    # narrows or widens the cooldown for this specific package — honour it so the
+    # script picks the same version `uv lock` would resolve against the override.
+    cooldown_hours = _MANUAL_COOLDOWN_OVERRIDES.get(package_name.lower())
+    # Skip versions released within the cooldown period
+    latest_version = ""
+    for version in reversed(sorted_versions):
+        if not _is_version_within_cooldown(releases, str(version), cooldown_hours):
+            latest_version = str(version)
+            break
+    if not latest_version:
+        latest_version = data["info"]["version"]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
+    return latest_version
+
+
+def _remove_override_entry(text: str, package_name: str) -> str:
+    """Strip `<package> = "<duration>"` lines and their `# REMOVE BY` headers.
+
+    Conservative on purpose: only contiguous `# REMOVE BY ...` /
+    `# this override is redundant ...` comment lines directly above the entry
+    are dropped. Broader context comments stay so a human reviewer can prune
+    them — the diff makes the now-orphaned context obvious to clean up.
+    """
+    lines = text.split("\n")
+    override_re = re.compile(rf"^{re.escape(package_name)}\s*=\s*[\"'][^\"']*[\"']\s*(?:#.*)?$")
+
+    def is_remove_by(line: str) -> bool:
+        stripped = line.lstrip()
+        return stripped.startswith("# REMOVE BY") or stripped.startswith("# this override is redundant")
+
+    while True:
+        target_idx = next((i for i, ln in enumerate(lines) if override_re.match(ln)), None)
+        if target_idx is None:
+            break
+        block_start = target_idx
+        while block_start > 0 and is_remove_by(lines[block_start - 1]):
+            block_start -= 1
+        del lines[block_start : target_idx + 1]
+        # Collapse consecutive blanks left behind by the deletion.
+        if 0 < block_start < len(lines):
+            if lines[block_start - 1].strip() == "" and lines[block_start].strip() == "":
+                del lines[block_start]
+    return "\n".join(lines)
+
+
+def prune_obsolete_cooldown_overrides() -> bool:
+    """Remove exclude-newer-package overrides whose target package is now past the global cooldown.
+
+    A per-package override exists to let a freshly-published release through the
+    project-wide `exclude-newer = "4 days"` gate. Once that release ages past the
+    global window, `uv lock` would resolve the same version with or without the
+    override — so the override no longer earns its complexity and can come out.
+    Running this on every important-versions upgrade means the line, and its
+    `# REMOVE BY ...` marker, retire themselves without anyone having to
+    remember the calendar date.
+    """
+    try:
+        text = ROOT_PYPROJECT_PATH.read_text()
+    except OSError:
+        return False
+    overrides = _parse_manual_overrides(text)
+    if not overrides:
+        return False
+
+    obsolete: list[str] = []
+    for package_name in overrides:
+        try:
+            response = requests.get(
+                f"https://pypi.org/pypi/{package_name}/json",
+                headers={"User-Agent": "Python requests"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            releases = response.json()["releases"]
+        except Exception as exc:
+            console.print(f"[bright_yellow]Skipping {package_name} override obsolescence check ({exc})")
+            continue
+        candidates = sorted(
+            (Version(v) for v in releases.keys() if not Version(v).is_prerelease),
+            reverse=True,
+        )
+        if not candidates:
+            continue
+        latest = str(candidates[0])
+        # If the latest stable release is OUTSIDE the global cooldown window,
+        # the per-package override is no longer changing what `uv lock` resolves.
+        if not _is_version_within_cooldown(releases, latest):
+            obsolete.append(package_name)
+
+    if not obsolete:
+        return False
+
+    new_text = text
+    for pkg in obsolete:
+        console.print(f"[bright_green]Removing obsolete exclude-newer-package override for {pkg}")
+        new_text = _remove_override_entry(new_text, pkg)
+    if new_text == text:
+        return False
+    ROOT_PYPROJECT_PATH.write_text(new_text)
+    return True
+
+
+def get_all_python_versions() -> list[Version]:
+    """
+    Fetch all released Python versions by parsing the Python FTP directory listing.
+    This provides static information about all available Python releases.
+    """
+    if VERBOSE:
+        console.print("[bright_blue]Fetching all released Python versions from python.org FTP")
+    url = "https://www.python.org/ftp/python/"
+    headers = {"User-Agent": "Python requests"}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+
+    # Parse the HTML directory listing to extract version numbers
+    # The FTP directory listing has links like: <a href="3.12.1/">3.12.1/</a>
+    versions = []
+    # Match version patterns like "3.12.1/" in href attributes
+    version_pattern = re.compile(r'href="(\d+\.\d+\.\d+)/"')
+
+    for match in version_pattern.finditer(response.text):
+        version_str = match.group(1)
+        try:
+            # Parse as version to validate it's a proper version number
+            version_obj = Version(version_str)
+            # Only include Python 3.x versions
+            if version_obj.major == 3:
+                versions.append(version_obj)
+        except Exception:
+            # Skip invalid version strings
+            continue
+
+    return versions
+
+
+def get_latest_python_version(python_major_minor: str, all_versions: list[Version]) -> str:
+    """
+    Fetch the latest released Python version for a given major.minor (e.g. '3.12') from FTP directory listing.
+    Uses static directory information rather than API calls.
+    """
+    # Only consider releases matching the major.minor.patch pattern
+    matching = [
+        version for version in all_versions if python_major_minor == f"{version.major}.{version.minor}"
+    ]
+    if not matching:
+        console.print(f"[bright_red]No released Python versions found for {python_major_minor}")
+        sys.exit(1)
+    # Sort and return the latest version
+    latest_version = sorted(matching)[-1]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for {python_major_minor}: {latest_version}")
+    return str(latest_version)
+
+
+def get_latest_golang_version() -> str:
+    if not UPGRADE_GOLANG:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest Go version from go.dev")
+    response = requests.get("https://go.dev/dl/?mode=json")
+    response.raise_for_status()  # Ensure we got a successful response
+    versions = response.json()
+    stable_versions = [release["version"].replace("go", "") for release in versions if release["stable"]]
+    latest_version = sorted(stable_versions, key=Version, reverse=True)[0]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for Go: {latest_version}")
+    return latest_version
+
+
+def get_latest_lts_node_version() -> str:
+    if not UPGRADE_NODE_LTS:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest LTS Node version from nodejs.org")
+    response = requests.get("https://nodejs.org/dist/index.json")
+    response.raise_for_status()  # Ensure we got a successful response
+    versions = response.json()
+    lts_prefix = "v24"
+    lts_versions = [version["version"] for version in versions if version["version"].startswith(lts_prefix)]
+    # The json array is sorted from newest to oldest, so the first element is the latest LTS version
+    # Skip leading v in version
+    latest_version = lts_versions[0][1:]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for LTS Node: {latest_version}")
+    return latest_version
+
+
+# Match date-shaped tags published by official images for daily / edge
+# builds, e.g. Alpine's `20260127` or `v20260127`. These parse as valid
+# PEP 440 versions and would otherwise sort above any normal release tag.
+# Pattern: optional leading `v`, then 8 digits (YYYYMMDD), optionally
+# followed by `.N` (revision suffix on the same date).
+_DATE_SHAPED_TAG_RE = re.compile(r"^v?\d{8}(\.\d+)?$")
+
+
+def get_latest_image_version(image: str) -> str:
+    """
+    Fetch the latest tag released for a DockerHub image.
+
+    Args:
+        image: DockerHub image name in the format "namespace/repository" or just "repository" for official images
+
+    Returns:
+        The latest tag version as a string
+    """
+    if VERBOSE:
+        console.print(f"[bright_blue]Fetching latest tag for DockerHub image: {image}")
+
+    # Split image into namespace and repository
+    if "/" in image:
+        namespace, repository = image.split("/", 1)
+    else:
+        # Official images use 'library' as namespace
+        namespace = "library"
+        repository = image
+
+    # DockerHub API endpoint for tags
+    url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{repository}/tags"
+    params: dict[str, int | str] = {"page_size": 100, "ordering": "last_updated"}
+
+    headers = {"User-Agent": "Python requests"}
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+
+    data = response.json()
+    tags = data.get("results", [])
+
+    if not tags:
+        console.print(f"[bright_red]No tags found for image {image}")
+        return ""
+
+    # Filter out non-version tags and sort by version
+    version_tags = []
+    for tag in tags:
+        tag_name = tag["name"]
+        # Skip well-known floating tags.
+        if tag_name in ["latest", "stable", "main", "master", "0", "v0", "edge"]:
+            continue
+        # Skip date-shaped tags (`YYYYMMDD`, `YYYYMMDD.N`, `vYYYYMMDD`).
+        # Several official images publish daily / edge builds under
+        # date-stamped numeric tags (e.g. Alpine's `20260127`). PEP 440
+        # parses those as valid `Version("20260127")` and they sort higher
+        # than any normal release version like `3.23`, so the bumper would
+        # auto-pin the daily edge image instead of the latest release.
+        if _DATE_SHAPED_TAG_RE.match(tag_name):
+            continue
+        try:
+            # Try to parse as version to filter out non-version tags.
+            # Remove leading 'v' if present.
+            version_str = tag_name.lstrip("v")
+            version_obj = Version(version_str)
+            # Belt-and-braces sanity check: any version whose major component
+            # is implausibly large (≥ 10000) is a date stamp the regex above
+            # missed, not a release. The largest legitimate image major
+            # version on Docker Hub today is in the low hundreds (e.g.
+            # `node:24`), so 10000 is a safe ceiling.
+            if version_obj.major >= 10000:
+                continue
+            version_tags.append((version_obj, tag_name))
+        except Exception:
+            # Skip tags that don't parse as versions.
+            continue
+
+    if not version_tags:
+        # If no version tags found, return the first tag
+        latest_tag = tags[0]["name"]
+        if VERBOSE:
+            console.print(f"[bright_blue]Latest tag for {image}: {latest_tag} (no version tags found)")
+        return latest_tag
+
+    # Sort by version and get the latest
+    version_tags.sort(key=lambda x: x[0], reverse=True)
+    latest_tag = version_tags[0][1]
+
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest tag for {image}: {latest_tag}")
+
+    return latest_tag
+
+
+def get_latest_github_release_version(repo: str) -> str:
+    """
+    Fetch the latest release version from a GitHub repository.
+
+    Args:
+        repo: GitHub repository in the format "owner/repo"
+
+    Returns:
+        The latest release version as a string (without leading 'v')
+    """
+    if VERBOSE:
+        console.print(f"[bright_blue]Fetching latest release for GitHub repo: {repo}")
+
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    headers = {"User-Agent": "Python requests"}
+    if _github_token:
+        headers["Authorization"] = f"Bearer {_github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+
+    data = response.json()
+    tag_name = data.get("tag_name", "")
+
+    if not tag_name:
+        console.print(f"[bright_red]No release tag found for {repo}")
+        return ""
+
+    # Remove leading 'v' if present
+    version = tag_name.lstrip("v")
+
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for {repo}: {version}")
+
+    return version
+
+
+def get_latest_sphinx_airflow_theme_version() -> str:
+    if not UPGRADE_SPHINX_AIRFLOW_THEME:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest sphinx-airflow-theme version")
+    url = "https://airflow.apache.org/sphinx-airflow-theme/LATEST_VERSION.txt"
+    response = requests.get(url, headers={"User-Agent": "Python requests"})
+    response.raise_for_status()
+    latest_version = response.text.strip()
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for sphinx-airflow-theme: {latest_version}")
+    return latest_version
+
+
+def get_latest_openapi_generator_version() -> str:
+    if not UPGRADE_OPENAPI_GENERATOR:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest OpenAPI generator version from GitHub")
+    url = "https://api.github.com/repos/OpenAPITools/openapi-generator/releases/latest"
+    headers = {"User-Agent": "Python requests"}
+    if _github_token:
+        headers["Authorization"] = f"Bearer {_github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    data = response.json()
+    return data["tag_name"].lstrip("v")
+
+
+class Quoting(Enum):
+    UNQUOTED = 0
+    SINGLE_QUOTED = 1
+    DOUBLE_QUOTED = 2
+    REVERSE_SINGLE_QUOTED = 3
+    REVERSE_DOUBLE_QUOTED = 4
+
+
+PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_PIP_VERSION=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(python -m pip install --upgrade pip==)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(AIRFLOW_PIP_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(PIP_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(PIP_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.abrc]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+]
+
+PYTHON_PATTERNS: list[tuple[str, Quoting]] = [
+    (r"(\"{python_major_minor}\": \")([0-9.abrc]+)(\")", Quoting.UNQUOTED),
+]
+
+GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(GOLANG_MAJOR_MINOR_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (
+        re.compile(r"(\| *`GOLANG_MAJOR_MINOR_VERSION` *\| *)(`[0-9.abrc]+`)( *\|)"),
+        Quoting.REVERSE_SINGLE_QUOTED,
+    ),
+]
+
+AIRFLOW_IMAGE_PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (
+        re.compile(r"(\| ``AIRFLOW_PYTHON_VERSION`` *\| )(``[0-9.abrc]+``)( *\|)"),
+        Quoting.REVERSE_DOUBLE_QUOTED,
+    ),
+]
+
+UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(uv>=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.abrd]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    # Intentionally NOT matching `[tool.uv] required-version = ">=X.Y.Z"` in the root
+    # pyproject.toml. That value is a hard minimum contributors must have installed —
+    # not the exact uv version CI ships with. Bumping it on every uv release would force
+    # the whole contributor base to upgrade uv in lockstep, which is far more churn than
+    # the check is worth. `required-version` stays a deliberate, manual bump only. If
+    # you're tempted to auto-track it here, don't — the breeze/prek uv version check
+    # reads it dynamically and tolerates a stale floor.
+    (
+        re.compile(
+            r"(\")([0-9.abrc]+)(\" {2}# Keep this comment to "
+            r"allow automatic replacement of uv version)"
+        ),
+        Quoting.UNQUOTED,
+    ),
+]
+
+PREK_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_PREK_VERSION=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(AIRFLOW_PREK_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(prek>=)([0-9.abrc]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(PREK_VERSION = )(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (re.compile(r"(PREK_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    (
+        re.compile(r"(\| *`AIRFLOW_PREK_VERSION` *\| *)(`[0-9.abrc]+`)( *\|)"),
+        Quoting.REVERSE_SINGLE_QUOTED,
+    ),
+    (
+        re.compile(
+            r"(\")([0-9.abrc]+)(\" {2}# Keep this comment to allow automatic "
+            r"replacement of prek version)"
+        ),
+        Quoting.UNQUOTED,
+    ),
+    # We should not add minimum_prek_version into automation unless this installation part automated with prek
+]
+
+NODE_LTS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(^ {2}node: )([0-9.abrc]+)^"), Quoting.UNQUOTED),
+]
+
+
+def get_replacement(value: str, quoting: Quoting) -> str:
+    if quoting == Quoting.DOUBLE_QUOTED:
+        return f'"{value}"'
+    if quoting == Quoting.SINGLE_QUOTED:
+        return f"'{value}'"
+    if quoting == Quoting.REVERSE_SINGLE_QUOTED:
+        return f"`{value}`"
+    if quoting == Quoting.REVERSE_DOUBLE_QUOTED:
+        return f"``{value}``"
+    return value
+
+
+def get_env_bool(name: str, default: bool = True) -> bool:
+    """Get boolean value from environment variable."""
+    default_str = str(default).lower()
+    upgrade_all_str = str(UPGRADE_ALL_BY_DEFAULT).lower()
+    fallback = upgrade_all_str if name.startswith("UPGRADE_") else default_str
+    return os.environ.get(name, fallback).lower() == "true"
+
+
+VERBOSE: bool = os.environ.get("VERBOSE", "false") == "true"
+UPGRADE_ALL_BY_DEFAULT: bool = os.environ.get("UPGRADE_ALL_BY_DEFAULT", "true") == "true"
+UPGRADE_COOLDOWN_DAYS: int = int(os.environ.get("UPGRADE_COOLDOWN_DAYS", "0"))
+
+if UPGRADE_ALL_BY_DEFAULT and VERBOSE:
+    console.print("[bright_blue]Upgrading all important versions")
+
+# Package upgrade flags
+UPGRADE_ALPINE: bool = get_env_bool("UPGRADE_ALPINE")
+UPGRADE_BUSYBOX: bool = get_env_bool("UPGRADE_BUSYBOX")
+UPGRADE_FLIT_CORE: bool = get_env_bool("UPGRADE_FLIT_CORE")
+UPGRADE_GITPYTHON: bool = get_env_bool("UPGRADE_GITPYTHON")
+UPGRADE_GOLANG: bool = get_env_bool("UPGRADE_GOLANG")
+UPGRADE_HATCH: bool = get_env_bool("UPGRADE_HATCH")
+UPGRADE_HATCHLING: bool = get_env_bool("UPGRADE_HATCHLING")
+UPGRADE_MPROCS: bool = get_env_bool("UPGRADE_MPROCS")
+UPGRADE_NODE_LTS: bool = get_env_bool("UPGRADE_NODE_LTS")
+UPGRADE_PIP: bool = get_env_bool("UPGRADE_PIP")
+UPGRADE_PREK: bool = get_env_bool("UPGRADE_PREK")
+UPGRADE_PYTHON: bool = get_env_bool("UPGRADE_PYTHON")
+UPGRADE_PYYAML: bool = get_env_bool("UPGRADE_PYYAML")
+UPGRADE_RICH: bool = get_env_bool("UPGRADE_RICH")
+UPGRADE_RUFF: bool = get_env_bool("UPGRADE_RUFF")
+UPGRADE_UV: bool = get_env_bool("UPGRADE_UV")
+UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
+UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
+UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
+UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
+
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+DEFAULT_PROD_IMAGE_PYTHON_VERSION = read_default_python_major_minor_version_for_images()
+
+
+def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
+    # Assume that the pattern has up to 3 replacement groups:
+    # 1. Prefix
+    # 2. Original version
+    # 3. Suffix
+    #
+    # (prefix)(version)(suffix)
+    # In case "keep_total_length" is set to True, the replacement will be padded with spaces to match
+    # the original length
+    def replacer(match):
+        prefix = match.group(1)
+        postfix = match.group(3) if len(match.groups()) > 2 else ""
+        if not keep_total_length:
+            return prefix + version + postfix
+        original_length = len(match.group(2))
+        new_length = len(version)
+        diff = new_length - original_length
+        if diff <= 0:
+            postfix = " " * -diff + postfix
+        else:
+            postfix = postfix[diff:]
+        padded_replacement = prefix + version + postfix
+        return padded_replacement.strip()
+
+    return re.sub(pattern, replacer, text)
+
+
+def apply_simple_regex_replacements(
+    text: str,
+    version: str,
+    patterns: list[tuple[str, str]],
+) -> str:
+    """Apply a list of simple regex replacements where the version is substituted."""
+    result = text
+    for pattern, replacement_template in patterns:
+        result = re.sub(pattern, replacement_template.format(version=version), result)
+    return result
+
+
+def apply_pattern_replacements(
+    text: str,
+    version: str,
+    patterns: list[tuple[re.Pattern, Quoting]],
+    keep_length: bool,
+) -> str:
+    """Apply pattern-based replacements with quoting."""
+    result = text
+    for line_pattern, quoting in patterns:
+        result = replace_version(line_pattern, get_replacement(version, quoting), result, keep_length)
+    return result
+
+
+# Configuration for packages that follow simple version constant patterns
+SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
+    "flit_core": [
+        (r"(flit_core==)([0-9.abrc]+)", "flit_core=={version}"),
+        (r"(flit_core >=)([0-9.abrc]+)", "flit_core >={version}"),
+        (r"(flit-core>=)([0-9.abrc]+)", "flit-core>={version}"),
+        (r"(flit-core==)([0-9.abrc]+)", "flit-core=={version}"),
+        (r"(flit>=)([0-9.abrc]+)", "flit>={version}"),
+        (r"(flit==)([0-9.abrc]+)", "flit=={version}"),
+    ],
+    "hatchling": [
+        (r"(hatchling==)([0-9.abrc]+)", "hatchling=={version}"),
+        (r"(hatchling>=)([0-9.abrc]+)", "hatchling>={version}"),
+        (r"(HATCHLING_VERSION = )(\"[0-9.abrc]+\")", 'HATCHLING_VERSION = "{version}"'),
+        (r"(HATCHLING_VERSION=)(\"[0-9.abrc]+\")", 'HATCHLING_VERSION="{version}"'),
+    ],
+    "hatch": [
+        (r"(HATCH_VERSION = )(\"[0-9.abrc]+\")", 'HATCH_VERSION = "{version}"'),
+        (r"(HATCH_VERSION=)(\"[0-9.abrc]+\")", 'HATCH_VERSION="{version}"'),
+        (r"(hatch==)([0-9.abrc]+)", "hatch=={version}"),
+        (r"(hatch>=)([0-9.abrc]+)", "hatch>={version}"),
+    ],
+    "pyyaml": [
+        (r"(PYYAML_VERSION = )(\"[0-9.abrc]+\")", 'PYYAML_VERSION = "{version}"'),
+        (r"(PYYAML_VERSION=)(\"[0-9.abrc]+\")", 'PYYAML_VERSION="{version}"'),
+        (r"(pyyaml>=)(\"[0-9.abrc]+\")", 'pyyaml>="{version}"'),
+        (r"(pyyaml>=)([0-9.abrc]+)", "pyyaml>={version}"),
+    ],
+    "gitpython": [
+        (r"(GITPYTHON_VERSION = )(\"[0-9.abrc]+\")", 'GITPYTHON_VERSION = "{version}"'),
+        (r"(GITPYTHON_VERSION=)(\"[0-9.abrc]+\")", 'GITPYTHON_VERSION="{version}"'),
+    ],
+    "rich": [
+        (r"(RICH_VERSION = )(\"[0-9.abrc]+\")", 'RICH_VERSION = "{version}"'),
+        (r"(RICH_VERSION=)(\"[0-9.abrc]+\")", 'RICH_VERSION="{version}"'),
+    ],
+    "ruff": [
+        (r"(ruff==)([0-9.abrc]+)", "ruff=={version}"),
+        (r"(ruff>=)([0-9.abrc]+)", "ruff>={version}"),
+    ],
+    "mypy": [
+        (r"(mypy==)([0-9.]+)", "mypy=={version}"),
+    ],
+    "protoc": [
+        (r"(rvolosatovs/protoc:)(v[0-9.]+)", "rvolosatovs/protoc:{version}"),
+    ],
+    "mprocs": [
+        (r"(ARG MPROCS_VERSION=)(\"[0-9.]+\")", 'ARG MPROCS_VERSION="{version}"'),
+    ],
+    "openapi_generator": [
+        (r"(OPENAPI_GENERATOR_CLI_VER = )(\"[0-9.]+\")", 'OPENAPI_GENERATOR_CLI_VER = "{version}"'),
+    ],
+    # Pinning Docker Hub base-image tags used by Airflow's K8s system tests
+    # protects CI from anonymous-pull rate limits — the kind cluster
+    # `kind load`s the pre-pulled image so kubelet (default
+    # imagePullPolicy=IfNotPresent for tagged images) never reaches Docker
+    # Hub. Pattern matches both `alpine:X.Y[.Z]` literals in code and
+    # `ARG ALPINE_VERSION="X.Y[.Z]"` in chart Dockerfiles.
+    "alpine": [
+        (r"(alpine:)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", "alpine:{version}"),
+        (r'(ALPINE_VERSION=")([0-9.]+)(")', 'ALPINE_VERSION="{version}"'),
+    ],
+    "busybox": [
+        (r"(busybox:)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", "busybox:{version}"),
+    ],
+    "sphinx_airflow_theme": [
+        (
+            r"(sphinx-airflow-theme@https://airflow\.apache\.org/sphinx-airflow-theme/sphinx_airflow_theme-)([0-9.]+)(-py3-none-any\.whl)",
+            "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-{version}-py3-none-any.whl",
+        ),
+    ],
+}
+
+
+# Configuration mapping pattern variables to their patterns and upgrade flags
+PATTERN_REGISTRY = {
+    "pip": (PIP_PATTERNS, UPGRADE_PIP),
+    "golang": (GOLANG_PATTERNS, UPGRADE_GOLANG),
+    "uv": (UV_PATTERNS, UPGRADE_UV),
+    "prek": (PREK_PATTERNS, UPGRADE_PREK),
+    "node_lts": (NODE_LTS_PATTERNS, UPGRADE_NODE_LTS),
+}
+
+
+def fetch_all_package_versions() -> dict[str, str]:
+    """Fetch latest versions for all packages that need to be upgraded."""
+    return {
+        "golang": get_latest_golang_version() if UPGRADE_GOLANG else "",
+        "pip": get_latest_pypi_version("pip", UPGRADE_PIP),
+        "uv": get_latest_pypi_version("uv", UPGRADE_UV),
+        "prek": get_latest_pypi_version("prek", UPGRADE_PREK),
+        "flit_core": get_latest_pypi_version("flit_core", UPGRADE_FLIT_CORE),
+        "hatch": get_latest_pypi_version("hatch", UPGRADE_HATCH),
+        "hatchling": get_latest_pypi_version("hatchling", UPGRADE_HATCHLING),
+        "pyyaml": get_latest_pypi_version("PyYAML", UPGRADE_PYYAML),
+        "gitpython": get_latest_pypi_version("GitPython", UPGRADE_GITPYTHON),
+        "ruff": get_latest_pypi_version("ruff", UPGRADE_RUFF),
+        "rich": get_latest_pypi_version("rich", UPGRADE_RICH),
+        "mypy": get_latest_pypi_version("mypy", UPGRADE_MYPY),
+        "node_lts": get_latest_lts_node_version() if UPGRADE_NODE_LTS else "",
+        "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
+        "alpine": get_latest_image_version("alpine") if UPGRADE_ALPINE else "",
+        "busybox": get_latest_image_version("busybox") if UPGRADE_BUSYBOX else "",
+        "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
+        "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
+        "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()
+        if UPGRADE_SPHINX_AIRFLOW_THEME
+        else "",
+    }
+
+
+def log_special_versions(versions: dict[str, str]) -> None:
+    """Log versions that need special attention."""
+    if UPGRADE_MYPY and versions["mypy"]:
+        console.print(f"[bright_blue]Latest mypy version: {versions['mypy']}")
+    if UPGRADE_PROTOC and versions["protoc"]:
+        console.print(f"[bright_blue]Latest protoc image version: {versions['protoc']}")
+
+
+def fetch_python_versions() -> dict[str, str]:
+    """Fetch latest Python versions for all supported major.minor versions."""
+    latest_python_versions: dict[str, str] = {}
+    if not UPGRADE_PYTHON:
+        return latest_python_versions
+
+    all_python_versions = get_all_python_versions()
+    for python_major_minor_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
+        latest_python_versions[python_major_minor_version] = get_latest_python_version(
+            python_major_minor_version, all_python_versions
+        )
+        if python_major_minor_version == DEFAULT_PROD_IMAGE_PYTHON_VERSION:
+            console.print(
+                f"[bright_blue]Latest image python {python_major_minor_version} "
+                f"version: {latest_python_versions[python_major_minor_version]}"
+            )
+    return latest_python_versions
+
+
+def update_file_with_versions(
+    file_content: str,
+    keep_length: bool,
+    versions: dict[str, str],
+    latest_python_versions: dict[str, str],
+) -> str:
+    """Update file content with all version replacements."""
+    new_content = file_content
+
+    # Apply pattern-based replacements using registry
+    for package_name, (patterns, should_upgrade) in PATTERN_REGISTRY.items():
+        version = versions.get(package_name, "")
+        if should_upgrade and version:
+            new_content = apply_pattern_replacements(new_content, version, patterns, keep_length)
+
+    # Handle Python version updates (special case due to multiple versions)
+    if UPGRADE_PYTHON:
+        for python_major_minor_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
+            latest_python_version = latest_python_versions[python_major_minor_version]
+            for line_format, quoting in PYTHON_PATTERNS:
+                line_pattern = re.compile(line_format.format(python_major_minor=python_major_minor_version))
+                new_content = replace_version(
+                    line_pattern,
+                    get_replacement(latest_python_version, quoting),
+                    new_content,
+                    keep_length,
+                )
+            if python_major_minor_version == DEFAULT_PROD_IMAGE_PYTHON_VERSION:
+                new_content = apply_pattern_replacements(
+                    new_content, latest_python_version, AIRFLOW_IMAGE_PYTHON_PATTERNS, keep_length
+                )
+
+    return _apply_simple_regexp_replacements(new_content, versions)
+
+
+def _apply_simple_regexp_replacements(new_content: str, versions: dict[str, str]) -> str:
+    # Apply simple regex replacements
+    for package_name, patterns in SIMPLE_VERSION_PATTERNS.items():
+        should_upgrade = globals().get(f"UPGRADE_{package_name.upper()}", False)
+        version = versions.get(package_name, "")
+        if should_upgrade and version:
+            new_content = apply_simple_regex_replacements(new_content, version, patterns)
+    return new_content
+
+
+def process_all_files(versions: dict[str, str], latest_python_versions: dict[str, str]) -> bool:
+    """
+    Process all files and apply version updates.
+
+    Returns:
+        True if any files were changed, False otherwise.
+    """
+    changed = False
+    for file_to_update, keep_length in FILES_TO_UPDATE:
+        console.print(f"[bright_blue]Updating {file_to_update}")
+        file_content = file_to_update.read_text()
+        new_content = update_file_with_versions(file_content, keep_length, versions, latest_python_versions)
+
+        if new_content != file_content:
+            file_to_update.write_text(new_content)
+            console.print(f"[bright_blue]Updated {file_to_update}")
+            changed = True
+    return changed
+
+
+def sync_breeze_lock_file() -> None:
+    """Run uv sync to update breeze's lock file."""
+    console.print("[bright_blue]Running breeze's uv sync to update the lock file")
+    copy_env = os.environ.copy()
+    del copy_env["VIRTUAL_ENV"]
+    subprocess.run(
+        ["uv", "sync", "--resolution", "highest", "--upgrade"],
+        check=True,
+        cwd=AIRFLOW_ROOT_PATH / "dev" / "breeze",
+        env=copy_env,
+    )
+
+
+def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
+    """
+    Resolve the full transitive dependency list for hatchling using uv pip compile.
+
+    When with_gitpython is True, also includes GitPython and its transitive dependencies (gitdb, smmap).
+    Returns a sorted list of pinned requirement strings, with tomli carrying its python_version marker.
+    """
+    packages = ["hatchling"]
+    if with_gitpython:
+        packages.append("gitpython")
+
+    result = subprocess.run(
+        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.10"],
+        input="\n".join(packages) + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    # Parse output: lines like "package==version" (skip comment lines and blank lines)
+    requires: list[str] = []
+    for _line in result.stdout.splitlines():
+        line = _line.strip()
+        if not line or line.startswith("#"):
+            continue
+        # Take only the "name==version" part (strip trailing comments)
+        pkg_spec = line.split()[0]
+        # Normalise package name to canonical casing
+        pkg_name_lower = pkg_spec.split("==")[0].lower().replace("-", "_")
+        pkg_version = pkg_spec.split("==")[1] if "==" in pkg_spec else ""
+        if not pkg_version:
+            continue
+        # Use canonical casing for known packages
+        CANONICAL_NAMES = {
+            "gitpython": "GitPython",
+            "gitdb": "gitdb",
+            "smmap": "smmap",
+            "hatchling": "hatchling",
+            "packaging": "packaging",
+            "pathspec": "pathspec",
+            "pluggy": "pluggy",
+            "trove_classifiers": "trove-classifiers",
+            "tomli": "tomli",
+            "virtualenv": "virtualenv",
+            "distlib": "distlib",
+            "filelock": "filelock",
+            "platformdirs": "platformdirs",
+            "typing_extensions": "typing-extensions",
+        }
+        canonical = CANONICAL_NAMES.get(pkg_name_lower, pkg_spec.split("==")[0])
+        if pkg_name_lower == "tomli":
+            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
+        elif pkg_name_lower == "typing_extensions":
+            # typing_extensions is built-in from Python 3.11+
+            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
+        else:
+            requires.append(f"{canonical}=={pkg_version}")
+
+    return sorted(requires, key=lambda r: r.split("==")[0].lower())
+
+
+def _build_requires_block(requires: list[str]) -> str:
+    """Render the TOML requires array content (lines between the brackets)."""
+    lines = []
+    for req in requires:
+        lines.append(f'    "{req}",')
+    return "\n".join(lines)
+
+
+def update_pyproject_build_requires(
+    hatchling_requires: list[str],
+    hatchling_with_git_requires: list[str],
+    versions: dict[str, str],
+) -> bool:
+    """
+    Scan all pyproject.toml files in the repo (excluding out/ directory).
+
+    For each file:
+    - If build-system/requires contains flit_core → upgrade to latest flit_core version (if set).
+    - If build-system uses hatchling → replace the requires list with the resolved transitive deps.
+      airflow-core/pyproject.toml gets the gitpython-inclusive list; all others get the plain list.
+
+    Returns True if any file was changed.
+    """
+    changed = False
+
+    # Pattern to match and replace the full requires = [...] block under [build-system]
+    # Handles both single-line and multi-line forms.
+    build_system_requires_re = re.compile(
+        r"(\[build-system\]\s*\n(?:[^\[]*?\n)*?requires\s*=\s*)(\[[^\]]*\])",
+        re.DOTALL,
+    )
+
+    flit_version = versions.get("flit_core", "")
+
+    for pyproject_path in sorted(AIRFLOW_ROOT_PATH.rglob("pyproject.toml")):
+        # Skip anything under the out/ directory (reproducible build snapshots)
+        if "out/" in pyproject_path.as_posix().replace(str(AIRFLOW_ROOT_PATH) + "/", ""):
+            continue
+
+        content = pyproject_path.read_text()
+
+        # Determine if this file uses flit_core or hatchling
+        build_system_match = build_system_requires_re.search(content)
+        if not build_system_match:
+            continue
+
+        requires_block = build_system_match.group(2)
+
+        if "flit_core" in requires_block or "flit-core" in requires_block:
+            # Upgrade flit_core version if requested
+            if not (UPGRADE_FLIT_CORE and flit_version):
+                continue
+            new_content = apply_simple_regex_replacements(
+                content, flit_version, SIMPLE_VERSION_PATTERNS["flit_core"]
+            )
+            if new_content != content:
+                pyproject_path.write_text(new_content)
+                console.print(f"[bright_blue]Updated flit_core in {pyproject_path}")
+                changed = True
+
+        elif "hatchling" in requires_block or "hatchling" in content:
+            if not (UPGRADE_HATCHLING and hatchling_requires):
+                continue
+            # Choose the right list
+            is_airflow_core = pyproject_path == AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"
+            target_requires = hatchling_with_git_requires if is_airflow_core else hatchling_requires
+
+            new_requires_lines = _build_requires_block(target_requires)
+            new_requires_array = f"[\n{new_requires_lines}\n]"
+
+            def _replace_requires(m: re.Match[str], _new: str = new_requires_array) -> str:
+                return m.group(1) + _new
+
+            new_content = build_system_requires_re.sub(
+                _replace_requires,
+                content,
+            )
+
+            # Also apply the simple hatchling version pattern (for files that pin hatchling== elsewhere)
+            hatchling_version = next(
+                (
+                    r.split("==")[1].split(";")[0].strip()
+                    for r in target_requires
+                    if r.lower().startswith("hatchling==")
+                ),
+                "",
+            )
+            if hatchling_version:
+                new_content = apply_simple_regex_replacements(
+                    new_content, hatchling_version, SIMPLE_VERSION_PATTERNS["hatchling"]
+                )
+
+            if new_content != content:
+                pyproject_path.write_text(new_content)
+                console.print(f"[bright_blue]Updated hatchling build-system requires in {pyproject_path}")
+                changed = True
+
+    return changed
+
+
+def is_within_cooldown(cooldown_days: int) -> bool:
+    """Check if there was a version upgrade commit within the cooldown period.
+
+    Looks for commits matching the 'Upgrade important' pattern in the git log
+    within the last ``cooldown_days`` days. If found, the upgrade check should
+    not fail because someone recently addressed the versions.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                f"--since={cooldown_days} days ago",
+                "--all",
+                "--oneline",
+                "--grep=Upgrade important",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=AIRFLOW_ROOT_PATH,
+        )
+        if result.stdout.strip():
+            if VERBOSE:
+                console.print(
+                    f"[bright_blue]Found recent upgrade commits within {cooldown_days} days:\n"
+                    f"{result.stdout.strip()}"
+                )
+            return True
+        return False
+    except subprocess.CalledProcessError:
+        return False
+
+
+def main() -> None:
+    """Main entry point for the version upgrade script."""
+    global _github_token
+    _github_token = retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
+
+    # Honour `[tool.uv.exclude-newer-package]` overrides when checking PyPI for
+    # the latest version of any tracked package — otherwise the script's own
+    # 4-day cooldown would shadow a per-package window the project deliberately
+    # narrowed in pyproject.toml.
+    _load_manual_cooldown_overrides()
+
+    versions = fetch_all_package_versions()
+    log_special_versions(versions)
+    latest_python_versions = fetch_python_versions()
+
+    changed = process_all_files(versions, latest_python_versions)
+
+    # Resolve hatchling transitive dependencies and update all pyproject.toml build-system sections
+    if UPGRADE_HATCHLING or UPGRADE_FLIT_CORE:
+        console.print("[bright_blue]Resolving hatchling transitive build dependencies via uv pip compile")
+        hatchling_requires = resolve_hatchling_build_requires(with_gitpython=False)
+        hatchling_with_git_requires = resolve_hatchling_build_requires(with_gitpython=True)
+        if VERBOSE:
+            console.print(f"[bright_blue]Hatchling requires: {hatchling_requires}")
+            console.print(f"[bright_blue]Hatchling+GitPython requires: {hatchling_with_git_requires}")
+        pyproject_changed = update_pyproject_build_requires(
+            hatchling_requires, hatchling_with_git_requires, versions
+        )
+        changed = changed or pyproject_changed
+
+    # Sweep up exclude-newer-package overrides whose target version has now
+    # aged past the global cooldown — keeps the manual overrides self-retiring.
+    overrides_changed = prune_obsolete_cooldown_overrides()
+    changed = changed or overrides_changed
+
+    if changed:
+        sync_breeze_lock_file()
+        if not os.environ.get("CI"):
+            console.print("[bright_blue]Please commit the changes")
+        if UPGRADE_COOLDOWN_DAYS > 0 and is_within_cooldown(UPGRADE_COOLDOWN_DAYS):
+            console.print(
+                f"[bright_yellow]Versions are outdated but within {UPGRADE_COOLDOWN_DAYS}-day "
+                f"cooldown period (recent upgrade commit found). Not failing."
+            )
+            sys.exit(0)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

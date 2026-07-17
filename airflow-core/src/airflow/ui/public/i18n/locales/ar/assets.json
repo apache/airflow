@@ -1,0 +1,58 @@
+{
+  "additional_data": "بيانات إضافية",
+  "asset_few": "أصول",
+  "asset_many": "أصول",
+  "asset_one": "أصل",
+  "asset_other": "أصول",
+  "asset_two": "أصلان",
+  "asset_zero": "لا يوجد أي أصل",
+  "assetStore": {
+    "add": "إضافة مخزن الأصول",
+    "clearAll": {
+      "resource": "كل مخزن الأصول",
+      "title": "مسح كل مخزن الأصول",
+      "warning": "سيتم مسح كل مخزن الأصول. ستفقد المهام التي تستخدم هذا المخزن لتنسيق العمل ذاكرتها المحفوظة."
+    },
+    "delete": "حذف مخزن الأصول",
+    "deleteWarning": "سيفقد الأصل إدخال المخزن المحفوظ هذا.",
+    "edit": "تعديل مخزن الأصول",
+    "emptyState": "يخزّن مخزن الأصول قيماً مرتبطة بهوية الأصل، وتكون مشتركة عبر جميع تشغيلات Dag. يمكن للعمّال الكتابة إلى مخزن الأصول عبر Task SDK.",
+    "lastUpdatedBy": "آخر تحديث بواسطة",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "المراقب",
+    "title": "مخزن الأصول"
+  },
+  "consumingDags": "Dags المستهلكة",
+  "consumingTasks": "المهام المستهلكة",
+  "createEvent": {
+    "button": "إنشاء حدث",
+    "manual": {
+      "description": "إنشاء الحدث لأصل مباشرةً",
+      "extra": "اضافات حدث الأصل",
+      "label": "يدوياً"
+    },
+    "materialize": {
+      "description": "قم بتشغيل ال Dag السابقة  من هذا الأصل",
+      "descriptionWithDag": "قم بتشغيل ال Dag السابقة من هذا الأصل: {{dagName}}",
+      "label": "تجسيد",
+      "unpauseDag": "إلغاء إيقاف {{dagName}} عند التشغيل"
+    },
+    "success": {
+      "manualDescription": "تم إنشاء حدث الأصل يدوياً بنجاح.",
+      "manualTitle": "تم إنشاء حدث الأصل",
+      "materializeDescription": "تم تشغيل ال Dag السابقة {{dagId}} بنجاح.",
+      "materializeTitle": "تجسيد الأصل"
+    },
+    "title": "إنشاء حدث أصل لـ {{name}}"
+  },
+  "events": "الأحداث",
+  "extra": "إضافي",
+  "group": "المجموعة",
+  "lastAssetEvent": "آخر حدث أصل",
+  "name": "الاسم",
+  "producingTasks": "المهام المنتجة",
+  "scheduledDags": "Dags المجدولة",
+  "scheduling": "الجدولة",
+  "searchPlaceholder": "البحث عن الأصول",
+  "taskDependencies": "تبعيات المهام"
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "CloudStorageTransferJobFacet": {
+      "allOf": [
+        {
+          "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/JobFacet"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "jobName": {
+              "type": "string",
+              "description": "Transfer job name assigned by GCP Storage Transfer Service."
+            },
+            "projectId": {
+              "type": "string",
+              "description": "GCP project ID."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional description of the transfer job."
+            },
+            "status": {
+              "type": "string",
+              "description": "Status of the transfer job (ENABLED, DISABLED)."
+            },
+            "sourceBucket": {
+              "type": "string",
+              "description": "Source AWS S3 bucket."
+            },
+            "sourcePath": {
+              "type": "string",
+              "description": "Prefix path inside the source bucket."
+            },
+            "targetBucket": {
+              "type": "string",
+              "description": "Target GCS bucket."
+            },
+            "targetPath": {
+              "type": "string",
+              "description": "Prefix path inside the target bucket."
+            },
+            "objectConditions": {
+              "type": "object",
+              "description": "Filtering conditions for objects transferred."
+            },
+            "transferOptions": {
+              "type": "object",
+              "description": "Transfer options such as overwrite or delete."
+            },
+            "schedule": {
+              "type": "object",
+              "description": "Transfer schedule details."
+            }
+          }
+        }
+      ],
+      "type": "object"
+    }
+  },
+  "type": "object",
+  "properties": {
+    "cloudStorageTransferJob": {
+      "$ref": "#/$defs/CloudStorageTransferJobFacet"
+    }
+  }
+}

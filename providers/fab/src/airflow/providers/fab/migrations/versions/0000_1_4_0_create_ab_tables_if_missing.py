@@ -1,0 +1,240 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""
+Create User and Role tables if missing.
+
+Revision ID: 6709f7a774b9
+Revises:
+Create Date: 2024-09-03 17:06:38.040510
+
+Note: This is a placeholder migration used to stamp the migration
+when we create the migration from the ORM. Otherwise, it will run
+without stamping the migration, leading to subsequent changes to
+the tables not being migrated.
+"""
+
+from __future__ import annotations
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = "6709f7a774b9"
+down_revision = None
+branch_labels = None
+depends_on = None
+fab_version = "1.4.0"
+
+
+def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_tables = set(inspector.get_table_names())
+
+    # Each create_table is guarded by an explicit has_table check so this migration is safe
+    # to run even when the tables were already created by the core squashed migration
+    # (0000_2_6_2_squashed_migrations.py), regardless of the alembic version in use.
+    # (if_not_exists=True is not reliably translated to IF NOT EXISTS by older alembic versions.)
+    if "ab_group" not in existing_tables:
+        op.create_table(
+            "ab_group",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("name", sa.String(length=100), nullable=False),
+            sa.Column("label", sa.String(length=150), nullable=True),
+            sa.Column("description", sa.String(length=512), nullable=True),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_group_pkey")),
+            sa.UniqueConstraint("name", name=op.f("ab_group_name_uq")),
+        )
+    if "ab_permission" not in existing_tables:
+        op.create_table(
+            "ab_permission",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("name", sa.String(length=100), nullable=False),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_permission_pkey")),
+            sa.UniqueConstraint("name", name=op.f("ab_permission_name_uq")),
+        )
+    if "ab_register_user" not in existing_tables:
+        op.create_table(
+            "ab_register_user",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("first_name", sa.String(length=256), nullable=False),
+            sa.Column("last_name", sa.String(length=256), nullable=False),
+            sa.Column(
+                "username",
+                sa.String(length=512).with_variant(sa.String(length=512, collation="NOCASE"), "sqlite"),
+                nullable=False,
+            ),
+            sa.Column("password", sa.String(length=256), nullable=True),
+            sa.Column("email", sa.String(length=512), nullable=False),
+            sa.Column("registration_date", sa.DateTime(), nullable=True),
+            sa.Column("registration_hash", sa.String(length=256), nullable=True),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_register_user_pkey")),
+            sa.UniqueConstraint("username", name=op.f("ab_register_user_username_uq")),
+        )
+    if "ab_role" not in existing_tables:
+        op.create_table(
+            "ab_role",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("name", sa.String(length=64), nullable=False),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_role_pkey")),
+            sa.UniqueConstraint("name", name=op.f("ab_role_name_uq")),
+        )
+    if "ab_user" not in existing_tables:
+        op.create_table(
+            "ab_user",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("first_name", sa.String(length=256), nullable=False),
+            sa.Column("last_name", sa.String(length=256), nullable=False),
+            sa.Column(
+                "username",
+                sa.String(length=512).with_variant(sa.String(length=512, collation="NOCASE"), "sqlite"),
+                nullable=False,
+            ),
+            sa.Column("password", sa.String(length=256), nullable=True),
+            sa.Column("active", sa.Boolean(), nullable=True),
+            sa.Column("email", sa.String(length=512), nullable=False),
+            sa.Column("last_login", sa.DateTime(), nullable=True),
+            sa.Column("login_count", sa.Integer(), nullable=True),
+            sa.Column("fail_login_count", sa.Integer(), nullable=True),
+            sa.Column("created_on", sa.DateTime(), nullable=True),
+            sa.Column("changed_on", sa.DateTime(), nullable=True),
+            sa.Column("created_by_fk", sa.Integer(), nullable=True),
+            sa.Column("changed_by_fk", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(
+                ["changed_by_fk"], ["ab_user.id"], name=op.f("ab_user_changed_by_fk_fkey")
+            ),
+            sa.ForeignKeyConstraint(
+                ["created_by_fk"], ["ab_user.id"], name=op.f("ab_user_created_by_fk_fkey")
+            ),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_user_pkey")),
+            sa.UniqueConstraint("email", name=op.f("ab_user_email_uq")),
+            sa.UniqueConstraint("username", name=op.f("ab_user_username_uq")),
+        )
+    if "ab_view_menu" not in existing_tables:
+        op.create_table(
+            "ab_view_menu",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("name", sa.String(length=250), nullable=False),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_view_menu_pkey")),
+            sa.UniqueConstraint("name", name=op.f("ab_view_menu_name_uq")),
+        )
+    if "ab_group_role" not in existing_tables:
+        op.create_table(
+            "ab_group_role",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("group_id", sa.Integer(), nullable=True),
+            sa.Column("role_id", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(
+                ["group_id"], ["ab_group.id"], name=op.f("ab_group_role_group_id_fkey"), ondelete="CASCADE"
+            ),
+            sa.ForeignKeyConstraint(
+                ["role_id"], ["ab_role.id"], name=op.f("ab_group_role_role_id_fkey"), ondelete="CASCADE"
+            ),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_group_role_pkey")),
+            sa.UniqueConstraint("group_id", "role_id", name=op.f("ab_group_role_group_id_role_id_uq")),
+        )
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes("ab_group_role")}
+    if "idx_group_id" not in existing_indexes:
+        op.create_index("idx_group_id", "ab_group_role", ["group_id"], unique=False)
+    if "idx_group_role_id" not in existing_indexes:
+        op.create_index("idx_group_role_id", "ab_group_role", ["role_id"], unique=False)
+
+    if "ab_permission_view" not in existing_tables:
+        op.create_table(
+            "ab_permission_view",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("permission_id", sa.Integer(), nullable=True),
+            sa.Column("view_menu_id", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(
+                ["permission_id"], ["ab_permission.id"], name=op.f("ab_permission_view_permission_id_fkey")
+            ),
+            sa.ForeignKeyConstraint(
+                ["view_menu_id"], ["ab_view_menu.id"], name=op.f("ab_permission_view_view_menu_id_fkey")
+            ),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_permission_view_pkey")),
+            sa.UniqueConstraint(
+                "permission_id",
+                "view_menu_id",
+                name=op.f("ab_permission_view_permission_id_view_menu_id_uq"),
+            ),
+        )
+    if "ab_user_group" not in existing_tables:
+        op.create_table(
+            "ab_user_group",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("user_id", sa.Integer(), nullable=True),
+            sa.Column("group_id", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(
+                ["group_id"], ["ab_group.id"], name=op.f("ab_user_group_group_id_fkey"), ondelete="CASCADE"
+            ),
+            sa.ForeignKeyConstraint(
+                ["user_id"], ["ab_user.id"], name=op.f("ab_user_group_user_id_fkey"), ondelete="CASCADE"
+            ),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_user_group_pkey")),
+            sa.UniqueConstraint("user_id", "group_id", name=op.f("ab_user_group_user_id_group_id_uq")),
+        )
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes("ab_user_group")}
+    if "idx_user_group_id" not in existing_indexes:
+        op.create_index("idx_user_group_id", "ab_user_group", ["group_id"], unique=False)
+    if "idx_user_id" not in existing_indexes:
+        op.create_index("idx_user_id", "ab_user_group", ["user_id"], unique=False)
+
+    if "ab_user_role" not in existing_tables:
+        op.create_table(
+            "ab_user_role",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("user_id", sa.Integer(), nullable=True),
+            sa.Column("role_id", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(
+                ["role_id"], ["ab_role.id"], name=op.f("ab_user_role_role_id_fkey"), ondelete="CASCADE"
+            ),
+            sa.ForeignKeyConstraint(
+                ["user_id"], ["ab_user.id"], name=op.f("ab_user_role_user_id_fkey"), ondelete="CASCADE"
+            ),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_user_role_pkey")),
+            sa.UniqueConstraint("user_id", "role_id", name=op.f("ab_user_role_user_id_role_id_uq")),
+        )
+    if "ab_permission_view_role" not in existing_tables:
+        op.create_table(
+            "ab_permission_view_role",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("permission_view_id", sa.Integer(), nullable=True),
+            sa.Column("role_id", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(
+                ["permission_view_id"],
+                ["ab_permission_view.id"],
+                name=op.f("ab_permission_view_role_permission_view_id_fkey"),
+                ondelete="CASCADE",
+            ),
+            sa.ForeignKeyConstraint(
+                ["role_id"],
+                ["ab_role.id"],
+                name=op.f("ab_permission_view_role_role_id_fkey"),
+                ondelete="CASCADE",
+            ),
+            sa.PrimaryKeyConstraint("id", name=op.f("ab_permission_view_role_pkey")),
+            sa.UniqueConstraint(
+                "permission_view_id",
+                "role_id",
+                name=op.f("ab_permission_view_role_permission_view_id_role_id_uq"),
+            ),
+        )
+
+
+def downgrade() -> None: ...

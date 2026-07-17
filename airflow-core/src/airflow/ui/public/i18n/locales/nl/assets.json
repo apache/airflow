@@ -1,0 +1,54 @@
+{
+  "additional_data": "Extra data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "assetStateStore": {
+    "add": "Voeg Asset State Store toe",
+    "clearAll": {
+      "resource": "Alle Asset State Stores",
+      "title": "Wis alle Asset State Stores",
+      "warning": "Alle Asset State Stores zullen worden gewist. Taken die deze store gebruiken om werk te coördineren, verliezen hun opgeslagen gegevens."
+    },
+    "delete": "Verwijder Asset State Store",
+    "deleteWarning": "De asset zal deze opgeslagen store-invoer verliezen.",
+    "edit": "Bewerk Asset State Store",
+    "emptyState": "Asset state store slaat waarden op gescoped aan een asset identiteit, gedeeld over alle Dag runs. Workers kunnen naar de Asset State Store schrijven via de Task SDK.",
+    "lastUpdatedBy": "Laatst bijgewerkt door",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Asset State Store"
+  },
+  "consumingDags": "Consumerende Dags",
+  "consumingTasks": "Consumerende taken",
+  "createEvent": {
+    "button": "Event aanmaken",
+    "manual": {
+      "description": "Handmatig een Asset Event aanmaken",
+      "extra": "Asset Event extra",
+      "label": "Handmatig"
+    },
+    "materialize": {
+      "description": "Trigger de Dag upstream van deze Asset",
+      "descriptionWithDag": "Trigger de Dag upstream van deze Asset: {{dagName}}",
+      "label": "Materialiseren",
+      "unpauseDag": "Hervat {{dagName}} op trigger"
+    },
+    "success": {
+      "manualDescription": "Handmatig Asset event succesvol aangemaakt.",
+      "manualTitle": "Asset Event aangemaakt",
+      "materializeDescription": "Upstream Dag {{dagId}} werd succesvol geactiveerd.",
+      "materializeTitle": "Asset materialiseren"
+    },
+    "title": "Asset Event voor {{name}} aanmaken"
+  },
+  "events": "Events",
+  "extra": "Extra",
+  "group": "Groep",
+  "lastAssetEvent": "Laatste Asset Event",
+  "name": "Naam",
+  "producingTasks": "Producerende taken",
+  "scheduledDags": "Geplande Dags",
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "Assets zoeken",
+  "taskDependencies": "Taak afhankelijkheden"
+}

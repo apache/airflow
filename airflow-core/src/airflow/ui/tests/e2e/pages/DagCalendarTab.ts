@@ -1,0 +1,144 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { expect, type Locator, type Page } from "@playwright/test";
+import { BasePage } from "tests/e2e/pages/BasePage";
+
+export class DagCalendarTab extends BasePage {
+  public readonly dailyToggle: Locator;
+  public readonly failedToggle = this.page.getByRole("button", { name: /failed/i });
+  public readonly hourlyToggle: Locator;
+  public readonly totalToggle = this.page.getByRole("button", { name: /total/i });
+
+  public get activeCells(): Locator {
+    return this.page.locator('[data-testid="calendar-cell"][data-has-data="true"]');
+  }
+
+  public get calendarCells(): Locator {
+    return this.page.getByTestId("calendar-cell");
+  }
+
+  public constructor(page: Page) {
+    super(page);
+
+    this.hourlyToggle = page.getByRole("button", { name: /hourly/i });
+    this.dailyToggle = page.getByRole("button", { name: /daily/i });
+  }
+
+  public async getActiveCellColors(): Promise<Array<string>> {
+    const count = await this.activeCells.count();
+    const colors: Array<string> = [];
+
+    for (let i = 0; i < count; i++) {
+      const cell = this.activeCells.nth(i);
+      const computedColor = await cell.evaluate((el: Element) => {
+        const getRenderableColor = (element: Element): string => {
+          const color = window.getComputedStyle(element).backgroundColor;
+
+          return color && color !== "rgba(0, 0, 0, 0)" && color !== "transparent" ? color : "";
+        };
+
+        const cellColor = getRenderableColor(el);
+
+        if (cellColor) {
+          return cellColor;
+        }
+
+        const children = [...el.querySelectorAll("*")];
+
+        for (const child of children) {
+          const childColor = getRenderableColor(child);
+
+          if (childColor) {
+            return childColor;
+          }
+        }
+
+        return "";
+      });
+
+      if (computedColor) {
+        colors.push(computedColor);
+      }
+    }
+
+    return colors;
+  }
+
+  public async getActiveCellCount(): Promise<number> {
+    return this.activeCells.count();
+  }
+
+  public async getManualRunStates(): Promise<Array<string>> {
+    const count = await this.activeCells.count();
+    const states: Array<string> = [];
+
+    // Read run states from the cell's `data-states` attribute rather than hovering to
+    // read the tooltip. The tooltip (BasicTooltip) opens on a `mouseenter` after a
+    // 500ms delay and renders through a portal; synthetic pointer events do not open
+    // it reliably in headless Firefox, which made these tests flaky. `data-states` is
+    // populated with the same view-mode-aware logic the tooltip uses (see
+    // CalendarCell), so the assertions are unchanged and now backend-independent.
+    for (let i = 0; i < count; i++) {
+      const raw = (await this.activeCells.nth(i).getAttribute("data-states")) ?? "";
+
+      for (const state of raw.split(" ").filter(Boolean)) {
+        states.push(state);
+      }
+    }
+
+    return states;
+  }
+
+  public async navigateToCalendar(dagId: string): Promise<void> {
+    await expect(async () => {
+      await this.page.goto(`/dags/${dagId}/calendar`);
+      await expect(this.page.getByTestId("dag-calendar-root")).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
+    await this.waitForCalendarReady();
+  }
+
+  public async switchToFailedView(): Promise<void> {
+    await this.failedToggle.click();
+  }
+
+  public async switchToHourly(): Promise<void> {
+    await this.hourlyToggle.click();
+
+    await expect(this.page.getByTestId("calendar-hourly-view")).toBeVisible({ timeout: 30_000 });
+    await this.waitForCalendarReady();
+  }
+
+  public async switchToTotalView(): Promise<void> {
+    await this.totalToggle.click();
+  }
+
+  private async waitForCalendarReady(): Promise<void> {
+    await expect(this.page.getByTestId("dag-calendar-root")).toBeVisible({ timeout: 120_000 });
+
+    await expect(this.page.getByTestId("calendar-current-period")).toBeVisible({ timeout: 120_000 });
+    await expect(this.page.getByTestId("calendar-grid")).toBeVisible({ timeout: 120_000 });
+
+    const overlay = this.page.getByTestId("calendar-loading-overlay");
+
+    await expect(overlay).toBeHidden({ timeout: 120_000 });
+    const cells = this.page.getByTestId("calendar-cell");
+
+    await expect(cells.first()).toBeVisible({ timeout: 120_000 });
+  }
+}

@@ -1,0 +1,140 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+
+import {
+  UseDagRunServiceGetDagRunKeyFn,
+  useDagRunServiceGetDagRunsKey,
+  UseGanttServiceGetGanttDataKeyFn,
+  UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
+  useTaskInstanceServiceGetTaskInstancesKey,
+  useTaskInstanceServicePostClearTaskInstances,
+} from "openapi/queries";
+import type { ApiError } from "openapi/requests";
+import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+import { toaster } from "src/components/ui";
+
+import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
+import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
+import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+
+export const useClearTaskInstances = ({
+  dagId,
+  dagRunId,
+  onSuccessConfirm,
+}: {
+  dagId: string;
+  dagRunId: string;
+  onSuccessConfirm: () => void;
+}) => {
+  const queryClient = useQueryClient();
+  const { t: translate } = useTranslation("dags");
+
+  const onError = (error: unknown) => {
+    let detail: string;
+    let description: string;
+
+    // Get status from error
+    const status =
+      (error as { status?: number }).status ?? (error as { response?: { status?: number } }).response?.status;
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      return;
+    }
+
+    // Narrow the type safely
+    if (typeof error === "object" && error !== null) {
+      const apiError = error as ApiError;
+
+      description = typeof apiError.message === "string" ? apiError.message : "";
+      const apiErrorWithDetail = apiError as unknown as { body?: { detail?: unknown } };
+
+      detail = typeof apiErrorWithDetail.body?.detail === "string" ? apiErrorWithDetail.body.detail : "";
+
+      if (detail.includes("AirflowClearRunningTaskException")) {
+        description = detail;
+      }
+    } else {
+      // Fallback for completely unknown errors
+      description = translate("common:error.defaultMessage");
+    }
+
+    toaster.create({
+      description,
+      title: translate("dags:runAndTaskActions.clear.error", {
+        type: translate("common:taskInstance_one"),
+      }),
+      type: "error",
+    });
+  };
+
+  const onSuccess = async (
+    _: TaskInstanceCollectionResponse,
+    variables: { dagId: string; requestBody: ClearTaskInstancesBody },
+  ) => {
+    // deduplication using set as user can clear multiple map index of the same task_id.
+    const taskInstanceKeys = [
+      ...new Set(
+        (variables.requestBody.task_ids ?? [])
+          .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
+          .map((taskId) => {
+            const [actualTaskId, mapIndex] = Array.isArray(taskId) ? taskId : [taskId, undefined];
+            const runId = variables.requestBody.dag_run_id;
+
+            if (runId === null || runId === undefined) {
+              return undefined;
+            }
+
+            const params = { dagId, dagRunId: runId, mapIndex: mapIndex ?? -1, taskId: actualTaskId };
+
+            return UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(params);
+          })
+          .filter((key) => key !== undefined),
+      ),
+    ];
+
+    const queryKeys = [
+      ...taskInstanceKeys,
+      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+      [useDagRunServiceGetDagRunsKey],
+      [useTaskInstanceServiceGetTaskInstancesKey],
+      [useClearTaskInstancesDryRunKey, dagId],
+      [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
+      UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
+      ...tiPerAttemptQueryKeys,
+    ];
+
+    await Promise.all([
+      ...gridQueryKeys(variables.dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
+
+    onSuccessConfirm();
+  };
+
+  return useTaskInstanceServicePostClearTaskInstances({
+    onError,
+    onSuccess,
+    // This function uses the mutation function of React
+    // For showing the error toast immediately, set retry to 0
+    retry: 0,
+  });
+};

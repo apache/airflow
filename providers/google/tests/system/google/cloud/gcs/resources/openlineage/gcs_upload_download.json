@@ -1,0 +1,75 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_upload_download.upload_file"
+        },
+        "inputs": [
+            {
+                "namespace": "file",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/example_upload.txt') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_gcs_upload_download_default",
+                "name": "example_upload.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_upload_download.upload_file"
+        },
+        "inputs": [
+            {
+                "namespace": "file",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/example_upload.txt') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_gcs_upload_download_default",
+                "name": "example_upload.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "namespace": "default",
+            "name": "gcs_upload_download.download_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_upload_download_default",
+                "name": "example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file",
+                "name": "example_upload_download.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_upload_download.download_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_upload_download_default",
+                "name": "example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file",
+                "name": "example_upload_download.txt"
+            }
+        ]
+    }
+]

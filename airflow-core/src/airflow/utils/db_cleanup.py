@@ -1,0 +1,796 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+This module took inspiration from the community maintenance dag.
+
+See:
+(https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
+"""
+
+from __future__ import annotations
+
+import csv
+import logging
+import os
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import and_, column, func, inspect, literal, select, table, text
+from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm import aliased
+from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
+
+from airflow._shared.timezones import timezone
+from airflow.cli.simple_table import AirflowConsole
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.utils.db import reflect_tables
+from airflow.utils.helpers import ask_yesno
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+    from sqlalchemy import Select
+    from sqlalchemy.orm import Session
+
+    from airflow.models import Base
+
+logger = logging.getLogger(__name__)
+
+ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
+# Archived tables created by DB migrations
+ARCHIVED_TABLES_FROM_DB_MIGRATIONS = [
+    "_xcom_archive"  # Table created by the AF 2 -> 3.0.0 migration when the XComs had pickled values
+]
+
+
+@dataclass
+class _TableConfig:
+    """
+    Config class for performing cleanup on a table.
+
+    :param table_name: the table
+    :param extra_columns: any columns besides recency_column_name that we'll need in queries
+    :param recency_column_name: date column to filter by
+    :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
+    :param keep_last_filters: the "keep last" functionality will preserve the most recent record
+        in the table.  to ignore certain records even if they are the latest in the table, you can
+        supply additional filters here (e.g. externally triggered dag runs)
+    :param keep_last_group_by: if keeping the last record, can keep the last record for each group
+    :param dependent_tables: list of tables which have FK relationship with this table
+    :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
+    :param skip_if_referenced: list of ``(referencing_table, fk_column)`` pairs whose FK points at this
+        table's ``referenced_pk_column``. A row that is still referenced by any of these is excluded from
+        deletion. This avoids issuing deletes that would violate an ``ON DELETE RESTRICT`` foreign key
+        (e.g. ``task_instance.dag_version_id``) — such deletes fail and, on MySQL, can leave the cleanup
+        command blocked on metadata locks. ``referenced_pk_column`` must be listed in ``extra_columns``.
+    :param referenced_pk_column: the primary-key column of this table that ``skip_if_referenced`` FKs point at.
+    """
+
+    table_name: str
+    recency_column_name: str
+    extra_columns: list[str] | None = None
+    dag_id_column_name: str | None = None
+    keep_last: bool = False
+    keep_last_filters: Any | None = None
+    keep_last_group_by: Any | None = None
+    # We explicitly list these tables instead of detecting foreign keys automatically,
+    # because the relationships are unlikely to change and the number of tables is small.
+    # Relying on automation here would increase complexity and reduce maintainability.
+    dependent_tables: list[str] | None = None
+    extra_filters: list[Any] | None = None
+    skip_if_referenced: list[tuple[str, str]] | None = None
+    referenced_pk_column: str = "id"
+
+    def __post_init__(self):
+        self.recency_column = column(self.recency_column_name)
+        if self.dag_id_column_name is None:
+            self.dag_id_column = None
+            self.orm_model: Base = table(
+                self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
+            )
+        else:
+            self.dag_id_column = column(self.dag_id_column_name)
+            self.orm_model: Base = table(
+                self.table_name,
+                *[column(x) for x in self.extra_columns or []],
+                self.dag_id_column,
+                self.recency_column,
+            )
+
+        # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
+        # (added via extra_columns). Fail fast with a clear message instead of a cryptic KeyError
+        # raised later when _build_query evaluates base_table.c[referenced_pk_column].
+        if self.skip_if_referenced and self.referenced_pk_column not in self.orm_model.c.keys():
+            raise ValueError(
+                f"_TableConfig for table {self.table_name!r} sets skip_if_referenced but its "
+                f"referenced_pk_column {self.referenced_pk_column!r} is not one of its columns; "
+                f"add {self.referenced_pk_column!r} to extra_columns."
+            )
+
+    def __lt__(self, other):
+        return self.table_name < other.table_name
+
+    @property
+    def readable_config(self):
+        return {
+            "table": self.orm_model.name,
+            "recency_column": str(self.recency_column),
+            "dag_id_column": str(self.dag_id_column),
+            "keep_last": self.keep_last,
+            "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            "keep_last_group_by": str(self.keep_last_group_by),
+        }
+
+
+config_list: list[_TableConfig] = [
+    _TableConfig(table_name="job", recency_column_name="latest_heartbeat", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="dag",
+        recency_column_name="last_parsed_time",
+        dependent_tables=["dag_version", "deadline"],
+        dag_id_column_name="dag_id",
+    ),
+    _TableConfig(
+        table_name="dag_run",
+        recency_column_name="start_date",
+        dag_id_column_name="dag_id",
+        extra_columns=["dag_id", "run_type"],
+        keep_last=True,
+        keep_last_filters=[column("run_type") != DagRunType.MANUAL],
+        keep_last_group_by=["dag_id"],
+        dependent_tables=["task_instance", "task_state_store", "deadline"],
+    ),
+    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="import_error", recency_column_name="timestamp"),
+    _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="sla_miss", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="task_instance",
+        recency_column_name="start_date",
+        dependent_tables=["task_instance_history", "xcom"],
+        dag_id_column_name="dag_id",
+    ),
+    _TableConfig(
+        table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
+    ),
+    _TableConfig(
+        table_name="task_state_store",
+        recency_column_name="expires_at",
+        dag_id_column_name="dag_id",
+    ),
+    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="callback_request", recency_column_name="created_at"),
+    _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
+    _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
+    _TableConfig(
+        table_name="trigger",
+        recency_column_name="created_date",
+        dependent_tables=["task_instance"],
+    ),
+    _TableConfig(
+        table_name="dag_version",
+        recency_column_name="created_at",
+        extra_columns=["id"],
+        dependent_tables=["task_instance", "dag_run"],
+        dag_id_column_name="dag_id",
+        keep_last=True,
+        keep_last_group_by=["dag_id"],
+        # task_instance.dag_version_id is ON DELETE RESTRICT, so a version still referenced by any
+        # task instance cannot be deleted. Skip those rows instead of issuing a delete that would
+        # fail the FK (and hang on MySQL). They become eligible once their task instances age out
+        # and are cleaned. dag_run.created_dag_version_id is ON DELETE SET NULL, so it does not block.
+        skip_if_referenced=[("task_instance", "dag_version_id")],
+    ),
+    _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="revoked_token", recency_column_name="exp"),
+    _TableConfig(
+        table_name="connection_test_request",
+        recency_column_name="updated_at",
+        extra_columns=["state"],
+        extra_filters=[
+            column("state").in_(["success", "failed"]),
+        ],
+    ),
+]
+
+# We need to have `fallback="database"` because this is executed at top level code and provider configuration
+# might not be loaded
+if (
+    "FabAuthManager" in conf.get("core", "auth_manager")
+    and conf.get("fab", "session_backend", fallback="database") == "database"
+):
+    config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
+
+config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
+
+
+def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
+    num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
+    print(f"Found {num_entities} rows meeting deletion criteria.")
+    if not print_rows or num_entities == 0:
+        return num_entities
+
+    max_rows_to_print = 100
+    print(f"Printing first {max_rows_to_print} rows.")
+    logger.debug("print entities query: %s", query)
+    for entry in session.execute(query.limit(max_rows_to_print)):
+        print(entry.__dict__)
+    return num_entities
+
+
+def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str, session: Session) -> None:
+    if export_format == "csv":
+        with open(file_path, "w") as f:
+            csv_writer = csv.writer(f)
+            cursor = session.execute(text(f"SELECT * FROM {target_table}"))
+            csv_writer.writerow(cursor.keys())
+            BATCH_SIZE = 500
+            rows = cursor.fetchmany(BATCH_SIZE)
+            while rows:
+                csv_writer.writerows(rows)
+                rows = cursor.fetchmany(BATCH_SIZE)
+    else:
+        raise AirflowException(f"Export format {export_format} is not supported.")
+
+
+def _do_delete(
+    *, query: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+) -> None:
+    import itertools
+    import re
+
+    bind = session.get_bind()
+    dialect_name = bind.dialect.name
+    batch_counter = itertools.count(1)
+
+    while True:
+        limited_query = query.limit(batch_size) if batch_size else query
+        if (
+            session.scalars(select(func.count()).select_from(limited_query.subquery())).one() == 0
+        ):  # nothing left to delete
+            break
+
+        batch_no = next(batch_counter)
+        suffix = f"__b{batch_no}" if batch_size else ""
+
+        if batch_size:
+            print(f"Performing Delete (batch {batch_no}, max {batch_size} rows)...")
+        else:
+            print("Performing Delete...")
+
+        # using bulk delete
+        # create a new table and copy the rows there
+        timestamp_str = re.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
+        target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}"
+        print(f"Moving data to table {target_table_name}")
+        target_table = None
+        # Lets the ``finally`` cleanup below tell the failure path (don't let a
+        # cleanup error mask the original) from the success path (a cleanup error
+        # is a real problem and must propagate).
+        error_raised = False
+
+        try:
+            if dialect_name == "mysql":
+                # MySQL with replication needs this split into two queries, so just do it for all MySQL
+                # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
+                session.execute(text(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}"))
+                metadata = reflect_tables([target_table_name], session)
+                target_table = metadata.tables[target_table_name]
+                insert_stm = target_table.insert().from_select(target_table.c, limited_query)
+                logger.debug("insert statement:\n%s", insert_stm.compile())
+                session.execute(insert_stm)
+            else:
+                stmt = CreateTableAs(target_table_name, limited_query.selectable)
+                logger.debug("ctas query:\n%s", stmt.compile())
+                session.execute(stmt)
+            session.commit()
+
+            # delete the rows from the old table
+            metadata = reflect_tables([orm_model.name, target_table_name], session)
+            source_table = metadata.tables[orm_model.name]
+            target_table = metadata.tables[target_table_name]
+            logger.debug("rows moved; purging from %s", source_table.name)
+            if dialect_name == "sqlite":
+                pk_cols = source_table.primary_key.columns
+                delete = source_table.delete().where(
+                    tuple_(*pk_cols).in_(
+                        select(*[target_table.c[x.name] for x in source_table.primary_key.columns])
+                    )
+                )
+            else:
+                delete = source_table.delete().where(
+                    and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
+                )
+            logger.debug("delete statement:\n%s", delete.compile())
+            session.execute(delete)
+            session.commit()
+
+        except BaseException:
+            error_raised = True
+            # Roll back the failed transaction so its locks are released before
+            # the archive table is dropped in the ``finally`` block below.
+            # ``rollback()`` itself can raise (e.g. the connection died); suppress
+            # it so it does not shadow the original error being re-raised.
+            with suppress(Exception):
+                session.rollback()
+            raise
+        finally:
+            if target_table is not None and skip_archive:
+                # Drop the archive table on the session's own connection. Binding
+                # the drop to ``session.get_bind()`` (the Engine) would check out a
+                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
+                # indefinitely on the metadata lock still held by this session's
+                # open transaction when the DELETE above failed -- the ``db clean``
+                # hang reported in #66177.
+                try:
+                    target_table.drop(bind=session.connection())
+                    session.commit()
+                except Exception:
+                    # If we are already unwinding from a delete failure, a cleanup
+                    # error here must not replace the original exception (Python
+                    # makes a ``finally``-raised error the top-level one). Log and
+                    # let the original delete error keep propagating. On the success
+                    # path (no delete error), a drop/commit failure is a real
+                    # problem, so re-raise it.
+                    if not error_raised:
+                        raise
+                    logger.warning(
+                        "Failed to drop archive table %s while cleaning up after a "
+                        "delete failure; propagating the original delete error instead.",
+                        target_table_name,
+                        exc_info=True,
+                    )
+
+    print("Finished Performing Delete")
+
+
+def _subquery_keep_last(
+    *,
+    recency_column,
+    keep_last_filters,
+    group_by_columns,
+    max_date_colname,
+):
+    subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
+
+    if keep_last_filters is not None:
+        for entry in keep_last_filters:
+            subquery = subquery.where(entry)
+
+    if group_by_columns is not None:
+        subquery = subquery.group_by(*group_by_columns)
+
+    return subquery.subquery(name="latest")
+
+
+class CreateTableAs(Executable, ClauseElement):
+    """Custom sqlalchemy clause element for CTAS operations."""
+
+    inherit_cache = False
+
+    def __init__(self, name, query):
+        self.name = name
+        self.query = query
+
+
+@compiles(CreateTableAs)
+def _compile_create_table_as__other(element, compiler, **kw):
+    return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
+
+
+def _build_query(
+    *,
+    orm_model,
+    recency_column,
+    keep_last,
+    keep_last_filters,
+    keep_last_group_by,
+    clean_before_timestamp: DateTime,
+    session: Session,
+    dag_id_column=None,
+    dag_ids: list[str] | None = None,
+    exclude_dag_ids: list[str] | None = None,
+    extra_filters: list[Any] | None = None,
+    skip_if_referenced: list[tuple[str, str]] | None = None,
+    referenced_pk_column: str = "id",
+    **kwargs,
+) -> Select:
+    base_table_alias = "base"
+    base_table = aliased(orm_model, name=base_table_alias)
+    query = select(text(f"{base_table_alias}.*")).select_from(base_table)
+    base_table_recency_col = base_table.c[recency_column.name]
+    conditions = [base_table_recency_col < clean_before_timestamp]
+
+    if extra_filters:
+        conditions.extend(extra_filters)
+
+    if skip_if_referenced:
+        # Exclude rows still referenced by a RESTRICT foreign key; deleting them would fail the
+        # constraint (and on MySQL leave the command blocked on metadata locks). correlate() is
+        # explicit on purpose: this is a NOT EXISTS guard whose silent failure would delete
+        # still-referenced rows, so we don't rely on implicit correlation of the base table.
+        base_table_pk_col = base_table.c[referenced_pk_column]
+        for referencing_table, fk_column in skip_if_referenced:
+            referencing = table(referencing_table, column(fk_column))
+            conditions.append(
+                ~select(literal(1))
+                .select_from(referencing)
+                .where(referencing.c[fk_column] == base_table_pk_col)
+                .correlate(base_table)
+                .exists()
+            )
+
+    if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
+        base_table_dag_id_col = base_table.c[dag_id_column.name]
+
+        if dag_ids:
+            conditions.append(base_table_dag_id_col.in_(dag_ids))
+        if exclude_dag_ids:
+            conditions.append(base_table_dag_id_col.not_in(exclude_dag_ids))
+
+    if keep_last:
+        max_date_col_name = "max_date_per_group"
+        group_by_columns: list[Any] = [column(x) for x in keep_last_group_by]
+        subquery = _subquery_keep_last(
+            recency_column=recency_column,
+            keep_last_filters=keep_last_filters,
+            group_by_columns=group_by_columns,
+            max_date_colname=max_date_col_name,
+        )
+        query = query.outerjoin(
+            subquery,
+            and_(
+                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
+                base_table_recency_col == column(max_date_col_name),
+            ),
+        )
+        conditions.append(column(max_date_col_name).is_(None))
+    query = query.where(and_(*conditions))
+    return query
+
+
+def _cleanup_table(
+    *,
+    orm_model,
+    recency_column,
+    keep_last,
+    keep_last_filters,
+    keep_last_group_by,
+    clean_before_timestamp: DateTime,
+    dag_id_column=None,
+    dag_ids=None,
+    exclude_dag_ids=None,
+    dry_run: bool = True,
+    verbose: bool = False,
+    skip_archive: bool = False,
+    session: Session,
+    batch_size: int | None = None,
+    extra_filters: list[Any] | None = None,
+    skip_if_referenced: list[tuple[str, str]] | None = None,
+    referenced_pk_column: str = "id",
+    **kwargs,
+) -> None:
+    print()
+    if dry_run:
+        print(f"Performing dry run for table {orm_model.name}")
+    query = _build_query(
+        orm_model=orm_model,
+        recency_column=recency_column,
+        dag_id_column=dag_id_column,
+        dag_ids=dag_ids,
+        exclude_dag_ids=exclude_dag_ids,
+        keep_last=keep_last,
+        keep_last_filters=keep_last_filters,
+        keep_last_group_by=keep_last_group_by,
+        clean_before_timestamp=clean_before_timestamp,
+        extra_filters=extra_filters,
+        skip_if_referenced=skip_if_referenced,
+        referenced_pk_column=referenced_pk_column,
+        session=session,
+    )
+    logger.debug("old rows query:\n%s", query.selectable.compile())
+    print(f"Checking table {orm_model.name}")
+    num_rows = _check_for_rows(session=session, query=query, print_rows=False)
+
+    if num_rows and not dry_run:
+        _do_delete(
+            query=query,
+            orm_model=orm_model,
+            skip_archive=skip_archive,
+            session=session,
+            batch_size=batch_size,
+        )
+
+    session.commit()
+
+
+def _confirm_delete(
+    *,
+    date: DateTime,
+    tables: list[str],
+    dag_ids: list[str] | None = None,
+    exclude_dag_ids: list[str] | None = None,
+) -> None:
+    for_tables = f" for tables {tables!r}" if tables else ""
+    for_dags = f" for the following dags: {dag_ids!r}" if dag_ids else ""
+    excluding_dags = f" excluding the following dags: {exclude_dag_ids!r}" if exclude_dag_ids else ""
+    question = (
+        f"You have requested that we purge all data prior to {date}{for_tables}{for_dags}{excluding_dags}.\n"
+        f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
+        f"with option --dry-run.\n"
+        f"Enter 'delete rows' (without quotes) to proceed."
+    )
+    print(question)
+    answer = input().strip()
+    if answer != "delete rows":
+        raise SystemExit("User did not confirm; exiting.")
+
+
+def _confirm_drop_archives(*, tables: list[str]) -> None:
+    # if length of tables is greater than 3, show the total count
+    if len(tables) > 3:
+        text_ = f"{len(tables)} archived tables prefixed with {ARCHIVE_TABLE_PREFIX}"
+    else:
+        text_ = f"the following archived tables: {', '.join(tables)}"
+    question = (
+        f"You have requested that we drop {text_}.\n"
+        f"This is irreversible. Consider backing up the tables first.\n"
+    )
+    print(question)
+    if len(tables) > 3:
+        show_tables = ask_yesno("Show tables that will be dropped? (y/n): ")
+        if show_tables:
+            for table in tables:
+                print(f"  {table}")
+            print("\n")
+    answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
+    if answer != "drop archived tables":
+        raise SystemExit("User did not confirm; exiting.")
+
+
+def _print_config(*, configs: dict[str, _TableConfig]) -> None:
+    data = [x.readable_config for x in configs.values()]
+    AirflowConsole().print_as_table(data=data)
+
+
+@contextmanager
+def _suppress_with_logging(table: str, session: Session) -> Generator[SimpleNamespace, None, None]:
+    """
+    Suppress per-table cleanup errors, log them, and expose failure state to the caller.
+
+    Yields a :class:`~types.SimpleNamespace` with a single attribute ``failed`` (bool).
+    When an :class:`~sqlalchemy.exc.OperationalError` or
+    :class:`~sqlalchemy.exc.ProgrammingError` is raised inside the ``with`` block the
+    exception is swallowed, ``ctx.failed`` is set to ``True``, a WARNING is emitted for
+    the table, and the session is rolled back.  The caller can inspect ``ctx.failed``
+    after the block to decide whether to surface the error upstream.
+    """
+    ctx = SimpleNamespace(failed=False)
+    try:
+        yield ctx
+    except (OperationalError, ProgrammingError):
+        ctx.failed = True
+        logger.warning("Encountered error when attempting to clean table '%s'. ", table)
+        logger.debug("Traceback for table '%s'", table, exc_info=True)
+        if session.is_active:
+            logger.debug("Rolling back transaction")
+            session.rollback()
+
+
+def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
+    desired_table_names = set(table_names or config_dict)
+
+    outliers = desired_table_names - set(config_dict.keys())
+    if outliers:
+        logger.warning(
+            "The following table(s) are not valid choices and will be skipped: %s",
+            sorted(outliers),
+        )
+    desired_table_names = desired_table_names - outliers
+
+    visited: set[str] = set()
+    effective_table_names: list[str] = []
+
+    def collect_deps(table: str):
+        if table in visited:
+            return
+        visited.add(table)
+        config = config_dict[table]
+        for dep in config.dependent_tables or []:
+            collect_deps(dep)
+        effective_table_names.append(table)
+
+    for table_name in desired_table_names:
+        collect_deps(table_name)
+
+    effective_config_dict = {n: config_dict[n] for n in effective_table_names}
+
+    if not effective_config_dict:
+        raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+
+    return effective_table_names, effective_config_dict
+
+
+def _get_archived_table_names(table_names: list[str] | None, session: Session) -> list[str]:
+    inspector = inspect(session.bind)
+    db_table_names = [
+        x
+        for x in (inspector.get_table_names() if inspector else [])
+        if x.startswith(ARCHIVE_TABLE_PREFIX) or x in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
+    ]
+    effective_table_names, _ = _effective_table_names(table_names=table_names)
+    # Filter out tables that don't start with the archive prefix
+    archived_table_names = [
+        table_name
+        for table_name in db_table_names
+        if (
+            any("__" + x + "__" in table_name for x in effective_table_names)
+            or table_name in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
+        )
+    ]
+    return archived_table_names
+
+
+@provide_session
+def run_cleanup(
+    *,
+    clean_before_timestamp: DateTime,
+    table_names: list[str] | None = None,
+    dag_ids: list[str] | None = None,
+    exclude_dag_ids: list[str] | None = None,
+    dry_run: bool = False,
+    verbose: bool = False,
+    confirm: bool = True,
+    skip_archive: bool = False,
+    session: Session = NEW_SESSION,
+    batch_size: int | None = None,
+    error_on_cleanup_failure: bool = False,
+) -> None:
+    """
+    Purges old records in airflow metadata database.
+
+    The last non-externally-triggered dag run will always be kept in order to ensure
+    continuity of scheduled dag runs.
+
+    Where there are foreign key relationships, deletes will cascade, so that for
+    example if you clean up old dag runs, the associated task instances will
+    be deleted.
+
+    :param clean_before_timestamp: The timestamp before which data should be purged
+    :param table_names: Optional. List of table names to perform maintenance on.  If list not provided,
+        will perform maintenance on all tables.
+    :param dag_ids: Optional. List of dag ids to perform maintenance on.  If list not provided,
+        will perform maintenance on all dags.
+    :param exclude_dag_ids: Optional. List of dag ids to exclude from maintenance.
+    :param dry_run: If true, print rows meeting deletion criteria
+    :param verbose: If true, may provide more detailed output.
+    :param confirm: Require user input to confirm before processing deletions.
+    :param skip_archive: Set to True if you don't want the purged rows preserved in an archive table.
+    :param session: Session representing connection to the metadata database.
+    :param batch_size: Maximum number of rows to delete or archive in a single transaction.
+    :param error_on_cleanup_failure: If True, raise a RuntimeError after processing all tables
+        if any per-table cleanup encountered an error. By default errors are suppressed, a warning
+        summary is logged, and the command exits 0 even if some tables were not cleaned.
+    """
+    clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
+
+    # Get all tables to clean (root + dependents)
+    effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
+    if dry_run:
+        print("Performing dry run for db cleanup.")
+        print(
+            f"Data prior to {clean_before_timestamp} would be purged "
+            f"from tables {effective_table_names} with the following config:\n"
+        )
+        _print_config(configs=effective_config_dict)
+    if not dry_run and confirm:
+        _confirm_delete(
+            date=clean_before_timestamp,
+            tables=sorted(effective_table_names),
+            dag_ids=dag_ids,
+            exclude_dag_ids=exclude_dag_ids,
+        )
+    existing_tables = reflect_tables(tables=None, session=session).tables
+    failed_tables: list[str] = []
+
+    for table_name, table_config in effective_config_dict.items():
+        if table_name in existing_tables:
+            with _suppress_with_logging(table_name, session) as ctx:
+                _cleanup_table(
+                    clean_before_timestamp=clean_before_timestamp,
+                    dag_ids=dag_ids,
+                    exclude_dag_ids=exclude_dag_ids,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                    **table_config.__dict__,
+                    skip_archive=skip_archive,
+                    session=session,
+                    batch_size=batch_size,
+                )
+            if ctx.failed:
+                failed_tables.append(table_name)
+        else:
+            logger.warning("Table %s not found.  Skipping.", table_name)
+
+    if failed_tables:
+        if error_on_cleanup_failure:
+            raise RuntimeError(
+                f"airflow db clean encountered errors on the following tables and did not clean them: "
+                f"{failed_tables}. Check the logs above for details."
+            )
+        logger.warning(
+            "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+            failed_tables,
+        )
+
+
+@provide_session
+def export_archived_records(
+    export_format: str,
+    output_path: str,
+    table_names: list[str] | None = None,
+    drop_archives: bool = False,
+    needs_confirm: bool = True,
+    *,
+    session: Session = NEW_SESSION,
+) -> None:
+    """Export archived data to the given output path in the given format."""
+    archived_table_names = _get_archived_table_names(table_names, session)
+    # If user chose to drop archives, check there are archive tables that exists
+    # before asking for confirmation
+    if drop_archives and archived_table_names and needs_confirm:
+        _confirm_drop_archives(tables=sorted(archived_table_names))
+    export_count = 0
+    dropped_count = 0
+    for table_name in archived_table_names:
+        logger.info("Exporting table %s", table_name)
+        _dump_table_to_file(
+            target_table=table_name,
+            file_path=os.path.join(output_path, f"{table_name}.{export_format}"),
+            export_format=export_format,
+            session=session,
+        )
+        export_count += 1
+        if drop_archives:
+            logger.info("Dropping archived table %s", table_name)
+            session.execute(text(f"DROP TABLE {table_name}"))
+            dropped_count += 1
+    logger.info("Total exported tables: %s, Total dropped tables: %s", export_count, dropped_count)
+
+
+@provide_session
+def drop_archived_tables(
+    table_names: list[str] | None, needs_confirm: bool, *, session: Session = NEW_SESSION
+) -> None:
+    """Drop archived tables."""
+    archived_table_names = _get_archived_table_names(table_names, session)
+    if needs_confirm and archived_table_names:
+        _confirm_drop_archives(tables=sorted(archived_table_names))
+    dropped_count = 0
+    for table_name in archived_table_names:
+        logger.info("Dropping archived table %s", table_name)
+        session.execute(text(f"DROP TABLE {table_name}"))
+        dropped_count += 1
+    logger.info("Total dropped tables: %s", dropped_count)

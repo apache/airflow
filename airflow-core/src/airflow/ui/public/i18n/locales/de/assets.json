@@ -1,0 +1,54 @@
+{
+  "additional_data": "Zusätzliche Daten",
+  "asset_many": "Datensets (Assets)",
+  "asset_one": "Datenset (Asset)",
+  "assetStateStore": {
+    "add": "Datenset (Asset) Zwischenspeicher hinzufügen",
+    "clearAll": {
+      "resource": "alle Datenset (Asset) Zwischenspeicher",
+      "title": "Alle Datenset (Asset) Zwischenspeicher löschen",
+      "warning": "Alle Datenset (Asset) Zwischenspeicher werden gelöscht. Tasks, die diesen Speicher zur Koordination verwenden, verlieren ihre gespeicherten Daten."
+    },
+    "delete": "Datenset (Asset) Zwischenspeicher löschen",
+    "deleteWarning": "Das Datenset (Asset) verliert diesen gespeicherten Eintrag.",
+    "edit": "Datenset (Asset) Zwischenspeicher bearbeiten",
+    "emptyState": "Der Datenset (Asset) Zwischenspeicher speichert Werte, die auf ein Datenset (Asset) beschränkt sind und über alle Dag-Läufe hinweg geteilt werden. Worker können den Datenset (Asset) Zwischenspeicher über das Task SDK schreiben.",
+    "lastUpdatedBy": "Zuletzt aktualisiert von",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Ereignis",
+    "title": "Datenset (Asset) Zwischenspeicher"
+  },
+  "consumingDags": "Konsumierende Dags",
+  "consumingTasks": "Konsumierende Tasks",
+  "createEvent": {
+    "button": "Ereignis erstellen",
+    "manual": {
+      "description": "Direkt ein Ereignis zum Datenset (Asset) erstellen",
+      "extra": "Extra Daten zu Ereignis",
+      "label": "Manuell"
+    },
+    "materialize": {
+      "description": "Das Dag das dieses Datenset (Asset) produziert direkt auslösen",
+      "descriptionWithDag": "Das Dag das dieses Datenset produziert auslösen: {{dagName}}",
+      "label": "Materialisieren",
+      "unpauseDag": "Das Dag {{dagName}} beim Auslösen aktivieren"
+    },
+    "success": {
+      "manualDescription": "Das manuelle Erzeugen eines Ereignisses zu dem Datenset (Asset) war erfolgreich.",
+      "manualTitle": "Ereignis zu Datenset erstellt",
+      "materializeDescription": "Produzierendes Dag {{dagId}} wurde erfolgreich ausgelöst.",
+      "materializeTitle": "Datenset wird materialisiert"
+    },
+    "title": "Ereignis zu Datenset (Asset) {{name}} erstellen"
+  },
+  "events": "Ereignisse",
+  "extra": "Extra",
+  "group": "Gruppe",
+  "lastAssetEvent": "Letztes Ereignis zu Datenset (Asset)",
+  "name": "Name",
+  "producingTasks": "Produzierende Tasks",
+  "scheduledDags": "Geplante Dags",
+  "scheduling": "Planend",
+  "searchPlaceholder": "Datenset (Asset) suchen",
+  "taskDependencies": "Task Abhängigkeiten"
+}

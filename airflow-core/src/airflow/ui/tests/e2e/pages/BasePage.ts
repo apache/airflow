@@ -1,0 +1,59 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { expect } from "@playwright/test";
+import type { Page, Locator } from "@playwright/test";
+
+/**
+ * Base Page Object
+ */
+export class BasePage {
+  public readonly page: Page;
+  public readonly welcomeHeading: Locator;
+
+  public constructor(page: Page) {
+    this.page = page;
+    this.welcomeHeading = page.getByRole("heading", {
+      level: 2,
+      name: "Welcome",
+    });
+  }
+
+  public async maximizeBrowser(): Promise<void> {
+    try {
+      await this.page.setViewportSize({ height: 1080, width: 1920 });
+    } catch {
+      // Viewport size could not be set
+    }
+  }
+
+  public async navigateTo(path: string): Promise<void> {
+    await this.page.goto(path, { waitUntil: "domcontentloaded" });
+  }
+
+  // Ark UI sets `data-state="closed"` synchronously on the close flag flip,
+  // but unmount only fires after `animationend`/`transitionend` — which WebKit
+  // occasionally drops under CI load. Wait on the dialog state, not on DOM
+  // detachment, so the test does not depend on the animation event firing.
+  // Any dialog part still in `data-state="open"` means a modal is active.
+  public async waitForAllDialogsClosed(timeout = 15_000): Promise<void> {
+    await expect(this.page.locator('[data-scope="dialog"][data-state="open"]')).toHaveCount(0, {
+      timeout,
+    });
+  }
+}

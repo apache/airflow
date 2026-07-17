@@ -1,0 +1,743 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import contextlib
+import importlib
+import logging
+import os
+import traceback
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
+
+import attrs
+from pydantic import BaseModel, Field, TypeAdapter
+
+from airflow._shared.observability.metrics import stats
+from airflow.callbacks.callback_requests import (
+    CallbackRequest,
+    DagCallbackRequest,
+    EmailRequest,
+    TaskCallbackRequest,
+)
+from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleVersionLock
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.models.dag import DagModel
+from airflow.sdk.exceptions import TaskNotFound
+from airflow.sdk.execution_time import supervisor
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    DeleteVariable,
+    ErrorResponse,
+    GetConnection,
+    GetPreviousDagRun,
+    GetPreviousTI,
+    GetPrevSuccessfulDagRun,
+    GetTaskStates,
+    GetTICount,
+    GetVariable,
+    GetVariableKeys,
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    MaskSecret,
+    OKResponse,
+    PreviousDagRunResult,
+    PreviousTIResult,
+    PrevSuccessfulDagRunResult,
+    PutVariable,
+    TaskStatesResult,
+    VariableKeysResult,
+    VariableResult,
+    XComCountResponse,
+    XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
+)
+from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_variable,
+    handle_get_prev_successful_dag_run,
+    handle_get_previous_dag_run,
+    handle_get_previous_ti,
+    handle_get_task_states,
+    handle_get_ti_count,
+    handle_get_variable_keys,
+    handle_get_xcom,
+    handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
+    handle_mask_secret,
+    handle_put_variable,
+)
+from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.log import mask_secret
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
+from airflow.utils.file import iter_airflow_imports
+from airflow.utils.helpers import prune_dict
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from socket import socket
+
+    from structlog.typing import FilteringBoundLogger
+
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+    from airflow.sdk.api.client import Client
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.typing_compat import Self
+
+
+class DagFileParseRequest(BaseModel):
+    """
+    Request for DAG File Parsing.
+
+    This is the request that the manager will send to the DAG parser with the dag file and
+    any other necessary metadata.
+    """
+
+    file: str
+
+    bundle_path: Path
+    """Passing bundle path around lets us figure out relative file path."""
+
+    bundle_name: str
+    """Bundle name for team-specific executor validation."""
+
+    callback_requests: list[CallbackRequest] = Field(default_factory=list)
+    type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
+
+
+class DagFileParsingResult(BaseModel):
+    """
+    Result of DAG File Parsing.
+
+    This is the result of a successful DAG parse, in this class, we gather all serialized DAGs,
+    import errors and warnings to send back to the scheduler to store in the DB.
+    """
+
+    fileloc: str
+    serialized_dags: list[LazyDeserializedDAG]
+    warnings: list | None = None
+    import_errors: dict[str, str] | None = None
+    type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
+
+
+ToManager = Annotated[
+    DagFileParsingResult
+    | GetConnection
+    | GetVariable
+    | GetVariableKeys
+    | PutVariable
+    | GetTaskStates
+    | GetTICount
+    | DeleteVariable
+    | GetPrevSuccessfulDagRun
+    | GetPreviousDagRun
+    | GetPreviousTI
+    | GetXCom
+    | GetXComCount
+    | GetXComSequenceItem
+    | GetXComSequenceSlice
+    | MaskSecret,
+    Field(discriminator="type"),
+]
+
+ToDagProcessor = Annotated[
+    DagFileParseRequest
+    | ConnectionResult
+    | VariableResult
+    | VariableKeysResult
+    | TaskStatesResult
+    | PreviousDagRunResult
+    | PreviousTIResult
+    | PrevSuccessfulDagRunResult
+    | ErrorResponse
+    | OKResponse
+    | XComCountResponse
+    | XComResult
+    | XComSequenceIndexResult
+    | XComSequenceSliceResult,
+    Field(discriminator="type"),
+]
+
+
+def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
+    """
+    Pre-import Airflow modules found in the given file.
+
+    This prevents modules from being re-imported in each processing process,
+    saving CPU time and memory.
+    (The default value of "parsing_pre_import_modules" is set to True)
+
+    :param file_path: Path to the file to scan for imports
+    :param log: Logger instance to use for warnings
+    """
+    if not conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
+        return
+
+    for module in iter_airflow_imports(file_path):
+        try:
+            importlib.import_module(module)
+        except Exception as e:
+            log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
+
+
+def _parse_file_entrypoint():
+    # Mark as client-side (runs user DAG code)
+    # Prevents inheriting server context from parent DagProcessorManager
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+
+    import structlog
+
+    from airflow.sdk.execution_time import comms, task_runner
+
+    # Parse DAG file, send JSON back up!
+    comms_decoder = comms.CommsDecoder[ToDagProcessor, ToManager](
+        body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
+    )
+
+    msg = comms_decoder._get_response()
+    if not isinstance(msg, DagFileParseRequest):
+        raise RuntimeError(f"Required first message to be a DagFileParseRequest, it was {msg}")
+
+    task_runner.SUPERVISOR_COMMS = comms_decoder
+    log = structlog.get_logger(logger_name="task")
+
+    result = _parse_file(msg, log)
+
+    if result is not None:
+        comms_decoder.send(result)
+
+
+def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
+    # TODO: Set known_pool names on DagBag!
+
+    stability_check_result = check_dag_file_stability(os.fspath(msg.file))
+
+    if stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path):
+        # If Dag stability check level is error, we shouldn't parse the Dags and return the result early
+        return DagFileParsingResult(
+            fileloc=msg.file,
+            serialized_dags=[],
+            import_errors=stability_check_error_dict,
+        )
+
+    bag = BundleDagBag(
+        dag_folder=msg.file,
+        bundle_path=msg.bundle_path,
+        bundle_name=msg.bundle_name,
+        load_op_links=False,
+    )
+
+    if msg.callback_requests:
+        # If the request is for callback, we shouldn't serialize the Dags
+        _execute_callbacks(bag, msg.callback_requests, log)
+        return None
+
+    serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
+    bag.import_errors.update(serialization_import_errors)
+    result = DagFileParsingResult(
+        fileloc=msg.file,
+        serialized_dags=serialized_dags,
+        import_errors=bag.import_errors,
+        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
+    )
+    return result
+
+
+def _serialize_dags(
+    bag: DagBag,
+    log: FilteringBoundLogger,
+) -> tuple[list[LazyDeserializedDAG], dict[str, str]]:
+    serialization_import_errors = {}
+    serialized_dags = []
+    for dag in bag.dags.values():
+        try:
+            data = DagSerialization.to_dict(dag)
+            serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
+        except Exception:
+            log.exception("Failed to serialize DAG: %s", dag.fileloc)
+            dagbag_import_error_traceback_depth = conf.getint(
+                "core", "dagbag_import_error_traceback_depth", fallback=None
+            )
+            # Use relative_fileloc if available, fall back to fileloc
+            error_path = dag.relative_fileloc or dag.fileloc
+            serialization_import_errors[error_path] = traceback.format_exc(
+                limit=-dagbag_import_error_traceback_depth
+            )
+    return serialized_dags, serialization_import_errors
+
+
+def _get_dag_with_task(
+    dagbag: DagBag, dag_id: str, task_id: str | None = None
+) -> tuple[DAG, BaseOperator | MappedOperator | None]:
+    """
+    Retrieve a DAG and optionally a task from the DagBag.
+
+    :param dagbag: DagBag to retrieve from
+    :param dag_id: DAG ID to retrieve
+    :param task_id: Optional task ID to retrieve from the DAG
+    :return: tuple of (dag, task) where task is None if not requested
+    :raises ValueError: If DAG or task is not found
+    """
+    if dag_id not in dagbag.dags:
+        raise ValueError(
+            f"DAG '{dag_id}' not found in DagBag. "
+            f"This typically indicates a race condition where the DAG was removed or failed to parse."
+        )
+
+    dag = dagbag.dags[dag_id]
+
+    if task_id is not None:
+        try:
+            task = dag.get_task(task_id)
+            return dag, task
+        except TaskNotFound:
+            raise ValueError(
+                f"Task '{task_id}' not found in DAG '{dag_id}'. "
+                f"This typically indicates a race condition where the task was removed or the DAG structure changed."
+            ) from None
+
+    return dag, None
+
+
+def _execute_callbacks(
+    dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
+) -> None:
+    for request in callback_requests:
+        if isinstance(request, (TaskCallbackRequest, EmailRequest)):
+            log.debug(
+                "Processing Callback Request",
+                request=request.to_json(),
+                ti_id=str(request.ti.id),
+            )
+        else:
+            log.debug("Processing Callback Request", request=request.to_json())
+        with BundleVersionLock(
+            bundle_name=request.bundle_name,
+            bundle_version=request.bundle_version,
+        ):
+            if isinstance(request, TaskCallbackRequest):
+                _execute_task_callbacks(dagbag, request, log)
+            elif isinstance(request, DagCallbackRequest):
+                _execute_dag_callbacks(dagbag, request, log)
+            elif isinstance(request, EmailRequest):
+                _execute_email_callbacks(dagbag, request, log)
+
+
+def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
+    from airflow.sdk.api.datamodels._generated import TIRunContext
+
+    dag, _ = _get_dag_with_task(dagbag, request.dag_id)
+    callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
+    if not callbacks:
+        log.warning("Callback requested, but dag didn't have any", dag_id=request.dag_id)
+        return
+
+    callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+    ctx_from_server = request.context_from_server
+
+    if ctx_from_server is not None and ctx_from_server.last_ti is not None:
+        task = dag.get_task(ctx_from_server.last_ti.task_id)
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ctx_from_server.last_ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=TIRunContext.model_construct(
+                dag_run=ctx_from_server.dag_run,
+                max_tries=task.retries,
+            ),
+        )
+        context = runtime_ti.get_template_context()
+        context["reason"] = request.msg
+    else:
+        context: Context = {  # type: ignore[no-redef]
+            "dag": dag,
+            "run_id": request.run_id,
+            "reason": request.msg,
+        }
+
+    for callback in callbacks:
+        log.info(
+            "Executing on_%s dag callback",
+            "failure" if request.is_failure_callback else "success",
+            dag_id=request.dag_id,
+        )
+        try:
+            callback(context)
+        except Exception:
+            log.exception("Callback failed", dag_id=request.dag_id)
+            stats.incr(
+                "dag.callback_exceptions",
+                tags=prune_dict(
+                    {
+                        "dag_id": request.dag_id,
+                        "team_name": (
+                            DagModel.get_team_name(request.dag_id)
+                            if conf.getboolean("core", "multi_team")
+                            else None
+                        ),
+                    }
+                ),
+            )
+
+
+def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
+    if not request.is_failure_callback:
+        log.warning(
+            "Task callback requested but is not a failure callback",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+            ti_id=str(request.ti.id),
+        )
+        return
+
+    dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
+
+    if TYPE_CHECKING:
+        assert task is not None
+
+    if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
+        callbacks = task.on_retry_callback
+    else:
+        callbacks = task.on_failure_callback
+
+    if not callbacks:
+        log.warning(
+            "Callback requested but no callback found",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+            ti_id=request.ti.id,
+        )
+        return
+
+    callbacks = callbacks if isinstance(callbacks, Sequence) else [callbacks]
+    ctx_from_server = request.context_from_server
+
+    if ctx_from_server is not None:
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=ctx_from_server,
+            max_tries=ctx_from_server.max_tries,
+        )
+    else:
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **request.ti.model_dump(exclude_unset=True),
+            task=task,
+        )
+    context = runtime_ti.get_template_context()
+
+    def get_callback_representation(callback):
+        with contextlib.suppress(AttributeError):
+            return callback.__name__
+        with contextlib.suppress(AttributeError):
+            return callback.__class__.__name__
+        return callback
+
+    for idx, callback in enumerate(callbacks):
+        callback_repr = get_callback_representation(callback)
+        log.info(
+            "Executing Task callback at index %d: %s (ti_id=%s)",
+            idx,
+            callback_repr,
+            request.ti.id,
+        )
+        try:
+            callback(context)
+        except Exception:
+            log.exception(
+                "Error in callback at index %d: %s (ti_id=%s)",
+                idx,
+                callback_repr,
+                request.ti.id,
+            )
+
+
+def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
+    """Execute email notification for task failure/retry."""
+    dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
+
+    if TYPE_CHECKING:
+        assert task is not None
+
+    if not task.email:
+        log.warning(
+            "Email callback requested but no email configured",
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
+        return
+
+    # Check if email should be sent based on task configuration
+    should_send_email = False
+    if request.email_type == "failure" and task.email_on_failure:
+        should_send_email = True
+    elif request.email_type == "retry" and task.email_on_retry:
+        should_send_email = True
+
+    if not should_send_email:
+        log.info(
+            "Email not sent - task configured with email_on_%s=False",
+            request.email_type,
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
+        return
+
+    ctx_from_server = request.context_from_server
+
+    runtime_ti = RuntimeTaskInstance.model_construct(
+        **request.ti.model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=ctx_from_server,
+        max_tries=ctx_from_server.max_tries,
+    )
+
+    log.info(
+        "Sending %s email for task %s",
+        request.email_type,
+        request.ti.task_id,
+        dag_id=request.ti.dag_id,
+        run_id=request.ti.run_id,
+    )
+
+    try:
+        context = runtime_ti.get_template_context()
+        error = Exception(request.msg) if request.msg else None
+        _send_error_email_notification(task, runtime_ti, context, error, log)
+    except Exception:
+        log.exception(
+            "Failed to send %s email",
+            request.email_type,
+            dag_id=request.ti.dag_id,
+            task_id=request.ti.task_id,
+            run_id=request.ti.run_id,
+        )
+
+
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
+
+
+@attrs.define(kw_only=True)
+class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
+    """
+    Parses dags with Task SDK API.
+
+    This class provides a wrapper and management around a subprocess to parse a specific DAG file.
+
+    Since DAGs are written with the Task SDK, we need to parse them in a task SDK process such that
+    we can use the Task SDK definitions when serializing. This prevents potential conflicts with classes
+    in core Airflow.
+    """
+
+    logger_filehandle: BinaryIO
+    parsing_result: DagFileParsingResult | None = None
+    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
+    had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
+
+    client: Client
+    """The HTTP client to use for communication with the API server."""
+
+    bundle_name: str
+    dag_file_rel_path: str
+
+    @classmethod
+    def start(  # type: ignore[override]
+        cls,
+        *,
+        path: str | os.PathLike[str],
+        bundle_path: Path,
+        bundle_name: str,
+        dag_file_rel_path: str,
+        callbacks: list[CallbackRequest],
+        target: Callable[[], None] = _parse_file_entrypoint,
+        client: Client,
+        **kwargs,
+    ) -> Self:
+        logger = kwargs["logger"]
+
+        # Parsing DAG files runs user code that can trigger macOS-unsafe ObjC
+        # initialization (secret backends, connection/variable lookups, HTTP
+        # clients). Fork+exec a clean interpreter there. Tests override `target`
+        # with a stub to exercise the base infrastructure; keep bare fork for those.
+        use_exec = target is _parse_file_entrypoint and supervisor._should_use_exec()
+
+        # Pre-importing only helps the bare-fork child (it inherits the imports via
+        # copy-on-write). An exec'd child re-imports from scratch, so skip it there
+        # to avoid leaking user modules into the long-lived processor manager.
+        if not use_exec:
+            _pre_import_airflow_modules(os.fspath(path), logger)
+
+        proc: Self = super().start(
+            target=target,
+            client=client,
+            bundle_name=bundle_name,
+            dag_file_rel_path=dag_file_rel_path,
+            use_exec=use_exec,
+            **kwargs,
+        )
+        proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
+        return proc
+
+    def _on_child_started(
+        self,
+        callbacks: list[CallbackRequest],
+        path: str | os.PathLike[str],
+        bundle_path: Path,
+        bundle_name: str,
+    ) -> None:
+        msg = DagFileParseRequest(
+            file=os.fspath(path),
+            bundle_path=bundle_path,
+            bundle_name=bundle_name,
+            callback_requests=callbacks,
+        )
+        self.send_msg(msg, request_id=0)
+
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        base = super()._get_target_loggers()
+        if not self.subprocess_logs_to_stdout:
+            return base
+        return tuple(
+            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
+        )
+
+    def _create_log_forwarder(
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
+    ) -> Callable[[socket], bool]:
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
+
+    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
+        from airflow.sdk.api.datamodels._generated import (
+            ConnectionResponse,
+            VariableResponse,
+        )
+
+        resp: BaseModel | None = None
+        dump_opts: dict[str, bool] = {}
+        if isinstance(msg, DagFileParsingResult):
+            self.parsing_result = msg
+        elif isinstance(msg, GetConnection):
+            conn = self.client.connections.get(msg.conn_id)
+            if isinstance(conn, ConnectionResponse):
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result
+                dump_opts = {"exclude_unset": True, "by_alias": True}
+            else:
+                resp = conn
+        elif isinstance(msg, GetVariable):
+            var = self.client.variables.get(msg.key)
+            if isinstance(var, VariableResponse):
+                if var.value:
+                    mask_secret(var.value, var.key)
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result
+                dump_opts = {"exclude_unset": True}
+            else:
+                resp = var
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
+        elif isinstance(msg, PutVariable):
+            resp, dump_opts = handle_put_variable(self.client, msg)
+        elif isinstance(msg, DeleteVariable):
+            resp, dump_opts = handle_delete_variable(self.client, msg)
+        elif isinstance(msg, GetPreviousDagRun):
+            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
+        elif isinstance(msg, GetPrevSuccessfulDagRun):
+            resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
+        elif isinstance(msg, GetXCom):
+            resp, dump_opts = handle_get_xcom(self.client, msg)
+        elif isinstance(msg, GetXComCount):
+            resp, dump_opts = handle_get_xcom_count(self.client, msg)
+        elif isinstance(msg, GetXComSequenceItem):
+            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
+        elif isinstance(msg, GetXComSequenceSlice):
+            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
+        elif isinstance(msg, MaskSecret):
+            handle_mask_secret(msg)
+        elif isinstance(msg, GetTICount):
+            resp, dump_opts = handle_get_ti_count(self.client, msg)
+        elif isinstance(msg, GetTaskStates):
+            resp, dump_opts = handle_get_task_states(self.client, msg)
+        elif isinstance(msg, GetPreviousTI):
+            resp, dump_opts = handle_get_previous_ti(self.client, msg)
+        else:
+            log.error("Unhandled request", msg=msg)
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(
+                    detail={"status_code": 400, "message": "Unhandled request"},
+                ),
+            )
+            return
+
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+
+    @property
+    def is_ready(self) -> bool:
+        if self._check_subprocess_exit() is None:
+            # Process still alive, def can't be finished yet
+            return False
+
+        return not self._open_sockets
+
+    def wait(self) -> int:
+        raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
+
+    def close(self):
+        try:
+            self.logger_filehandle.close()
+        except OSError:
+            self.log.warning(
+                "Failed to close log file handle for %s",
+                self.dag_file_rel_path,
+                exc_info=True,
+            )

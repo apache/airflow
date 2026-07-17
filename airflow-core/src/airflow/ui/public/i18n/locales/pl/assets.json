@@ -1,0 +1,53 @@
+{
+  "additional_data": "Dodatkowe dane",
+  "asset_few": "Zasoby",
+  "asset_many": "Zasobów",
+  "asset_one": "Zasób",
+  "asset_other": "Zasoby",
+  "assetStore": {
+    "add": "Dodaj magazyn zasobów",
+    "clearAll": {
+      "resource": "cały magazyn zasobów",
+      "title": "Wyczyść cały magazyn zasobów",
+      "warning": "Cały magazyn zasobów zostanie wyczyszczony. Zadania, które używają tego magazynu do koordynowania pracy, utracą swoje zapisane dane."
+    },
+    "delete": "Usuń magazyn zasobów",
+    "deleteWarning": "Zasób utraci ten zapisany wpis magazynu.",
+    "edit": "Edytuj magazyn zasobów",
+    "emptyState": "Magazyn zasobów przechowuje wartości powiązane z identyfikatorem zasobu, współdzielone między wszystkimi uruchomieniami Dagów. Procesy robocze mogą zapisywać do magazynu zasobów za pomocą Task SDK.",
+    "title": "Magazyn zasobów"
+  },
+  "consumingDags": "Przetwarzanie Dagów",
+  "consumingTasks": "Przetwarzanie zadań",
+  "createEvent": {
+    "button": "Utwórz zdarzenie",
+    "manual": {
+      "description": "Utwórz ręcznie zdarzenie zasobu",
+      "extra": "Dodatkowe informacje o zdarzeniu zasobu",
+      "label": "Ręcznie"
+    },
+    "materialize": {
+      "description": "Wykonaj Dag zależny od tego zasobu",
+      "descriptionWithDag": "Wykonaj Dag zależny od tego zasobu: {{dagName}}",
+      "label": "Materializuj",
+      "unpauseDag": "Wznów {{dagName}} przy wywołaniu"
+    },
+    "success": {
+      "manualDescription": "Ręczne utworzenie zdarzenia zasobu zakończone sukcesem.",
+      "manualTitle": "Zdarzenie zasobu utworzone",
+      "materializeDescription": "Zależny Dag {{dagId}} został pomyślnie wywołany.",
+      "materializeTitle": "Materializowanie zasobu"
+    },
+    "title": "Utwórz zdarzenie zasobu dla {{name}}"
+  },
+  "events": "Zdarzenia",
+  "extra": "Dodatkowe",
+  "group": "Grupa",
+  "lastAssetEvent": "Ostatnie zdarzenie zasobu",
+  "name": "Nazwa",
+  "producingTasks": "Zadania produkujące",
+  "scheduledDags": "Zaplanowane Dagi",
+  "scheduling": "Planowanie",
+  "searchPlaceholder": "Szukaj zasobów",
+  "taskDependencies": "Zależności zadań"
+}

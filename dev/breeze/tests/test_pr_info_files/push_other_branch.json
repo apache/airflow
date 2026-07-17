@@ -1,0 +1,26 @@
+{
+    "repository": "apache/airflow",
+    "event_name": "push",
+    "event": {
+        "pull_request": {
+            "number": 1234,
+            "base": {
+                "repo": {
+                    "full_name": "apache/airflow"
+                }
+            },
+            "head": {
+                "repo": {
+                    "full_name": "apache/airflow"
+                }
+            },
+            "labels": [
+                {
+                    "name": "another"
+                }
+            ]
+        }
+    },
+    "ref_name": "branch",
+    "ref": "refs/head/branch"
+}

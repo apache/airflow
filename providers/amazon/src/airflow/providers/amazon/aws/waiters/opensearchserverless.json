@@ -1,0 +1,36 @@
+{
+    "version": 2,
+    "waiters": {
+        "collection_available": {
+            "operation": "BatchGetCollection",
+            "delay": 10,
+            "maxAttempts": 120,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "collectionDetails[0].status",
+                    "expected": "ACTIVE",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "collectionDetails[0].status",
+                    "expected": "DELETING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "collectionDetails[0].status",
+                    "expected": "CREATING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "collectionDetails[0].status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

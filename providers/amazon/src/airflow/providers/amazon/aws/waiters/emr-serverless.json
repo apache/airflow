@@ -1,0 +1,157 @@
+{
+    "version": 2,
+    "waiters": {
+        "no_job_running": {
+            "operation": "ListJobRuns",
+            "delay": 10,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "length(jobRuns) == `0`",
+                    "expected": true,
+                    "state": "success"
+                }
+            ]
+        },
+        "serverless_app_created": {
+            "operation": "GetApplication",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "CREATED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "TERMINATED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "serverless_app_started": {
+            "operation": "GetApplication",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "STARTED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "TERMINATED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "serverless_app_stopped": {
+            "operation": "GetApplication",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "STOPPED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "TERMINATED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "serverless_app_terminated": {
+            "operation": "GetApplication",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                }
+            ]
+        },
+        "serverless_job_completed": {
+            "operation": "GetJobRun",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "SUCCESS",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "CANCELLED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "serverless_job_running": {
+            "operation": "GetJobRun",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "RUNNING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "CANCELLED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "serverless_app_deleted": {
+            "operation": "GetApplication",
+            "delay": 60,
+            "maxAttempts": 1500,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "application.state",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                }
+            ]
+        }
+    }
+}

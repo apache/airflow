@@ -1,0 +1,22 @@
+Add operator-level ``render_template_as_native_obj`` override
+
+Operators can now override the DAG-level ``render_template_as_native_obj`` setting,
+enabling fine-grained control over whether templates are rendered as native Python
+types or strings on a per-task basis. Set ``render_template_as_native_obj=True`` or
+``False`` on any operator to override the DAG setting, or leave as ``None`` (default)
+to inherit from the DAG.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * None - this is a new optional feature with backwards-compatible defaults

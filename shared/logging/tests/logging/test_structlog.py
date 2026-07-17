@@ -1,0 +1,788 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import contextlib
+import io
+import json
+import logging
+import os
+import sys
+import textwrap
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest import mock
+
+import pytest
+import structlog
+from structlog.dev import BLUE, BRIGHT, CYAN, DIM, GREEN, MAGENTA, RESET_ALL as RESET
+from structlog.processors import CallsiteParameter
+
+from airflow_shared.logging import structlog as structlog_module
+from airflow_shared.logging.structlog import (
+    NAME_TO_LEVEL,
+    configure_logging,
+    parse_namespace_log_levels,
+)
+
+# We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
+# _rendered_ output of the tests to make sure it is correct.
+
+PY_3_11 = sys.version_info >= (3, 11)
+
+
+@pytest.fixture(autouse=True)
+def set_time(time_machine):
+    time_machine.move_to(datetime(1985, 10, 26, microsecond=1, tzinfo=timezone.utc), tick=False)
+
+
+@pytest.fixture
+def structlog_config():
+    @contextlib.contextmanager
+    def configurer(**kwargs):
+        prev_config = structlog.get_config()
+
+        try:
+            if kwargs.get("json_output"):
+                buff = io.BytesIO()
+            else:
+                buff = io.StringIO()
+
+            with mock.patch("sys.stdout") as mock_stdout:
+                mock_stdout.isatty.return_value = True
+                configure_logging(**kwargs, output=buff)
+
+            yield buff
+            buff.seek(0)
+        finally:
+            structlog.configure(**prev_config)
+
+    return configurer
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "config_kwargs", "extra_kwargs", "extra_output"),
+    [
+        pytest.param(
+            structlog.get_logger,
+            {},
+            {"key1": "value1"},
+            f" {CYAN}key1{RESET}={MAGENTA}value1{RESET}",
+            id="structlog",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {"key1": "value1"},
+            f" {CYAN}key1{RESET}={MAGENTA}value1{RESET} {CYAN}process{RESET}={MAGENTA}{os.getpid()}{RESET}",
+            id="structlog-callsite",
+        ),
+        pytest.param(
+            logging.getLogger,
+            {},
+            {},
+            "",
+            id="stdlib",
+        ),
+        pytest.param(
+            logging.getLogger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {},
+            f" {CYAN}process{RESET}={MAGENTA}{os.getpid()}{RESET}",
+            id="stdlib-callsite",
+        ),
+    ],
+)
+def test_colorful(structlog_config, get_logger, config_kwargs, extra_kwargs, extra_output):
+    with structlog_config(colors=True, **config_kwargs) as sio:
+        logger = get_logger("my.logger")
+        # Test that interoplations work too
+        x = "world"
+        logger.info("Hello %s", x, **extra_kwargs)
+
+    written = sio.getvalue()
+    # This _might_ be a little bit too specific to structlog's ConsoleRender format
+    assert (
+        written == f"{DIM}1985-10-26T00:00:00.000001Z{RESET} [{GREEN}{BRIGHT}info     {RESET}]"
+        f" {BRIGHT}Hello world                   {RESET}"
+        f" [{RESET}{BRIGHT}{BLUE}my.logger{RESET}]{RESET}" + extra_output + "\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("no_color", "force_color", "is_tty", "colors_param", "expected_colors"),
+    [
+        # NO_COLOR takes precedence over everything
+        pytest.param("1", "", True, True, False, id="no_color_set_tty_colors_true"),
+        pytest.param("1", "", True, False, False, id="no_color_set_tty_colors_false"),
+        pytest.param("1", "", False, True, False, id="no_color_set_no_tty_colors_true"),
+        pytest.param("1", "", False, False, False, id="no_color_set_no_tty_colors_false"),
+        pytest.param("1", "1", True, True, False, id="no_color_and_force_color_tty_colors_true"),
+        pytest.param("1", "1", True, False, False, id="no_color_and_force_color_tty_colors_false"),
+        pytest.param("1", "1", False, True, False, id="no_color_and_force_color_no_tty_colors_true"),
+        pytest.param("1", "1", False, False, False, id="no_color_and_force_color_no_tty_colors_false"),
+        # FORCE_COLOR takes precedence when NO_COLOR is not set
+        pytest.param("", "1", True, True, True, id="force_color_tty_colors_true"),
+        pytest.param("", "1", True, False, True, id="force_color_tty_colors_false"),
+        pytest.param("", "1", False, True, True, id="force_color_no_tty_colors_true"),
+        pytest.param("", "1", False, False, True, id="force_color_no_tty_colors_false"),
+        # When neither NO_COLOR nor FORCE_COLOR is set, check TTY and colors param
+        pytest.param("", "", True, True, True, id="tty_colors_true"),
+        pytest.param("", "", True, False, False, id="tty_colors_false"),
+        pytest.param("", "", False, True, False, id="no_tty_colors_true"),
+        pytest.param("", "", False, False, False, id="no_tty_colors_false"),
+    ],
+)
+def test_color_config(monkeypatch, no_color, force_color, is_tty, colors_param, expected_colors):
+    """Test all combinations of NO_COLOR, FORCE_COLOR, is_atty(), and colors parameter."""
+
+    monkeypatch.setenv("NO_COLOR", no_color)
+    monkeypatch.setenv("FORCE_COLOR", force_color)
+
+    with mock.patch("sys.stdout") as mock_stdout:
+        mock_stdout.isatty.return_value = is_tty
+
+        with mock.patch.object(structlog_module, "structlog_processors") as mock_processors:
+            mock_processors.return_value = ([], None, None)
+
+            structlog_module.configure_logging(colors=colors_param)
+
+            mock_processors.assert_called_once()
+            assert mock_processors.call_args.kwargs["colors"] == expected_colors
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "extra_kwargs", "extra_output"),
+    [
+        pytest.param(
+            structlog.get_logger,
+            {"key1": "value1"},
+            f" {CYAN}key1{RESET}={MAGENTA}value1{RESET}",
+            id="structlog",
+        ),
+        pytest.param(
+            logging.getLogger,
+            {},
+            "",
+            id="stdlib",
+        ),
+    ],
+)
+def test_precent_fmt(structlog_config, get_logger, extra_kwargs, extra_output):
+    with structlog_config(colors=True, log_format="%(blue)s[%(asctime)s]%(reset)s %(message)s") as sio:
+        logger = get_logger("my.logger")
+        logger.info("Hello", **extra_kwargs)
+
+    written = sio.getvalue()
+    print(written)
+    assert written == f"{BLUE}[1985-10-26T00:00:00.000001Z]{RESET} Hello" + extra_output + "\n"
+
+
+def test_precent_fmt_force_no_colors(
+    structlog_config,
+):
+    with structlog_config(
+        colors=False,
+        log_format="%(blue)s[%(asctime)s]%(reset)s {%(filename)s:%(lineno)d} %(log_color)s%(levelname)s - %(message)s",
+    ) as sio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", key1="value1")
+
+        lineno = sys._getframe().f_lineno - 2
+
+    written = sio.getvalue()
+    assert (
+        written == f"[1985-10-26T00:00:00.000001Z] {{test_structlog.py:{lineno}}} INFO - Hello key1=value1\n"
+    )
+
+
+def test_log_timestamp_format(structlog_config):
+    """Test that log_timestamp_format controls the timestamp format in component logs."""
+    with structlog_config(colors=False, log_timestamp_format="%Y-%m-%d %H:%M:%S") as sio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello")
+
+    written = sio.getvalue()
+    assert "1985-10-26 00:00:00" in written
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "config_kwargs", "log_kwargs", "expected_kwargs"),
+    [
+        pytest.param(
+            structlog.get_logger,
+            {},
+            {"key1": "value1"},
+            {"key1": "value1"},
+            id="structlog",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {"key1": "value1"},
+            {"key1": "value1", "process": os.getpid()},
+            id="structlog-callsite",
+        ),
+        pytest.param(
+            logging.getLogger,
+            {},
+            {},
+            {},
+            id="stdlib",
+        ),
+        pytest.param(
+            logging.getLogger,
+            {"callsite_parameters": [CallsiteParameter.PROCESS]},
+            {},
+            {"process": os.getpid()},
+            id="stdlib-callsite",
+        ),
+    ],
+)
+def test_json(structlog_config, get_logger, config_kwargs, log_kwargs, expected_kwargs):
+    with structlog_config(json_output=True, **(config_kwargs or {})) as bio:
+        logger = get_logger("my.logger")
+        logger.info("Hello", **log_kwargs)
+
+    written = json.load(bio)
+    assert written == {
+        "event": "Hello",
+        "level": "info",
+        **expected_kwargs,
+        "logger": "my.logger",
+        "timestamp": "1985-10-26T00:00:00.000001Z",
+    }
+
+
+def test_json_non_serializable_object(structlog_config):
+    """Non-serializable objects in log context fall back to str() instead of crashing."""
+
+    class BadStructlog:
+        def __structlog__(self):
+            raise TypeError("unsupported")
+
+        def __str__(self):
+            return "<BadStructlog>"
+
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", obj=BadStructlog())
+
+    written = json.load(bio)
+    assert written["obj"] == "<BadStructlog>"
+    assert written["event"] == "Hello"
+
+
+def test_json_custom_object_uses_repr(structlog_config):
+    """Custom objects without __structlog__ serialize via repr() through the normal enc_hook path."""
+
+    class CustomObj:
+        pass
+
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", obj=CustomObj())
+
+    written = json.load(bio)
+    assert written["event"] == "Hello"
+    assert "CustomObj" in written["obj"]
+
+
+def test_safe_enc_hook_with_none_default():
+    """When default is None, _make_safe_enc_hook falls back to str() directly."""
+    from airflow_shared.logging.structlog import _make_safe_enc_hook
+
+    hook = _make_safe_enc_hook(None)
+    assert hook(42) == "42"
+    assert hook(object()).startswith("<object object at")
+
+
+def test_safe_enc_hook_catches_value_error():
+    """ValueError (including UnicodeEncodeError) from enc_hook falls back to str()."""
+    from airflow_shared.logging.structlog import _make_safe_enc_hook
+
+    def bad_default(obj):
+        raise ValueError("surrogates not allowed")
+
+    hook = _make_safe_enc_hook(bad_default)
+    assert hook(42) == "42"
+
+
+def test_json_unicode_surrogate_in_value(structlog_config):
+    """Surrogate characters in log values don't crash JSON serialization."""
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", text="before \udce2 after")
+
+    written = json.load(bio)
+    assert written["event"] == "Hello"
+    # Surrogates are replaced with the Unicode replacement character
+    assert "\udce2" not in written["text"]
+    assert "before" in written["text"]
+
+
+@pytest.mark.parametrize(
+    ("get_logger"),
+    [
+        pytest.param(
+            structlog.get_logger,
+            id="structlog",
+        ),
+        pytest.param(
+            logging.getLogger,
+            id="stdlib",
+        ),
+    ],
+)
+def test_precent_fmt_exc(structlog_config, get_logger, monkeypatch):
+    monkeypatch.setenv("DEV", "")
+    with structlog_config(
+        log_format="%(message)s",
+        colors=False,
+    ) as sio:
+        lineno = sys._getframe().f_lineno + 2
+        try:
+            1 / 0
+        except ZeroDivisionError:
+            get_logger("logger").exception("Error")
+    written = sio.getvalue()
+
+    expected = textwrap.dedent(f"""\
+        Error
+        Traceback (most recent call last):
+          File "{__file__}", line {lineno}, in test_precent_fmt_exc
+            1 / 0
+    """)
+    if PY_3_11:
+        expected += "    ~~^~~\n"
+    expected += "ZeroDivisionError: division by zero\n"
+    assert written == expected
+
+
+@pytest.mark.parametrize(
+    ("get_logger"),
+    [
+        pytest.param(
+            structlog.get_logger,
+            id="structlog",
+        ),
+        pytest.param(
+            logging.getLogger,
+            id="stdlib",
+        ),
+    ],
+)
+def test_json_exc(structlog_config, get_logger, monkeypatch):
+    with structlog_config(json_output=True) as bio:
+        lineno = sys._getframe().f_lineno + 2
+        try:
+            1 / 0
+        except ZeroDivisionError:
+            get_logger("logger").exception("Error")
+    written = bio.getvalue()
+
+    written = json.load(bio)
+    assert written == {
+        "event": "Error",
+        "exception": [
+            {
+                "exc_notes": [],
+                "exc_type": "ZeroDivisionError",
+                "exc_value": "division by zero",
+                "exceptions": [],
+                "frames": [
+                    {
+                        "filename": __file__,
+                        "lineno": lineno,
+                        "name": "test_json_exc",
+                    },
+                ],
+                "is_cause": False,
+                "is_group": False,
+                "syntax_error": None,
+            },
+        ],
+        "level": "error",
+        "logger": "logger",
+        "timestamp": "1985-10-26T00:00:00.000001Z",
+    }
+
+
+@pytest.mark.parametrize(
+    "levels",
+    (
+        pytest.param("my.logger=warn", id="str"),
+        pytest.param({"my.logger": "warn"}, id="dict"),
+    ),
+)
+def test_logger_filtering(structlog_config, levels):
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="DEBUG",
+        namespace_log_levels=levels,
+    ) as sio:
+        structlog.get_logger("my").info("Hello", key1="value1")
+        structlog.get_logger("my.logger").info("Hello", key1="value2")
+        structlog.get_logger("my.logger.sub").info("Hello", key1="value3")
+        structlog.get_logger("other.logger").info("Hello", key1="value4")
+        structlog.get_logger("my.logger.sub").warning("Hello", key1="value5")
+
+    written = sio.getvalue()
+    assert written == textwrap.dedent("""\
+        [my] Hello key1=value1
+        [other.logger] Hello key1=value4
+        [my.logger.sub] Hello key1=value5
+        """)
+
+
+def test_logger_respects_configured_level(structlog_config):
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="DEBUG",
+    ) as sio:
+        my_logger = logging.getLogger("my_logger")
+        my_logger.debug("Debug message")
+
+    written = sio.getvalue()
+    assert "[my_logger] Debug message\n" in written
+
+
+def test_excepthook_installed_when_json_output_true(structlog_config):
+    import sys
+
+    original = sys.excepthook
+    try:
+        with structlog_config(json_output=True):
+            assert sys.excepthook is not original
+    finally:
+        sys.excepthook = original
+
+
+def test_excepthook_not_installed_when_json_output_false(structlog_config):
+    import sys
+
+    original = sys.excepthook
+    with structlog_config(json_output=False):
+        assert sys.excepthook is original
+
+
+def test_excepthook_routes_unhandled_exception_through_structlog(structlog_config):
+    import sys
+
+    original = sys.excepthook
+    try:
+        with structlog_config(json_output=True) as sio:
+            sys.excepthook(ValueError, ValueError("boom"), None)
+        output = sio.getvalue().decode()
+        assert "unhandled_exception" in output
+        assert "boom" in output
+    finally:
+        sys.excepthook = original
+
+
+def test_excepthook_passes_keyboard_interrupt_to_original():
+    import sys
+
+    from airflow_shared.logging.structlog import _install_excepthook
+
+    calls = []
+    original = sys.excepthook
+
+    def spy(et, ev, tb):
+        calls.append(et)
+
+    sys.excepthook = spy
+    try:
+        _install_excepthook()
+        sys.excepthook(KeyboardInterrupt, KeyboardInterrupt(), None)
+        assert calls == [KeyboardInterrupt]
+    finally:
+        sys.excepthook = original
+
+
+def test_init_log_folder_does_not_raise_on_permission_error():
+    from airflow_shared.logging.structlog import init_log_folder
+
+    with mock.patch.object(Path, "mkdir", side_effect=PermissionError("not allowed")):
+        # Must not raise — CLI commands like `airflow db migrate` rely on this.
+        init_log_folder("/tmp/blocked", 0o775)
+
+
+class TestWarningsInterceptor:
+    @pytest.fixture(autouse=True)
+    def reset(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        _WarningsInterceptor.reset()
+        yield
+        _WarningsInterceptor.reset()
+
+    def test_register_replaces_showwarning(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        current = warnings.showwarning
+        sentinel = mock.MagicMock()
+        _WarningsInterceptor.register(sentinel)
+        assert warnings.showwarning is sentinel
+        assert _WarningsInterceptor._original_showwarning is current
+
+    def test_register_is_idempotent(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        pre_register = warnings.showwarning
+        _WarningsInterceptor.register(mock.MagicMock())
+        _WarningsInterceptor.register(mock.MagicMock())
+        assert _WarningsInterceptor._original_showwarning is pre_register
+
+    def test_reset_restores_original(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        pre_register = warnings.showwarning
+        _WarningsInterceptor.register(mock.MagicMock())
+        _WarningsInterceptor.reset()
+        assert warnings.showwarning is pre_register
+        assert _WarningsInterceptor._original_showwarning is None
+
+    def test_reset_when_not_registered_is_noop(self):
+        import warnings
+
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        pre_reset = warnings.showwarning
+        _WarningsInterceptor.reset()
+        assert warnings.showwarning is pre_reset
+
+    def test_emit_warning_delegates_to_original(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        sentinel = mock.MagicMock()
+        _WarningsInterceptor._original_showwarning = sentinel
+        _WarningsInterceptor.emit_warning("msg", UserWarning, "file.py", 1)
+        sentinel.assert_called_once_with("msg", UserWarning, "file.py", 1)
+        _WarningsInterceptor._original_showwarning = None
+
+    def test_emit_warning_when_not_registered_is_noop(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        _WarningsInterceptor._original_showwarning = None
+        _WarningsInterceptor.emit_warning("msg", UserWarning, "file.py", 1)
+
+
+class TestShowwarning:
+    @pytest.fixture(autouse=True)
+    def reset(self):
+        from airflow_shared.logging.structlog import _WarningsInterceptor
+
+        _WarningsInterceptor.reset()
+        yield
+        _WarningsInterceptor.reset()
+
+    def test_with_file_delegates_to_original(self):
+        from airflow_shared.logging.structlog import _showwarning, _WarningsInterceptor
+
+        sentinel = mock.MagicMock()
+        _WarningsInterceptor._original_showwarning = sentinel
+        fake_file = mock.MagicMock()
+        _showwarning("msg", UserWarning, "file.py", 42, file=fake_file)
+        sentinel.assert_called_once_with("msg", UserWarning, "file.py", 42, fake_file, None)
+        _WarningsInterceptor._original_showwarning = None
+
+    def test_without_file_logs_to_structlog(self):
+        from airflow_shared.logging.structlog import _showwarning
+
+        with structlog.testing.capture_logs() as captured:
+            _showwarning("deprecated feature", DeprecationWarning, "myfile.py", 10)
+
+        assert len(captured) == 1
+        event = captured[0]
+        assert event["log_level"] == "warning"
+        assert event["event"] == "deprecated feature"
+        assert event["category"] == "DeprecationWarning"
+        assert event["filename"] == "myfile.py"
+        assert event["lineno"] == 10
+
+    def test_without_file_uses_py_warnings_logger(self):
+        from airflow_shared.logging import structlog as structlog_module
+        from airflow_shared.logging.structlog import _showwarning
+
+        with mock.patch.object(structlog_module.structlog, "get_logger") as mock_get_logger:
+            mock_bound = mock.MagicMock()
+            mock_bound.bind.return_value = mock_bound
+            mock_get_logger.return_value = mock_bound
+            with mock.patch.object(structlog_module, "reconfigure_logger", return_value=mock_bound):
+                _showwarning("some warning", UserWarning, "foo.py", 1)
+
+        mock_get_logger.assert_called_once_with("py.warnings")
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "message", "args", "expected_event"),
+    [
+        # dict passed as positional %s arg — should use positional formatting, not named
+        pytest.param(
+            logging.getLogger,
+            "Info message %s",
+            ({"a": 10},),
+            "Info message {'a': 10}",
+            id="stdlib-dict-positional",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "Info message %s",
+            ({"a": 10},),
+            "Info message {'a': 10}",
+            id="structlog-dict-positional",
+        ),
+        # named substitution with dict should still work
+        pytest.param(
+            logging.getLogger,
+            "%(a)s message",
+            ({"a": 10},),
+            "10 message",
+            id="stdlib-dict-named",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "%(a)s message",
+            ({"a": 10},),
+            "10 message",
+            id="structlog-dict-named",
+        ),
+        # simple non-dict positional arg
+        pytest.param(
+            logging.getLogger,
+            "message %s",
+            ("simple",),
+            "message simple",
+            id="stdlib-simple-positional",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "message %s",
+            ("simple",),
+            "message simple",
+            id="structlog-simple-positional",
+        ),
+        # no args
+        pytest.param(
+            logging.getLogger,
+            "message",
+            (),
+            "message",
+            id="stdlib-no-args",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "message",
+            (),
+            "message",
+            id="structlog-no-args",
+        ),
+    ],
+)
+def test_dict_positional_arg_formatting(structlog_config, get_logger, message, args, expected_event):
+    """Regression test for dict args passed as positional log arguments (GitHub issue #62201)."""
+    with structlog_config(json_output=True) as bio:
+        logger = get_logger("my.logger")
+        logger.warning(message, *args)
+
+    written = json.load(bio)
+    assert written["event"] == expected_event
+
+
+def test_named_bytes_logger_preserves_name():
+    """
+    structlog 26.1.0 (hynek/structlog#786) gives ``BytesLogger`` its own ``name``
+    slot and sets ``self.name`` in ``__init__``; older releases do not. This test
+    runs against whichever version is installed and pins the contract that the
+    supplied name survives construction on both.
+    """
+    from airflow_shared.logging.structlog import NamedBytesLogger
+
+    assert NamedBytesLogger("my.logger").name == "my.logger"
+    assert NamedBytesLogger().name is None
+
+
+def test_named_write_logger_preserves_name():
+    """Same contract for NamedWriteLogger in case structlog mirrors #786 for WriteLogger."""
+    from airflow_shared.logging.structlog import NamedWriteLogger
+
+    assert NamedWriteLogger("my.logger").name == "my.logger"
+    assert NamedWriteLogger().name is None
+
+
+class TestParseNamespaceLogLevels:
+    """Unit tests for the best-effort ``namespace_levels`` parser."""
+
+    @pytest.mark.parametrize("value", (None, "", "   ", " , , "))
+    def test_blank_yields_no_overrides(self, value):
+        assert parse_namespace_log_levels(value) == {}
+
+    def test_parses_string_pairs(self):
+        assert parse_namespace_log_levels("sqlalchemy=INFO sqlalchemy.engine=DEBUG") == {
+            "sqlalchemy": NAME_TO_LEVEL["info"],
+            "sqlalchemy.engine": NAME_TO_LEVEL["debug"],
+        }
+
+    def test_accepts_commas_and_mixed_separators(self):
+        expected = {"a": NAME_TO_LEVEL["info"], "b": NAME_TO_LEVEL["debug"]}
+        assert parse_namespace_log_levels("a=INFO,b=DEBUG") == expected
+        assert parse_namespace_log_levels("  a=INFO ,, b=DEBUG ") == expected
+
+    def test_level_names_are_case_insensitive(self):
+        assert parse_namespace_log_levels("a=info") == {"a": NAME_TO_LEVEL["info"]}
+
+    def test_last_value_wins(self):
+        assert parse_namespace_log_levels("a=INFO a=ERROR") == {"a": NAME_TO_LEVEL["error"]}
+
+    def test_accepts_mapping_input(self):
+        assert parse_namespace_log_levels({"my.logger": "warning"}) == {
+            "my.logger": NAME_TO_LEVEL["warning"],
+        }
+
+    def test_valid_input_logs_nothing(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            parse_namespace_log_levels("a=INFO")
+        assert not caplog.records
+
+    def test_entry_without_equals_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("sqlalchemy=INFO botocore")
+        assert result == {"sqlalchemy": NAME_TO_LEVEL["info"]}
+        assert "botocore" in caplog.text
+        assert "<logger>=<level>" in caplog.text
+
+    def test_empty_logger_name_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("=INFO a=DEBUG")
+        assert result == {"a": NAME_TO_LEVEL["debug"]}
+        assert "logger name is empty" in caplog.text
+
+    def test_unknown_level_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("sqlalchemy=VERBOSE")
+        assert result == {}
+        assert "VERBOSE" in caplog.text

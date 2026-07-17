@@ -1,0 +1,4090 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import itertools
+import logging
+import multiprocessing
+import operator
+import os
+import signal
+import sys
+import time
+from collections import Counter, defaultdict, deque
+from collections.abc import Callable, Collection, Iterable, Iterator
+from contextlib import ExitStack
+from datetime import date, datetime, timedelta
+from functools import lru_cache, partial
+from itertools import groupby
+from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
+
+from sqlalchemy import (
+    CTE,
+    Text,
+    and_,
+    case,
+    cast as sql_cast,
+    delete,
+    exists,
+    func,
+    inspect,
+    or_,
+    select,
+    text,
+    tuple_,
+    update,
+)
+from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.sql import expression
+
+from airflow import settings
+from airflow._shared.observability.metrics import stats
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
+from airflow.assets.evaluation import AssetEvaluator
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    EmailRequest,
+    TaskCallbackRequest,
+)
+from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.exceptions import DagNotFound
+from airflow.executors import workloads
+from airflow.executors.executor_loader import ExecutorLoader
+from airflow.jobs.base_job_runner import BaseJobRunner
+from airflow.jobs.job import Job, JobState, perform_heartbeat
+from airflow.models import Deadline, Log
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    AssetPartitionDagRun,
+    AssetWatcherModel,
+    DagScheduleAssetAliasReference,
+    DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
+    TaskInletAssetReference,
+    TaskOutletAssetReference,
+)
+from airflow.models.asset_state_store import AssetStateStoreModel
+from airflow.models.backfill import Backfill, BackfillDagRun
+from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
+from airflow.models.connection_test import (
+    ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
+    DISPATCHED_STATES,
+    ConnectionTestKey,
+    ConnectionTestRequest,
+    ConnectionTestState,
+)
+from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion, _resolve_version_data
+from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.pool import normalize_pool_name_for_stats
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.team import Team
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
+from airflow.observability.metrics import stats_utils
+from airflow.partition_mappers.base import is_rollup
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
+from airflow.serialization.definitions.notset import NOTSET
+from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
+from airflow.timetables.base import Timetable, compute_rollup_fingerprint
+from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.triggers.base import TriggerEvent
+from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.helpers import prune_dict
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.sqlalchemy import (
+    get_dialect_name,
+    is_lock_not_available_error,
+    prohibit_commit,
+    random_db_uuid,
+    with_row_locks,
+)
+from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+if TYPE_CHECKING:
+    from types import FrameType
+
+    from pendulum.datetime import DateTime
+    from sqlalchemy.engine import CursorResult
+    from sqlalchemy.orm import Session
+    from sqlalchemy.orm.interfaces import LoaderOption
+    from sqlalchemy.sql.selectable import Subquery
+
+    from airflow._shared.logging.types import Logger
+    from airflow.executors.base_executor import BaseExecutor
+    from airflow.executors.executor_utils import ExecutorName
+    from airflow.executors.workloads.types import SchedulerWorkload
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.utils.sqlalchemy import CommitProhibitorGuard
+
+TI = TaskInstance
+DR = DagRun
+DM = DagModel
+
+TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
+""":meta private:"""
+
+# Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
+# Bounds the per-tick transaction so executor heartbeats and regular scheduling
+# aren't starved; remaining APDRs drain across subsequent ticks.
+# Internal constant rather than a user setting — this is a performance
+# safety bound, not a behavioural knob operators need to tune.
+MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
+
+
+def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
+    """
+    Eager-load DagRun relations required for execution API datamodel validation.
+
+    When building TaskCallbackRequest with DRDataModel.model_validate(ti.dag_run),
+    the consumed_asset_events collection and nested asset/source_aliases must be
+    preloaded to avoid DetachedInstanceError after the session closes.
+
+    Returns a tuple of two load options:
+        - Asset loader: TI.dag_run → consumed_asset_events → asset
+        - Alias loader: TI.dag_run → consumed_asset_events → source_aliases
+
+    Example usage::
+
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
+        query = select(TI).options(asset_loader).options(alias_loader)
+    """
+    # Traverse TI → dag_run → consumed_asset_events once, then branch to asset/aliases
+    base = joinedload(TI.dag_run).selectinload(DagRun.consumed_asset_events)
+    return (
+        base.selectinload(AssetEvent.asset),
+        base.selectinload(AssetEvent.source_aliases),
+    )
+
+
+def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logger) -> bool:
+    """
+    Ensure a TaskInstance has a valid dag_version_id for Pydantic serialisation.
+
+    Legacy tasks migrated from Airflow 2 may have dag_version_id = None.
+    The Pydantic TaskInstance datamodel requires dag_version_id to be a strict
+    uuid.UUID, so we must backfill it before constructing TaskCallbackRequest
+    or EmailRequest.
+
+    Returns True if dag_version_id is present (or was successfully backfilled),
+    False if it could not be resolved (caller should skip the callback).
+    """
+    if ti.dag_version_id is not None:
+        return True
+
+    latest_version = DagVersion.get_latest_version(ti.dag_id, session=session)
+    if latest_version is None:
+        log.warning(
+            "TaskInstance %s has no dag_version_id and no DagVersion could be found "
+            "for dag_id=%s. Skipping callback. "
+            "This can happen for tasks migrated from Airflow 2 with no subsequent DAG parse.",
+            ti,
+            ti.dag_id,
+        )
+        return False
+
+    ti.dag_version_id = latest_version.id
+    log.info(
+        "Backfilled dag_version_id for legacy TaskInstance %s from latest DagVersion %s.",
+        ti,
+        latest_version.id,
+    )
+    return True
+
+
+class ConcurrencyMap:
+    """
+    Dataclass to represent concurrency maps.
+
+    It contains a map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
+    to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
+    to # of task instances in the given state list in each DAG run.
+    """
+
+    def __init__(self):
+        self.dag_run_active_tasks_map: Counter[tuple[str, str]] = Counter()
+        self.task_concurrency_map: Counter[tuple[str, str]] = Counter()
+        self.task_dagrun_concurrency_map: Counter[tuple[str, str, str]] = Counter()
+
+    def load(self, session: Session) -> None:
+        self.dag_run_active_tasks_map.clear()
+        self.task_concurrency_map.clear()
+        self.task_dagrun_concurrency_map.clear()
+        query = session.execute(
+            select(TI.dag_id, TI.task_id, TI.run_id, TI.state, func.count("*"))
+            .where(TI.state.in_(ACTIVE_STATES))
+            .group_by(TI.dag_id, TI.task_id, TI.run_id, TI.state)
+        )
+        for dag_id, task_id, run_id, state, count in query:
+            # Always count towards task-level concurrency (max_active_tis_per_dag /
+            # max_active_tis_per_dagrun), including DEFERRED.
+            self.task_concurrency_map[(dag_id, task_id)] += count
+            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += count
+            # Only count states that hold a worker slot towards DAG-run active tasks
+            # (max_active_tasks / worker slot accounting). DEFERRED and AWAITING_INPUT
+            # are in-flight but parked, holding no worker slot.
+            if state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT):
+                self.dag_run_active_tasks_map[dag_id, run_id] += count
+
+
+def _is_parent_process() -> bool:
+    """
+    Whether this is a parent process.
+
+    Return True if the current process is the parent process.
+    False if the current process is a child process started by multiprocessing.
+    """
+    return multiprocessing.current_process().name == "MainProcess"
+
+
+def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
+    """Get the dag_run IDs and how many tasks are in the provided states for each one."""
+    return (
+        select(TI.dag_id, TI.run_id, func.count("*").label("task_per_dr_count"))
+        .where(TI.state.in_(states))
+        .group_by(TI.dag_id, TI.run_id)
+        .subquery()
+    )
+
+
+class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
+    """
+    SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
+
+    It figures out the latest runs for each task and sees if the dependencies
+    for the next schedules are met.
+    If so, it creates appropriate TaskInstances and sends run commands to the
+    executor. It does this for each task in each DAG and repeats.
+
+    :param num_runs: The number of times to run the scheduling loop. If you
+        have a large number of DAG files this could complete before each file
+        has been parsed. -1 for unlimited times.
+    :param only_idle: When True, only count runs where the scheduler was
+        idle (no tasks queued or finished). The count resets to zero whenever
+        a task is processed. Requires num_runs > 0.
+    :param scheduler_idle_sleep_time: The number of seconds to wait between
+        polls of running processors
+    :param log: override the default Logger
+    """
+
+    job_type = "SchedulerJob"
+
+    def __init__(
+        self,
+        job: Job,
+        num_runs: int = conf.getint("scheduler", "num_runs"),
+        only_idle: bool = conf.getboolean("scheduler", "only_idle", fallback=False),
+        scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
+        log: Logger | None = None,
+        executors: list[BaseExecutor] | None = None,
+    ):
+        super().__init__(job)
+        self.num_runs = num_runs
+        self.only_idle = only_idle
+        self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
+
+        # Note:
+        # We need to fetch all conf values before the `prohibit_commit` block; otherwise the Core conf may
+        # access the MetadataMetastoreBackend and trigger `UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS`.
+        # The easiest way to keep the scheduler loop side-effect free is to read those values in `__init__`.
+
+        # How many seconds do we wait for tasks to heartbeat before timeout.
+        self._task_instance_heartbeat_timeout_secs = conf.getint(
+            "scheduler", "task_instance_heartbeat_timeout"
+        )
+        self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
+        self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
+
+        # this param is intentionally undocumented
+        self._num_stuck_queued_retries = conf.getint(
+            section="scheduler",
+            key="num_stuck_in_queued_retries",
+            fallback=2,
+        )
+        self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
+        self._parallelism = conf.getint("core", "parallelism")
+        self._multi_team = conf.getboolean("core", "multi_team")
+        self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        self._dag_id_to_team_name: dict[str, str | None] = {}
+
+        self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
+        self.executor: BaseExecutor = self.executors[0]
+
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.start()
+
+        if log:
+            self._log = log
+
+        self.scheduler_dag_bag = DBDagBag(load_op_links=False)
+
+        # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
+        # are permanently unreachable for the rollup window's cardinality — the
+        # Dag run can never fire, and we warn once per process lifetime so an
+        # unreachable APDR is visible in scheduler logs without spamming every
+        # tick.
+        self._partition_unreachable_seen: set[tuple[str, str, str]] = set()
+
+    @provide_session
+    def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
+        stats.incr("scheduler_heartbeat", 1, 1)
+
+    def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
+        try:
+            serdag = SerializedDagModel.get(dag_id=dag_id, session=session)
+            if not serdag:
+                return None
+            serdag.load_op_links = False
+            return serdag.dag
+        except Exception:
+            self.log.exception("Failed to deserialize DAG '%s'", dag_id)
+            return None
+
+    def register_signals(self) -> ExitStack:
+        """Register signals that stop child processes."""
+        resetter = ExitStack()
+        prev_int = signal.signal(signal.SIGINT, self._exit_gracefully)
+        prev_term = signal.signal(signal.SIGTERM, self._exit_gracefully)
+        prev_usr2 = signal.signal(signal.SIGUSR2, self._debug_dump)
+
+        resetter.callback(signal.signal, signal.SIGINT, prev_int)
+        resetter.callback(signal.signal, signal.SIGTERM, prev_term)
+        resetter.callback(signal.signal, signal.SIGUSR2, prev_usr2)
+
+        if self._enable_tracemalloc:
+            prev = signal.signal(signal.SIGUSR1, self._log_memory_usage)
+            resetter.callback(signal.signal, signal.SIGUSR1, prev)
+
+        return resetter
+
+    def _get_team_names_for_dag_ids(
+        self, dag_ids: Collection[str], session: Session
+    ) -> dict[str, str | None]:
+        """
+        Resolve team names for DAG IDs via the DAG > Bundle > Team relationship.
+
+        Results are cached for the current scheduler loop iteration. The cache is cleared
+        at the start of each loop so all injection points within one heartbeat share
+        a single query, but changes are picked up on the next iteration.
+
+        :param dag_ids: Collection of DAG IDs to resolve team names for
+        :param session: Database session for queries
+        :return: Dictionary mapping dag_id -> team_name (None if no team found)
+        """
+        if not dag_ids:
+            return {}
+
+        missing = [dag_id for dag_id in dag_ids if dag_id not in self._dag_id_to_team_name]
+        if missing:
+            try:
+                # Query all team names for the given DAG IDs in a single query
+                query_results = session.execute(
+                    select(DagModel.dag_id, Team.name)
+                    .join(DagBundleModel.teams)  # Join Team to DagBundleModel via association table
+                    .join(
+                        DagModel, DagModel.bundle_name == DagBundleModel.name
+                    )  # Join DagBundleModel to DagModel
+                    .where(DagModel.dag_id.in_(missing))
+                ).all()
+
+                # Create mapping from results
+                queried = {dag_id: team_name for dag_id, team_name in query_results}
+
+                # Cache all results, including None for dag_ids with no team
+                for dag_id in missing:
+                    self._dag_id_to_team_name[dag_id] = queried.get(dag_id)
+                    self.log.debug("Cached team names for %d new dag_ids", len(missing))
+
+            except Exception:
+                # Log the error, explicitly don't fail the scheduling loop
+                self.log.exception("Failed to resolve team names for DAG IDs: %s", missing)
+                # Return dict with all None values to ensure graceful degradation
+                return {}
+
+        # Ensure all requested dag_ids are in the result (with None for those not found)
+        return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
+
+    def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
+        """
+        Resolve team name for a workload using the DAG > Bundle > Team relationship chain.
+
+        Workload > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
+
+        :param workload: The Workload to resolve team name for
+        :param session: Database session for queries
+        :return: Team name if found or None
+        """
+        # Use the batch query function with a single DAG ID
+        if dag_id := workload.get_dag_id():
+            dag_id_to_team_name = self._get_team_names_for_dag_ids([dag_id], session)
+            team_name = dag_id_to_team_name.get(dag_id)
+        else:
+            team_name = None  # mypy didn't like the implicit defaulting to None
+
+        if team_name:
+            self.log.debug(
+                "Resolved team name '%s' for task or callback %s (dag_id=%s)",
+                team_name,
+                workload,
+                dag_id,
+            )
+        else:
+            self.log.debug(
+                "No team found for task or callback %s (dag_id=%s) - DAG may not have bundle or team association",
+                workload,
+                dag_id,
+            )
+
+        return team_name
+
+    def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
+        """Clean up processor_agent to avoid leaving orphan processes."""
+        if not _is_parent_process():
+            # Only the parent process should perform the cleanup.
+            return
+
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.stop()
+
+        self.log.info("Exiting gracefully upon receiving signal %s", signum)
+        sys.exit(os.EX_OK)
+
+    def _log_memory_usage(self, signum: int, frame: FrameType | None) -> None:
+        import tracemalloc
+
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")
+        n = 10
+        self.log.error(
+            "scheduler memory usage:\n Top %d\n %s",
+            n,
+            "\n\t".join(map(str, top_stats[:n])),
+        )
+
+    def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
+        import threading
+        from traceback import extract_stack
+
+        if not _is_parent_process():
+            # Only the parent process should perform the debug dump.
+            return
+
+        try:
+            sig_name = signal.Signals(signum).name
+        except Exception:
+            sig_name = str(signum)
+
+        self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
+
+        for executor in self.executors:
+            self.log.info("Debug dump for the executor %s", executor)
+            executor.debug_dump()
+            self.log.info("-" * 80)
+
+        id2name = {th.ident: th.name for th in threading.enumerate()}
+        for threadId, stack in sys._current_frames().items():
+            self.log.info("Stack Trace for Scheduler Job Runner on thread: %s", id2name[threadId])
+            callstack = extract_stack(f=stack, limit=10)
+            self.log.info("\n\t".join(map(repr, callstack)))
+            self.log.info("-" * 80)
+
+    def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
+        """
+        Find TIs that are ready for execution based on conditions.
+
+        Conditions include:
+        - pool limits
+        - DAG max_active_tasks
+        - executor state
+        - priority
+        - max active tis per DAG
+        - max active tis per DAG run
+
+        :param max_tis: Maximum number of TIs to queue in this loop.
+        :return: list[airflow.models.TaskInstance]
+        """
+        from airflow.models.pool import Pool
+        from airflow.utils.db import DBLocks
+
+        executable_tis: list[TI] = []
+
+        if get_dialect_name(session) == "postgresql":
+            # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
+            # timeout", try to take out a transactional advisory lock (unlocks automatically on
+            # COMMIT/ROLLBACK)
+            lock_acquired = session.execute(
+                text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
+                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
+                )
+            ).scalar()
+            if lock_acquired is None:
+                lock_acquired = False
+            if not lock_acquired:
+                # Throw an error like the one that would happen with NOWAIT
+                raise OperationalError(
+                    "Failed to acquire advisory lock", params=None, orig=RuntimeError("55P03")
+                )
+
+        # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
+        # Throws an exception if lock cannot be obtained, rather than blocking
+        pools = Pool.slots_stats(lock_rows=True, session=session)
+
+        # If the pools are full, there is no point doing anything!
+        # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
+        pool_slots_free = sum(max(0, pool["open"]) for pool in pools.values())
+
+        if pool_slots_free == 0:
+            self.log.debug("All pools are full!")
+            return []
+
+        max_tis = int(min(max_tis, pool_slots_free))
+
+        starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
+
+        pool_to_team_name: dict[str, str | None] = {}
+        if self._multi_team:
+            pool_to_team_name = Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+
+        # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
+        concurrency_map = ConcurrencyMap()
+        concurrency_map.load(session=session)
+
+        # Number of tasks that cannot be scheduled because of no open slot in pool
+        num_starving_tasks_total = 0
+
+        # dag and task ids that can't be queued because of concurrency limits
+        starved_dags: set[str] = set()
+        starved_tasks: set[tuple[str, str]] = set()
+        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
+
+        pool_num_starving_tasks: dict[str, int] = Counter()
+
+        for loop_count in itertools.count(start=1):
+            num_starved_pools = len(starved_pools)
+            num_starved_dags = len(starved_dags)
+            num_starved_tasks = len(starved_tasks)
+            num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
+
+            # This behaves the same as 'concurrency_map.load()' with the difference that
+            # 'load()' executes immediately while '_get_current_dr_task_concurrency' creates a
+            # subquery object that is then executed along with main query.
+            # The results of 'load()' aren't used again here because by the time the main query
+            # executes, there could be a change that will be ignored.
+            dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
+
+            query = (
+                select(TI)
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .join(TI.dag_run)
+                .where(DR.state == DagRunState.RUNNING)
+                .join(TI.dag_model)
+                .where(~DM.is_paused)
+                .where(TI.state == TaskInstanceState.SCHEDULED)
+                .where(DM.bundle_name.is_not(None))
+                .join(
+                    dr_task_concurrency_subquery,
+                    and_(
+                        TI.dag_id == dr_task_concurrency_subquery.c.dag_id,
+                        TI.run_id == dr_task_concurrency_subquery.c.run_id,
+                    ),
+                    isouter=True,
+                )
+                .where(
+                    func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks
+                )
+                .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
+            )
+
+            # Starvation filters should be applied before computing the row_num based on the
+            # max_active_tasks limit. That way, starved dags and tasks that shouldn't run,
+            # won't occupy a slot.
+            if starved_pools:
+                query = query.where(TI.pool.not_in(starved_pools))
+
+            if starved_dags:
+                query = query.where(TI.dag_id.not_in(starved_dags))
+
+            if starved_tasks:
+                query = query.where(tuple_(TI.dag_id, TI.task_id).not_in(starved_tasks))
+
+            if starved_tasks_task_dagrun_concurrency:
+                query = query.where(
+                    tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
+                )
+
+            # Create a subquery with row numbers partitioned by dag_id and run_id.
+            # Different dags can have the same run_id but
+            # the dag_id combined with the run_id uniquely identify a run.
+            ranked_query = (
+                query.add_columns(
+                    func.row_number()
+                    .over(
+                        partition_by=[TI.dag_id, TI.run_id],
+                        order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
+                    )
+                    .label("row_num"),
+                    DM.max_active_tasks.label("dr_max_active_tasks"),
+                    # Create columns for the order_by checks here for sqlite.
+                    TI.priority_weight.label("priority_weight_for_ordering"),
+                    DR.logical_date.label("logical_date_for_ordering"),
+                    TI.map_index.label("map_index_for_ordering"),
+                )
+            ).subquery()
+
+            # Select only rows where row_number <= max_active_tasks.
+            query = (
+                select(TI)
+                .select_from(ranked_query)
+                .join(
+                    TI,
+                    (TI.dag_id == ranked_query.c.dag_id)
+                    & (TI.task_id == ranked_query.c.task_id)
+                    & (TI.run_id == ranked_query.c.run_id)
+                    & (TI.map_index == ranked_query.c.map_index),
+                )
+                .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
+                # Add the order_by columns from the ranked query for sqlite.
+                .order_by(
+                    -ranked_query.c.priority_weight_for_ordering,
+                    ranked_query.c.logical_date_for_ordering,
+                    ranked_query.c.map_index_for_ordering,
+                )
+                .options(selectinload(TI.dag_model))
+                # Eager-load dag_version: TIs become transient (via make_transient) before
+                # ExecuteTask.make() reads ti.dag_version.version_data. Lazy loads on
+                # transient objects silently return None instead of raising DetachedInstanceError.
+                # Scope the second SELECT to version_data (the PK is auto-included) so we read
+                # two columns rather than the full DagVersion row.
+                .options(selectinload(TI.dag_version).load_only(DagVersion.version_data))
+            )
+
+            query = query.limit(max_tis)
+
+            timer = stats.timer("scheduler.critical_section_query_duration")
+            timer.start()
+
+            try:
+                locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                task_instances_to_examine = session.scalars(locked_query).all()
+
+                if self.log.isEnabledFor(logging.DEBUG):
+                    self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
+                    self.log.debug(
+                        "TaskInstance selection is: %s",
+                        dict(Counter(ti.dag_id for ti in task_instances_to_examine)),
+                    )
+
+                timer.stop(send=True)
+            except OperationalError as e:
+                timer.stop(send=False)
+                raise e
+
+            # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
+            # stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
+
+            if not task_instances_to_examine:
+                self.log.debug("No tasks to consider for execution.")
+                break
+
+            # Put one task instance on each line
+            task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
+            self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
+
+            dag_id_to_team_name: dict[str, str | None] = {}
+            if self._multi_team:
+                # Batch query to resolve team names for all DAG IDs to optimize performance
+                # Instead of individual queries in _try_to_load_executor(), resolve all team names upfront
+                unique_dag_ids = {ti.dag_id for ti in task_instances_to_examine}
+                dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+                self.log.debug(
+                    "Batch resolved team names for %d unique DAG IDs in scheduling loop: %s",
+                    len(unique_dag_ids),
+                    list(unique_dag_ids),
+                )
+                for ti in task_instances_to_examine:
+                    # Set team as a transient attribute; team lives on the Bundle, not
+                    # on the TI/DagRun schema, so we resolve it at scheduling time.
+                    if team := dag_id_to_team_name.get(ti.dag_id):
+                        ti._team_name = team
+
+            executor_slots_available: dict[ExecutorName, int] = {}
+            # First get a mapping of executor names to slots they have available
+            for executor in self.executors:
+                if TYPE_CHECKING:
+                    # All executors should have a name if they are initted from the executor_loader.
+                    # But we need to check for None to make mypy happy.
+                    assert executor.name
+                executor_slots_available[executor.name] = executor.slots_available
+
+            for task_instance in task_instances_to_examine:
+                pool_name = task_instance.pool
+
+                pool_stats = pools.get(pool_name)
+                if not pool_stats:
+                    self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
+                    starved_pools.add(pool_name)
+                    continue
+
+                if pool_team := pool_to_team_name.get(pool_name):
+                    dag_team = dag_id_to_team_name.get(task_instance.dag_id)
+                    if dag_team != pool_team:
+                        self.log.debug(
+                            "Not executing %s. Pool '%s' is assigned to team '%s' "
+                            "but task's DAG belongs to team '%s'",
+                            task_instance,
+                            pool_name,
+                            pool_team,
+                            dag_team,
+                        )
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
+
+                # Make sure to emit metrics if pool has no starving tasks
+                pool_num_starving_tasks.setdefault(pool_name, 0)
+
+                pool_total = pool_stats["total"]
+                open_slots = pool_stats["open"]
+
+                if open_slots <= 0:
+                    self.log.info(
+                        "Not scheduling since there are %s open slots in pool %s", open_slots, pool_name
+                    )
+                    # Can't schedule any more since there are no more open slots.
+                    pool_num_starving_tasks[pool_name] += 1
+                    num_starving_tasks_total += 1
+                    starved_pools.add(pool_name)
+                    continue
+
+                if task_instance.pool_slots > pool_total:
+                    self.log.warning(
+                        "Not executing %s. Requested pool slots (%s) are greater than "
+                        "total pool slots: '%s' for pool: %s.",
+                        task_instance,
+                        task_instance.pool_slots,
+                        pool_total,
+                        pool_name,
+                    )
+
+                    pool_num_starving_tasks[pool_name] += 1
+                    num_starving_tasks_total += 1
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    continue
+
+                if task_instance.pool_slots > open_slots:
+                    self.log.info(
+                        "Not executing %s since it requires %s slots "
+                        "but there are %s open slots in the pool %s.",
+                        task_instance,
+                        task_instance.pool_slots,
+                        open_slots,
+                        pool_name,
+                    )
+                    pool_num_starving_tasks[pool_name] += 1
+                    num_starving_tasks_total += 1
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    # Though we can execute tasks with lower priority if there's enough room
+                    continue
+
+                # Check to make sure that the task max_active_tasks of the DAG hasn't been
+                # reached.
+                dag_id = task_instance.dag_id
+                dag_run_key = (dag_id, task_instance.run_id)
+                current_active_tasks_per_dag_run = concurrency_map.dag_run_active_tasks_map[dag_run_key]
+                dag_max_active_tasks = task_instance.dag_model.max_active_tasks
+                self.log.info(
+                    "DAG %s has %s/%s running and queued tasks",
+                    dag_id,
+                    current_active_tasks_per_dag_run,
+                    dag_max_active_tasks,
+                )
+                if current_active_tasks_per_dag_run >= dag_max_active_tasks:
+                    self.log.info(
+                        "Not executing %s since the number of tasks running or queued "
+                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
+                        task_instance,
+                        dag_id,
+                        dag_max_active_tasks,
+                    )
+                    starved_dags.add(dag_id)
+                    continue
+
+                if task_instance.dag_model.has_task_concurrency_limits:
+                    # Many dags don't have a task_concurrency, so where we can avoid loading the full
+                    # serialized DAG the better.
+                    serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
+                        dag_run=task_instance.dag_run, session=session
+                    )
+                    # If the dag is missing, fail the task and continue to the next task.
+                    if not serialized_dag:
+                        self.log.error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            dag_id,
+                            task_instance,
+                        )
+                        session.execute(
+                            update(TI)
+                            .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
+                            .values(state=TaskInstanceState.FAILED)
+                            .execution_options(synchronize_session="fetch")
+                        )
+                        continue
+
+                    task_concurrency_limit: int | None = None
+                    if serialized_dag.has_task(task_instance.task_id):
+                        task_concurrency_limit = serialized_dag.get_task(
+                            task_instance.task_id
+                        ).max_active_tis_per_dag
+
+                    if task_concurrency_limit is not None:
+                        current_task_concurrency = concurrency_map.task_concurrency_map[
+                            (task_instance.dag_id, task_instance.task_id)
+                        ]
+
+                        if current_task_concurrency >= task_concurrency_limit:
+                            self.log.info(
+                                "Not executing %s since the task concurrency for this task has been reached.",
+                                task_instance,
+                            )
+                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                            continue
+
+                    task_dagrun_concurrency_limit: int | None = None
+                    if serialized_dag.has_task(task_instance.task_id):
+                        task_dagrun_concurrency_limit = serialized_dag.get_task(
+                            task_instance.task_id
+                        ).max_active_tis_per_dagrun
+
+                    if task_dagrun_concurrency_limit is not None:
+                        current_task_dagrun_concurrency = concurrency_map.task_dagrun_concurrency_map[
+                            (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                        ]
+
+                        if current_task_dagrun_concurrency >= task_dagrun_concurrency_limit:
+                            self.log.info(
+                                "Not executing %s since the task concurrency per DAG run for"
+                                " this task has been reached.",
+                                task_instance,
+                            )
+                            starved_tasks_task_dagrun_concurrency.add(
+                                (
+                                    task_instance.dag_id,
+                                    task_instance.run_id,
+                                    task_instance.task_id,
+                                )
+                            )
+                            continue
+
+                if executor_obj := self._try_to_load_executor(
+                    task_instance, session, team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET)
+                ):
+                    if TYPE_CHECKING:
+                        # All executors should have a name if they are initted from the executor_loader.
+                        # But we need to check for None to make mypy happy.
+                        assert executor_obj.name
+
+                    if executor_slots_available[executor_obj.name] <= 0:
+                        self.log.debug(
+                            "Not scheduling %s since its executor %s does not currently have any more "
+                            "available slots",
+                            task_instance.task_id,
+                            executor_obj.name,
+                        )
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
+                    executor_slots_available[executor_obj.name] -= 1
+                else:
+                    # This is a defensive guard for if we happen to have a task who's executor cannot be
+                    # found. The check in the dag parser should make this not realistically possible but the
+                    # loader can fail if some direct DB modification has happened or another as yet unknown
+                    # edge case. _try_to_load_executor will log an error message explaining the executor
+                    # cannot be found.
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    continue
+
+                executable_tis.append(task_instance)
+                open_slots -= task_instance.pool_slots
+                concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
+                concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
+                concurrency_map.task_dagrun_concurrency_map[
+                    (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                ] += 1
+
+                pool_stats["open"] = open_slots
+
+            is_done = executable_tis or len(task_instances_to_examine) < max_tis
+            # Check this to avoid accidental infinite loops
+            found_new_filters = (
+                len(starved_pools) > num_starved_pools
+                or len(starved_dags) > num_starved_dags
+                or len(starved_tasks) > num_starved_tasks
+                or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
+            )
+
+            if is_done or not found_new_filters:
+                break
+
+            self.log.info(
+                "Found no task instances to queue on query iteration %s "
+                "but there could be more candidate task instances to check.",
+                loop_count,
+            )
+
+        starving_pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pool_num_starving_tasks.keys()), session=session)
+            if self._multi_team and pool_num_starving_tasks
+            else {}
+        )
+        for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
+            starving_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := starving_pool_team_mapping.get(pool_name):
+                starving_tags["team_name"] = team
+            stats.gauge("pool.starving_tasks", num_starving_tasks, tags=starving_tags)
+
+        stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
+        stats.gauge("scheduler.tasks.executable", len(executable_tis))
+
+        if executable_tis:
+            task_instance_str = "\n".join(
+                f"\t{x!r} (id={x.id}, try_number={x.try_number})" for x in executable_tis
+            )
+            self.log.info(
+                "Setting the following tasks to queued state (scheduler job_id=%s):\n%s",
+                self.job.id,
+                task_instance_str,
+            )
+
+            # set TIs to queued state
+            filter_for_tis = TI.filter_for_tis(executable_tis)
+            if filter_for_tis is None:
+                return []
+
+            queued_values: dict[str, Any] = {
+                "state": TaskInstanceState.QUEUED,
+                "queued_dttm": timezone.utcnow(),
+                "queued_by_job_id": self.job.id,
+            }
+
+            # Pre-assign external_executor_id atomically with the QUEUED state so it
+            # survives a scheduler crash. Only done when an executor opts in via
+            # pre_assigns_external_executor_id (e.g. CeleryExecutor uses it as the
+            # Celery task_id passed to apply_async). In mixed-executor deployments,
+            # a CASE expression limits the UUID to TIs targeting an opt-in executor.
+            pre_assign_executors = {e for e in self.executors if e.pre_assigns_external_executor_id}
+            if pre_assign_executors == set(self.executors):
+                # All executors opt in — unconditional UUID for every TI.
+                queued_values["external_executor_id"] = random_db_uuid()
+            elif pre_assign_executors:
+                # Mixed — only TIs routed to an opt-in executor get a UUID.
+                opt_in_names: set[str] = set()
+                default_opts_in = self.executor in pre_assign_executors
+                for exc in pre_assign_executors:
+                    if exc.name:
+                        if exc.name.alias:
+                            opt_in_names.add(exc.name.alias)
+                        opt_in_names.add(exc.name.module_path)
+                whens = []
+                if opt_in_names:
+                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
+                if default_opts_in:
+                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
+                if whens:
+                    queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
+
+            queued_update = (
+                update(TI)
+                .where(filter_for_tis)
+                .values(**queued_values)
+                .execution_options(synchronize_session=False)
+            )
+
+            if pre_assign_executors:
+                # Read the DB-generated UUIDs back onto the in-memory objects so the
+                # workload DTO carries them through to send_workload_to_executor (the
+                # objects are about to be detached by make_transient). Use RETURNING
+                # where supported (PostgreSQL); fall back to a SELECT for MySQL and
+                # SQLite (RETURNING requires SQLite 3.35+ which isn't guaranteed).
+                if get_dialect_name(session) == "postgresql":
+                    result = session.execute(queued_update.returning(TI.id, TI.external_executor_id))
+                    id_map = {row[0]: row[1] for row in result}
+                else:
+                    session.execute(queued_update)
+                    id_rows = session.execute(
+                        select(TI.id, TI.external_executor_id).where(filter_for_tis)
+                    ).all()
+                    id_map = {row[0]: row[1] for row in id_rows}
+                for ti in executable_tis:
+                    ti.external_executor_id = id_map.get(ti.id)
+            else:
+                session.execute(queued_update)
+
+            for ti in executable_tis:
+                ti.emit_state_change_metric(TaskInstanceState.QUEUED)
+
+        for ti in executable_tis:
+            make_transient(ti)
+        return executable_tis
+
+    def _enqueue_task_instances_with_queued_state(
+        self, task_instances: list[TI], executor: BaseExecutor, session: Session
+    ) -> None:
+        """
+        Enqueue task_instances which should have been set to queued with the executor.
+
+        :param task_instances: TaskInstances to enqueue
+        :param executor: The executor to enqueue tasks for
+        :param session: The session object
+        """
+
+        def _get_sentry_integration(executor: BaseExecutor) -> str:
+            try:
+                sentry_integration = executor.sentry_integration
+            except AttributeError:
+                # Old executor interface hard-codes the supports_sentry flag.
+                if getattr(executor, "supports_sentry", False):
+                    return "sentry_sdk.integrations.celery.CeleryIntegration"
+                return ""
+            if not isinstance(sentry_integration, str):
+                self.log.warning(
+                    "Ignoring invalid sentry_integration on executor",
+                    executor=executor,
+                    sentry_integration=sentry_integration,
+                )
+                return ""
+            return sentry_integration
+
+        # actually enqueue them
+        for ti in task_instances:
+            if ti.dag_run.state in State.finished_dr_states:
+                ti.set_state(None, session=session)
+                continue
+            if not ti.dag_version_id:
+                self.log.warning(
+                    "TaskInstance %s does not have a dag_version_id set, cannot be enqueued. "
+                    "This would get unstuck and dag_version_id updated.",
+                    ti,
+                )
+                continue
+
+            self.log.debug(
+                "Queueing workload for TI: %s try_number=%d state=%s scheduler_job_id=%s executor=%s",
+                ti,
+                ti.try_number,
+                ti.state,
+                self.job.id,
+                executor,
+            )
+            workload = workloads.ExecuteTask.make(
+                ti,
+                generator=executor.jwt_generator,
+                sentry_integration=_get_sentry_integration(executor),
+            )
+            executor.queue_workload(workload, session=session)
+
+    def _critical_section_enqueue_task_instances(self, session: Session) -> int:
+        """
+        Enqueues TaskInstances for execution.
+
+        There are three steps:
+        1. Pick TIs by priority with the constraint that they are in the expected states
+        and that we do not exceed max_active_runs or pool limits.
+        2. Change the state for the TIs above atomically.
+        3. Enqueue the TIs in the executor.
+
+        HA note: This function is a "critical section" meaning that only a single scheduler process can
+        execute this function at the same time. This is achieved by doing
+        ``SELECT ... from pool FOR UPDATE``. For DBs that support NOWAIT, a "blocked" scheduler will skip
+        this and continue on with other tasks (creating new DAG runs, progressing TIs from None to SCHEDULED
+        etc.); DBs that don't support this (such as MariaDB or MySQL 5.x) the other schedulers will wait for
+        the lock before continuing.
+
+        :param session:
+        :return: Number of task instance with state changed.
+        """
+        # The user can either request a certain number of tis to schedule per main scheduler loop (default
+        # is non-zero). If that value has been set to zero, that means use the value of core.parallelism (or
+        # however many free slots are left). core.parallelism represents the max number of running TIs per
+        # scheduler. Historically this value was stored in the executor, who's job it was to control/enforce
+        # it. However, with multiple executors, any of which can run up to core.parallelism TIs individually,
+        # we need to make sure in the scheduler now that we don't schedule more than core.parallelism totally
+        # across all executors.
+        num_occupied_slots = sum([executor.slots_occupied for executor in self.executors])
+        if self.job.max_tis_per_query == 0:
+            max_tis = self._parallelism - num_occupied_slots
+        else:
+            max_tis = min(self.job.max_tis_per_query, self._parallelism - num_occupied_slots)
+        if max_tis <= 0:
+            self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
+            return 0
+
+        queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
+
+        # Sort queued TIs to their respective executor
+        executor_to_queued_tis = self._executor_to_workloads(queued_tis, session)
+        for executor, queued_tis_per_executor in executor_to_queued_tis.items():
+            self.log.info(
+                "Trying to enqueue tasks: %s for executor: %s",
+                queued_tis_per_executor,
+                executor,
+            )
+
+            self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
+
+        return len(queued_tis)
+
+    def _enqueue_executor_callbacks(self, session: Session) -> None:
+        """
+        Enqueue ExecutorCallback workloads to executors.
+
+        Similar to _enqueue_task_instances, but for callbacks that need to run on executors.
+        Queries for QUEUED ExecutorCallback instances and routes them to the appropriate executor.
+
+        :param session: The database session
+        """
+        num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
+        max_callbacks = self._parallelism - num_occupied_slots
+
+        if max_callbacks <= 0:
+            self.log.debug("No available slots for callbacks; all executors at capacity")
+            return
+
+        pending_callbacks = session.scalars(
+            select(ExecutorCallback)
+            .where(ExecutorCallback.type == CallbackType.EXECUTOR)
+            .where(ExecutorCallback.state == CallbackState.PENDING)
+            .order_by(ExecutorCallback.priority_weight.desc())
+            .limit(max_callbacks)
+        ).all()
+
+        if not pending_callbacks:
+            return
+
+        # Route callbacks to executors using the generalized routing method
+        executor_to_callbacks = self._executor_to_workloads(pending_callbacks, session)
+
+        # Enqueue callbacks for each executor
+        for executor, callbacks in executor_to_callbacks.items():
+            for callback in callbacks:
+                if not isinstance(callback, ExecutorCallback):
+                    # Can't happen since we queried ExecutorCallback, but satisfies mypy.
+                    continue
+
+                # TODO: Add dagrun_id as a proper ORM foreign key on the callback table instead of storing in data dict.
+                #       This would eliminate this reconstruction step. For now, all ExecutorCallbacks
+                #       are expected to have dag_run_id set in their data dict (e.g., by Deadline.handle_miss).
+                if not isinstance(callback.data, dict) or "dag_run_id" not in callback.data:
+                    self.log.error(
+                        "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
+                        "This indicates a bug in callback creation. Skipping callback.",
+                        callback.id,
+                    )
+                    continue
+
+                dag_run_id = callback.data["dag_run_id"]
+                dag_run = session.get(DagRun, dag_run_id)
+
+                if dag_run is None:
+                    self.log.warning(
+                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        dag_run_id,
+                        callback.id,
+                    )
+                    continue
+
+                workload = workloads.ExecuteCallback.make(
+                    callback=callback,
+                    dag_run=dag_run,
+                    generator=executor.jwt_generator,
+                )
+
+                executor.queue_workload(workload, session=session)
+                callback.state = CallbackState.QUEUED
+                session.add(callback)
+
+    @staticmethod
+    def _process_task_event_logs(log_records: deque[Log], session: Session):
+        objects = (log_records.popleft() for _ in range(len(log_records)))
+        session.bulk_save_objects(objects=objects, preserve_order=False)
+
+    @staticmethod
+    def _is_metrics_enabled():
+        return any(
+            [
+                conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False),
+                conf.getboolean("metrics", "statsd_on", fallback=False),
+                conf.getboolean("metrics", "otel_on", fallback=False),
+            ]
+        )
+
+    @staticmethod
+    def _is_tracing_enabled():
+        return conf.getboolean("traces", "otel_on")
+
+    def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
+        try:
+            return SchedulerJobRunner.process_executor_events(
+                executor=executor,
+                job_id=self.job.id,
+                scheduler_dag_bag=self.scheduler_dag_bag,
+                session=session,
+            )
+        except Exception as exc:
+            stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
+            raise
+
+    @staticmethod
+    def _emit_executor_events_batch_metrics(num_events: int) -> None:
+        stats.gauge("scheduler.executor_events.batch_size", num_events)
+        stats.incr("scheduler.executor_events.processed", num_events)
+
+    @classmethod
+    def process_executor_events(
+        cls, executor: BaseExecutor, job_id: int | None, scheduler_dag_bag: DBDagBag, session: Session
+    ) -> int:
+        """
+        Process task completion events from the executor and update task instance states.
+
+        This method handles task state transitions reported by executors, ensuring proper
+        state management, callback execution, and notification processing. It maintains
+        scheduler architectural principles by delegating user code execution to appropriate
+        isolated processes.
+
+        The method handles several key scenarios:
+        1. **Normal task completion**: Updates task states for successful/failed tasks
+        2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
+        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors,
+           and tasks moved to ``scheduled`` after a trigger fired so a stale executor success from the
+           pre-deferral worker exit does not fail the task instance
+        4. **Callback processing**: Sends task callback requests to DAG Processor for execution
+        5. **Email notifications**: Sends email notification requests to DAG Processor
+
+        :param executor: The executor reporting task completion events
+        :param job_id: The scheduler job ID, used to detect task requeuing by other schedulers
+        :param scheduler_dag_bag: Serialized DAG bag for retrieving task definitions
+        :param session: Database session for task instance updates
+
+        :return: Number of events processed from the executor event buffer
+
+        :raises Exception: If DAG retrieval or task processing fails, logs error and continues
+
+        This is a classmethod because this is also used in `dag.test()`.
+        `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
+        executors as well.
+        """
+        ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
+        event_buffer = executor.get_event_buffer()
+        num_events = len(event_buffer)
+        tis_with_right_state: list[TaskInstanceKey] = []
+        callback_keys_with_events: list[CallbackKey] = []
+
+        # Report execution - handle both task and callback events
+        for key, (state, _) in event_buffer.items():
+            if isinstance(key, TaskInstanceKey):
+                existing_try = ti_primary_key_to_try_number_map.get(key.primary)
+                if existing_try is not None and existing_try != key.try_number:
+                    cls.logger().warning(
+                        "Multiple executor events for same TI with different try_numbers! "
+                        "primary_key=%s existing_try_number=%d new_try_number=%d new_state=%s. ",
+                        key.primary,
+                        existing_try,
+                        key.try_number,
+                        state,
+                    )
+                ti_primary_key_to_try_number_map[key.primary] = key.try_number
+                cls.logger().info("Received executor event with state %s for task instance %s", state, key)
+                if state in (
+                    TaskInstanceState.FAILED,
+                    TaskInstanceState.SUCCESS,
+                    TaskInstanceState.QUEUED,
+                    TaskInstanceState.RUNNING,
+                    TaskInstanceState.RESTARTING,
+                ):
+                    tis_with_right_state.append(key)
+            elif isinstance(key, ConnectionTestKey):
+                cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
+            elif isinstance(key, CallbackKey):
+                cls.logger().info("Received executor event with state %s for callback %s", state, key)
+                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                    callback_keys_with_events.append(key)
+            else:
+                cls.logger().error("Unknown workload key type in event buffer: %r", key)
+
+        # Handle callback state events
+        for callback_id in callback_keys_with_events:
+            state, info = event_buffer.pop(callback_id)
+            callback = session.get(Callback, UUID(str(callback_id)))
+            if not callback:
+                # This should not normally happen - we just received an event for this callback.
+                # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
+                cls.logger().warning(
+                    "Callback %s not found in database (may have been cascade deleted)", callback_id
+                )
+                continue
+
+            if state == CallbackState.RUNNING:
+                callback.state = CallbackState.RUNNING
+                cls.logger().info("Callback %s is currently running", callback_id)
+            elif state == CallbackState.SUCCESS:
+                callback.state = CallbackState.SUCCESS
+                cls.logger().info("Callback %s completed successfully", callback_id)
+            elif state == CallbackState.FAILED:
+                callback.state = CallbackState.FAILED
+                callback.output = str(info) if info else "Execution failed"
+                cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+            session.add(callback)
+
+        # Return if no finished tasks
+        if not tis_with_right_state:
+            cls._emit_executor_events_batch_metrics(num_events)
+            return len(event_buffer)
+
+        # Check state of finished tasks
+        filter_for_tis = TI.filter_for_tis(tis_with_right_state)
+        if filter_for_tis is None:
+            cls._emit_executor_events_batch_metrics(num_events)
+            return len(event_buffer)
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
+        query = (
+            select(TI)
+            .where(filter_for_tis)
+            .options(selectinload(TI.dag_model))
+            .options(asset_loader)
+            .options(alias_loader)
+            .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
+            .options(joinedload(TI.dag_version))
+        )
+        # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
+        # multi-schedulers
+        locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+        tis: Iterator[TI] = session.scalars(locked_query)
+        for ti in tis:
+            try_number = ti_primary_key_to_try_number_map[ti.key.primary]
+            buffer_key = ti.key.with_try_number(try_number)
+            if ti.try_number != try_number:
+                cls.logger().warning(
+                    "TI try_number mismatch: db_try_number=%d event_try_number=%d "
+                    "ti=%s state=%s job_id=%s. "
+                    "Another scheduler may have already modified this TI.",
+                    ti.try_number,
+                    try_number,
+                    ti,
+                    ti.state,
+                    job_id,
+                )
+            state, info = event_buffer.pop(buffer_key)
+
+            if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
+                ti.external_executor_id = info
+                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
+                continue
+
+            msg = (
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, ti_id=%s, "
+                "run_start_date=%s, run_end_date=%s, "
+                "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, scheduled_dttm=%s,"
+                "queued_by_job_id=%s, pid=%s"
+            )
+            cls.logger().info(
+                msg,
+                ti.dag_id,
+                ti.task_id,
+                ti.run_id,
+                ti.map_index,
+                ti.id,
+                ti.start_date,
+                ti.end_date,
+                ti.duration,
+                ti.state,
+                executor,
+                state,
+                try_number,
+                ti.max_tries,
+                ti.pool,
+                ti.queue,
+                ti.priority_weight,
+                ti.operator,
+                ti.queued_dttm,
+                ti.scheduled_dttm,
+                ti.queued_by_job_id,
+                ti.pid,
+            )
+
+            # There are multiple scenarios why the same TI with the same try_number looks queued or
+            # waiting after the executor is finished with it:
+            # 1) the TI was killed externally and it had no time to mark itself failed
+            # - in this case we should mark it as failed here.
+            # 2) the TI has been requeued after getting deferred - in this case either our executor has it
+            # or the TI is queued by another job. Either ways we should not fail it.
+            # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
+
+            # All of this could also happen if the state is "running",
+            # but that is handled by the scheduler detecting task instances without heartbeats.
+
+            ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
+                TaskInstanceState.SCHEDULED,
+                TaskInstanceState.QUEUED,
+                TaskInstanceState.RUNNING,
+                TaskInstanceState.RESTARTING,
+            )
+            ti_requeued = (
+                ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
+                or executor.has_task(ti)  # This scheduler has this task already
+                or (
+                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
+                    # before we saw the executor success from the defer exit for the same try_number.
+                    ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
+                    and state == TaskInstanceState.SUCCESS
+                    and ti.next_method is not None
+                )
+            )
+
+            if ti_queued and not ti_requeued:
+                team_name = (
+                    DagModel.get_team_name(ti.dag_id, session=session)
+                    if conf.getboolean("core", "multi_team")
+                    else None
+                )
+                stats.incr(
+                    "scheduler.tasks.killed_externally",
+                    tags=prune_dict({"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": team_name}),
+                )
+                msg = (
+                    "Executor %s reported that the task instance %s finished with state %s, but the task instance's state attribute is %s. "  # noqa: RUF100, UP031, flynt
+                    "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally"
+                    % (executor, ti, state, ti.state)
+                )
+                if info is not None:
+                    msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
+                session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
+
+                # Get task from the Serialized DAG
+                try:
+                    dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                    if not dag:
+                        cls.logger().error(
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
+                            ti.dag_id,
+                            ti,
+                        )
+                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+
+                    task = dag.get_task(ti.task_id)
+                except Exception:
+                    cls.logger().exception("Marking task instance %s as %s", ti, state)
+                    ti.set_state(state)
+                    continue
+                ti.task = task
+                if task.has_on_retry_callback or task.has_on_failure_callback:
+                    # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
+                    # too, which would lead to double logging
+                    cls.logger().error(msg)
+                    # Safely extract bundle info: prefer dag_version when available,
+                    # fall back to dag_model/dag_run for legacy tasks migrated from
+                    # Airflow 2 where dag_version may be None (AIP-66).
+                    _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
+                    _bundle_version = (
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
+                    )
+                    _version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                        continue
+                    request = TaskCallbackRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=_bundle_name,
+                        bundle_version=_bundle_version,
+                        version_data=_version_data,
+                        ti=ti,
+                        msg=msg,
+                        task_callback_type=(
+                            TaskInstanceState.UP_FOR_RETRY
+                            if ti.is_eligible_to_retry()
+                            else TaskInstanceState.FAILED
+                        ),
+                        context_from_server=TIRunContext(
+                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(request)
+
+                # Handle cleared tasks that were successfully terminated by executor
+                if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
+                    cls.logger().info(
+                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.",
+                        ti,
+                    )
+                    # Adjust max_tries to allow retry beyond normal limits (like clearing does)
+                    ti.max_tries = ti.try_number + ti.task.retries
+                    ti.set_state(None)
+                    continue
+
+                # Send email notification request to DAG processor via DB
+                if task.email and (task.email_on_failure or task.email_on_retry):
+                    cls.logger().info(
+                        "Sending email request for task %s to DAG Processor",
+                        ti,
+                    )
+                    # Safely extract bundle info with fallback for legacy tasks
+                    # (dag_version may be None after Airflow 2 → 3 migration).
+                    _email_bundle_name = (
+                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    )
+                    _email_bundle_version = (
+                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                    )
+                    _email_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                        continue
+                    email_request = EmailRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=_email_bundle_name,
+                        bundle_version=_email_bundle_version,
+                        version_data=_email_version_data,
+                        ti=ti,
+                        msg=msg,
+                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
+                        context_from_server=TIRunContext(
+                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                            max_tries=ti.max_tries,
+                            variables=[],
+                            connections=[],
+                            xcom_keys_to_clear=[],
+                        ),
+                    )
+                    executor.send_callback(email_request)
+
+                # Update task state - emails are handled by DAG processor now
+                ti.handle_failure(error=msg, session=session)
+
+        cls._emit_executor_events_batch_metrics(num_events)
+        return len(event_buffer)
+
+    def _execute(self) -> int | None:
+        import os
+
+        # Mark this as a server context for secrets backend detection
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
+        self.log.info("Starting the scheduler")
+
+        reset_signals = self.register_signals()
+        try:
+            callback_sink: DatabaseCallbackSink
+
+            from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+
+            self.log.debug("Using DatabaseCallbackSink as callback sink.")
+            callback_sink = DatabaseCallbackSink()
+
+            for executor in self.executors:
+                executor.job_id = self.job.id
+                executor.callback_sink = callback_sink
+                executor.start()
+
+            # local import due to type_checking.
+
+            stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            )
+
+            self._run_scheduler_loop()
+
+            if settings.Session is not None:
+                settings.Session.remove()
+        except Exception as exc:
+            stats.incr("scheduler.loop_exceptions", tags={"exception_class": type(exc).__name__})
+            self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
+            raise
+        finally:
+            for executor in self.executors:
+                try:
+                    executor.end()
+                except Exception:
+                    self.log.exception("Exception when executing Executor.end on %s", executor)
+
+            # Under normal execution, this doesn't matter, but by resetting signals it lets us run more things
+            # in the same process under testing without leaking global state
+            reset_signals.close()
+            self.log.info("Exited execute loop")
+        return None
+
+    @provide_session
+    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
+        try:
+            paused_runs = list(
+                session.scalars(
+                    select(DagRun)
+                    .join(DagRun.dag_model)
+                    .join(TI)
+                    .where(
+                        DagModel.is_paused == expression.true(),
+                        DagRun.state == DagRunState.RUNNING,
+                    )
+                    .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
+                    .group_by(DagRun)
+                )
+            )
+            if self._multi_team and paused_runs:
+                paused_dag_ids = {dr.dag_id for dr in paused_runs}
+                paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
+                for dr in paused_runs:
+                    if team := paused_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
+            for dag_run in paused_runs:
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
+                if dag is not None:
+                    dag_run.dag = dag
+                    _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                    if callback_to_run:
+                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
+        except Exception as e:  # should not fail the scheduler
+            self.log.exception("Failed to update dag run state for paused dags due to %s", e)
+
+    def _run_scheduler_loop(self) -> None:
+        """
+        Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
+
+        The main steps in the loop are:
+            #. Harvest DAG parsing results through DagFileProcessorAgent
+            #. Find and queue executable tasks
+                #. Change task instance state in DB
+                #. Queue tasks in executor
+            #. Heartbeat executor
+                #. Execute queued tasks in executor asynchronously
+                #. Sync on the states of running tasks
+            #. Check for expired Deadlines
+                #. Hand off processing the expired Deadlines if any are found
+        """
+        is_unit_test: bool = conf.getboolean("core", "unit_test_mode")
+
+        timers = EventScheduler()
+
+        # Check on start up, then every configured interval
+        self.adopt_or_reset_orphaned_tasks()
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "orphaned_tasks_check_interval", fallback=300.0),
+            self.adopt_or_reset_orphaned_tasks,
+        )
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "trigger_timeout_check_interval", fallback=15.0),
+            self.check_trigger_timeouts,
+        )
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "trigger_timeout_check_interval", fallback=15.0),
+            self.check_awaiting_input_timeouts,
+        )
+
+        timers.call_regular_interval(
+            30,
+            self._mark_backfills_complete,
+        )
+
+        if self._is_metrics_enabled() or self._is_tracing_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
+                self._emit_pool_metrics,
+            )
+
+        if self._is_metrics_enabled():
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "ti_metrics_interval", fallback=30.0),
+                self._emit_ti_metrics,
+            )
+
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "dagrun_metrics_interval", fallback=30.0),
+                self._emit_running_dags_metric,
+            )
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
+            self._find_and_purge_task_instances_without_heartbeats,
+        )
+
+        timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
+            self._handle_tasks_stuck_in_queued,
+        )
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._update_asset_orphanage,
+        )
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._remove_unreferenced_triggers,
+        )
+
+        if any(x.is_local for x in self.executors):
+            bundle_cleanup_mgr = BundleUsageTrackingManager()
+            check_interval = conf.getint(
+                section="dag_processor",
+                key="stale_bundle_cleanup_interval",
+            )
+            if check_interval > 0:
+                timers.call_regular_interval(
+                    delay=check_interval,
+                    action=bundle_cleanup_mgr.remove_stale_bundle_versions,
+                )
+
+        timers.call_regular_interval(
+            delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
+            action=self._reap_stale_connection_tests,
+        )
+
+        idle_count = 0
+
+        for loop_count in itertools.count(start=1):
+            # Reset per-loop team name cache so changes to bundle-team assignments
+            # are picked up each iteration without requiring a scheduler restart.
+            self._dag_id_to_team_name = {}
+            with stats.timer("scheduler.scheduler_loop_duration") as timer:
+                with create_session() as session:
+                    # This will schedule for as many executors as possible.
+                    num_queued_tis = self._do_scheduling(session)
+                    # Don't keep any objects alive -- we've possibly just looked at 500+ ORM objects!
+                    session.expunge_all()
+
+                # Heartbeat all executors, even if they're not receiving new tasks this loop. It will be
+                # either a no-op, or they will check-in on currently running tasks and send out new
+                # events to be processed below.
+                for executor in self.executors:
+                    with stats.timer(
+                        "scheduler.executor_heartbeat_duration",
+                        tags={"executor": type(executor).__name__},
+                    ):
+                        executor.heartbeat()
+
+                with create_session() as session:
+                    num_finished_events = 0
+                    for executor in self.executors:
+                        num_finished_events += self._process_executor_events(
+                            executor=executor, session=session
+                        )
+
+                for executor in self.executors:
+                    try:
+                        with create_session() as session:
+                            self._process_task_event_logs(executor._task_event_logs, session)
+                    except Exception:
+                        self.log.exception("Something went wrong when trying to save task event logs.")
+
+                with create_session() as session:
+                    # Lock expired, unhandled deadlines with FOR UPDATE SKIP LOCKED so
+                    # concurrent HA scheduler replicas don't both process the same row
+                    # and create duplicate callbacks.
+                    deadline_query = (
+                        select(Deadline)
+                        .where(Deadline.deadline_time < datetime.now(timezone.utc))
+                        .where(~Deadline.missed)
+                        .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
+                    )
+                    for deadline in session.scalars(
+                        with_row_locks(
+                            deadline_query,
+                            of=Deadline,
+                            session=session,
+                            skip_locked=True,
+                            key_share=False,
+                        )
+                    ):
+                        deadline.handle_miss(session)
+
+                    # Route ExecutorCallback workloads to executors (similar to task routing)
+                    self._enqueue_executor_callbacks(session)
+
+                    self._enqueue_connection_tests(session=session)
+
+                # Heartbeat the scheduler periodically
+                perform_heartbeat(
+                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                )
+
+                # Run any pending timed events
+                next_event = timers.run(blocking=False)
+                self.log.debug("Next timed event is in %f", next_event)
+
+            self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
+
+            idle_in_this_run = not num_queued_tis and not num_finished_events
+            if not is_unit_test and idle_in_this_run:
+                # If the scheduler is doing things, don't sleep. This means when there is work to do, the
+                # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
+                # usage when "idle"
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
+
+            if idle_in_this_run:
+                idle_count += 1
+            else:
+                idle_count = 0
+
+            run_count = idle_count if self.only_idle else loop_count
+            if run_count >= self.num_runs > 0:
+                self.log.info(
+                    "Exiting scheduler loop as requested number of runs (%d) has been reached (%d idle, %d total)",
+                    self.num_runs,
+                    idle_count,
+                    loop_count,
+                )
+                break
+
+    def _do_scheduling(self, session: Session) -> int:
+        """
+        Make the main scheduling decisions.
+
+        It:
+        - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
+
+          Since creating Dag Runs is a relatively time consuming process, we select only 10 dags by default
+          (configurable via ``scheduler.max_dagruns_to_create_per_loop`` setting) - putting this higher will
+          mean one scheduler could spend a chunk of time creating dag runs, and not ever get around to
+          scheduling tasks.
+
+        - Finds the "next n oldest" running DAG Runs to examine for scheduling (n=20 by default, configurable
+          via ``scheduler.max_dagruns_per_loop_to_schedule`` config setting) and tries to progress state (TIs
+          to SCHEDULED, or DagRuns to SUCCESS/FAILURE etc)
+
+          By "next oldest", we mean hasn't been examined/scheduled in the most time.
+
+          We don't select all dagruns at once, because the rows are selected with row locks, meaning
+          that only one scheduler can "process them", even it is waiting behind other dags. Increasing this
+          limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
+          (>500 tasks.) DAGs
+
+        - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
+          to the executor.
+
+          See docs of _critical_section_enqueue_task_instances for more.
+
+        :return: Number of TIs enqueued in this iteration
+        """
+        # Put a check in place to make sure we don't commit unexpectedly
+        with prohibit_commit(session) as guard:
+            if self._scheduler_use_job_schedule:
+                self._create_dagruns_for_dags(guard, session)
+
+            self._start_queued_dagruns(session)
+            guard.commit()
+
+            # Bulk fetch the currently active dag runs for the dags we are
+            # examining, rather than making one query per DagRun.
+            # Materialize into a list because the multi-team block below iterates
+            # the result and ScalarResult is a one-pass iterator.
+            dag_runs = list(DagRun.get_running_dag_runs_to_examine(session=session))
+
+            if self._multi_team and dag_runs:
+                unique_dag_ids = {dr.dag_id for dr in dag_runs}
+                dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+                for dr in dag_runs:
+                    if team := dr_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
+
+            callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
+
+        # Send the callbacks after we commit to ensure the context is up to date when it gets run
+        # cache saves time during scheduling of many dag_runs for same dag
+        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
+            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
+        )
+        for dag_run, callback_to_run in callback_tuples:
+            dag = cached_get_dag(dag_run)
+            if dag:
+                # Sending callbacks to the database, so it must be done outside of prohibit_commit.
+                self._send_dag_callbacks_to_processor(dag, callback_to_run)
+            else:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+
+        with prohibit_commit(session) as guard:
+            # Without this, the session has an invalid view of the DB
+            session.expunge_all()
+            # END: schedule TIs
+
+            # Attempt to schedule even if some executors are full but not all.
+            total_free_executor_slots = sum([executor.slots_available for executor in self.executors])
+            if total_free_executor_slots <= 0:
+                # We know we can't do anything here, so don't even try!
+                self.log.debug("All executors are full, skipping critical section")
+                num_queued_tis = 0
+            else:
+                try:
+                    timer = stats.timer("scheduler.critical_section_duration")
+                    timer.start()
+
+                    # Find any TIs in state SCHEDULED, try to QUEUE them (send it to the executors)
+                    num_queued_tis = self._critical_section_enqueue_task_instances(session=session)
+
+                    # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
+                    # metric, way down
+                    timer.stop(send=True)
+                except OperationalError as e:
+                    timer.stop(send=False)
+
+                    if is_lock_not_available_error(error=e):
+                        self.log.debug("Critical section lock held by another Scheduler")
+                        stats.incr("scheduler.critical_section_busy")
+                        session.rollback()
+                        return 0
+                    raise
+
+            guard.commit()
+
+        return num_queued_tis
+
+    def _warn_unreachable_asset_partition(
+        self,
+        *,
+        apdr: AssetPartitionDagRun,
+        name: str,
+        uri: str,
+        reason: str | None,
+    ) -> None:
+        """
+        Emit a warning that a rollup asset partition can never satisfy its wait policy.
+
+        The warning is deduplicated per ``(target_dag_id, name, uri)`` so a stuck APDR
+        is surfaced once rather than on every scheduler tick.
+        """
+        unreachable_key = (apdr.target_dag_id, name, uri)
+        if unreachable_key in self._partition_unreachable_seen:
+            return
+        self.log.warning(
+            "Rollup asset (name=%r, uri=%r) on Dag %r is permanently unreachable: %s",
+            name,
+            uri,
+            apdr.target_dag_id,
+            reason,
+        )
+        self._partition_unreachable_seen.add(unreachable_key)
+
+    def _resolve_asset_partition_status(
+        self,
+        *,
+        session: Session,
+        asset_id: int,
+        name: str,
+        uri: str,
+        apdr: AssetPartitionDagRun,
+        timetable: Timetable,
+        actual_by_asset: dict[int, set[str]],
+    ) -> bool:
+        """
+        Return whether *asset_id* has been satisfied for *apdr*.
+
+        Non-rollup assets resolve to ``True`` because the caller only invokes
+        this for assets that already have at least one logged event for *APDR*
+        (see :class:`~airflow.models.asset.PartitionedAssetKeyLog`), which is
+        the non-rollup contract for "received". Rollup assets delegate to
+        :meth:`~airflow.partition_mappers.wait_policy.WaitPolicy.is_satisfied_by_keys`
+        for the upstream-window check.
+
+        A misconfigured mapper that raises returns ``False`` (treated as
+        not-yet-satisfied); the exception is logged at ``ERROR`` level in the
+        scheduler log so operators can diagnose the misconfiguration.
+        """
+        try:
+            mapper = timetable.get_partition_mapper(name=name, uri=uri)
+            if not is_rollup(mapper):
+                return True
+            if TYPE_CHECKING:
+                assert apdr.partition_key is not None
+            expected = mapper.to_upstream(apdr.partition_key)
+            actual = actual_by_asset.get(asset_id, set())
+
+            # The policy returns both the satisfaction result and, when permanently
+            # unreachable, a ready-made reason string. Dedup and forwarding are the
+            # scheduler's responsibility; the policy owns the message content.
+            result = mapper.wait_policy.is_satisfied_by_keys(matched=actual, expected=expected)
+            if result.unreachable:
+                self._warn_unreachable_asset_partition(
+                    apdr=apdr, name=name, uri=uri, reason=result.unreachable_reason
+                )
+                return False
+            return result.satisfied
+        except Exception:
+            self.log.exception(
+                "Failed to evaluate rollup status for asset; treating as not-yet-satisfied. "
+                "This likely indicates a misconfigured partition mapper.",
+                dag_id=apdr.target_dag_id,
+                partition_key=apdr.partition_key,
+                asset_name=name,
+                asset_uri=uri,
+            )
+            return False
+
+    def _resolve_partition_date(
+        self,
+        *,
+        timetable: Timetable,
+        asset_infos: Iterable[tuple[str, str]],
+        partition_key: str,
+        dag_id: str,
+        carried_partition_date: datetime | None,
+    ) -> datetime | None:
+        """
+        Return the ``partition_date`` the consumer Dag run should be created with.
+
+        The temporal anchor (period-start datetime) is resolved for
+        *partition_key* across *asset_infos* — the ``(name, uri)`` pairs of the
+        upstream assets that contributed to it. Each upstream mapper resolves the
+        key via
+        :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
+        temporal mappers decode the key, composite mappers delegate to their
+        child, and non-temporal mappers (e.g.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper`) return ``None``.
+
+        A partitioned consumer has a single partition identity, so every temporal
+        mapper feeding it must resolve the same key to the same instant. Anchors
+        are compared by instant (timezone-aware), so equivalent moments collapse
+        to one. When the temporal mappers agree, that anchor is returned.
+
+        When no temporal mapper contributes at all — an identity key carries no
+        temporal meaning and cannot be decoded back into a date — the producer's
+        source date carried on the APDR at queue time (*carried_partition_date*,
+        set only for ``IdentityMapper``) is returned instead.
+
+        When temporal mappers were present but produced no usable anchor — they
+        disagreed (a misconfiguration, e.g. assets mapping the same key under
+        different timezones) or one raised — the conflict/error is logged and
+        ``None`` is returned. The carried date is deliberately *not* substituted
+        here: stamping it would mask the logged suppression. A broken mapper must
+        not crash the scheduler tick.
+        """
+        anchors: set[datetime] = set()
+        try:
+            for name, uri in asset_infos:
+                mapper = timetable.get_partition_mapper(name=name, uri=uri)
+                anchor = mapper.to_partition_date(partition_key)
+                if anchor is not None:
+                    anchors.add(anchor)
+        except Exception:
+            self.log.exception(
+                "Failed to resolve partition_date for asset-triggered Dag run; partition_date will be None.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+            )
+            return None
+
+        if not anchors:
+            # No temporal mapper contributed an anchor (e.g. an all-IdentityMapper feed),
+            # so fall back to the date carried on the APDR. A partitioned consumer's feeding
+            # assets are expected to agree on the partition's datetime; when a temporal mapper
+            # *does* resolve an anchor it takes precedence over the carried identity date,
+            # since the key is the authoritative source the scheduler can re-derive.
+            return carried_partition_date
+        if len(anchors) > 1:
+            self.log.warning(
+                "Upstream partition mappers resolved conflicting partition_date values for the same "
+                "key; leaving partition_date unset. The consumer's assets likely use inconsistent "
+                "partition mappers.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+                partition_dates=sorted(anchor.isoformat() for anchor in anchors),
+            )
+            return None
+        return anchors.pop()
+
+    def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
+        """
+        Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
+
+        Returns the set of ``dag_id`` strings that received a new partition-driven Dag run in this
+        tick. The caller (:meth:`_create_dagruns_for_dags`) uses this set to exclude the same Dags
+        from the standard schedule-driven and asset-triggered creation paths so a single Dag never
+        gets two Dag runs for the same tick when it appears in more than one creation path. We
+        return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
+        use is membership lookup, and a heavier return type would just be discarded.
+
+        Asset deactivation freezes pending APDRs: when an asset becomes inactive
+        (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
+        stop contributing to the rollup. If the consumer Dag still depends on that
+        asset, firing on stale history would conflict with the declared topology,
+        so the APDR waits. Reactivating the asset resumes evaluation automatically.
+        This matches the UI's progress view (``_fetch_active_assets_per_dag``).
+        """
+        # Cap per-tick work so the scheduler transaction stays bounded and other
+        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
+        # FIFO is intentional: the oldest pending APDR fires first. A persistently
+        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
+        # never arrive) blocks newer ones until an operator removes it or fixes
+        # the underlying mapper. We surface the stuck state rather than silently
+        # rotating past it.
+        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
+        # in HA two schedulers can otherwise both grab the same satisfied APDR
+        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
+        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
+        # two APDRs share a `created_at` under bulk asset-event ingestion.
+        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        pending_apdrs = session.scalars(
+            with_row_locks(
+                select(AssetPartitionDagRun)
+                .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                .where(
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    DagModel.is_stale.is_(False),
+                )
+                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+                .limit(self._max_partition_dag_runs_per_loop),
+                of=AssetPartitionDagRun,
+                skip_locked=True,
+                key_share=False,
+                session=session,
+            )
+        ).all()
+        if not pending_apdrs:
+            return set()
+
+        # Pre-fetch all required serialized Dags in one query. The same map
+        # serves the stale-version cleanup below and the downstream rollup
+        # evaluation, so the table is only hit once per tick.
+        dag_ids = list({apdr.target_dag_id for apdr in pending_apdrs})
+        serdags_by_dag_id: dict[str, SerializedDagModel] = {
+            sd.dag_id: sd
+            for sd in SerializedDagModel.get_latest_serialized_dags(dag_ids=dag_ids, session=session)
+        }
+
+        # Stale-fingerprint cleanup. An APDR stamped with a ``rollup_fingerprint``
+        # that no longer matches the latest timetable's fingerprint was queued
+        # under a mapper / window definition that may not apply any more.
+        # Firing on partial data — or holding forever because the new mapper
+        # demands keys that will never arrive — would both be wrong, so the
+        # APDR + its PartitionedAssetKeyLog rows are dropped in the same
+        # transaction. Rows stamped ``NULL`` (legacy, pre-column) are likewise
+        # treated as stale on the first tick after upgrade. Unlike a Dag version
+        # UUID, this fingerprint captures only the rollup definition, so unrelated
+        # Dag edits (task changes, description updates) do not trigger cleanup.
+        #
+        # The fingerprint per dag is computed once and cached to avoid redundant
+        # serialization when multiple APDRs share the same target dag.
+        latest_fp_by_dag: dict[str, dict] = {}
+        for dag_id, serdag in serdags_by_dag_id.items():
+            try:
+                latest_fp_by_dag[dag_id] = compute_rollup_fingerprint(serdag.dag.timetable)
+            except Exception:
+                # If deserialization fails, skip rather than treating as stale —
+                # a broken serdag should not silently wipe pending progress.
+                self.log.exception("Failed to compute rollup fingerprint for Dag '%s'; skipping", dag_id)
+
+        stale_apdrs = [
+            apdr
+            for apdr in pending_apdrs
+            if serdags_by_dag_id.get(apdr.target_dag_id) is not None
+            and apdr.target_dag_id in latest_fp_by_dag  # fingerprint failed to compute → skip
+            and (
+                apdr.rollup_fingerprint is None
+                or apdr.rollup_fingerprint != latest_fp_by_dag[apdr.target_dag_id]
+            )
+        ]
+        if stale_apdrs:
+            stale_apdr_ids = [apdr.id for apdr in stale_apdrs]
+            cleared_by_dag: dict[str, int] = defaultdict(int)
+            for apdr in stale_apdrs:
+                cleared_by_dag[apdr.target_dag_id] += 1
+            for target_dag_id, cleared_count in cleared_by_dag.items():
+                self.log.info(
+                    "Cleared provisional partition Dag run(s) because the rollup definition "
+                    "(mapper / window) has changed since they were queued. "
+                    "The next scheduler tick will rebuild evaluation from fresh asset events.",
+                    target_dag_id=target_dag_id,
+                    cleared_count=cleared_count,
+                )
+            session.execute(
+                delete(PartitionedAssetKeyLog).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(stale_apdr_ids)
+                )
+            )
+            session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id.in_(stale_apdr_ids)))
+            stale_apdr_id_set = set(stale_apdr_ids)
+            pending_apdrs = [apdr for apdr in pending_apdrs if apdr.id not in stale_apdr_id_set]
+            if not pending_apdrs:
+                return set()
+
+        partition_dag_ids: set[str] = set()
+        pending_apdr_ids = [apdr.id for apdr in pending_apdrs]
+
+        # {"dag_id": Serialized Dag}
+        serialized_dags: dict[str, SerializedDAG] = {}
+        for serdag in serdags_by_dag_id.values():
+            try:
+                serdag.load_op_links = False
+                serialized_dags[serdag.dag_id] = serdag.dag
+            except Exception:
+                self.log.exception("Failed to deserialize Dag '%s'", serdag.dag_id)
+
+        # {apdr_id: {asset_id: set(source_key, ...)}
+        source_key_by_asset_per_apdr: dict[int, dict[int, set[str]]] = defaultdict(lambda: defaultdict(set))
+        # {apdr_id: {asset_id: (asset_name, asset_uri)}
+        asset_info_per_apdr: dict[int, dict[int, tuple[str, str]]] = defaultdict(dict)
+        for apdr_id, asset_id, source_key, name, uri in session.execute(
+            select(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id,
+                PartitionedAssetKeyLog.asset_id,
+                PartitionedAssetKeyLog.source_partition_key,
+                AssetModel.name,
+                AssetModel.uri,
+            )
+            .join(AssetModel, AssetModel.id == PartitionedAssetKeyLog.asset_id)
+            .where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(pending_apdr_ids),
+                # Skip PartitionedAssetKeyLog rows for assets that are no longer
+                # active (orphaned / no declaring Dag). If the consumer Dag still
+                # depends on an inactive asset, firing on stale history would
+                # conflict with the declared topology — so we freeze evaluation
+                # until the asset reactivates. Matches the UI's progress view
+                # (see ``_fetch_active_assets_per_dag``).
+                AssetModel.active.has(),
+            )
+        ):
+            source_key_by_asset_per_apdr[apdr_id][asset_id].add(source_key)
+            asset_info_per_apdr[apdr_id][asset_id] = (name, uri)
+
+        evaluator = AssetEvaluator(session)
+        for apdr in pending_apdrs:
+            if not (dag := serialized_dags.get(apdr.target_dag_id)):
+                self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
+                continue
+
+            source_key_by_asset = source_key_by_asset_per_apdr[apdr.id]
+            timetable = dag.timetable
+            statuses: dict[SerializedAssetUniqueKey, bool] = {}
+            for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
+                key = SerializedAssetUniqueKey(name=name, uri=uri)
+                if timetable.partitioned:
+                    statuses[key] = self._resolve_asset_partition_status(
+                        session=session,
+                        asset_id=asset_id,
+                        name=name,
+                        uri=uri,
+                        apdr=apdr,
+                        timetable=timetable,
+                        actual_by_asset=source_key_by_asset,
+                    )
+                else:
+                    statuses[key] = True
+            if not evaluator.run(timetable.asset_condition, statuses=statuses):
+                continue
+
+            partition_dag_ids.add(apdr.target_dag_id)
+            run_after = timezone.utcnow()
+            partition_date: datetime | None = None
+            if timetable.partitioned:
+                partition_date = self._resolve_partition_date(
+                    timetable=timetable,
+                    asset_infos=asset_info_per_apdr[apdr.id].values(),
+                    partition_key=apdr.partition_key,
+                    dag_id=apdr.target_dag_id,
+                    carried_partition_date=apdr.partition_date,
+                )
+            dag_run = dag.create_dagrun(
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                ),
+                logical_date=None,
+                data_interval=None,
+                partition_key=apdr.partition_key,
+                partition_date=partition_date,
+                run_after=run_after,
+                run_type=DagRunType.ASSET_TRIGGERED,
+                triggered_by=DagRunTriggeredByType.ASSET,
+                state=DagRunState.QUEUED,
+                creating_job_id=self.job.id,
+                session=session,
+            )
+            asset_events = session.scalars(
+                select(AssetEvent).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                    PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+                )
+            )
+            dag_run.consumed_asset_events.extend(asset_events)
+            session.flush()
+            apdr.created_dag_run_id = dag_run.id
+            session.flush()
+
+        return partition_dag_ids
+
+    @retry_db_transaction
+    def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
+        """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
+        partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
+
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        all_dags_needing_dag_runs = set(query.all())
+        asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
+        non_asset_dags = {
+            d
+            # filter asset-triggered Dags
+            for d in all_dags_needing_dag_runs.difference(asset_triggered_dags)
+            # filter asset partition triggered Dags
+            if d.dag_id not in partition_dag_ids
+        }
+        self._create_dag_runs(non_asset_dags, session)
+        if asset_triggered_dags:
+            self._create_dag_runs_asset_triggered(
+                dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
+                session=session,
+            )
+
+        # commit the session - Release the write lock on DagModel table.
+        guard.commit()
+        # END: create dagruns
+
+    @provide_session
+    def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
+        """Mark completed backfills as completed."""
+        self.log.debug("checking for completed backfills.")
+        unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
+        now = timezone.utcnow()
+        # todo: AIP-78 simplify this function to an update statement
+        initializing_cutoff = now - timedelta(minutes=2)
+        query = select(Backfill).where(
+            Backfill.completed_at.is_(None),
+            # Guard: backfill must have at least one association,
+            # otherwise it is still being set up (see #61375).
+            # Allow cleanup of orphaned backfills older than 2 minutes
+            # that failed during initialization and never got any associations.
+            or_(
+                exists(select(BackfillDagRun.id).where(BackfillDagRun.backfill_id == Backfill.id)),
+                Backfill.created_at < initializing_cutoff,
+            ),
+            ~exists(
+                select(DagRun.id).where(
+                    and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))
+                )
+            ),
+        )
+        backfills = list(session.scalars(query))
+        if not backfills:
+            return
+        self.log.info("marking %s backfills as complete", len(backfills))
+        for b in backfills:
+            b.completed_at = now
+
+    def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
+        """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
+        # Bulk Fetch DagRuns with dag_id and logical_date same
+        # as DagModel.dag_id and DagModel.next_dagrun
+        # This list is used to verify if the DagRun already exist so that we don't attempt to create
+        # duplicate DagRuns
+        existing_dagrun_objects = session.scalars(
+            select(DagRun)
+            .where(
+                tuple_(DagRun.dag_id, DagRun.logical_date).in_(
+                    (dm.dag_id, dm.next_dagrun) for dm in dag_models
+                )
+            )
+            .options(load_only(DagRun.dag_id, DagRun.logical_date))
+        ).all()
+        existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
+
+        # backfill runs are not created by scheduler and their concurrency is separate
+        # so we exclude them here
+        active_runs_of_dags = Counter(
+            DagRun.active_runs_of_dags(
+                dag_ids=(dm.dag_id for dm in dag_models),
+                exclude_backfill=True,
+                session=session,
+            )
+        )
+
+        for dag_model in dag_models:
+            if dag_model.exceeds_max_non_backfill:
+                self.log.warning(
+                    "Dag run cannot be created; max active runs exceeded.",
+                    dag_id=dag_model.dag_id,
+                    max_active_runs=dag_model.max_active_runs,
+                    active_runs=active_runs_of_dags.get(dag_model.dag_id),
+                )
+                continue
+            if dag_model.timetable_partitioned is False:
+                # non partition-aware Dags
+                if dag_model.next_dagrun is None:
+                    self.log.error(
+                        "dag_model.next_dagrun is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+                if dag_model.next_dagrun_create_after is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_create_after is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+            else:
+                # partition-aware Dags
+                if dag_model.next_dagrun_partition_key is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_partition_key is None; expected str",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+
+            serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not serdag:
+                self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
+                continue
+
+            # Explicitly check if the DagRun already exists. This is an edge case
+            # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+            # are not updated.
+            # We opted to check DagRun existence instead
+            # of catching an Integrity error and rolling back the session i.e
+            if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
+                self.log.warning(
+                    "run already exists; skipping dagrun creation",
+                    dag_id=dag_model.dag_id,
+                    logical_date=dag_model.next_dagrun,
+                )
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dr)
+                continue
+
+            if (
+                dag_model.allowed_run_types is not None
+                and DagRunType.SCHEDULED not in dag_model.allowed_run_types
+            ):
+                self.log.warning(
+                    "Dag does not allow scheduled runs; skipping",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+
+            try:
+                next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                if TYPE_CHECKING:
+                    assert next_info is not None
+                data_interval = next_info.data_interval
+                logical_date = next_info.logical_date
+                partition_key = next_info.partition_key
+                run_after = next_info.run_after
+                created_run = serdag.create_dagrun(
+                    run_id=serdag.timetable.generate_run_id(
+                        run_type=DagRunType.SCHEDULED,
+                        run_after=run_after,
+                        data_interval=data_interval,
+                        partition_key=partition_key,
+                    ),
+                    logical_date=logical_date,
+                    data_interval=data_interval,
+                    run_after=run_after,
+                    run_type=DagRunType.SCHEDULED,
+                    triggered_by=DagRunTriggeredByType.TIMETABLE,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                    partition_key=partition_key,
+                    partition_date=next_info.partition_date,
+                )
+                active_runs_of_dags[dag_model.dag_id] += 1
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
+                self._set_exceeds_max_active_runs(
+                    dag_model=dag_model,
+                    session=session,
+                    active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
+                )
+
+            # Exceptions like ValueError, ParamValidationError, etc. are raised by
+            # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
+            # crash due to misconfigured dags. We should log any exception encountered
+            # and continue to the next serdag.
+            except Exception:
+                self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
+                # todo: if you get a database error here, continuing does not work because
+                #  session needs rollback. you need either to make smaller transactions and
+                #  commit after every dag run or use savepoints.
+                #  https://github.com/apache/airflow/issues/59120
+
+            # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
+            #  memory for larger dags? or expunge_all()
+
+    def _create_dag_runs_asset_triggered(
+        self,
+        *,
+        dag_models: Collection[DagModel],
+        session: Session,
+    ) -> None:
+        """For Dags that are triggered by assets, create Dag runs."""
+        for dag_model in dag_models:
+            dag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not dag:
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
+                continue
+
+            if not isinstance(dag.timetable, AssetTriggeredTimetable):
+                self.log.error(
+                    "Dag '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
+                    dag_model.dag_id,
+                )
+                continue
+
+            queued_adrqs = session.scalars(
+                with_row_locks(
+                    select(AssetDagRunQueue)
+                    .where(AssetDagRunQueue.target_dag_id == dag.dag_id)
+                    .order_by(AssetDagRunQueue.created_at.desc()),
+                    of=AssetDagRunQueue,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
+                )
+            ).all()
+            # If another scheduler already locked these ADRQ rows, SKIP LOCKED makes this scheduler skip them.
+            if not queued_adrqs:
+                self.log.debug(
+                    "Skipping asset-triggered DagRun creation for Dag '%s'; no queued assets remain.",
+                    dag.dag_id,
+                )
+                continue
+
+            triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
+            self.log.debug(
+                "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+                dag.dag_id,
+                len(queued_adrqs),
+                triggered_date,
+            )
+            cte = (
+                select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
+                .where(
+                    DagRun.dag_id == dag.dag_id,
+                    DagRun.run_type == DagRunType.ASSET_TRIGGERED,
+                    DagRun.run_after < triggered_date,
+                )
+                .cte()
+            )
+
+            # A first asset-triggered run has no previous run to floor the event window. With
+            # catchup off, floor it at when the Dag started scheduling on its assets so the
+            # backlog is skipped; with catchup on, only date.min applies and the backlog replays.
+            event_window_floor: list[Any] = [cte.c.previous_dag_run_run_after]
+            if not dag.catchup:
+                event_window_floor.append(
+                    select(func.min(DagScheduleAssetReference.created_at))
+                    .where(DagScheduleAssetReference.dag_id == dag.dag_id)
+                    .scalar_subquery()
+                )
+            event_window_floor.append(date.min)
+
+            asset_events = list(
+                session.scalars(
+                    select(AssetEvent)
+                    .where(
+                        or_(
+                            AssetEvent.asset_id.in_(
+                                select(DagScheduleAssetReference.asset_id).where(
+                                    DagScheduleAssetReference.dag_id == dag.dag_id
+                                )
+                            ),
+                            AssetEvent.source_aliases.any(
+                                AssetAliasModel.scheduled_dags.any(
+                                    DagScheduleAssetAliasReference.dag_id == dag.dag_id
+                                )
+                            ),
+                        ),
+                        AssetEvent.timestamp <= triggered_date,
+                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
+                    )
+                    .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
+                )
+            )
+
+            dag_run = dag.create_dagrun(
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+                ),
+                logical_date=None,
+                data_interval=None,
+                run_after=triggered_date,
+                run_type=DagRunType.ASSET_TRIGGERED,
+                triggered_by=DagRunTriggeredByType.ASSET,
+                state=DagRunState.QUEUED,
+                creating_job_id=self.job.id,
+                session=session,
+            )
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
+            dag_run.consumed_asset_events.extend(asset_events)
+            self.log.info(
+                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                dag.dag_id,
+                dag_run.run_id,
+                len(asset_events),
+            )
+
+            # Delete only consumed ADRQ rows to avoid dropping newly queued events
+            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+            result = cast(
+                "CursorResult",
+                session.execute(
+                    delete(AssetDagRunQueue).where(
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                    )
+                ),
+            )
+            self.log.info(
+                "Deleted %d ADRQ rows for '%s'",
+                result.rowcount,
+                dag.dag_id,
+            )
+
+    def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
+        """
+        Lock Backfill rows to prevent race conditions when multiple schedulers run concurrently.
+
+        :param dag_runs: Collection of Dag runs to process
+        :param session: DB session
+        :return: Dict mapping backfill_id to locked Backfill objects
+        """
+        if not (backfill_ids := {dr.backfill_id for dr in dag_runs if dr.backfill_id is not None}):
+            return {}
+
+        locked_backfills = {
+            b.id: b
+            for b in session.scalars(
+                select(Backfill).where(Backfill.id.in_(backfill_ids)).with_for_update(skip_locked=True)
+            )
+        }
+
+        if skipped_backfills := backfill_ids - locked_backfills.keys():
+            self.log.debug(
+                "Skipping backfill runs for backfill_ids=%s - locked by another scheduler",
+                skipped_backfills,
+            )
+
+        return locked_backfills
+
+    def _start_queued_dagruns(self, session: Session) -> None:
+        """Find DagRuns in queued state and decide moving them to running state."""
+        dag_runs: Collection[DagRun] = list(DagRun.get_queued_dag_runs_to_set_running(session))
+
+        # Lock backfills to prevent race conditions with concurrent schedulers
+        locked_backfills = self._lock_backfills(dag_runs, session)
+
+        query = (
+            select(
+                DagRun.dag_id,
+                DagRun.backfill_id,
+                func.count(DagRun.id).label("num_running"),
+            )
+            .where(DagRun.state == DagRunState.RUNNING)
+            .group_by(DagRun.dag_id, DagRun.backfill_id)
+        )
+        active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
+
+        def _update_state(dag: SerializedDAG, dag_run: DagRun):
+            dag_run.state = DagRunState.RUNNING
+            dag_run.start_date = timezone.utcnow()
+            if (
+                dag.timetable.periodic
+                and dag_run.run_type != DagRunType.MANUAL
+                and dag_run.triggered_by != DagRunTriggeredByType.ASSET
+                and dag_run.clear_number < 1
+            ):
+                expected_start_date = dag_run.run_after
+                schedule_delay = dag_run.start_date - expected_start_date
+                stats.timing(
+                    "dagrun.schedule_delay",
+                    schedule_delay,
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag.dag_id], session).get(
+                                dag.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
+                )
+
+        # cache saves time during scheduling of many dag_runs for same dag
+        cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
+            partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
+        )
+
+        for dag_run in dag_runs:
+            dag_id = dag_run.dag_id
+            run_id = dag_run.run_id
+            backfill_id = dag_run.backfill_id
+            dag = dag_run.dag = cached_get_dag(dag_run)
+            if not dag:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                continue
+            active_runs = active_runs_of_dags[(dag_id, backfill_id)]
+            if backfill_id is not None:
+                if backfill_id not in locked_backfills:
+                    # Another scheduler has this backfill locked, skip this run
+                    continue
+                backfill = dag_run.backfill
+                if active_runs >= backfill.max_active_runs:
+                    # todo: delete all "candidate dag runs" from list for this dag right now
+                    self.log.info(
+                        "dag cannot be started due to backfill max_active_runs constraint; "
+                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
+                        active_runs,
+                        backfill.max_active_runs,
+                        dag_id,
+                        run_id,
+                    )
+                    continue
+            elif dag_run.max_active_runs:
+                # Using dag_run.max_active_runs which links to DagModel to ensure we are checking
+                # against the most recent changes on the dag and not using stale serialized dag
+                if active_runs >= dag_run.max_active_runs:
+                    # todo: delete all candidate dag runs for this dag from list right now
+                    self.log.info(
+                        "dag cannot be started due to dag max_active_runs constraint; "
+                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
+                        active_runs,
+                        dag_run.max_active_runs,
+                        dag_run.dag_id,
+                        dag_run.run_id,
+                    )
+                    continue
+            active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
+            _update_state(dag, dag_run)
+            dag_run.notify_dagrun_state_changed(msg="started")
+
+    @retry_db_transaction
+    def _schedule_all_dag_runs(
+        self,
+        guard: CommitProhibitorGuard,
+        dag_runs: Iterable[DagRun],
+        session: Session,
+    ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
+        """Make scheduling decisions for all `dag_runs`."""
+        callback_tuples = []
+        for run in dag_runs:
+            try:
+                callback = self._schedule_dag_run(run, session=session)
+                callback_tuples.append((run, callback))
+            except DBAPIError:
+                raise  # let @retry_db_transaction handle DB errors
+            except Exception:
+                self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
+        guard.commit()
+        return callback_tuples
+
+    def _schedule_dag_run(
+        self,
+        dag_run: DagRun,
+        session: Session,
+    ) -> DagCallbackRequest | None:
+        """
+        Make scheduling decisions about an individual dag run.
+
+        :param dag_run: The DagRun to schedule
+        :return: Callback that needs to be executed
+        """
+        callback: DagCallbackRequest | None = None
+
+        dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session=session)
+        if not dag_model:
+            self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
+            return callback
+
+        if not dag:
+            self.log.error("Couldn't find DAG %s in DAG bag!", dag_run.dag_id)
+            return callback
+
+        if (
+            dag_run.start_date
+            and dag.dagrun_timeout
+            and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
+        ):
+            dag_run.set_state(DagRunState.FAILED)
+            unfinished_task_instances = session.scalars(
+                select(TI)
+                .where(TI.dag_id == dag_run.dag_id)
+                .where(TI.run_id == dag_run.run_id)
+                .where(TI.state.in_(State.unfinished) | (TI.state.is_(None)))
+            ).all()
+            last_unfinished_ti = max(
+                unfinished_task_instances,
+                key=lambda ti: ti.start_date or timezone.make_aware(datetime.min),
+                default=None,
+            )
+            for task_instance in unfinished_task_instances:
+                task_instance.state = TaskInstanceState.SKIPPED
+                session.merge(task_instance)
+            session.flush()
+            self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
+
+            if dag_run.state in State.finished_dr_states and dag_run.run_type in (
+                DagRunType.SCHEDULED,
+                DagRunType.MANUAL,
+                DagRunType.ASSET_TRIGGERED,
+            ):
+                self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
+
+            dag_run_reloaded = session.scalar(
+                select(DagRun)
+                .where(DagRun.id == dag_run.id)
+                .options(
+                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+                )
+            )
+            if dag_run_reloaded is None:
+                # This should never happen since we just had the dag_run
+                self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
+                return None
+            dag_run = dag_run_reloaded
+            callback_to_execute = dag_run.produce_dag_callback(
+                dag=dag,
+                success=False,
+                relevant_ti=last_unfinished_ti,
+                reason="timed_out",
+                execute=False,
+            )
+
+            dag_run.notify_dagrun_state_changed(msg="timed_out")
+            if dag_run.end_date and dag_run.start_date:
+                duration = dag_run.end_date - dag_run.start_date
+                stats.timing(
+                    "dagrun.duration.failed",
+                    duration,
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag_run.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
+                                dag_run.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
+                )
+            return callback_to_execute
+
+        if dag_run.logical_date and dag_run.logical_date > timezone.utcnow():
+            self.log.error("Logical date is in future: %s", dag_run.logical_date)
+            return callback
+
+        if not dag_run.bundle_version and not self._verify_integrity_if_dag_changed(
+            dag_run=dag_run, session=session
+        ):
+            self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
+            return callback
+
+        dag_run.scheduled_by_job_id = self.job.id
+
+        # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
+        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+
+        if dag_run.state in State.finished_dr_states and dag_run.run_type in (
+            DagRunType.SCHEDULED,
+            DagRunType.MANUAL,
+            DagRunType.ASSET_TRIGGERED,
+        ):
+            self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
+
+        # This will do one query per dag run. We "could" build up a complex
+        # query to update all the TIs across all the logical dates and dag
+        # IDs in a single query, but it turns out that can be _very very slow_
+        # see #11147/commit ee90807ac for more details
+        if schedulable_tis and self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug(
+                "Scheduling TIs for dag_run=%s/%s (scheduler job_id=%s): %s",
+                dag_run.dag_id,
+                dag_run.run_id,
+                self.job.id,
+                [
+                    f"{ti.task_id} (id={ti.id}, state={ti.state}, try_number={ti.try_number})"
+                    for ti in schedulable_tis
+                ],
+            )
+        dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=self.job.max_tis_per_query)
+
+        return callback_to_run
+
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
+        """
+        Only run DagRun.verify integrity if Serialized DAG has changed since it is slow.
+
+        Return True if we determine that DAG still exists.
+        """
+        latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
+        if latest_dag_version is None:
+            return False
+        if TYPE_CHECKING:
+            assert latest_dag_version
+
+        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session=session):
+            self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
+            return True
+        # Refresh the DAG
+        dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
+        if not dag_run.dag:
+            return False
+        # Bulk update dag_version_id for unfinished TIs instead of loading all TIs into memory.
+        # Use synchronize_session=False since we handle cache coherence via session.expire() below.
+        session.execute(
+            update(TI)
+            .where(
+                TI.dag_id == dag_run.dag_id,
+                TI.run_id == dag_run.run_id,
+                TI.state.in_(State.unfinished),
+            )
+            .values(dag_version_id=latest_dag_version.id),
+            execution_options={"synchronize_session": False},
+        )
+        # Expire task_instances relationship so next access fetches fresh data from DB
+        session.expire(dag_run, ["task_instances"])
+        # Verify integrity also takes care of session.flush
+        dag_run.verify_integrity(dag_version_id=latest_dag_version.id, session=session)
+
+        return True
+
+    def _send_dag_callbacks_to_processor(
+        self,
+        dag: SerializedDAG,
+        callback: DagCallbackRequest | None = None,
+    ) -> None:
+        if callback:
+            self.executor.send_callback(callback)
+        else:
+            self.log.debug("callback is empty")
+
+    @provide_session
+    def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Handle the scenario where a task is queued for longer than `task_queued_timeout`.
+
+        Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
+        track of a task, a cluster can't further scale up its workers, etc.), but tasks
+        should not be stuck in queued for a long time.
+
+        We will attempt to requeue the task (by revoking it from executor and setting to
+        scheduled) up to 2 times before failing the task.
+        """
+        tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
+        for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
+            try:
+                for ti in stuck_tis:
+                    executor.revoke_task(ti=ti)
+                    self._maybe_requeue_stuck_ti(
+                        ti=ti,
+                        session=session,
+                        executor=executor,
+                    )
+                    session.commit()
+            except NotImplementedError:
+                continue
+
+    def _get_tis_stuck_in_queued(self, session) -> Iterable[TaskInstance]:
+        """Query db for TIs that are stuck in queued."""
+        return session.scalars(
+            select(TI).where(
+                TI.state == TaskInstanceState.QUEUED,
+                TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
+                TI.queued_by_job_id == self.job.id,
+            )
+        )
+
+    def _maybe_requeue_stuck_ti(self, *, ti, session, executor):
+        """
+        Requeue task if it has not been attempted too many times.
+
+        Otherwise, fail it.
+        """
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session=session)
+        if num_times_stuck < self._num_stuck_queued_retries:
+            self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
+            session.add(
+                Log(
+                    event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task was in queued state for longer than {self._task_queued_timeout} "
+                        "seconds; task state will be set back to scheduled."
+                    ),
+                )
+            )
+            self._reschedule_stuck_task(ti, session=session)
+        else:
+            self.log.info(
+                "Task requeue attempts exceeded max; marking failed. task_instance=%s",
+                ti,
+            )
+            msg = f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed."
+            session.add(
+                Log(
+                    event="stuck in queued tries exceeded",
+                    task_instance=ti.key,
+                    extra=msg,
+                )
+            )
+
+            try:
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                task = dag.get_task(ti.task_id)
+            except Exception:
+                self.log.warning(
+                    "The DAG or task could not be found. If a failure callback exists, it will not be run.",
+                    exc_info=True,
+                )
+            else:
+                if task.has_on_failure_callback:
+                    if inspect(ti).detached:
+                        ti = session.merge(ti)
+                    # Safely extract bundle info with fallback for legacy tasks
+                    # (dag_version may be None after Airflow 2 → 3 migration).
+                    _stuck_bundle_name = (
+                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    )
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
+                    _stuck_bundle_version = (
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
+                    )
+                    _stuck_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                    # Note: we cannot use `continue` here because this method is not
+                    # inside a loop.  If backfilling fails we simply skip the callback.
+                    if _ensure_ti_has_dag_version_id(ti, session, self.log):
+                        request = TaskCallbackRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=_stuck_bundle_name,
+                            bundle_version=_stuck_bundle_version,
+                            version_data=_stuck_version_data,
+                            ti=ti,
+                            msg=msg,
+                            context_from_server=TIRunContext(
+                                dag_run=ti.dag_run,
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(request)
+            finally:
+                ti.set_state(TaskInstanceState.FAILED, session=session)
+                executor.fail(ti.key)
+
+    def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
+        filter_for_tis = TI.filter_for_tis([ti])
+        if filter_for_tis is None:
+            return
+        session.execute(
+            update(TI)
+            .where(filter_for_tis)
+            .values(
+                state=TaskInstanceState.SCHEDULED,
+                queued_dttm=None,
+                queued_by_job_id=None,
+                scheduled_dttm=timezone.utcnow(),
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    @provide_session
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, *, session: Session = NEW_SESSION) -> int:
+        """
+        Check the Log table to see how many times a task instance has been stuck in queued.
+
+        We can then use this information to determine whether to reschedule a task or fail it.
+        """
+        last_running_time = session.scalar(
+            select(Log.dttm)
+            .where(
+                Log.dag_id == ti.dag_id,
+                Log.task_id == ti.task_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == "running",
+            )
+            .order_by(Log.dttm.desc())
+            .limit(1)
+        )
+
+        statement = (
+            select(func.count())
+            .select_from(Log)
+            .where(
+                Log.task_id == ti.task_id,
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+            )
+        )
+
+        if last_running_time is not None:
+            statement = statement.where(Log.dttm > last_running_time)
+
+        count_result: int | None = session.scalar(statement)
+        return count_result if count_result is not None else 0
+
+    previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
+
+    @provide_session
+    def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
+        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED, State.AWAITING_INPUT}
+        stmt = (
+            select(
+                TaskInstance.state,
+                TaskInstance.dag_id,
+                TaskInstance.task_id,
+                TaskInstance.queue,
+                func.count(TaskInstance.task_id).label("count"),
+            )
+            .filter(TaskInstance.state.in_(metric_states))
+            .group_by(TaskInstance.state, TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
+        )
+        all_states_metric = session.execute(stmt).all()
+
+        if self._multi_team:
+            unique_dag_ids = {row[1] for row in all_states_metric}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+        else:
+            dag_id_to_team_name = {}
+
+        for state in metric_states:
+            if state not in self.previous_ti_metrics:
+                self.previous_ti_metrics[state] = {}
+
+            ti_metrics = {
+                (dag_id, task_id, queue): count
+                for row_state, dag_id, task_id, queue, count in all_states_metric
+                if row_state == state
+            }
+
+            for (dag_id, task_id, queue), count in ti_metrics.items():
+                stats.gauge(
+                    f"ti.{state}",
+                    float(count),
+                    tags=prune_dict(
+                        {
+                            "queue": queue,
+                            "dag_id": dag_id,
+                            "task_id": task_id,
+                            "team_name": dag_id_to_team_name.get(dag_id),
+                        }
+                    ),
+                )
+
+            for prev_key in self.previous_ti_metrics[state]:
+                # Reset previously exported stats that are no longer present in current metrics to zero
+                if prev_key not in ti_metrics:
+                    dag_id, task_id, queue = prev_key
+                    stats.gauge(
+                        f"ti.{state}",
+                        0,
+                        tags=prune_dict(
+                            {
+                                "queue": queue,
+                                "dag_id": dag_id,
+                                "task_id": task_id,
+                                "team_name": dag_id_to_team_name.get(dag_id),
+                            }
+                        ),
+                    )
+
+            self.previous_ti_metrics[state] = ti_metrics
+
+    @provide_session
+    def _emit_running_dags_metric(self, *, session: Session = NEW_SESSION) -> None:
+        stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
+        running_dags = float(session.scalar(stmt) or 0)
+        stats.gauge("scheduler.dagruns.running", running_dags)
+
+    @provide_session
+    def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
+        from airflow.models.pool import Pool
+
+        pools = Pool.slots_stats(session=session)
+        pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+            if self._multi_team
+            else {}
+        )
+        for pool_name, slot_stats in pools.items():
+            metric_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := pool_team_mapping.get(pool_name):
+                metric_tags["team_name"] = team
+            stats.gauge("pool.open_slots", slot_stats["open"], tags=metric_tags)
+            stats.gauge("pool.queued_slots", slot_stats["queued"], tags=metric_tags)
+            stats.gauge("pool.running_slots", slot_stats["running"], tags=metric_tags)
+            stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags=metric_tags)
+            stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags=metric_tags)
+
+    @provide_session
+    def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
+        """
+        Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
+
+        :return: the number of TIs reset
+        """
+        self.log.info("Adopting or resetting orphaned tasks for active dag runs")
+        timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
+
+        for attempt in run_with_db_retries(logger=self.log):
+            with attempt:
+                self.log.debug(
+                    "Running SchedulerJob.adopt_or_reset_orphaned_tasks with retries. Try %d of %d",
+                    attempt.retry_state.attempt_number,
+                    MAX_DB_RETRIES,
+                )
+                self.log.debug("Calling SchedulerJob.adopt_or_reset_orphaned_tasks method")
+                try:
+                    result = session.execute(
+                        update(Job)
+                        .where(
+                            Job.job_type == "SchedulerJob",
+                            Job.state == JobState.RUNNING,
+                            Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
+                        )
+                        .values(state=JobState.FAILED)
+                    )
+                    num_failed: int = getattr(result, "rowcount", 0)
+
+                    if num_failed:
+                        self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
+                        stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
+
+                    query = (
+                        select(TI)
+                        .options(lazyload(TI.dag_run))  # avoids double join to dag_run
+                        .where(TI.state.in_(State.adoptable_states))
+                        .join(TI.queued_by_job)
+                        .where(Job.state.is_distinct_from(JobState.RUNNING))
+                        .join(TI.dag_run)
+                        .where(DagRun.state == DagRunState.RUNNING)
+                        .options(
+                            load_only(
+                                TI.id,
+                                TI.dag_id,
+                                TI.task_id,
+                                TI.run_id,
+                                TI.map_index,
+                                TI.state,
+                                TI.external_executor_id,
+                            )
+                        )
+                    )
+
+                    # Lock these rows, so that another scheduler can't try and adopt these too
+                    tis_to_adopt_or_reset_query = with_row_locks(
+                        query, of=TI, session=session, skip_locked=True
+                    )
+                    tis_to_adopt_or_reset: list[TaskInstance] = list(
+                        session.scalars(tis_to_adopt_or_reset_query)
+                    )
+
+                    to_reset: list[TaskInstance] = []
+                    exec_to_tis = self._executor_to_workloads(tis_to_adopt_or_reset, session)
+                    for executor, tis in exec_to_tis.items():
+                        to_reset.extend(executor.try_adopt_task_instances(tis))
+
+                    reset_tis_message = []
+                    for ti in to_reset:
+                        reset_tis_message.append(repr(ti))
+                        # If we reset a TI, it will be eligible to be scheduled again.
+                        # This can cause the scheduler to increase the try_number on the TI.
+                        # Record the current try to TaskInstanceHistory first so users have an audit trail for
+                        # the attempt that was abandoned.
+                        ti.prepare_db_for_next_try(session=session)
+
+                        ti.state = None
+                        ti.queued_by_job_id = None
+                        ti.external_executor_id = None
+                        ti.clear_next_method_args()
+
+                    for ti in set(tis_to_adopt_or_reset) - set(to_reset):
+                        ti.queued_by_job_id = self.job.id
+                        # If old ti from Airflow 2 and last_heartbeat_at is None, set last_heartbeat_at to now
+                        if ti.last_heartbeat_at is None:
+                            ti.last_heartbeat_at = timezone.utcnow()
+                        # If old ti from Airflow 2 and dag_run.conf is None, set dag_run.conf to {}
+                        if ti.dag_run.conf is None:
+                            ti.dag_run.conf = {}
+
+                    stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
+                    stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
+                    if to_reset:
+                        task_instance_str = "\n\t".join(reset_tis_message)
+                        self.log.info(
+                            "Reset the following %s orphaned TaskInstances:\n\t%s",
+                            len(to_reset),
+                            task_instance_str,
+                        )
+
+                    # Issue SQL/finish "Unit of Work", but let @provide_session
+                    # commit (or if passed a session, let caller decide when to commit
+                    session.flush()
+                except OperationalError:
+                    session.rollback()
+                    raise
+
+        return len(to_reset)
+
+    @provide_session
+    def check_trigger_timeouts(
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
+    ) -> None:
+        """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
+        for attempt in run_with_db_retries(max_retries, logger=self.log):
+            with attempt:
+                result = session.execute(
+                    update(TI)
+                    .where(
+                        TI.state == TaskInstanceState.DEFERRED,
+                        TI.trigger_timeout < timezone.utcnow(),
+                    )
+                    .values(
+                        state=TaskInstanceState.SCHEDULED,
+                        next_method=TRIGGER_FAIL_REPR,
+                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                        scheduled_dttm=timezone.utcnow(),
+                        trigger_id=None,
+                    )
+                )
+                num_timed_out_tasks = getattr(result, "rowcount", 0)
+                if num_timed_out_tasks:
+                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
+    @provide_session
+    def check_awaiting_input_timeouts(
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Resolve Human-in-the-loop tasks parked in AWAITING_INPUT whose response deadline has passed.
+
+        This is the scheduler-side liveness guarantee for HITL and runs independently of the
+        triggerer. For each timed-out task instance: if a response arrived just before the deadline,
+        resume with it; otherwise, if the request defines defaults, write the defaults as the
+        response and resume to success; otherwise fail the task (mirroring ``check_trigger_timeouts``).
+        """
+        for attempt in run_with_db_retries(max_retries, logger=self.log):
+            with attempt:
+                now = timezone.utcnow()
+                query = (
+                    select(TI)
+                    .where(
+                        TI.state == TaskInstanceState.AWAITING_INPUT,
+                        TI.trigger_timeout < now,
+                    )
+                    .options(joinedload(TI.hitl_detail))
+                    # Bound the batch so a single scheduler tick cannot lock/process an unbounded
+                    # backlog of timed-out tasks (which would block concurrent responses/clears);
+                    # any remaining rows are handled on subsequent ticks.
+                    .limit(100)
+                )
+                # Lock only the TI rows (of=TI) so HA schedulers don't double-resolve, and so the
+                # FOR UPDATE is not applied to the nullable side of the hitl_detail outer join.
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                timed_out_tis = session.scalars(query).all()
+                if not timed_out_tis:
+                    return
+
+                num_resolved = 0
+                num_failed = 0
+                for ti in timed_out_tis:
+                    hitl_detail = ti.hitl_detail
+                    if hitl_detail is not None and hitl_detail.responded_at is not None:
+                        # A response landed just before the deadline; resume with it.
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=False)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    elif hitl_detail is not None and hitl_detail.defaults is not None:
+                        # Apply the configured defaults as the response, then resume to success.
+                        hitl_detail.chosen_options = list(hitl_detail.defaults)
+                        hitl_detail.params_input = {
+                            key: value["value"] if isinstance(value, dict) and "value" in value else value
+                            for key, value in (hitl_detail.params or {}).items()
+                        }
+                        hitl_detail.responded_by = None
+                        hitl_detail.responded_at = now
+                        session.add(hitl_detail)
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=True)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    else:
+                        # No defaults and no response: resume into execute_complete with a timeout
+                        # failure event so the operator raises HITLTimeoutError (matching the old
+                        # trigger path), rather than a generic deferral-timeout failure.
+                        handle_event_submit(
+                            TriggerEvent(
+                                {
+                                    "error": "The Human-in-the-loop response timeout has passed "
+                                    "without a response.",
+                                    "error_type": "timeout",
+                                }
+                            ),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_failed += 1
+
+                # Flush within the retry block so both branches persist consistently (the defaults
+                # branch already flushes via handle_event_submit; the fail branch relies on this).
+                session.flush()
+                if num_resolved or num_failed:
+                    self.log.info(
+                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed",
+                        num_resolved,
+                        num_failed,
+                    )
+
+    # [START find_and_purge_task_instances_without_heartbeats]
+    def _find_and_purge_task_instances_without_heartbeats(self) -> None:
+        """
+        Find and purge task instances without heartbeats.
+
+        Task instances that failed to heartbeat for too long, or
+        have a no-longer-running LocalTaskJob will be failed by the scheduler.
+
+        A TaskCallbackRequest is also created for the killed task instance to be
+        handled by the DAG processor, and the executor is informed to no longer
+        count the task instance as running when it calculates parallelism.
+        """
+        with create_session() as session:
+            if task_instances_without_heartbeats := self._find_task_instances_without_heartbeats(
+                session=session
+            ):
+                stats.incr(
+                    "scheduler.zombies.detected",
+                    len(task_instances_without_heartbeats),
+                    tags={"reason": "heartbeat_timeout"},
+                )
+                self._purge_task_instances_without_heartbeats(
+                    task_instances_without_heartbeats, session=session
+                )
+
+    def _find_task_instances_without_heartbeats(self, *, session: Session) -> list[TI]:
+        self.log.debug("Finding 'running' jobs without a recent heartbeat")
+        limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
+        task_instances_without_heartbeats = list(
+            session.scalars(
+                select(TI)
+                .options(selectinload(TI.dag_model))
+                .options(asset_loader)
+                .options(alias_loader)
+                .options(selectinload(TI.dag_version))
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .join(DM, TI.dag_id == DM.dag_id)
+                .where(
+                    TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
+                    TI.last_heartbeat_at < limit_dttm,
+                )
+                .where(TI.queued_by_job_id == self.job.id)
+            )
+        )
+        if task_instances_without_heartbeats:
+            self.log.warning(
+                "Failing %s TIs without heartbeat after %s",
+                len(task_instances_without_heartbeats),
+                limit_dttm,
+            )
+        return list(task_instances_without_heartbeats)
+
+    def _purge_task_instances_without_heartbeats(
+        self, task_instances_without_heartbeats: list[TI], *, session: Session
+    ) -> None:
+        if self._multi_team:
+            unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+            for ti in task_instances_without_heartbeats:
+                if team := dag_id_to_team_name.get(ti.dag_id):
+                    ti._team_name = team
+        else:
+            dag_id_to_team_name = {}
+
+        for ti in task_instances_without_heartbeats:
+            task_instance_heartbeat_timeout_message_details = (
+                self._generate_task_instance_heartbeat_timeout_message_details(ti)
+            )
+            # Safely extract bundle info with fallback for legacy tasks
+            # (dag_version may be None after Airflow 2 → 3 migration).
+            _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+            # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+            # leave the callback unpinned so it runs against the same code as the task.
+            _hb_bundle_version = (
+                ti.dag_version.bundle_version
+                if ti.dag_version and ti.dag_run.bundle_version is not None
+                else ti.dag_run.bundle_version
+            )
+            _hb_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+            # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+            if not _ensure_ti_has_dag_version_id(ti, session, self.log):
+                continue
+            # ti.task isn't loaded in this purge path, so is_eligible_to_retry() uses its
+            # no-task fallback (``try_number <= max_tries``), which skips the retries-configured
+            # check its task-loaded branch applies; guard with ``max_tries > 0`` so a task
+            # declared with retries=0 isn't treated as retry-eligible here.
+            if ti.max_tries > 0 and ti.is_eligible_to_retry():
+                task_callback_type = TaskInstanceState.UP_FOR_RETRY
+            else:
+                task_callback_type = TaskInstanceState.FAILED
+            request = TaskCallbackRequest(
+                filepath=ti.dag_model.relative_fileloc or "",
+                bundle_name=_hb_bundle_name,
+                bundle_version=_hb_bundle_version,
+                version_data=_hb_version_data,
+                ti=ti,
+                msg=str(task_instance_heartbeat_timeout_message_details),
+                task_callback_type=task_callback_type,
+                context_from_server=TIRunContext(
+                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                    max_tries=ti.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
+                ),
+            )
+            session.add(
+                Log(
+                    event="heartbeat timeout",
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task did not emit heartbeat within time limit ({self._task_instance_heartbeat_timeout_secs} "
+                        "seconds) and will be terminated. "
+                        "See https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout"
+                    ),
+                )
+            )
+            self.log.error(
+                "Detected a task instance without a heartbeat: %s "
+                "(See https://airflow.apache.org/docs/apache-airflow/"
+                "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
+                request,
+            )
+            self.executor.send_callback(request)
+            executor = self._try_to_load_executor(
+                ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
+            )
+            if executor is None:
+                self.log.warning(
+                    "Cannot clean up task instance without heartbeat %r with non-existent executor %s",
+                    ti,
+                    ti.executor,
+                )
+                continue
+            executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
+            stats.incr(
+                "task_instances_without_heartbeats_killed",
+                tags=prune_dict(
+                    {
+                        "dag_id": ti.dag_id,
+                        "task_id": ti.task_id,
+                        "team_name": dag_id_to_team_name.get(ti.dag_id),
+                    }
+                ),
+            )
+
+    # [END find_and_purge_task_instances_without_heartbeats]
+
+    @staticmethod
+    def _generate_task_instance_heartbeat_timeout_message_details(ti: TI) -> dict[str, Any]:
+        task_instance_heartbeat_timeout_message_details: dict[str, Any] = {
+            "DAG Id": ti.dag_id,
+            "Task Id": ti.task_id,
+            "Run Id": ti.run_id,
+        }
+
+        if ti.map_index != -1:
+            task_instance_heartbeat_timeout_message_details["Map Index"] = ti.map_index
+        if ti.hostname:
+            task_instance_heartbeat_timeout_message_details["Hostname"] = ti.hostname
+        if ti.external_executor_id:
+            task_instance_heartbeat_timeout_message_details["External Executor Id"] = ti.external_executor_id
+
+        return task_instance_heartbeat_timeout_message_details
+
+    @provide_session
+    def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
+        """Remove triggers that are no longer used by anything."""
+        session.execute(
+            delete(Trigger)
+            .where(
+                ~exists(
+                    select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
+                ),
+                ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
+                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
+
+    @provide_session
+    def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Check assets orphanization and update their active entry.
+
+        An orphaned asset is no longer referenced in any DAG schedule parameters,
+        task outlets, or task inlets. Active assets (non-orphaned) have entries in
+        AssetActive and must have unique names and URIs.
+
+        :seealso: :meth:`AssetModelOperation.activate_assets_if_possible`.
+        """
+        # Group assets into orphaned=True and orphaned=False groups.
+        orphaned = (
+            (
+                func.count(DagScheduleAssetReference.dag_id)
+                + func.count(TaskOutletAssetReference.dag_id)
+                + func.count(TaskInletAssetReference.dag_id)
+            )
+            == 0
+        ).label("orphaned")
+        asset_reference_query = (
+            select(AssetModel)
+            .outerjoin(DagScheduleAssetReference)
+            .outerjoin(TaskOutletAssetReference)
+            .outerjoin(TaskInletAssetReference)
+            .group_by(AssetModel.id)
+        )
+
+        orphan_query = asset_reference_query.having(orphaned).cte()
+        activate_query = asset_reference_query.having(~orphaned).cte()
+
+        self._orphan_unreferenced_assets(orphan_query, session=session)
+        self._activate_referenced_assets(activate_query, session=session)
+        self._cleanup_orphaned_asset_state_store(session=session)
+
+    @staticmethod
+    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+        deleted_orphaned_assets = session.execute(
+            delete(AssetActive).where(
+                exists().where(
+                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
+                )
+            )
+        )
+
+        stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
+
+    @staticmethod
+    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+        active_assets_query = select(AssetActive.name, AssetActive.uri).join(
+            assets_query,
+            and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
+        )
+
+        active_assets = session.execute(active_assets_query).all()
+
+        active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
+        active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
+
+        def _generate_warning_message(
+            offending: AssetModel, attr: str, value: str
+        ) -> Iterator[tuple[str, str]]:
+            offending_references = itertools.chain(
+                offending.scheduled_dags,
+                offending.producing_tasks,
+                offending.consuming_tasks,
+            )
+            for ref in offending_references:
+                yield (
+                    ref.dag_id,
+                    (
+                        "Cannot activate asset "
+                        f'Asset(name="{offending.name}", uri="{offending.uri}", group="{offending.group}"); '
+                        f"{attr} is already associated to {value!r}"
+                    ),
+                )
+
+        def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
+            incoming_name_to_uri: dict[str, str] = {}
+            incoming_uri_to_name: dict[str, str] = {}
+
+            inactive_assets_query = (
+                select(AssetModel)
+                .join(
+                    assets_query,
+                    and_(
+                        assets_query.c.name == AssetModel.name,
+                        assets_query.c.uri == AssetModel.uri,
+                    ),
+                )
+                .where(
+                    ~active_assets_query.where(
+                        and_(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
+                    ).exists()
+                )
+            )
+
+            for asset in session.scalars(inactive_assets_query):
+                existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
+                if existing_uri is not None and existing_uri != asset.uri:
+                    yield from _generate_warning_message(asset, "name", existing_uri)
+                    continue
+                existing_name = active_uri_to_name.get(asset.uri) or incoming_uri_to_name.get(asset.uri)
+                if existing_name is not None and existing_name != asset.name:
+                    yield from _generate_warning_message(asset, "uri", existing_name)
+                    continue
+                incoming_name_to_uri[asset.name] = asset.uri
+                incoming_uri_to_name[asset.uri] = asset.name
+                session.add(AssetActive.for_asset(asset))
+
+        warnings_to_have = {
+            dag_id: DagWarning(
+                dag_id=dag_id,
+                warning_type=DagWarningType.ASSET_CONFLICT,
+                message="\n".join([message for _, message in group]),
+            )
+            for dag_id, group in groupby(
+                sorted(_activate_assets_generate_warnings()), key=operator.itemgetter(0)
+            )
+        }
+
+        session.execute(
+            delete(DagWarning).where(
+                DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
+                DagWarning.dag_id.not_in(warnings_to_have),
+            )
+        )
+        existing_warned_dag_ids: set[str] = set(
+            session.scalars(
+                select(DagWarning.dag_id).where(
+                    DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
+                    DagWarning.dag_id.in_(warnings_to_have),
+                )
+            )
+        )
+        for dag_id, warning in warnings_to_have.items():
+            if dag_id in existing_warned_dag_ids:
+                session.merge(warning)
+                continue
+            session.add(warning)
+            existing_warned_dag_ids.add(warning.dag_id)
+
+    @staticmethod
+    def _cleanup_orphaned_asset_state_store(*, session: Session) -> None:
+        """
+        Delete asset_state_store rows for assets no longer active in any Dag.
+
+        When _orphan_unreferenced_assets removes an asset from asset_active, its
+        asset_state_store rows become unreachable — no task can write to them anymore.
+        This runs in the same pass as asset orphanage to keep the table clean.
+        """
+        active_asset_ids = select(AssetModel.id).join(
+            AssetActive,
+            (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri),
+        )
+        session.execute(
+            delete(AssetStateStoreModel).where(AssetStateStoreModel.asset_id.not_in(active_asset_ids))
+        )
+
+    def _enqueue_connection_tests(self, *, session: Session) -> None:
+        """
+        Enqueue pending connection tests to executors that support them.
+
+        ``max_concurrency`` is per-scheduler, not global: with N HA schedulers
+        the worst-case per-tick dispatch is ``N * max_concurrency``. Connection
+        tests are user-initiated and rare, so the overshoot self-corrects via
+        the reaper. For a true global cap, wrap the budget+claim below in a
+        sentinel-row ``SELECT ... FOR UPDATE``.
+        """
+        max_concurrency = conf.getint("connection_test", "max_concurrency", fallback=4)
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
+
+        active_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state.in_(DISPATCHED_STATES)
+                )
+            )
+            or 0
+        )
+        pending_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state == ConnectionTestState.PENDING
+                )
+            )
+            or 0
+        )
+        stats.gauge("connection_test.active", active_count)
+        stats.gauge("connection_test.pending", pending_count)
+
+        budget = max_concurrency - active_count
+        if budget <= 0:
+            return
+
+        pending_stmt = (
+            select(ConnectionTestRequest)
+            .where(ConnectionTestRequest.state == ConnectionTestState.PENDING)
+            .order_by(ConnectionTestRequest.created_at)
+            .limit(budget)
+        )
+        pending_stmt = with_row_locks(pending_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        pending_tests = session.scalars(pending_stmt).all()
+
+        if not pending_tests:
+            return
+
+        dispatch_timer = stats.timer("connection_test.dispatch_duration")
+        dispatch_timer.start()
+        for ct in pending_tests:
+            team_name = ct.team_name if self._multi_team else None
+            executor = self._try_to_load_executor(ct, session, team_name=team_name)
+            if executor is None:
+                reason = f"No executor matches '{ct.executor}'"
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+            if not executor.supports_connection_test:
+                exec_name = executor.name
+                name = ct.executor or (exec_name and (exec_name.alias or exec_name.module_path))
+                reason = f"Executor '{name}' does not support connection testing"
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+
+            workload = workloads.TestConnection.make(
+                connection_test_id=ct.id,
+                connection_id=ct.connection_id,
+                timeout=timeout,
+                queue=ct.queue,
+                generator=executor.jwt_generator,
+            )
+            executor.queue_workload(workload, session=session)
+            ct.state = ConnectionTestState.QUEUED
+
+        dispatch_timer.stop(send=True)
+        session.flush()
+
+    @provide_session
+    def _reap_stale_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
+        """Mark connection tests that have exceeded their timeout as FAILED."""
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
+        grace_period = max(30, timeout // 2)
+        cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
+
+        stale_stmt = select(ConnectionTestRequest).where(
+            ConnectionTestRequest.state.in_(CONNECTION_TEST_ACTIVE_STATES),
+            ConnectionTestRequest.updated_at < cutoff,
+        )
+        stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        stale_tests = session.scalars(stale_stmt).all()
+
+        for ct in stale_tests:
+            prior_state = ct.state
+            ct.state = ConnectionTestState.FAILED
+            if prior_state == ConnectionTestState.PENDING:
+                ct.result_message = (
+                    f"Connection test expired in PENDING before any executor picked it up "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            elif prior_state == ConnectionTestState.QUEUED:
+                ct.result_message = (
+                    f"Connection test was queued but never started before timeout "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            else:
+                ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
+            prior_state_value = ConnectionTestState(prior_state).value
+            self.log.warning(
+                "Reaped stale connection test %s (connection_id=%s, prior_state=%s, team=%s)",
+                ct.id,
+                ct.connection_id,
+                prior_state_value,
+                ct.team_name,
+            )
+            stats.incr("connection_test.reaped", tags={"prior_state": prior_state_value})
+            key = ConnectionTestKey(id=str(ct.id))
+            for executor in self.executors:
+                if executor.supports_connection_test:
+                    executor.fail_connection_test(key)
+
+        session.flush()
+
+    def _executor_to_workloads(
+        self,
+        workloads: Iterable[SchedulerWorkload],
+        session,
+        dag_id_to_team_name: dict[str, str | None] | None = None,
+    ) -> dict[BaseExecutor, list[SchedulerWorkload]]:
+        """Organize workloads into lists per their respective executor."""
+        workloads_iter: Iterable[SchedulerWorkload]
+        if self._multi_team:
+            if dag_id_to_team_name is None:
+                if isinstance(workloads, list):
+                    workloads_list = workloads
+                else:
+                    workloads_list = list(workloads)
+                if workloads_list:
+                    dag_id_to_team_name = self._get_team_names_for_dag_ids(
+                        {
+                            dag_id
+                            for workload in workloads_list
+                            if (dag_id := workload.get_dag_id()) is not None
+                        },
+                        session,
+                    )
+                else:
+                    dag_id_to_team_name = {}
+                workloads_iter = workloads_list
+            else:
+                workloads_iter = workloads
+        else:
+            dag_id_to_team_name = {}
+            workloads_iter = workloads
+
+        _executor_to_workloads: defaultdict[BaseExecutor, list[SchedulerWorkload]] = defaultdict(list)
+        for workload in workloads_iter:
+            _dag_id = workload.get_dag_id()
+            _team = dag_id_to_team_name.get(_dag_id, NOTSET) if _dag_id else NOTSET
+            if executor_obj := self._try_to_load_executor(workload, session, team_name=_team):
+                _executor_to_workloads[executor_obj].append(workload)
+
+        return _executor_to_workloads
+
+    def _try_to_load_executor(
+        self, workload: SchedulerWorkload, session, team_name=NOTSET
+    ) -> BaseExecutor | None:
+        """
+        Try to load the given executor.
+
+        In this context, we don't want to fail if the executor does not exist. Catch the exception and
+        log to the user.
+
+        :param workload: SchedulerWorkload (TaskInstance or ExecutorCallback) to load executor for
+        :param session: Database session for queries
+        :param team_name: Optional pre-resolved team name. If NOTSET and multi-team is enabled,
+                         will query the database to resolve team name. None indicates global team.
+        """
+        executor = None
+        if self._multi_team:
+            # Use provided team_name if available, otherwise query the database
+            if team_name is NOTSET:
+                team_name = self._get_workload_team_name(workload, session)
+        else:
+            team_name = None
+        # If there is no executor set on the workload fetch the default (either globally or for the team)
+        if workload.get_executor_name() is None:
+            if not team_name:
+                # No team is specified, use the global default executor
+                executor = self.executor
+            else:
+                # We do have a team, use the default executor for that team
+                for _executor in self.executors:
+                    # First executor that resolves should be the default for that team
+                    if _executor.team_name == team_name:
+                        executor = _executor
+                        break
+                else:
+                    # No executor found for that team, fall back to global default
+                    executor = self.executor
+        else:
+            # An executor is specified on the workload (as a str), so we need to find it in the list of executors
+            for _executor in self.executors:
+                if _executor.name and workload.get_executor_name() in (
+                    _executor.name.alias,
+                    _executor.name.module_path,
+                    _executor.name.module_path.split(".")[-1],
+                ):
+                    # The executor must either match the team or be global (i.e. team_name is None)
+                    if team_name and _executor.team_name == team_name or _executor.team_name is None:
+                        executor = _executor
+                        break
+
+        if executor is not None:
+            self.log.debug(
+                "Found executor %s for task or callback %s (team: %s)", executor.name, workload, team_name
+            )
+        else:
+            # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
+            # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
+            # they request is available and if not, disallow the DAG to be scheduled.
+            # Keeping this exception handling because this is a critical issue if we do somehow find
+            # ourselves here and the user should get some feedback about that.
+            self.log.warning(
+                "Executor, %s, was not found but a Task or Callback was configured to use it",
+                workload.get_executor_name(),
+            )
+
+        return executor
+
+    def _set_exceeds_max_active_runs(
+        self,
+        *,
+        dag_model: DagModel,
+        active_non_backfill_runs: int | None = None,
+        session: Session,
+    ):
+        if active_non_backfill_runs is None:
+            runs_dict = DagRun.active_runs_of_dags(
+                dag_ids=[dag_model.dag_id],
+                exclude_backfill=True,
+                session=session,
+            )
+            active_non_backfill_runs = runs_dict.get(dag_model.dag_id, 0)
+
+        dag_model.exceeds_max_non_backfill = active_non_backfill_runs >= (dag_model.max_active_runs or 0)
+
+
+# Backcompat for older versions of task sdk import SchedulerDagBag from here
+SchedulerDagBag = DBDagBag

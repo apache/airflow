@@ -1,0 +1,1638 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import json
+from collections.abc import Sequence
+from time import sleep
+from typing import TYPE_CHECKING, Any, Literal
+
+from botocore.exceptions import ClientError
+
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentCoreHook,
+    BedrockAgentHook,
+    BedrockAgentRuntimeHook,
+    BedrockHook,
+    BedrockRuntimeHook,
+)
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockAgentRuntimeDeletedTrigger,
+    BedrockAgentRuntimeReadyTrigger,
+    BedrockBatchInferenceCompletedTrigger,
+    BedrockCustomizeModelCompletedTrigger,
+    BedrockIngestionJobTrigger,
+    BedrockKnowledgeBaseActiveTrigger,
+    BedrockProvisionModelThroughputCompletedTrigger,
+)
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
+from airflow.utils.helpers import prune_dict
+
+if TYPE_CHECKING:
+    from airflow.sdk import Context
+
+
+class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
+    """
+    Invoke the specified Bedrock model to run inference using the input provided.
+
+    Use InvokeModel to run inference for text models, image models, and embedding models.
+    To see the format and content of the input_data field for different models, refer to
+    `Inference parameters docs <https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html>`_.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockInvokeModelOperator`
+
+    :param model_id: The ID of the Bedrock model. (templated)
+    :param input_data: Input data in the format specified in the content-type request header. (templated)
+    :param content_type: The MIME type of the input data in the request. (templated) Default: application/json
+    :param accept: The desired MIME type of the inference body in the response.
+        (templated) Default: application/json
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockRuntimeHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "model_id", "input_data", "content_type", "accept_type"
+    )
+
+    def __init__(
+        self,
+        model_id: str,
+        input_data: dict[str, Any],
+        content_type: str | None = None,
+        accept_type: str | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.model_id = model_id
+        self.input_data = input_data
+        self.content_type = content_type
+        self.accept_type = accept_type
+
+    def execute(self, context: Context) -> dict[str, str | int]:
+        # These are optional values which the API defaults to "application/json" if not provided here.
+        invoke_kwargs = prune_dict({"contentType": self.content_type, "accept": self.accept_type})
+
+        response = self.hook.conn.invoke_model(
+            body=json.dumps(self.input_data),
+            modelId=self.model_id,
+            **invoke_kwargs,
+        )
+
+        response_body = json.loads(response["body"].read())
+        self.log.info("Bedrock %s prompt: %s", self.model_id, self.input_data)
+        self.log.info("Bedrock model response: %s", response_body)
+        return response_body
+
+
+class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlHook]):
+    """
+    Create an Amazon Bedrock AgentCore Runtime.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateAgentRuntimeOperator`
+
+    :param agent_runtime_name: The name of the AgentCore Runtime. (templated)
+    :param agent_runtime_artifact: The artifact configuration for the AgentCore Runtime. (templated)
+    :param role_arn: The ARN of the IAM role for the AgentCore Runtime. (templated)
+    :param network_configuration: The network configuration for the AgentCore Runtime. (templated)
+    :param create_agent_runtime_kwargs: Any optional parameters to pass to the API. (templated)
+    :param wait_for_completion: Whether to wait for the AgentCore Runtime to reach READY. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for runtime readiness. (default: 20)
+    :param deferrable: If True, the operator will wait asynchronously for the AgentCore Runtime
+        to reach READY. This implies waiting for completion. This mode requires aiobotocore
+        module to be installed. (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentCoreControlHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "agent_runtime_name",
+        "agent_runtime_artifact",
+        "role_arn",
+        "network_configuration",
+        "create_agent_runtime_kwargs",
+    )
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_name: str,
+        agent_runtime_artifact: dict[str, Any],
+        role_arn: str,
+        network_configuration: dict[str, Any],
+        create_agent_runtime_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.agent_runtime_name = agent_runtime_name
+        self.agent_runtime_artifact = agent_runtime_artifact
+        self.role_arn = role_arn
+        self.network_configuration = network_configuration
+        self.create_agent_runtime_kwargs = create_agent_runtime_kwargs or {}
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while creating AgentCore Runtime: {validated_event}")
+
+        self.log.info("Bedrock AgentCore Runtime `%s` is ready.", validated_event["agent_runtime_arn"])
+        return validated_event["agent_runtime_arn"]
+
+    def execute(self, context: Context) -> str:
+        response = self.hook.conn.create_agent_runtime(
+            agentRuntimeName=self.agent_runtime_name,
+            agentRuntimeArtifact=self.agent_runtime_artifact,
+            roleArn=self.role_arn,
+            networkConfiguration=self.network_configuration,
+            **self.create_agent_runtime_kwargs,
+        )
+        agent_runtime_arn = response["agentRuntimeArn"]
+        agent_runtime_id = response["agentRuntimeId"]
+        agent_runtime_version = response["agentRuntimeVersion"]
+
+        if self.deferrable:
+            self.log.info("Deferring until AgentCore Runtime %s reaches READY.", agent_runtime_arn)
+            self.defer(
+                trigger=BedrockAgentRuntimeReadyTrigger(
+                    agent_runtime_id=agent_runtime_id,
+                    agent_runtime_version=agent_runtime_version,
+                    agent_runtime_arn=agent_runtime_arn,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
+            self.log.info("Waiting for AgentCore Runtime %s to reach READY.", agent_runtime_arn)
+            self.hook.get_waiter("agent_runtime_ready").wait(
+                agentRuntimeId=agent_runtime_id,
+                agentRuntimeVersion=agent_runtime_version,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return agent_runtime_arn
+
+
+class BedrockInvokeAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreHook]):
+    """
+    Invoke an Amazon Bedrock AgentCore Runtime.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockInvokeAgentRuntimeOperator`
+
+    :param agent_runtime_arn: The ARN of the AgentCore Runtime to invoke. (templated)
+    :param payload: The invocation payload. Dict and list payloads are JSON serialized. (templated)
+    :param content_type: The MIME type of the input payload. (templated) Default: application/json
+    :param accept: The desired MIME type of the response. (templated) Default: application/json
+    :param invoke_agent_runtime_kwargs: Any optional parameters to pass to the API. (templated)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentCoreHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "agent_runtime_arn",
+        "payload",
+        "content_type",
+        "accept",
+        "invoke_agent_runtime_kwargs",
+    )
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_arn: str,
+        payload: dict[str, Any] | list[Any] | str | bytes,
+        content_type: str | None = "application/json",
+        accept: str | None = "application/json",
+        invoke_agent_runtime_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.agent_runtime_arn = agent_runtime_arn
+        self.payload = payload
+        self.content_type = content_type
+        self.accept = accept
+        self.invoke_agent_runtime_kwargs = invoke_agent_runtime_kwargs or {}
+
+    @staticmethod
+    def _serialize_payload(payload: dict[str, Any] | list[Any] | str | bytes) -> bytes:
+        if isinstance(payload, bytes):
+            return payload
+        if isinstance(payload, str):
+            return payload.encode()
+        return json.dumps(payload).encode()
+
+    @staticmethod
+    def _read_response_body(response_body: Any) -> bytes:
+        if hasattr(response_body, "read"):
+            response_body = response_body.read()
+        if isinstance(response_body, bytes):
+            return response_body
+        if isinstance(response_body, str):
+            return response_body.encode()
+        return json.dumps(response_body).encode()
+
+    @staticmethod
+    def _deserialize_response_body(response_body: bytes, content_type: str | None) -> Any:
+        try:
+            response_text = response_body.decode()
+        except UnicodeDecodeError:
+            return response_body
+
+        if content_type and "json" in content_type.lower():
+            return json.loads(response_text)
+        return response_text
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        response = self.hook.conn.invoke_agent_runtime(
+            **prune_dict(
+                {
+                    "agentRuntimeArn": self.agent_runtime_arn,
+                    "payload": self._serialize_payload(self.payload),
+                    "contentType": self.content_type,
+                    "accept": self.accept,
+                    **self.invoke_agent_runtime_kwargs,
+                }
+            )
+        )
+        response_body = self._deserialize_response_body(
+            self._read_response_body(response["response"]),
+            response.get("contentType") or self.accept,
+        )
+        return {
+            key: value for key, value in response.items() if key not in {"ResponseMetadata", "response"}
+        } | {"response": response_body}
+
+
+class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlHook]):
+    """
+    Delete an Amazon Bedrock AgentCore Runtime.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockDeleteAgentRuntimeOperator`
+
+    :param agent_runtime_id: The unique identifier of the AgentCore Runtime to delete. (templated)
+    :param wait_for_completion: Whether to wait for the AgentCore Runtime deletion to complete.
+        (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for runtime deletion. (default: 20)
+    :param deferrable: If True, the operator will wait asynchronously for the AgentCore Runtime
+        deletion to complete. This implies waiting for completion. This mode requires aiobotocore
+        module to be installed. (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentCoreControlHook
+    template_fields: Sequence[str] = aws_template_fields("agent_runtime_id")
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_id: str,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.agent_runtime_id = agent_runtime_id
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while deleting AgentCore Runtime: {validated_event}")
+
+        self.log.info("Bedrock AgentCore Runtime `%s` is deleted.", validated_event["agent_runtime_id"])
+
+    def execute(self, context: Context) -> None:
+        self.hook.conn.delete_agent_runtime(agentRuntimeId=self.agent_runtime_id)
+
+        if self.deferrable:
+            self.log.info("Deferring until AgentCore Runtime %s is deleted.", self.agent_runtime_id)
+            self.defer(
+                trigger=BedrockAgentRuntimeDeletedTrigger(
+                    agent_runtime_id=self.agent_runtime_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
+            self.log.info("Waiting for AgentCore Runtime %s to be deleted.", self.agent_runtime_id)
+            self.hook.get_waiter("agent_runtime_deleted").wait(
+                agentRuntimeId=self.agent_runtime_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        self.log.info("Deleted Bedrock AgentCore Runtime %s.", self.agent_runtime_id)
+
+
+class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create a fine-tuning job to customize a base model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCustomizeModelOperator`
+
+    :param job_name: A unique name for the fine-tuning job.
+    :param custom_model_name: A name for the custom model being created.
+    :param role_arn: The Amazon Resource Name (ARN) of an IAM role that Amazon Bedrock can assume
+        to perform tasks on your behalf.
+    :param base_model_id: Name of the base model.
+    :param training_data_uri: The S3 URI where the training data is stored.
+    :param output_data_uri: The S3 URI where the output data is stored.
+    :param hyperparameters: Parameters related to tuning the model.
+    :param ensure_unique_job_name: If set to true, operator will check whether a model customization
+        job already exists for the name in the config and append the current timestamp if there is a
+        name conflict. (Default: True)
+    :param customization_job_kwargs: Any optional parameters to pass to the API.
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 75)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+        "custom_model_name",
+        "role_arn",
+        "base_model_id",
+        "hyperparameters",
+        "ensure_unique_job_name",
+        "customization_job_kwargs",
+    )
+
+    def __init__(
+        self,
+        job_name: str,
+        custom_model_name: str,
+        role_arn: str,
+        base_model_id: str,
+        training_data_uri: str,
+        output_data_uri: str,
+        hyperparameters: dict[str, str],
+        ensure_unique_job_name: bool = True,
+        customization_job_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 120,
+        waiter_max_attempts: int = 75,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+        self.job_name = job_name
+        self.custom_model_name = custom_model_name
+        self.role_arn = role_arn
+        self.base_model_id = base_model_id
+        self.training_data_config = {"s3Uri": training_data_uri}
+        self.output_data_config = {"s3Uri": output_data_uri}
+        self.hyperparameters = hyperparameters
+        self.ensure_unique_job_name = ensure_unique_job_name
+        self.customization_job_kwargs = customization_job_kwargs or {}
+
+        self.valid_action_if_job_exists: set[str] = {"timestamp", "fail"}
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
+
+        self.log.info("Bedrock model customization job `%s` complete.", self.job_name)
+        return self.hook.conn.get_model_customization_job(jobIdentifier=validated_event["job_name"])["jobArn"]
+
+    def execute(self, context: Context) -> dict:
+        response = {}
+        retry = True
+        while retry:
+            # If there is a name conflict and ensure_unique_job_name is True, append the current timestamp
+            # to the name and retry until there is no name conflict.
+            # - Break the loop when the API call returns success.
+            # - If the API returns an exception other than a name conflict, raise that exception.
+            # - If the API returns a name conflict and ensure_unique_job_name is false, raise that exception.
+            try:
+                # Ensure the loop is executed at least once, and not repeat unless explicitly set to do so.
+                retry = False
+                self.log.info("Creating Bedrock model customization job '%s'.", self.job_name)
+
+                response = self.hook.conn.create_model_customization_job(
+                    jobName=self.job_name,
+                    customModelName=self.custom_model_name,
+                    roleArn=self.role_arn,
+                    baseModelIdentifier=self.base_model_id,
+                    trainingDataConfig=self.training_data_config,
+                    outputDataConfig=self.output_data_config,
+                    hyperParameters=self.hyperparameters,
+                    **self.customization_job_kwargs,
+                )
+            except ClientError as error:
+                if error.response["Error"]["Message"] != "The provided job name is currently in use.":
+                    raise error
+                if not self.ensure_unique_job_name:
+                    raise error
+                retry = True
+                self.job_name = f"{self.job_name}-{int(timezone.utcnow().timestamp())}"
+                self.log.info("Changed job name to '%s' to avoid collision.", self.job_name)
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 201:
+            raise AirflowException(f"Bedrock model customization job creation failed: {response}")
+
+        task_description = f"Bedrock model customization job {self.job_name} to complete."
+        if self.deferrable:
+            self.log.info("Deferring for %s", task_description)
+            self.defer(
+                trigger=BedrockCustomizeModelCompletedTrigger(
+                    job_name=self.job_name,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
+            self.log.info("Waiting for %s", task_description)
+            self.hook.get_waiter("model_customization_job_complete").wait(
+                jobIdentifier=self.job_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return response["jobArn"]
+
+
+class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create a fine-tuning job to customize a base model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateProvisionedModelThroughputOperator`
+
+    :param model_units: Number of model units to allocate. (templated)
+    :param provisioned_model_name: Unique name for this provisioned throughput. (templated)
+    :param model_id: Name or ARN of the model to associate with this provisioned throughput. (templated)
+    :param create_throughput_kwargs: Any optional parameters to pass to the API.
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "model_units",
+        "provisioned_model_name",
+        "model_id",
+    )
+
+    def __init__(
+        self,
+        model_units: int,
+        provisioned_model_name: str,
+        model_id: str,
+        create_throughput_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.model_units = model_units
+        self.provisioned_model_name = provisioned_model_name
+        self.model_id = model_id
+        self.create_throughput_kwargs = create_throughput_kwargs or {}
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> str:
+        provisioned_model_id = self.hook.conn.create_provisioned_model_throughput(
+            modelUnits=self.model_units,
+            provisionedModelName=self.provisioned_model_name,
+            modelId=self.model_id,
+            **self.create_throughput_kwargs,
+        )["provisionedModelArn"]
+
+        if self.deferrable:
+            self.log.info("Deferring for provisioned throughput.")
+            self.defer(
+                trigger=BedrockProvisionModelThroughputCompletedTrigger(
+                    provisioned_model_id=provisioned_model_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        if self.wait_for_completion:
+            self.log.info("Waiting for provisioned throughput.")
+            self.hook.get_waiter("provisioned_model_throughput_complete").wait(
+                provisionedModelId=provisioned_model_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return provisioned_model_id
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
+
+        self.log.info(
+            "Bedrock provisioned throughput job `%s` complete.", validated_event["provisioned_model_id"]
+        )
+        return validated_event["provisioned_model_id"]
+
+
+class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Create a knowledge base that contains data sources used by Amazon Bedrock LLMs and Agents.
+
+    To create a knowledge base, you must first set up your data sources and configure a supported vector store.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateKnowledgeBaseOperator`
+
+    :param name: The name of the knowledge base. (templated)
+    :param embedding_model_arn: ARN of the model used to create vector embeddings for the knowledge base. (templated)
+    :param role_arn: The ARN of the IAM role with permissions to create the knowledge base. (templated)
+    :param storage_config: Configuration details of the vector database used for the knowledge base. (templated)
+    :param wait_for_indexing: Vector indexing can take some time and there is no apparent way to check the state
+        before trying to create the Knowledge Base.  If this is True, and creation fails due to the index not
+        being available, the operator will wait and retry.  (default: True) (templated)
+    :param indexing_error_retry_delay: Seconds between retries if an index error is encountered. (default 5) (templated)
+    :param indexing_error_max_attempts: Maximum number of times to retry when encountering an index error. (default 20) (templated)
+    :param create_knowledge_base_kwargs: Any additional optional parameters to pass to the API call. (templated)
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "name",
+        "embedding_model_arn",
+        "role_arn",
+        "storage_config",
+        "wait_for_indexing",
+        "indexing_error_retry_delay",
+        "indexing_error_max_attempts",
+        "create_knowledge_base_kwargs",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        embedding_model_arn: str,
+        role_arn: str,
+        storage_config: dict[str, Any],
+        create_knowledge_base_kwargs: dict[str, Any] | None = None,
+        wait_for_indexing: bool = True,
+        indexing_error_retry_delay: int = 5,  # seconds
+        indexing_error_max_attempts: int = 20,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.role_arn = role_arn
+        self.storage_config = storage_config
+        self.create_knowledge_base_kwargs = create_knowledge_base_kwargs or {}
+        self.embedding_model_arn = embedding_model_arn
+        self.knowledge_base_config = {
+            "type": "VECTOR",
+            "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+        }
+        self.wait_for_indexing = wait_for_indexing
+        self.indexing_error_retry_delay = indexing_error_retry_delay
+        self.indexing_error_max_attempts = indexing_error_max_attempts
+
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
+
+        self.log.info("Bedrock knowledge base creation job `%s` complete.", self.name)
+        return validated_event["knowledge_base_id"]
+
+    def execute(self, context: Context) -> str:
+        def _create_kb():
+            # This API call will return the following if the index has not completed, but there is no apparent
+            # way to check the state of the index beforehand, so retry on index failure if set to do so.
+            #       botocore.errorfactory.ValidationException: An error occurred (ValidationException)
+            #       when calling the CreateKnowledgeBase operation: The knowledge base storage configuration
+            #       provided is invalid... no such index [bedrock-sample-rag-index-abc108]
+            try:
+                return self.hook.conn.create_knowledge_base(
+                    name=self.name,
+                    roleArn=self.role_arn,
+                    knowledgeBaseConfiguration=self.knowledge_base_config,
+                    storageConfiguration=self.storage_config,
+                    **self.create_knowledge_base_kwargs,
+                )["knowledgeBase"]["knowledgeBaseId"]
+            except ClientError as error:
+                error_message = error.response["Error"]["Message"].lower()
+                is_known_retryable_message = (
+                    "no such index" in error_message
+                    # It may also be that permissions haven't even propagated yet to check for the index
+                    or "server returned 401" in error_message
+                    or "user does not have permissions" in error_message
+                    or "status code: 403" in error_message
+                    or "bad authorization" in error_message
+                )
+                if all(
+                    [
+                        error.response["Error"]["Code"] == "ValidationException",
+                        is_known_retryable_message,
+                        self.wait_for_indexing,
+                        self.indexing_error_max_attempts > 0,
+                    ]
+                ):
+                    self.indexing_error_max_attempts -= 1
+                    self.log.warning(
+                        "Vector index not ready, retrying in %s seconds.", self.indexing_error_retry_delay
+                    )
+                    self.log.info("%s retries remaining.", self.indexing_error_max_attempts)
+                    sleep(self.indexing_error_retry_delay)
+                    return _create_kb()
+                raise
+
+        self.log.info("Creating Amazon Bedrock Knowledge Base %s", self.name)
+        knowledge_base_id = _create_kb()
+
+        if self.deferrable:
+            self.log.info("Deferring for Knowledge base creation.")
+            self.defer(
+                trigger=BedrockKnowledgeBaseActiveTrigger(
+                    knowledge_base_id=knowledge_base_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        if self.wait_for_completion:
+            self.log.info("Waiting for Knowledge Base creation.")
+            self.hook.get_waiter("knowledge_base_active").wait(
+                knowledgeBaseId=knowledge_base_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return knowledge_base_id
+
+
+class BedrockCreateDataSourceOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Set up an Amazon Bedrock Data Source to be added to an Amazon Bedrock Knowledge Base.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateDataSourceOperator`
+
+    :param name: name for the Amazon Bedrock Data Source being created. (templated).
+    :param bucket_name: The name of the Amazon S3 bucket to use for data source storage. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
+    :param create_data_source_kwargs: Any additional optional parameters to pass to the API call. (templated)
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "name",
+        "bucket_name",
+        "knowledge_base_id",
+        "create_data_source_kwargs",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        knowledge_base_id: str,
+        bucket_name: str | None = None,
+        create_data_source_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.knowledge_base_id = knowledge_base_id
+        self.bucket_name = bucket_name
+        self.create_data_source_kwargs = create_data_source_kwargs or {}
+
+    def execute(self, context: Context) -> str:
+        create_ds_response = self.hook.conn.create_data_source(
+            name=self.name,
+            knowledgeBaseId=self.knowledge_base_id,
+            dataSourceConfiguration={
+                "type": "S3",
+                "s3Configuration": {"bucketArn": f"arn:aws:s3:::{self.bucket_name}"},
+            },
+            **self.create_data_source_kwargs,
+        )
+
+        return create_ds_response["dataSource"]["dataSourceId"]
+
+
+class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Begin an ingestion job, in which an Amazon Bedrock data source is added to an Amazon Bedrock knowledge base.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockIngestDataOperator`
+
+    :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
+    :param data_source_id: The unique identifier of the data source to ingest. (templated)
+    :param ingest_data_kwargs: Any additional optional parameters to pass to the API call. (templated)
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "knowledge_base_id",
+        "data_source_id",
+        "ingest_data_kwargs",
+    )
+
+    def __init__(
+        self,
+        knowledge_base_id: str,
+        data_source_id: str,
+        ingest_data_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 10,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.knowledge_base_id = knowledge_base_id
+        self.data_source_id = data_source_id
+        self.ingest_data_kwargs = ingest_data_kwargs or {}
+
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+        self.indexing_error_max_attempts = 5
+        self.indexing_error_retry_delay = 5
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running ingestion job: {validated_event}")
+
+        self.log.info("Bedrock ingestion job `%s` complete.", validated_event["ingestion_job_id"])
+
+        return validated_event["ingestion_job_id"]
+
+    def execute(self, context: Context) -> str:
+        def start_ingestion_job():
+            try:
+                ingestion_job_id = self.hook.conn.start_ingestion_job(
+                    knowledgeBaseId=self.knowledge_base_id, dataSourceId=self.data_source_id
+                )["ingestionJob"]["ingestionJobId"]
+
+                return ingestion_job_id
+            except ClientError as error:
+                error_message = error.response["Error"]["Message"].lower()
+                is_known_retryable_message = (
+                    "dependency error document status code: 404" in error_message
+                    or "request failed: [http_exception] server returned 401" in error_message
+                )
+                if all(
+                    [
+                        error.response["Error"]["Code"] == "ValidationException",
+                        is_known_retryable_message,
+                        self.indexing_error_max_attempts > 0,
+                    ]
+                ):
+                    self.indexing_error_max_attempts -= 1
+                    self.log.warning(
+                        "Index is not ready for ingestion, retrying in %s seconds.",
+                        self.indexing_error_retry_delay,
+                    )
+                    self.log.info("%s retries remaining.", self.indexing_error_max_attempts)
+                    sleep(self.indexing_error_retry_delay)
+                    return start_ingestion_job()
+                raise
+
+        ingestion_job_id = start_ingestion_job()
+
+        if self.deferrable:
+            self.log.info("Deferring for ingestion job.")
+            self.defer(
+                trigger=BedrockIngestionJobTrigger(
+                    knowledge_base_id=self.knowledge_base_id,
+                    data_source_id=self.data_source_id,
+                    ingestion_job_id=ingestion_job_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        if self.wait_for_completion:
+            self.log.info("Waiting for ingestion job %s", ingestion_job_id)
+            self.hook.get_waiter(waiter_name="ingestion_job_complete").wait(
+                knowledgeBaseId=self.knowledge_base_id,
+                dataSourceId=self.data_source_id,
+                ingestionJobId=ingestion_job_id,
+            )
+
+        return ingestion_job_id
+
+
+class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
+    """
+    Query a knowledge base and generate responses based on the retrieved results with sources citations.
+
+    NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockRaGOperator`
+
+    :param input: The query to be made to the knowledge base. (templated)
+    :param source_type: The type of resource that is queried by the request. (templated)
+        Must be one of 'KNOWLEDGE_BASE' or 'EXTERNAL_SOURCES', and the appropriate config values must also be provided.
+        If set to 'KNOWLEDGE_BASE' then `knowledge_base_id` must be provided, and `vector_search_config` may be.
+        If set to `EXTERNAL_SOURCES` then `sources` must also be provided.
+        NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
+    :param model_arn: The ARN of the foundation model used to generate a response. (templated)
+    :param prompt_template: The template for the prompt that's sent to the model for response generation.
+        You can include prompt placeholders, which are replaced before the prompt is sent to the model
+        to provide instructions and context to the model. In addition, you can include XML tags to delineate
+        meaningful sections of the prompt template. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base that is queried. (templated)
+            Can only be specified if source_type='KNOWLEDGE_BASE'.
+    :param vector_search_config: How the results from the vector search should be returned. (templated)
+        Can only be specified if source_type='KNOWLEDGE_BASE'.
+        For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html.
+    :param sources: The documents used as reference for the response. (templated)
+        Can only be specified if source_type='EXTERNAL_SOURCES'
+        NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
+    :param rag_kwargs: Additional keyword arguments to pass to the  API call. (templated)
+    """
+
+    aws_hook_class = BedrockAgentRuntimeHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "input",
+        "source_type",
+        "model_arn",
+        "prompt_template",
+        "knowledge_base_id",
+        "vector_search_config",
+        "sources",
+        "rag_kwargs",
+    )
+
+    def __init__(
+        self,
+        input: str,
+        source_type: str,
+        model_arn: str,
+        prompt_template: str | None = None,
+        knowledge_base_id: str | None = None,
+        vector_search_config: dict[str, Any] | None = None,
+        sources: list[dict[str, Any]] | None = None,
+        rag_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.input = input
+        self.prompt_template = prompt_template
+        self.source_type = source_type.upper()
+        self.knowledge_base_id = knowledge_base_id
+        self.model_arn = model_arn
+        self.vector_search_config = vector_search_config
+        self.sources = sources
+        self.rag_kwargs = rag_kwargs or {}
+
+    def validate_inputs(self):
+        if self.source_type == "KNOWLEDGE_BASE":
+            if self.knowledge_base_id is None:
+                raise AttributeError(
+                    "If `source_type` is set to 'KNOWLEDGE_BASE' then `knowledge_base_id` must be provided."
+                )
+            if self.sources is not None:
+                raise AttributeError(
+                    "`sources` can not be used when `source_type` is set to 'KNOWLEDGE_BASE'."
+                )
+        elif self.source_type == "EXTERNAL_SOURCES":
+            if not self.sources is not None:
+                raise AttributeError(
+                    "If `source_type` is set to `EXTERNAL_SOURCES` then `sources` must also be provided."
+                )
+            if self.vector_search_config or self.knowledge_base_id:
+                raise AttributeError(
+                    "`vector_search_config` and `knowledge_base_id` can not be used "
+                    "when `source_type` is set to `EXTERNAL_SOURCES`"
+                )
+        else:
+            raise AttributeError(
+                "`source_type` must be one of 'KNOWLEDGE_BASE' or 'EXTERNAL_SOURCES', "
+                "and the appropriate config values must also be provided."
+            )
+
+    def build_rag_config(self) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        base_config: dict[str, Any] = {
+            "modelArn": self.model_arn,
+        }
+
+        if self.prompt_template:
+            base_config["generationConfiguration"] = {
+                "promptTemplate": {"textPromptTemplate": self.prompt_template}
+            }
+
+        if self.source_type == "KNOWLEDGE_BASE":
+            if self.vector_search_config:
+                base_config["retrievalConfiguration"] = {
+                    "vectorSearchConfiguration": self.vector_search_config
+                }
+
+            result = {
+                "type": self.source_type,
+                "knowledgeBaseConfiguration": {
+                    **base_config,
+                    "knowledgeBaseId": self.knowledge_base_id,
+                },
+            }
+
+        if self.source_type == "EXTERNAL_SOURCES":
+            result = {
+                "type": self.source_type,
+                "externalSourcesConfiguration": {**base_config, "sources": self.sources},
+            }
+        return result
+
+    def execute(self, context: Context) -> Any:
+        self.validate_inputs()
+
+        result = self.hook.conn.retrieve_and_generate(
+            input={"text": self.input},
+            retrieveAndGenerateConfiguration=self.build_rag_config(),
+            **self.rag_kwargs,
+        )
+
+        self.log.info(
+            "\nPrompt: %s\nResponse: %s\nCitations: %s",
+            self.input,
+            result["output"]["text"],
+            result["citations"],
+        )
+        return result
+
+
+class BedrockRetrieveOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
+    """
+    Query a knowledge base and retrieve results with source citations.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockRetrieveOperator`
+
+    :param retrieval_query: The query to be made to the knowledge base. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base that is queried. (templated)
+    :param vector_search_config: How the results from the vector search should be returned. (templated)
+        For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html.
+    :param retrieve_kwargs: Additional keyword arguments to pass to the  API call. (templated)
+    """
+
+    aws_hook_class = BedrockAgentRuntimeHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "retrieval_query",
+        "knowledge_base_id",
+        "vector_search_config",
+        "retrieve_kwargs",
+    )
+
+    def __init__(
+        self,
+        retrieval_query: str,
+        knowledge_base_id: str,
+        vector_search_config: dict[str, Any] | None = None,
+        retrieve_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.retrieval_query = retrieval_query
+        self.knowledge_base_id = knowledge_base_id
+        self.vector_search_config = vector_search_config
+        self.retrieve_kwargs = retrieve_kwargs or {}
+
+    def execute(self, context: Context) -> Any:
+        retrieval_configuration = (
+            {"retrievalConfiguration": {"vectorSearchConfiguration": self.vector_search_config}}
+            if self.vector_search_config
+            else {}
+        )
+
+        result = self.hook.conn.retrieve(
+            retrievalQuery={"text": self.retrieval_query},
+            knowledgeBaseId=self.knowledge_base_id,
+            **retrieval_configuration,
+            **self.retrieve_kwargs,
+        )
+
+        self.log.info("\nQuery: %s\nRetrieved: %s", self.retrieval_query, result["retrievalResults"])
+        return result
+
+
+class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create a batch inference job to invoke a model on multiple prompts.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockBatchInferenceOperator`
+
+    :param job_name: A name to give the batch inference job. (templated)
+    :param role_arn: The ARN of the IAM role with permissions to create the knowledge base. (templated)
+    :param model_id: Name or ARN of the model to associate with this provisioned throughput. (templated)
+    :param input_uri: The S3 location of the input data. (templated)
+    :param output_uri: The S3 location of the output data. (templated)
+    :param invoke_kwargs: Additional keyword arguments to pass to the  API call. (templated)
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+        NOTE:  The way batch inference jobs work, your jobs are added to a queue and done "eventually"
+        so using deferrable mode is much more practical than using wait_for_completion.
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+        "role_arn",
+        "model_id",
+        "input_uri",
+        "output_uri",
+        "invoke_kwargs",
+    )
+
+    def __init__(
+        self,
+        job_name: str,
+        role_arn: str,
+        model_id: str,
+        input_uri: str,
+        output_uri: str,
+        invoke_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.role_arn = role_arn
+        self.model_id = model_id
+        self.input_uri = input_uri
+        self.output_uri = output_uri
+        self.invoke_kwargs = invoke_kwargs or {}
+
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+        self.activity = "Bedrock batch inference job"
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running {self.activity}: {validated_event}")
+
+        self.log.info("%s '%s' complete.", self.activity, validated_event["job_arn"])
+
+        return validated_event["job_arn"]
+
+    def execute(self, context: Context) -> str:
+        response = self.hook.conn.create_model_invocation_job(
+            jobName=self.job_name,
+            roleArn=self.role_arn,
+            modelId=self.model_id,
+            inputDataConfig={"s3InputDataConfig": {"s3Uri": self.input_uri}},
+            outputDataConfig={"s3OutputDataConfig": {"s3Uri": self.output_uri}},
+            **self.invoke_kwargs,
+        )
+        job_arn = response["jobArn"]
+        self.log.info("%s '%s' started with ARN: %s", self.activity, self.job_name, job_arn)
+
+        task_description = f"for {self.activity} '{self.job_name}' to complete."
+        if self.deferrable:
+            self.log.info("Deferring %s", task_description)
+            self.defer(
+                trigger=BedrockBatchInferenceCompletedTrigger(
+                    job_arn=job_arn,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
+            self.log.info("Waiting %s", task_description)
+            self.hook.get_waiter(waiter_name="batch_inference_complete").wait(
+                jobIdentifier=job_arn,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return job_arn
+
+
+class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create an Amazon Bedrock guardrail to implement safeguards for generative AI applications.
+
+    A guardrail can filter harmful content, block denied topics, filter words,
+    and mask sensitive information. The guardrail is created with a DRAFT version
+    that is immediately usable.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateGuardrailOperator`
+
+    :param guardrail_name: The name of the guardrail (1-50 chars).
+    :param blocked_input_messaging: Message returned when the guardrail blocks an input prompt.
+    :param blocked_outputs_messaging: Message returned when the guardrail blocks a model response.
+    :param description: A description of the guardrail.
+    :param topic_policy_config: Topic policy configuration dict.
+    :param content_policy_config: Content filter policy configuration dict.
+    :param word_policy_config: Word filter policy configuration dict.
+    :param sensitive_information_policy_config: Sensitive information policy configuration dict.
+    :param contextual_grounding_policy_config: Contextual grounding policy configuration dict.
+    :param kms_key_id: ARN of the KMS key to encrypt the guardrail.
+    :param tags: Tags to attach to the guardrail.
+    :param if_exists: Behavior when a guardrail with the same name already exists.
+        ``"fail"`` raises an error, ``"skip"`` returns the existing guardrail ID.
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "guardrail_name",
+        "blocked_input_messaging",
+        "blocked_outputs_messaging",
+        "description",
+    )
+    template_fields_renderers = {
+        "topic_policy_config": "json",
+        "content_policy_config": "json",
+        "word_policy_config": "json",
+        "sensitive_information_policy_config": "json",
+    }
+
+    def __init__(
+        self,
+        *,
+        guardrail_name: str,
+        blocked_input_messaging: str,
+        blocked_outputs_messaging: str,
+        description: str | None = None,
+        topic_policy_config: dict[str, Any] | None = None,
+        content_policy_config: dict[str, Any] | None = None,
+        word_policy_config: dict[str, Any] | None = None,
+        sensitive_information_policy_config: dict[str, Any] | None = None,
+        contextual_grounding_policy_config: dict[str, Any] | None = None,
+        kms_key_id: str | None = None,
+        tags: list[dict[str, str]] | None = None,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.guardrail_name = guardrail_name
+        self.blocked_input_messaging = blocked_input_messaging
+        self.blocked_outputs_messaging = blocked_outputs_messaging
+        self.description = description
+        self.topic_policy_config = topic_policy_config
+        self.content_policy_config = content_policy_config
+        self.word_policy_config = word_policy_config
+        self.sensitive_information_policy_config = sensitive_information_policy_config
+        self.contextual_grounding_policy_config = contextual_grounding_policy_config
+        self.kms_key_id = kms_key_id
+        self.tags = tags
+        self.if_exists = if_exists
+
+    def execute(self, context: Context) -> str:
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "name": self.guardrail_name,
+                "blockedInputMessaging": self.blocked_input_messaging,
+                "blockedOutputsMessaging": self.blocked_outputs_messaging,
+                "description": self.description,
+                "topicPolicyConfig": self.topic_policy_config,
+                "contentPolicyConfig": self.content_policy_config,
+                "wordPolicyConfig": self.word_policy_config,
+                "sensitiveInformationPolicyConfig": self.sensitive_information_policy_config,
+                "contextualGroundingPolicyConfig": self.contextual_grounding_policy_config,
+                "kmsKeyId": self.kms_key_id,
+                "tags": self.tags,
+            }
+        )
+        try:
+            response = self.hook.conn.create_guardrail(**kwargs)
+            guardrail_id = response["guardrailId"]
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ConflictException" and self.if_exists == "skip":
+                self.log.info("Guardrail %s already exists, skipping.", self.guardrail_name)
+                guardrail_id = self.hook.get_guardrail_id_by_name(self.guardrail_name)
+                if guardrail_id is None:
+                    raise
+            else:
+                raise
+        self.log.info("Guardrail %s: %s", self.guardrail_name, guardrail_id)
+        return guardrail_id
+
+
+class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Delete an Amazon Bedrock guardrail.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockDeleteGuardrailOperator`
+
+    :param guardrail_identifier: The ID or ARN of the guardrail to delete. (templated)
+    :param guardrail_version: Optional version number to delete a specific version. (templated)
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields("guardrail_identifier", "guardrail_version")
+
+    def __init__(
+        self,
+        *,
+        guardrail_identifier: str,
+        guardrail_version: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.guardrail_identifier = guardrail_identifier
+        self.guardrail_version = guardrail_version
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting Bedrock guardrail %s", self.guardrail_identifier)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "guardrailIdentifier": self.guardrail_identifier,
+                "guardrailVersion": self.guardrail_version,
+            }
+        )
+        self.hook.conn.delete_guardrail(**kwargs)
+        self.log.info("Deleted guardrail %s", self.guardrail_identifier)
+
+
+class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create a version of an Amazon Bedrock guardrail.
+
+    Guardrails are created as DRAFT. This operator publishes a numbered version
+    that can be referenced in production workloads.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateGuardrailVersionOperator`
+
+    :param guardrail_identifier: The ID or ARN of the guardrail to version. (templated)
+    :param description: Optional description for this version. (templated)
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields("guardrail_identifier", "description")
+
+    def __init__(
+        self,
+        *,
+        guardrail_identifier: str,
+        description: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.guardrail_identifier = guardrail_identifier
+        self.description = description
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating version for guardrail %s", self.guardrail_identifier)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "guardrailIdentifier": self.guardrail_identifier,
+                "description": self.description,
+            }
+        )
+        response = self.hook.conn.create_guardrail_version(**kwargs)
+        version = response["version"]
+        self.log.info("Guardrail %s version %s created.", response["guardrailId"], version)
+        return version
+
+
+class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Update an Amazon Bedrock guardrail configuration.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockUpdateGuardrailOperator`
+
+    :param guardrail_identifier: The ID or ARN of the guardrail to update. (templated)
+    :param guardrail_name: The new name for the guardrail. (templated)
+    :param blocked_input_messaging: Message returned when input is blocked. (templated)
+    :param blocked_outputs_messaging: Message returned when output is blocked. (templated)
+    :param description: Optional description. (templated)
+    :param topic_policy_config: Optional topic policy configuration dict.
+    :param content_policy_config: Optional content filter policy configuration dict.
+    :param word_policy_config: Optional word filter policy configuration dict.
+    :param sensitive_information_policy_config: Optional sensitive information policy dict.
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "guardrail_identifier", "guardrail_name", "blocked_input_messaging", "blocked_outputs_messaging"
+    )
+
+    def __init__(
+        self,
+        *,
+        guardrail_identifier: str,
+        guardrail_name: str,
+        blocked_input_messaging: str,
+        blocked_outputs_messaging: str,
+        description: str | None = None,
+        topic_policy_config: dict[str, Any] | None = None,
+        content_policy_config: dict[str, Any] | None = None,
+        word_policy_config: dict[str, Any] | None = None,
+        sensitive_information_policy_config: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.guardrail_identifier = guardrail_identifier
+        self.guardrail_name = guardrail_name
+        self.blocked_input_messaging = blocked_input_messaging
+        self.blocked_outputs_messaging = blocked_outputs_messaging
+        self.description = description
+        self.topic_policy_config = topic_policy_config
+        self.content_policy_config = content_policy_config
+        self.word_policy_config = word_policy_config
+        self.sensitive_information_policy_config = sensitive_information_policy_config
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Updating guardrail %s", self.guardrail_identifier)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "guardrailIdentifier": self.guardrail_identifier,
+                "name": self.guardrail_name,
+                "blockedInputMessaging": self.blocked_input_messaging,
+                "blockedOutputsMessaging": self.blocked_outputs_messaging,
+                "description": self.description,
+                "topicPolicyConfig": self.topic_policy_config,
+                "contentPolicyConfig": self.content_policy_config,
+                "wordPolicyConfig": self.word_policy_config,
+                "sensitiveInformationPolicyConfig": self.sensitive_information_policy_config,
+            }
+        )
+        response = self.hook.conn.update_guardrail(**kwargs)
+        self.log.info("Updated guardrail %s version %s", response["guardrailId"], response["version"])
+        return response["guardrailId"]
+
+
+class BedrockCreateEvaluationJobOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create an Amazon Bedrock model evaluation job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateEvaluationJobOperator`
+
+    :param job_name: The name of the evaluation job. (templated)
+    :param role_arn: The IAM role ARN for the evaluation job. (templated)
+    :param evaluation_config: The evaluation configuration dict. (templated)
+    :param inference_config: The inference configuration dict. (templated)
+    :param output_data_config: The output data configuration dict. (templated)
+    :param job_description: Optional description. (templated)
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+        "role_arn",
+        "job_description",
+        "evaluation_config",
+        "inference_config",
+        "output_data_config",
+    )
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        role_arn: str,
+        evaluation_config: dict[str, Any],
+        inference_config: dict[str, Any],
+        output_data_config: dict[str, Any],
+        job_description: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.role_arn = role_arn
+        self.evaluation_config = evaluation_config
+        self.inference_config = inference_config
+        self.output_data_config = output_data_config
+        self.job_description = job_description
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating evaluation job %s", self.job_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "jobName": self.job_name,
+                "roleArn": self.role_arn,
+                "evaluationConfig": self.evaluation_config,
+                "inferenceConfig": self.inference_config,
+                "outputDataConfig": self.output_data_config,
+                "jobDescription": self.job_description,
+            }
+        )
+        response = self.hook.conn.create_evaluation_job(**kwargs)
+        job_arn = response["jobArn"]
+        self.log.info("Created evaluation job %s: %s", self.job_name, job_arn)
+        return job_arn

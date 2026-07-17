@@ -1,0 +1,196 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Apache Airflow Breeze](#apache-airflow-breeze)
+- [Setting up development env for Breeze](#setting-up-development-env-for-breeze)
+- [Integration tests](#integration-tests)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+Apache Airflow Breeze
+------------------------
+
+The project is part of [Apache Airflow](https://airflow.apache.org) - it's a development environment
+that is used by Airflow developers to effortlessly setup and maintain consistent development environment
+for Airflow Development.
+
+This package should never be installed in "production" mode. The `breeze` entrypoint will actually
+fail if you do so. It is supposed to be run directly against the Airflow sources you have checked
+out, in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode).
+
+The recommended way to make `breeze` available is to install a small **shim script** at
+`~/.local/bin/breeze` that runs breeze from the `dev/breeze` folder of the *current* git
+worktree via `uvx`. This avoids a single global install and means each git worktree
+(including ephemeral worktrees used by coding agents) gets its own breeze, tied to that
+worktree's sources. Because the shim is a real file on `PATH`, subprocesses (pre-commit
+hooks, CI scripts, dev tools) see it just like a `uv tool`-installed binary. See
+[ADR 0017](doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md) for the rationale.
+
+When invoked from outside any Airflow worktree — for example from an SVN release checkout
+(`asf-dist`) during a provider release — the shim falls back to, in order: the worktree
+pointed at by `$AIRFLOW_REPO_ROOT` (which the release docs export to the repo root, so breeze
+resolves the same way across every release process), then the `dev/breeze` of the worktree it
+was installed from (baked in at install time). This keeps release commands such as
+`breeze release-management clean-old-provider-artifacts --directory <asf-dist>` working
+from the SVN tree. The fallbacks never override a real worktree, so per-worktree isolation is
+preserved wherever it matters.
+
+The `scripts/tools/setup_breeze` script installs the shim for you. If you previously
+installed breeze globally via `uv tool install -e ./dev/breeze` or `pipx install -e ./dev/breeze`,
+remove that install first — both write to `~/.local/bin/breeze` and would conflict:
+
+```shell
+uv tool uninstall apache-airflow-breeze   # or: pipx uninstall apache-airflow-breeze
+```
+
+To install the shim manually, write this file to `~/.local/bin/breeze` and `chmod +x` it:
+
+```shell
+#!/usr/bin/env bash
+# Apache Airflow breeze shim — managed by scripts/tools/setup_breeze (ADR 0017).
+set -e
+# Install-time fallback: the Airflow sources 'scripts/tools/setup_breeze' was run
+# from. Used only when the current directory is not an Airflow worktree.
+fallback_root="/abs/path/to/airflow"   # baked in by setup_breeze (= the worktree it ran from)
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || repo_root=""
+if [ -n "${repo_root}" ] && [ -d "${repo_root}/dev/breeze" ]; then
+    breeze_root="${repo_root}"
+elif [ -n "${AIRFLOW_REPO_ROOT:-}" ] && [ -d "${AIRFLOW_REPO_ROOT}/dev/breeze" ]; then
+    breeze_root="${AIRFLOW_REPO_ROOT}"
+elif [ -d "${fallback_root}/dev/breeze" ]; then
+    breeze_root="${fallback_root}"
+else
+    echo "breeze: not inside an Airflow worktree, AIRFLOW_REPO_ROOT is unset or not an Airflow worktree, and the install-time fallback '${fallback_root}/dev/breeze' is missing — re-run scripts/tools/setup_breeze" >&2
+    exit 1
+fi
+exec env AIRFLOW_ROOT_PATH="${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
+    uvx --from "${breeze_root}/dev/breeze" --quiet breeze "$@"
+```
+
+Then `breeze` invoked from any Airflow checkout uses that checkout's source, and from
+anywhere else it uses `$AIRFLOW_REPO_ROOT` or the baked-in fallback. The first call in a
+fresh worktree pays a one-time `uvx` resolve/install; subsequent calls hit the cache.
+
+The legacy global-install path (`uv tool install -e ./dev/breeze --force` or
+`pipx install -e ./dev/breeze --force`) still works for users who explicitly want a single
+shared install, but it is no longer the recommended approach.
+
+The shim carries a `# breeze-shim-version: N` marker. On startup breeze compares it with the
+version the current sources would install and, if your installed shim is older (or you are still
+on a legacy global install), prints a warning telling you to re-run `scripts/tools/setup_breeze`
+(after uninstalling the global install, if any).
+
+You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
+
+This README file contains automatically generated hash of the `pyproject.toml` files that were
+available when the package was installed. Since this file becomes part of the installed package, it helps
+to detect automatically if any of the files have changed. If they did, the user will be warned to upgrade
+their installations.
+
+Setting up development env for Breeze
+-------------------------------------
+
+> [!NOTE]
+> This section is for developers of Breeze. If you are a user of Breeze, you do not need to read this section.
+
+Breeze is actively developed by Airflow maintainers and contributors, Airflow is an active project
+and we are in the process of developing Airflow 3, so breeze requires a lot of adjustments to keep up
+the dev environment in sync with Airflow 3 development - this is also why it is part of the same
+repository as Airflow - because it needs to be closely synchronized with Airflow development.
+
+As of November 2024 Airflow switchd to using `uv` as the recommended development environment for Airflow
+and for Breeze. So the instructions below are for setting up the development environment for Breeze
+using `uv`.
+
+However we are using only standard python packaging tools, so you can still use `pip` or
+`pipenv` or other build frontends to install Breeze, but we recommend using `uv` as it is the most
+convenient way to install, manage python packages and virtual environments.
+
+Unlike in Airflow, where we manage our own constraints, we use `uv` to manage requirements for Breeze
+and we use `uv` to lock the dependencies. This way we can ensure that the dependencies are always
+up-to-date and that the development environment is always consistent for different people. This is
+why Breeze's `uv.lock` is committed to the repository and is used to install the dependencies by
+default by Breeze. Here's how to install breeze development environment with `uv`:
+
+
+1. Install `uv` - see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/)
+
+> [!IMPORTANT]
+>
+> 1. The version of `uv` should be at least as defined in `pyproject.toml` under `[tool.uv]` section,
+>    otherwise some breeze commands might malfunction (but you will get error from `uv` about it).
+> 2. All the commands below should be executed while you are in `dev/breeze` directory of the Airflow repository.
+>
+
+2. Create a new virtual environment for Breeze development (this step can be skipped, uv sync will create
+   venv as needed when running ``uv sync``)
+
+```shell
+uv venv
+```
+
+3. Synchronize Breeze dependencies with `uv` to the latest dependencies stored in uv.lock file:
+
+```shell
+uv sync
+```
+
+After syncing, the `.venv` directory in breeze folder will contain the virtual environment with all the dependencies
+installed - you can use that environment to develop Breeze - for example with your favourite IDE
+or text editor, you can also use `uv run` to run the scripts in the virtual environment.
+
+For example to run all tests in the virtual environment you can use:
+
+```shell
+uv run pytest
+```
+
+4. Add/remove dependencies with `uv`:
+
+```shell
+uv add <package>
+uv remove <package>
+```
+
+5. Update and lock the dependencies (after adding them or periodically to keep them up-to-date):
+
+```shell
+uv lock
+```
+
+Note that when you update dependencies/lock them you should commit the changes in `pyproject.toml` and `uv.lock`.
+
+Integration tests
+-----------------
+
+The integration tests for Breeze are located in `dev/breeze/integration_tests` directory.
+They are skipped by default, but you can run them with `integration_tests` marker
+
+```shell
+uv run pytest -m integration_tests
+```
+
+In CI environment (when `CI` environment variable is set) some of the tests are skipped and some of them
+are simulated so that no actual SVN commands are needed.
+
+See [uv documentation](https://docs.astral.sh/uv/getting-started/) for more details on using `uv`.

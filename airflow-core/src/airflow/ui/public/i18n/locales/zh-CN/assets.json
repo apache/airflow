@@ -1,0 +1,54 @@
+{
+  "additional_data": "附加数据",
+  "asset_many": "资源",
+  "asset_one": "资源",
+  "assetStateStore": {
+    "add": "新增资源存储",
+    "clearAll": {
+      "resource": "所有资源存储",
+      "title": "清除所有资源存储",
+      "warning": "所有资源存储都将被清空。使用此存储协调工作的任务将丢失其持久化数据。"
+    },
+    "delete": "删除资源存储",
+    "deleteWarning": "该资源将丢失此持久化的存储条目。",
+    "edit": "编辑资源存储",
+    "emptyState": "资源存储保存与某个资源身份关联的值，并在所有 Dag 执行之间共享。工作节点可以通过 Task SDK 写入资源存储。",
+    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "资源存储"
+  },
+  "consumingDags": "消费者 Dags",
+  "consumingTasks": "消费者任务",
+  "createEvent": {
+    "button": "创建事件",
+    "manual": {
+      "description": "手动创建资源事件",
+      "extra": "资源事件额外信息",
+      "label": "手动"
+    },
+    "materialize": {
+      "description": "触发此资源上游的 Dag",
+      "descriptionWithDag": "触发此资源上游的 Dag: {{dagName}}",
+      "label": "物化",
+      "unpauseDag": "触发时取消暂停 {{dagName}}"
+    },
+    "success": {
+      "manualDescription": "已成功手动创建资源事件。",
+      "manualTitle": "已创建资源事件",
+      "materializeDescription": "已成功触发上游 Dag {{dagId}}。",
+      "materializeTitle": "正在物化资源"
+    },
+    "title": "为 {{name}} 创建资源事件"
+  },
+  "events": "事件",
+  "extra": "额外信息",
+  "group": "分组",
+  "lastAssetEvent": "最后资源事件",
+  "name": "名称",
+  "producingTasks": "生产任务",
+  "scheduledDags": "已调度的 Dags",
+  "scheduling": "调度",
+  "searchPlaceholder": "搜索资源",
+  "taskDependencies": "任务依赖"
+}

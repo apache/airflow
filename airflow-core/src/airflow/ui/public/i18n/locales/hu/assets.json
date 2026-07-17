@@ -1,0 +1,51 @@
+{
+  "additional_data": "További adatok",
+  "asset_many": "Adatkészletek",
+  "asset_one": "Adatkészlet",
+  "assetStore": {
+    "add": "Adatkészlet-tároló hozzáadása",
+    "clearAll": {
+      "resource": "összes adatkészlet-tároló",
+      "title": "Összes adatkészlet-tároló törlése",
+      "warning": "Minden adatkészlet-tároló törlésre kerül.  Azon feladatok memóriája is törlésre kerül, amelyek ezeket a tárolókat használják a munkafolyamatok összehangolására."
+    },
+    "delete": "Adatkészlet-tároló törlése",
+    "deleteWarning": "A bejegyzéssel együtt törlődni fog annak tárolt tartalma is az adatkészletből.",
+    "edit": "Adatkészlet-tároló szerkesztése",
+    "emptyState": "Az adatkészlet-tárolóban található értékek az adatkészlet beazonosítását szolgálják és hozzáférhetőek minden Dag-futtatás számára. A munkapéldányok a Task SDK segítségével módosíthatják az adatkészlet-tárolót.",
+    "title": "Adatkészlet-tároló"
+  },
+  "consumingDags": "Fogyasztó Dag-ek",
+  "consumingTasks": "Fogyasztó feladatok",
+  "createEvent": {
+    "button": "Esemény létrehozása",
+    "manual": {
+      "description": "Adatkészlet (asset) esemény kézi létrehozása",
+      "extra": "Adatkészlet (asset) esemény kiegészítő",
+      "label": "Kézi"
+    },
+    "materialize": {
+      "description": "Dag elindítása az adatkészlet (asset) előtt",
+      "descriptionWithDag": "{{dagName}} elindítása az adatkészlet (asset) előtt",
+      "label": "Előállítás",
+      "unpauseDag": "{{dagName}} újraengedélyezése indításkor."
+    },
+    "success": {
+      "manualDescription": "Az adatkészlet (asset) esemény kézi létrehozása sikeres volt.",
+      "manualTitle": "Adatkészlet (asset) esemény létrehozva",
+      "materializeDescription": "Az előző Dag {{dagId}} sikeresen elindult.",
+      "materializeTitle": "Adatkészlet (asset) előállítása"
+    },
+    "title": "Adatkészlet (asset) esemény létrehozása {{name}} számára"
+  },
+  "events": "Események",
+  "extra": "Kiegészítő adatok",
+  "group": "Csoport",
+  "lastAssetEvent": "Utolsó Adatkészlet (asset) esemény",
+  "name": "Név",
+  "producingTasks": "Előállító feladatok",
+  "scheduledDags": "Ütemezett Dag-ek",
+  "scheduling": "Ütemezés",
+  "searchPlaceholder": "Adatkészlet (asset) keresése",
+  "taskDependencies": "Feladatfüggőségek"
+}

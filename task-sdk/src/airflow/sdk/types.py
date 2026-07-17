@@ -1,0 +1,262 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+import uuid
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypeAlias
+
+from airflow.sdk.api.datamodels._generated import WeightRule
+from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+
+__all__ = ["TaskInstance", "TaskInstanceKey"]
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import jinja2
+    from pydantic import AwareDatetime, JsonValue
+
+    from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
+    from airflow.sdk._shared.logging.types import Logger as Logger
+    from airflow.sdk.api.datamodels._generated import (
+        AssetEventDagRunReference,
+        DagRunState,
+        DagRunType,
+        PreviousTIResponse,
+        TaskInstanceState,
+    )
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAlias,
+        AssetAliasEvent,
+        AssetRef,
+        BaseAssetUniqueKey,
+    )
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.execution_time.comms import DagResult
+
+    Operator: TypeAlias = BaseOperator | MappedOperator
+
+
+class WeightRuleProtocol(Protocol):
+    """
+    Protocol for custom weight strategy instances.
+
+    Matches objects that implement get_weight(ti).
+    """
+
+    def get_weight(self, ti: SchedulerTaskInstance) -> int:
+        """Return the priority weight for the task instance."""
+        ...
+
+
+WeightRuleParam: TypeAlias = str | WeightRule | WeightRuleProtocol
+
+
+class TaskInstanceKey(NamedTuple):
+    """Key used to identify task instance."""
+
+    dag_id: str
+    task_id: str
+    run_id: str
+    try_number: int = 1
+    map_index: int = -1
+
+    @property
+    def primary(self) -> tuple[str, str, str, int]:
+        """Return task instance primary key part of the key."""
+        return self.dag_id, self.task_id, self.run_id, self.map_index
+
+    def with_try_number(self, try_number: int) -> TaskInstanceKey:
+        """Return TaskInstanceKey with provided ``try_number``."""
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """
+        For API-compatibility with TaskInstance.
+
+        Returns self
+        """
+        return self
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Create TaskInstanceKey from dictionary."""
+        return cls(**dictionary)
+
+
+class DagRunProtocol(Protocol):
+    """Minimal interface for a Dag run available during the execution."""
+
+    dag_id: str
+    run_id: str
+    logical_date: AwareDatetime | None
+    data_interval_start: AwareDatetime | None
+    data_interval_end: AwareDatetime | None
+    run_after: AwareDatetime
+    start_date: AwareDatetime | None
+    end_date: AwareDatetime | None
+    clear_number: int | None
+    run_type: DagRunType
+    state: DagRunState
+    conf: dict[str, Any] | None
+    triggering_user_name: str | None
+    consumed_asset_events: list[AssetEventDagRunReference]
+    partition_key: str | None
+    partition_date: AwareDatetime | None
+    note: str | None
+
+
+class RuntimeTaskInstanceProtocol(Protocol):
+    """Minimal interface for a task instance available during the execution."""
+
+    id: uuid.UUID
+    dag_version_id: uuid.UUID
+    task: BaseOperator
+    task_id: str
+    dag_id: str
+    run_id: str
+    try_number: int
+    map_index: int | None
+    max_tries: int
+    hostname: str | None = None
+    start_date: AwareDatetime
+    end_date: AwareDatetime | None = None
+    state: TaskInstanceState | None = None
+    is_mapped: bool | None = None
+    rendered_map_index: str | None = None
+
+    @property
+    def log_url(self) -> str: ...
+
+    @property
+    def mark_success_url(self) -> str: ...
+
+    @property
+    def stats_tags(self) -> dict[str, str]: ...
+
+    def xcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any: ...
+
+    def xcom_push(self, key: str, value: Any) -> None: ...
+
+    def get_template_context(self) -> Context: ...
+
+    def render_templates(
+        self,
+        context: Context | None = None,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> BaseOperator: ...
+
+    def get_first_reschedule_date(self, context: Context) -> AwareDatetime | None: ...
+
+    def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
+
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        map_index: int = -1,
+    ) -> PreviousTIResponse | None: ...
+
+    @staticmethod
+    def get_ti_count(
+        dag_id: str,
+        map_index: int | None = None,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> int: ...
+
+    @staticmethod
+    def get_task_states(
+        dag_id: str,
+        map_index: int | None = None,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+    ) -> dict[str, Any]: ...
+
+    @staticmethod
+    def get_dr_count(
+        dag_id: str,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> int: ...
+
+    @staticmethod
+    def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
+
+    @staticmethod
+    def get_dag(dag_id: str) -> DagResult: ...
+
+
+# Public alias for RuntimeTaskInstanceProtocol
+class TaskInstance(RuntimeTaskInstanceProtocol):
+    """
+    Protocol for TaskInstance available during runtime.
+
+    This class provides the interface for interacting with TaskInstance attributes
+    and methods (like xcom_pull/push) within the Task SDK.
+    """
+
+
+class OutletEventAccessorProtocol(Protocol):
+    """Protocol for managing access to a specific outlet event accessor."""
+
+    key: BaseAssetUniqueKey
+    extra: dict[str, JsonValue]
+    asset_alias_events: list[AssetAliasEvent]
+    partition_keys: set[str]
+
+    def __init__(
+        self,
+        *,
+        key: BaseAssetUniqueKey,
+        extra: dict[str, JsonValue],
+        asset_alias_events: list[AssetAliasEvent],
+        partition_keys: set[str] = ...,
+    ) -> None: ...
+    def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
+    def add_partitions(self, keys: str | list[str]) -> None: ...
+
+
+class OutletEventAccessorsProtocol(Protocol):
+    """Protocol for managing access to outlet event accessors."""
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessorProtocol: ...

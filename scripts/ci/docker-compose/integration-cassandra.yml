@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+services:
+  cassandra:
+    image: cassandra:3.0
+    labels:
+      breeze.description: "Integration required for Cassandra hooks."
+    environment:
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 256M
+    volumes:
+      - cassandra-db-volume:/var/lib/cassandra
+    healthcheck:
+      # We use IPv6 variant of the check to workaround the problem with 3.0.26 version
+      # of Cassandra https://issues.apache.org/jira/browse/CASSANDRA-17581
+      test: "[ $$(nodetool --host '::FFFF:127.0.0.1' statusgossip) = running ]"
+      interval: 5s
+      timeout: 30s
+      start_period: 30s
+      retries: 50
+    restart: "on-failure"
+
+  airflow:
+    environment:
+      - INTEGRATION_CASSANDRA=true
+    depends_on:
+      cassandra:
+        condition: service_healthy
+
+volumes:
+  cassandra-db-volume:

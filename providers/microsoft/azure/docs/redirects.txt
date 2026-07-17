@@ -1,0 +1,4 @@
+connections/index.rst connections/azure.rst
+secrets-backends/index.rst secrets-backends/azure-key-vault-secrets-backend.rst
+logging.rst logging/index.rst
+transfer/azure_blob_to_gcs.rst ../../apache-airflow-providers-google/stable/operators/transfer/azure_blob_to_gcs.rst

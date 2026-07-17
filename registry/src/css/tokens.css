@@ -1,0 +1,273 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* Design Tokens - Extracted from Tailwind config */
+:root {
+  /* Navy Color Scale */
+  --color-navy-950: #050810;
+  --color-navy-900: #0a0f1a;
+  --color-navy-800: #0f172a;
+  --color-navy-700: #1e293b;
+  --color-navy-600: #4f46e5;
+  --color-navy-500: #6366f1;
+
+  /* Cyan Accent Scale */
+  --color-cyan-50: #ecfeff;
+  --color-cyan-100: #cffafe;
+  --color-cyan-200: #a5f3fc;
+  --color-cyan-300: #67e8f9;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-cyan-600: #0891b2;
+  --color-cyan-700: #0e7490;
+  --color-cyan-800: #155e75;
+  --color-cyan-900: #164e63;
+
+  /* Gray Scale */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1e293b;
+  --color-gray-900: #0f172a;
+
+  /* Module Type Colors */
+  --color-operator: #22c55e;
+  --color-hook: #3b82f6;
+  --color-sensor: #f59e0b;
+  --color-trigger: #a855f7;
+  --color-transfer: #ec4899;
+
+  /* Module Type Extended Colors */
+  --color-notifier: #6366f1;
+  --color-secret: #f43f5e;
+  --color-logging: #14b8a6;
+  --color-executor: #f97316;
+  --color-bundle: #0ea5e9;
+  --color-decorator: #d946ef;
+
+  /* Additional Colors */
+  --color-green-400: #4ade80;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-purple-400: #c084fc;
+  --color-purple-500: #a855f7;
+  --color-purple-600: #9333ea;
+  --color-pink-400: #f472b6;
+  --color-pink-500: #ec4899;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
+  --color-fuchsia-400: #e879f9;
+  --color-fuchsia-500: #d946ef;
+
+  /* Spacing Scale (0.25rem = 4px base) */
+  --space-0: 0;
+  --space-1: 0.25rem;     /* 4px */
+  --space-2: 0.5rem;      /* 8px */
+  --space-2-5: 0.625rem;  /* 10px */
+  --space-3: 0.75rem;     /* 12px */
+  --space-4: 1rem;        /* 16px */
+  --space-5: 1.25rem;     /* 20px */
+  --space-6: 1.5rem;      /* 24px */
+  --space-8: 2rem;        /* 32px */
+  --space-10: 2.5rem;     /* 40px */
+  --space-12: 3rem;       /* 48px */
+  --space-16: 4rem;       /* 64px */
+  --space-20: 5rem;       /* 80px */
+  --space-24: 6rem;       /* 96px */
+
+  /* Font Families */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Menlo', 'Monaco', monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+  --text-5xl: 3rem;       /* 48px */
+  --text-6xl: 3.75rem;    /* 60px */
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Border Radius */
+  --radius-sm: 0.125rem;    /* 2px */
+  --radius: 0.25rem;        /* 4px */
+  --radius-md: 0.375rem;    /* 6px */
+  --radius-lg: 0.5rem;      /* 8px */
+  --radius-xl: 0.75rem;     /* 12px */
+  --radius-2xl: 1rem;       /* 16px */
+  --radius-3xl: 1.5rem;     /* 24px */
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Breakpoints (for reference in media queries) */
+  --screen-sm: 640px;
+  --screen-md: 768px;
+  --screen-lg: 1024px;
+  --screen-xl: 1280px;
+  --screen-2xl: 1536px;
+
+  /* Light Theme Variables */
+  --bg-primary-light: #ffffff;
+  --bg-secondary-light: #f8fafc;
+  --bg-tertiary-light: var(--color-gray-100);
+
+  --text-primary-light: var(--color-gray-900);
+  --text-secondary-light: var(--color-gray-600);
+  --text-muted-light: var(--color-gray-500);
+
+  --border-primary-light: var(--color-gray-200);
+  --border-secondary-light: var(--color-gray-300);
+  --border-hover-light: var(--color-cyan-600);
+
+  --accent-primary-light: var(--color-cyan-600);
+  --accent-secondary-light: var(--color-cyan-700);
+
+  /* Dark Theme Variables */
+  --bg-primary-dark: var(--color-navy-900);
+  --bg-secondary-dark: var(--color-navy-800);
+  --bg-tertiary-dark: var(--color-navy-700);
+
+  --text-primary-dark: var(--color-gray-100);
+  --text-secondary-dark: var(--color-gray-400);
+  --text-muted-dark: var(--color-gray-500);
+
+  --border-primary-dark: var(--color-navy-700);
+  --border-secondary-dark: var(--color-navy-600);
+  --border-hover-dark: var(--color-cyan-500);
+
+  --accent-primary-dark: var(--color-cyan-400);
+  --accent-secondary-dark: var(--color-cyan-500);
+
+  /* Computed Theme Variables (using light-dark())
+   *
+   * These variables use the CSS light-dark() function which automatically
+   * switches between light and dark values based on the color-scheme property.
+   *
+   * Progressive enhancement: We declare each variable twice:
+   * 1. First with the light value as fallback for browsers without light-dark() support
+   * 2. Then with light-dark() which overrides in supporting browsers
+   */
+  --bg-primary: var(--bg-primary-light);
+  --bg-primary: light-dark(var(--bg-primary-light), var(--bg-primary-dark));
+  --bg-secondary: var(--bg-secondary-light);
+  --bg-secondary: light-dark(var(--bg-secondary-light), var(--bg-secondary-dark));
+  --bg-surface-alt: var(--bg-secondary-light);
+  --bg-surface-alt: light-dark(var(--bg-secondary-light), var(--bg-primary-dark));
+  --bg-tertiary: var(--bg-tertiary-light);
+  --bg-tertiary: light-dark(var(--bg-tertiary-light), var(--bg-tertiary-dark));
+
+  --text-primary: var(--text-primary-light);
+  --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
+  --text-secondary: var(--text-secondary-light);
+  --text-secondary: light-dark(var(--text-secondary-light), var(--text-secondary-dark));
+  --text-muted: var(--text-muted-light);
+  --text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+
+  --border-primary: var(--border-primary-light);
+  --border-primary: light-dark(var(--border-primary-light), var(--border-primary-dark));
+  --border-secondary: var(--border-secondary-light);
+  --border-secondary: light-dark(var(--border-secondary-light), var(--border-secondary-dark));
+  --border-hover: var(--border-hover-light);
+  --border-hover: light-dark(var(--border-hover-light), var(--border-hover-dark));
+
+  --accent-primary: var(--accent-primary-light);
+  --accent-primary: light-dark(var(--accent-primary-light), var(--accent-primary-dark));
+  --accent-secondary: var(--accent-secondary-light);
+  --accent-secondary: light-dark(var(--accent-secondary-light), var(--accent-secondary-dark));
+
+  /* Component-specific color variables */
+  --color-card-bg: #ffffff;
+  --color-card-bg: light-dark(#ffffff, rgba(15, 23, 42, 0.5));
+  --color-card-bg-hover: var(--bg-tertiary-light);
+  --color-card-bg-hover: light-dark(var(--bg-tertiary-light), rgba(15, 23, 42, 0.8));
+  --color-card-border-hover: rgba(6, 182, 212, 0.4);
+  --color-card-border-hover: light-dark(rgba(6, 182, 212, 0.4), rgba(6, 182, 212, 0.5));
+
+  --color-scrollbar-track: var(--bg-tertiary-light);
+  --color-scrollbar-track: light-dark(var(--bg-tertiary-light), var(--color-navy-800));
+  --color-scrollbar-thumb: var(--color-gray-300);
+  --color-scrollbar-thumb: light-dark(var(--color-gray-300), var(--color-navy-600));
+  --color-scrollbar-thumb-hover: var(--color-gray-400);
+  --color-scrollbar-thumb-hover: light-dark(var(--color-gray-400), var(--color-navy-500));
+
+  --color-input-bg: var(--bg-tertiary-light);
+  --color-input-bg: light-dark(var(--bg-tertiary-light), var(--bg-tertiary-dark));
+  --color-input-border: var(--color-gray-200);
+  --color-input-border: light-dark(var(--color-gray-200), var(--color-gray-700));
+
+  --color-header-bg: rgba(255, 255, 255, 0.95);
+  --color-header-bg: light-dark(rgba(255, 255, 255, 0.95), rgba(10, 15, 26, 0.95));
+  --color-header-border: var(--color-gray-200);
+  --color-header-border: light-dark(var(--color-gray-200), var(--border-primary-dark));
+
+  --color-widget-bg: #ffffff;
+  --color-widget-bg: light-dark(#ffffff, var(--color-navy-800));
+
+  --color-nav-link: var(--color-gray-700);
+  --color-nav-link: light-dark(var(--color-gray-700), var(--color-gray-300));
+  --color-border-focus: var(--color-cyan-600);
+  --color-border-focus: light-dark(var(--color-cyan-600), rgba(6, 182, 212, 0.5));
+}

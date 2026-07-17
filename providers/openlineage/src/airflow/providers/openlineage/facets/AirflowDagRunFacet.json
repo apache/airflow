@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AirflowDagRunFacet": {
+      "allOf": [
+        {
+          "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "dag": {
+              "$ref": "#/$defs/DAG"
+            },
+            "dagRun": {
+              "$ref": "#/$defs/DagRun"
+            }
+          },
+          "required": [
+            "dag",
+            "dagRun"
+          ]
+        }
+      ]
+    },
+    "DAG": {
+      "type": "object",
+      "properties": {
+        "dag_id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "schedule_interval": {
+          "type": "string"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tags": {
+          "type": "string"
+        },
+        "timetable": {
+          "description": "Describes timetable (successor of schedule_interval)",
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "dag_id",
+        "start_date"
+      ]
+    },
+    "DagRun": {
+      "type": "object",
+      "properties": {
+        "conf": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "dag_id": {
+          "type": "string"
+        },
+        "data_interval_start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "data_interval_end": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "external_trigger": {
+          "type": "boolean"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "run_type": {
+          "type": "string"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "dag_id",
+        "run_id"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "airflowDagRun": {
+      "$ref": "#/$defs/AirflowDagRunFacet"
+    }
+  }
+}

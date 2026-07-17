@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "DataFusionRunFacet": {
+      "allOf": [
+        {
+          "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "runId": {
+              "type": "string",
+              "description": "Pipeline run ID assigned by Cloud Data Fusion."
+            },
+            "runtimeArgs": {
+              "type": "object",
+              "description": "Runtime arguments provided when starting the pipeline."
+            }
+          }
+        }
+      ],
+      "type": "object"
+    }
+  },
+  "type": "object",
+  "properties": {
+    "dataFusionRun": {
+      "$ref": "#/$defs/DataFusionRunFacet"
+    }
+  }
+}

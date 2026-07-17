@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/prettierrc",
+  "endOfLine": "lf",
+  "importOrder": ["<THIRD_PARTY_MODULES>", "^(src|openapi)/", "^[./]"],
+  "importOrderSeparation": true,
+  "jsxSingleQuote": false,
+  "plugins": ["@trivago/prettier-plugin-sort-imports"],
+  "printWidth": 110,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "useTabs": false
+}

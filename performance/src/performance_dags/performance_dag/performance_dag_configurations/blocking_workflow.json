@@ -1,0 +1,10 @@
+{
+  "PERF_DAG_PREFIX": "sleep_workflow",
+  "PERF_DAGS_COUNT": "100",
+  "PERF_TASKS_COUNT": "100",
+  "PERF_START_AGO": "1d",
+  "PERF_SCHEDULE_INTERVAL": "@once",
+  "PERF_SHAPE": "no_structure",
+  "PERF_SLEEP_TIME": "31536000",
+  "PERF_OPERATOR_TYPE": "python"
+}

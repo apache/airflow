@@ -1,0 +1,52 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_mssql_to_gcs.mssql_to_gcs"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "USE airflow SELECT * FROM Country"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('mssql://') }}",
+                "name": "airflow.dbo.Country"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_example_mssql_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "test_file"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_mssql_to_gcs.mssql_to_gcs"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "USE airflow SELECT * FROM Country"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "{{ result.startswith('mssql://') }}",
+                "name": "airflow.dbo.Country"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_example_mssql_to_gcs_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "test_file"
+            }
+        ]
+    }
+]

@@ -1,0 +1,94 @@
+
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
+``apache-airflow-providers-informatica``
+
+
+
+Changelog
+=========
+
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add automatic SQL lineage detection via sqlglot for SQL operators``
+* ``Add per-task and per-DAG selective lineage control with disable/enable helpers``
+* ``Refactor lineage validation into shared logic: best-effort listener resolution plus optional strict pre_execute validation``
+* ``Add disabled_for_operators, auto_lineage_enabled, and request_timeout config options``
+* ``Add example DAG demonstrating auto, manual, disabled, and operator-excluded lineage modes``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump aiohttp in /providers/informatica/dev/informatica_simulator (#68607)``
+   * ``Bump requests in /providers/informatica/dev/informatica_simulator (#68572)``
+   * ``Bump aiohttp in /providers/informatica/dev/informatica_simulator (#68571)``
+
+
+0.1.4
+.....
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+Doc-only
+~~~~~~~~
+
+* ``Cleanup integration names for consistency (#66287)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+0.1.3
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Use compat sdk conf import in Informatica provider (#64155)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.1.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+0.1.1
+-----
+
+Initial version of the provider.

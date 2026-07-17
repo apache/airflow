@@ -1,0 +1,64 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "事件",
+      "extra": "額外資訊",
+      "user": "使用者",
+      "when": "時間"
+    },
+    "filters": {
+      "eventType": "事件類型"
+    },
+    "title": "稽核日誌事件"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "警示名稱",
+      "deadlineTime": "截止時間",
+      "status": "狀態"
+    },
+    "deadline_one": "截止期限",
+    "deadline_other": "截止期限",
+    "filters": {
+      "status": "狀態",
+      "statusOptions": {
+        "all": "全部",
+        "missed": "已逾期",
+        "pending": "待處理"
+      }
+    },
+    "title": "截止期限"
+  },
+  "xcom": {
+    "add": {
+      "error": "新增 XCom 失敗",
+      "errorTitle": "新增失敗",
+      "success": "成功新增 XCom",
+      "successTitle": "已新增 XCom",
+      "title": "新增 XCom"
+    },
+    "columns": {
+      "dag": "Dag",
+      "key": "鍵",
+      "value": "值"
+    },
+    "delete": {
+      "error": "刪除 XCom 失敗",
+      "errorTitle": "錯誤",
+      "success": "成功刪除 XCom",
+      "successTitle": "已刪除 XCom",
+      "title": "刪除 XCom",
+      "warning": "您確定要刪除這個 XCom 嗎？此動作無法復原。"
+    },
+    "edit": {
+      "error": "更新 XCom 失敗",
+      "errorTitle": "錯誤",
+      "success": "XCom 更新成功",
+      "successTitle": "XCom 已更新",
+      "title": "編輯 XCom"
+    },
+    "key": "鍵",
+    "title": "XCom",
+    "value": "值"
+  }
+}

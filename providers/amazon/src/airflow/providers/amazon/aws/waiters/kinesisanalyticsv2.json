@@ -1,0 +1,151 @@
+{
+    "version": 2,
+    "waiters": {
+        "application_start_complete": {
+            "delay": 120,
+            "maxAttempts": 75,
+            "operation": "DescribeApplication",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "STARTING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "UPDATING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "AUTOSCALING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "DELETING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "STOPPING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "READY",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "FORCE_STOPPING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "ROLLING_BACK",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "MAINTENANCE",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "ROLLED_BACK",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "RUNNING",
+                    "state": "success"
+                }
+            ]
+        },
+        "application_stop_complete": {
+            "delay": 120,
+            "maxAttempts": 75,
+            "operation": "DescribeApplication",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "STARTING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "UPDATING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "AUTOSCALING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "STOPPING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "FORCE_STOPPING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "DELETING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "ROLLING_BACK",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "MAINTENANCE",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "ROLLED_BACK",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationDetail.ApplicationStatus",
+                    "expected": "READY",
+                    "state": "success"
+                }
+            ]
+        }
+    }
+}
