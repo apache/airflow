@@ -111,6 +111,42 @@ example_agent_operator_hook()
 
 
 # ---------------------------------------------------------------------------
+# 2b. Hook-based tools against a GET-only endpoint (self-hosted models tutorial)
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_self_hosted]
+@dag(tags=["example"])
+def example_agent_self_hosted():
+    from airflow.providers.http.hooks.http import HttpHook
+
+    # The OpenAI-compatible model list (GET /v1/models) is GET-only; HttpHook defaults to POST.
+    http_hook = HttpHook(http_conn_id="my_api", method="GET")
+
+    AgentOperator(
+        task_id="list_models",
+        prompt="Which models are available?",
+        llm_conn_id="pydanticai_default",
+        system_prompt=(
+            "You are an API assistant. Use the tools to answer questions; "
+            "the server's model list is served at GET /v1/models."
+        ),
+        toolsets=[
+            HookToolset(
+                http_hook,
+                allowed_methods=["run"],
+                tool_name_prefix="http_",
+            )
+        ],
+    )
+
+
+# [END howto_agent_self_hosted]
+
+example_agent_self_hosted()
+
+
+# ---------------------------------------------------------------------------
 # 3. @task.agent decorator with dynamic prompt
 # ---------------------------------------------------------------------------
 
@@ -230,23 +266,24 @@ example_agent_operator_hitl_review()
 
 
 # [START howto_operator_agent_code_mode]
-@dag(tags=["example"])
-def example_agent_operator_code_mode():
-    AgentOperator(
-        task_id="code_mode_analyst",
-        prompt="For the top 3 customers by order count, what was each one's total spend?",
-        llm_conn_id="pydanticai_default",
-        system_prompt="You are a SQL analyst. Write Python that calls the tools to answer.",
-        toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
-        # Requires the `code-mode` extra:
-        #   pip install "apache-airflow-providers-common-ai[code-mode]"
-        code_mode=True,
-    )
+if SQLToolset is not None:
 
+    @dag(tags=["example"])
+    def example_agent_operator_code_mode():
+        AgentOperator(
+            task_id="code_mode_analyst",
+            prompt="For the top 3 customers by order count, what was each one's total spend?",
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a SQL analyst. Write Python that calls the tools to answer.",
+            toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
+            # Requires the `code-mode` extra:
+            #   pip install "apache-airflow-providers-common-ai[code-mode]"
+            code_mode=True,
+        )
 
-# [END howto_operator_agent_code_mode]
+    # [END howto_operator_agent_code_mode]
 
-example_agent_operator_code_mode()
+    example_agent_operator_code_mode()
 
 
 # ---------------------------------------------------------------------------
@@ -301,3 +338,41 @@ def example_agent_session():
 # [END howto_agent_session]
 
 example_agent_session()
+
+
+# ---------------------------------------------------------------------------
+# 9. Dynamic system prompt: template system_prompt from an upstream task's XCom
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_dynamic_system_prompt]
+@dag(tags=["example"])
+def example_agent_dynamic_system_prompt():
+    @task
+    def classify(ticket: str) -> dict:
+        category = "shipping" if "order" in ticket.lower() else "other"
+        return {"priority": "high", "category": category}
+
+    @task.agent(
+        llm_conn_id="pydanticai_default",
+        # system_prompt is a templated field -- Jinja renders it at task-run
+        # time, pulling the classification an upstream task already computed.
+        system_prompt=(
+            "You are handling a {{ ti.xcom_pull(task_ids='classify')['priority'] }}-priority "
+            "'{{ ti.xcom_pull(task_ids='classify')['category'] }}' ticket. "
+            "Draft a concise, friendly reply."
+        ),
+    )
+    def draft_reply(ticket: str, triage: dict) -> str:
+        # `triage` creates the task dependency; its content also flows into
+        # system_prompt via Jinja above. The returned string is the *prompt*
+        # sent to the agent -- the drafted reply is this task's XCom output.
+        return f"Draft a reply for: {ticket}"
+
+    ticket = "Where is my order? It still hasn't shipped."
+    draft_reply(ticket, classify(ticket))
+
+
+# [END howto_agent_dynamic_system_prompt]
+
+example_agent_dynamic_system_prompt()

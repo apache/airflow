@@ -111,7 +111,7 @@ apache-airflow-providers-openai package
 
 `OpenAI <https://platform.openai.com/docs/introduction>`__ provider for Apache Airflow.
 Enables interaction with OpenAI APIs for text generation, embeddings,
-and other AI-powered workflows directly from Airflow DAGs.
+and other AI-powered workflows directly from Airflow Dags.
 
 
 Release: 1.8.0
@@ -139,7 +139,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``openai[datalib]``                         ``>=2.37.0``
+``openai``                                  ``>=2.37.0``
 ==========================================  ==================
 
 Downloading official packages

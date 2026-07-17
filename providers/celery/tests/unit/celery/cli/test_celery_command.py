@@ -38,6 +38,7 @@ from airflow.providers.common.compat.sdk import conf
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
@@ -433,6 +434,9 @@ class TestWorkerJsonLogs:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="json_output only passed to configure_logging on Airflow 3.1+"
+    )
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.sdk.log.configure_logging")
@@ -445,6 +449,9 @@ class TestWorkerJsonLogs:
         _, kwargs = mock_configure_logging.call_args
         assert kwargs.get("json_output") is False
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="json_output only passed to configure_logging on Airflow 3.1+"
+    )
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.sdk.log.configure_logging")
@@ -458,6 +465,9 @@ class TestWorkerJsonLogs:
         _, kwargs = mock_configure_logging.call_args
         assert kwargs.get("json_output") is True
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="json_output only passed to configure_logging on Airflow 3.1+"
+    )
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.sdk.log.configure_logging")
@@ -470,6 +480,22 @@ class TestWorkerJsonLogs:
         mock_configure_logging.assert_called_once()
         _, kwargs = mock_configure_logging.call_args
         assert kwargs.get("json_output") is False
+
+    @mock.patch("airflow.providers.celery.cli.celery_command.AIRFLOW_V_3_1_PLUS", False)
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.sdk.log.configure_logging")
+    def test_json_output_not_passed_on_airflow_3_0(
+        self, mock_configure_logging, mock_celery_app, mock_popen, mock_pre_exec
+    ):
+        # Airflow 3.0.x's configure_logging has no json_output parameter; passing it
+        # crashes the worker with TypeError. Ensure we omit it below Airflow 3.1.
+        args = self.parser.parse_args(["celery", "worker"])
+        with conf_vars({("logging", "json_logs"): "True"}):
+            celery_command.worker(args)
+        mock_configure_logging.assert_called_once()
+        _, kwargs = mock_configure_logging.call_args
+        assert "json_output" not in kwargs
 
 
 @pytest.mark.backend("mysql", "postgres")

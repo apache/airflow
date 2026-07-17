@@ -5652,6 +5652,17 @@ export const $MaterializeAssetBody = {
                 }
             ],
             title: 'Partition Key'
+        },
+        bundle_version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Version'
         }
     },
     additionalProperties: false,
@@ -5790,6 +5801,17 @@ export const $PluginResponse = {
         name: {
             type: 'string',
             title: 'Name'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         },
         macros: {
             items: {
@@ -7959,6 +7981,17 @@ export const $TriggerDAGRunPostBody = {
                 }
             ],
             title: 'Partition Key'
+        },
+        bundle_version: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Version'
         }
     },
     additionalProperties: false,
@@ -10309,6 +10342,28 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        ui_color: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ui Color'
+        },
+        ui_fgcolor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ui Fgcolor'
         }
     },
     type: 'object',

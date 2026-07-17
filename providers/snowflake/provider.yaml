@@ -252,6 +252,12 @@ connection-types:
             - string
             - 'null'
           format: password
+      workload_identity_provider:
+        label: Workload Identity Provider
+        schema:
+          type:
+            - string
+            - 'null'
       insecure_mode:
         label: Insecure Mode
         schema:

@@ -51,7 +51,6 @@
 !airflow-ctl-tests
 !shared/
 !airflow-e2e-tests
-!providers-e2e-tests
 
 # Add scripts so that we can use them inside the container
 !scripts

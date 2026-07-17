@@ -15274,6 +15274,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -15376,6 +15381,11 @@ components:
         name:
           type: string
           title: Name
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         macros:
           items:
             type: string
@@ -16807,6 +16817,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       required:
