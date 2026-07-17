@@ -1666,7 +1666,6 @@ class TestPatchDagRun:
             f"/dags/test_ti_listeners/dagRuns/{dr.run_id}", json={"state": dag_run_state}
         )
         assert response.status_code == 200
-        # Use `is` for type-safe comparison between TaskInstanceState and DagRunState.
         assert listener.state[0] is expected_ti_state
         assert listener.state[1] is DagRunState(dag_run_state)
         assert len(listener.state) == 2
@@ -1739,7 +1738,6 @@ class TestPatchDagRun:
         )
         assert response.status_code == 200
         # Normal task was killed — its TI listener fires. Teardown task is intentionally skipped.
-        # Use `is` for type-safe comparison between TaskInstanceState and DagRunState.
         assert len(listener.state) == 2
         assert listener.state[0] is TaskInstanceState.SUCCESS
         assert listener.state[1] is DagRunState.SUCCESS
