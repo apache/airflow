@@ -69,7 +69,23 @@ def open_maybe_zipped(fileloc, mode="r"):
     """
     _, archive, filename = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
-        return TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
+        zip_file = zipfile.ZipFile(archive, mode=mode)
+        try:
+            inner_file = zip_file.open(filename)
+        except Exception:
+            zip_file.close()
+            raise
+
+        class _ZipFileWrapper(TextIOWrapper):
+            """Wrapper that closes both the inner file and the ZipFile."""
+
+            def close(self):
+                try:
+                    super().close()
+                finally:
+                    zip_file.close()
+
+        return _ZipFileWrapper(inner_file)
     return open(fileloc, mode=mode)
 
 
