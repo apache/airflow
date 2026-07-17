@@ -185,6 +185,19 @@ Dark Mode
     }
   }'
 
+The maximum width of the Dag tag filter can be customized with the
+``--airflow-dag-tag-filter-max-width`` CSS custom property:
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "globalCss": {
+      ":root": {
+        "--airflow-dag-tag-filter-max-width": "600px"
+      }
+    }
+  }'
+
 Customizing gray, black, and white tokens
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
