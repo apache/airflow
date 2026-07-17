@@ -26,6 +26,7 @@ from unittest import mock
 
 import pytest
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -241,8 +242,6 @@ class TestAssetManager:
 
     def test_queue_dagruns_nonpartitioned_mysql_builds_upsert(self):
         """Test that the MySQL queue path emits an INSERT ... ON DUPLICATE KEY UPDATE."""
-        from sqlalchemy.dialects import mysql
-
         dag = DagModel(dag_id="dag1")
         session = mock.MagicMock(spec=Session)
 
