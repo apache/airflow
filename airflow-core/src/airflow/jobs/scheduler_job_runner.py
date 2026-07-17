@@ -1807,12 +1807,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ):
                         executor.heartbeat()
 
-                with create_session() as session:
-                    num_finished_events = 0
-                    for executor in self.executors:
-                        num_finished_events += self._process_executor_events(
-                            executor=executor, session=session
-                        )
+                # Save event buffer snapshots so we can restore them if the
+                # DB commit fails (issue #69975).  Events are popped from the
+                # buffer during processing but the commit happens when the
+                # session context exits.
+                _event_buffer_snapshots = {}
+                try:
+                    with create_session() as session:
+                        for executor in self.executors:
+                            _event_buffer_snapshots[executor] = executor.get_event_buffer().copy()
+                        num_finished_events = 0
+                        for executor in self.executors:
+                            num_finished_events += self._process_executor_events(
+                                executor=executor, session=session
+                            )
+                except Exception:
+                    for executor, snapshot in _event_buffer_snapshots.items():
+                        executor.get_event_buffer().update(snapshot)
+                    raise
 
                 for executor in self.executors:
                     try:
