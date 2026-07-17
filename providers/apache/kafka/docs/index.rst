@@ -47,6 +47,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/apache/kafka/index>
 
 .. toctree::
@@ -133,6 +134,25 @@ Dependent package                                                               
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
 ========================================================================================================================  ====================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-kafka[google]
+
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``google``            ``apache-airflow-providers-google``
+``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
 
 Downloading official packages
 -----------------------------

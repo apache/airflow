@@ -73,6 +73,9 @@ dependencies = [
 "google" = [
     "apache-airflow-providers-google"
 ]
+"msk" = [
+    "aws-msk-iam-sasl-signer-python>=1.0.1"
+]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
@@ -126,6 +129,9 @@ apache-airflow-providers-standard = {workspace = true}
 
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.apache.kafka.get_provider_info:get_provider_info"
+
+[project.entry-points."airflow.plugins"]
+kafka_listener = "airflow.providers.apache.kafka.plugins.listener:KafkaListenerPlugin"
 
 [tool.flit.module]
 name = "airflow.providers.apache.kafka"

@@ -27,6 +27,7 @@ go"*, never as *"what files contain"*.
 | `github` | `.github/skills/` | native (relay) | GitHub's skill loader |
 | `windsurf` | `.windsurf/skills/` | native (relay) | Windsurf |
 | `goose` | `.goose/skills/` | native (relay) | Goose |
+| `kiro` | `.kiro/skills/` | native (relay) | Kiro CLI |
 
 The table is **extensible**: a new agent that wants framework
 skills is one new row (`id`, project dir, kind), nothing else —

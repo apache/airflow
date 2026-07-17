@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import json
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
@@ -224,32 +224,33 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret_with_base(path, key)
 
-    # Make sure connection is imported this way for type checking, otherwise when importing
-    # the backend it will get a circular dependency and fail
-    if TYPE_CHECKING:
-        from airflow.models.connection import Connection
-
-    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
-        Get connection from Vault as secret.
+        Retrieve a connection from Vault as a serialized string.
 
-        Prioritize conn_uri if exists, if not fall back to normal Connection creation.
+        Returns the ``conn_uri`` value verbatim when present, otherwise serializes
+        the secret dict to JSON.  On Airflow 3.2+, the base-class ``get_connection``
+        deserializes the returned string using the Connection class that the framework
+        injects per execution context (ORM Connection on the server, SDK Connection in
+        workers), which avoids triggering SQLAlchemy mapper initialization in
+        task-execution subprocesses such as PythonVirtualenvOperator.  On the older
+        releases this provider still supports (2.11 / 3.0 / 3.1) there is no such
+        injection: the base ``deserialize_connection`` imports the ORM ``Connection``
+        directly, so the mapper-initialization avoidance does not apply there.
 
-        :return: A Connection object constructed from Vault data
+        :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
+        :return: Serialized connection string or None
         """
-        # The Connection needs to be locally imported because otherwise we get into cyclic import
-        # problems when instantiating the backend during configuration
-        from airflow.models.connection import Connection
-
         response = self._get_team_or_global_secret(self.connections_path, team_name, conn_id)
         if response is None:
             return None
 
         uri = response.get("conn_uri")
         if uri:
-            return Connection(conn_id, uri=uri)
+            return uri
 
-        return Connection(conn_id, **response)
+        return json.dumps(response)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
