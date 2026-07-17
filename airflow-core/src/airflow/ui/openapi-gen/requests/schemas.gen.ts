@@ -5802,6 +5802,17 @@ export const $PluginResponse = {
             type: 'string',
             title: 'Name'
         },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
         macros: {
             items: {
                 type: 'string'
@@ -10331,6 +10342,28 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        ui_color: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ui Color'
+        },
+        ui_fgcolor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ui Fgcolor'
         }
     },
     type: 'object',

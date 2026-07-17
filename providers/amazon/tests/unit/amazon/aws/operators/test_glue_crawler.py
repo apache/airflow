@@ -24,9 +24,17 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
-from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
+from airflow.providers.amazon.aws.operators.glue_crawler import (
+    GlueCrawlerCreateOperator,
+    GlueCrawlerDeleteOperator,
+    GlueCrawlerOperator,
+    GlueCrawlerRunOperator,
+    GlueCrawlerUpdateOperator,
+)
+from airflow.providers.common.compat.sdk import AirflowException
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -93,6 +101,164 @@ mock_config = {
 }
 
 
+class TestGlueCrawlerCreateOperator:
+    @mock.patch.object(GlueCrawlerHook, "create_crawler", autospec=True)
+    def test_execute(self, mock_create_crawler):
+        op = GlueCrawlerCreateOperator(task_id="create_crawler", config=mock_config)
+
+        result = op.execute({})
+
+        assert result == mock_crawler_name
+        mock_create_crawler.assert_called_once_with(op.hook, **mock_config)
+
+    def test_template_fields(self):
+        op = GlueCrawlerCreateOperator(task_id="create_crawler", config=mock_config)
+
+        validate_template_fields(op)
+
+
+class TestGlueCrawlerUpdateOperator:
+    @mock.patch.object(GlueCrawlerHook, "update_crawler", autospec=True)
+    def test_execute(self, mock_update_crawler):
+        op = GlueCrawlerUpdateOperator(task_id="update_crawler", config=mock_config)
+
+        result = op.execute({})
+
+        assert result == mock_crawler_name
+        mock_update_crawler.assert_called_once_with(op.hook, **mock_config)
+
+    def test_template_fields(self):
+        op = GlueCrawlerUpdateOperator(task_id="update_crawler", config=mock_config)
+
+        validate_template_fields(op)
+
+
+class TestGlueCrawlerRunOperator:
+    @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
+    @mock.patch.object(GlueCrawlerHook, "start_crawler", autospec=True)
+    def test_execute_waits_for_completion_by_default(self, mock_start_crawler, mock_wait):
+        op = GlueCrawlerRunOperator(task_id="run_crawler", crawler_name=mock_crawler_name)
+
+        result = op.execute({})
+
+        assert result == mock_crawler_name
+        mock_start_crawler.assert_called_once_with(op.hook, mock_crawler_name)
+        mock_wait.assert_called_once_with(op.hook, crawler_name=mock_crawler_name, poll_interval=5)
+
+    @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
+    @mock.patch.object(GlueCrawlerHook, "start_crawler", autospec=True)
+    def test_execute_without_waiting(self, mock_start_crawler, mock_wait):
+        op = GlueCrawlerRunOperator(
+            task_id="run_crawler", crawler_name=mock_crawler_name, wait_for_completion=False
+        )
+
+        result = op.execute({})
+
+        assert result == mock_crawler_name
+        mock_start_crawler.assert_called_once_with(op.hook, mock_crawler_name)
+        mock_wait.assert_not_called()
+
+    @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
+    @mock.patch.object(GlueCrawlerHook, "start_crawler", autospec=True)
+    def test_execute_defers(self, mock_start_crawler, mock_wait):
+        op = GlueCrawlerRunOperator(
+            task_id="run_crawler",
+            crawler_name=mock_crawler_name,
+            poll_interval=10,
+            deferrable=True,
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-2",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        op.defer = mock.MagicMock(spec=op.defer)
+
+        result = op.execute({})
+
+        assert result == mock_crawler_name
+        mock_start_crawler.assert_called_once_with(op.hook, mock_crawler_name)
+        mock_wait.assert_not_called()
+        op.defer.assert_called_once()
+        trigger = op.defer.call_args.kwargs["trigger"]
+        _, trigger_kwargs = trigger.serialize()
+        assert trigger_kwargs == {
+            "crawler_name": mock_crawler_name,
+            "waiter_delay": 10,
+            "waiter_max_attempts": 1500,
+            "aws_conn_id": "fake-conn-id",
+            "region_name": "eu-west-2",
+            "verify": False,
+            "botocore_config": {"read_timeout": 42},
+        }
+        assert op.defer.call_args.kwargs["method_name"] == "execute_complete"
+
+    @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
+    @mock.patch.object(GlueCrawlerHook, "start_crawler", autospec=True)
+    def test_execute_waits_when_crawler_is_already_running(self, mock_start_crawler, mock_wait):
+        mock_start_crawler.side_effect = ClientError(
+            error_response={"Error": {"Code": "CrawlerRunningException", "Message": "Already running"}},
+            operation_name="StartCrawler",
+        )
+        op = GlueCrawlerRunOperator(
+            task_id="run_crawler",
+            crawler_name=mock_crawler_name,
+            fail_on_already_running=False,
+        )
+
+        result = op.execute({})
+
+        assert result == mock_crawler_name
+        mock_wait.assert_called_once_with(op.hook, crawler_name=mock_crawler_name, poll_interval=5)
+
+    @pytest.mark.parametrize("error_code", ["CrawlerRunningException", "EntityNotFoundException"])
+    @mock.patch.object(GlueCrawlerHook, "start_crawler", autospec=True)
+    def test_execute_propagates_client_error(self, mock_start_crawler, error_code):
+        mock_start_crawler.side_effect = ClientError(
+            error_response={"Error": {"Code": error_code, "Message": "error"}},
+            operation_name="StartCrawler",
+        )
+        op = GlueCrawlerRunOperator(task_id="run_crawler", crawler_name=mock_crawler_name)
+
+        with pytest.raises(ClientError) as exc_info:
+            op.execute({})
+
+        assert exc_info.value.response["Error"]["Code"] == error_code
+
+    def test_execute_complete(self):
+        op = GlueCrawlerRunOperator(task_id="run_crawler", crawler_name=mock_crawler_name)
+
+        assert op.execute_complete({}, {"status": "success"}) == mock_crawler_name
+
+    def test_execute_complete_raises_for_failure(self):
+        op = GlueCrawlerRunOperator(task_id="run_crawler", crawler_name=mock_crawler_name)
+
+        with pytest.raises(AirflowException, match="Error in glue crawl"):
+            op.execute_complete({}, {"status": "error"})
+
+    def test_template_fields(self):
+        op = GlueCrawlerRunOperator(task_id="run_crawler", crawler_name=mock_crawler_name)
+
+        validate_template_fields(op)
+
+
+class TestGlueCrawlerDeleteOperator:
+    @mock.patch.object(GlueCrawlerHook, "glue_client", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_glue_client):
+        client = mock.MagicMock(spec=["delete_crawler"])
+        mock_glue_client.return_value = client
+        op = GlueCrawlerDeleteOperator(task_id="delete_crawler", crawler_name=mock_crawler_name)
+
+        result = op.execute({})
+
+        assert result is None
+        client.delete_crawler.assert_called_once_with(Name=mock_crawler_name)
+
+    def test_template_fields(self):
+        op = GlueCrawlerDeleteOperator(task_id="delete_crawler", crawler_name=mock_crawler_name)
+
+        validate_template_fields(op)
+
+
 class TestGlueCrawlerOperator:
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
@@ -107,17 +273,19 @@ class TestGlueCrawlerOperator:
             yield hook
 
     def setup_method(self):
-        self.op = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="GlueCrawlerOperator is deprecated"):
+            self.op = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
 
     def test_init(self):
-        op = GlueCrawlerOperator(
-            task_id="test_glue_crawler_operator",
-            aws_conn_id="fake-conn-id",
-            region_name="eu-west-2",
-            verify=True,
-            botocore_config={"read_timeout": 42},
-            config=mock_config,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = GlueCrawlerOperator(
+                task_id="test_glue_crawler_operator",
+                aws_conn_id="fake-conn-id",
+                region_name="eu-west-2",
+                verify=True,
+                botocore_config={"read_timeout": 42},
+                config=mock_config,
+            )
 
         assert op.hook.client_type == "glue"
         assert op.hook.resource_type is None
@@ -127,7 +295,8 @@ class TestGlueCrawlerOperator:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-        op = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
 
         assert op.hook.aws_conn_id == "aws_default"
         assert op.hook._region_name is None
@@ -180,6 +349,13 @@ class TestGlueCrawlerOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.op)
+
+    def test_execute_complete_returns_name_from_config(self):
+        self.op.crawler_name = "unrendered-name"
+
+        result = self.op.execute_complete({}, {"status": "success"})
+
+        assert result == mock_config["Name"]
 
     @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion")
     @mock.patch.object(GlueCrawlerHook, "start_crawler")

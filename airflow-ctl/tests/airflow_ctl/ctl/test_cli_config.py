@@ -33,6 +33,7 @@ from airflowctl.ctl.cli_config import (
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
+    json_dict_type,
     merge_commands,
     safe_call_command,
 )
@@ -105,7 +106,7 @@ def test_args_create():
                 "help": "dag_run_conf for backfill operation",
                 "action": None,
                 "default": None,
-                "type": dict,
+                "type": json_dict_type,
                 "dest": None,
             },
         ),
@@ -320,6 +321,47 @@ class TestCommandFactory:
         assert is_alive_arg.kwargs["action"] == BooleanOptionalAction
         assert is_alive_arg.kwargs["default"] is None
         assert is_alive_arg.kwargs["type"] is bool
+
+    def test_command_factory_parses_json_dict_datamodel_fields(self):
+        """Dict datamodel fields should parse JSON object CLI values."""
+        command_factory = CommandFactory()
+        dags_trigger_args = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "dags":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "trigger":
+                    dags_trigger_args = list(sub_command.args)
+                    break
+
+        conf_arg = next(arg for arg in dags_trigger_args if arg.flags == ("--conf",))
+        parsed_conf = conf_arg.kwargs["type"]('{"my-key": "my-value"}')
+
+        assert parsed_conf == {"my-key": "my-value"}
+
+    def test_json_dict_type_returns_dict_input_unchanged(self):
+        """A dict input is returned as-is without re-parsing."""
+        value = {"my-key": "my-value"}
+
+        assert json_dict_type(value) is value
+
+    def test_json_dict_type_parses_json_object(self):
+        """A JSON object string is parsed into a dict."""
+        assert json_dict_type('{"my-key": "my-value"}') == {"my-key": "my-value"}
+
+    def test_json_dict_type_rejects_invalid_json(self):
+        """Invalid JSON raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid JSON object"):
+            json_dict_type("{not valid json}")
+
+    @pytest.mark.parametrize(
+        "value",
+        ["[]", '"string"', "123", "true", "null"],
+    )
+    def test_json_dict_type_rejects_non_object_json(self, value):
+        """Valid JSON that is not an object raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
+            json_dict_type(value)
 
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
