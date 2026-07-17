@@ -51,16 +51,16 @@ const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginCompon
       if (typeof pluginComponent !== "function") {
         throw new TypeError(`Expected function, got ${typeof pluginComponent} for plugin ${reactApp.name}`);
       }
-
       return { default: pluginComponent };
     })
     .catch((error: unknown) => {
       // eslint-disable-next-line no-console
       console.error("Component failed to load:", error);
 
+      delete (globalThis as Record<string, unknown>)[reactApp.name];
+
       return { default: ErrorPage };
     });
-
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
