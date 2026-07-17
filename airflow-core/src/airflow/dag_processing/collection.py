@@ -403,6 +403,13 @@ def _update_import_errors(
 ):
     from airflow.listeners.listener import get_listener_manager
 
+    # When no listener plugin is registered at all, skip building the listener
+    # arguments entirely: for callers that do not thread ``bundle_path`` down, the
+    # fallback below would otherwise query ``ParseImportError`` and call
+    # ``full_file_path()`` -- re-instantiating the DAG bundle inside this parsing
+    # transaction -- just to feed a hook nobody listens to.
+    notify_listeners = get_listener_manager().has_listeners
+
     def _listener_filename(
         relative_fileloc: str, bundle_name_: str, import_error: ParseImportError | None = None
     ) -> str | None:
@@ -464,11 +471,12 @@ def _update_import_errors(
             # sending notification when an existing dag import error occurs
             try:
                 # todo: make listener accept bundle_name and relative_filename
-                filename = _listener_filename(relative_fileloc, bundle_name_)
-                if filename is not None:
-                    get_listener_manager().hook.on_existing_dag_import_error(
-                        filename=filename, stacktrace=stacktrace
-                    )
+                if notify_listeners:
+                    filename = _listener_filename(relative_fileloc, bundle_name_)
+                    if filename is not None:
+                        get_listener_manager().hook.on_existing_dag_import_error(
+                            filename=filename, stacktrace=stacktrace
+                        )
             except Exception:
                 log.exception("error calling listener")
         else:
@@ -481,11 +489,12 @@ def _update_import_errors(
             session.add(import_error)
             # sending notification when a new dag import error occurs
             try:
-                filename = _listener_filename(relative_fileloc, bundle_name, import_error)
-                if filename is not None:
-                    get_listener_manager().hook.on_new_dag_import_error(
-                        filename=filename, stacktrace=stacktrace
-                    )
+                if notify_listeners:
+                    filename = _listener_filename(relative_fileloc, bundle_name_, import_error)
+                    if filename is not None:
+                        get_listener_manager().hook.on_new_dag_import_error(
+                            filename=filename, stacktrace=stacktrace
+                        )
             except Exception:
                 log.exception("error calling listener")
         session.execute(

@@ -947,6 +947,116 @@ class TestUpdateDagParsingResults:
         assert dag_import_error_listener.new[str(bundle_path / "abc.py")] == "AnImportError"
 
     @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_existing_import_error_listener_uses_bundle_path_without_full_file_path(
+        self, mock_full_path, session, dag_import_error_listener, testing_dag_bundle
+    ):
+        """
+        The existing-error branch also builds the listener filename from ``bundle_path``.
+
+        When an import error row already exists for the file, ``on_existing_dag_import_error``
+        is notified instead of ``on_new_dag_import_error``; that branch previously ran an extra
+        ``select(ParseImportError)`` and called ``full_file_path()`` just to build the listener
+        argument. With ``bundle_path`` threaded down, neither must happen.
+        """
+        mock_full_path.side_effect = AssertionError(
+            "full_file_path() must not be called when bundle_path is provided"
+        )
+        bundle_path = Path("/opt/airflow/bundles/testing")
+        session.add(
+            ParseImportError(
+                filename="abc.py", bundle_name="testing", timestamp=tz.utcnow(), stacktrace="OldError"
+            )
+        )
+        session.flush()
+
+        _update_import_errors(
+            files_parsed={("testing", "abc.py")},
+            bundle_name="testing",
+            import_errors={("testing", "abc.py"): "NewImportError"},
+            session=session,
+            bundle_path=bundle_path,
+        )
+        session.flush()
+
+        # The existing row is updated in place.
+        persisted = session.scalars(select(ParseImportError)).all()
+        assert len(persisted) == 1
+        assert persisted[0].stacktrace == "NewImportError"
+
+        mock_full_path.assert_not_called()
+
+        # The existing-error listener received the bundle_path-based filename.
+        assert dag_import_error_listener.new == {}
+        assert dag_import_error_listener.existing[str(bundle_path / "abc.py")] == "NewImportError"
+
+    @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_sync_bag_to_db_does_not_call_full_file_path(
+        self, mock_full_path, tmp_path, session, dag_import_error_listener, testing_dag_bundle
+    ):
+        """
+        ``sync_bag_to_db`` threads ``dagbag.bundle_path`` down to ``_update_import_errors``.
+
+        This exercises a production caller end-to-end (instead of the private helper), so it
+        fails if any caller in the chain stops forwarding ``bundle_path`` and the code falls
+        back to the bundle-instantiating ``full_file_path()`` inside the parsing transaction.
+        """
+        from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+
+        mock_full_path.side_effect = AssertionError(
+            "full_file_path() must not be called when bundle_path is provided"
+        )
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+        dag_file = bundle_path / "broken.py"
+        dag_file.write_text("raise ImportError('broken dag')")
+
+        dagbag = DagBag(dag_folder=str(dag_file), bundle_path=bundle_path, bundle_name="testing")
+        assert dagbag.import_errors
+
+        sync_bag_to_db(dagbag, "testing", None, session=session)
+        session.flush()
+
+        persisted = session.scalars(select(ParseImportError)).all()
+        assert len(persisted) == 1
+        assert persisted[0].bundle_name == "testing"
+        assert persisted[0].filename == "broken.py"
+
+        mock_full_path.assert_not_called()
+        assert dag_import_error_listener.new[str(bundle_path / "broken.py")] == persisted[0].stacktrace
+
+    @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_import_error_persisted_without_listener_or_bundle_path(
+        self, mock_full_path, session, testing_dag_bundle
+    ):
+        """
+        With no listener registered, the ``full_file_path()`` fallback must not run at all.
+
+        Callers that do not thread ``bundle_path`` down would otherwise still hit the
+        bundle-instantiating fallback inside the parsing transaction just to build an argument
+        for a hook nobody listens to -- the original silent-drop bug.
+        """
+        mock_full_path.side_effect = AssertionError(
+            "full_file_path() must not be called when no listener is registered"
+        )
+        _update_import_errors(
+            files_parsed={("testing", "abc.py")},
+            bundle_name="testing",
+            import_errors={("testing", "abc.py"): "AnImportError"},
+            session=session,
+        )
+        session.flush()
+
+        persisted = session.scalars(select(ParseImportError)).all()
+        assert len(persisted) == 1
+        assert persisted[0].filename == "abc.py"
+        assert persisted[0].stacktrace == "AnImportError"
+
+        mock_full_path.assert_not_called()
+
+    @patch.object(ParseImportError, "full_file_path")
     @mark_fab_auth_manager_test
     @conf_vars({("core", "min_serialized_dag_update_interval"): "5"})
     @pytest.mark.usefixtures("clean_db")
