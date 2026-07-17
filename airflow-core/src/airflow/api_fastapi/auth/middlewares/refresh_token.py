@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -30,6 +32,8 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
 
 
 class JWTRefreshMiddleware(BaseHTTPMiddleware):
@@ -64,6 +68,18 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
                     # Receive a AuthManagerRefreshTokenExpiredException when the potential underlying refresh
                     # token used by the auth manager is expired
                     new_token = ""
+                except Exception:
+                    # This middleware runs outside the FastAPI exception handlers, so any
+                    # other exception raised while resolving/refreshing the user - e.g. an
+                    # OperationalError from a dropped database connection - would surface
+                    # as a bare 500 for a request that may not even need the refresh.
+                    # Proceed without injecting the user (the route's own auth dependency
+                    # revalidates the token) and leave the cookie untouched so a later
+                    # request can refresh once the backend recovers.
+                    log.warning(
+                        "Unexpected error refreshing user from JWT token; proceeding without refresh",
+                        exc_info=True,
+                    )
 
             response = await call_next(request)
 
