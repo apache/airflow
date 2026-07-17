@@ -19,6 +19,23 @@
 ``apache-airflow-providers-cohere``
 ======================================
 
+The ``cohere`` provider gives Dags direct access to Cohere's own Embed API — this page
+compares that choice against ``common.ai``.
+
+When to use this provider
+--------------------------
+
+Use ``cohere`` when a Dag needs Cohere's native embedding models specifically:
+
+* ``CohereEmbeddingOperator`` — call Cohere's
+  `Embed API <https://docs.cohere.com/docs/embeddings>`__ directly via ``CohereHook``.
+
+Use :doc:`apache-airflow-providers-common-ai:index` instead when the embedding step should
+stay vendor-neutral:
+
+* Document-to-vector-store pipelines with its document loader, embedding, and retrieval
+  operators (see :doc:`apache-airflow-providers-common-ai:operators/index`), which are not
+  tied to Cohere's embedding models.
 
 .. toctree::
     :hidden:

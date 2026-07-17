@@ -111,6 +111,8 @@ jobs:
       generate-no-providers-constraints: "true"
       debug-resources: "false"
       use-uv: "true"
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   update-constraints:
     runs-on: ["ubuntu-22.04"]

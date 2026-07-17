@@ -534,6 +534,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
 
     BASE_CLASSES = {
         "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
+        "airflow.providers.amazon.aws.operators.glue_crawler._GlueCrawlerBaseOperator",
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
         "airflow.providers.amazon.aws.sensors.base_aws.AwsBaseSensor",
@@ -563,6 +564,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     }
 
     DEPRECATED_CLASSES = {
+        "airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator",
         "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
     }
 

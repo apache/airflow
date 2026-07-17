@@ -449,6 +449,44 @@ class Test_AssetMainOperator:
             mock.call.send(GetAssetByName(name="inlet_asset_1")),
         ]
 
+    @pytest.mark.parametrize(
+        ("python_callable", "reserved_key"),
+        [
+            pytest.param(lambda self=None: None, "self", id="self"),
+            pytest.param(lambda context=None: None, "context", id="context"),
+            pytest.param(lambda outlet_events=None: None, "outlet_events", id="outlet_events"),
+        ],
+    )
+    def test_determine_kwargs_injects_reserved_key_with_default(
+        self, mock_supervisor_comms, func_fixer, python_callable, reserved_key
+    ):
+        """A default on a reserved arg (self/context/outlet_events) must not shadow the injected value."""
+        mock_supervisor_comms.send.side_effect = [
+            AssetResult(name="example_asset_func", uri="example_asset_func", group="asset"),
+        ]
+        fixed_callable = func_fixer(python_callable)
+        definition = asset(schedule=None)(fixed_callable)
+        outlet_events = OutletEventAccessors()
+        context = {"outlet_events": outlet_events}
+
+        op = _AssetMainOperator(
+            task_id="example_asset_func",
+            inlets=[],
+            outlets=[definition],
+            python_callable=fixed_callable,
+            definition_name="example_asset_func",
+        )
+
+        injected = op.determine_kwargs(context=context)[reserved_key]
+
+        assert injected is not None
+        if reserved_key == "self":
+            assert isinstance(injected, Asset)
+        elif reserved_key == "context":
+            assert injected is context
+        else:
+            assert injected is outlet_events
+
     def test_from_definition_custom_name(self, mock_supervisor_comms, func_fixer):
         @func_fixer
         def example_asset_func(self):

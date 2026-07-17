@@ -197,7 +197,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/pending_partitioned_dag_run/{dag_id}/{partition_key}:
+  /ui/pending_partitioned_dag_run/{dag_id}:
     get:
       tags:
       - PartitionedDagRun
@@ -215,7 +215,7 @@ paths:
           type: string
           title: Dag Id
       - name: partition_key
-        in: path
+        in: query
         required: true
         schema:
           type: string
@@ -473,6 +473,18 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          description: Filter Dags that have any DagRun in the given state. Only ``queued``
+            and ``running`` are supported.
+          title: Dag Run State
+        description: Filter Dags that have any DagRun in the given state. Only ``queued``
+          and ``running`` are supported.
       - name: bundle_name
         in: query
         required: false
@@ -3176,6 +3188,9 @@ components:
         has_missed_deadline:
           type: boolean
           title: Has Missed Deadline
+        has_note:
+          type: boolean
+          title: Has Note
         duration:
           type: number
           title: Duration
@@ -3191,6 +3206,7 @@ components:
       - state
       - run_type
       - has_missed_deadline
+      - has_note
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.
@@ -3648,6 +3664,16 @@ components:
             - and-gate
           - type: 'null'
           title: Asset Condition Type
+        ui_color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ui Color
+        ui_fgcolor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ui Fgcolor
       type: object
       required:
       - id

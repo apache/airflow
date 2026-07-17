@@ -68,6 +68,13 @@ dependencies = [
     "psycopg2-binary>=2.9.10; python_version >= '3.13'",
     "psycopg[binary]>=3.2.9; python_version < '3.14'",
     "psycopg[binary]>=3.3.3; python_version >= '3.14'",
+    # asyncpg must stay a default dependency while this provider still supports Airflow
+    # cores older than 3.4.0: those cores derive the async metadata-DB URL as
+    # ``postgresql+asyncpg://`` unconditionally and have no psycopg_async fallback, so
+    # dropping asyncpg breaks their async engine. Make it opt-in-only (via the ``[asyncpg]``
+    # extra) only once the minimum supported Airflow is >= 3.4.0; tracked at
+    # https://github.com/apache/airflow/issues/68453
+    "asyncpg>=0.30.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
