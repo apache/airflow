@@ -892,7 +892,10 @@ class DagRun(Base, LoggingMixin):
         """Return the task instances for this dag run."""
         tis = (
             select(TI)
-            .options(joinedload(TI.dag_run))
+            .options(
+                joinedload(TI.dag_run),
+                joinedload(TI.dag_model),
+            )
             .where(
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
