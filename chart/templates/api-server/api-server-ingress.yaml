@@ -20,7 +20,10 @@
 ################################
 ## Airflow API Server Ingress
 #################################
-{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) (or .Values.ingress.apiServer.enabled .Values.ingress.enabled) }}
+{{- if and .Values.apiServer.enabled .Values.ingress.apiServer.enabled }}
+{{- if .Values.apiServer.httpRoute.enabled }}
+{{- fail "`ingress.apiServer.enabled` and `apiServer.httpRoute.enabled` are both set to `true`. The API server Ingress is an alternative to HTTPRoute (Gateway API); enable only one of them." }}
+{{- end }}
 {{- $fullname := include "airflow.fullname" . }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -56,16 +59,9 @@ spec:
   {{- end }}
   {{- end }}
   {{- end }}
-  {{- else if .Values.ingress.apiServer.tls.enabled }}
-  tls:
-    - hosts:
-        {{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
-        - {{ tpl . $ | quote }}
-        {{- end }}
-      secretName: {{ .Values.ingress.apiServer.tls.secretName }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
+    {{- range .Values.ingress.apiServer.hosts | default (list "") }}
     - http:
         paths:
           {{- range $.Values.ingress.apiServer.precedingPaths }}

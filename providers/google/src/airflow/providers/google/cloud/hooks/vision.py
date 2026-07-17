@@ -144,7 +144,11 @@ class CloudVisionHook(GoogleBaseHook):
         :return: Google Cloud Vision client object.
         """
         if not self._client:
-            self._client = ProductSearchClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = ProductSearchClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     @cached_property
@@ -154,7 +158,9 @@ class CloudVisionHook(GoogleBaseHook):
 
         :return: Google Image Annotator client object.
         """
-        return ImageAnnotatorClient(credentials=self.get_credentials())
+        return ImageAnnotatorClient(
+            credentials=self.get_credentials(), client_options=self.get_client_options()
+        )
 
     @staticmethod
     def _check_for_error(response: dict) -> None:

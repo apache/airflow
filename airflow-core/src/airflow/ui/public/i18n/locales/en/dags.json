@@ -2,19 +2,21 @@
   "assetSchedule": "{{count}} of {{total}} assets updated",
   "dagActions": {
     "delete": {
-      "button": "Delete Dag",
-      "warning": "This will remove all metadata related to the Dag, including Runs and Tasks."
+      "button": "Delete $t(common:dag_one)",
+      "warning": "This will remove all metadata related to the $t(common:dag_one), including Runs and $t(common:task_other)."
     }
   },
-  "favoriteDag": "Favorite Dag",
+  "favoriteDag": "Favorite $t(common:dag_one)",
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
+    "anyRunState": "Any run",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
       "unfavorite": "Unfavorite"
     },
+    "lastRunState": "Last run",
     "paused": {
       "active": "Active",
       "all": "All",
@@ -33,6 +35,11 @@
       "buttonTooltip": "Press shift+c to clear",
       "error": "Failed to clear {{type}}",
       "title": "Clear {{type}}"
+    },
+    "clearAllMapped": {
+      "button": "Clear All Mapped Tasks",
+      "buttonTooltip": "Press shift+c to clear all mapped task instances",
+      "title": "Clear All Mapped Task Instances"
     },
     "confirmationDialog": {
       "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
@@ -71,12 +78,17 @@
       "upstream": "Upstream"
     }
   },
+  "runStateCounts": {
+    "label": "Run states",
+    "loading": "Loading run state counts",
+    "tooltip": "{{state}}: {{formattedCount}} — click to filter runs"
+  },
   "search": {
     "advanced": "Advanced Search",
     "clear": "Clear search",
-    "dags": "Search Dags",
+    "dags": "Search $t(common:dag_other)",
     "hotkey": "+K",
-    "tasks": "Search Tasks"
+    "tasks": "Search $t(common:task_other)"
   },
   "sort": {
     "displayName": {
@@ -97,5 +109,5 @@
     },
     "placeholder": "Sort by"
   },
-  "unfavoriteDag": "Unfavorite Dag"
+  "unfavoriteDag": "Unfavorite $t(common:dag_one)"
 }

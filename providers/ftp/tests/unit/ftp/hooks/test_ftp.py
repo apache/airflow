@@ -126,6 +126,24 @@ class TestFTPHook:
             ftp_hook.retrieve_file(self.path, _buffer, callback=func)
         self.conn_mock.retrbinary.assert_called_once_with("RETR /some/path", func, 8192)
 
+    def test_retrieve_file_closes_handle_on_error(self):
+        self.conn_mock.retrbinary.side_effect = OSError("transfer failed")
+        handle = mock.MagicMock(name="output_handle")
+        with mock.patch("builtins.open", return_value=handle):
+            with fh.FTPHook() as ftp_hook:
+                with pytest.raises(OSError, match="transfer failed"):
+                    ftp_hook.retrieve_file(self.path, "/local/path")
+        handle.close.assert_called_once_with()
+
+    def test_store_file_closes_handle_on_error(self):
+        self.conn_mock.storbinary.side_effect = OSError("transfer failed")
+        handle = mock.MagicMock(name="input_handle")
+        with mock.patch("builtins.open", return_value=handle):
+            with fh.FTPHook() as ftp_hook:
+                with pytest.raises(OSError, match="transfer failed"):
+                    ftp_hook.store_file(self.path, "/local/path")
+        handle.close.assert_called_once_with()
+
     def test_connection_success(self):
         with fh.FTPHook() as ftp_hook:
             status, msg = ftp_hook.test_connection()
@@ -249,3 +267,11 @@ class TestIntegrationFTPHook:
         hook = FTPSHook("ftp_encoding")
         hook.get_conn()
         assert any(call.kwargs.get("encoding") == "cp1251" for call in mock_ftp_tls.mock_calls)
+
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_enables_protected_data_channel(self, mock_ftp_tls):
+        from airflow.providers.ftp.hooks.ftp import FTPSHook
+
+        hook = FTPSHook("ftp_passive")
+        conn = hook.get_conn()
+        conn.prot_p.assert_called_once_with()

@@ -31,8 +31,13 @@ from databricks.sql.types import Row
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
-from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
+from airflow.providers.databricks.hooks.databricks_sql import (
+    DatabricksSqlHook,
+    _format_query_tag_value,
+    _format_query_tags,
+    create_timeout_thread,
+)
 
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -40,6 +45,7 @@ HOST = "xx.cloud.databricks.com"
 HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
 TOKEN = "token"
 HTTP_PATH = "sql/protocolv1/o/1234567890123456/0123-456789-abcd123"
+ENDPOINT_HTTP_PATH = "/sql/1.0/endpoints/1264e5078741679a"
 SCHEMA = "test_schema"
 CATALOG = "test_catalog"
 
@@ -89,7 +95,7 @@ def mock_get_requests():
                 "name": "Test",
                 "odbc_params": {
                     "hostname": "xx.cloud.databricks.com",
-                    "path": "/sql/1.0/endpoints/1264e5078741679a",
+                    "path": ENDPOINT_HTTP_PATH,
                 },
             }
         ]
@@ -143,6 +149,41 @@ def test_get_uri():
         f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
     )
     assert uri == expected_uri
+
+
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_prefers_sql_endpoint_name_over_connection_extra_http_path(mock_connect, mock_get_requests):
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, sql_endpoint_name="Test")
+    hook.databricks_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        password=TOKEN,
+        extra={"http_path": "sql/protocolv1/o/extra/path"},
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    assert mock_connect.call_args.args[1] == ENDPOINT_HTTP_PATH
+
+
+def test_sqlalchemy_url_uses_connection_extra_http_path_without_endpoint_lookup():
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, sql_endpoint_name="Test")
+    hook.databricks_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        password=TOKEN,
+        extra={"http_path": "sql/protocolv1/o/extra/path"},
+    )
+
+    with mock.patch.object(DatabricksSqlHook, "_get_sql_endpoint_by_name", autospec=True) as mock_endpoint:
+        url = hook.sqlalchemy_url.render_as_string(hide_password=False)
+
+    assert "http_path=sql%2Fprotocolv1%2Fo%2Fextra%2Fpath" in url
+    assert hook._http_path is None
+    mock_endpoint.assert_not_called()
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
@@ -370,6 +411,23 @@ def test_query(
     for index, cur in enumerate(cursors):
         cur.execute.assert_has_calls([mock.call(cursor_calls[index])])
     cur.close.assert_called()
+
+
+def test_make_common_data_structure_none_result():
+    assert DatabricksSqlHook()._make_common_data_structure(None) is None
+
+
+def test_query_with_fetch_one_handler_on_empty_result(mock_get_conn, mock_get_requests):
+    conn = mock.MagicMock()
+    cur = mock.MagicMock(rowcount=0, description=get_cursor_descriptions(["id"]))
+    cur.fetchone.return_value = None
+    conn.cursor.return_value = cur
+    mock_get_conn.side_effect = [conn]
+
+    databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    result = databricks_hook.run(sql="select * from test.test", handler=fetch_one_handler)
+
+    assert result is None
 
 
 @pytest.mark.parametrize(
@@ -792,3 +850,165 @@ class TestGetSqlEndpointByName:
         hook = DatabricksSqlHook(sql_endpoint_name="Test")
         with pytest.raises(RuntimeError, match="Can't list Databricks SQL warehouses"):
             hook._get_sql_endpoint_by_name("Test")
+
+
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_passes_query_tags_via_session_configuration(mock_connect, mock_get_requests):
+    """query_tags must be injected into session_configuration['QUERY_TAGS'], not sql.connect(query_tags=)."""
+    hook = DatabricksSqlHook(
+        databricks_conn_id=DEFAULT_CONN_ID,
+        http_path=HTTP_PATH,
+        query_tags={"airflow_dag_id": "dag_1", "airflow_task_id": "task_1"},
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    session_cfg = mock_connect.call_args.kwargs["session_configuration"]
+    assert session_cfg is not None
+    assert "QUERY_TAGS" in session_cfg
+    query_tags_str = session_cfg["QUERY_TAGS"]
+    assert "airflow_dag_id:dag_1" in query_tags_str
+    assert "airflow_task_id:task_1" in query_tags_str
+    assert "query_tags" not in mock_connect.call_args.kwargs
+
+
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_merges_query_tags_with_existing_session_configuration(mock_connect, mock_get_requests):
+    """Existing QUERY_TAGS in session_configuration must be preserved and new tags appended."""
+    hook = DatabricksSqlHook(
+        databricks_conn_id=DEFAULT_CONN_ID,
+        http_path=HTTP_PATH,
+        session_configuration={"QUERY_TAGS": "existing_tag:existing_value"},
+        query_tags={"airflow_dag_id": "dag_1"},
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    session_cfg = mock_connect.call_args.kwargs["session_configuration"]
+    query_tags_str = session_cfg["QUERY_TAGS"]
+    assert "existing_tag:existing_value" in query_tags_str
+    assert "airflow_dag_id:dag_1" in query_tags_str
+
+
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_no_query_tags(mock_connect, mock_get_requests):
+    """When no query_tags are provided, session_configuration should not gain a QUERY_TAGS key."""
+    hook = DatabricksSqlHook(
+        databricks_conn_id=DEFAULT_CONN_ID,
+        http_path=HTTP_PATH,
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    session_cfg = mock_connect.call_args.kwargs.get("session_configuration")
+    assert session_cfg is None or "QUERY_TAGS" not in session_cfg
+
+
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_does_not_leak_proxies_into_connector(mock_connect, mock_get_requests):
+    """A ``proxies`` connection extra must not be forwarded to ``sql.connect()``.
+
+    ``proxies`` configures the REST/token HTTP paths only; the
+    databricks-sql-connector does not accept it and raises ``TypeError`` on
+    unexpected keyword arguments (>=4.0.0). It is listed in
+    ``extra_parameters`` so ``_get_extra_config`` strips it from connect kwargs.
+    """
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH)
+    hook.databricks_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        password=TOKEN,
+        extra={"proxies": {"https": "http://proxy.example.com:8443"}},
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    assert "proxies" not in mock_connect.call_args.kwargs
+
+
+class TestFormatQueryTags:
+    def test_simple_values(self):
+        result = _format_query_tags({"dag_id": "my_dag", "task_id": "my_task"})
+        assert "dag_id:my_dag" in result
+        assert "task_id:my_task" in result
+
+    def test_none_values_omitted(self):
+        result = _format_query_tags({"dag_id": "my_dag", "map_index": None})
+        assert "dag_id:my_dag" in result
+        assert "map_index" not in result
+
+    def test_empty_dict_returns_empty_string(self):
+        assert _format_query_tags({}) == ""
+
+    def test_value_escaping_comma(self):
+        result = _format_query_tag_value("a,b")
+        assert result == "a\\,b"
+
+    def test_value_escaping_colon(self):
+        result = _format_query_tag_value("a:b")
+        assert result == "a\\:b"
+
+    def test_value_escaping_backslash(self):
+        result = _format_query_tag_value("a\\b")
+        assert result == "a\\\\b"
+
+    def test_value_truncated_at_128_chars(self):
+        long_value = "x" * 200
+        result = _format_query_tag_value(long_value)
+        assert len(result) == 128
+
+    def test_format_query_tags_roundtrip(self):
+        tags = {"airflow_dag_id": "dag:1", "airflow_run_id": "run,2"}
+        result = _format_query_tags(tags)
+        assert "airflow_dag_id:dag\\:1" in result
+        assert "airflow_run_id:run\\,2" in result
+
+
+class TestDatabricksSqlHookQueryTagsParamOrder:
+    """Ensure moving query_tags after caller preserves positional backward compatibility."""
+
+    def test_query_tags_keyword_sets_field(self):
+        """query_tags kwarg must be stored on the instance."""
+        with patch(
+            "airflow.providers.databricks.hooks.databricks_sql.BaseDatabricksHook.__init__",
+            return_value=None,
+        ) as mock_base_init:
+            hook = DatabricksSqlHook.__new__(DatabricksSqlHook)
+            DatabricksSqlHook.__init__(
+                hook,
+                DEFAULT_CONN_ID,
+                query_tags={"key": "val"},
+            )
+            assert hook.query_tags == {"key": "val"}
+            # caller is forwarded to BaseDatabricksHook.__init__; verify the default was passed
+            assert mock_base_init.call_args.kwargs.get("caller") == "DatabricksSqlHook"
+
+    def test_caller_positional_not_confused_with_query_tags(self):
+        """Passing caller as the 8th positional arg must not end up in query_tags."""
+        with patch(
+            "airflow.providers.databricks.hooks.databricks_sql.BaseDatabricksHook.__init__",
+            return_value=None,
+        ) as mock_base_init:
+            hook = DatabricksSqlHook.__new__(DatabricksSqlHook)
+            # positional order: conn_id, http_path, sql_endpoint, session_cfg,
+            #                   http_headers, catalog, schema, caller
+            DatabricksSqlHook.__init__(
+                hook,
+                DEFAULT_CONN_ID,  # databricks_conn_id
+                None,  # http_path
+                None,  # sql_endpoint_name
+                None,  # session_configuration
+                None,  # http_headers
+                None,  # catalog
+                None,  # schema
+                "CustomCaller",  # caller (8th positional)
+            )
+            # caller is forwarded to BaseDatabricksHook.__init__; verify it was not
+            # confused with query_tags (which comes after caller)
+            assert mock_base_init.call_args.kwargs.get("caller") == "CustomCaller"
+            assert hook.query_tags is None

@@ -1,0 +1,1 @@
+Add ``on_kill()`` hook to ``BaseTrigger`` so trigger authors can cancel external jobs (BigQuery, Databricks, etc.) when a user marks a deferred task as failed, clears it, or marks it succeeded. The hook is a no-op by default and is only invoked for user-initiated cancellations — triggerer restarts and redistributions do not trigger it.

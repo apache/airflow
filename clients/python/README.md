@@ -141,7 +141,7 @@ the Apache Airflow API.
 Note that you will need to pass authentication credentials. If your Airflow deployment supports
 **Bearer token authentication**, you can use the following example:
 
-For example, here is how to pause a DAG with `curl`, using a Bearer token:
+For example, here is how to pause a Dag with `curl`, using a Bearer token:
 
 ```bash
 curl -X PATCH 'https://example.com/api/v2/dags/{dag_id}?update_mask=is_paused' \
@@ -651,7 +651,7 @@ configuration = airflow_client.client.Configuration(host="http://localhost:8080"
 
 * Run scheduler (or dag file processor you have setup with standalone dag file processor) for few parsing
   loops (you can pass --num-runs parameter to it or keep it running in the background). The script relies
-  on example DAGs being serialized to the DB and this only
+  on example Dags being serialized to the DB and this only
   happens when scheduler runs with ``core/load_examples`` set to True.
 
 * Run webserver - reachable at the host/port for the test script you want to run. Make sure it had enough

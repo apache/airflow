@@ -30,6 +30,7 @@ from airflow.providers.common.compat.assets import Asset
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import AIRFLOW_VERSION, get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -57,6 +58,7 @@ else:
     )
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2025, 5, 1),
     schedule=schedule,
@@ -74,5 +76,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

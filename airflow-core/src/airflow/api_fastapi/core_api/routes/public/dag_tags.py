@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import false, select
 
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.db.common import (
 )
 from airflow.api_fastapi.common.parameters import (
     QueryDagTagPatternSearch,
+    QueryDagTagPrefixPatternSearch,
     QueryLimit,
     QueryOffset,
     SortParam,
@@ -36,7 +37,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DAGTagCollectionResponse
 from airflow.api_fastapi.core_api.security import ReadableTagsFilterDep, requires_access_dag
-from airflow.models.dag import DagTag
+from airflow.models.dag import DagModel, DagTag
 
 dag_tags_router = AirflowRouter(tags=["DAG"], prefix="/dagTags")
 
@@ -55,14 +56,20 @@ def get_dag_tags(
         ),
     ],
     tag_name_pattern: QueryDagTagPatternSearch,
+    tag_name_prefix_pattern: QueryDagTagPrefixPatternSearch,
     readable_tags_filter: ReadableTagsFilterDep,
     session: SessionDep,
 ) -> DAGTagCollectionResponse:
-    """Get all DAG tags."""
-    query = select(DagTag.name).group_by(DagTag.name)
+    """Get all Dag tags."""
+    query = (
+        select(DagTag.name)
+        .join(DagModel, DagModel.dag_id == DagTag.dag_id)
+        .where(DagModel.is_stale == false())
+        .group_by(DagTag.name)
+    )
     dag_tags_select, total_entries = paginated_select(
         statement=query,
-        filters=[tag_name_pattern, readable_tags_filter],
+        filters=[tag_name_pattern, tag_name_prefix_pattern, readable_tags_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,

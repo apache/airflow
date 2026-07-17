@@ -16,66 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box, Link } from "@chakra-ui/react";
-import { useState } from "react";
+import { HStack, Text, Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
-import { Link as RouterLink } from "react-router-dom";
 
+import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
+import NotePreview from "src/components/NotePreview";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
+import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import DeleteRunButton from "src/pages/DeleteRunButton";
-import { usePatchDagRun } from "src/queries/usePatchDagRun";
+import DeleteRunButton from "src/pages/DagRuns/DeleteRunButton";
+import { useDagRunNote } from "src/queries/useDagRunNote";
 import { getDuration } from "src/utils";
+
+import { DeadlineStatus } from "./DeadlineStatus";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
-  const [note, setNote] = useState<string | null>(dagRun.note);
+  const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
-  const { isPending, mutate } = usePatchDagRun({
-    dagId,
-    dagRunId,
-  });
-
-  const onConfirm = () => {
-    if (note !== dagRun.note) {
-      mutate({
-        dagId,
-        dagRunId,
-        requestBody: { note },
-      });
-    }
-  };
-
-  const onOpen = () => {
-    setNote(dagRun.note ?? "");
-  };
+  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
+  const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
 
   return (
     <Box>
       <HeaderCard
         actions={
           <>
-            <EditableMarkdownButton
-              header={translate("note.dagRun")}
-              isPending={isPending}
-              mdContent={dagRun.note}
-              onConfirm={onConfirm}
-              onOpen={onOpen}
-              placeholder={translate("note.placeholder")}
-              setMdContent={setNote}
-            />
+            <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
             <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />
             <DeleteRunButton dagRun={dagRun} />
@@ -96,7 +75,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             ? []
             : [
                 {
-                  label: translate("dagRun.mappedPartitionKey"),
+                  label: translate("dagRun.partitionKey"),
                   value: dagRun.partition_key,
                 },
               ]),
@@ -118,13 +97,11 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
                 {
                   label: translate("dagRun.triggeringUser"),
                   value: (
-                    <Link asChild color="fg.info">
-                      <RouterLink
-                        to={`/dag_runs?${SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN}=${encodeURIComponent(dagRun.triggering_user_name)}`}
-                      >
-                        <Text>{dagRun.triggering_user_name}</Text>
-                      </RouterLink>
-                    </Link>
+                    <RouterLink
+                      to={`/dag_runs?${SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN}=${encodeURIComponent(dagRun.triggering_user_name)}`}
+                    >
+                      <Text>{dagRun.triggering_user_name}</Text>
+                    </RouterLink>
                   ),
                 },
               ]),
@@ -139,8 +116,24 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
               />
             ),
           },
+          ...(hasDeadlineAlerts
+            ? [
+                {
+                  label: translate("dag:deadlineStatus.label"),
+                  value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} endDate={dagRun.end_date} />,
+                },
+              ]
+            : []),
         ]}
         title={dagRun.dag_run_id}
+      />
+      <NotePreview
+        header={translate("note.dagRun")}
+        isPending={isPending}
+        note={note}
+        onOpen={onOpen}
+        onSave={onSave}
+        setNote={setNote}
       />
     </Box>
   );

@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
         DEFAULT_ALLOWED_TYPES,
+        resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
     from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
@@ -43,12 +44,6 @@ if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
-
-# SQLAlchemy dialect_name → sqlglot dialect mapping for names that differ.
-_SQLALCHEMY_TO_SQLGLOT_DIALECT: dict[str, str] = {
-    "postgresql": "postgres",
-    "mssql": "tsql",
-}
 
 
 class LLMSQLQueryOperator(LLMOperator):
@@ -140,6 +135,14 @@ class LLMSQLQueryOperator(LLMOperator):
         return hook
 
     def execute(self, context: Context) -> str:
+        if self.require_approval and not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__}: require_approval=True is not supported "
+                f"with a non-string prompt (got {type(self.prompt).__name__}). "
+                f"The approval review body renders the prompt as text. Return a "
+                f"str prompt, or disable require_approval."
+            )
+
         schema_info = self._get_schema_context()
 
         full_system_prompt = self._build_system_prompt(schema_info)
@@ -147,7 +150,7 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt)
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output)
 
@@ -249,6 +252,4 @@ class LLMSQLQueryOperator(LLMOperator):
         raw = self.dialect
         if not raw and self.db_hook and hasattr(self.db_hook, "dialect_name"):
             raw = self.db_hook.dialect_name
-        if raw:
-            return _SQLALCHEMY_TO_SQLGLOT_DIALECT.get(raw, raw)
-        return None
+        return resolve_sqlglot_dialect(raw)

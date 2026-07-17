@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
 import json
 from functools import lru_cache
 from typing import Any
@@ -25,10 +27,11 @@ from typing import Any
 import structlog
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse
 
-log = structlog.get_logger(logger_name="task")
-
 # Sentinel to distinguish "cached None" from "no cache entry" for tool results.
-_SENTINEL = "__durable_cached__"
+# Shared with the task state store backend so the envelope shape cannot drift.
+from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL as _SENTINEL
+
+log = structlog.get_logger(logger_name="task")
 
 SECTION = "common.ai"
 
@@ -52,8 +55,9 @@ class DurableStorage:
     Stores step-level caches in a single JSON file on ObjectStorage.
 
     All step caches (model responses and tool results) are stored as entries
-    in a single JSON blob, written to a file named after the task execution:
-    ``{base_path}/{dag_id}_{task_id}_{run_id}[_{map_index}].json``.
+    in a single JSON blob, written to ``{base_path}/{cache_id}.json`` where
+    ``cache_id`` is a hash of the task instance's identity (dag, task, run,
+    map index) so distinct task instances never share a file.
 
     The file survives Airflow task retries since it lives outside the
     XCom system.  It is deleted on successful task completion.
@@ -72,8 +76,14 @@ class DurableStorage:
         run_id: str,
         map_index: int = -1,
     ) -> None:
-        suffix = f"_{map_index}" if map_index >= 0 else ""
-        self._cache_id = f"{dag_id}_{task_id}_{run_id}{suffix}"
+        # Hash the identity components with a separator that cannot appear in
+        # them, so distinct task instances can never alias to the same cache
+        # file. A plain ``_``-joined string collides -- e.g. dag ``etl`` + task
+        # ``load_data`` and dag ``etl_load`` + task ``data`` both yield
+        # ``etl_load_data`` -- letting one task read, overwrite, or delete
+        # another's durable cache.
+        identity = "\x00".join([dag_id, task_id, run_id, str(map_index)])
+        self._cache_id = hashlib.sha256(identity.encode()).hexdigest()
         self._cache: dict[str, Any] | None = None
 
     def _get_path(self):
@@ -98,24 +108,50 @@ class DurableStorage:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self._cache))
 
-    def save_model_response(self, key: str, response: ModelResponse) -> None:
-        """Serialize and store a ModelResponse in the cache."""
+    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> None:
+        """Serialize and store a ModelResponse with the request fingerprint that produced it."""
         cache = self._load_cache()
-        cache[key] = ModelMessagesTypeAdapter.dump_json([response]).decode()
+        # Store the dumped messages as native JSON-compatible objects, not a
+        # pre-encoded string: the whole cache is JSON-encoded once in
+        # ``_save_cache``, so embedding a string here would double-encode the
+        # (large) response payload.
+        cache[key] = {
+            "fingerprint": fingerprint,
+            "data": ModelMessagesTypeAdapter.dump_python([response], mode="json"),
+        }
         self._save_cache()
 
-    def load_model_response(self, key: str) -> ModelResponse | None:
-        """Load a cached ModelResponse, or return None if not cached."""
+    def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]:
+        """
+        Load a cached ModelResponse and its stored request fingerprint.
+
+        Returns ``(None, None)`` if not cached. Entries written before
+        fingerprints existed load with a ``None`` fingerprint.
+        """
         cache = self._load_cache()
         raw = cache.get(key)
         if raw is None:
-            return None
-        messages = ModelMessagesTypeAdapter.validate_json(raw)
-        return messages[0]  # type: ignore[return-value]
+            return None, None
+        try:
+            if isinstance(raw, dict):
+                messages = ModelMessagesTypeAdapter.validate_python(raw["data"])
+                fingerprint = raw.get("fingerprint")
+            else:
+                # Legacy entry: the adapter JSON (a list) was stored directly as a string.
+                messages = ModelMessagesTypeAdapter.validate_json(raw)
+                fingerprint = None
+        except (KeyError, IndexError, ValueError):
+            # A torn or malformed entry degrades to a miss (the step re-runs),
+            # never a task crash -- the cache is best-effort.
+            log.warning("Durable: ignoring malformed cached model response", key=key)
+            return None, None
+        if not messages:
+            return None, None
+        return messages[0], fingerprint  # type: ignore[return-value]
 
-    def save_tool_result(self, key: str, result: Any) -> None:
+    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> None:
         """
-        Store a tool call result in the cache.
+        Store a tool call result with the call fingerprint that produced it.
 
         Non-serializable results (e.g. BinaryContent from MCP tools) are
         skipped with a warning -- the tool call still succeeds, but won't
@@ -123,36 +159,44 @@ class DurableStorage:
         """
         cache = self._load_cache()
         try:
-            cache[key] = json.dumps({_SENTINEL: True, "value": result})
-        except TypeError:
+            # Probe serializability before mutating the shared cache: a
+            # non-serializable result must skip only this entry, not break the
+            # whole-file ``_save_cache``. TypeError covers unsupported types;
+            # ValueError covers circular references.
+            json.dumps(result)
+        except (TypeError, ValueError):
             log.warning(
                 "Durable: skipping cache for non-serializable tool result",
                 key=key,
                 type=type(result).__name__,
             )
             return
+        cache[key] = {_SENTINEL: True, "value": result, "fingerprint": fingerprint}
         self._save_cache()
 
-    def load_tool_result(self, key: str) -> tuple[bool, Any]:
+    def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]:
         """
-        Load a cached tool result.
+        Load a cached tool result and its stored call fingerprint.
 
-        Returns (found, value) tuple since the cached value itself could be None.
+        Returns a (found, value, fingerprint) tuple since the cached value
+        itself could be None. Entries written before fingerprints existed
+        load with a ``None`` fingerprint.
         """
         cache = self._load_cache()
         raw = cache.get(key)
         if raw is None:
-            return False, None
-        parsed = json.loads(raw)
-        if not isinstance(parsed, dict) or _SENTINEL not in parsed:
-            return False, None
-        return True, parsed["value"]
+            return False, None, None
+        # Legacy entries were stored as a JSON string; new entries are native dicts.
+        if isinstance(raw, str):
+            raw = json.loads(raw)
+        if not isinstance(raw, dict) or _SENTINEL not in raw:
+            return False, None, None
+        return True, raw["value"], raw.get("fingerprint")
 
     def cleanup(self) -> None:
         """Delete the cache file after successful execution."""
-        try:
+        # Best-effort cleanup
+        with contextlib.suppress(FileNotFoundError, OSError):
             self._get_path().unlink()
-        except (FileNotFoundError, OSError):
-            pass  # Best-effort cleanup
         self._cache = None
         log.debug("Durable cache cleaned up")

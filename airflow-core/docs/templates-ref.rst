@@ -85,6 +85,11 @@ Variable                                    Type                  Description
 ``{{ params }}``                            dict[str, Any]        | The user-defined params. This can be overridden by the mapping
                                                                   | passed to ``trigger_dag -c`` if ``dag_run_conf_overrides_params``
                                                                   | is enabled in ``airflow.cfg``.
+``{{ partition_key }}``                     str | None            | The partition key from the current :class:`~airflow.models.dagrun.DagRun`.
+                                                                  | Returns ``None`` if no partition key was set. Added in version 3.3.0.
+``{{ partition_date }}``                    datetime | None       | The partition datetime from the current :class:`~airflow.models.dagrun.DagRun`.
+                                                                  | Use ``{{ partition_date | ds }}`` and related filters for formatting.
+                                                                  | Returns ``None`` if no partition date was set. Added in version 3.3.0.
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.

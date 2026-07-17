@@ -21,11 +21,10 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
-import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
 import { BundleVersionIndicator, DagVersionIndicator } from "./VersionIndicator";
-import { BAR_HEIGHT } from "./constants";
+import { BAR_HEIGHT, NOTE_GRADIENT } from "./constants";
 import {
   getBundleVersion,
   getMaxVersionNumber,
@@ -42,20 +41,15 @@ type Props = {
 export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
-  const { hoveredRunId, setHoveredRunId } = useHover();
 
   const isSelected = runId === run.run_id;
-  const isHovered = hoveredRunId === run.run_id;
   const search = searchParams.toString();
-
-  const handleMouseEnter = () => setHoveredRunId(run.run_id);
-  const handleMouseLeave = () => setHoveredRunId(undefined);
 
   return (
     <Box
-      bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      bg={isSelected ? "brand.emphasized" : undefined}
+      data-run-id={run.run_id}
+      data-selected={isSelected}
       position="relative"
       transition="background-color 0.2s"
     >
@@ -83,7 +77,9 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
         <GridButton
           alignItems="center"
           color="fg"
+          colorPalette={run.state ?? "none"}
           dagId={dagId}
+          duration={run.duration}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
@@ -92,6 +88,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
           runId={run.run_id}
           searchParams={search}
           state={run.state}
+          style={run.has_note ? { background: NOTE_GRADIENT } : undefined}
           zIndex={1}
         >
           {run.run_type !== "scheduled" && <RunTypeIcon color="white" runType={run.run_type} size="10px" />}

@@ -38,7 +38,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
 
 try:
     from airflow.sdk.timezone import datetime
@@ -184,6 +184,39 @@ class TestS3RemoteLogIO:
 
         assert body == b"previous \ntext"
 
+    def test_write_does_not_expose_lineage(self, hook_lineage_collector):
+        # Remote task logs are not task data assets, so uploading them must not add the S3 object
+        # as a task output in OpenLineage events.
+        self.subject.write("text", self.remote_log_location)
+        assert hook_lineage_collector.collected_assets.outputs == []
+        assert hook_lineage_collector.collected_assets.inputs == []
+
+    @conf_vars({("logging", "encrypt_s3_logs"): "True"})
+    def test_write_with_encryption(self):
+        self.subject.write("text", self.remote_log_location)
+        resp = self.conn.head_object(Bucket="bucket", Key=self.remote_log_key)
+        assert resp["ServerSideEncryption"] == "AES256"
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"text"
+
+    def test_upload_repeated_appends_no_duplication(self):
+        """Simulate reschedule-mode sensor: each cycle appends to the local log, then uploads.
+
+        Without truncation after upload, the S3 object accumulates duplicate
+        lines and grows O(N^2).  The correct behavior is that each line appears
+        in S3 exactly once.
+        """
+        local_log = self.subject.base_log_folder / "1.log"
+        local_log.parent.mkdir(parents=True, exist_ok=True)
+
+        for cycle in range(1, 4):
+            with open(local_log, "a") as f:
+                f.write(f"cycle {cycle}\n")
+            self.subject.upload(local_log, self.ti)
+
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"cycle 1\ncycle 2\ncycle 3\n"
+
     def test_write_raises(self, caplog):
         url = "s3://nonexistentbucket/foo"
         with caplog.at_level(logging.ERROR):
@@ -295,7 +328,17 @@ class TestS3TaskHandler:
 
         expected_s3_uri = f"s3://bucket/{self.remote_log_key}"
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_2_PLUS:
+            log = list(log)
+            assert log[0].event == "::group::Log message source details"
+            assert expected_s3_uri in log[1].event
+            assert log[3].event == "::endgroup::"
+            assert log[4].event == "Log line"
+            assert log[5].event == "Line 2"
+            assert log[6].event == "Log line 3"
+            assert log[7].event == "Line 4"
+            assert metadata == {"end_of_log": True, "log_pos": 4}
+        elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert expected_s3_uri in log[0].sources

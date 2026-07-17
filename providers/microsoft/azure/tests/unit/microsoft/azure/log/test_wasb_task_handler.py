@@ -33,7 +33,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -109,6 +109,8 @@ class TestWasbTaskHandler:
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook_cls, ti):
         mock_hook = mock_hook_cls.return_value
+        mock_hook.blob_service_client.primary_endpoint = "https://storage-account.blob.core.windows.net/"
+        mock_hook.blob_service_client.account_name = "storage-account"
         mock_hook.get_blobs_list.return_value = ["abc/hello.log"]
         mock_hook.read_file.return_value = "Log line"
         assert self.wasb_task_handler.io.wasb_read(self.remote_log_location) == "Log line"
@@ -117,17 +119,29 @@ class TestWasbTaskHandler:
 
         logs, metadata = self.wasb_task_handler.read(ti)
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_2_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
-            assert logs[0].sources == ["https://wasb-container.blob.core.windows.net/abc/hello.log"]
+            assert (
+                logs[1].event == "https://storage-account.blob.core.windows.net/wasb-container/abc/hello.log"
+            )
+            assert logs[2].event == "::endgroup::"
+            assert logs[3].event == "Log line"
+            assert metadata == {"end_of_log": True, "log_pos": 1}
+        elif AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == [
+                "https://storage-account.blob.core.windows.net/wasb-container/abc/hello.log"
+            ]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "Log line"
             assert metadata == {"end_of_log": True, "log_pos": 1}
         else:
             assert logs[0][0][0] == "localhost"
             assert (
-                "*** Found remote logs:\n***   * https://wasb-container.blob.core.windows.net/abc/hello.log\n"
+                "*** Found remote logs:\n"
+                "***   * https://storage-account.blob.core.windows.net/wasb-container/abc/hello.log\n"
                 in logs[0][0][1]
             )
             assert "Log line" in logs[0][0][1]
@@ -135,6 +149,72 @@ class TestWasbTaskHandler:
                 "end_of_log": True,
                 "log_pos": 8,
             }
+
+    def test_log_source_url_keeps_endpoint_path_and_removes_query_string(self):
+        mock_hook = mock.MagicMock()
+        mock_hook.blob_service_client.primary_endpoint = "http://127.0.0.1:10000/devstoreaccount1?sastoken"
+        mock_hook.blob_service_client.account_name = "devstoreaccount1"
+
+        with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
+            assert (
+                self.wasb_task_handler.io._build_log_source_url("abc/hello.log")
+                == "http://127.0.0.1:10000/devstoreaccount1/wasb-container/abc/hello.log"
+            )
+
+    def test_log_source_url_removes_query_and_fragment_from_primary_endpoint(self):
+        mock_hook = mock.MagicMock()
+        mock_hook.blob_service_client.primary_endpoint = (
+            "https://storage-account.blob.core.windows.net/?sv=2020&sig=secret#fragment"
+        )
+        mock_hook.blob_service_client.account_name = "storage-account"
+
+        with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
+            assert (
+                self.wasb_task_handler.io._build_log_source_url("abc/hello.log")
+                == "https://storage-account.blob.core.windows.net/wasb-container/abc/hello.log"
+            )
+
+    def test_log_source_url_removes_sas_token_from_endpoint_path(self):
+        mock_hook = mock.MagicMock()
+        mock_hook.blob_service_client.primary_endpoint = (
+            "https://storage-account.blob.core.windows.net/SAStoken/"
+        )
+        mock_hook.blob_service_client.account_name = "storage-account"
+
+        with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
+            assert (
+                self.wasb_task_handler.io._build_log_source_url("abc/hello.log")
+                == "https://storage-account.blob.core.windows.net/wasb-container/abc/hello.log"
+            )
+
+    def test_log_source_url_uses_account_name_when_primary_endpoint_is_unavailable(self):
+        mock_hook = mock.MagicMock()
+        mock_hook.blob_service_client.primary_endpoint = None
+        mock_hook.blob_service_client.account_name = "storage-account"
+
+        with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
+            assert (
+                self.wasb_task_handler.io._build_log_source_url("abc/hello.log")
+                == "https://storage-account.blob.core.windows.net/wasb-container/abc/hello.log"
+            )
+
+    def test_log_source_url_uses_legacy_url_when_endpoint_and_account_name_are_unavailable(self):
+        mock_hook = mock.MagicMock()
+        mock_hook.blob_service_client.primary_endpoint = None
+        mock_hook.blob_service_client.account_name = None
+
+        with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
+            assert (
+                self.wasb_task_handler.io._build_log_source_url("abc/hello.log")
+                == "https://wasb-container.blob.core.windows.net/abc/hello.log"
+            )
+
+    def test_log_source_url_uses_legacy_url_when_hook_is_unavailable(self):
+        with mock.patch.object(WasbRemoteLogIO, "hook", new=None):
+            assert (
+                self.wasb_task_handler.io._build_log_source_url("abc/hello.log")
+                == "https://wasb-container.blob.core.windows.net/abc/hello.log"
+            )
 
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",

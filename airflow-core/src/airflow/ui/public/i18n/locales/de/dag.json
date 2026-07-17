@@ -40,9 +40,37 @@
     "parseDuration": "Einlesedauer:",
     "parsedAt": "Eingelesen um:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Muss innerhalb von {{interval}} nach {{reference}} abgeschlossen sein",
+    "count_one": "{{count}} Frist",
+    "count_other": "{{count}} Fristen",
+    "referenceType": {
+      "AverageRuntimeDeadline": "durchschnittlicher Laufzeit",
+      "DagRunLogicalDateDeadline": "logischem Datum des Dag-Laufs",
+      "DagRunQueuedAtDeadline": "Einstellen in die Warteschlange"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Tatsächlich",
+    "expected": "Erwartet",
+    "finishedEarly": "{{duration}} vor der Frist abgeschlossen",
+    "finishedLate": "{{duration}} nach der Frist abgeschlossen",
+    "label": "Frist",
+    "met": "Erfüllt",
+    "missed": "Verpasst",
+    "missedCount_one": "{{count}} verpasste Frist",
+    "missedCount_other": "{{count}} verpasste Fristen",
+    "mixedCount": "{{missedCount}} verpasst, {{upcomingCount}} bevorstehend",
+    "stillRunning": "Noch laufend",
+    "upcoming": "Bevorstehend",
+    "upcomingCount_one": "{{count}} bevorstehende Frist",
+    "upcomingCount_other": "{{count}} bevorstehende Fristen"
+  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
+      "newerRuns": "Neuere Läufe",
+      "olderRuns": "Ältere Läufe",
       "resetToLatest": "Auf Letzten zurücksetzen",
       "toggleGroup": "Gruppen umschalten"
     },
@@ -52,6 +80,9 @@
     "buttons": {
       "advanced": "Erweitert",
       "dagDocs": "Dag Dokumentation"
+    },
+    "status": {
+      "deactivated": "Deaktiviert"
     }
   },
   "logs": {
@@ -66,13 +97,14 @@
     },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
+    "search": {
+      "matchCount": "{{current}} von {{total}}",
+      "noMatches": "Keine Treffer",
+      "placeholder": "Protokolle durchsuchen..."
+    },
     "settings": "Protokoll-Ansicht",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "navigation": "Navigation: Umschalttaste+{{arrow}}",
-    "toggleGroup": "Gruppen umschalten: Leertaste"
   },
   "notFound": {
     "back": "Zurück",
@@ -92,6 +124,10 @@
     "charts": {
       "assetEvent_one": "Erstelltes Datenset-Ereignis",
       "assetEvent_other": "Erstellte Datenset-Ereignisse"
+    },
+    "deadlines": {
+      "showAll": "Alle anzeigen",
+      "title": "Fristen"
     },
     "failedLogs": {
       "hideLogs": "Protokolle ausblenden",
@@ -121,6 +157,16 @@
     },
     "graphDirection": {
       "label": "Richtung des Graph"
+    },
+    "graphFilters": {
+      "clearFilters": "Filter zurücksetzen",
+      "durationGte": "Minimale Dauer (s)",
+      "durationGteHint": "Für gemappte Tasks wird die Gesamtdauer über alle Instanzen gemessen",
+      "mapIndex": "Min. Map-Index",
+      "mapIndexHint": "Zeigt gemappte Tasks an, die mindestens bis zu diesem Index erweitert sind",
+      "selectStatus": "Status auswählen",
+      "selectTaskGroup": "Task-Gruppe auswählen",
+      "title": "Task-Filter"
     },
     "showVersionIndicator": {
       "label": "Versionsindikator anzeigen",
@@ -179,12 +225,34 @@
     "renderedTemplates": "Ausgefüllte Vorlagen",
     "requiredActions": "Interaktionen",
     "runs": "Läufe",
+    "storage": "Speicher",
     "taskInstances": "Task Instanzen",
+    "taskStateStore": "Task Status Zwischenspeicher",
     "tasks": "Tasks",
     "xcom": "Task Kommunikation (XComs)"
   },
   "taskGroups": {
     "collapseAll": "Alle Task-Gruppen einklappen",
     "expandAll": "Alle Task-Gruppen aufklappen"
+  },
+  "taskStateStore": {
+    "add": "Task Status Zwischenspeicher hinzufügen",
+    "clearAll": {
+      "resource": "alle Task Status Zwischenspeicher",
+      "title": "Alle Task Status Zwischenspeicher löschen",
+      "warning": "Alle Task Status Zwischenspeicher werden gelöscht. Tasks, die diesen Zwischenspeicher verwenden, um externe Referenzen oder einen Zwischenstand zu verfolgen, starten bei der nächsten Ausführung potentiell von vorne."
+    },
+    "delete": "Task Status Zwischenspeicher löschen",
+    "deleteWarning": "Der Task verliert diesen gespeicherten Zustand. Wenn der Task diesen Schlüssel verwendet, um externe Arbeiten zu verfolgen (z.B. eine externe Job-ID), kann er diese nicht wieder aufnehmen und startet Arbeiten potentiell wieder von vorne.",
+    "edit": "Task Status Zwischenspeicher bearbeiten",
+    "emptyStore": "Der Task Status Zwischenspeicher speichert Werte, die über Wiederholungen hinweg bestehen bleiben. Worker können den Task Status Zwischenspeicher über das Task SDK schreiben.",
+    "expiresAt": {
+      "column": "Ablaufdatum",
+      "custom": "Benutzerdefiniert",
+      "default": "Standard ({{interval}})",
+      "label": "Ablauf",
+      "never": "Nie"
+    },
+    "title": "Task Status Zwischenspeicher"
   }
 }

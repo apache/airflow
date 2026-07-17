@@ -40,17 +40,55 @@
     "parseDuration": "Czas parsowania:",
     "parsedAt": "Przeanalizowano o:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Musi zakończyć się w ciągu {{interval}} od momentu: {{reference}}",
+    "count_few": "{{count}} terminy",
+    "count_many": "{{count}} terminów",
+    "count_one": "{{count}} termin",
+    "count_other": "{{count}} terminów",
+    "referenceType": {
+      "AverageRuntimeDeadline": "średni czas wykonania",
+      "DagRunLogicalDateDeadline": "data logiczna",
+      "DagRunQueuedAtDeadline": "czas dodania do kolejki"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Rzeczywisty",
+    "expected": "Oczekiwany",
+    "finishedEarly": "Zakończono {{duration}} przed terminem",
+    "finishedLate": "Zakończono {{duration}} po terminie",
+    "label": "Termin",
+    "met": "Dotrzymany",
+    "missed": "Niedotrzymany",
+    "missedCount_few": "{{count}} Niedotrzymane terminy",
+    "missedCount_many": "{{count}} Niedotrzymanych terminów",
+    "missedCount_one": "{{count}} Niedotrzymany termin",
+    "missedCount_other": "{{count}} Niedotrzymanych terminów",
+    "mixedCount": "Niedotrzymane: {{missedCount}}, Nadchodzące: {{upcomingCount}}",
+    "stillRunning": "Nadal w trakcie",
+    "upcoming": "Nadchodzący",
+    "upcomingCount_few": "{{count}} Nadchodzące terminy",
+    "upcomingCount_many": "{{count}} Nadchodzących terminów",
+    "upcomingCount_one": "{{count}} Nadchodzący termin",
+    "upcomingCount_other": "{{count}} Nadchodzących terminów"
+  },
   "extraLinks": "Dodatkowe linki",
   "grid": {
     "buttons": {
+      "newerRuns": "Nowsze wykonania",
+      "olderRuns": "Starsze wykonania",
       "resetToLatest": "Przywróć do najnowszego",
       "toggleGroup": "Przełącz grupę"
-    }
+    },
+    "runTypeLegend": "Legenda typów wykonań"
   },
   "header": {
     "buttons": {
       "advanced": "Zaawansowane",
       "dagDocs": "Dokumentacja Daga"
+    },
+    "status": {
+      "deactivated": "Deaktywowany"
     }
   },
   "logs": {
@@ -65,13 +103,14 @@
     },
     "info": "INFO",
     "noTryNumber": "Brak numeru próby",
+    "search": {
+      "matchCount": "{{current}} z {{total}}",
+      "noMatches": "Brak dopasowań",
+      "placeholder": "Szukaj w logach..."
+    },
     "settings": "Ustawienia logowania",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "navigation": "Przewiń: {{arrow}}",
-    "toggleGroup": "Przełącz grupę: Space"
   },
   "notFound": {
     "back": "Wróć",
@@ -99,6 +138,10 @@
       "assetEvent_many": "Utworzonych zdarzeń zasobów",
       "assetEvent_one": "Utworzone zdarzenie zasobu",
       "assetEvent_other": "Utworzone zdarzenia zasobów"
+    },
+    "deadlines": {
+      "showAll": "Pokaż wszystkie",
+      "title": "Terminy"
     },
     "failedLogs": {
       "hideLogs": "Ukryj logi",
@@ -128,6 +171,16 @@
     },
     "graphDirection": {
       "label": "Kierunek grafu"
+    },
+    "graphFilters": {
+      "clearFilters": "Wyczyść filtry",
+      "durationGte": "Min. czas trwania (s)",
+      "durationGteHint": "Dla zmapowanych zadań mierzy łączny czas wszystkich instancji",
+      "mapIndex": "Min. indeks mapowania",
+      "mapIndexHint": "Pokazuje zmapowane zadania rozszerzone co najmniej do tego indeksu",
+      "selectStatus": "Wybierz status",
+      "selectTaskGroup": "Wybierz grupę zadań",
+      "title": "Filtry zadań"
     },
     "showVersionIndicator": {
       "label": "Pokaż wskaźnik wersji",
@@ -188,12 +241,34 @@
     "renderedTemplates": "Wyrenderowane szablony",
     "requiredActions": "Wymagane akcje",
     "runs": "Wykonania",
+    "storage": "Magazyn",
     "taskInstances": "Instancje zadań",
+    "taskStore": "Magazyn zadań",
     "tasks": "Zadania",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Zwiń wszystkie grupy zadań",
     "expandAll": "Rozwiń wszystkie grupy zadań"
+  },
+  "taskStore": {
+    "add": "Dodaj magazyn zadań",
+    "clearAll": {
+      "resource": "cały magazyn zadań",
+      "title": "Wyczyść cały magazyn zadań",
+      "warning": "Cały magazyn zadań zostanie wyczyszczony. Zadania, które używają tego magazynu do śledzenia zewnętrznej pracy, nie będą mogły jej wznowić bez ponownego uruchomienia."
+    },
+    "delete": "Usuń magazyn zadań",
+    "deleteWarning": "Zadanie utraci te zapisane dane. Jeśli zadanie używa tego klucza do śledzenia zewnętrznej pracy (np. identyfikatora zewnętrznego zadania), nie będzie mogło jej wznowić.",
+    "edit": "Edytuj magazyn zadań",
+    "emptyStore": "Magazyn zadań przechowuje wartości, które są zachowywane między ponownymi próbami. Procesy robocze mogą zapisywać do magazynu zadań za pomocą Task SDK.",
+    "expiresAt": {
+      "column": "Wygasa o",
+      "custom": "Niestandardowy",
+      "default": "Domyślny ({{interval}})",
+      "label": "Wygaśnięcie",
+      "never": "Nigdy"
+    },
+    "title": "Magazyn zadań"
   }
 }

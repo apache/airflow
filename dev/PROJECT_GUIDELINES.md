@@ -19,6 +19,7 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of contents**
 
 - [Adding a Committer or PMC Member](#adding-a-committer-or-pmc-member)
 - [Airflow Improvement Proposals (AIPs)](#airflow-improvement-proposals-aips)

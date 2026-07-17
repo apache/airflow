@@ -17,25 +17,47 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+import botocore.exceptions
+
+from airflow.providers.amazon.aws.hooks.redshift_data import FAILURE_STATES, FINISHED_STATE, RedshiftDataHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
+
+        external_id_key: str = "redshift_statement_id"
+
+        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = durable
+
+        def execute_resumable(self, context):
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data.type_defs import (
         DescribeStatementResponseTypeDef,
         GetStatementResultResponseTypeDef,
     )
+    from pydantic import JsonValue
 
     from airflow.sdk import Context
 
 
-class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
+class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook]):
     """
     Executes SQL Statements against an Amazon Redshift cluster using Redshift Data.
 
@@ -71,9 +93,14 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :param durable: When ``True`` (the default), the Redshift statement id is persisted to task
+        state before polling begins. A worker crash on retry reconnects to the existing statement
+        instead of resubmitting the SQL. Set to ``False`` to always submit fresh SQL on retry.
+        Requires Airflow 3.3+; ignored silently on earlier versions.
     """
 
     aws_hook_class = RedshiftDataHook
+    external_id_key = "redshift_statement_id"
     template_fields = aws_template_fields(
         "cluster_identifier",
         "database",
@@ -120,24 +147,26 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         if poll_interval > 0:
             self.poll_interval = poll_interval
         else:
-            self.log.warning(
-                "Invalid poll_interval:",
-                poll_interval,
-            )
+            self.log.warning("Invalid poll_interval: %s", poll_interval)
         self.return_sql_result = return_sql_result
         self.deferrable = deferrable
         self.session_id = session_id
         self.session_keep_alive_seconds = session_keep_alive_seconds
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "deferrable=True and wait_for_completion=False are set; deferrable will be "
+                "ignored and this task will run non-deferrable."
+            )
 
     def execute(self, context: Context) -> list[GetStatementResultResponseTypeDef] | list[str]:
         """Execute a statement against Amazon Redshift."""
+        if not self.deferrable:
+            self.execute_resumable(context)
+            return self._sql_results
+
         self.log.info("Executing statement: %s", self.sql)
 
-        # Set wait_for_completion to False so that it waits for the status in the deferred task.
-        wait_for_completion = self.wait_for_completion
-        if self.deferrable:
-            wait_for_completion = False
-
+        # wait_for_completion=False so that it waits for the status in the deferred task instead.
         query_execution_output = self.hook.execute_query(
             database=self.database,
             sql=self.sql,
@@ -148,7 +177,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             secret_arn=self.secret_arn,
             statement_name=self.statement_name,
             with_event=self.with_event,
-            wait_for_completion=wait_for_completion,
+            wait_for_completion=False,
             poll_interval=self.poll_interval,
             session_id=self.session_id,
             session_keep_alive_seconds=self.session_keep_alive_seconds,
@@ -160,7 +189,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         if query_execution_output.session_id:
             context["ti"].xcom_push(key="session_id", value=query_execution_output.session_id)
 
-        if self.deferrable and self.wait_for_completion:
+        if self.wait_for_completion:
             is_finished: bool = self.hook.check_query_is_finished(self.statement_id)
             if not is_finished:
                 self.defer(
@@ -235,3 +264,69 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
                 self.hook.conn.cancel_statement(Id=self.statement_id)
             except Exception as ex:
                 self.log.error("Unable to cancel query. Exiting. %s", ex)
+
+    def submit_job(self, context: Context) -> str:
+        """Submit the statement for execution and return its statement id."""
+        output = self.hook.execute_query(
+            database=self.database,
+            sql=self.sql,
+            cluster_identifier=self.cluster_identifier,
+            workgroup_name=self.workgroup_name,
+            db_user=self.db_user,
+            parameters=self.parameters,
+            secret_arn=self.secret_arn,
+            statement_name=self.statement_name,
+            with_event=self.with_event,
+            wait_for_completion=False,
+            poll_interval=self.poll_interval,
+            session_id=self.session_id,
+            session_keep_alive_seconds=self.session_keep_alive_seconds,
+        )
+        # Set immediately (before any polling) so on_kill can cancel even if the worker
+        # dies before poll_until_complete runs.
+        self.statement_id = output.statement_id
+        if output.session_id:
+            context["ti"].xcom_push(key="session_id", value=output.session_id)
+        return self.statement_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        """Query the raw statement status; a missing/expired statement degrades to NOT_FOUND."""
+        statement_id = cast("str", external_id)
+        try:
+            resp = self.hook.conn.describe_statement(Id=statement_id)
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] in ("ResourceNotFoundException", "ValidationException"):
+                return "NOT_FOUND"
+            raise
+        return resp["Status"]
+
+    def is_job_active(self, status: str) -> bool:
+        return status not in (FINISHED_STATE, *FAILURE_STATES, "NOT_FOUND")
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == FINISHED_STATE
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        statement_id = cast("str", external_id)
+        self.statement_id = statement_id
+        if self.wait_for_completion:
+            self.hook.wait_for_results(statement_id, poll_interval=self.poll_interval)
+        # Fetch here (not just in get_job_result): on reconnect the mixin calls only
+        # poll_until_complete, never get_job_result, so execute() reads self._sql_results
+        # afterward rather than relying on either method's return value.
+        self._sql_results = self.get_sql_results(
+            statement_id=statement_id, return_sql_result=self.return_sql_result
+        )
+        self._result_fetched = True
+
+    def get_job_result(
+        self, external_id: JsonValue, context: Context
+    ) -> list[GetStatementResultResponseTypeDef] | list[str]:
+        statement_id = cast("str", external_id)
+        self.statement_id = statement_id
+        if not getattr(self, "_result_fetched", False):
+            self._sql_results = self.get_sql_results(
+                statement_id=statement_id, return_sql_result=self.return_sql_result
+            )
+            self._result_fetched = True
+        return self._sql_results

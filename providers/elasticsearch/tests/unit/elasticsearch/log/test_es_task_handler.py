@@ -35,6 +35,7 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
+    TASK_LOG_FIELDS,
     VALID_ES_CONFIG_KEYS,
     ElasticsearchRemoteLogIO,
     ElasticsearchTaskHandler,
@@ -42,10 +43,13 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     _clean_date,
     _format_error_detail,
     _render_log_id,
+    _safe_build_structured_log_message,
+    _strip_userinfo,
     get_es_kwargs_from_config,
     getattr_nested,
 )
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -113,9 +117,10 @@ def _assert_log_events(logs, metadatas, *, expected_events: list[str], expected_
     if AIRFLOW_V_3_0_PLUS:
         logs = list(logs)
         assert logs[0].event == "::group::Log message source details"
-        assert logs[0].sources == expected_sources
-        assert logs[1].event == "::endgroup::"
-        assert [log.event for log in logs[2:]] == expected_events
+        for i, source in enumerate(expected_sources, start=1):
+            assert logs[i].event == source
+        assert logs[1 + len(expected_sources)].event == "::endgroup::"
+        assert [log.event for log in logs[(2 + len(expected_sources)) :]] == expected_events
     else:
         assert len(logs) == 1
         assert len(logs[0]) == 1
@@ -227,6 +232,21 @@ class TestElasticsearchTaskHandler:
         else:
             assert ElasticsearchTaskHandler.format_url(host) == expected
 
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            ("https://user:pass@elk.example.com:9200", "https://elk.example.com:9200"),
+            ("http://USER:PASS@elk.example.com", "http://elk.example.com"),
+            ("https://elk.example.com:9200", "https://elk.example.com:9200"),
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://user@elk.example.com", "https://elk.example.com"),
+            ("not-a-url", "not-a-url"),
+            ("", ""),
+        ],
+    )
+    def test_strip_userinfo(self, host, expected):
+        assert _strip_userinfo(host) == expected
+
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
         assert self.es_task_handler.index_patterns == "_all"
@@ -252,6 +272,9 @@ class TestElasticsearchTaskHandler:
     @pytest.mark.db_test
     @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
     def test_read(self, ti, metadata_mode):
+        # A finished task reads from Elasticsearch directly. A running task is delegated to the
+        # base handler (covered by test_read_running_task_delegates_to_base_handler).
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now()
         response = _make_es_response(self.es_task_handler.io, self.base_log_source)
 
@@ -280,6 +303,7 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_defaults_offset_when_missing_from_metadata(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now()
         with patch.object(self.es_task_handler.io, "_es_read", return_value=None):
             logs, metadatas = self.es_task_handler.read(ti, 1, {"end_of_log": False})
@@ -292,6 +316,7 @@ class TestElasticsearchTaskHandler:
     @pytest.mark.db_test
     @pytest.mark.parametrize("seconds", [3, 6])
     def test_read_missing_logs(self, ti, seconds):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now().add(seconds=-seconds)
         with patch.object(self.es_task_handler.io, "_es_read", return_value=None):
             logs, metadatas = self.es_task_handler.read(
@@ -312,6 +337,7 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_timeout(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now().subtract(minutes=5)
         with patch.object(self.es_task_handler.io, "_es_read", return_value=None):
             logs, metadatas = self.es_task_handler.read(
@@ -331,6 +357,7 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_with_custom_offset_and_host_fields(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         self.es_task_handler.host_field = "host.name"
         self.es_task_handler.offset_field = "log.offset"
         self.es_task_handler.io.host_field = "host.name"
@@ -361,6 +388,63 @@ class TestElasticsearchTaskHandler:
         )
         assert metadata["offset"] == "1"
         assert not metadata["end_of_log"]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage fallback is Airflow 3+ only")
+    @pytest.mark.db_test
+    def test_read_with_malformed_event_falls_back_to_stringified_event(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
+        malformed_event = ["not", "a", "string"]
+        malformed_source = {
+            "message": self.test_message,
+            "event": malformed_event,
+            "log_id": self.LOG_ID,
+            "offset": 2,
+        }
+        response = _make_es_response(self.es_task_handler.io, self.base_log_source, malformed_source)
+
+        with patch.object(self.es_task_handler.io, "_es_read", return_value=response):
+            with patch("airflow.providers.elasticsearch.log.es_task_handler.logger") as mock_logger:
+                logs, metadatas = self.es_task_handler.read(ti, 1)
+
+        metadata = _assert_log_events(
+            logs,
+            metadatas,
+            expected_events=[self.test_message, str(malformed_event)],
+            expected_sources=["http://localhost:9200"],
+        )
+        assert not metadata["end_of_log"]
+        mock_logger.debug.assert_called_once()
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Live-log delegation only applies to Airflow 3")
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
+    def test_read_running_task_delegates_to_base_handler(self, ti, state):
+        ti.state = state
+        base_result = (["live log line"], {"end_of_log": False})
+        with (
+            patch.object(FileTaskHandler, "_read", return_value=base_result) as base_read,
+            patch.object(self.es_task_handler.io, "_es_read") as es_read,
+        ):
+            result = self.es_task_handler._read(ti, 1, {})
+
+        assert result == base_result
+        base_read.assert_called_once()
+        es_read.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Live-log delegation only applies to Airflow 3")
+    def test_read_old_try_of_running_task_does_not_delegate(self, ti):
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 2
+        response = _make_es_response(self.es_task_handler.io, self.base_log_source)
+        with (
+            patch.object(FileTaskHandler, "_read") as base_read,
+            patch.object(self.es_task_handler.io, "_es_read", return_value=response) as es_read,
+        ):
+            self.es_task_handler.read(ti, 1, {"offset": 0})
+
+        base_read.assert_not_called()
+        es_read.assert_called_once()
 
     @pytest.mark.db_test
     def test_set_context(self, ti):
@@ -538,6 +622,23 @@ class TestElasticsearchTaskHandler:
             filename_template=None,
         )
 
+    def test_get_es_source_includes_legacy_json_format_includes_json_fields(self):
+        self.es_task_handler.json_format = True
+
+        with patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_0_PLUS", False):
+            fields = self.es_task_handler._get_es_source_includes()
+
+        assert fields == [
+            "@timestamp",
+            *TASK_LOG_FIELDS,
+            self.host_field,
+            self.offset_field,
+            "asctime",
+            "filename",
+            "lineno",
+            "exc_text",
+        ]
+
 
 class TestTaskHandlerHelpers:
     def test_safe_attrgetter(self):
@@ -634,9 +735,76 @@ class TestElasticsearchRemoteLogIO:
         assert [line["offset"] for line in json_log_lines] == [1, 2, 3]
         assert all(line["log_id"] == log_id for line in json_log_lines)
 
+    def test_raw_log_handles_invalid_json_line(self, ti):
+
+        raw_log = '{"message": "ok"}\nINVALID_JSON\n{"message": "ok2"}\n'
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert len(json_log_lines) == 3
+
+        assert json_log_lines[1]["message"] == "INVALID_JSON"
+        assert json_log_lines[1]["unparsed"] is True
+
+        assert [line["offset"] for line in json_log_lines] == [1, 2, 3]
+
+    def test_raw_log_all_plain_text(self, ti):
+        raw_log = "line1\nline2\nline3\n"
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert len(json_log_lines) == 3
+        assert all(line["unparsed"] for line in json_log_lines)
+        assert [line["message"] for line in json_log_lines] == ["line1", "line2", "line3"]
+
+    def test_raw_log_mixed_content(self, ti):
+        raw_log = '{"event": "ok"}\nplain text\n{"message": "done"}\n'
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert json_log_lines[0]["event"] == "ok"
+        assert json_log_lines[1]["message"] == "plain text"
+        assert json_log_lines[1]["unparsed"] is True
+        assert json_log_lines[2]["message"] == "done"
+
+    def test_raw_log_ignores_empty_lines(self, ti):
+        raw_log = '\n{"message": "ok"}\n\n'
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert len(json_log_lines) == 1
+        assert json_log_lines[0]["message"] == "ok"
+
+    def test_get_source_includes(self):
+        assert self.elasticsearch_io._get_source_includes() == [
+            "@timestamp",
+            *TASK_LOG_FIELDS,
+            self.elasticsearch_io.host_field,
+            self.elasticsearch_io.offset_field,
+        ]
+
+    def test_get_source_includes_with_custom_host_and_offset_fields(self):
+        self.elasticsearch_io.host_field = "host.name"
+        self.elasticsearch_io.offset_field = "log.offset"
+
+        assert self.elasticsearch_io._get_source_includes() == [
+            "@timestamp",
+            *TASK_LOG_FIELDS,
+            "host.name",
+            "log.offset",
+        ]
+
+    def test_get_source_includes_deduplicates_when_offset_overlaps_task_fields(self):
+        self.elasticsearch_io.offset_field = "timestamp"  # already in TASK_LOG_FIELDS
+        fields = self.elasticsearch_io._get_source_includes()
+        assert fields.count("timestamp") == 1
+
     def test_es_read_builds_expected_query(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.return_value = {"count": 1}
         self.elasticsearch_io.client.search.return_value = _build_es_search_response(
             {
                 "event": "hello",
@@ -655,30 +823,35 @@ class TestElasticsearchRemoteLogIO:
 
         response = self.elasticsearch_io._es_read(log_id, 2, ti)
 
-        self.elasticsearch_io.client.count.assert_called_once_with(index="airflow-logs-*", query=query)
+        self.elasticsearch_io.client.count.assert_not_called()
         self.elasticsearch_io.client.search.assert_called_once_with(
             index="airflow-logs-*",
             query=query,
             sort=[self.elasticsearch_io.offset_field],
             size=self.elasticsearch_io.MAX_LINE_PER_PAGE,
             from_=0,
+            source_includes=[
+                "@timestamp",
+                *TASK_LOG_FIELDS,
+                self.elasticsearch_io.host_field,
+                self.elasticsearch_io.offset_field,
+            ],
         )
         assert response is not None
         assert response.hits[0].event == "hello"
 
-    def test_es_read_returns_none_when_count_is_zero(self, ti):
+    def test_es_read_returns_none_when_search_returns_empty(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.return_value = {"count": 0}
+        self.elasticsearch_io.client.search.return_value = _build_es_search_response()
 
         log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
         response = self.elasticsearch_io._es_read(log_id, 0, ti)
 
         assert response is None
-        self.elasticsearch_io.client.search.assert_not_called()
 
     def test_es_read_propagates_missing_index(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.side_effect = elasticsearch.exceptions.NotFoundError(
+        self.elasticsearch_io.client.search.side_effect = elasticsearch.exceptions.NotFoundError(
             404,
             "IndexMissingException[[missing] missing]",
             {},
@@ -690,7 +863,6 @@ class TestElasticsearchRemoteLogIO:
 
     def test_es_read_logs_and_returns_none_on_search_error(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.return_value = {"count": 1}
         self.elasticsearch_io.client.search.side_effect = RuntimeError("boom")
 
         log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
@@ -707,6 +879,9 @@ class TestElasticsearchRemoteLogIO:
         log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
+
+    def test_upload_returns_early_when_ti_is_none(self, tmp_json_file):
+        self.elasticsearch_io.upload(tmp_json_file, ti=None)
 
 
 class TestFormatErrorDetail:
@@ -825,3 +1000,21 @@ class TestBuildStructuredLogFields:
         hit = {"event": "msg", "error_detail": []}
         result = _build_log_fields(hit)
         assert "error_detail" not in result
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage fallback is Airflow 3+ only")
+class TestSafeBuildStructuredLogMessage:
+    def test_string_event_returns_unchanged_and_does_not_log(self):
+        hit = {"event": "hello", "level": "info"}
+        with patch("airflow.providers.elasticsearch.log.es_task_handler.logger") as mock_logger:
+            result = _safe_build_structured_log_message(hit)
+        assert result.event == "hello"
+        mock_logger.debug.assert_not_called()
+
+    def test_non_string_event_falls_back_to_stringified_event(self):
+        hit = {"event": ["a", "b"], "timestamp": "2024-01-01T00:00:00Z"}
+        with patch("airflow.providers.elasticsearch.log.es_task_handler.logger") as mock_logger:
+            result = _safe_build_structured_log_message(hit)
+        assert result.event == str(["a", "b"])
+        assert result.timestamp is not None
+        mock_logger.debug.assert_called_once()

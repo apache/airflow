@@ -71,6 +71,7 @@ We can provide a JSON configuration to customize the UI.
 .. important::
 
   - You can customize the ``brand``, ``gray``, ``black``, and ``white`` color tokens, ``globalCss``, and the navigation icon via ``icon`` (and ``icon_dark_mode``).
+  - All top-level fields (``tokens``, ``globalCss``, ``icon``, ``icon_dark_mode``) are **optional** — you can supply any combination, including an empty ``{}`` to restore OSS defaults.
   - All color tokens are **optional** — you can override any subset without supplying the others.
   - ``brand`` and ``gray`` each accept an 11-shade scale with keys ``50``–``950``.
   - ``black`` and ``white`` each accept a single color: ``{ "value": "oklch(...)" }``.

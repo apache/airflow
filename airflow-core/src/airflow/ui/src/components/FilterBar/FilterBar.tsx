@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, HStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { Button, Flex, HStack } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
+import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
 import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
@@ -43,6 +44,7 @@ export const FilterBar = ({
   initialValues = defaultInitialValues,
   maxVisibleFilters = 10,
   onFiltersChange,
+  showPresetFilters = true,
 }: FilterBarProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
@@ -66,6 +68,46 @@ export const FilterBar = ({
         };
       }),
   );
+
+  // Sync external URL changes (e.g. ceiling logic setting RUN_AFTER_LTE) into the filters state.
+  // We use a JSON key to detect when initialValues actually changes rather than re-rendering.
+  const initialValuesKey = JSON.stringify(initialValues);
+
+  useEffect(() => {
+    // Pre-compute which pills are valid to add based on current configs and initialValues.
+    const pillsToAdd: Array<FilterState> = [];
+
+    for (const [key, value] of Object.entries(initialValues)) {
+      const config = configs.find((cfg) => cfg.key === key);
+
+      if (config && isValidFilterValue(config.type, value)) {
+        pillsToAdd.push({ config, id: `${key}-${Date.now()}`, value });
+      }
+    }
+
+    setFilters((prevFilters) => {
+      // Use a Set to avoid O(n²) lookup when checking for existing pills.
+      const existingKeys = new Set(prevFilters.map((filter) => filter.config.key));
+      const toAdd = pillsToAdd.filter((pill) => !existingKeys.has(pill.config.key));
+
+      // Remove pills that had a committed value but whose URL param was cleared externally.
+      const afterRemove = prevFilters.filter((filter) => {
+        const pillHadValue = isValidFilterValue(filter.config.type, filter.value);
+        const urlValue = initialValues[filter.config.key];
+
+        return !pillHadValue || isValidFilterValue(filter.config.type, urlValue);
+      });
+
+      if (toAdd.length === 0 && afterRemove.length === prevFilters.length) {
+        return prevFilters;
+      }
+
+      return [...afterRemove, ...toAdd];
+    });
+    // configs is intentionally omitted — it is structurally stable across renders and including
+    // it would risk infinite re-render loops. initialValuesKey captures all relevant URL changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValuesKey]);
 
   const debouncedOnFiltersChange = useDebouncedCallback((filtersRecord: Record<string, FilterValue>) => {
     onFiltersChange(filtersRecord);
@@ -143,40 +185,43 @@ export const FilterBar = ({
   };
 
   return (
-    <HStack gap={2} wrap="wrap">
-      {filters.slice(0, maxVisibleFilters).map(renderFilter)}
-      {availableConfigs.length > 0 && (
-        <Menu.Root>
-          <Menu.Trigger asChild>
-            <Button
-              _hover={{ bg: "colorPalette.subtle" }}
-              bg="gray.muted"
-              borderRadius="full"
-              data-testid="add-filter-button"
-              variant="outline"
-            >
-              <MdAdd />
-              {translate("common:filter")}
-            </Button>
-          </Menu.Trigger>
-          <Menu.Content>
-            {availableConfigs.map((config) => (
-              <Menu.Item key={config.key} onClick={() => addFilter(config)} value={config.key}>
-                <HStack gap={2}>
-                  {getFilterIcon(config)}
-                  {config.label}
-                </HStack>
-              </Menu.Item>
-            ))}
-          </Menu.Content>
-        </Menu.Root>
-      )}
-      {filters.length > 0 && (
-        <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} size="sm" variant="outline">
-          <MdClear />
-          {translate("common:reset")}
-        </Button>
-      )}
-    </HStack>
+    <Flex align="flex-start" gap={2} justify="space-between" width="100%">
+      <HStack flex="1" gap={2} minW={0} wrap="wrap">
+        {filters.slice(0, maxVisibleFilters).map(renderFilter)}
+        {availableConfigs.length > 0 && (
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <Button
+                _hover={{ bg: "colorPalette.subtle" }}
+                bg="gray.muted"
+                borderRadius="full"
+                data-testid="add-filter-button"
+                variant="outline"
+              >
+                <MdAdd />
+                {translate("common:filter")}
+              </Button>
+            </Menu.Trigger>
+            <Menu.Content>
+              {availableConfigs.map((config) => (
+                <Menu.Item key={config.key} onClick={() => addFilter(config)} value={config.key}>
+                  <HStack gap={2}>
+                    {getFilterIcon(config)}
+                    {config.label}
+                  </HStack>
+                </Menu.Item>
+              ))}
+            </Menu.Content>
+          </Menu.Root>
+        )}
+        {filters.length > 0 && (
+          <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
+            <MdClear />
+            {translate("common:reset")}
+          </Button>
+        )}
+      </HStack>
+      {showPresetFilters ? <PresetFiltersMenu /> : undefined}
+    </Flex>
   );
 };

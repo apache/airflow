@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm import _LLMDecoratedOperator
 
@@ -27,9 +28,7 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
+    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -54,22 +53,58 @@ class TestLLMDecoratedOperator:
 
         assert result == "This is a summary."
         assert op.prompt == "Summarize this text"
-        mock_agent.run_sync.assert_called_once_with("Summarize this text")
+        mock_agent.run_sync.assert_called_once_with("Summarize this text", usage_limits=None)
 
     @pytest.mark.parametrize(
         "return_value",
-        [42, "", "   ", None],
-        ids=["non-string", "empty", "whitespace", "none"],
+        [42, "", "   ", None, b"bytes", bytearray(b"x"), [], ()],
+        ids=["non-string", "empty", "whitespace", "none", "bytes", "bytearray", "empty-list", "empty-tuple"],
     )
     def test_execute_raises_on_invalid_prompt(self, return_value):
-        """TypeError when the callable returns a non-string or blank string."""
+        """TypeError when the callable returns an unsupported prompt shape."""
         op = _LLMDecoratedOperator(
             task_id="test",
             python_callable=lambda: return_value,
             llm_conn_id="my_llm",
         )
-        with pytest.raises(TypeError, match="non-empty string"):
+        with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_accepts_sequence_prompt(self, mock_hook_cls):
+        """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        image = ImageUrl(url="https://example.com/x.png")
+        prompt = ["Describe this:", image]
+
+        def my_prompt():
+            return prompt
+
+        op = _LLMDecoratedOperator(task_id="test", python_callable=my_prompt, llm_conn_id="my_llm")
+        op.execute(context={})
+
+        assert op.prompt == prompt
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_sequence_prompt_with_require_approval_raises_before_run_sync(self, mock_hook_cls):
+        """Sequence prompt + require_approval=True fails before the agent runs."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = _LLMDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: ["x", ImageUrl(url="https://example.com/x.png")],
+            llm_conn_id="my_llm",
+            require_approval=True,
+        )
+        with pytest.raises(TypeError, match="require_approval=True"):
+            op.execute(context={})
+
+        mock_agent.run_sync.assert_not_called()
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls):
@@ -90,4 +125,4 @@ class TestLLMDecoratedOperator:
         op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Summarize quantum computing"
-        mock_agent.run_sync.assert_called_once_with("Summarize quantum computing")
+        mock_agent.run_sync.assert_called_once_with("Summarize quantum computing", usage_limits=None)

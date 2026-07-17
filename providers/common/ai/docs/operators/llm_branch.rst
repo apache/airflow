@@ -24,7 +24,7 @@ Use :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
 for LLM-driven branching — where the LLM decides which downstream task(s) to
 execute.
 
-The operator discovers downstream tasks automatically from the DAG topology
+The operator discovers downstream tasks automatically from the Dag topology
 and presents them to the LLM as a constrained enum via pydantic-ai structured
 output. No text parsing or manual validation is needed.
 
@@ -64,6 +64,10 @@ returns the prompt string; all other parameters are passed to the operator:
     :start-after: [START howto_decorator_llm_branch]
     :end-before: [END howto_decorator_llm_branch]
 
+The callable may also return a non-empty ``Sequence[UserContent]`` for
+multimodal inputs -- see
+:ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>`.
+
 With multiple branches:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_branch.py
@@ -76,7 +80,7 @@ How It Works
 
 At execution time, the operator:
 
-1. Reads ``self.downstream_task_ids`` from the DAG topology.
+1. Reads ``self.downstream_task_ids`` from the Dag topology.
 2. Creates a dynamic ``Enum`` with one member per downstream task ID.
 3. Passes that enum as ``output_type`` to ``pydantic-ai``, constraining the LLM to
    valid task IDs only.

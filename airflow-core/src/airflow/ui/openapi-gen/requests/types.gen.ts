@@ -47,6 +47,14 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Access control settings for asset event consumer team filtering.
+ */
+export type AssetEventAccessControl = {
+    consumer_teams?: Array<(string)> | null;
+    allow_global?: boolean;
+};
+
+/**
  * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
@@ -76,6 +84,66 @@ export type AssetEventResponse = {
 };
 
 /**
+ * An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAlias = {
+    alias: AssetExpressionAliasInfo;
+};
+
+/**
+ * Body of an ``alias`` leaf node.
+ */
+export type AssetExpressionAliasInfo = {
+    name: string;
+    group: string;
+};
+
+/**
+ * An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.
+ */
+export type AssetExpressionAll = {
+    all: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.
+ */
+export type AssetExpressionAny = {
+    any: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAsset = {
+    asset: AssetExpressionAssetInfo;
+};
+
+/**
+ * Body of an ``asset`` leaf node.
+ *
+ * ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+ * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+ * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+ * degrades gracefully instead of failing response validation.
+ */
+export type AssetExpressionAssetInfo = {
+    uri: string;
+    name: string;
+    group: string;
+    id?: number | null;
+};
+
+/**
+ * An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.
+ */
+export type AssetExpressionRef = {
+    asset_ref: {
+        [key: string]: (string);
+    };
+};
+
+/**
  * Asset serializer for responses.
  */
 export type AssetResponse = {
@@ -97,12 +165,68 @@ export type AssetResponse = {
 };
 
 /**
+ * Request body for setting an asset state store value.
+ */
+export type AssetStateStoreBody = {
+    value: JsonValue;
+};
+
+/**
+ * All asset state store entries for an asset.
+ */
+export type AssetStateStoreCollectionResponse = {
+    asset_state_store: Array<AssetStateStoreResponse>;
+    total_entries: number;
+};
+
+/**
+ * Writer info for the last write to an asset state store entry.
+ */
+export type AssetStateStoreLastUpdatedBy = {
+    kind: AssetStateStoreWriterKind;
+    dag_id?: string | null;
+    run_id?: string | null;
+    task_id?: string | null;
+    map_index?: number | null;
+};
+
+/**
+ * A single asset state store key/value pair with metadata.
+ */
+export type AssetStateStoreResponse = {
+    key: string;
+    value: JsonValue;
+    updated_at: string;
+    last_updated_by?: AssetStateStoreLastUpdatedBy | null;
+};
+
+/**
+ * Identifies what kind of writer last updated an asset state store entry.
+ *
+ * ``TASK`` — written by a task via the execution API.
+ * ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+ * ``API`` — written directly through the Core API (e.g. manual admin write).
+ */
+export type AssetStateStoreWriterKind = 'task' | 'watcher' | 'api';
+
+/**
  * Asset watcher serializer for responses.
  */
 export type AssetWatcherResponse = {
     name: string;
     trigger_id: number;
     created_date: string;
+};
+
+/**
+ * Response returned when polling for the status of an enqueued connection test.
+ */
+export type AsyncConnectionTestResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+    result_message?: string | null;
+    created_at: string;
 };
 
 /**
@@ -122,11 +246,14 @@ export type BackfillPostBody = {
     to_date: string;
     run_backwards?: boolean;
     dag_run_conf?: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
-    run_on_latest_version?: boolean;
+    /**
+     * Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).
+     */
+    run_on_latest_version?: boolean | null;
 };
 
 /**
@@ -186,6 +313,10 @@ export type BulkActionResponse = {
     }>;
 };
 
+export type BulkBody_BulkDAGRunBody_ = {
+    actions: Array<(BulkCreateAction_BulkDAGRunBody_ | BulkUpdateAction_BulkDAGRunBody_ | BulkDeleteAction_BulkDAGRunBody_)>;
+};
+
 export type BulkBody_BulkTaskInstanceBody_ = {
     actions: Array<(BulkCreateAction_BulkTaskInstanceBody_ | BulkUpdateAction_BulkTaskInstanceBody_ | BulkDeleteAction_BulkTaskInstanceBody_)>;
 };
@@ -200,6 +331,18 @@ export type BulkBody_PoolBody_ = {
 
 export type BulkBody_VariableBody_ = {
     actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
+};
+
+export type BulkCreateAction_BulkDAGRunBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<BulkDAGRunBody>;
+    action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_BulkTaskInstanceBody_ = {
@@ -248,6 +391,58 @@ export type BulkCreateAction_VariableBody_ = {
      */
     entities: Array<VariableBody>;
     action_on_existence?: BulkActionOnExistence;
+};
+
+/**
+ * Request body for bulk operations on Dag Runs.
+ */
+export type BulkDAGRunBody = {
+    dag_run_id: string;
+    dag_id?: string | null;
+    state?: DagRunMutableStates | null;
+    note?: string | null;
+};
+
+/**
+ * Request body for the bulk clear Dag Runs endpoint.
+ */
+export type BulkDAGRunClearBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
+    dry_run?: boolean;
+    only_failed?: boolean;
+    /**
+     * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
+     */
+    only_new?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
+     */
+    run_on_latest_version?: boolean | null;
+    note?: string | null;
+    dag_runs?: Array<BulkDAGRunBody>;
+};
+
+export type BulkDeleteAction_BulkDAGRunBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | BulkDAGRunBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkDeleteAction_BulkTaskInstanceBody_ = {
@@ -336,6 +531,22 @@ export type BulkTaskInstanceBody = {
     dag_run_id?: string | null;
 };
 
+export type BulkUpdateAction_BulkDAGRunBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<BulkDAGRunBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
+};
+
 export type BulkUpdateAction_BulkTaskInstanceBody_ = {
     /**
      * The action to be performed on the entities.
@@ -401,6 +612,53 @@ export type BulkUpdateAction_VariableBody_ = {
 };
 
 /**
+ * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
+ */
+export type ClearPartitionsBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
+    /**
+     * Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.
+     */
+    run_id?: string | null;
+    /**
+     * Also clear task instances on the matched runs.
+     */
+    clear_task_instances?: boolean;
+    /**
+     * If True, compute counts without writing any changes.
+     */
+    dry_run?: boolean;
+};
+
+/**
+ * Response for the clearPartitions endpoint.
+ */
+export type ClearPartitionsResponse = {
+    dag_runs_cleared: number;
+    task_instances_cleared: number;
+    dry_run: boolean;
+};
+
+/**
+ * Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.
+ */
+export type ClearTaskInstanceCollectionResponse = {
+    task_instances: Array<(TaskInstanceResponse | NewTaskResponse)>;
+    total_entries: number;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type ClearTaskInstancesBody = {
@@ -423,9 +681,9 @@ export type ClearTaskInstancesBody = {
     include_future?: boolean;
     include_past?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).
      */
-    run_on_latest_version?: boolean;
+    run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
     note?: string | null;
 };
@@ -497,7 +755,48 @@ export type ConnectionResponse = {
 };
 
 /**
- * Connection Test serializer for responses.
+ * Response returned when a connection test has been enqueued for worker execution.
+ */
+export type ConnectionTestQueuedResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+};
+
+/**
+ * Request body for enqueueing a connection test on a worker.
+ *
+ * Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+ * ``team_name`` handling from ``ConnectionBody`` so tested connections share
+ * the same input contract as persisted ones.
+ */
+export type ConnectionTestRequestBody = {
+    connection_id: string;
+    conn_type: string;
+    description?: string | null;
+    host?: string | null;
+    login?: string | null;
+    schema?: string | null;
+    port?: number | null;
+    password?: string | null;
+    extra?: string | null;
+    team_name?: string | null;
+    /**
+     * If True, save or update the connection in the connection table when the test succeeds.
+     */
+    commit_on_success?: boolean;
+    /**
+     * Executor name to dispatch the connection test to.
+     */
+    executor?: string | null;
+    /**
+     * Worker queue to route the connection test to (executor-dependent).
+     */
+    queue?: string | null;
+};
+
+/**
+ * Connection Test serializer for synchronous test responses.
  */
 export type ConnectionTestResponse = {
     status: boolean;
@@ -513,10 +812,11 @@ export type CreateAssetEventsBody = {
     extra?: {
         [key: string]: unknown;
     };
+    access_control?: AssetEventAccessControl | null;
 };
 
 /**
- * DAG Collection serializer for responses.
+ * Dag Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
     dags: Array<DAGResponse>;
@@ -524,7 +824,7 @@ export type DAGCollectionResponse = {
 };
 
 /**
- * Specific serializer for DAG Details responses.
+ * Specific serializer for Dag Details responses.
  */
 export type DAGDetailsResponse = {
     dag_id: string;
@@ -537,11 +837,12 @@ export type DAGDetailsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -556,9 +857,7 @@ export type DAGDetailsResponse = {
     owners: Array<(string)>;
     catchup: boolean;
     dag_run_timeout: string | null;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     doc_md: string | null;
     start_date: string | null;
     end_date: string | null;
@@ -573,11 +872,16 @@ export type DAGDetailsResponse = {
     default_args: {
     [key: string]: unknown;
 } | null;
+    rerun_with_latest_version?: boolean | null;
     owner_links?: {
     [key: string]: (string);
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    /**
+     * Whether this Dag's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
     /**
      * Return file token.
      */
@@ -603,7 +907,7 @@ export type DAGPatchBody = {
 };
 
 /**
- * DAG serializer for responses.
+ * Dag serializer for responses.
  */
 export type DAGResponse = {
     dag_id: string;
@@ -616,11 +920,12 @@ export type DAGResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -634,46 +939,68 @@ export type DAGResponse = {
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
     /**
+     * Whether this Dag's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
+    /**
      * Return file token.
      */
     readonly file_token: string;
 };
 
 /**
- * DAG Run serializer for clear endpoint body.
+ * Dag Run serializer for clear endpoint body.
  */
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
+     * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
      */
-    run_on_latest_version?: boolean;
-};
-
-/**
- * DAG Run Collection serializer for responses.
- */
-export type DAGRunCollectionResponse = {
-    dag_runs: Array<DAGRunResponse>;
-    total_entries: number;
-};
-
-/**
- * DAG Run Serializer for PATCH requests.
- */
-export type DAGRunPatchBody = {
-    state?: DAGRunPatchStates | null;
+    only_new?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
+     */
+    run_on_latest_version?: boolean | null;
     note?: string | null;
 };
 
 /**
- * Enum for DAG Run states when updating a DAG Run.
+ * Dag Run collection response supporting both offset and cursor pagination.
+ *
+ * A single flat model is used instead of a discriminated union
+ * (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+ * the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+ * correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+ * return types degrade to ``unknown`` in JSDoc and can produce
+ * incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
  */
-export type DAGRunPatchStates = 'queued' | 'success' | 'failed';
+export type DAGRunCollectionResponse = {
+    dag_runs: Array<DAGRunResponse>;
+    /**
+     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     */
+    total_entries?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
+};
 
 /**
- * DAG Run serializer for responses.
+ * Dag Run Serializer for PATCH requests.
+ */
+export type DAGRunPatchBody = {
+    state?: DagRunMutableStates | null;
+    note?: string | null;
+};
+
+/**
+ * Dag Run serializer for responses.
  */
 export type DAGRunResponse = {
     dag_run_id: string;
@@ -699,10 +1026,11 @@ export type DAGRunResponse = {
     bundle_version: string | null;
     dag_display_name: string;
     partition_key: string | null;
+    partition_date: string | null;
 };
 
 /**
- * List DAG Runs body for batch endpoint.
+ * List Dag Runs body for batch endpoint.
  */
 export type DAGRunsBatchBody = {
     order_by?: string | null;
@@ -734,7 +1062,7 @@ export type DAGRunsBatchBody = {
 };
 
 /**
- * DAG Source serializer for responses.
+ * Dag Source serializer for responses.
  */
 export type DAGSourceResponse = {
     content: string | null;
@@ -744,7 +1072,7 @@ export type DAGSourceResponse = {
 };
 
 /**
- * DAG Tags Collection serializer for responses.
+ * Dag Tags Collection serializer for responses.
  */
 export type DAGTagCollectionResponse = {
     tags: Array<(string)>;
@@ -752,7 +1080,7 @@ export type DAGTagCollectionResponse = {
 };
 
 /**
- * DAG Version Collection serializer for responses.
+ * Dag Version Collection serializer for responses.
  */
 export type DAGVersionCollectionResponse = {
     dag_versions: Array<DagVersionResponse>;
@@ -760,7 +1088,7 @@ export type DAGVersionCollectionResponse = {
 };
 
 /**
- * DAG warning collection serializer for responses.
+ * Dag warning collection serializer for responses.
  */
 export type DAGWarningCollectionResponse = {
     dag_warnings: Array<DAGWarningResponse>;
@@ -768,7 +1096,7 @@ export type DAGWarningCollectionResponse = {
 };
 
 /**
- * DAG Warning serializer for responses.
+ * Dag Warning serializer for responses.
  */
 export type DAGWarningResponse = {
     dag_id: string;
@@ -802,6 +1130,11 @@ export type DagRunAssetReference = {
 };
 
 /**
+ * Dag Run states from which the run may be mutated (patched, deleted).
+ */
+export type DagRunMutableStates = 'queued' | 'success' | 'failed';
+
+/**
  * All possible states that a DagRun can be in.
  *
  * These are "shared" with TaskInstanceState in some parts of the code,
@@ -818,10 +1151,10 @@ export type DagRunTriggeredByType = 'cli' | 'operator' | 'rest_api' | 'ui' | 'te
 /**
  * Class with DagRun types.
  */
-export type DagRunType = 'backfill' | 'scheduled' | 'manual' | 'asset_triggered' | 'asset_materialization';
+export type DagRunType = 'backfill' | 'scheduled' | 'manual' | 'operator_triggered' | 'asset_triggered' | 'asset_materialization';
 
 /**
- * DAG schedule reference serializer for assets.
+ * Dag schedule reference serializer for assets.
  */
 export type DagScheduleAssetReference = {
     dag_id: string;
@@ -830,7 +1163,7 @@ export type DagScheduleAssetReference = {
 };
 
 /**
- * DAG Stats Collection serializer for responses.
+ * Dag Stats Collection serializer for responses.
  */
 export type DagStatsCollectionResponse = {
     dags: Array<DagStatsResponse>;
@@ -838,7 +1171,7 @@ export type DagStatsCollectionResponse = {
 };
 
 /**
- * DAG Stats serializer for responses.
+ * Dag Stats serializer for responses.
  */
 export type DagStatsResponse = {
     dag_id: string;
@@ -855,7 +1188,7 @@ export type DagStatsStateResponse = {
 };
 
 /**
- * DAG Tag serializer for responses.
+ * Dag Tag serializer for responses.
  */
 export type DagTagResponse = {
     name: string;
@@ -883,7 +1216,7 @@ export type DagVersionResponse = {
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
-export type DagWarningType = 'asset conflict' | 'non-existent pool' | 'runtime varying value';
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -945,6 +1278,7 @@ export type ExternalViewResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
     [key: string]: unknown | string;
@@ -1148,10 +1482,19 @@ export type MaterializeAssetBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    bundle_version?: string | null;
 };
 
 /**
- * Request body for Clear Task Instances endpoint.
+ * Lightweight response for new tasks that don't have TaskInstances yet.
+ */
+export type NewTaskResponse = {
+    task_id: string;
+    task_display_name: string;
+};
+
+/**
+ * Request body for patching task instance state.
  */
 export type PatchTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
@@ -1191,6 +1534,7 @@ export type PluginImportErrorResponse = {
  */
 export type PluginResponse = {
     name: string;
+    team_name?: string | null;
     macros: Array<(string)>;
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
@@ -1310,6 +1654,7 @@ export type ReactAppResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
     [key: string]: unknown | string;
@@ -1375,11 +1720,29 @@ export type TaskInletAssetReference = {
 };
 
 /**
- * Task Instance Collection serializer for responses.
+ * Task instance collection response supporting both offset and cursor pagination.
+ *
+ * A single flat model is used instead of a discriminated union
+ * (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+ * the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+ * correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+ * return types degrade to ``unknown`` in JSDoc and can produce
+ * incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
  */
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
-    total_entries: number;
+    /**
+     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     */
+    total_entries?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -1469,7 +1832,7 @@ export type TaskInstanceResponse = {
  *
  * Note that None is also allowed, so always use this in a type hint with Optional.
  */
-export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred';
+export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred' | 'awaiting_input';
 
 /**
  * Task Instance body for get batch.
@@ -1566,6 +1929,45 @@ export type TaskResponse = {
 };
 
 /**
+ * Request body for setting a task state store value.
+ *
+ * ``expires_at`` controls expiry:
+ *
+ * - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+ * - ``null``: never expire.
+ * - aware datetime: expire at that time.
+ */
+export type TaskStateStoreBody = {
+    value: JsonValue;
+    expires_at?: string | "default" | null;
+};
+
+/**
+ * All task state store entries for a task instance.
+ */
+export type TaskStateStoreCollectionResponse = {
+    task_state_store: Array<TaskStateStoreResponse>;
+    total_entries: number;
+};
+
+/**
+ * Request body for patching only the value of an existing task state store key.
+ */
+export type TaskStateStorePatchBody = {
+    value: JsonValue;
+};
+
+/**
+ * A single task state store key/value pair with metadata.
+ */
+export type TaskStateStoreResponse = {
+    key: string;
+    value: JsonValue;
+    updated_at: string;
+    expires_at: string | null;
+};
+
+/**
  * TimeDelta can be used to interact with datetime.timedelta objects.
  */
 export type TimeDelta = {
@@ -1576,7 +1978,7 @@ export type TimeDelta = {
 };
 
 /**
- * Trigger DAG Run Serializer for POST body.
+ * Trigger Dag Run Serializer for POST body.
  */
 export type TriggerDAGRunPostBody = {
     dag_run_id?: string | null;
@@ -1589,6 +1991,7 @@ export type TriggerDAGRunPostBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    bundle_version?: string | null;
 };
 
 /**
@@ -1597,6 +2000,9 @@ export type TriggerDAGRunPostBody = {
 export type TriggerResponse = {
     id: number;
     classpath: string;
+    /**
+     * @deprecated
+     */
     kwargs: string;
     created_date: string;
     queue: string | null;
@@ -1654,7 +2060,7 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
     key: string;
-    value: string;
+    value?: string | null;
     description: string | null;
     is_encrypted: boolean;
     team_name: string | null;
@@ -1774,9 +2180,27 @@ export type BaseNodeResponse = {
     id: string;
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    team?: string | null;
 };
 
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+
+/**
+ * Response model for calendar deadline aggregation results.
+ */
+export type CalendarDeadlineCollectionResponse = {
+    total_entries: number;
+    deadlines: Array<CalendarDeadlineResponse>;
+};
+
+/**
+ * Represents aggregated deadline counts for a specific calendar time bucket.
+ */
+export type CalendarDeadlineResponse = {
+    date: string;
+    missed: boolean;
+    count: number;
+};
 
 /**
  * Response model for calendar time range results.
@@ -1814,6 +2238,7 @@ export type ConfigResponse = {
     external_log_name?: string | null;
     theme: Theme | null;
     multi_team: boolean;
+    rerun_with_latest_version?: boolean | null;
 };
 
 /**
@@ -1867,6 +2292,16 @@ export type DAGRunLightResponse = {
 };
 
 /**
+ * Per-Dag counts of DagRuns grouped by state.
+ */
+export type DAGRunStateCountsResponse = {
+    dag_id: string;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -1898,11 +2333,12 @@ export type DAGWithLatestDagRunsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
     max_active_runs: number | null;
@@ -1915,16 +2351,33 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     /**
+     * Whether this Dag's schedule supports backfilling.
+     */
+    readonly is_backfillable: boolean;
+    /**
      * Return file token.
      */
     readonly file_token: string;
+};
+
+/**
+ * Collection of per-Dag DagRun-state counts for the Dag list page.
+ */
+export type DAGsRunStateCountsCollectionResponse = {
+    dags: Array<DAGRunStateCountsResponse>;
+    state_count_limit: number;
+};
+
+/**
+ * DAG Run statistics serializer for responses.
+ */
+export type DagRunStatsResponse = {
+    duration: DurationStats | null;
 };
 
 /**
@@ -1935,6 +2388,28 @@ export type DashboardDagStatsResponse = {
     failed_dag_count: number;
     running_dag_count: number;
     queued_dag_count: number;
+};
+
+/**
+ * DeadlineAlert Collection serializer for responses.
+ */
+export type DeadlineAlertCollectionResponse = {
+    deadline_alerts: Array<DeadlineAlertResponse>;
+    total_entries: number;
+};
+
+/**
+ * DeadlineAlert serializer for responses.
+ */
+export type DeadlineAlertResponse = {
+    id: string;
+    name?: string | null;
+    reference_type: string;
+    /**
+     * Interval in seconds between deadline evaluations.
+     */
+    interval: number;
+    created_at: string;
 };
 
 /**
@@ -1953,8 +2428,22 @@ export type DeadlineResponse = {
     deadline_time: string;
     missed: boolean;
     created_at: string;
+    dag_id: string;
+    dag_run_id: string;
+    alert_id?: string | null;
     alert_name?: string | null;
-    alert_description?: string | null;
+};
+
+/**
+ * Duration statistics for a DAG across historical runs.
+ */
+export type DurationStats = {
+    mean: number;
+    mode: number | null;
+    p50: number;
+    p90: number;
+    p95: number;
+    p99: number;
 };
 
 /**
@@ -1968,6 +2457,9 @@ export type EdgeResponse = {
     is_source_asset?: boolean | null;
 };
 
+/**
+ * Define a menu item that can be added to the menu by auth managers or plugins.
+ */
 export type ExtraMenuItem = {
     text: string;
     href: string;
@@ -1990,6 +2482,8 @@ export type GanttTaskInstance = {
     task_display_name: string;
     try_number: number;
     state: TaskInstanceState | null;
+    scheduled_dttm: string | null;
+    queued_dttm: string | null;
     start_date: string | null;
     end_date: string | null;
     is_group?: boolean;
@@ -2021,6 +2515,7 @@ export type GridNodeResponse = {
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
+    doc_md?: string | null;
 };
 
 /**
@@ -2037,6 +2532,7 @@ export type GridRunsResponse = {
     run_type: DagRunType;
     dag_versions?: Array<DagVersionResponse>;
     has_missed_deadline: boolean;
+    has_note: boolean;
     readonly duration: number;
 };
 
@@ -2071,12 +2567,13 @@ export type LightGridTaskInstanceSummary = {
     min_start_date: string | null;
     max_end_date: string | null;
     dag_version_number?: number | null;
+    has_note?: boolean;
 };
 
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -2087,18 +2584,47 @@ export type MenuItemCollectionResponse = {
 };
 
 /**
+ * One asset event in the ``next_run_assets`` payload.
+ */
+export type NextRunAssetEventResponse = {
+    id: number;
+    name: string | null;
+    uri: string;
+    last_update?: string | null;
+    received_count?: number;
+    required_count?: number;
+    received_keys?: Array<(string)>;
+    required_keys?: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
+};
+
+/**
+ * Response for the ``next_run_assets`` endpoint.
+ */
+export type NextRunAssetsResponse = {
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
+    events: Array<NextRunAssetEventResponse>;
+    pending_partition_count?: number | null;
+};
+
+/**
  * Node serializer for responses.
  */
 export type NodeResponse = {
     id: string;
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    team?: string | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     tooltip?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    ui_color?: string | null;
+    ui_fgcolor?: string | null;
 };
 
 export type OklchColor = string;
@@ -2111,6 +2637,13 @@ export type PartitionedDagRunAssetResponse = {
     asset_name: string;
     asset_uri: string;
     received: boolean;
+    received_count: number;
+    required_count: number;
+    received_keys: Array<(string)>;
+    required_keys: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
 };
 
 /**
@@ -2120,9 +2653,7 @@ export type PartitionedDagRunCollectionResponse = {
     partitioned_dag_runs: Array<PartitionedDagRunResponse>;
     total: number;
     asset_expressions?: {
-    [key: string]: ({
-    [key: string]: unknown;
-} | null);
+    [key: string]: (AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null);
 } | null;
 };
 
@@ -2139,9 +2670,7 @@ export type PartitionedDagRunDetailResponse = {
     assets: Array<PartitionedDagRunAssetResponse>;
     total_required: number;
     total_received: number;
-    asset_expression?: {
-    [key: string]: unknown;
-} | null;
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
 };
 
 /**
@@ -2195,6 +2724,7 @@ export type TaskInstanceStateCount = {
     upstream_failed: number;
     skipped: number;
     deferred: number;
+    awaiting_input: number;
 };
 
 /**
@@ -2216,9 +2746,9 @@ export type TeamResponse = {
  * JSON to modify Chakra's theme.
  */
 export type Theme = {
-    tokens: {
-        [key: string]: ThemeColors;
-    };
+    tokens?: {
+    [key: string]: ThemeColors;
+} | null;
     globalCss?: {
     [key: string]: {
         [key: string]: unknown;
@@ -2228,8 +2758,26 @@ export type Theme = {
     icon_dark_mode?: string | null;
 };
 
+/**
+ * Color tokens for the UI theme. All fields are optional; at least one must be provided.
+ */
 export type ThemeColors = {
-    [key: string]: unknown;
+    brand?: {
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
+    gray?: {
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
+    black?: {
+    [key: string]: OklchColor;
+} | null;
+    white?: {
+    [key: string]: OklchColor;
+} | null;
 };
 
 /**
@@ -2251,9 +2799,15 @@ export type GetAssetsData = {
     dagIds?: Array<(string)>;
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
      */
     namePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    namePrefixPattern?: string | null;
     offset?: number;
     onlyActive?: boolean;
     /**
@@ -2261,9 +2815,19 @@ export type GetAssetsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
+     */
+    uri?: Array<(string)>;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``uri_prefix_pattern`` parameter when possible.
      */
     uriPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    uriPrefixPattern?: string | null;
 };
 
 export type GetAssetsResponse = AssetCollectionResponse;
@@ -2271,9 +2835,15 @@ export type GetAssetsResponse = AssetCollectionResponse;
 export type GetAssetAliasesData = {
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
      */
     namePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    namePrefixPattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
@@ -2291,11 +2861,21 @@ export type GetAssetAliasResponse = unknown;
 
 export type GetAssetEventsData = {
     assetId?: number | null;
+    /**
+     * Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
+     */
+    extra?: Array<(string)>;
     limit?: number;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
      */
     namePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    namePrefixPattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
@@ -2380,9 +2960,7 @@ export type NextRunAssetsData = {
     dagId: string;
 };
 
-export type NextRunAssetsResponse = {
-    [key: string]: unknown;
-};
+export type NextRunAssetsResponse2 = NextRunAssetsResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -2465,11 +3043,29 @@ export type PatchConnectionData = {
 
 export type PatchConnectionResponse = ConnectionResponse;
 
+export type GetConnectionTestData = {
+    airflowConnectionTestToken: string;
+};
+
+export type GetConnectionTestResponse = AsyncConnectionTestResponse;
+
+export type EnqueueConnectionTestData = {
+    requestBody: ConnectionTestRequestBody;
+};
+
+export type EnqueueConnectionTestResponse = ConnectionTestQueuedResponse;
+
 export type GetConnectionsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``connection_id_prefix_pattern`` parameter when possible.
      */
     connectionIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    connectionIdPrefixPattern?: string | null;
     limit?: number;
     offset?: number;
     /**
@@ -2525,29 +3121,35 @@ export type PatchDagRunData = {
 
 export type PatchDagRunResponse = DAGRunResponse;
 
-export type GetUpstreamAssetEventsData = {
+export type BulkDagRunsData = {
     dagId: string;
-    dagRunId: string;
+    requestBody: BulkBody_BulkDAGRunBody_;
 };
 
-export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
-
-export type ClearDagRunData = {
-    dagId: string;
-    dagRunId: string;
-    requestBody: DAGRunClearBody;
-};
-
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
+export type BulkDagRunsResponse = BulkResponse;
 
 export type GetDagRunsData = {
     bundleVersion?: string | null;
     confContains?: string;
+    /**
+     * Filter by consuming asset name or URI using pattern matching
+     */
+    consumingAssetPattern?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      */
     dagIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagIdPrefixPattern?: string | null;
     dagVersion?: Array<(number)>;
     durationGt?: number | null;
     durationGte?: number | null;
@@ -2568,17 +3170,29 @@ export type GetDagRunsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). The pipe `|` is matched literally, not as an OR separator. Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``partition_key_prefix_pattern`` parameter when possible.
      */
     partitionKeyPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). The pipe `|` is part of the prefix, not an OR separator. Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    partitionKeyPrefixPattern?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
      */
     runIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     startDateGt?: string | null;
     startDateGte?: string | null;
@@ -2586,9 +3200,15 @@ export type GetDagRunsData = {
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user_name_prefix_pattern`` parameter when possible.
      */
     triggeringUserNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    triggeringUserNamePrefixPattern?: string | null;
     updatedAtGt?: string | null;
     updatedAtGte?: string | null;
     updatedAtLt?: string | null;
@@ -2604,6 +3224,21 @@ export type TriggerDagRunData = {
 
 export type TriggerDagRunResponse = DAGRunResponse;
 
+export type GetUpstreamAssetEventsData = {
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
+
+export type ClearDagRunData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: DAGRunClearBody;
+};
+
+export type ClearDagRunResponse = ClearTaskInstanceCollectionResponse | DAGRunResponse;
+
 export type WaitDagRunUntilFinishedData = {
     dagId: string;
     dagRunId: string;
@@ -2612,7 +3247,7 @@ export type WaitDagRunUntilFinishedData = {
      */
     interval: number;
     /**
-     * Collect result XCom from task. Can be set multiple times.
+     * Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
      */
     result?: Array<(string)> | null;
 };
@@ -2625,6 +3260,27 @@ export type GetListDagRunsBatchData = {
 };
 
 export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
+
+export type ClearDagRunsData = {
+    dagId: string;
+    requestBody: BulkDAGRunClearBody;
+};
+
+export type ClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+
+export type ClearDagRunPartitionsData = {
+    dagId: string;
+    requestBody: ClearPartitionsBody;
+};
+
+export type ClearDagRunPartitionsResponse = ClearPartitionsResponse;
+
+export type GetDagRunStatsData = {
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetDagRunStatsResponse = DagRunStatsResponse;
 
 export type GetDagSourceData = {
     accept?: 'application/json' | 'text/plain' | '*/*';
@@ -2678,13 +3334,25 @@ export type GetDagsData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagDisplayNamePrefixPattern?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      */
     dagIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagIdPrefixPattern?: string | null;
     dagRunEndDateGt?: string | null;
     dagRunEndDateGte?: string | null;
     dagRunEndDateLt?: string | null;
@@ -2722,9 +3390,15 @@ export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      */
     dagIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagIdPrefixPattern?: string | null;
     excludeStale?: boolean;
     limit?: number;
     offset?: number;
@@ -2784,9 +3458,15 @@ export type GetDagTagsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``tag_name_prefix_pattern`` parameter when possible.
      */
     tagNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    tagNamePrefixPattern?: string | null;
 };
 
 export type GetDagTagsResponse = DAGTagCollectionResponse;
@@ -2799,15 +3479,31 @@ export type GetDagsUiData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagDisplayNamePrefixPattern?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      */
     dagIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagIdPrefixPattern?: string | null;
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
+    /**
+     * Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
+     */
+    dagRunState?: DagRunState | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
@@ -2840,6 +3536,12 @@ export type GetLatestRunInfoData = {
 
 export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
 
+export type GetDagRunStateCountsUiData = {
+    dagIds: Array<(string)>;
+};
+
+export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
+
 export type GetEventLogData = {
     eventLogId: number;
 };
@@ -2851,14 +3553,26 @@ export type GetEventLogsData = {
     before?: string | null;
     dagId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      */
     dagIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagIdPrefixPattern?: string | null;
     event?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``event_prefix_pattern`` parameter when possible.
      */
     eventPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    eventPrefixPattern?: string | null;
     excludedEvents?: Array<(string)> | null;
     includedEvents?: Array<(string)> | null;
     limit?: number;
@@ -2870,19 +3584,37 @@ export type GetEventLogsData = {
     orderBy?: Array<(string)>;
     owner?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``owner_prefix_pattern`` parameter when possible.
      */
     ownerPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    ownerPrefixPattern?: string | null;
     runId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
      */
     runIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    runIdPrefixPattern?: string | null;
     taskId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
      */
     taskIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    taskIdPrefixPattern?: string | null;
     tryNumber?: number | null;
 };
 
@@ -2893,6 +3625,7 @@ export type GetExtraLinksData = {
     dagRunId: string;
     mapIndex?: number;
     taskId: string;
+    tryNumber?: number | null;
 };
 
 export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
@@ -2946,23 +3679,51 @@ export type GetMappedTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
      */
     operatorNamePattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    operatorNamePrefixPattern?: string | null;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
      */
     poolNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    poolNamePrefixPattern?: string | null;
     queue?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter when possible.
      */
     queueNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    queueNamePrefixPattern?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     */
+    renderedMapIndexPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -3040,11 +3801,21 @@ export type PatchTaskInstanceByMapIndexData = {
 export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesData = {
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      */
     dagIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagIdPrefixPattern?: string | null;
     dagRunId: string;
     durationGt?: number | null;
     durationGte?: number | null;
@@ -3064,40 +3835,80 @@ export type GetTaskInstancesData = {
     offset?: number;
     operator?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
      */
     operatorNamePattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    operatorNamePrefixPattern?: string | null;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
      */
     poolNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    poolNamePrefixPattern?: string | null;
     queue?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter when possible.
      */
     queueNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    queueNamePrefixPattern?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     */
+    renderedMapIndexPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
      */
     runIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    runIdPrefixPattern?: string | null;
     startDateGt?: string | null;
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_display_name_prefix_pattern`` parameter when possible.
      */
     taskDisplayNamePattern?: string | null;
+    /**
+     * Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to ``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the term are stripped before matching so the range scan stays index-compatible under locale-aware collations.
+     */
+    taskDisplayNamePrefixPattern?: string | null;
     /**
      * Filter by exact task group ID. Returns all tasks within the specified task group.
      */
@@ -3155,6 +3966,25 @@ export type PostClearTaskInstancesData = {
 };
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupInstancesData = {
+    dagId: string;
+    dagRunId: string;
+    groupId: string;
+    requestBody: PatchTaskInstanceBody;
+    updateMask?: Array<(string)> | null;
+};
+
+export type PatchTaskGroupInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupInstancesDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    groupId: string;
+    requestBody: PatchTaskInstanceBody;
+};
+
+export type PatchTaskGroupInstancesDryRunResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
@@ -3232,7 +4062,9 @@ export type GetHitlDetailTryDetailResponse = HITLDetailHistory;
 
 export type GetHitlDetailsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``body_search`` parameter when possible.
      */
     bodySearch?: string | null;
     createdAtGt?: string | null;
@@ -3241,9 +4073,15 @@ export type GetHitlDetailsData = {
     createdAtLte?: string | null;
     dagId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      */
     dagIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagIdPrefixPattern?: string | null;
     dagRunId: string;
     limit?: number;
     mapIndex?: number | null;
@@ -3257,14 +4095,22 @@ export type GetHitlDetailsData = {
     responseReceived?: boolean | null;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``subject_search`` parameter when possible.
      */
     subjectSearch?: string | null;
     taskId?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
      */
     taskIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    taskIdPrefixPattern?: string | null;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
@@ -3277,9 +4123,23 @@ export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * Exact bundle name match. Returns only import errors from this specific bundle.
+     */
+    bundleName?: string | null;
+    /**
+     * Exact filename match. Returns only the import error for this specific file path.
+     */
+    filename?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
      */
     filenamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    filenamePrefixPattern?: string | null;
     limit?: number;
     offset?: number;
     /**
@@ -3351,9 +4211,15 @@ export type GetPoolsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
      */
     poolNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    poolNamePrefixPattern?: string | null;
 };
 
 export type GetPoolsResponse = PoolCollectionResponse;
@@ -3376,6 +4242,105 @@ export type GetProvidersData = {
 };
 
 export type GetProvidersResponse = ProviderCollectionResponse;
+
+export type ListAssetStateStoreData = {
+    assetId: number;
+    limit?: number;
+    offset?: number;
+};
+
+export type ListAssetStateStoreResponse = AssetStateStoreCollectionResponse;
+
+export type ClearAssetStateStoreData = {
+    assetId: number;
+};
+
+export type ClearAssetStateStoreResponse = void;
+
+export type GetAssetStateStoreData = {
+    assetId: number;
+    key: string;
+};
+
+export type GetAssetStateStoreResponse = AssetStateStoreResponse;
+
+export type SetAssetStateStoreData = {
+    assetId: number;
+    key: string;
+    requestBody: AssetStateStoreBody;
+};
+
+export type SetAssetStateStoreResponse = void;
+
+export type DeleteAssetStateStoreData = {
+    assetId: number;
+    key: string;
+};
+
+export type DeleteAssetStateStoreResponse = void;
+
+export type ListTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    taskId: string;
+};
+
+export type ListTaskStateStoreResponse = TaskStateStoreCollectionResponse;
+
+export type ClearTaskStateStoreData = {
+    allMapIndices?: boolean;
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+};
+
+export type ClearTaskStateStoreResponse = void;
+
+export type GetTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    taskId: string;
+};
+
+export type GetTaskStateStoreResponse = TaskStateStoreResponse;
+
+export type SetTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    requestBody: TaskStateStoreBody;
+    taskId: string;
+};
+
+export type SetTaskStateStoreResponse = void;
+
+export type PatchTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    requestBody: TaskStateStorePatchBody;
+    taskId: string;
+};
+
+export type PatchTaskStateStoreResponse = unknown;
+
+export type DeleteTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    taskId: string;
+};
+
+export type DeleteTaskStateStoreResponse = void;
 
 export type GetXcomEntryData = {
     dagId: string;
@@ -3411,9 +4376,15 @@ export type DeleteXcomEntryResponse = void;
 
 export type GetXcomEntriesData = {
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
      */
     dagDisplayNamePattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
     dagRunId: string;
     limit?: number;
@@ -3424,24 +4395,46 @@ export type GetXcomEntriesData = {
     mapIndex?: number | null;
     mapIndexFilter?: number | null;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
+     */
+    orderBy?: Array<(string)>;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
      */
     runIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    runIdPrefixPattern?: string | null;
     taskId: string;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
      */
     taskIdPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    taskIdPrefixPattern?: string | null;
     xcomKey?: string | null;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``xcom_key_prefix_pattern`` parameter when possible.
      */
     xcomKeyPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    xcomKeyPrefixPattern?: string | null;
 };
 
 export type GetXcomEntriesResponse = XComCollectionResponse;
@@ -3497,9 +4490,15 @@ export type GetVariablesData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``variable_key_prefix_pattern`` parameter when possible.
      */
     variableKeyPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    variableKeyPrefixPattern?: string | null;
 };
 
 export type GetVariablesResponse = VariableCollectionResponse;
@@ -3569,6 +4568,8 @@ export type GenerateTokenResponse2 = GenerateTokenResponse;
 export type GetPartitionedDagRunsData = {
     dagId?: string | null;
     hasCreatedDagRunId?: boolean | null;
+    limit?: number;
+    offset?: number;
 };
 
 export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
@@ -3596,18 +4597,39 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type DagStatsResponse2 = DashboardDagStatsResponse;
 
-export type GetDagRunDeadlinesData = {
+export type GetDeadlinesData = {
     dagId: string;
     dagRunId: string;
+    deadlineTimeGt?: string | null;
+    deadlineTimeGte?: string | null;
+    deadlineTimeLt?: string | null;
+    deadlineTimeLte?: string | null;
+    lastUpdatedAtGt?: string | null;
+    lastUpdatedAtGte?: string | null;
+    lastUpdatedAtLt?: string | null;
+    lastUpdatedAtLte?: string | null;
     limit?: number;
+    missed?: boolean | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
      */
     orderBy?: Array<(string)>;
 };
 
-export type GetDagRunDeadlinesResponse = DeadlineCollectionResponse;
+export type GetDeadlinesResponse = DeadlineCollectionResponse;
+
+export type GetDagDeadlineAlertsData = {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -3640,9 +4662,15 @@ export type GetDagStructureData = {
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user`` parameter when possible.
      */
     triggeringUser?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    triggeringUserPrefix?: string | null;
 };
 
 export type GetDagStructureResponse = Array<GridNodeResponse>;
@@ -3662,9 +4690,15 @@ export type GetGridRunsData = {
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
-     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user`` parameter when possible.
      */
     triggeringUser?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    triggeringUserPrefix?: string | null;
 };
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;
@@ -3697,6 +4731,17 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type GetCalendarDeadlinesData = {
+    dagId: string;
+    deadlineTimeGt?: string | null;
+    deadlineTimeGte?: string | null;
+    deadlineTimeLt?: string | null;
+    deadlineTimeLte?: string | null;
+    granularity?: 'hourly' | 'daily';
+};
+
+export type GetCalendarDeadlinesResponse = CalendarDeadlineCollectionResponse;
 
 export type ListTeamsData = {
     limit?: number;
@@ -4068,9 +5113,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: {
-                    [key: string]: unknown;
-                };
+                200: NextRunAssetsResponse;
                 /**
                  * Validation Error
                  */
@@ -4131,6 +5174,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -4282,6 +5329,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -4382,6 +5433,58 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/enqueue-test': {
+        get: {
+            req: GetConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AsyncConnectionTestResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        post: {
+            req: EnqueueConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
             };
         };
     };
@@ -4594,61 +5697,28 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents': {
-        get: {
-            req: GetUpstreamAssetEventsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: AssetEventCollectionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear': {
-        post: {
-            req: ClearDagRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: TaskInstanceCollectionResponse | DAGRunResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
     '/api/v2/dags/{dag_id}/dagRuns': {
+        patch: {
+            req: BulkDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BulkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
         get: {
             req: GetDagRunsData;
             res: {
@@ -4708,6 +5778,60 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents': {
+        get: {
+            req: GetUpstreamAssetEventsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetEventCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear': {
+        post: {
+            req: ClearDagRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearTaskInstanceCollectionResponse | DAGRunResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait': {
         get: {
             req: WaitDagRunUntilFinishedData;
@@ -4751,6 +5875,87 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearDagRuns': {
+        post: {
+            req: ClearDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearPartitions': {
+        post: {
+            req: ClearDagRunPartitionsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearPartitionsResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats': {
+        get: {
+            req: GetDagRunStatsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagRunStatsResponse;
                 /**
                  * Not Found
                  */
@@ -5207,6 +6412,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/run_state_counts': {
+        get: {
+            req: GetDagRunStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsRunStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */
@@ -5735,6 +6955,72 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}': {
+        patch: {
+            req: PatchTaskGroupInstancesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run': {
+        patch: {
+            req: PatchTaskGroupInstancesDryRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run': {
         patch: {
             req: PatchTaskInstanceDryRunByMapIndexData;
@@ -6181,10 +7467,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6253,6 +7535,289 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/assets/{asset_id}/state-store': {
+        get: {
+            req: ListAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetStateStoreCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: ClearAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/assets/{asset_id}/state-store/{key}': {
+        get: {
+            req: GetAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetStateStoreResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        put: {
+            req: SetAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: DeleteAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store': {
+        get: {
+            req: ListTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskStateStoreCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: ClearTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}': {
+        get: {
+            req: GetTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskStateStoreResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        put: {
+            req: SetTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        patch: {
+            req: PatchTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: DeleteTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6735,6 +8300,10 @@ export type $OpenApiTs = {
                  */
                 307: HTTPExceptionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6805,7 +8374,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+    '/ui/pending_partitioned_dag_run/{dag_id}': {
         get: {
             req: GetPendingPartitionedDagRunData;
             res: {
@@ -6870,12 +8439,35 @@ export type $OpenApiTs = {
     };
     '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines': {
         get: {
-            req: GetDagRunDeadlinesData;
+            req: GetDeadlinesData;
             res: {
                 /**
                  * Successful Response
                  */
                 200: DeadlineCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/deadlineAlerts': {
+        get: {
+            req: GetDagDeadlineAlertsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DeadlineAlertCollectionResponse;
                 /**
                  * Not Found
                  */
@@ -6895,6 +8487,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: StructureDataResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -7002,6 +8598,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/calendar/{dag_id}/deadlines': {
+        get: {
+            req: GetCalendarDeadlinesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CalendarDeadlineCollectionResponse;
                 /**
                  * Validation Error
                  */

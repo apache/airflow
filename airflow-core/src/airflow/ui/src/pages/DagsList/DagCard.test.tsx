@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/no-null */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
 import type { PropsWithChildren } from "react";
@@ -55,6 +53,15 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
   </BaseWrapper>
 );
 
+// Render with the run-state-counts row in its loading state so it renders
+// skeletons rather than StateBadges. Without this, every card would emit
+// 4 extra "state-badge" testids and break getByTestId assertions in tests
+// that target the latest-run badge.
+const renderCard = (dag: DAGWithLatestDagRunsResponse) =>
+  render(<DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />, {
+    wrapper: GMTWrapper,
+  });
+
 const mockDag = {
   allowed_run_types: null,
   asset_expression: null,
@@ -67,6 +74,7 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  is_backfillable: true,
   is_favorite: false,
   is_paused: false,
   is_stale: false,
@@ -110,6 +118,7 @@ const mockDag = {
   tags: [],
   timetable_description: "Every minute",
   timetable_partitioned: false,
+  timetable_periodic: true,
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
 
@@ -136,7 +145,7 @@ afterEach(() => {
 
 describe("DagCard", () => {
   it("DagCard should render without tags", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();
     expect(screen.queryByTestId("dag-tag")).toBeNull();
   });
@@ -154,7 +163,7 @@ describe("DagCard", () => {
       tags,
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
+    renderCard(expandedMockDag);
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.queryByText("tag3")).toBeInTheDocument();
@@ -176,14 +185,14 @@ describe("DagCard", () => {
       tags,
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
+    renderCard(expandedMockDag);
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.getByText("+2 more")).toBeInTheDocument();
   });
 
   it("DagCard should render schedule section", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const scheduleElement = screen.getByTestId("schedule");
 
     expect(scheduleElement).toBeInTheDocument();
@@ -192,7 +201,7 @@ describe("DagCard", () => {
   });
 
   it("DagCard should render latest run section with actual run data", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const latestRunElement = screen.getByTestId("latest-run");
 
     expect(latestRunElement).toBeInTheDocument();
@@ -200,8 +209,38 @@ describe("DagCard", () => {
     expect(latestRunElement).toHaveTextContent("2025-09-19 19:22:00");
   });
 
+  it("DagCard should share one tooltip controller across recent runs", async () => {
+    vi.useFakeTimers();
+    renderCard(mockDag);
+
+    const recentRuns = screen.getAllByTestId("recent-run");
+    const tooltipOwners = new Set(recentRuns.map((run) => run.getAttribute("data-ownedby")));
+    const secondRecentRun = recentRuns.at(1);
+
+    try {
+      expect(recentRuns).toHaveLength(mockDag.latest_dag_runs.length);
+      expect(tooltipOwners.size).toBe(1);
+      expect(tooltipOwners.has(null)).toBe(false);
+      expect(secondRecentRun).toBeDefined();
+
+      if (secondRecentRun === undefined) {
+        throw new Error("Expected at least two recent runs");
+      }
+
+      await act(async () => {
+        fireEvent.focus(secondRecentRun);
+        fireEvent.pointerEnter(secondRecentRun);
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("2025-09-19 19:21:00");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("DagCard should render next run section with timestamp", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const nextRunElement = screen.getByTestId("next-run");
 
     expect(nextRunElement).toBeInTheDocument();
@@ -209,8 +248,16 @@ describe("DagCard", () => {
     expect(nextRunElement).toHaveTextContent("2024-08-22 19:00:00");
   });
 
+  it("DagCard should not render next run timestamp for a paused Dag", () => {
+    renderCard({ ...mockDag, is_paused: true });
+    const nextRunElement = screen.getByTestId("next-run");
+
+    expect(nextRunElement).toBeInTheDocument();
+    expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+  });
+
   it("DagCard should render StateBadge as success", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const stateBadge = screen.getByTestId("state-badge");
 
     expect(stateBadge).toBeInTheDocument();
@@ -235,7 +282,7 @@ describe("DagCard", () => {
       ],
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={mockDagWithFailedRun} />, { wrapper: GMTWrapper });
+    renderCard(mockDagWithFailedRun);
     const stateBadge = screen.getByTestId("state-badge");
 
     expect(stateBadge).toBeInTheDocument();

@@ -17,35 +17,38 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
+
+import type { UIAlert } from "openapi/requests/types.gen";
 
 /**
  * Home/Dashboard Page Object
  */
 export class HomePage extends BasePage {
-  // Page URLs
   public static get homeUrl(): string {
     return "/";
   }
 
   public readonly activeDagsCard: Locator;
+  public readonly alertSeeLessButton: Locator;
+  public readonly alertSeeMoreButton: Locator;
   public readonly dagImportErrorsCard: Locator;
   public readonly dagProcessorHealth: Locator;
   public readonly dagRunMetrics: Locator;
   public readonly failedDagsCard: Locator;
+  public readonly firstAlertContent: Locator;
 
-  // Health section elements
   public readonly healthSection: Locator;
-  // Historical Metrics section (recent runs)
   public readonly historicalMetricsSection: Locator;
+  public readonly hitlReviewModal: HITLReviewModal;
   public readonly metaDatabaseHealth: Locator;
-  // Pool Summary section
   public readonly poolSummarySection: Locator;
+  public readonly requiredActionsButton: Locator;
   public readonly runningDagsCard: Locator;
 
   public readonly schedulerHealth: Locator;
 
-  // Dashboard Stats elements
   public readonly statsSection: Locator;
   public readonly taskInstanceMetrics: Locator;
   public readonly triggererHealth: Locator;
@@ -53,53 +56,60 @@ export class HomePage extends BasePage {
   public constructor(page: Page) {
     super(page);
 
-    // Stats cards - using link patterns that match the StatsCard component
-    this.failedDagsCard = page.locator('a[href*="last_dag_run_state=failed"]');
-    this.runningDagsCard = page.locator('a[href*="last_dag_run_state=running"]');
-    this.activeDagsCard = page.locator('a[href*="paused=false"]');
-    this.dagImportErrorsCard = page.getByRole("button", { name: "DAG Import Errors" });
+    // Stats cards - using link role with accessible name. The card text includes the label
+    // (e.g. "Failed", "Running", "Active") so getByRole("link") with name is reliable.
+    // If the accessible name only renders as a number, fall back to href-based selectors.
+    this.failedDagsCard = page.getByRole("link", { name: /failed/i });
+    this.runningDagsCard = page.getByRole("link", { name: /running/i });
+    this.activeDagsCard = page.getByRole("link", { name: /active/i });
+    this.dagImportErrorsCard = page.getByRole("button", { name: "Dag Import Errors" });
+    this.requiredActionsButton = page.getByRole("button", { name: "Required Actions" });
 
-    // Stats section - using role-based selector
+    // Navigate to parent via ".." since there are no ARIA landmark/region roles on these sections.
     this.statsSection = page.getByRole("heading", { name: "Stats" }).locator("..");
-    // Health section - using role-based selector
     this.healthSection = page.getByRole("heading", { name: "Health" }).locator("..");
+    this.hitlReviewModal = new HITLReviewModal(page);
     this.metaDatabaseHealth = page.getByText("Metadatabase").first();
     this.schedulerHealth = page.getByText("Scheduler").first();
     this.triggererHealth = page.getByText("Triggerer").first();
-    this.dagProcessorHealth = page.getByText("DAG Processor").first();
+    this.dagProcessorHealth = page.getByText("Dag Processor").first();
 
-    // Pool Summary section - using role-based selector
     this.poolSummarySection = page.getByRole("heading", { name: "Pool Summary" }).locator("..");
 
-    // Historical Metrics section (recent runs) - using role-based selector
     this.historicalMetricsSection = page.getByRole("heading", { name: "History" }).locator("..");
     this.dagRunMetrics = page.getByRole("heading", { name: /dag run/i }).first();
     this.taskInstanceMetrics = page.getByRole("heading", { name: /task instance/i }).first();
+
+    const alertsContainer = page.getByTestId("dashboard-alerts");
+
+    this.firstAlertContent = alertsContainer.getByTestId("dashboard-alert-content").first();
+    this.alertSeeMoreButton = page.getByRole("button", { exact: true, name: "See more" });
+    this.alertSeeLessButton = page.getByRole("button", { exact: true, name: "See less" });
   }
 
   /**
-   * Get Active DAGs count
+   * Get Active Dags count
    */
   public async getActiveDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.activeDagsCard);
   }
 
   /**
-   * Get Failed DAGs count
+   * Get Failed Dags count
    */
   public async getFailedDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.failedDagsCard);
   }
 
   /**
-   * Get Running DAGs count
+   * Get Running Dags count
    */
   public async getRunningDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.runningDagsCard);
   }
 
   /**
-   * Check if DAG Import Errors are displayed (only visible when errors exist)
+   * Check if Dag Import Errors are displayed (only visible when errors exist)
    */
   public async isDagImportErrorsVisible(): Promise<boolean> {
     try {
@@ -110,17 +120,38 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Navigate to Home/Dashboard page
+   * Stub the /ui/config response so the dashboard renders the given alerts.
    */
-  public async navigate(): Promise<void> {
-    await this.navigateTo(HomePage.homeUrl);
+  public async mockDashboardAlerts(alerts: Array<UIAlert>): Promise<void> {
+    await this.page.route("**/ui/config", async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+
+      await route.fulfill({
+        body: JSON.stringify({ ...body, dashboard_alert: alerts }),
+        contentType: "application/json",
+        status: response.status(),
+      });
+    });
   }
 
   /**
-   * Wait for dashboard to fully load
+   * Navigate to Home/Dashboard page
+   */
+  public async navigate(): Promise<void> {
+    await expect(async () => {
+      await this.navigateTo(HomePage.homeUrl);
+      await expect(this.welcomeHeading).toBeVisible();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
+  }
+
+  /**
+   * Wait for dashboard to fully load including stats data
    */
   public async waitForDashboardLoad(): Promise<void> {
     await expect(this.welcomeHeading).toBeVisible({ timeout: 30_000 });
+    await expect(this.statsSection).toBeVisible({ timeout: 30_000 });
+    await expect(this.activeDagsCard).toBeVisible({ timeout: 30_000 });
   }
 
   /**

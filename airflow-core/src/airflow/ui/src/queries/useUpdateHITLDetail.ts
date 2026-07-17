@@ -22,9 +22,12 @@ import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
+  useDagServiceGetDagsUiKey,
   useDagRunServiceGetDagRunsKey,
+  UseGanttServiceGetGanttDataKeyFn,
   useTaskInstanceServiceGetHitlDetailsKey,
   useTaskInstanceServiceGetHitlDetailKey,
+  useTaskInstanceServiceGetHitlDetailTryDetailKey,
   useTaskInstanceServiceUpdateHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
@@ -33,36 +36,48 @@ import { toaster } from "src/components/ui/Toaster";
 import { createErrorToaster } from "src/utils";
 import type { HITLResponseParams } from "src/utils/hitl";
 
+import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
+
 export const useUpdateHITLDetail = ({
   dagId,
   dagRunId,
   mapIndex,
+  onSuccess,
   taskId,
 }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number | undefined;
+  onSuccess?: () => void;
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("hitl");
-  const onSuccess = async () => {
+  const handleSuccess = async () => {
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
-      [useTaskInstanceServiceGetHitlDetailsKey, { dagIdPattern: dagId, dagRunId }],
+      [useDagServiceGetDagsUiKey],
+      [useTaskInstanceServiceGetHitlDetailsKey],
       [useTaskInstanceServiceGetHitlDetailKey, { dagId, dagRunId }],
+      [useTaskInstanceServiceGetHitlDetailTryDetailKey, { dagId, dagRunId }],
+      UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
+      ...tiPerAttemptQueryKeys,
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     toaster.create({
       title: translate("response.success", { taskId }),
       type: "success",
     });
+    onSuccess?.();
   };
 
   const onError = (apiError: unknown) => {
@@ -71,7 +86,7 @@ export const useUpdateHITLDetail = ({
 
   const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({
     onError,
-    onSuccess,
+    onSuccess: handleSuccess,
   });
 
   const updateHITLResponse = (updateHITLResponseRequestBody: HITLResponseParams) => {

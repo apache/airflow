@@ -82,6 +82,7 @@ class BaseUIResponse(BaseModel):
     icon_dark_mode: str | None = None
     url_route: str | None = None
     category: str | None = None
+    nav_top_level: bool | None = False
 
 
 class ExternalViewResponse(BaseUIResponse):
@@ -106,6 +107,7 @@ class PluginResponse(BaseModel):
     """Plugin serializer."""
 
     name: str
+    team_name: str | None = None
     macros: list[str]
     flask_blueprints: list[str]
     fastapi_apps: list[FastAPIAppResponse]

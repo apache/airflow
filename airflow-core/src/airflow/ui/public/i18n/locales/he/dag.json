@@ -40,17 +40,52 @@
     "parseDuration": "משך זמן הניתוח:",
     "parsedAt": "נותח בשעה:"
   },
+  "deadlineAlerts": {
+    "completionRule": "חייב להסתיים תוך {{interval}} מ-{{reference}}",
+    "count_one": "מועד אחד",
+    "count_other": "{{count}} מועדים",
+    "count_two": "{{count}} מועדים",
+    "referenceType": {
+      "AverageRuntimeDeadline": "זמן ריצה ממוצע",
+      "DagRunLogicalDateDeadline": "תאריך לוגי",
+      "DagRunQueuedAtDeadline": "מועד הכניסה לתור"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "בפועל",
+    "expected": "צפוי",
+    "finishedEarly": "הסתיים {{duration}} לפני המועד האחרון",
+    "finishedLate": "הסתיים {{duration}} אחרי המועד האחרון",
+    "label": "מועד אחרון",
+    "met": "עמד ביעד",
+    "missed": "פוספס",
+    "missedCount_one": "מועד אחד שפוספס",
+    "missedCount_other": "{{count}} מועדים שפוספסו",
+    "missedCount_two": "{{count}} מועדים שפוספסו",
+    "mixedCount": "{{missedCount}} פוספסו, {{upcomingCount}} קרובים",
+    "stillRunning": "עדיין רץ",
+    "upcoming": "קרוב",
+    "upcomingCount_one": "מועד אחד קרוב",
+    "upcomingCount_other": "{{count}} מועדים קרובים",
+    "upcomingCount_two": "{{count}} מועדים קרובים"
+  },
   "extraLinks": "קישורים נוספים",
   "grid": {
     "buttons": {
+      "newerRuns": "הרצות חדשות יותר",
+      "olderRuns": "הרצות ישנות יותר",
       "resetToLatest": "אפס לגרסה האחרונה",
       "toggleGroup": "החלף מצב קבוצה"
-    }
+    },
+    "runTypeLegend": "מקרא סוגי ריצות"
   },
   "header": {
     "buttons": {
       "advanced": "מתקדם",
       "dagDocs": "תיעוד Dag"
+    },
+    "status": {
+      "deactivated": "מושבת"
     }
   },
   "logs": {
@@ -65,13 +100,20 @@
     },
     "info": "INFO",
     "noTryNumber": "אין מספר ניסיון",
+    "search": {
+      "matchCount": "{{current}} מתוך {{total}}",
+      "noMatches": "אין תוצאות",
+      "placeholder": "חפש רישומים..."
+    },
     "settings": "הגדרות רישום",
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "ניווט: {{arrow}}",
-    "toggleGroup": "החלפת קבוצה: רווח"
+  "notFound": {
+    "back": "חזור",
+    "backToDags": "חזור ל-Dags",
+    "message": "ה-Dag \"{{dagId}}\" אינו קיים.",
+    "title": "Dag לא נמצא"
   },
   "overview": {
     "buttons": {
@@ -89,6 +131,10 @@
       "assetEvent_one": "אירוע בנכס שנוצר",
       "assetEvent_other": "אירועי בנכסים שנוצרו",
       "assetEvent_two": "אירועים בנכסים שנוצרו"
+    },
+    "deadlines": {
+      "showAll": "הצג הכל",
+      "title": "מועדים"
     },
     "failedLogs": {
       "hideLogs": "הסתר רישומים",
@@ -119,11 +165,38 @@
     "graphDirection": {
       "label": "כיוון התרשים"
     },
+    "graphFilters": {
+      "clearFilters": "נקה פילטרים",
+      "durationGte": "משך מינימלי (בשניות)",
+      "durationGteHint": "למשימות ממופות, מודד את סך כל הזמן לאורך כל המופעים",
+      "mapIndex": "אינדקס מיפוי מינימלי",
+      "mapIndexHint": "מציג משימות ממופות מורחבות לפחות באינדקס הזה",
+      "selectStatus": "בחר סטטוס",
+      "selectTaskGroup": "בחר קבוצת משימות",
+      "title": "פילטרים משימות"
+    },
+    "showVersionIndicator": {
+      "label": "הצג מחוון גרסה",
+      "options": {
+        "hideAll": "הסתר הכל",
+        "showAll": "הצג הכל",
+        "showBundleVersion": "הצג גרסת חבילה",
+        "showDagVersion": "הצג גרסת Dag"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "מסנן פעיל",
       "clearFilter": "נקה מסנן",
       "clickTask": "לחץ על משימה כדי לבחור אותה כבסיס המסנן",
+      "depth": "עומק",
+      "direction": "כיוון",
       "label": "מסנן",
+      "mode": "מצב",
+      "modeTooltip": "מצב סטטי שומר את התצוגה הנוכחית בעת ניווט למשימות שונות, בעוד מצב מעבר מעדכן אוטומטית את המסנן הפעיל למשימה שנלחצה לניווט קל יותר ב-Dag.",
+      "modes": {
+        "static": "סטטי",
+        "traverse": "מעבר"
+      },
       "options": {
         "both": "גם במעלה וגם במורד הזרם",
         "downstream": "במורד הזרם",

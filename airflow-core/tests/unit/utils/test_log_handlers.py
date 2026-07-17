@@ -504,13 +504,38 @@ class TestFileTaskLogHandler:
         assert extract_events(log_handler_output_stream) == ["line 3"]
         assert metadata == {"end_of_log": True, "log_pos": 3}
 
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
+    def test_read_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
+        """The public `read()` wrapper must accept the `islice` stream `_read()` returns for log_pos reads."""
+        mock_read_local.return_value = (
+            ["the messages"],
+            [convert_list_to_stream(["line 1", "line 2", "line 3"])],
+        )
+        local_log_file_read = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+        )
+        fth = FileTaskHandler("")
+
+        log_handler_output_stream, metadata = fth.read(
+            local_log_file_read,
+            try_number=1,
+            metadata={"log_pos": 2},
+        )
+
+        # Should resume from the third line only.
+        assert extract_events(log_handler_output_stream) == ["line 3"]
+        assert metadata == {"end_of_log": True, "log_pos": 3}
+
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
         path1 = tmp_path / "hello1.log"
         path2 = tmp_path / "hello1.log.suffix.log"
         path1.write_text("file1 content\nfile1 content2")
         path2.write_text("file2 content\nfile2 content2")
-        fth = FileTaskHandler("")
+        fth = FileTaskHandler(str(tmp_path))
         log_source_info, log_streams = fth._read_from_local(path1)
         assert log_source_info == [str(path1), str(path2)]
         assert len(log_streams) == 2
@@ -545,20 +570,20 @@ class TestFileTaskLogHandler:
             logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
-        expected_logs = ["::group::Log message source details", "::endgroup::"]
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
             if remote_logs:
                 fth._read_remote_logs = mock.Mock()
                 fth._read_remote_logs.return_value = ["found remote logs"], ["remote\nlog\ncontent"]
-                expected_logs.extend(
-                    [
-                        "remote",
-                        "log",
-                        "content",
-                    ]
-                )
+                expected_logs = [
+                    "::group::Log message source details",
+                    "found remote logs",
+                    "::endgroup::",
+                    "remote",
+                    "log",
+                    "content",
+                ]
             if local_logs:
                 fth._read_from_local = mock.Mock()
                 fth._read_from_local.return_value = (
@@ -567,13 +592,14 @@ class TestFileTaskLogHandler:
                 )
                 # only when not read from remote and TI is unfinished will read from local
                 if not remote_logs:
-                    expected_logs.extend(
-                        [
-                            "local",
-                            "log",
-                            "content",
-                        ]
-                    )
+                    expected_logs = [
+                        "::group::Log message source details",
+                        "found local logs",
+                        "::endgroup::",
+                        "local",
+                        "log",
+                        "content",
+                    ]
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = (
                 ["this message"],
@@ -581,13 +607,14 @@ class TestFileTaskLogHandler:
             )
             # only when not read from remote and not read from local will read from logs server
             if served_logs_checked:
-                expected_logs.extend(
-                    [
-                        "this",
-                        "log",
-                        "content",
-                    ]
-                )
+                expected_logs = [
+                    "::group::Log message source details",
+                    "this message",
+                    "::endgroup::",
+                    "this",
+                    "log",
+                    "content",
+                ]
 
             logs, metadata = fth._read(ti=ti, try_number=1)
         if served_logs_checked:
@@ -638,7 +665,7 @@ class TestFileTaskLogHandler:
         assert actual == os.fspath(tmp_path / expected)
 
     @skip_if_force_lowest_dependencies_marker
-    def test_read_remote_logs_with_real_s3_remote_log_io(self, create_task_instance, session):
+    def test_read_remote_logs_with_real_s3_remote_log_io(self, monkeypatch, create_task_instance, session):
         """Test _read_remote_logs method using real S3RemoteLogIO with mock AWS"""
         import tempfile
 
@@ -694,7 +721,9 @@ class TestFileTaskLogHandler:
 
                     import airflow.logging_config
 
-                    airflow.logging_config._ActiveLoggingConfig.remote_task_log = s3_remote_log_io
+                    monkeypatch.setattr(
+                        airflow.logging_config._ActiveLoggingConfig, "remote_task_log", s3_remote_log_io
+                    )
 
                     sources, logs = fth._read_remote_logs(ti, try_number=1)
 
@@ -854,6 +883,106 @@ class TestLogUrl:
             f"http://{hostname}:8794/log/DYNAMIC_PATH.trigger.123.log",
             "DYNAMIC_PATH.trigger.123.log",
         )
+
+    def test_log_retrieval_trigger_uses_trigger_log_server_port(self, create_task_instance):
+        with conf_vars({("logging", "trigger_log_server_port"): "9001"}):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+            hostname = get_hostname()
+            assert actual == (
+                f"http://{hostname}:9001/log/DYNAMIC_PATH.trigger.123.log",
+                "DYNAMIC_PATH.trigger.123.log",
+            )
+
+    def test_log_retrieval_trigger_falls_back_to_deprecated_config(self, create_task_instance):
+        with conf_vars(
+            {
+                ("logging", "trigger_log_server_port"): None,
+                ("logging", "triggerer_log_server_port"): "9002",
+            }
+        ):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+            hostname = get_hostname()
+            assert actual == (
+                f"http://{hostname}:9002/log/DYNAMIC_PATH.trigger.123.log",
+                "DYNAMIC_PATH.trigger.123.log",
+            )
+
+    def test_log_retrieval_trigger_prefers_new_config_over_deprecated(self, create_task_instance):
+        with conf_vars(
+            {
+                ("logging", "trigger_log_server_port"): "9001",
+                ("logging", "triggerer_log_server_port"): "9002",
+            }
+        ):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+            hostname = get_hostname()
+            assert actual == (
+                f"http://{hostname}:9001/log/DYNAMIC_PATH.trigger.123.log",
+                "DYNAMIC_PATH.trigger.123.log",
+            )
+
+    def test_log_retrieval_trigger_warns_on_deprecated_config(self, create_task_instance):
+        with conf_vars(
+            {
+                ("logging", "trigger_log_server_port"): None,
+                ("logging", "triggerer_log_server_port"): "9002",
+            }
+        ):
+            ti = create_task_instance(
+                dag_id="dag_for_testing_filename_rendering",
+                task_id="task_for_testing_filename_rendering",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.hostname = "hostname"
+            trigger = Trigger("", {})
+            job = Job(TriggererJobRunner.job_type)
+            job.id = 123
+            trigger.triggerer_job = job
+            ti.trigger = trigger
+            with mock.patch("airflow.utils.log.file_task_handler.logger.warning") as mock_logger_warning:
+                FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+                mock_logger_warning.assert_called_once_with(
+                    "The [logging] %s option is deprecated. Please use [logging] %s instead.",
+                    "triggerer_log_server_port",
+                    "trigger_log_server_port",
+                )
 
 
 log_sample = """[2022-11-16T00:05:54.278-0800] {taskinstance.py:1257} INFO -
@@ -1076,6 +1205,20 @@ def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
             ),
             True,
             id="chain_log_stream",
+        ),
+        pytest.param(
+            itertools.islice(
+                convert_list_to_stream(
+                    [
+                        "2022-11-16T00:05:54.278000-08:00",
+                        "2022-11-16T00:05:54.457000-08:00",
+                    ]
+                ),
+                1,
+                None,
+            ),
+            True,
+            id="islice_log_stream",
         ),
         pytest.param(
             [

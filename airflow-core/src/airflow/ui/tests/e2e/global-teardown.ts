@@ -21,9 +21,9 @@ import { request } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "../../playwright.config";
 
 /**
- * Re-pause all DAGs that E2E fixtures may have unpaused during the test run.
+ * Re-pause all Dags that E2E fixtures may have unpaused during the test run.
  * Runs once after all workers have finished, preventing the scheduler from
- * creating unbounded DAG runs in shared environments.
+ * creating unbounded Dag runs in shared environments.
  */
 async function globalTeardown() {
   const baseURL = testConfig.connection.baseUrl;
@@ -48,8 +48,8 @@ async function globalTeardown() {
         timeout: 10_000,
       });
     } catch (error) {
-      console.warn(
-        `[e2e teardown] Failed to re-pause DAG ${dagId}: ${error instanceof Error ? error.message : String(error)}`,
+      console.debug(
+        `[e2e teardown] Could not re-pause Dag ${dagId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

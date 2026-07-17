@@ -105,7 +105,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = DataTransferServiceClient(
-                credentials=self.get_credentials(), client_info=CLIENT_INFO
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
             )
         return self._conn
 
@@ -298,8 +300,14 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
 
     async def _get_conn(self) -> DataTransferServiceAsyncClient:
         if not self._conn:
-            credentials = (await self.get_sync_hook()).get_credentials()
-            self._conn = DataTransferServiceAsyncClient(credentials=credentials, client_info=CLIENT_INFO)
+            sync_hook = await self.get_sync_hook()
+            credentials = sync_hook.get_credentials()
+            client_options = sync_hook.get_client_options()
+            self._conn = DataTransferServiceAsyncClient(
+                credentials=credentials,
+                client_info=CLIENT_INFO,
+                client_options=client_options,
+            )
         return self._conn
 
     async def _get_project_id(self) -> str:

@@ -279,6 +279,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         ("logging", "gunicorn_logging_level"): _available_logging_levels,
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
         ("api", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
+        ("logging", "dag_processor_log_target"): ["file", "stdout"],
     }
 
     upgraded_values: dict[tuple[str, str], str]
@@ -371,12 +372,13 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         Upgrade SQL schemas.
 
         As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
-        must be replaced with `postgresql`.
+        must be replaced with `postgresql+psycopg2`. The bare `postgresql`
+        scheme is also upgraded to make the psycopg2 driver explicit.
         """
         section, key = "database", "sql_alchemy_conn"
         old_value = self.get(section, key, _extra_stacklevel=1)
-        bad_schemes = ["postgres+psycopg2", "postgres"]
-        good_scheme = "postgresql"
+        bad_schemes = ["postgres+psycopg2", "postgres", "postgresql"]
+        good_scheme = "postgresql+psycopg2"
         parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:
             warnings.warn(

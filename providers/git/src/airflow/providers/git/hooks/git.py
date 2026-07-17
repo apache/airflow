@@ -21,11 +21,15 @@ import contextlib
 import json
 import logging
 import os
+import re
 import shlex
 import stat
 import tempfile
+import warnings
 from typing import Any
+from urllib.parse import quote as urlquote
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 log = logging.getLogger(__name__)
@@ -43,7 +47,8 @@ class GitHook(BaseHook):
     * ``key_file`` — path to an SSH private key file.
     * ``private_key`` — inline SSH private key string (mutually exclusive with ``key_file``).
     * ``private_key_passphrase`` — passphrase for the private key (key_file or inline).
-    * ``strict_host_key_checking`` — ``"yes"`` or ``"no"`` (default ``"no"``).
+    * ``strict_host_key_checking`` — one of ``"yes"``, ``"no"``, ``"accept-new"``, ``"off"``
+      or ``"ask"`` (default ``"accept-new"``).
     * ``known_hosts_file`` — path to a custom SSH known-hosts file.
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
@@ -70,7 +75,7 @@ class GitHook(BaseHook):
                         "key_file": "optional/path/to/keyfile",
                         "private_key": "optional inline private key",
                         "private_key_passphrase": "",
-                        "strict_host_key_checking": "no",
+                        "strict_host_key_checking": "accept-new",
                         "known_hosts_file": "",
                         "ssh_config_file": "",
                         "host_proxy_cmd": "",
@@ -97,7 +102,9 @@ class GitHook(BaseHook):
         self.private_key_passphrase = extra.get("private_key_passphrase")
 
         # SSH connection options
-        self.strict_host_key_checking = extra.get("strict_host_key_checking", "no")
+        strict_host_key_checking = extra.get("strict_host_key_checking")
+        host_key_checking_defaulted = strict_host_key_checking is None
+        self.strict_host_key_checking = strict_host_key_checking or "accept-new"
         self.known_hosts_file = extra.get("known_hosts_file")
         self.ssh_config_file = extra.get("ssh_config_file")
         self.host_proxy_cmd = extra.get("host_proxy_cmd")
@@ -107,27 +114,69 @@ class GitHook(BaseHook):
 
         if self.key_file and self.private_key:
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
+
+        if host_key_checking_defaulted and self._uses_ssh_transport_options():
+            warnings.warn(
+                "The git provider connection no longer disables SSH host key verification by "
+                "default: 'strict_host_key_checking' now defaults to 'accept-new' (was 'no'), so a "
+                "server's host key is trusted on first use and verified on every later connection. "
+                "A future major release of apache-airflow-providers-git will change the default to "
+                "'yes', which requires the host key to already be present in known_hosts. Set "
+                "'strict_host_key_checking' explicitly in the connection extra (and configure "
+                "'known_hosts_file') to pin the behaviour you want.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self._process_git_auth_url()
+
+    _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
+    _SSH_REPO_URL_PATTERN = re.compile(r"^[^/@:]+@[^/:]+:")
+
+    def _uses_ssh_transport_options(self) -> bool:
+        # Heuristic: any SSH-specific option implies SSH; otherwise fall back to the URL scheme.
+        # A bare ssh-config Host alias (no ``user@``) without SSH options is not detected.
+        if any(
+            (
+                self.key_file,
+                self.private_key,
+                self.private_key_passphrase,
+                self.known_hosts_file,
+                self.ssh_config_file,
+                self.host_proxy_cmd,
+                self.ssh_port,
+            )
+        ):
+            return True
+        if not isinstance(self.repo_url, str):
+            return False
+        return self.repo_url.startswith(("ssh://", "git+ssh://")) or bool(
+            self._SSH_REPO_URL_PATTERN.match(self.repo_url)
+        )
 
     def _build_ssh_command(self, key_path: str | None = None) -> str:
         parts = ["ssh"]
 
         if key_path:
-            parts.append(f"-i {key_path}")
+            parts.append(f"-i {shlex.quote(key_path)}")
             parts.append("-o IdentitiesOnly=yes")
 
+        if self.strict_host_key_checking not in self._VALID_STRICT_HOST_KEY_CHECKING:
+            raise ValueError(
+                f"Invalid strict_host_key_checking value: {self.strict_host_key_checking!r}. "
+                f"Must be one of {sorted(self._VALID_STRICT_HOST_KEY_CHECKING)}"
+            )
         parts.append(f"-o StrictHostKeyChecking={self.strict_host_key_checking}")
 
         if self.known_hosts_file:
-            parts.append(f"-o UserKnownHostsFile={self.known_hosts_file}")
+            parts.append(f"-o UserKnownHostsFile={shlex.quote(self.known_hosts_file)}")
         elif self.strict_host_key_checking == "no":
             parts.append("-o UserKnownHostsFile=/dev/null")
 
         if self.ssh_config_file:
-            parts.append(f"-F {self.ssh_config_file}")
+            parts.append(f"-F {shlex.quote(self.ssh_config_file)}")
 
         if self.host_proxy_cmd:
-            parts.append(f'-o ProxyCommand="{self.host_proxy_cmd}"')
+            parts.append(f"-o ProxyCommand={shlex.quote(self.host_proxy_cmd)}")
 
         if self.ssh_port:
             parts.append(f"-p {self.ssh_port}")
@@ -138,13 +187,17 @@ class GitHook(BaseHook):
         if not isinstance(self.repo_url, str):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
-            self.repo_url = self.repo_url.replace("https://", f"https://{self.user_name}:{self.auth_token}@")
+            encoded_user = urlquote(self.user_name, safe="")
+            encoded_token = urlquote(self.auth_token, safe="")
+            self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
         elif self.auth_token and self.repo_url.startswith("http://"):
-            self.repo_url = self.repo_url.replace("http://", f"http://{self.user_name}:{self.auth_token}@")
+            encoded_user = urlquote(self.user_name, safe="")
+            encoded_token = urlquote(self.auth_token, safe="")
+            self.repo_url = self.repo_url.replace("http://", f"http://{encoded_user}:{encoded_token}@", 1)
         elif self.repo_url.startswith("http://"):
             # if no auth token, use the repo url as is
-            self.repo_url = self.repo_url
-        elif not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
+            pass
+        elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
 
     def set_git_env(self, key: str | None = None) -> None:

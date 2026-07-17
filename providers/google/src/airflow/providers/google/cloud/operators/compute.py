@@ -1042,7 +1042,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
             request_id=self.request_id,
             project_id=self.project_id,
         )
-        self.log.info("The specified Instance Template has been created SUCCESSFULLY", self.body)
+        self.log.info("The specified Instance Template has been created SUCCESSFULLY: %s", self.body)
         new_template = hook.get_instance_template(
             resource_id=self.resource_id,
             project_id=self.project_id,
@@ -1611,7 +1611,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             project_id=self.project_id,
             zone=self.zone,
         )
-        self.log.info("The specified Instance Group Manager has been created SUCCESSFULLY", self.body)
+        self.log.info("The specified Instance Group Manager has been created SUCCESSFULLY: %s", self.body)
         new_instance_group_manager = hook.get_instance_group_manager(
             resource_id=self.resource_id,
             project_id=self.project_id,

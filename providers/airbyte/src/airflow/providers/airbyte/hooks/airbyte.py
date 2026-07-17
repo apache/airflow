@@ -20,10 +20,10 @@ from __future__ import annotations
 import time
 from typing import Any, TypeVar
 
+import httpx
 from airbyte_api import AirbyteAPI
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, SchemeClientCredentials, Security
-from requests import Session
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -75,22 +75,58 @@ class AirbyteHook(BaseHook):
         return conn_params
 
     def create_api_session(self) -> AirbyteAPI:
-        """Create Airbyte API session."""
-        credentials = SchemeClientCredentials(
-            client_id=self.conn["client_id"],
-            client_secret=self.conn["client_secret"],
-            token_url=self.conn["token_url"],
-        )
+        """
+        Create Airbyte API session.
+
+        When ``client_id`` and ``client_secret`` are provided (via the
+        connection's *Login* and *Password* fields), the SDK authenticates
+        with OAuth2 Client Credentials — required for Airbyte Cloud and
+        Enterprise deployments.
+
+        When credentials are **not** provided, the session is created
+        without authentication.  This is the correct mode for Airbyte OSS
+        deployments that do not have the ``/v1/applications/token``
+        endpoint enabled.
+        """
+        client_id = self.conn["client_id"]
+        client_secret = self.conn["client_secret"]
+
+        security: Security | None = None
+        if client_id and client_secret:
+            credentials = SchemeClientCredentials(
+                client_id=client_id,
+                client_secret=client_secret,
+                token_url=self.conn["token_url"],
+            )
+            security = Security(client_credentials=credentials)
+        else:
+            self.log.info(
+                "No client_id/client_secret provided in connection '%s'. "
+                "Creating Airbyte API session without authentication "
+                "(suitable for Airbyte OSS without auth enabled).",
+                self.airbyte_conn_id,
+            )
 
         client = None
         if self.conn["proxies"]:
             self.log.debug("Creating client proxy...")
-            client = Session()
-            client.proxies = self.conn["proxies"]
+            proxies = self.conn["proxies"]
+            mounts = {}
+            if isinstance(proxies, dict):
+                for scheme, proxy_url in proxies.items():
+                    # httpx mount keys require a "://" suffix
+                    key = scheme if "://" in scheme else f"{scheme}://"
+                    mounts[key] = httpx.HTTPTransport(proxy=proxy_url)
+            else:
+                mounts = {
+                    "http://": httpx.HTTPTransport(proxy=proxies),
+                    "https://": httpx.HTTPTransport(proxy=proxies),
+                }
+            client = httpx.Client(mounts=mounts)
 
         return AirbyteAPI(
             server_url=self.conn["host"],
-            security=Security(client_credentials=credentials),
+            security=security,
             client=client,
         )
 
@@ -104,8 +140,8 @@ class AirbyteHook(BaseHook):
             ],
             "relabeling": {
                 "host": "Server URL",
-                "login": "Client ID",
-                "password": "Client Secret",
+                "login": "Client ID (optional)",
+                "password": "Client Secret (optional)",
                 "schema": "Token URL",
             },
             "placeholders": {},

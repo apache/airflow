@@ -23,7 +23,6 @@
         "title": "Backfill generato"
       }
     },
-    "tooltip": "Backfill richiede un programma",
     "unpause": "Sospendi {{dag_display_name}} al trigger",
     "validation": {
       "datesRequired": "Devi fornire sia la Data di Inizio che la Data di Fine.",
