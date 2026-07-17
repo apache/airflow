@@ -28,7 +28,7 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
 from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
 from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
-from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models.callback import CallbackKey
@@ -247,6 +247,64 @@ class TestExecuteTaskMakeVersionData:
         ti = self._make_mock_ti(bundle_version="abc123", version_data=None, has_dag_version=False)
 
         workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data is None
+
+
+class TestExecuteCallbackMakeVersionData:
+    """Tests for ExecuteCallback.make() threading version_data through BundleInfo."""
+
+    @staticmethod
+    def _make_mocks(bundle_version, version_data, *, has_created_dag_version=True):
+        """Build mock Callback + DagRun with the attributes ExecuteCallback.make() reads."""
+        from unittest.mock import Mock
+
+        callback = Mock()
+        callback.id = uuid4()
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        callback.data = {"path": "my_module.my_callback"}
+
+        dag_run = Mock()
+        dag_run.dag_id = "test_dag"
+        dag_run.run_id = "test_run"
+        dag_run.bundle_version = bundle_version
+        dag_run.dag_model.bundle_name = "test-bundle"
+        dag_run.dag_model.relative_fileloc = "dags/test_dag.py"
+        if has_created_dag_version:
+            dag_run.created_dag_version.version_data = version_data
+        else:
+            dag_run.created_dag_version = None
+
+        return callback, dag_run
+
+    def test_pinned_run_populates_version_data(self):
+        """When the run is pinned, version_data from created_dag_version flows to BundleInfo."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        callback, dag_run = self._make_mocks(bundle_version="abc123", version_data=version_data)
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data == version_data
+
+    def test_unpinned_run_suppresses_present_version_data(self):
+        """An unpinned run must not expose version_data even when created_dag_version carries it."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        callback, dag_run = self._make_mocks(bundle_version=None, version_data=version_data)
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.bundle_info.version is None
+        assert workload.bundle_info.version_data is None
+
+    def test_missing_created_dag_version_yields_none(self):
+        """A pinned run without a created_dag_version yields no version_data."""
+        callback, dag_run = self._make_mocks(
+            bundle_version="abc123", version_data=None, has_created_dag_version=False
+        )
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
 
         assert workload.bundle_info.version == "abc123"
         assert workload.bundle_info.version_data is None

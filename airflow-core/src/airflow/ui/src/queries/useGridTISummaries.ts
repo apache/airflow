@@ -144,8 +144,10 @@ export const useGridTiSummariesStream = ({
       return undefined;
     }
 
-    // Kick off an immediate refresh so the stream doesn't have to wait for the first interval to elapse.
-    setRefreshTick((tick) => tick + 1);
+    // The stream already fetches on mount and whenever runIdsKey changes, so there is no first-interval
+    // wait to avoid. Bumping refreshTick here would abort that just-opened mount stream and immediately
+    // reopen it — a redundant connection plus an AbortError on every grid mount — so let the interval be
+    // the only re-stream trigger.
     const timer = setInterval(() => {
       setRefreshTick((tick) => tick + 1);
     }, baseRefetchInterval);
@@ -168,6 +170,13 @@ export const useGridTiSummariesStream = ({
             setTimeout(cb, 0);
           };
 
+    const runScheduledRefresh = () => {
+      if (isMounted) {
+        setRefreshTick((tick) => tick + 1);
+      }
+      scheduleScheduled = false;
+    };
+
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       const [firstKey] = event.query.queryKey as Array<unknown>;
 
@@ -180,12 +189,7 @@ export const useGridTiSummariesStream = ({
         // Coalesce: multiple invalidations in the same execution tick only trigger one re-stream.
         if (!scheduleScheduled) {
           scheduleScheduled = true;
-          schedule(() => {
-            if (isMounted) {
-              setRefreshTick((tick) => tick + 1);
-            }
-            scheduleScheduled = false;
-          });
+          schedule(runScheduledRefresh);
         }
       }
     });

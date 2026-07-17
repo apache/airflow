@@ -34,6 +34,7 @@ from airflow.api_fastapi.common.exceptions import (
     _DatabaseDialect,
     _UniqueConstraintErrorHandler,
 )
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.models import DagRun, Pool, Variable
@@ -453,7 +454,7 @@ class TestDataErrorHandler:
         exc = self._make_data_error(orig_msg)
         with pytest.raises(HTTPException) as exc_info:
             self.handler.exception_handler(Mock(), exc)
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert exc_info.value.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         assert exc_info.value.detail == {
             "reason": "Value rejected by database",
             "statement": "hidden",
@@ -472,7 +473,7 @@ class TestDataErrorHandler:
         exc = self._make_data_error(orig_msg)
         with pytest.raises(HTTPException) as exc_info:
             self.handler.exception_handler(Mock(), exc)
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert exc_info.value.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         detail = exc_info.value.detail
         assert isinstance(detail, dict)
         assert detail["reason"] == "Value rejected by database"
@@ -491,7 +492,7 @@ class TestDataErrorHandler:
             raise self._make_data_error("(1406, \"Data too long for column 'conf' at row 1\")")
 
         response = TestClient(app, raise_server_exceptions=False).post("/test")
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         detail = response.json()["detail"]
         assert detail["reason"] == "Value rejected by database"
         assert detail["statement"] == "hidden"

@@ -125,6 +125,24 @@ Dependent package                                                               
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 ========================================================================================================================  ====================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-ibm-mq[ibmmq]
+
+
+====================  ===============================================================================
+Extra                 Dependencies
+====================  ===============================================================================
+``ibmmq``             ``ibmmq>=2.0.6; platform_machine != "aarch64" and platform_machine != "arm64"``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ===============================================================================
+
 Downloading official packages
 -----------------------------
 
