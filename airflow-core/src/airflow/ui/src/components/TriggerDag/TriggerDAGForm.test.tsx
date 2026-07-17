@@ -128,4 +128,48 @@ describe("TriggerDAGForm", () => {
       expect(configJson.value).toContain('"Updated message"');
     });
   });
+
+  it("hides the partition key field for non-partitioned Dags", async () => {
+    render(
+      <TriggerDAGForm
+        dagDisplayName="Non Partitioned Dag"
+        dagId="example_non_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() => expect(screen.getByText("runId")).toBeInTheDocument());
+    expect(screen.queryByText("dagRun.partitionKey")).not.toBeInTheDocument();
+  });
+
+  it("shows the partition key field for partitioned Dags", async () => {
+    render(
+      <TriggerDAGForm
+        dagDisplayName="Partitioned Dag"
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
+    expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
+  });
 });
