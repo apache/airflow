@@ -17,10 +17,12 @@
  * under the License.
  */
 import type { ButtonProps, InputProps } from "@chakra-ui/react";
-import { Button, Clipboard as ChakraClipboard, IconButton, Input } from "@chakra-ui/react";
+import { Button, Clipboard as ChakraClipboard, Input } from "@chakra-ui/react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { LuCheck, LuClipboard, LuLink } from "react-icons/lu";
+
+import { IconButton } from ".";
 
 const ClipboardIcon = React.forwardRef<HTMLDivElement, ChakraClipboard.IndicatorProps>((props, ref) => (
   <ChakraClipboard.Indicator copied={<LuCheck />} {...props} ref={ref}>
@@ -51,7 +53,7 @@ export const ClipboardLabel = React.forwardRef<HTMLLabelElement, ChakraClipboard
 
 export const ClipboardButton = React.forwardRef<HTMLButtonElement, ButtonProps>((props, ref) => (
   <ChakraClipboard.Trigger asChild>
-    <Button ref={ref} size="sm" variant="outline" {...props}>
+    <Button ref={ref} variant="outline" {...props}>
       <ClipboardIcon />
       <ClipboardCopyText />
     </Button>
@@ -78,7 +80,7 @@ export const ClipboardLink = React.forwardRef<HTMLButtonElement, ButtonProps>((p
 
 export const ClipboardIconButton = React.forwardRef<HTMLButtonElement, ButtonProps>((props, ref) => (
   <ChakraClipboard.Trigger asChild>
-    <IconButton ref={ref} size="xs" variant="subtle" {...props}>
+    <IconButton ref={ref} size="xs" variant="ghost" {...props}>
       <ClipboardIcon />
       <ClipboardCopyText srOnly />
     </IconButton>

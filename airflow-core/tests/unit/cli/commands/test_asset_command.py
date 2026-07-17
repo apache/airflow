@@ -28,6 +28,7 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import asset_command
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 if typing.TYPE_CHECKING:
@@ -38,7 +39,8 @@ pytestmark = [pytest.mark.db_test]
 
 @pytest.fixture(scope="module", autouse=True)
 def prepare_examples():
-    parse_and_sync_to_db(os.devnull, include_examples=True)
+    with conf_vars({("core", "load_examples"): "True"}):
+        parse_and_sync_to_db(os.devnull)
     yield
     clear_db_runs()
     clear_db_dags()
@@ -157,6 +159,7 @@ def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_cap
         "duration": None,
         "last_scheduling_decision": None,
         "note": None,
+        "partition_date": None,
         "partition_key": None,
         "run_type": "asset_materialization",
         "start_date": None,
@@ -196,6 +199,7 @@ def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, s
         "duration": None,
         "last_scheduling_decision": None,
         "note": None,
+        "partition_date": None,
         "partition_key": None,
         "run_type": "asset_materialization",
         "start_date": None,

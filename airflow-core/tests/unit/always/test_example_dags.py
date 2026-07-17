@@ -60,6 +60,7 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
+    "providers/ibm/mq/tests/system/ibm/mq/example_dag_message_queue_trigger.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
 
@@ -118,7 +119,8 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
     example_dirs = [
         "airflow-core/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
-        "providers/**/example_*.py",
+        "providers/**/tests/system/**/example_*.py",
+        "providers/**/example_dags/example_*.py",
     ]
 
     default_branch = os.environ.get("DEFAULT_BRANCH", "main")
@@ -211,7 +213,6 @@ def patch_get_dagbag_import_timeout():
 def test_should_be_importable(example: str, patch_get_dagbag_import_timeout):
     dagbag = DagBag(
         dag_folder=example,
-        include_examples=False,
     )
     if len(dagbag.import_errors) == 1 and "AirflowOptionalProviderFeatureException" in str(
         dagbag.import_errors
@@ -230,7 +231,6 @@ def test_should_not_do_database_queries(example: str, patch_get_dagbag_import_ti
     with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
-            include_examples=False,
         )
 
 
@@ -242,7 +242,6 @@ def test_should_not_run_hook_connections(example: str, patch_get_dagbag_import_t
         mock_get_connection.return_value = Connection()
         DagBag(
             dag_folder=example,
-            include_examples=False,
         )
     assert mock_get_connection.call_count == 0, (
         f"BaseHook.get_connection() should not be called during DAG parsing. "

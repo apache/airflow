@@ -185,6 +185,34 @@ ARG_END_DATE = Arg(
     ),
     type=parsedate,
 )
+ARG_PARTITION_DATE_START = Arg(
+    ("--partition-date-start",),
+    help=(
+        "Inclusive lower bound of the partition_date window. The wall-clock value is "
+        "re-interpreted in the Dag's timetable timezone. "
+        "A date-only value (no time) is treated as local midnight. "
+        "Accepts the same datetime formats as --start-date."
+    ),
+    type=parsedate,
+)
+ARG_PARTITION_DATE_END = Arg(
+    ("--partition-date-end",),
+    help=(
+        "Inclusive upper bound of the partition_date window. The wall-clock value is "
+        "re-interpreted in the Dag's timetable timezone. "
+        "A date-only value (no time) is treated as local midnight. "
+        "Accepts the same datetime formats as --end-date."
+    ),
+    type=parsedate,
+)
+ARG_PARTITION_KEY = Arg(
+    ("--partition-key",),
+    help="Clear all Dag runs whose partition_key matches this exact value.",
+)
+ARG_CLEAR_RUN_ID = Arg(
+    ("--run-id",),
+    help="Clear the Dag run with this run_id.",
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -346,10 +374,22 @@ ARG_TEAM_NAME = Arg(("name",), help="Team name")
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
 ARG_BACKFILL_FROM_DATE = Arg(
-    ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
+    ("--from-date",),
+    help=(
+        "Backfill window start (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
+    ),
+    type=parsedate,
+    required=True,
 )
 ARG_BACKFILL_TO_DATE = Arg(
-    ("--to-date",), help="Latest logical date to backfill", type=parsedate, required=True
+    ("--to-date",),
+    help=(
+        "Backfill window end (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
+    ),
+    type=parsedate,
+    required=True,
 )
 ARG_DAG_RUN_CONF = Arg(flags=("--dag-run-conf",), help="JSON dag run configuration.")
 ARG_RUN_BACKWARDS = Arg(
@@ -382,13 +422,13 @@ ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
     help=(
         "(Experimental) The backfill will run tasks using the latest bundle version instead of "
-        "the version that was active when the original Dag run was created. Defaults to True."
+        "the version that was active when the original Dag run was created. "
+        "If not specified, uses the DAG-level or global configuration default "
+        "(falling back to True for backfills to preserve historical behavior)."
     ),
-    action="store_true",
-    default=True,
+    action=argparse.BooleanOptionalAction,
+    default=None,
 )
-
-
 # misc
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),
@@ -541,6 +581,11 @@ ARG_DB_BATCH_SIZE = Arg(
         "Lower values reduce long-running locks but increase the number of batches."
     ),
 )
+ARG_DB_ERROR_ON_CLEANUP_FAILURE = Arg(
+    ("--error-on-cleanup-failure",),
+    help="Command will exit with a non-zero exit code if any table cleanup failed. By default errors are suppressed and the command exits 0.",
+    action="store_true",
+)
 ARG_DAG_IDS = Arg(
     ("--dag-ids",),
     default=None,
@@ -561,6 +606,7 @@ ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
 ARG_POOL_INCLUDE_DEFERRED = Arg(
     ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
 )
+ARG_POOL_TEAM_NAME = Arg(("--team-name",), help="Team name to assign the pool to (requires multi_team mode)")
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -570,7 +616,7 @@ ARG_POOL_IMPORT = Arg(
             """
             {
                 "pool_1": {"slots": 5, "description": "", "include_deferred": true},
-                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false, "team_name": "my_team"}
             }"""
         ),
         " " * 4,
@@ -738,6 +784,17 @@ ARG_SSL_KEY = Arg(
     ("--ssl-key",),
     default=conf.get("api", "ssl_key"),
     help="Path to the key to use with the SSL certificate",
+)
+ARG_SSL_CA_FILE = Arg(
+    ("--ssl-ca-file",),
+    default=conf.get("api", "ssl_ca_file", fallback=None),
+    help="(Optional) Path to the SSL CA file",
+)
+ARG_SSL_CERT_REQS = Arg(
+    ("--ssl-cert-reqs",),
+    default=conf.get("api", "ssl_cert_reqs", fallback="none"),
+    help="(Optional) Set certificate verification options.",
+    choices=("none", "optional", "required"),
 )
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
@@ -994,6 +1051,10 @@ ARG_QUEUES = Arg(
     type=string_list_type,
     help="Optional comma-separated list of task queues which the triggerer should consume from.",
 )
+ARG_TRIGGERER_TEAM_NAME = Arg(
+    ("--team-name",),
+    help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
+)
 
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
@@ -1012,6 +1073,49 @@ ARG_ASSET_LIST_COLUMNS = Arg(
 ARG_ASSET_NAME = Arg(("--name",), default="", help="Asset name")
 ARG_ASSET_URI = Arg(("--uri",), default="", help="Asset URI")
 ARG_ASSET_ALIAS = Arg(("--alias",), default=False, action="store_true", help="Show asset alias")
+
+# partitions clear
+ARG_PARTITIONS_CLEAR_DAG_ID = Arg(
+    ("-d", "--dag-id"),
+    help="The id of the Dag whose DagRun partition fields should be cleared",
+    required=True,
+)
+ARG_PARTITIONS_CLEAR_START_DATE = Arg(
+    ("-s", "--start-date"),
+    help="Inclusive lower bound of the partition_date window.",
+    type=parsedate,
+)
+ARG_PARTITIONS_CLEAR_END_DATE = Arg(
+    ("-e", "--end-date"),
+    help="Inclusive upper bound of the partition_date window.",
+    type=parsedate,
+)
+ARG_PARTITIONS_CLEAR_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Show which DagRuns would be cleared without modifying the database",
+    action="store_true",
+)
+ARG_PARTITIONS_CLEAR_PARTITION_KEY = Arg(
+    ("-k", "--partition-key"),
+    type=str,
+    help="Only clear DagRuns whose `partition_key` equals this exact value",
+)
+ARG_PARTITIONS_CLEAR_DATE_RANGE = Arg(
+    ("--date",),
+    type=str,
+    help=(
+        "Range expressed as 'a~b' (e.g. '2026-01-01~2026-01-31'); equivalent to "
+        "--start-date a --end-date b. Mutually exclusive with --start-date / --end-date."
+    ),
+)
+ARG_PARTITIONS_CLEAR_TASK_INSTANCES = Arg(
+    ("--clear-task-instances",),
+    help=(
+        "Also clear the matching DagRuns' task instances (resetting finished runs back to "
+        "QUEUED so they re-execute), in addition to clearing the partition fields."
+    ),
+    action="store_true",
+)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
@@ -1072,7 +1176,7 @@ BACKFILL_COMMANDS = (
     ActionCommand(
         name="create",
         help="Create a backfill for a dag.",
-        description="Run subsections of a DAG for a specified date range.",
+        description="Run subsections of a Dag for a specified date range.",
         func=lazy_load_command("airflow.cli.commands.backfill_command.create_backfill"),
         args=(
             ARG_BACKFILL_DAG,
@@ -1093,6 +1197,32 @@ DAGS_COMMANDS = (
         help="Get DAG details given a DAG id",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_details"),
         args=(ARG_DAG_ID, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="clear",
+        help="Clear Dag runs selected by run_id, partition_key, or a partition_date window",
+        description=(
+            "Clear Dag runs of the given dag_id and re-queue them for reprocessing. Exactly one "
+            "of the following selectors must be provided: --run-id (single run); --partition-key "
+            "(every run with that exact partition_key); or a partition_date window via "
+            "--partition-date-start and/or --partition-date-end (both bounds are inclusive, "
+            "interpreted in the Dag's timetable timezone). "
+            "Intended for partitioned Dags, whose runs are keyed by partition_date / "
+            "partition_key instead of logical_date. For traditional, non-partitioned Dags, use "
+            "`airflow tasks clear --start-date / --end-date`."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_command.dag_clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_CLEAR_RUN_ID,
+            ARG_PARTITION_KEY,
+            ARG_PARTITION_DATE_START,
+            ARG_PARTITION_DATE_END,
+            ARG_ONLY_FAILED,
+            ARG_ONLY_RUNNING,
+            ARG_YES,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="list",
@@ -1409,6 +1539,31 @@ TASKS_COMMANDS = (
         args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
+PARTITIONS_COMMANDS = (
+    ActionCommand(
+        name="clear",
+        help="Clear the partition_key and partition_date of one or more DagRuns",
+        description=(
+            "Clear the partition_key and partition_date columns on a Dag's DagRuns.\n"
+            "Either --run-id (single run), --partition-key (exact match), or a partition_date range "
+            "(--start-date/--end-date or --date a~b) is required.\n"
+            "Pass --clear-task-instances to additionally clear the matching DagRuns' "
+            "task instances so finished runs go back to QUEUED and re-execute."
+        ),
+        func=lazy_load_command("airflow.cli.commands.partition_command.clear"),
+        args=(
+            ARG_PARTITIONS_CLEAR_DAG_ID,
+            ARG_RUN_ID,
+            ARG_PARTITIONS_CLEAR_START_DATE,
+            ARG_PARTITIONS_CLEAR_END_DATE,
+            ARG_PARTITIONS_CLEAR_PARTITION_KEY,
+            ARG_PARTITIONS_CLEAR_DATE_RANGE,
+            ARG_PARTITIONS_CLEAR_TASK_INSTANCES,
+            ARG_PARTITIONS_CLEAR_DRY_RUN,
+            ARG_VERBOSE,
+        ),
+    ),
+)
 POOLS_COMMANDS = (
     ActionCommand(
         name="list",
@@ -1431,6 +1586,7 @@ POOLS_COMMANDS = (
             ARG_POOL_SLOTS,
             ARG_POOL_DESCRIPTION,
             ARG_POOL_INCLUDE_DEFERRED,
+            ARG_POOL_TEAM_NAME,
             ARG_OUTPUT,
             ARG_VERBOSE,
         ),
@@ -1518,7 +1674,29 @@ TEAMS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.team_command.team_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="sync",
+        help="Sync teams",
+        description=("Sync missing teams from the dag bundle config into the database.\n"),
+        func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
+        args=(ARG_VERBOSE,),
+    ),
 )
+STATE_STORE_COMMANDS = (
+    ActionCommand(
+        name="clean",
+        help="Remove expired task state store rows (metastore backend only)",
+        description=(
+            "Deletes task_state_store rows whose expires_at is in the past, honoring the state_store "
+            "settings default_retention_days and state_cleanup_batch_size. Currently supports the "
+            "default metastore backend only; custom (worker-side) backends are skipped. Use --dry-run "
+            "to preview deletions."
+        ),
+        func=lazy_load_command("airflow.cli.commands.state_store_command.clean_state_store"),
+        args=(ARG_DB_DRY_RUN, ARG_VERBOSE),
+    ),
+)
+
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
@@ -1603,6 +1781,7 @@ DB_COMMANDS = (
             ARG_DB_BATCH_SIZE,
             ARG_DAG_IDS,
             ARG_EXCLUDE_DAG_IDS,
+            ARG_DB_ERROR_ON_CLEANUP_FAILURE,
         ),
     ),
     ActionCommand(
@@ -1950,6 +2129,11 @@ core_commands: list[CLICommand] = [
         subcommands=BACKFILL_COMMANDS,
     ),
     GroupCommand(
+        name="partitions",
+        help="Manage Dag run partition metadata",
+        subcommands=PARTITIONS_COMMANDS,
+    ),
+    GroupCommand(
         name="tasks",
         help="Manage tasks",
         subcommands=TASKS_COMMANDS,
@@ -2018,6 +2202,8 @@ core_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
+            ARG_SSL_CA_FILE,
+            ARG_SSL_CERT_REQS,
             ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),
@@ -2062,6 +2248,7 @@ core_commands: list[CLICommand] = [
             ARG_SKIP_SERVE_LOGS,
             ARG_DEV,
             ARG_QUEUES,
+            ARG_TRIGGERER_TEAM_NAME,
         ),
     ),
     ActionCommand(
@@ -2101,6 +2288,11 @@ core_commands: list[CLICommand] = [
         name="providers",
         help="Display providers",
         subcommands=PROVIDERS_COMMANDS,
+    ),
+    GroupCommand(
+        name="state-store",
+        help="Manage task and asset state storage",
+        subcommands=STATE_STORE_COMMANDS,
     ),
     ActionCommand(
         name="rotate-fernet-key",

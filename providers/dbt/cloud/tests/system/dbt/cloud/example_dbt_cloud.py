@@ -21,6 +21,7 @@ from datetime import datetime
 from airflow.models import DAG
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
+    DbtCloudListJobRunsOperator,
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
@@ -94,9 +95,15 @@ with DAG(
     list_dbt_jobs = DbtCloudListJobsOperator(task_id="list_dbt_jobs", account_id=106277, project_id=160645)
     # [END howto_operator_dbt_cloud_list_jobs]
 
+    # [START howto_operator_dbt_cloud_list_job_runs]
+    list_dbt_job_runs = DbtCloudListJobRunsOperator(
+        task_id="list_dbt_job_runs", account_id=106277, job_id=160645
+    )
+    # [END howto_operator_dbt_cloud_list_job_runs]
+
     begin >> Label("No async wait") >> trigger_job_run1
     begin >> Label("Do async wait with sensor") >> trigger_job_run2
-    [get_run_results_artifact, job_run_sensor, list_dbt_jobs] >> end
+    [get_run_results_artifact, job_run_sensor, list_dbt_jobs, list_dbt_job_runs] >> end
 
     # Task dependency created via `XComArgs`:
     # trigger_job_run1 >> get_run_results_artifact
@@ -111,5 +118,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

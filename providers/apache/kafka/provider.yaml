@@ -21,7 +21,7 @@ name: Apache Kafka
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774298448
+source-date-epoch: 1779137192
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 # Note that those versions are maintained by release manager - do not update them manually
@@ -29,6 +29,9 @@ description: |
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.14.0
+  - 1.13.3
+  - 1.13.2
   - 1.13.1
   - 1.13.0
   - 1.12.0
@@ -75,6 +78,20 @@ operators:
       - airflow.providers.apache.kafka.operators.consume
       - airflow.providers.apache.kafka.operators.produce
 
+asset-uris:
+  - schemes: [kafka]
+    handler: airflow.providers.apache.kafka.assets.kafka.sanitize_uri
+    factory: airflow.providers.apache.kafka.assets.kafka.create_asset
+    to_openlineage_converter: airflow.providers.apache.kafka.assets.kafka.convert_asset_to_openlineage
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [kafka]
+    handler: airflow.providers.apache.kafka.assets.kafka.sanitize_uri
+    factory: airflow.providers.apache.kafka.assets.kafka.create_asset
+    to_openlineage_converter: airflow.providers.apache.kafka.assets.kafka.convert_asset_to_openlineage
+
 hooks:
   - integration-name: Apache Kafka
     python-modules:
@@ -96,6 +113,7 @@ triggers:
 
 connection-types:
   - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaBaseHook
+    hook-name: "Apache Kafka"
     connection-type: kafka
     ui-field-behaviour:
       hidden-fields:
@@ -111,3 +129,129 @@ connection-types:
 
 queues:
   - airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider
+
+plugins:
+  - name: kafka_listener
+    plugin-class: airflow.providers.apache.kafka.plugins.listener.KafkaListenerPlugin
+
+config:
+  kafka_listener:
+    description: |
+      Settings for the Kafka listener that publishes Airflow DagRun and
+      TaskInstance state-change events to a Kafka topic.
+    options:
+      dag_run_events_enabled:
+        description: |
+          Publish DagRun state-change events (``dag_run.running``,
+          ``dag_run.success``, ``dag_run.failed``). When False the
+          DagRun listener is not registered.
+        version_added: 1.14.1
+        type: boolean
+        example: ~
+        default: "False"
+      task_instance_events_enabled:
+        description: |
+          Publish TaskInstance state-change events (``task_instance.running``,
+          ``task_instance.success``, ``task_instance.failed``,
+          ``task_instance.skipped``). When False the TaskInstance listener
+          is not registered.
+        version_added: 1.14.1
+        type: boolean
+        example: ~
+        default: "False"
+      kafka_config_id:
+        description: |
+          Airflow connection used to build the listener's Kafka producer.
+          When unset, the producer hook falls back to its default
+          connection (``kafka_default``).
+        version_added: 1.14.1
+        type: string
+        example: "kafka_default"
+        default: ""
+      topic:
+        description: |
+          Topic the listener publishes events to. The topic must already
+          exist on the broker; the listener will not auto-create it.
+        version_added: 1.14.1
+        type: string
+        example: ~
+        default: "airflow.events"
+      source:
+        description: |
+          Identifier added to every emitted message under the ``source``
+          field so consumers can distinguish Airflow installations that
+          share the same topic. When unset, falls back to the hostname
+          of the Airflow component that emits the event (scheduler,
+          worker, etc.).
+        version_added: 1.14.1
+        type: string
+        example: "af-prod-eu"
+        default: ""
+      dag_run_dag_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, DagRun events are only
+          emitted for dag_ids matching at least one pattern. Empty = all dags.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*,test_dag1"
+        default: ""
+      dag_run_dag_id_denylist:
+        description: |
+          Comma-separated glob patterns. DagRun events for dag_ids matching
+          any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*"
+        default: ""
+      task_instance_dag_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, TaskInstance events are
+          only emitted for dag_ids matching at least one pattern.
+          Empty = all dags.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*,test_dag1"
+        default: ""
+      task_instance_dag_id_denylist:
+        description: |
+          Comma-separated glob patterns. TaskInstance events for dag_ids
+          matching any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*"
+        default: ""
+      task_instance_task_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, TaskInstance events are
+          only emitted for task_ids matching at least one pattern. Applied
+          in addition to ``task_instance_dag_id_allowlist`` — both must pass.
+          Mapped task instances share the same task_id so a single pattern
+          covers all map indices.
+        version_added: 1.14.1
+        type: string
+        example: "load_*,extract_*"
+        default: ""
+      task_instance_task_id_denylist:
+        description: |
+          Comma-separated glob patterns. TaskInstance events for task_ids
+          matching any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "*_cleanup"
+        default: ""
+      topic_check_timeout:
+        description: |
+          How long (in seconds) each topic existence check is allowed
+          to block waiting for a response from the broker.
+        version_added: 1.14.1
+        type: integer
+        example: ~
+        default: "10"
+      topic_check_retry_interval:
+        description: |
+          How long (in seconds) to wait before retrying a topic check,
+          in case it failed.
+        version_added: 1.14.1
+        type: integer
+        example: ~
+        default: "60"

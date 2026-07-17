@@ -20,15 +20,13 @@ import json
 import logging
 from unittest import mock
 
-import aiohttp
 import pytest
-from aiohttp.helpers import TimerNoop
 from requests.exceptions import HTTPError
-from yarl import URL
 
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v1beta1"
@@ -102,11 +100,18 @@ class TestDataFusionHook:
         assert hook._parent(PROJECT_ID, LOCATION) == expected
 
     @mock.patch(HOOK_STR.format("build"))
+    @mock.patch(HOOK_STR.format("DataFusionHook.get_client_options"))
     @mock.patch(HOOK_STR.format("DataFusionHook._authorize"))
-    def test_get_conn(self, mock_authorize, mock_build, hook):
+    def test_get_conn(self, mock_authorize, mock_get_client_options, mock_build, hook):
         mock_authorize.return_value = "test"
         hook.get_conn()
-        mock_build.assert_called_once_with("datafusion", hook.api_version, http="test", cache_discovery=False)
+        mock_build.assert_called_once_with(
+            "datafusion",
+            hook.api_version,
+            http="test",
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
+        )
 
     @mock.patch(HOOK_STR.format("DataFusionHook.get_conn"))
     def test_restart_instance(self, get_conn_mock, hook):
@@ -229,7 +234,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.create_pipeline(pipeline_name=PIPELINE_NAME, pipeline=PIPELINE, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -266,7 +271,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -321,7 +326,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.list_pipelines(instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -415,7 +420,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
@@ -482,7 +487,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.stop_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -498,7 +503,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.stop_pipeline(
                 pipeline_name=PIPELINE_NAME,
@@ -559,7 +564,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.get_pipeline_workflow(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, pipeline_id=PIPELINE_ID
@@ -631,21 +636,12 @@ class TestDataFusionHookAsynch:
     async def test_async_get_pipeline_status_completed_should_execute_successfully(
         self, mocked_get, hook_async, pipeline_type, constructed_url
     ):
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(constructed_url),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "COMPLETED"},
+            method="GET",
+            url=constructed_url,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "some-token"}
-        mocked_get.return_value._body = b'{"status": "COMPLETED"}'
 
         pipeline_status = await hook_async.get_pipeline_status(
             pipeline_name=PIPELINE_NAME,
@@ -669,21 +665,12 @@ class TestDataFusionHookAsynch:
         self, mocked_get, hook_async, pipeline_type, constructed_url
     ):
         """Assets that the DataFusionAsyncHook returns pending response when job is still in running state"""
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(constructed_url),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "RUNNING"},
+            method="GET",
+            url=constructed_url,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "some-token"}
-        mocked_get.return_value._body = b'{"status": "RUNNING"}'
 
         pipeline_status = await hook_async.get_pipeline_status(
             pipeline_name=PIPELINE_NAME,

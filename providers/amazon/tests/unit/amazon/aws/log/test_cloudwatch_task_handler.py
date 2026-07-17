@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 import textwrap
 import time
@@ -29,6 +30,7 @@ import boto3
 import pendulum
 import pytest
 import time_machine
+from botocore.exceptions import ClientError
 from moto import mock_aws
 from pydantic import TypeAdapter
 from watchtower import CloudWatchLogHandler
@@ -60,6 +62,26 @@ def get_time_str(time_in_milliseconds):
 def logmock():
     with mock_aws():
         yield
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_cloudwatch_handlers():
+    # Watchtower's CloudWatchLogHandler spawns a queue worker thread that keeps
+    # the handler alive even after the test fixture tears down, so it stays
+    # registered in logging._handlerList. Several tests here never call close()
+    # or mock watchtower.CloudWatchLogHandler.close, leaking the handler across
+    # tests. When a later test in the same xdist worker calls
+    # logging.config.dictConfig (e.g. settings.configure_logging()), its
+    # _clearExistingHandlers path runs close() on the leaked handler and blocks
+    # up to FLUSH_TIMEOUT waiting for an undrainable queue — mock_aws is gone.
+    # Closing here while mock_aws is still active drains cleanly.
+    yield
+    for handler_ref in logging._handlerList[:]:
+        handler = handler_ref()
+        if handler is not None and isinstance(handler, CloudWatchLogHandler):
+            with contextlib.suppress(Exception):
+                handler.close()
+            logging._removeHandlerRef(handler_ref)
 
 
 # We only test this directly on Airflow 3
@@ -220,6 +242,47 @@ class TestCloudRemoteLogIO:
             assert logs == [
                 '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
+
+    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    def test_log_message_after_handler_closed_by_dictconfig(self):
+        # configure_logging() ends in logging.config.dictConfig(), whose
+        # _clearExistingHandlers closes every handler in logging._handlerList,
+        # including the streaming watchtower handler built moments earlier. The
+        # processor must rebuild it instead of feeding the closed one (which
+        # silently drops every record), otherwise no task log ever ships.
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            import structlog
+
+            closed = self.subject.handler
+            closed.close()
+            assert closed.shutting_down is True
+
+            log = structlog.get_logger()
+            log.info("Hi", foo="bar")
+            self.subject.close()
+
+            # A fresh handler was built rather than reusing the closed one.
+            assert self.subject.handler is not closed
+            assert self.subject.handler.shutting_down is False
+
+            stream_name = self.task_log_path.replace(":", "_")
+            _, logs = self.subject.read(stream_name, self.ti)
+            assert logs == [
+                '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
+            ]
+
+    def test_handler_not_rebuilt_after_close(self):
+        # Once the IO has been closed, a closed handler must NOT be rebuilt: a record arriving
+        # after teardown should be dropped silently rather than spin up an orphan handler and its
+        # background queue thread. Only dictConfig closing it mid-task should trigger a rebuild.
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            original = self.subject.handler
+            self.subject.close()
+            original.close()
+            assert original.shutting_down is True
+
+            assert self.subject.handler is original
+            assert self.subject.handler.shutting_down is True
 
 
 @pytest.mark.db_test
@@ -402,6 +465,33 @@ class TestCloudwatchTaskHandler:
             end_time=expected_end_time,
         )
 
+    @mock.patch.object(AwsLogsHook, "get_log_events")
+    def test_get_cloudwatch_logs_missing_stream_yields_hint(self, mock_get_log_events):
+        # A missing log stream (no logs written for this try -- e.g. the task logged
+        # to stdout instead of remote storage) must not raise (so the log reader does
+        # not surface a 500) and must yield a hint instead of nothing, so the reader
+        # does not show a blank view that looks like remote logging silently failed.
+        def _raise_not_found(*args, **kwargs):
+            raise ClientError({"Error": {"Code": "ResourceNotFoundException"}}, "GetLogEvents")
+            yield  # pragma: no cover -- makes this a generator function
+
+        mock_get_log_events.side_effect = _raise_not_found
+        events = list(self.cloudwatch_task_handler.io.get_cloudwatch_logs(self.remote_log_stream, self.ti))
+        assert len(events) == 1
+        assert "No log stream found in CloudWatch" in events[0]["message"]
+        assert self.remote_log_stream in events[0]["message"]
+
+    @mock.patch.object(AwsLogsHook, "get_log_events")
+    def test_get_cloudwatch_logs_other_client_error_propagates(self, mock_get_log_events):
+        # Errors other than a missing stream must still surface.
+        def _raise_access_denied(*args, **kwargs):
+            raise ClientError({"Error": {"Code": "AccessDeniedException"}}, "GetLogEvents")
+            yield  # pragma: no cover -- makes this a generator function
+
+        mock_get_log_events.side_effect = _raise_access_denied
+        with pytest.raises(ClientError):
+            list(self.cloudwatch_task_handler.io.get_cloudwatch_logs(self.remote_log_stream, self.ti))
+
     @pytest.mark.parametrize(
         ("conf_json_serialize", "expected_serialized_output"),
         [
@@ -487,6 +577,23 @@ class TestCloudwatchTaskHandler:
                     mock_upload.assert_called_once_with(
                         self.cloudwatch_task_handler.log_relative_path, self.ti
                     )
+
+    def test_close_closes_live_io_handler_after_rebuild(self):
+        """close() closes the handler the IO is currently using, not a stale captured reference."""
+        handler = self.cloudwatch_task_handler
+        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.set_context"):
+            with mock.patch.object(handler.io, "upload"):
+                handler.set_context(self.ti)
+                stale = handler.handler
+                # Simulate dictConfig closing the handler mid-task and the IO rebuilding it.
+                stale.close()
+                rebuilt = handler.io._cached_handler = handler.io._build_handler()
+                assert rebuilt is not stale
+
+                handler.close()
+
+                # The live (rebuilt) handler is the one that gets closed, not the stale reference.
+                assert rebuilt.shutting_down is True
 
     def test_close_skips_upload_without_set_context(self):
         """close() without a prior set_context() should not call io.upload()."""

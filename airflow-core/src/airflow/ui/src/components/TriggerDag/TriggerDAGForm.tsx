@@ -73,6 +73,7 @@ const TriggerDAGForm = ({
   const initialParamsDict = useDagParams(dagId, open);
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
+  const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
@@ -114,6 +115,9 @@ const TriggerDAGForm = ({
         }
         setConf(confString);
       }
+      setHasAppliedPrefill(true);
+    } else if (!open) {
+      setHasAppliedPrefill(false);
     }
   }, [
     prefillConfig,
@@ -128,10 +132,10 @@ const TriggerDAGForm = ({
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
-    if (conf && !prefillConfig && open) {
+    if (conf && open && (!prefillConfig || hasAppliedPrefill)) {
       reset((prevValues) => ({ ...prevValues, conf }));
     }
-  }, [conf, prefillConfig, open, reset]);
+  }, [conf, hasAppliedPrefill, prefillConfig, open, reset]);
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 
@@ -185,7 +189,6 @@ const TriggerDAGForm = ({
                       <HStack align="stretch">
                         {dataIntervalModeOptions.map((mode) => (
                           <RadioCardItem
-                            colorPalette="brand"
                             indicatorPlacement="start"
                             key={mode.value}
                             label={translate(mode.label)}
@@ -228,12 +231,7 @@ const TriggerDAGForm = ({
         )}
         {isPaused ? (
           <>
-            <Checkbox
-              checked={unpause}
-              colorPalette="brand"
-              onChange={() => setUnpause(!unpause)}
-              wordBreak="break-all"
-            >
+            <Checkbox checked={unpause} onChange={() => setUnpause(!unpause)} wordBreak="break-all">
               {translate("components:triggerDag.unpause", { dagDisplayName })}
             </Checkbox>
             <Spacer />
@@ -246,14 +244,13 @@ const TriggerDAGForm = ({
           setErrors={setErrors}
           setFormError={setFormError}
         >
-          <TriggerDAGAdvancedOptions control={control} />
+          <TriggerDAGAdvancedOptions control={control} isPartitioned={isPartitioned} />
         </ConfigForm>
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="brand"
             data-testid="trigger-dag-submit"
             disabled={
               Boolean(errors.conf) ||

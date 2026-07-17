@@ -198,3 +198,29 @@ class TestOSSHook:
 
     def test_get_default_region(self):
         assert self.hook.get_default_region() == "mock_region"
+
+    @mock.patch(OSS_STRING.format("oss.config.load_default"))
+    def test_get_client_uses_default_endpoint(self, mock_load_default):
+        mock_config = mock.MagicMock()
+        mock_load_default.return_value = mock_config
+
+        self.hook._get_client()
+
+        assert mock_config.endpoint == f"oss-{self.hook.region}.aliyuncs.com"
+
+    @mock.patch(OSS_STRING.format("oss.config.load_default"))
+    def test_get_client_uses_custom_endpoint_from_connection(self, mock_load_default):
+        mock_config = mock.MagicMock()
+        mock_load_default.return_value = mock_config
+
+        custom_ep = "oss-eu-central-1-internal.aliyuncs.com"
+
+        mock_conn = mock.MagicMock()
+        mock_conn.extra_dejson = {"endpoint": custom_ep}
+
+        self.hook.oss_conn = mock_conn
+        self.hook.get_credential = mock.MagicMock()
+
+        self.hook._get_client()
+
+        assert mock_config.endpoint == custom_ep

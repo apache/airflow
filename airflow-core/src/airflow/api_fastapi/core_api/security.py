@@ -25,6 +25,7 @@ from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -37,6 +38,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import (
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
+    IsAuthorizedDagRequest,
     IsAuthorizedPoolRequest,
     IsAuthorizedVariableRequest,
 )
@@ -62,6 +64,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, BulkDAGRunClearBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -125,14 +128,31 @@ async def resolve_user_from_token(token_str: str | None) -> BaseUser:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
 
 
+# Sentinel marker that designates a `request.state.user` value as having come from a
+# trusted, in-tree authentication code path (currently only `JWTRefreshMiddleware`).
+# `get_user()` only honours `request.state.user` when this sentinel is also present
+# at `request.state.user_authenticated_via`. This is defense-in-depth against an
+# accidental `request.state.user = ...` assignment in unrelated middleware (a typo,
+# a third-party plugin, a fixture leaked into production); it does NOT defend against
+# a malicious in-process plugin that imports the sentinel and sets it itself, since
+# plugins are trusted code in Airflow's security model — the goal is to keep an
+# accidental write from silently bypassing JWT validation.
+USER_INJECTED_BY_TRUSTED_MIDDLEWARE = object()
+
+
 async def get_user(
     request: Request,
     oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
-    # A user might have been already built by a middleware, if so, it is stored in `request.state.user`
+    # A user might have been already built by a trusted in-tree middleware (currently
+    # only `JWTRefreshMiddleware`); if so, it is stored in `request.state.user` AND
+    # `request.state.user_authenticated_via` is set to the trust sentinel above.
+    # Honour the cached user only when both are present, so a stray `state.user`
+    # assignment from unrelated middleware can't bypass JWT validation.
     user: BaseUser | None = getattr(request.state, "user", None)
-    if user:
+    trust_marker = getattr(request.state, "user_authenticated_via", None)
+    if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
         return user
 
     token_str: str | None
@@ -174,6 +194,49 @@ def requires_access_dag(
                 details=DagDetails(id=dag_id, team_name=team_name),
                 user=user,
             )
+        )
+
+    return inner
+
+
+def requires_access_dag_from_file_token(
+    method: ResourceMethod,
+) -> Callable[[str, Request, BaseUser, Session], None]:
+    """
+    Authorize the caller against the DAGs referenced by a signed ``file_token``.
+
+    For ``file_token`` based endpoints (such as ``reparse``), the token is resolved to its referenced file, and authorization is performed against exactly the DAGs defined in that file, never against a request parameter.
+    """
+
+    def inner(
+        file_token: str,
+        request: Request,
+        user: GetUserDep,
+        session: SessionDep,
+    ) -> None:
+        try:
+            payload = URLSafeSerializer(request.app.state.secret_key).loads(file_token)
+        except BadSignature:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_ids = list(
+            session.scalars(
+                select(DagModel.dag_id).where(
+                    DagModel.bundle_name == payload["bundle_name"],
+                    DagModel.relative_fileloc == payload["relative_fileloc"],
+                )
+            )
+        )
+        if not dag_ids:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+        requests: list[IsAuthorizedDagRequest] = [
+            {"method": method, "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id))}
+            for dag_id in dag_ids
+        ]
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(requests, user=user),
         )
 
     return inner
@@ -321,9 +384,48 @@ def requires_access_backfill(
         if dag_id is None:
             # Not a json body, ignore
             with suppress(JSONDecodeError):
-                dag_id = (await request.json()).get("dag_id")
+                body = await request.json()
+                if isinstance(body, dict):
+                    dag_id = body.get("dag_id")
+            if dag_id is not None and not isinstance(dag_id, str):
+                # Fail closed: reject non-string dag_id before authz decision.
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="'dag_id' must be a string",
+                )
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
+            request,
+            user,
+        )
+
+    return inner
+
+
+def requires_access_event_log(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
+    """Wrap ``requires_access_dag`` and extract the dag_id from the event_log_id."""
+
+    async def inner(
+        request: Request,
+        user: GetUserDep,
+        session: SessionDep,
+    ) -> None:
+        dag_id = None
+
+        event_log_id_raw = request.path_params.get("event_log_id")
+        if event_log_id_raw is not None:
+            try:
+                event_log_id = int(event_log_id_raw)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="'event_log_id' must be an integer",
+                )
+            dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
+
+        requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
             request,
             user,
         )
@@ -383,12 +485,14 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
         request: BulkBody[PoolBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of pool names provided as part of the request
+        multi_team = conf.getboolean("core", "multi_team")
+        # Build the list of pool names provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_pool_names = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("PoolBody", entity).pool
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each pool, find its associated team (if it exists)
         pool_name_to_team = Pool.get_name_to_team_name_mapping(existing_pool_names)
@@ -400,9 +504,6 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
                 pool_name = (
                     cast("str", pool) if action.action == BulkAction.DELETE else cast("PoolBody", pool).pool
                 )
-                # For each pool, build a `IsAuthorizedPoolRequest`
-                # The list of `IsAuthorizedPoolRequest` will then be sent using `batch_is_authorized_pool`
-                # Each `IsAuthorizedPoolRequest` is similar to calling `is_authorized_pool`
                 for method in methods:
                     req: IsAuthorizedPoolRequest = {
                         "method": method,
@@ -412,9 +513,19 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
                         ),
                     }
                     requests.append(req)
+                # Authorize the destination team_name when the entity body requests a team change.
+                if multi_team and _bulk_action_sets_team(action):
+                    dest_team = cast("PoolBody", pool).team_name
+                    if dest_team is not None and dest_team != pool_name_to_team.get(pool_name):
+                        for method in methods:
+                            requests.append(
+                                {
+                                    "method": method,
+                                    "details": PoolDetails(name=pool_name, team_name=dest_team),
+                                }
+                            )
 
         _requires_access(
-            # By calling `batch_is_authorized_pool`, we check the user has access to all pools provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_pool(
                 requests=requests,
                 user=user,
@@ -484,14 +595,16 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
         request: BulkBody[ConnectionBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of ``conn_id`` provided as part of the request
+        multi_team = conf.getboolean("core", "multi_team")
+        # Build the list of ``conn_id`` provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_connection_ids = [
             cast("str", entity)
             if action.action == BulkAction.DELETE
             else cast("ConnectionBody", entity).connection_id
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each connection, find its associated team (if it exists)
         conn_id_to_team = Connection.get_conn_id_to_team_name_mapping(existing_connection_ids)
@@ -505,9 +618,6 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
                     if action.action == BulkAction.DELETE
                     else cast("ConnectionBody", connection).connection_id
                 )
-                # For each pool, build a `IsAuthorizedConnectionRequest`
-                # The list of `IsAuthorizedConnectionRequest` will then be sent using `batch_is_authorized_connection`
-                # Each `IsAuthorizedConnectionRequest` is similar to calling `is_authorized_connection`
                 for method in methods:
                     req: IsAuthorizedConnectionRequest = {
                         "method": method,
@@ -517,9 +627,19 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
                         ),
                     }
                     requests.append(req)
+                # Authorize the destination team_name when the entity body requests a team change.
+                if multi_team and _bulk_action_sets_team(action):
+                    dest_team = cast("ConnectionBody", connection).team_name
+                    if dest_team is not None and dest_team != conn_id_to_team.get(connection_id):
+                        for method in methods:
+                            requests.append(
+                                {
+                                    "method": method,
+                                    "details": ConnectionDetails(conn_id=connection_id, team_name=dest_team),
+                                }
+                            )
 
         _requires_access(
-            # By calling `batch_is_authorized_connection`, we check the user has access to all connections provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_connection(
                 requests=requests,
                 user=user,
@@ -626,12 +746,14 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         request: BulkBody[VariableBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of variable keys provided as part of the request
+        multi_team = conf.getboolean("core", "multi_team")
+        # Build the list of variable keys provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_variable_keys = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("VariableBody", entity).key
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each variable, find its associated team (if it exists)
         var_key_to_team = Variable.get_key_to_team_name_mapping(existing_variable_keys)
@@ -645,9 +767,6 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
                     if action.action == BulkAction.DELETE
                     else cast("VariableBody", variable).key
                 )
-                # For each variable, build a `IsAuthorizedVariableRequest`
-                # The list of `IsAuthorizedVariableRequest` will then be sent using `batch_is_authorized_variable`
-                # Each `IsAuthorizedVariableRequest` is similar to calling `is_authorized_variable`
                 for method in methods:
                     req: IsAuthorizedVariableRequest = {
                         "method": method,
@@ -657,10 +776,104 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
                         ),
                     }
                     requests.append(req)
+                # Authorize the destination team_name when the entity body requests a team change.
+                if multi_team and _bulk_action_sets_team(action):
+                    dest_team = cast("VariableBody", variable).team_name
+                    if dest_team is not None and dest_team != var_key_to_team.get(variable_key):
+                        for method in methods:
+                            requests.append(
+                                {
+                                    "method": method,
+                                    "details": VariableDetails(key=variable_key, team_name=dest_team),
+                                }
+                            )
 
         _requires_access(
-            # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_variable(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def _build_dag_run_access_requests(
+    entity_methods: list[tuple[str, ResourceMethod]],
+) -> list[IsAuthorizedDagRequest]:
+    """
+    Build per-entity DagRun authorization requests for a batched access check.
+
+    ``entity_methods`` is a list of ``(dag_id, method)`` pairs with unresolvable
+    entries (no dag_id or the ``~`` wildcard) already filtered out by the caller.
+    Teams for all Dags are resolved in a single batched query and shared across each
+    Dag's requests.
+    """
+    if not entity_methods:
+        return []
+    resolved_dag_ids = list({dag_id for dag_id, _ in entity_methods})
+    dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(resolved_dag_ids)
+    return [
+        {
+            "method": method,
+            "access_entity": DagAccessEntity.RUN,
+            "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id)),
+        }
+        for dag_id, method in entity_methods
+    ]
+
+
+def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUser, str], None]:
+    def inner(
+        request: BulkBody[BulkDAGRunBody],
+        user: GetUserDep,
+        dag_id: str,
+    ) -> None:
+        entity_methods: list[tuple[str, ResourceMethod]] = []
+        for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
+            for entity in action.entities:
+                if isinstance(entity, str):
+                    entity_dag_id: str | None = dag_id
+                else:
+                    entity_dag_id = entity.dag_id or dag_id
+                # Entities that can't be resolved are surfaced as 400 in the service's BulkResponse.
+                if not entity_dag_id or entity_dag_id == "~":
+                    continue
+                for method in methods:
+                    entity_methods.append((entity_dag_id, method))
+
+        requests = _build_dag_run_access_requests(entity_methods)
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseUser, str], None]:
+    def inner(
+        body: BulkDAGRunClearBody,
+        user: GetUserDep,
+        dag_id: str,
+    ) -> None:
+        entity_methods: list[tuple[str, ResourceMethod]] = []
+        for run in body.dag_runs:
+            entity_dag_id = run.dag_id or dag_id
+            if not entity_dag_id or entity_dag_id == "~":
+                continue
+            entity_methods.append((entity_dag_id, "PUT"))
+
+        if not body.dag_runs and body.has_partition_selectors:
+            if dag_id and dag_id != "~":
+                entity_methods.append((dag_id, "PUT"))
+
+        requests = _build_dag_run_access_requests(entity_methods)
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
                 requests=requests,
                 user=user,
             )
@@ -740,14 +953,27 @@ async def _collect_teams_to_check(
     if method != "POST":
         teams.add(get_existing_team(resource_id) if resource_id else None)
     if method in ("POST", "PUT"):
-        with suppress(JSONDecodeError):
-            raw = (await request.json()).get("team_name")
-            if raw and not Team.get_name_if_exists(raw):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Team {raw!r} does not exist",
-                )
-            teams.add(raw)
+        try:
+            body = await request.json()
+        except JSONDecodeError:
+            # Fail closed: reject unparsable bodies before any authz decision.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Request body is not valid JSON",
+            )
+        raw = body.get("team_name") if isinstance(body, dict) else None
+        if raw is not None and not isinstance(raw, str):
+            # Fail closed: reject non-string team_name before authz / DB lookup.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="'team_name' must be a string",
+            )
+        if raw and not Team.get_name_if_exists(raw):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Team {raw!r} does not exist",
+            )
+        teams.add(raw)
     return teams
 
 
@@ -779,6 +1005,12 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
         # Can't enforce any security check.
         return True
 
+    # According to WHATWG for http/https /// is interpreted as // whereas urllib doesnt
+    # this leads to an inconsistency where python returns a target url with /// as a valid url
+    # The same thing also happens with \ where under WHATWG \ are translated to /
+    target_url = unquote(target_url).strip()
+    if target_url.startswith(("//", "/\\", "\\/", "\\\\")):
+        return False
     for base_url, parsed_base in parsed_bases:
         parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
 
@@ -809,3 +1041,22 @@ def _get_resource_methods_from_bulk_request(
     if action.action == BulkAction.CREATE and action.action_on_existence == BulkActionOnExistence.OVERWRITE:
         resource_methods.append("PUT")
     return resource_methods
+
+
+def _bulk_action_needs_existing_team_lookup(
+    action: BulkCreateAction | BulkUpdateAction | BulkDeleteAction,
+) -> bool:
+    # UPDATE / DELETE always operate on existing resources, so we need the existing team for authz.
+    # CREATE with action_on_existence=OVERWRITE may turn into a PUT against an existing resource that
+    # belongs to a team; if we omit it from the lookup, the PUT authz check runs with team_name=None
+    # and bypasses the per-team membership check that the single-item PUT endpoint enforces.
+    if action.action != BulkAction.CREATE:
+        return True
+    return action.action_on_existence == BulkActionOnExistence.OVERWRITE
+
+
+def _bulk_action_sets_team(
+    action: BulkCreateAction | BulkUpdateAction | BulkDeleteAction,
+) -> bool:
+    """Return True if this action can write a team_name (UPDATE, or CREATE that carries a body)."""
+    return action.action in (BulkAction.UPDATE, BulkAction.CREATE)

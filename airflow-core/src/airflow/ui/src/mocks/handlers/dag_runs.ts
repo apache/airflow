@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable unicorn/no-null */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
 const dagRunBeforeFilter = {
@@ -40,7 +38,7 @@ const dagRunBeforeFilter = {
 };
 
 const dagRunInRange = {
-  conf: null,
+  conf: { batch: 42, env: "prod" },
   dag_display_name: "test_dag",
   dag_id: "test_dag",
   dag_run_id: "run_in_range",

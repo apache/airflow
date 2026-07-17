@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import Future
 from contextlib import suppress
 from datetime import datetime
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -38,6 +40,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils import types
 from airflow.utils.state import DagRunState, State
@@ -47,7 +50,12 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow._shared.timezones import timezone
@@ -85,6 +93,31 @@ def regular_call(self, callable, callable_name, use_fork):
     callable()
 
 
+def direct_submit_call(self, callable, *args, **kwargs):
+    """Synchronous stand-in for ``OpenLineageListener.submit_callable``.
+
+    Bypasses the ``ProcessPoolExecutor`` so tests can assert against mocked
+    adapter methods without hitting pickling of ``unittest.mock.Mock``.
+    The module-level pool wrappers pass adapter method *names* and resolve them
+    on the per-process adapter; here we resolve them on this listener's adapter
+    instead, so assertions against mocked adapter methods keep working. For
+    ``_emit_manual_state_change_event`` this also skips its ``Stats.gauge``
+    side effect (which would try to ``Serde.to_json`` a ``MagicMock`` return).
+    """
+    from airflow.providers.openlineage.plugins.listener import (
+        _emit_manual_state_change_event,
+        _run_adapter_method,
+    )
+
+    if callable is _emit_manual_state_change_event:
+        adapter_method_name, _stats_key, *_ = args
+        return getattr(self.adapter, adapter_method_name)(**kwargs)
+    if callable is _run_adapter_method:
+        adapter_method_name, *rest = args
+        return getattr(self.adapter, adapter_method_name)(*rest, **kwargs)
+    return callable(*args, **kwargs)
+
+
 class MockExecutor:
     def __init__(self, *args, **kwargs):
         self.submitted = False
@@ -102,6 +135,138 @@ class MockExecutor:
 
     def shutdown(self, *args, **kwargs):
         print("Shutting down")
+
+
+def _probe_process_adapter():
+    """Return (pid, adapter id) from inside a pool worker; module-level so it is picklable."""
+    import os
+
+    from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+    return os.getpid(), id(_get_process_adapter())
+
+
+class TestProcessAdapterReuse:
+    def test_process_adapter_reused_across_pool_submissions(self):
+        """
+        A pool worker must reuse one adapter (hence one client/transport set) across events.
+
+        Regression test: submitting bound adapter methods pickled a fresh adapter per event,
+        making the worker build a new OpenLineageClient (and transport worker threads that are
+        never closed) for every DAG-run state change, leaking threads in the scheduler.
+        """
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(max_workers=1) as pool:
+            pid_first, adapter_id_first = pool.submit(_probe_process_adapter).result(timeout=60)
+            pid_second, adapter_id_second = pool.submit(_probe_process_adapter).result(timeout=60)
+
+        assert pid_first == pid_second
+        assert adapter_id_first == adapter_id_second
+
+
+class TestExecutorInitializer:
+    """Tests for _executor_initializer function."""
+
+    @patch("airflow.settings.configure_orm")
+    def test_executor_initializer_calls_configure_orm(self, mock_configure_orm):
+        """Test that _executor_initializer always calls settings.configure_orm().
+
+        This test runs on all Airflow versions to ensure ORM initialization always happens.
+        """
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        _executor_initializer()
+
+        mock_configure_orm.assert_called_once()
+
+    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Testing older Airflow behavior")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_skips_stats_on_older_af(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer skips Stats initialization on Airflow < 3.2."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        _executor_initializer()
+
+        # configure_orm should be called
+        mock_configure_orm.assert_called_once()
+        # But Stats.initialize should NOT be called (early return)
+        mock_stats.initialize.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_initializes_stats_on_af32(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer initializes Stats on Airflow 3.2+."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        with patch("airflow.observability.metrics.stats_utils.get_stats_factory") as mock_get_factory:
+            mock_get_factory.return_value = MagicMock()
+
+            _executor_initializer()
+
+            mock_configure_orm.assert_called_once()
+            mock_stats.initialize.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_stats_fallback_on_type_error(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer falls back to old Stats.initialize signature on TypeError."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        with patch("airflow.observability.metrics.stats_utils.get_stats_factory") as mock_get_factory:
+            mock_get_factory.return_value = MagicMock()
+            # First call to Stats.initialize raises TypeError (old signature not supported)
+            # Second call succeeds (using the fallback)
+            mock_stats.initialize.side_effect = [TypeError("unexpected keyword argument"), None]
+
+            _executor_initializer()
+
+            # Both calls to Stats.initialize should happen
+            assert mock_stats.initialize.call_count == 2
+            # get_stats_factory should be called twice: once for new signature, once for fallback
+            assert mock_get_factory.call_count == 2
+            # Second call should pass Stats as argument
+            mock_get_factory.assert_called_with(mock_stats)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_exception_does_not_break(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer doesn't break on exception and logs warning."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        with patch("airflow.observability.metrics.stats_utils.get_stats_factory") as mock_get_factory:
+            # Make stats_utils.get_stats_factory raise an exception
+            mock_get_factory.side_effect = RuntimeError("stats initialization failed")
+
+            # Should not raise, exception should be caught and logged
+            _executor_initializer()
+
+            # configure_orm should still have been called
+            mock_configure_orm.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    def test_executor_initializer_with_real_stats(self, mock_configure_orm):
+        """Integration test that calls real stats code to catch API changes.
+
+        This test ensures that the stats initialization code remains compatible
+        with the actual airflow.observability.metrics.stats_utils implementation.
+        If the stats API changes in the future, this test will fail and alert
+        developers to update the initializer accordingly.
+
+        Note: configure_orm is mocked to avoid side effects; only stats code is real.
+        """
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        # Call with real stats code (not mocked), but ORM initialization mocked
+        # Should not raise and configure_orm should be called
+        _executor_initializer()
+
+        mock_configure_orm.assert_called_once()
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
@@ -301,7 +466,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -333,7 +498,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         listener.on_task_instance_running(None, task_instance, None)
         listener.adapter.start_task.assert_called_once_with(
@@ -358,7 +523,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -382,7 +547,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.owner = "airflow"  # Simulate default owner on task to force fallback to DAG owner
         listener.on_task_instance_running(None, task_instance, None)
@@ -390,7 +555,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -417,7 +582,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.doc_md = None  # Simulate lack of task doc to force fallback to DAG description
         listener.on_task_instance_running(None, task_instance, None)
@@ -426,7 +591,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
@@ -458,7 +623,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         err = ValueError("test")
         listener.on_task_instance_failed(
@@ -486,7 +651,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -510,7 +675,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.owner = "airflow"  # Simulate default owner on task to force fallback to DAG owner
         err = ValueError("test")
@@ -521,7 +686,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -545,7 +710,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.doc_md = None  # Simulate lack of task doc to force fallback to DAG description
         err = ValueError("test")
@@ -557,7 +722,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
@@ -589,7 +754,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         listener.on_task_instance_success(None, task_instance, None)
         # This run_id will be different as we did NOT simulate increase of the try_number attribute,
@@ -617,7 +782,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -641,7 +806,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.owner = "airflow"  # Simulate default owner on task to force fallback to DAG owner
         listener.on_task_instance_success(None, task_instance, None)
@@ -649,7 +814,7 @@ class TestOpenLineageListenerAirflow2:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -673,7 +838,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.doc_md = None  # Simulate lack of task doc to force fallback to DAG description
         listener.on_task_instance_success(None, task_instance, None)
@@ -803,7 +968,7 @@ class TestOpenLineageListenerAirflow2:
         # try_number after task has been executed
         assert task_instance.try_number == TRY_NUMBER_AFTER_EXECUTION
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     def test_listener_on_task_instance_running_do_not_call_adapter_when_disabled_operator(
@@ -812,46 +977,64 @@ class TestOpenLineageListenerAirflow2:
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
-        mock_disabled.return_value = True
+        mock_disabled.return_value = EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
 
         listener.on_task_instance_running(None, task_instance, None)
-        mock_disabled.assert_called_once_with(task_instance.task)
+        mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
         listener.adapter.build_task_instance_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.start_task.assert_not_called()
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     def test_listener_on_task_instance_failed_do_not_call_adapter_when_disabled_operator(
         self, mock_get_user_provided_run_facets, mock_disabled
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
-        mock_disabled.return_value = True
+        mock_disabled.return_value = EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
 
         on_task_failed_kwargs = {"error": ValueError("test")}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs, session=None
         )
-        mock_disabled.assert_called_once_with(task_instance.task)
+        mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
         listener.adapter.build_task_instance_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.fail_task.assert_not_called()
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     def test_listener_on_task_instance_success_do_not_call_adapter_when_disabled_operator(
         self, mock_get_user_provided_run_facets, mock_disabled
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
-        mock_disabled.return_value = True
+        mock_disabled.return_value = EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
 
         listener.on_task_instance_success(None, task_instance, None)
-        mock_disabled.assert_called_once_with(task_instance.task)
+        mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
         listener.adapter.build_task_instance_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
@@ -1203,9 +1386,38 @@ class TestOpenLineageListenerAirflow3:
 
         return listener, task_instance
 
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(
+                None,
+                {
+                    "event_type": "running",
+                    "operator_name": "emptyoperator",
+                },
+                id="without_team",
+            ),
+            pytest.param(
+                "team_a",
+                {
+                    "event_type": "running",
+                    "operator_name": "emptyoperator",
+                    "team_name": "team_a",
+                },
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_3_PLUS,
+                    reason="team_name metrics require Airflow 3.3+",
+                ),
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Serde.to_json")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.DagRunInfo.team_name")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Stats")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -1222,6 +1434,11 @@ class TestOpenLineageListenerAirflow3:
         mock_disabled,
         mock_debug_facet,
         mock_debug_mode,
+        mock_stats,
+        mock_team_name,
+        mock_to_json,
+        team_name,
+        expected_tags,
     ):
         """Tests that the 'start_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -1238,7 +1455,27 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
+        mock_team_name.return_value = team_name
+        mock_to_json.return_value = "{}"
+
+        fake_event = SimpleNamespace(
+            run=SimpleNamespace(
+                facets=(
+                    {}
+                    if team_name is None
+                    else {
+                        "airflow": SimpleNamespace(
+                            dagRun=SimpleNamespace(
+                                dag_team_name=team_name,
+                            )
+                        )
+                    }
+                )
+            )
+        )
+
+        listener.adapter.start_task.return_value = fake_event
 
         listener.on_task_instance_running(None, task_instance)
         listener.adapter.start_task.assert_called_once_with(
@@ -1261,9 +1498,193 @@ class TestOpenLineageListenerAirflow3:
             },
         )
 
+        mock_stats.timer.assert_any_call(
+            "ol.extract",
+            tags=expected_tags,
+        )
+
+        mock_stats.gauge.assert_called_once_with(
+            "ol.event.size",
+            mock.ANY,
+            tags=expected_tags,
+        )
+
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_hook_emits_with_defaults_when_emission_policy_misconfigured(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+    ):
+        """A non-list ``emission_policy`` config raises ``ValueError`` deep in policy resolution.
+
+        The task hook must guard the resolve call so the misconfiguration degrades to "emit with
+        default controls" instead of crashing the task-notification path (i.e. ``start_task`` is
+        still invoked).
+        """
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps({"not": "a list"})}):
+            listener.on_task_instance_running(None, task_instance)
+
+        listener.adapter.start_task.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_hook_failed_emits_with_defaults_when_emission_policy_misconfigured(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+    ):
+        """on_task_instance_failed must also degrade gracefully on a non-list emission_policy."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps({"not": "a list"})}):
+            listener.on_task_instance_failed(
+                previous_state=None, task_instance=task_instance, error=ValueError("boom")
+            )
+
+        listener.adapter.fail_task.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_hook_success_emits_with_defaults_when_emission_policy_misconfigured(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+    ):
+        """on_task_instance_success must also degrade gracefully on a non-list emission_policy."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps({"not": "a list"})}):
+            listener.on_task_instance_success(None, task_instance)
+
+        listener.adapter.complete_task.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_extract_operator_metadata_false_skips_extraction(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_policy,
+    ):
+        """When extract_operator_metadata=False the listener must skip ExtractorManager and emit bare OperatorLineage."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_policy.return_value = EmissionPolicy(
+            emit=True,
+            extract_operator_metadata=False,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
+
+        listener.on_task_instance_running(None, task_instance)
+
+        listener.extractor_manager.extract_metadata.assert_not_called()
+        listener.adapter.start_task.assert_called_once()
+        call_task = listener.adapter.start_task.call_args.kwargs["task"]
+        assert call_task == OperatorLineage()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_include_full_task_info_true_forwarded_to_get_airflow_run_facet(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_policy,
+    ):
+        """When include_full_task_info=True the listener must forward that flag to get_airflow_run_facet."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_policy.return_value = EmissionPolicy(
+            emit=True,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=True,
+        )
+
+        listener.on_task_instance_running(None, task_instance)
+
+        mock_get_airflow_run_facet.assert_called_once()
+        _, call_kwargs = mock_get_airflow_run_facet.call_args
+        assert call_kwargs.get("include_full_task_info") is True
+
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -1287,7 +1708,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.owner = "airflow"  # Simulate default owner on task to force fallback to DAG owner
         listener.on_task_instance_running(None, task_instance)
@@ -1296,7 +1717,7 @@ class TestOpenLineageListenerAirflow3:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -1323,16 +1744,45 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.doc_md = None  # Simulate lack of task doc to force fallback to DAG description
         listener.on_task_instance_running(None, task_instance)
         assert listener.adapter.start_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.start_task.call_args.kwargs["job_description_type"] == "text/plain"
 
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(
+                None,
+                {
+                    "event_type": "fail",
+                    "operator_name": "emptyoperator",
+                },
+                id="without_team",
+            ),
+            pytest.param(
+                "team_a",
+                {
+                    "event_type": "fail",
+                    "operator_name": "emptyoperator",
+                    "team_name": "team_a",
+                },
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_3_PLUS,
+                    reason="team_name metrics require Airflow 3.3+",
+                ),
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Serde.to_json")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.DagRunInfo.team_name")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Stats")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
@@ -1347,7 +1797,12 @@ class TestOpenLineageListenerAirflow3:
         mock_disabled,
         mock_debug_facet,
         mock_debug_mode,
+        mock_stats,
+        mock_team_name,
+        mock_to_json,
         time_machine,
+        team_name,
+        expected_tags,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -1364,9 +1819,30 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
+        mock_team_name.return_value = team_name
+        mock_to_json.return_value = "{}"
 
         err = ValueError("test")
+
+        fake_event = SimpleNamespace(
+            run=SimpleNamespace(
+                facets=(
+                    {}
+                    if team_name is None
+                    else {
+                        "airflow": SimpleNamespace(
+                            dagRun=SimpleNamespace(
+                                dag_team_name=team_name,
+                            )
+                        )
+                    }
+                )
+            )
+        )
+
+        listener.adapter.fail_task.return_value = fake_event
+
         listener.on_task_instance_failed(previous_state=None, task_instance=task_instance, error=err)
         listener.adapter.fail_task.assert_called_once_with(
             end_time="2023-01-03T13:01:01+00:00",
@@ -1388,9 +1864,20 @@ class TestOpenLineageListenerAirflow3:
             error=err,
         )
 
+        mock_stats.timer.assert_any_call(
+            "ol.extract",
+            tags=expected_tags,
+        )
+
+        mock_stats.gauge.assert_called_once_with(
+            "ol.event.size",
+            mock.ANY,
+            tags=expected_tags,
+        )
+
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -1414,7 +1901,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.owner = "airflow"  # Simulate default owner on task to force fallback to DAG owner
         err = ValueError("test")
@@ -1425,7 +1912,7 @@ class TestOpenLineageListenerAirflow3:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -1449,7 +1936,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.doc_md = None  # Simulate lack of task doc to force fallback to DAG description
         err = ValueError("test")
@@ -1457,13 +1944,15 @@ class TestOpenLineageListenerAirflow3:
         assert listener.adapter.fail_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.fail_task.call_args.kwargs["job_description_type"] == "text/plain"
 
+    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_proper_arguments_for_db_task_instance_model(
         self,
@@ -1472,6 +1961,7 @@ class TestOpenLineageListenerAirflow3:
         mock_debug_facet,
         mock_debug_mode,
         mock_emit,
+        mock_fork_execute,
         time_machine,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
@@ -1482,6 +1972,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         mock_get_airflow_run_facet.return_value = {"airflow": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1513,15 +2004,46 @@ class TestOpenLineageListenerAirflow3:
             error=err,
         )
         listener.adapter.fail_task.assert_called_once_with(**expected_args)
+        # Regression guard: manual state-change emission must not go through _fork_execute.
+        mock_fork_execute.assert_not_called()
 
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
         adapter.fail_task(**expected_args)
         assert mock_emit.assert_called_once
 
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(
+                None,
+                {
+                    "event_type": "complete",
+                    "operator_name": "emptyoperator",
+                },
+                id="without_team",
+            ),
+            pytest.param(
+                "team_a",
+                {
+                    "event_type": "complete",
+                    "operator_name": "emptyoperator",
+                    "team_name": "team_a",
+                },
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_3_PLUS,
+                    reason="team_name metrics require Airflow 3.3+",
+                ),
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Serde.to_json")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.DagRunInfo.team_name")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Stats")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
@@ -1536,7 +2058,12 @@ class TestOpenLineageListenerAirflow3:
         mock_disabled,
         mock_debug_facet,
         mock_debug_mode,
+        mock_stats,
+        mock_team_name,
+        mock_to_json,
         time_machine,
+        team_name,
+        expected_tags,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -1553,7 +2080,27 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
+        mock_team_name.return_value = team_name
+        mock_to_json.return_value = "{}"
+
+        fake_event = SimpleNamespace(
+            run=SimpleNamespace(
+                facets=(
+                    {}
+                    if team_name is None
+                    else {
+                        "airflow": SimpleNamespace(
+                            dagRun=SimpleNamespace(
+                                dag_team_name=team_name,
+                            )
+                        )
+                    }
+                )
+            )
+        )
+
+        listener.adapter.complete_task.return_value = fake_event
 
         listener.on_task_instance_success(None, task_instance)
         calls = listener.adapter.complete_task.call_args_list
@@ -1577,9 +2124,20 @@ class TestOpenLineageListenerAirflow3:
             },
         )
 
+        mock_stats.timer.assert_any_call(
+            "ol.extract",
+            tags=expected_tags,
+        )
+
+        mock_stats.gauge.assert_called_once_with(
+            "ol.event.size",
+            mock.ANY,
+            tags=expected_tags,
+        )
+
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -1603,7 +2161,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.owner = "airflow"  # Simulate default owner on task to force fallback to DAG owner
         listener.on_task_instance_success(None, task_instance)
@@ -1613,7 +2171,7 @@ class TestOpenLineageListenerAirflow3:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -1637,22 +2195,30 @@ class TestOpenLineageListenerAirflow3:
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
-        mock_disabled.return_value = False
+        mock_disabled.return_value = EmissionPolicy.defaults()
 
         task_instance.task.doc_md = None  # Simulate lack of task doc to force fallback to DAG description
         listener.on_task_instance_success(None, task_instance)
         assert listener.adapter.complete_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.complete_task.call_args.kwargs["job_description_type"] == "text/plain"
 
+    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_proper_arguments_for_db_task_instance_model(
-        self, mock_get_task_parent_run_facet, mock_debug_facet, mock_debug_mode, mock_emit, time_machine
+        self,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        mock_emit,
+        mock_fork_execute,
+        time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -1662,6 +2228,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1691,6 +2258,8 @@ class TestOpenLineageListenerAirflow3:
             },
         )
         assert calls[0][1] == expected_args
+        # Regression guard: manual state-change emission must not go through _fork_execute.
+        mock_fork_execute.assert_not_called()
 
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
@@ -1761,7 +2330,7 @@ class TestOpenLineageListenerAirflow3:
             map_index=-1,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     def test_listener_on_task_instance_running_do_not_call_adapter_when_disabled_operator(
@@ -1770,46 +2339,64 @@ class TestOpenLineageListenerAirflow3:
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
-        mock_disabled.return_value = True
+        mock_disabled.return_value = EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
 
         listener.on_task_instance_running(None, task_instance)
-        mock_disabled.assert_called_once_with(task_instance.task)
+        mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
         listener.adapter.build_task_instance_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.start_task.assert_not_called()
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     def test_listener_on_task_instance_failed_do_not_call_adapter_when_disabled_operator(
         self, mock_get_user_provided_run_facets, mock_disabled
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
-        mock_disabled.return_value = True
+        mock_disabled.return_value = EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
 
         on_task_failed_kwargs = {"error": ValueError("test")}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs
         )
-        mock_disabled.assert_called_once_with(task_instance.task)
+        mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
         listener.adapter.build_task_instance_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.fail_task.assert_not_called()
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     def test_listener_on_task_instance_success_do_not_call_adapter_when_disabled_operator(
         self, mock_get_user_provided_run_facets, mock_disabled
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
-        mock_disabled.return_value = True
+        mock_disabled.return_value = EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
 
         listener.on_task_instance_success(None, task_instance)
-        mock_disabled.assert_called_once_with(task_instance.task)
+        mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
         listener.adapter.build_task_instance_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
@@ -1835,31 +2422,160 @@ class TestOpenLineageListenerAirflow3:
             map_index=-1,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     def test_listener_on_task_instance_skipped_do_not_call_adapter_when_disabled_operator(
         self, mock_get_user_provided_run_facets, mock_disabled
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
-        mock_disabled.return_value = True
+        mock_disabled.return_value = EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
 
         listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
-        mock_disabled.assert_called_once_with(task_instance.task)
+        mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
         listener.adapter.build_task_instance_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.complete_task.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(
+                None,
+                {
+                    "event_type": "complete",
+                    "operator_name": "emptyoperator",
+                },
+                id="without_team",
+            ),
+            pytest.param(
+                "team_a",
+                {
+                    "event_type": "complete",
+                    "operator_name": "emptyoperator",
+                    "team_name": "team_a",
+                },
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_3_PLUS,
+                    reason="team_name metrics require Airflow 3.3+",
+                ),
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Serde.to_json")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.DagRunInfo.team_name")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.Stats")
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute",
+        new=regular_call,
+    )
+    def test_adapter_complete_task_is_called_with_proper_arguments_on_skip(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_disabled,
+        mock_debug_facet,
+        mock_debug_mode,
+        mock_stats,
+        mock_team_name,
+        mock_to_json,
+        time_machine,
+        team_name,
+        expected_tags,
+    ):
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
+
+        listener, task_instance = self._create_listener_and_task_instance()
+
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
+        mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
+        mock_debug_facet.return_value = {"debug": "packages"}
+        mock_disabled.return_value = EmissionPolicy.defaults()
+        mock_team_name.return_value = team_name
+        mock_to_json.return_value = "{}"
+
+        fake_event = SimpleNamespace(
+            run=SimpleNamespace(
+                facets=(
+                    {}
+                    if team_name is None
+                    else {
+                        "airflow": SimpleNamespace(
+                            dagRun=SimpleNamespace(
+                                dag_team_name=team_name,
+                            )
+                        )
+                    }
+                )
+            )
+        )
+        listener.adapter.complete_task.return_value = fake_event
+
+        listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
+
+        listener.adapter.complete_task.assert_called_once_with(
+            end_time="2023-01-03T13:01:01+00:00",
+            job_name="dag_id.task_id",
+            run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
+            task=listener.extractor_manager.extract_metadata(),
+            owners=["task_owner"],
+            tags={"tag1", "tag2"},
+            job_description="TASK Description",
+            job_description_type="text/markdown",
+            nominal_start_time=None,
+            nominal_end_time=None,
+            run_facets={
+                "parent": 4,
+                "custom_user_facet": 2,
+                "airflow": {"task": "..."},
+                "debug": "packages",
+            },
+        )
+
+        mock_stats.timer.assert_any_call(
+            "ol.extract",
+            tags=expected_tags,
+        )
+
+        mock_stats.gauge.assert_called_once_with(
+            "ol.event.size",
+            mock.ANY,
+            tags=expected_tags,
+        )
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_proper_arguments_for_db_task_instance_model_on_skip(
-        self, mock_get_task_parent_run_facet, mock_debug_facet, mock_debug_mode, mock_emit, time_machine
+        self,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        mock_emit,
+        mock_fork_execute,
+        time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -1869,6 +2585,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1898,6 +2615,8 @@ class TestOpenLineageListenerAirflow3:
             },
         )
         assert calls[0][1] == expected_args
+        # Regression guard: manual state-change emission must not go through _fork_execute.
+        mock_fork_execute.assert_not_called()
 
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
@@ -1979,8 +2698,41 @@ class TestOpenLineageListenerAirflow3:
         listener.log.debug.assert_not_called()
         listener.log.warning.assert_called_once()
 
+    def test_submit_callable_recreates_executor_on_broken_pool(self):
+        """When a child process dies and BrokenProcessPool is raised, the
+        listener should shut down the broken executor, create a fresh one, and
+        retry the submission."""
+        from concurrent.futures.process import BrokenProcessPool
+
+        listener = OpenLineageListener()
+        broken_executor = MagicMock()
+        broken_executor.submit.side_effect = BrokenProcessPool()
+        new_executor = MagicMock()
+        new_future = MagicMock()
+        new_executor.submit.return_value = new_future
+
+        listener._executor = broken_executor
+        listener.log = MagicMock()
+
+        def dummy_callable():
+            pass
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor",
+            return_value=new_executor,
+        ):
+            fut = listener.submit_callable(dummy_callable, "arg1", kwarg1="val1")
+
+        broken_executor.shutdown.assert_called_once_with(wait=False)
+        new_executor.submit.assert_called_once_with(dummy_callable, "arg1", kwarg1="val1")
+        new_future.add_done_callback.assert_called_once_with(listener.log_submit_error)
+        assert fut is new_future
+        listener.log.warning.assert_called_once()
+        assert "recreating" in listener.log.warning.call_args[0][0]
+
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
+@pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 class TestOpenLineageSelectiveEnableAirflow2:
     def setup_method(self):
         date = timezone.datetime(2022, 1, 1)

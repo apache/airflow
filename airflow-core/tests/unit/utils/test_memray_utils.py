@@ -48,7 +48,7 @@ class TestEnableMemrayTrackDecorator:
     def teardown_method(self):
         self.memray_patcher.stop()
 
-    @conf_vars({("profiling", "memray_trace_components"): "api,dag_processor"})
+    @conf_vars({("profiling", "memray_trace_components"): "api,dag_processor,triggerer"})
     def test_memray_config(self):
         _memray_trace_components = conf.getenumlist(
             "profiling", "memray_trace_components", MemrayTraceComponents
@@ -57,6 +57,7 @@ class TestEnableMemrayTrackDecorator:
         assert _memray_trace_components == [
             MemrayTraceComponents.api,
             MemrayTraceComponents.dag_processor,
+            MemrayTraceComponents.triggerer,
         ]
 
     def test_memray_not_used_when_default_trace_component(self):
@@ -121,13 +122,56 @@ class TestEnableMemrayTrackDecorator:
         result = decorated_function("arg1", "arg2", kwarg1="value1")
 
         expected_profile_path = f"{AIRFLOW_HOME}/{MemrayTraceComponents.scheduler.value}_memory.bin"
-        self.mock_memray_module.Tracker.assert_called_once_with(expected_profile_path)
+        self.mock_memray_module.Tracker.assert_called_once_with(
+            file_name=expected_profile_path,
+            native_traces=False,
+            trace_python_allocators=False,
+        )
         self.mock_tracker.__enter__.assert_called_once()
         self.mock_function.assert_called_once_with("arg1", "arg2", kwarg1="value1")
         self.mock_tracker.__exit__.assert_called_once()
         assert result == "test_result"
 
-    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
+    @conf_vars(
+        {
+            ("profiling", "memray_trace_components"): "scheduler",
+            ("profiling", "memray_detailed_tracing"): "True",
+        }
+    )
+    def test_detailed_tracing_enables_native_and_python_allocators(self):
+        """
+        Verify that memray_detailed_tracing=True turns on native_traces and
+        trace_python_allocators on the Tracker.
+        """
+        decorated_function = enable_memray_trace(MemrayTraceComponents.scheduler)(self.mock_function)
+        decorated_function()
+
+        expected_profile_path = f"{AIRFLOW_HOME}/{MemrayTraceComponents.scheduler.value}_memory.bin"
+        self.mock_memray_module.Tracker.assert_called_once_with(
+            file_name=expected_profile_path,
+            native_traces=True,
+            trace_python_allocators=True,
+        )
+
+    @conf_vars(
+        {
+            ("profiling", "memray_trace_components"): "scheduler",
+            ("profiling", "memray_detailed_tracing"): "False",
+        }
+    )
+    def test_detailed_tracing_disabled_keeps_tracker_options_off(self):
+        """
+        Verify that when memray_detailed_tracing=False both Tracker options stay off
+        even though tracing for the component is enabled.
+        """
+        decorated_function = enable_memray_trace(MemrayTraceComponents.scheduler)(self.mock_function)
+        decorated_function()
+
+        _, kwargs = self.mock_memray_module.Tracker.call_args
+        assert kwargs["native_traces"] is False
+        assert kwargs["trace_python_allocators"] is False
+
+    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor,triggerer"})
     def test_function_metadata_preserved_after_decoration(self):
         """
         Verify that decorator preserves original function metadata.
@@ -152,7 +196,7 @@ class TestEnableMemrayTrackErrorHandling:
         self.mock_function = Mock(return_value="test_result")
         self.mock_function.__name__ = "mock_function"
 
-    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor"})
+    @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor,triggerer"})
     def test_graceful_fallback_on_memray_import_error(self):
         """
         Verify graceful degradation when memray module is unavailable.

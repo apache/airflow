@@ -2,7 +2,22 @@
   "additional_data": "Extra data",
   "asset_many": "Assets",
   "asset_one": "Asset",
-  "asset_other": "Asset",
+  "assetStateStore": {
+    "add": "Voeg Asset State Store toe",
+    "clearAll": {
+      "resource": "Alle Asset State Stores",
+      "title": "Wis alle Asset State Stores",
+      "warning": "Alle Asset State Stores zullen worden gewist. Taken die deze store gebruiken om werk te coördineren, verliezen hun opgeslagen gegevens."
+    },
+    "delete": "Verwijder Asset State Store",
+    "deleteWarning": "De asset zal deze opgeslagen store-invoer verliezen.",
+    "edit": "Bewerk Asset State Store",
+    "emptyState": "Asset state store slaat waarden op gescoped aan een asset identiteit, gedeeld over alle Dag runs. Workers kunnen naar de Asset State Store schrijven via de Task SDK.",
+    "lastUpdatedBy": "Laatst bijgewerkt door",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Asset State Store"
+  },
   "consumingDags": "Consumerende Dags",
   "consumingTasks": "Consumerende taken",
   "createEvent": {
@@ -26,11 +41,14 @@
     },
     "title": "Asset Event voor {{name}} aanmaken"
   },
+  "events": "Events",
   "extra": "Extra",
   "group": "Groep",
   "lastAssetEvent": "Laatste Asset Event",
   "name": "Naam",
   "producingTasks": "Producerende taken",
   "scheduledDags": "Geplande Dags",
-  "searchPlaceholder": "Assets zoeken"
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "Assets zoeken",
+  "taskDependencies": "Taak afhankelijkheden"
 }

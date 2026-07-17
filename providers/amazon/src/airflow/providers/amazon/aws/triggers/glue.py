@@ -22,11 +22,19 @@ from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import ClientError
+
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
-from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import (
+    GlueDataQualityHook,
+    GlueJobHook,
+    format_glue_logs,
+    get_glue_log_group_names,
+)
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -86,6 +94,131 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        if not self.verbose:
+            async for event in super().run():
+                yield event
+            return
+
+        hook = self.hook()
+        async with (
+            await hook.get_async_conn() as glue_client,
+            await AwsLogsHook(
+                aws_conn_id=self.aws_conn_id, region_name=self.region_name
+            ).get_async_conn() as logs_client,
+        ):
+            # Get log group names from job run metadata
+            job_run_resp = await glue_client.get_job_run(JobName=self.job_name, RunId=self.run_id)
+            log_group_output, log_group_error = get_glue_log_group_names(job_run_resp["JobRun"])
+
+            output_token: str | None = None
+            error_token: str | None = None
+
+            for _attempt in range(self.attempts):
+                # Fetch current job state
+                resp = await glue_client.get_job_run(JobName=self.job_name, RunId=self.run_id)
+                job_run_state = resp["JobRun"]["JobRunState"]
+
+                # Fetch and print logs from both output and error streams
+                try:
+                    output_token = await self._forward_logs(
+                        logs_client, log_group_output, self.run_id, output_token
+                    )
+                    error_token = await self._forward_logs(
+                        logs_client, log_group_error, self.run_id, error_token
+                    )
+                except ClientError as e:
+                    self.log.error(
+                        "Failed to fetch logs for Glue Job %s Run %s: %s",
+                        self.job_name,
+                        self.run_id,
+                        e,
+                    )
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Failed to fetch logs for Glue Job {self.job_name} Run {self.run_id}: {e}",
+                            self.return_key: self.return_value,
+                        }
+                    )
+                    return
+
+                if job_run_state in ("FAILED", "TIMEOUT"):
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Glue Job {self.job_name} Run {self.run_id}"
+                            f" exited with state: {job_run_state}",
+                            self.return_key: self.return_value,
+                        }
+                    )
+                    return
+                if job_run_state in ("SUCCEEDED", "STOPPED"):
+                    self.log.info(
+                        "Exiting Job %s Run %s State: %s",
+                        self.job_name,
+                        self.run_id,
+                        job_run_state,
+                    )
+                    yield TriggerEvent({"status": "success", self.return_key: self.return_value})
+                    return
+
+                self.log.info(
+                    "Polling for AWS Glue Job %s current run state: %s",
+                    self.job_name,
+                    job_run_state,
+                )
+                await asyncio.sleep(self.waiter_delay)
+
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": f"Glue Job {self.job_name} Run {self.run_id}"
+                    f" waiter exceeded max attempts ({self.attempts})",
+                    self.return_key: self.return_value,
+                }
+            )
+
+    async def _forward_logs(
+        self,
+        logs_client: Any,
+        log_group: str,
+        log_stream: str,
+        next_token: str | None,
+    ) -> str | None:
+        # Matches the format used by the synchronous GlueJobHook.print_job_logs.
+        fetched_logs: list[str] = []
+        while True:
+            token_arg: dict[str, str] = {"nextToken": next_token} if next_token else {}
+            try:
+                response = await logs_client.get_log_events(
+                    logGroupName=log_group,
+                    logStreamName=log_stream,
+                    startFromHead=True,
+                    **token_arg,
+                )
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                    region = logs_client.meta.region_name
+                    self.log.warning(
+                        "No new Glue driver logs so far.\n"
+                        "If this persists, check the CloudWatch dashboard at: %r.",
+                        f"https://{region}.console.aws.amazon.com/cloudwatch/home",
+                    )
+                    return None
+                raise
+
+            events = response["events"]
+            fetched_logs.extend(event["message"] for event in events)
+
+            if not events or next_token == response["nextForwardToken"]:
+                break
+            next_token = response["nextForwardToken"]
+
+        self.log.info(format_glue_logs(fetched_logs, log_group))
+
+        return response.get("nextForwardToken")
 
 
 class GlueCatalogPartitionTrigger(BaseTrigger):

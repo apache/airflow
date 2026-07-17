@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from datetime import datetime
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -36,13 +37,16 @@ from google.cloud.bigquery import (
     TableReference,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
+from google.cloud.bigquery.routine import Routine
 from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import AirflowException, Context
 from airflow.providers.google.cloud.hooks.bigquery import (
+    BIGQUERY_LEGACY_SQL_DEFAULT_WARNING,
     BigQueryAsyncHook,
     BigQueryHook,
     BigQueryTableAsyncHook,
@@ -84,18 +88,25 @@ class _BigQueryBaseTestClass:
             def get_credentials_and_project_id(self):
                 return CREDENTIALS, PROJECT_ID
 
-        self.hook = MockedBigQueryHook()
+        self.hook = MockedBigQueryHook(use_legacy_sql=True)
 
 
 @pytest.mark.db_test
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
-    def test_bigquery_client_creation(self, mock_build, mock_authorize, mock_bigquery_connection):
+    def test_bigquery_client_creation(
+        self, mock_build, mock_authorize, mock_bigquery_connection, mock_get_client_options
+    ):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "bigquery", "v2", http=mock_authorize.return_value, cache_discovery=False
+            "bigquery",
+            "v2",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         mock_bigquery_connection.assert_called_once_with(
             service=mock_build.return_value,
@@ -592,7 +603,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_insert_all_succeed(self, mock_client):
-        rows = [{"json": {"a_key": "a_value_0"}}]
+        rows = [{"a_key": "a_value_0"}]
 
         self.hook.insert_all(
             project_id=PROJECT_ID,
@@ -612,7 +623,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_insert_all_fail(self, mock_client):
-        rows = [{"json": {"a_key": "a_value_0"}}]
+        rows = [{"a_key": "a_value_0"}]
 
         mock_client.return_value.insert_rows.return_value = ["some", "errors"]
         with pytest.raises(AirflowException, match="insert error"):
@@ -1006,6 +1017,177 @@ class TestTableOperations(_BigQueryBaseTestClass):
 
 
 @pytest.mark.db_test
+class TestRoutineOperations(_BigQueryBaseTestClass):
+    ROUTINE_ID = "bq_routine"
+    ROUTINE_REF_REPR = {
+        "projectId": PROJECT_ID,
+        "datasetId": DATASET_ID,
+        "routineId": ROUTINE_ID,
+    }
+    ROUTINE_RESOURCE = {
+        "routineReference": ROUTINE_REF_REPR,
+        "routineType": "SCALAR_FUNCTION",
+        "language": "SQL",
+        "definitionBody": "x + 1",
+        "arguments": [{"name": "x", "dataType": {"typeKind": "INT64"}}],
+        "returnType": {"typeKind": "INT64"},
+    }
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_fail_mode(self, mock_client):
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+        )
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
+        call = mock_client.return_value.create_routine.call_args
+        assert call.kwargs["exists_ok"] is False
+        mock_client.return_value.delete_routine.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_skip_mode(self, mock_client):
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+            if_exists="skip",
+        )
+        assert mock_client.return_value.create_routine.call_args.kwargs["exists_ok"] is True
+        mock_client.return_value.delete_routine.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_replace_mode_deletes_first(self, mock_client):
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+            if_exists="replace",
+        )
+        mock_client.return_value.delete_routine.assert_called_once()
+        create_call = mock_client.return_value.create_routine.call_args
+        assert create_call.kwargs["exists_ok"] is False
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_replace_ignores_not_found_on_delete(self, mock_client):
+        mock_client.return_value.delete_routine.side_effect = NotFound("nope")
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+            if_exists="replace",
+        )
+        mock_client.return_value.create_routine.assert_called_once()
+
+    def test_create_routine_invalid_if_exists(self):
+        with pytest.raises(ValueError, match="must be one of"):
+            self.hook.create_routine(
+                routine=dict(self.ROUTINE_RESOURCE),
+                project_id=PROJECT_ID,
+                if_exists="bogus",
+            )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_fills_missing_reference(self, mock_client):
+        body = {
+            "routineType": "SCALAR_FUNCTION",
+            "language": "SQL",
+            "definitionBody": "1",
+        }
+        self.hook.create_routine(
+            routine=body,
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+        create_call = mock_client.return_value.create_routine.call_args
+        created_routine = (
+            create_call.kwargs["routine"] if "routine" in create_call.kwargs else create_call.args[0]
+        )
+        ref = created_routine.reference
+        assert ref.project == PROJECT_ID
+        assert ref.dataset_id == DATASET_ID
+        assert ref.routine_id == self.ROUTINE_ID
+
+    def test_create_routine_missing_reference_raises(self):
+        with pytest.raises(ValueError, match="missing required fields"):
+            self.hook.create_routine(
+                routine={"routineType": "SCALAR_FUNCTION", "language": "SQL", "definitionBody": "1"},
+                project_id=PROJECT_ID,
+            )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_update_routine(self, mock_client):
+        existing_repr = dict(self.ROUTINE_RESOURCE)
+        existing_repr["description"] = "original"
+        mock_client.return_value.get_routine.return_value = Routine.from_api_repr(existing_repr)
+
+        self.hook.update_routine(
+            routine={"description": "new", "definitionBody": "x + 2"},
+            fields=["description", "definitionBody"],
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+
+        mock_client.return_value.get_routine.assert_called_once()
+        update_call = mock_client.return_value.update_routine.call_args
+        sent_routine = update_call.args[0] if update_call.args else update_call.kwargs["routine"]
+        sent_fields = update_call.args[1] if len(update_call.args) > 1 else update_call.kwargs["fields"]
+        # Merged resource carries the updated values plus the untouched original metadata.
+        assert sent_routine.description == "new"
+        assert sent_routine.body == "x + 2"
+        assert sent_routine.type_ == "SCALAR_FUNCTION"
+        # Full-resource PUT: all writable properties are included in the outbound fields list.
+        assert "description" in sent_fields
+        assert "body" in sent_fields
+        assert "type_" in sent_fields
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_delete_routine(self, mock_client):
+        self.hook.delete_routine(
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+        mock_client.return_value.delete_routine.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_delete_routine_not_found_ok(self, mock_client):
+        mock_client.return_value.delete_routine.side_effect = NotFound("nope")
+        # default not_found_ok=True — should not raise
+        self.hook.delete_routine(
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_delete_routine_raises_when_not_found_ok_false(self, mock_client):
+        mock_client.return_value.delete_routine.side_effect = NotFound("nope")
+        with pytest.raises(NotFound):
+            self.hook.delete_routine(
+                dataset_id=DATASET_ID,
+                routine_id=self.ROUTINE_ID,
+                project_id=PROJECT_ID,
+                not_found_ok=False,
+            )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_get_routine(self, mock_client):
+        self.hook.get_routine(
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+        mock_client.return_value.get_routine.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_list_routines(self, mock_client):
+        mock_client.return_value.list_routines.return_value = iter([mock.MagicMock(), mock.MagicMock()])
+        result = self.hook.list_routines(dataset_id=DATASET_ID, project_id=PROJECT_ID)
+        assert len(result) == 2
+        list_call = mock_client.return_value.list_routines.call_args
+        assert list_call.kwargs["max_results"] is None
+
+
+@pytest.mark.db_test
 class TestBigQueryCursor(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
@@ -1124,7 +1306,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     def test_fetchone(self, mock_next, mock_get_client):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.fetchone()
-        mock_next.call_count == 1
+        assert mock_next.call_count == 1
         assert mock_next.return_value == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
@@ -1462,6 +1644,34 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
 class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
     """Ensure `use_legacy_sql` param in `BigQueryHook` propagates properly."""
 
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
+        return_value=(CREDENTIALS, PROJECT_ID),
+    )
+    def test_implicit_legacy_sql_default_warns(self, _mock_get_creds_and_proj_id):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The default value of `use_legacy_sql` is deprecated",
+        ):
+            bq_hook = BigQueryHook()
+
+        assert bq_hook.use_legacy_sql is True
+
+    @pytest.mark.parametrize("use_legacy_sql", [True, False])
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
+        return_value=(CREDENTIALS, PROJECT_ID),
+    )
+    def test_explicit_legacy_sql_default_does_not_warn(self, _mock_get_creds_and_proj_id, use_legacy_sql):
+        with warnings.catch_warnings(record=True) as caught_warnings:
+            warnings.simplefilter("always")
+            bq_hook = BigQueryHook(use_legacy_sql=use_legacy_sql)
+
+        assert not any(
+            BIGQUERY_LEGACY_SQL_DEFAULT_WARNING in str(warning.message) for warning in caught_warnings
+        )
+        assert bq_hook.use_legacy_sql is use_legacy_sql
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor._get_query_result")
@@ -1565,7 +1775,7 @@ class TestBigQueryAsyncHookMethods:
             def get_credentials_and_project_id(self):
                 return CREDENTIALS, PROJECT_ID
 
-        self.hook = MockedBigQueryAsyncHook()
+        self.hook = MockedBigQueryAsyncHook(use_legacy_sql=True)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
@@ -1575,7 +1785,7 @@ class TestBigQueryAsyncHookMethods:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.token = "ACCESS_TOKEN"
         mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
 
@@ -1590,7 +1800,7 @@ class TestBigQueryAsyncHookMethods:
         mock_async_get_job = mock.AsyncMock(return_value=mock.MagicMock())
         mock_sync_to_async.return_value = mock_async_get_job
 
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         await hook._get_job(job_id=JOB_ID, project_id=PROJECT_ID, location="US")
 
         mock_sync_to_async.assert_called_once_with(mock_sync_hook.get_job)
@@ -1607,7 +1817,7 @@ class TestBigQueryAsyncHookMethods:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook._get_job")
     async def test_get_job_status(self, mock_get_job, job_state, error_result, expected):
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         mock_get_job.return_value = mock.MagicMock(state=job_state, error_result=error_result)
         resp = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
         assert resp == expected
@@ -1615,7 +1825,7 @@ class TestBigQueryAsyncHookMethods:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_output_assert_once_with(self, mock_job_instance):
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
         response = "success"
@@ -1659,7 +1869,7 @@ class TestBigQueryAsyncHookMethods:
         mock_job_instance.cancel.side_effect = Exception("Cancellation failed")
         mock_job.return_value = mock_job_instance
 
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
 
         job_id = "test_job_id"
         project_id = "test_project"
@@ -1674,7 +1884,7 @@ class TestBigQueryAsyncHookMethods:
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_create_job_for_partition_get_with_table(self, mock_job_instance, mock_client_session):
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
         mock_session = AsyncMock()
@@ -1694,7 +1904,7 @@ class TestBigQueryAsyncHookMethods:
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_create_job_for_partition_get(self, mock_job_instance, mock_client_session):
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
         mock_session = AsyncMock()
@@ -1710,7 +1920,7 @@ class TestBigQueryAsyncHookMethods:
         """
         Assert that check return AirflowException
         """
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
 
         row1, row2, metrics_thresholds, ignore_zero, ratio_formula = (
             None,
@@ -1746,7 +1956,7 @@ class TestBigQueryAsyncHookMethods:
         """
         Assert that check return None
         """
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
 
         row1, row2, metrics_thresholds, ignore_zero, ratio_formula = (
             "0",
@@ -1780,7 +1990,7 @@ class TestBigQueryAsyncHookMethods:
             "jobComplete": True,
             "cacheHit": False,
         }
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
         mock_job_client.get_query_results.return_value = response
@@ -1795,7 +2005,7 @@ class TestBigQueryAsyncHookMethods:
         """
         Assert that value_check method execution succeed
         """
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         query = "SELECT COUNT(*) from Any"
         response = hook.value_check(query, pass_value, records, tolerance)
         assert response is None
@@ -1806,7 +2016,7 @@ class TestBigQueryAsyncHookMethods:
     )
     def test_value_check_fail(self, records, pass_value, tolerance):
         """Assert that check raise AirflowException"""
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         query = "SELECT COUNT(*) from Any"
 
         with pytest.raises(AirflowException) as ex:
@@ -1848,7 +2058,7 @@ class TestBigQueryAsyncHookMethods:
         Table instance object"""
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_auth_default.return_value = (mock_credentials, PROJECT_ID)
-        hook = BigQueryTableAsyncHook()
+        hook = BigQueryTableAsyncHook(use_legacy_sql=True)
         result = await hook.get_table_client(
             dataset=DATASET_ID, project_id=PROJECT_ID, table_id=TABLE_ID, session=mock_session
         )
@@ -1876,7 +2086,7 @@ class TestBigQueryAsyncHookMethods:
             "jobComplete": True,
             "cacheHit": False,
         }
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         result = hook.get_records(query_result)
         assert isinstance(result[0][0], int)
         assert isinstance(result[0][1], float)
@@ -1904,7 +2114,7 @@ class TestBigQueryAsyncHookMethods:
             "jobComplete": True,
             "cacheHit": False,
         }
-        hook = BigQueryAsyncHook()
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
         result = hook.get_records(query_result, as_dict=True)
         assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]
 
@@ -2025,7 +2235,7 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
             table_id=TABLE_ID,
-            rows=[{"json": {"a_key": "a_value"}}],
+            rows=[{"a_key": "a_value"}],
         )
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 0

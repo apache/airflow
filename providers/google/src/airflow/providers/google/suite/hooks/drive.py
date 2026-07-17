@@ -67,7 +67,13 @@ class GoogleDriveHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("drive", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "drive",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+                client_options=self.get_client_options(),
+            )
         return self._conn
 
     def _ensure_folders_exists(self, path: str, folder_id: str) -> str:
@@ -298,7 +304,7 @@ class GoogleDriveHook(GoogleBaseHook):
             try:
                 upload_location = self._resolve_file_path(folder_id)
             except GoogleApiClientError as e:
-                self.log.warning("A problem has been encountered when trying to resolve file path: ", e)
+                self.log.exception("A problem has been encountered when trying to resolve file path: %s", e)
 
         if show_full_target_path:
             self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)

@@ -37,15 +37,20 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.base import ID_LEN
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import Asset
+from airflow.timetables.simple import PartitionedAtRuntime
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dag_bundles,
@@ -249,7 +254,6 @@ class TestAssets:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
         clear_db_logs()
 
         yield
@@ -261,45 +265,45 @@ class TestAssets:
         clear_db_logs()
 
     @provide_session
-    def create_assets(self, session, num: int = 2) -> list[AssetModel]:
+    def create_assets(self, num: int = 2, *, session) -> list[AssetModel]:
         return _create_assets(session=session, num=num)
 
     @provide_session
-    def create_assets_with_watchers(self, session, num: int = 2) -> list[AssetModel]:
+    def create_assets_with_watchers(self, num: int = 2, *, session) -> list[AssetModel]:
         return _create_assets_with_watchers(session=session, num=num)
 
     @provide_session
-    def create_assets_with_sensitive_extra(self, session, num: int = 2):
+    def create_assets_with_sensitive_extra(self, num: int = 2, *, session):
         _create_assets_with_sensitive_extra(session=session, num=num)
 
     @provide_session
-    def create_provided_asset(self, session, asset: AssetModel):
+    def create_provided_asset(self, asset: AssetModel, *, session):
         _create_provided_asset(session=session, asset=asset)
 
     @provide_session
-    def create_assets_events(self, session, num: int = 2, varying_timestamps: bool = False):
+    def create_assets_events(self, num: int = 2, varying_timestamps: bool = False, *, session):
         _create_assets_events(session=session, num=num, varying_timestamps=varying_timestamps)
 
     @provide_session
-    def create_assets_events_with_sensitive_extra(self, session, num: int = 2):
+    def create_assets_events_with_sensitive_extra(self, num: int = 2, *, session):
         _create_assets_events_with_sensitive_extra(session=session, num=num)
 
     @provide_session
-    def create_provided_asset_event(self, session, asset_event: AssetEvent):
+    def create_provided_asset_event(self, asset_event: AssetEvent, *, session):
         _create_provided_asset_event(session=session, asset_event=asset_event)
 
     @provide_session
-    def create_dag_run(self, session, num: int = 2):
+    def create_dag_run(self, num: int = 2, *, session):
         _create_dag_run(num=num, session=session)
 
     @provide_session
-    def create_asset_dag_run(self, session, num: int = 2):
+    def create_asset_dag_run(self, num: int = 2, *, session):
         _create_asset_dag_run(num=num, session=session)
 
 
 class TestGetAssets(TestAssets):
     def test_should_respond_200(self, test_client, session):
-        assets1, asset2 = self.create_assets(session)
+        assets1, asset2 = self.create_assets(session=session)
         session.add(AssetModel("inactive", "inactive"))
         session.commit()
 
@@ -351,7 +355,7 @@ class TestGetAssets(TestAssets):
 
     def test_should_respond_200_with_watchers(self, test_client, session):
         """Test that assets with watchers return the watcher information in the API response."""
-        asset1, asset2 = self.create_assets_with_watchers(session, num=2)
+        asset1, asset2 = self.create_assets_with_watchers(session=session, num=2)
 
         response = test_client.get("/assets")
         assert response.status_code == 200
@@ -407,7 +411,7 @@ class TestGetAssets(TestAssets):
         }
 
     def test_should_show_inactive(self, test_client, session):
-        asset1, asset2 = self.create_assets(session)
+        asset1, asset2 = self.create_assets(session=session)
         session.add(
             asset3 := AssetModel(
                 name="simple3",
@@ -511,10 +515,23 @@ class TestGetAssets(TestAssets):
                     "wasb://some_asset_bucket_/key",
                 },
             ),
+            ({"name_prefix_pattern": "s3"}, {"s3://folder/key"}),
+            ({"name_prefix_pattern": "gcp"}, {"gcp://bucket/key"}),
+            ({"name_prefix_pattern": "some"}, {"somescheme://asset/key"}),
+            ({"name_prefix_pattern": "wasb"}, {"wasb://some_asset_bucket_/key"}),
+            (
+                {"name_prefix_pattern": "~"},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
         ],
     )
     @provide_session
-    def test_filter_assets_by_name_pattern_works(self, test_client, params, expected_assets, session):
+    def test_filter_assets_by_name_pattern_works(self, test_client, params, expected_assets, *, session):
         asset1 = AssetModel("s3-folder-key", "s3://folder/key")
         asset2 = AssetModel("gcp-bucket-key", "gcp://bucket/key")
         asset3 = AssetModel("some-asset-key", "somescheme://asset/key")
@@ -547,10 +564,31 @@ class TestGetAssets(TestAssets):
                     "wasb://some_asset_bucket_/key",
                 },
             ),
+            ({"uri_prefix_pattern": "s3://"}, {"s3://folder/key"}),
+            ({"uri_prefix_pattern": "gcp://"}, {"gcp://bucket/key"}),
+            ({"uri_prefix_pattern": "somescheme"}, {"somescheme://asset/key"}),
+            ({"uri_prefix_pattern": "wasb://"}, {"wasb://some_asset_bucket_/key"}),
+            (
+                {"uri_prefix_pattern": "~"},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
+            # Exact-match ``uri`` filter: only the asset whose full URI matches is returned.
+            ({"uri": "s3://folder/key"}, {"s3://folder/key"}),
+            ({"uri": "gcp://bucket/key"}, {"gcp://bucket/key"}),
+            # Repeated ``uri`` params match any of the given URIs.
+            ({"uri": ["s3://folder/key", "gcp://bucket/key"]}, {"s3://folder/key", "gcp://bucket/key"}),
+            # A substring of an existing URI must NOT match (unlike uri_pattern).
+            ({"uri": "s3://folder"}, set()),
+            ({"uri": "does-not-exist://key"}, set()),
         ],
     )
     @provide_session
-    def test_filter_assets_by_uri_pattern_works(self, test_client, params, expected_assets, session):
+    def test_filter_assets_by_uri_pattern_works(self, test_client, params, expected_assets, *, session):
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -568,7 +606,7 @@ class TestGetAssets(TestAssets):
     @pytest.mark.parametrize(("dag_ids", "expected_num"), [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
     def test_filter_assets_by_dag_ids_works(
-        self, test_client, dag_ids, expected_num, testing_dag_bundle, session
+        self, test_client, dag_ids, expected_num, testing_dag_bundle, *, session
     ):
         session.execute(delete(DagModel))
         session.commit()
@@ -607,7 +645,7 @@ class TestGetAssets(TestAssets):
     )
     @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
-        self, test_client, dag_ids, uri_pattern, expected_num, testing_dag_bundle, session
+        self, test_client, dag_ids, uri_pattern, expected_num, testing_dag_bundle, *, session
     ):
         session.execute(delete(DagModel))
         session.commit()
@@ -680,7 +718,6 @@ class TestAssetAliases:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
-        clear_db_dag_bundles()
 
     def teardown_method(self) -> None:
         clear_db_assets()
@@ -693,12 +730,12 @@ class TestAssetAliases:
         _create_asset_aliases(num=num, session=session)
 
     @provide_session
-    def create_provided_asset_alias(self, asset_alias: AssetAliasModel, session):
+    def create_provided_asset_alias(self, asset_alias: AssetAliasModel, *, session):
         _create_provided_asset_alias(session=session, asset_alias=asset_alias)
 
 
 class TestGetAssetAliases(TestAssetAliases):
-    def test_should_respond_200(self, test_client, session):
+    def test_should_respond_200(self, test_client, *, session):
         self.create_asset_aliases()
         asset_aliases = session.scalars(select(AssetAliasModel)).all()
         assert len(asset_aliases) == 2
@@ -729,10 +766,15 @@ class TestGetAssetAliases(TestAssetAliases):
             ({"name_pattern": "foo"}, {"foo1"}),
             ({"name_pattern": "1"}, {"foo1", "bar12"}),
             ({"uri_pattern": ""}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
+            ({"name_prefix_pattern": "foo"}, {"foo1"}),
+            ({"name_prefix_pattern": "bar"}, {"bar12", "bar2", "bar3"}),
+            ({"name_prefix_pattern": "~"}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
         ],
     )
     @provide_session
-    def test_filter_assets_by_name_pattern_works(self, test_client, params, expected_asset_aliases, session):
+    def test_filter_assets_by_name_pattern_works(
+        self, test_client, params, expected_asset_aliases, *, session
+    ):
         asset_alias1 = AssetAliasModel(name="foo1")
         asset_alias2 = AssetAliasModel(name="bar12")
         asset_alias3 = AssetAliasModel(name="bar2")
@@ -781,10 +823,10 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
 
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
-        asset1, asset2 = self.create_assets(session)
-        self.create_assets_events(session)
-        self.create_dag_run(session)
-        self.create_asset_dag_run(session)
+        asset1, asset2 = self.create_assets(session=session)
+        self.create_assets_events(session=session)
+        self.create_dag_run(session=session)
+        self.create_asset_dag_run(session=session)
         assets = session.scalars(select(AssetEvent)).all()
         session.commit()
         assert len(assets) == 2
@@ -875,10 +917,13 @@ class TestGetAssetEvents(TestAssets):
             ({"name_pattern": "simple1"}, 1),
             ({"name_pattern": "simple%"}, 2),
             ({"name_pattern": "nonexistent"}, 0),
+            ({"name_prefix_pattern": "simple1"}, 1),
+            ({"name_prefix_pattern": "simple"}, 2),
+            ({"name_prefix_pattern": "nonexistent"}, 0),
         ],
     )
     @provide_session
-    def test_filtering(self, test_client, params, total_entries, session):
+    def test_filtering(self, test_client, params, total_entries, *, session):
         self.create_assets()
         self.create_assets_events()
         self.create_dag_run()
@@ -1042,9 +1087,90 @@ class TestGetAssetEvents(TestAssets):
         }
 
 
+class TestGetAssetEventsExtraFilter(TestAssets):
+    @pytest.fixture
+    def _setup(self, session):
+        self.create_assets(num=2, session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={"region": "us", "env": "prod"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r1",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={"region": "eu", "env": "prod"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r2",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={"region": "us", "env": "staging"},
+                source_task_id="t2",
+                source_dag_id="d2",
+                source_run_id="r3",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r4",
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ({"extra": "region=us"}, 2),
+            ({"extra": "region=eu"}, 1),
+            ({"extra": "env=prod"}, 2),
+            ({"extra": "env=staging"}, 1),
+            ({"extra": "region=ap"}, 0),
+            ({"extra": "nonexistent=us"}, 0),
+            ({}, 4),
+        ],
+    )
+    def test_extra_filter(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.usefixtures("_setup")
+    def test_extra_filter_combined_with_asset_id(self, test_client):
+        response = test_client.get("/assets/events", params={"extra": "region=us", "asset_id": "1"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ([("extra", "region=us"), ("extra", "env=prod")], 1),
+            ([("extra", "region=eu"), ("extra", "env=prod")], 1),
+            ([("extra", "region=us"), ("extra", "env=staging")], 1),
+            ([("extra", "region=eu"), ("extra", "env=staging")], 0),
+        ],
+    )
+    def test_extra_filter_multiple_keys(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+
 class TestGetAssetEndpoint(TestAssets):
     @provide_session
-    def test_should_respond_200(self, test_client, session):
+    def test_should_respond_200(self, test_client, *, session):
         self.create_assets(num=1)
         assert session.scalars(select(func.count(AssetModel.id))).one() == 1
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
@@ -1068,9 +1194,9 @@ class TestGetAssetEndpoint(TestAssets):
         }
 
     @provide_session
-    def test_should_respond_200_with_watchers(self, test_client, session):
+    def test_should_respond_200_with_watchers(self, test_client, *, session):
         """Test that single asset endpoint returns watcher information."""
-        assets = self.create_assets_with_watchers(session, num=1)
+        assets = self.create_assets_with_watchers(num=1, session=session)
         asset = assets[0]
 
         response = test_client.get(f"/assets/{asset.id}")
@@ -1139,7 +1265,7 @@ class TestGetAssetEndpoint(TestAssets):
 
 class TestGetAssetAliasEndpoint(TestAssetAliases):
     @provide_session
-    def test_should_respond_200(self, test_client, session):
+    def test_should_respond_200(self, test_client, *, session):
         self.create_asset_aliases(num=1)
         assert session.scalars(select(func.count(AssetAliasModel.id))).one() == 1
         with assert_queries_count(6):
@@ -1264,7 +1390,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session):
-        (asset,) = self.create_assets(session, num=1)
+        (asset,) = self.create_assets(num=1, session=session)
         event_payload = {"asset_id": asset.id, "extra": {"foo": "bar"}}
         response = test_client.post("/assets/events", json=event_payload)
         assert response.status_code == 200
@@ -1294,16 +1420,39 @@ class TestPostAssetEvents(TestAssets):
         assert response.status_code == 403
 
     def test_invalid_attr_not_allowed(self, test_client, session):
-        self.create_assets(session)
+        self.create_assets(session=session)
         event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
         response = test_client.post("/assets/events", json=event_invalid_payload)
 
         assert response.status_code == 422
 
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_status_code"),
+        [
+            pytest.param("", 422, id="empty"),
+            pytest.param("   ", 422, id="whitespace_only"),
+            pytest.param("a" * (ID_LEN + 1), 422, id="too_long"),
+            pytest.param("2026-03-23", 200, id="valid"),
+            pytest.param(None, 200, id="none"),
+        ],
+    )
+    def test_partition_key_validation(self, test_client, session, partition_key, expected_status_code):
+        (asset,) = self.create_assets(num=1, session=session)
+        event_payload = {"asset_id": asset.id, "partition_key": partition_key}
+        response = test_client.post("/assets/events", json=event_payload)
+        assert response.status_code == expected_status_code
+
+    def test_partition_key_preserves_surrounding_whitespace(self, test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        event_payload = {"asset_id": asset.id, "partition_key": "  2026-03-23  "}
+        response = test_client.post("/assets/events", json=event_payload)
+        assert response.status_code == 200
+        assert response.json()["partition_key"] == "  2026-03-23  "
+
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
-        (asset,) = self.create_assets(session, num=1)
+        (asset,) = self.create_assets(num=1, session=session)
         event_payload = {"asset_id": asset.id, "extra": {"password": "bar"}}
         response = test_client.post("/assets/events", json=event_payload)
         assert response.status_code == 200
@@ -1325,7 +1474,7 @@ class TestPostAssetEvents(TestAssets):
 
     def test_should_update_asset_endpoint(self, test_client, session):
         """Test for a single Asset."""
-        (asset,) = self.create_assets(session, num=1)
+        (asset,) = self.create_assets(num=1, session=session)
         event_payload = {"asset_id": asset.id, "extra": {"foo": "bar"}}
         asset_event_response = test_client.post("/assets/events", json=event_payload)
         asset_response = test_client.get(f"/assets/{asset.id}")
@@ -1337,7 +1486,7 @@ class TestPostAssetEvents(TestAssets):
 
     def test_should_update_assets_endpoint(self, test_client, session):
         """Test for multiple Assets."""
-        asset1, asset2 = self.create_assets(session, num=2)
+        asset1, asset2 = self.create_assets(num=2, session=session)
 
         # Now, only make a POST to the /assets/events endpoint for one of the Assets
         for _ in range(2):
@@ -1357,6 +1506,118 @@ class TestPostAssetEvents(TestAssets):
                 assert asset["last_asset_event"]["timestamp"] is None
 
 
+class TestPostAssetEventsTeamResolution(TestAssets):
+    """Tests for team-based filtering in create_asset_event."""
+
+    def _make_mock_event(self, asset):
+        m = mock.MagicMock(
+            spec=AssetEvent,
+            id=1,
+            asset_id=asset.id,
+            uri=asset.uri,
+            group=asset.group,
+            extra={"from_rest_api": True},
+            source_map_index=-1,
+            timestamp=DEFAULT_DATE,
+            source_task_id=None,
+            source_dag_id=None,
+            source_run_id=None,
+            partition_key=None,
+            created_dagruns=[],
+        )
+        # MagicMock uses 'name' internally for repr, so it must be set separately.
+        m.name = asset.name
+        return m
+
+    @pytest.mark.usefixtures("time_freezer")
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_teams"),
+        [
+            pytest.param("True", {"team_a", "team_b"}, id="enabled"),
+            pytest.param("False", set(), id="disabled"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.asset_manager.register_asset_change")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager")
+    def test_team_resolution(
+        self, mock_get_auth_manager, mock_register, test_client, session, multi_team, expected_teams
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_get_auth_manager.return_value.get_authorized_teams.return_value = {"team_a", "team_b"}
+        mock_register.return_value = self._make_mock_event(asset)
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {}})
+
+        assert response.status_code == 200
+        call_kwargs = mock_register.call_args.kwargs
+        assert call_kwargs["source_is_api"] is True
+        assert call_kwargs["api_user_teams"] == expected_teams
+
+    @pytest.mark.usefixtures("time_freezer")
+    @pytest.mark.parametrize(
+        ("multi_team", "access_control", "expected_consumer_teams", "expected_allow_global"),
+        [
+            pytest.param(
+                "True",
+                {"consumer_teams": ["team_ml", "team_data"], "allow_global": False},
+                ["team_ml", "team_data"],
+                False,
+                id="multi_team_enabled_with_consumer_teams",
+            ),
+            pytest.param(
+                "True",
+                None,
+                None,
+                True,
+                id="multi_team_enabled_no_access_control",
+            ),
+            pytest.param(
+                "True",
+                {"consumer_teams": []},
+                [],
+                True,
+                id="multi_team_enabled_empty_consumer_teams",
+            ),
+            pytest.param(
+                "False",
+                {"consumer_teams": ["team_ml"], "allow_global": False},
+                None,
+                True,
+                id="multi_team_disabled_access_control_ignored",
+            ),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.asset_manager.register_asset_change")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager")
+    def test_access_control_consumer_teams(
+        self,
+        mock_get_auth_manager,
+        mock_register,
+        test_client,
+        session,
+        multi_team,
+        access_control,
+        expected_consumer_teams,
+        expected_allow_global,
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_get_auth_manager.return_value.get_authorized_teams.return_value = {"team_a"}
+        mock_register.return_value = self._make_mock_event(asset)
+
+        payload = {"asset_id": asset.id, "extra": {}}
+        if access_control is not None:
+            payload["access_control"] = access_control
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            response = test_client.post("/assets/events", json=payload)
+
+        assert response.status_code == 200
+        call_kwargs = mock_register.call_args.kwargs
+        assert call_kwargs["api_allow_consumer_teams"] == expected_consumer_teams
+        assert call_kwargs["api_allow_global_consumers"] == expected_allow_global
+
+
 @pytest.mark.need_serialized_dag
 class TestPostAssetMaterialize(TestAssets):
     DAG_ASSET1_ID = "test_dag_1"
@@ -1370,7 +1631,10 @@ class TestPostAssetMaterialize(TestAssets):
         assets = {
             i: am.to_serialized() for i, am in enumerate(self.create_assets(session=session, num=3), start=1)
         }
-        with dag_maker(self.DAG_ASSET1_ID, schedule=None, session=session):
+        # DAG_ASSET1_ID is materialized with a partition_key in several tests below, so it must be a
+        # partitioned Dag. PartitionedAtRuntime accepts runtime-discovered partition keys without
+        # requiring a partitioned timetable.
+        with dag_maker(self.DAG_ASSET1_ID, schedule=PartitionedAtRuntime(), session=session):
             EmptyOperator(task_id="task", outlets=assets[1])
         with dag_maker(self.DAG_ASSET2_ID_A, schedule=None, session=session):
             EmptyOperator(task_id="task", outlets=assets[2])
@@ -1392,6 +1656,7 @@ class TestPostAssetMaterialize(TestAssets):
             "dag_versions": mock.ANY,
             "logical_date": None,
             "partition_key": None,
+            "partition_date": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,
             "start_date": None,
@@ -1472,12 +1737,12 @@ class TestPostAssetMaterialize(TestAssets):
     def test_should_respond_409_on_multiple_dags(self, test_client):
         response = test_client.post("/assets/2/materialize")
         assert response.status_code == 409
-        assert response.json()["detail"] == "More than one DAG materializes asset with ID: 2"
+        assert response.json()["detail"] == "More than one Dag materializes asset with ID: 2"
 
     def test_should_respond_404_on_multiple_dags(self, test_client):
         response = test_client.post("/assets/3/materialize")
         assert response.status_code == 404
-        assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
+        assert response.json()["detail"] == "No Dag materializes asset with ID: 3"
 
     def test_should_respond_400_if_materialization_runs_denied(self, test_client, session):
         sdm = session.scalar(
@@ -1498,6 +1763,43 @@ class TestPostAssetMaterialize(TestAssets):
             == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
         )
 
+    def test_materialize_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
+        """Asset materialization allowed_run_types is enforced from the requested bundle version, not latest."""
+        bundle_name = "allowed_run_types_bundle"
+        asset = session.get(AssetModel, 1).to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
+
+        # v1 allows materialization; latest v2 does not. Requesting v1 must succeed.
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        # Without bundle_version the latest (v2) governs and rejects the run.
+        response = test_client.post("/assets/1/materialize")
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
+        )
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_403_when_user_cannot_trigger_dag(self, test_client):
         with mock.patch(
@@ -1510,7 +1812,7 @@ class TestPostAssetMaterialize(TestAssets):
 
             assert response.status_code == 403
             assert response.json()["detail"] == (
-                f"User is not authorized to trigger a run for DAG: {self.DAG_ASSET1_ID} that materializes this asset"
+                f"User is not authorized to trigger a run for Dag: {self.DAG_ASSET1_ID} that materializes this asset"
             )
             mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
                 method="POST",
@@ -1518,6 +1820,104 @@ class TestPostAssetMaterialize(TestAssets):
                 details=DagDetails(id=self.DAG_ASSET1_ID),
                 user=mock.ANY,
             )
+
+    def test_should_respond_with_bundle_version(self, test_client, session, dag_maker):
+        """Test that asset materialization respects bundle_version parameter."""
+        bundle_name = "testing_bundle"
+        asset = session.get(AssetModel, 1).to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "invalid_version"})
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v3",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v3", outlets=asset)
+            dag_maker.dag.disable_bundle_versioning = True
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 400
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not support bundle versioning"
+            in response.json()["detail"]
+        )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_400_on_invalid_dag_run_id(self, test_client):
+        """A dag_run_id containing '..' triggers ValueError in DagRun.validate_run_id.
+
+        It must surface as 400 BAD_REQUEST, not 500 INTERNAL_SERVER_ERROR.
+        """
+        response = test_client.post(
+            "/assets/1/materialize",
+            json={"dag_run_id": "bad..id"},
+        )
+        assert response.status_code == 400
+        assert "must not contain '..'" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_partition_date_for_partitioned_dag(
+        self, test_client, dag_maker, session
+    ):
+        """Materializing a Dag with a real partitioned timetable must populate partition_date.
+
+        Regression guard: before this fix, `partition_date` resolved by `validate_context` was
+        dropped when creating the run, unlike the sibling `/dags/{dag_id}/dagRuns` trigger route.
+        """
+        partitioned_dag_id = "test_materialize_populates_partition_date"
+        asset = Asset(name="materialize_partition_date_asset", uri="s3://bucket/materialize-partition-date")
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=DEFAULT_DATE,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task", outlets=[asset])
+        session.commit()
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        response = test_client.post(
+            f"/assets/{asset_id}/materialize",
+            json={"partition_key": "2025-06-01T00:00:00"},
+        )
+        assert response.status_code == 200
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == partitioned_dag_id))
+        assert dag_run is not None
+        assert dag_run.partition_key == "2025-06-01T00:00:00"
+        assert dag_run.partition_date == timezone.datetime(2025, 6, 1)
 
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):

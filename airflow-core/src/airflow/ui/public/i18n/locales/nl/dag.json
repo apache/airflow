@@ -37,20 +37,52 @@
   "code": {
     "bundleUrl": "Bundle URL",
     "noCode": "Geen code gevonden",
-    "parseDuration": "Parse duur:",
+    "parseDuration": "Vewrwerkingsduur:",
     "parsedAt": "Geparsed op:"
+  },
+  "deadlineAlerts": {
+    "completionRule": "Moet worden voltooid binnen {{interval}} van {{reference}}",
+    "count_one": "{{count}} deadline",
+    "count_other": "{{count}} deadlines",
+    "referenceType": {
+      "AverageRuntimeDeadline": "Gemiddelde uitvoertijd",
+      "DagRunLogicalDateDeadline": "Logische datum",
+      "DagRunQueuedAtDeadline": "Wachttijd"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Werkelijk",
+    "expected": "Verwacht",
+    "finishedEarly": "Voltooid {{duration}} voor de deadline",
+    "finishedLate": "Voltooid {{duration}} na de deadline",
+    "label": "Deadline",
+    "met": "Behaald",
+    "missed": "Gemist",
+    "missedCount_one": "{{count}} Gemiste deadline",
+    "missedCount_other": "{{count}} Gemiste deadlines",
+    "mixedCount": "{{missedCount}} gemist, {{upcomingCount}} opkomend",
+    "stillRunning": "Nog bezig",
+    "upcoming": "Opkomend",
+    "upcomingCount_one": "{{count}} opkomende deadline",
+    "upcomingCount_other": "{{count}} opkomende deadlines"
   },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
+      "newerRuns": "Nieuwere runs",
+      "olderRuns": "Oudere runs",
       "resetToLatest": "Reset naar laatste",
       "toggleGroup": "Groepen omschakelen"
-    }
+    },
+    "runTypeLegend": "Run type legenda"
   },
   "header": {
     "buttons": {
       "advanced": "Geavanceerd",
       "dagDocs": "Dag Docs"
+    },
+    "status": {
+      "deactivated": "Gedeactiveerd"
     }
   },
   "logs": {
@@ -59,37 +91,49 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Volledig scherm",
-      "tooltip": "Druk {{hotkey}} voor volledig scherm"
-    },
     "info": "INFO",
     "noTryNumber": "Geen poging nummer",
+    "search": {
+      "matchCount": "{{current}} van {{total}}",
+      "noMatches": "Geen overeenkomsten",
+      "placeholder": "Zoek in logs..."
+    },
     "settings": "Loginstellingen",
-    "viewInExternal": "Bekijk logs in {{name}} (attempt {{attempt}})",
+    "viewInExternal": "Bekijk logs in {{name}} (poging {{attempt}})",
     "warning": "WARNING"
   },
   "navigation": {
     "navigation": "Navigatie: {{arrow}}",
+    "openGraphFilters": "Taakfilters: Ctrl+Shift+F",
     "toggleGroup": "Groep in-/uitklappen: Spatie"
+  },
+  "notFound": {
+    "back": "Ga terug",
+    "backToDags": "Terug naar Dags",
+    "message": "De Dag \"{{dagId}}\" bestaat niet.",
+    "title": "Dag niet gevonden"
   },
   "overview": {
     "buttons": {
       "failedRun_one": "Mislukte Run",
       "failedRun_other": "Mislukte Runs",
-      "failedTask_one": "Mislukte Task",
-      "failedTask_other": "Mislukte Tasks",
-      "failedTaskInstance_one": "Mislukte Task Instance",
-      "failedTaskInstance_other": "Mislukte Task Instances"
+      "failedTask_one": "Mislukte taak",
+      "failedTask_other": "Mislukte taken",
+      "failedTaskInstance_one": "Mislukte taakinstantie",
+      "failedTaskInstance_other": "Mislukte taakinstanties"
     },
     "charts": {
       "assetEvent_one": "Aangemaakte Asset Event",
       "assetEvent_other": "Aangemaakte Asset Events"
     },
+    "deadlines": {
+      "showAll": "Toon alles",
+      "title": "Deadlines"
+    },
     "failedLogs": {
       "hideLogs": "Verberg logs",
       "showLogs": "Toon logs",
-      "title": "Recente mislukte Task logs",
+      "title": "Recente mislukte taaklogs",
       "viewFullLogs": "Bekijk volledige logs"
     }
   },
@@ -108,18 +152,45 @@
       "options": {
         "allDagDependencies": "Alle Dag afhankelijkheden",
         "externalConditions": "Externe omstandigheden",
-        "onlyTasks": "Alleen Rasks"
+        "onlyTasks": "Alleen taken"
       },
       "placeholder": "Afhankelijkheden"
     },
     "graphDirection": {
       "label": "Richting van de grafiek"
     },
+    "graphFilters": {
+      "clearFilters": "Wis filters",
+      "durationGte": "Minimale duur (s)",
+      "durationGteHint": "Voor gemapte taken, meet de totale duur over alle instanties",
+      "mapIndex": "Min. map index",
+      "mapIndexHint": "Toont gemapte taken uitgebreid tot ten minste deze index",
+      "selectStatus": "Selecteer status",
+      "selectTaskGroup": "Selecteer taakgroep",
+      "title": "Taakfilters"
+    },
+    "showVersionIndicator": {
+      "label": "Toon versie-indicator",
+      "options": {
+        "hideAll": "Verberg alles",
+        "showAll": "Toon alles",
+        "showBundleVersion": "Toon Bundle versie",
+        "showDagVersion": "Toon Dag versie"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "Actief filter",
       "clearFilter": "Filter wissen",
       "clickTask": "Klik op een taak om deze als filterbasis te selecteren",
+      "depth": "Diepte",
+      "direction": "Richting",
       "label": "Filter",
+      "mode": "Modus",
+      "modeTooltip": "Statische mode houdt de huidige weergave bij bij het navigeren naar verschillende taken, terwijl Traverse mode automatisch het actieve filter bijwerkt naar de geselecteerde taak voor eenvoudigere DAG-traversal.",
+      "modes": {
+        "static": "Statisch",
+        "traverse": "Traverse"
+      },
       "options": {
         "both": "Zowel upstream als downstream",
         "downstream": "Downstream",
@@ -149,18 +220,40 @@
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
-    "mappedTaskInstances_one": "Task Instance [{{count}}]",
-    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "mappedTaskInstances_one": "Taakinstantie [{{count}}]",
+    "mappedTaskInstances_other": "Taakinstanties [{{count}}]",
     "overview": "Overzicht",
     "renderedTemplates": "Gerenderde templates",
     "requiredActions": "Vereiste acties",
     "runs": "Runs",
-    "taskInstances": "Task Instances",
-    "tasks": "Tasks",
+    "storage": "Opslag",
+    "taskInstances": "Taakinstanties",
+    "taskStateStore": "Task State Store",
+    "tasks": "Taken",
     "xcom": "XCom"
   },
   "taskGroups": {
-    "collapseAll": "Alle Task Groups inklappen",
-    "expandAll": "Alle Task Groups uitklappen"
+    "collapseAll": "Alle taakgroepen inklappen",
+    "expandAll": "Alle taakgroepen uitklappen"
+  },
+  "taskStateStore": {
+    "add": "Voeg Task State Store toe",
+    "clearAll": {
+      "resource": "Alle Task State Stores",
+      "title": "Wis alle Task State Stores",
+      "warning": "Alle Task State Stores zullen worden gewist. Taken die deze store gebruiken om extern werk bij te houden, kunnen niet worden hervat zonder opnieuw te starten vanaf het begin."
+    },
+    "delete": "Verwijder Task State Store",
+    "deleteWarning": "De taak zal dit persistente geheugen verliezen. Als de taak deze sleutel gebruikt om extern werk bij te houden (bijv. een extern job-ID), kan het niet worden hervat.",
+    "edit": "Wijzig Task State Store",
+    "emptyStore": "Task state store slaat waarden op die persistent blijven over retries. Workers kunnen task state store schrijven via de Task SDK.",
+    "expiresAt": {
+      "column": "Verloopt op",
+      "custom": "Aangepast",
+      "default": "Standaard ({{interval}})",
+      "label": "Verloopdatum",
+      "never": "Nooit"
+    },
+    "title": "Task State Store"
   }
 }

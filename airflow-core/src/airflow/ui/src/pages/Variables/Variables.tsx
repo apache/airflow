@@ -26,16 +26,23 @@ import { useSearchParams } from "react-router-dom";
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
-import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
+import {
+  SelectionHeaderCheckbox,
+  SelectionProvider,
+  SelectionRowCheckbox,
+  useRowSelection,
+  type GetColumnsParams,
+} from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
 import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
+import { useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -50,35 +57,18 @@ type ColumnProps = {
 };
 
 const getColumns = ({
-  allRowsSelected,
+  hasSelection,
   multiTeam,
-  onRowSelect,
-  onSelectAll,
   open,
-  selectedRows,
   translate,
-}: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
   const columns: Array<ColumnDef<VariableResponse>> = [
     {
       accessorKey: "select",
-      cell: ({ row }) => (
-        <Checkbox
-          borderWidth={1}
-          checked={selectedRows.get(row.original.key)}
-          colorPalette="brand"
-          onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
-        />
-      ),
+      cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.key} />,
       enableHiding: false,
       enableSorting: false,
-      header: () => (
-        <Checkbox
-          borderWidth={1}
-          checked={allRowsSelected}
-          colorPalette="brand"
-          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-        />
-      ),
+      header: () => <SelectionHeaderCheckbox />,
       meta: {
         skeletonWidth: 10,
       },
@@ -93,9 +83,9 @@ const getColumns = ({
       cell: ({ row }) => (
         <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
           <TrimText
-            charLimit={open ? row.original.value.length : undefined}
+            charLimit={open ? (row.original.value?.length ?? 0) : undefined}
             showTooltip
-            text={row.original.value}
+            text={row.original.value ?? null}
           />
         </Box>
       ),
@@ -130,8 +120,8 @@ const getColumns = ({
       accessorKey: "actions",
       cell: ({ row: { original } }) => (
         <Flex justifyContent="end">
-          <EditVariableButton disabled={selectedRows.size > 0} variable={original} />
-          <DeleteVariableButton deleteKey={original.key} disabled={selectedRows.size > 0} />
+          <EditVariableButton disabled={hasSelection} variable={original} />
+          <DeleteVariableButton deleteKey={original.key} disabled={hasSelection} />
         </Flex>
       ),
       enableSorting: false,
@@ -147,6 +137,9 @@ const getColumns = ({
 
 export const Variables = () => {
   const { t: translate } = useTranslation("admin");
+
+  useDocumentTitle(translate("common:admin.Variables"));
+
   const { setTableURLState, tableURLState } = useTableURLState({
     pagination: { pageIndex: 0, pageSize: 30 },
     sorting: [{ desc: false, id: "key" }],
@@ -155,6 +148,7 @@ export const Variables = () => {
   const { onClose, onOpen, open } = useDisclosure();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const advancedSearch = useAdvancedSearch("variables");
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
@@ -164,7 +158,9 @@ export const Variables = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
-    variableKeyPattern: variableKeyPattern ?? undefined,
+    ...(advancedSearch.enabled
+      ? { variableKeyPattern: variableKeyPattern ?? undefined }
+      : { variableKeyPrefixPattern: variableKeyPattern ?? undefined }),
   });
 
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
@@ -174,12 +170,9 @@ export const Variables = () => {
     });
 
   const columns = getColumns({
-    allRowsSelected,
+    hasSelection: selectedRows.size > 0,
     multiTeam: multiTeamEnabled,
-    onRowSelect: handleRowSelect,
-    onSelectAll: handleSelectAll,
     open,
-    selectedRows,
     translate,
   });
 
@@ -199,9 +192,15 @@ export const Variables = () => {
   };
 
   return (
-    <>
+    <SelectionProvider
+      allRowsSelected={allRowsSelected}
+      onRowSelect={handleRowSelect}
+      onSelectAll={handleSelectAll}
+      selectedRows={selectedRows}
+    >
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={variableKeyPattern ?? ""}
           onChange={handleSearchChange}
           placeholder={translate("variables.searchPlaceholder")}
@@ -210,6 +209,7 @@ export const Variables = () => {
           <ExpandCollapseButtons
             collapseLabel={translate("common:expand.collapse")}
             expandLabel={translate("common:expand.expand")}
+            isExpanded={open}
             onCollapse={onClose}
             onExpand={onOpen}
           />
@@ -242,6 +242,6 @@ export const Variables = () => {
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
-    </>
+    </SelectionProvider>
   );
 };

@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+import inspect
 from datetime import datetime
 from typing import Generic, Literal, TypeVar
 
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -53,6 +54,7 @@ class BaseNodeResponse(BaseModel):
         "sensor",
         "trigger",
     ]
+    team: str | None = None
 
 
 E = TypeVar("E", bound=BaseEdgeResponse)
@@ -67,6 +69,15 @@ class GridNodeResponse(BaseModel):
     children: list[GridNodeResponse] | None = None
     is_mapped: bool | None
     setup_teardown_type: Literal["setup", "teardown"] | None = None
+    doc_md: str | None = None
+
+    @field_validator("doc_md", mode="before")
+    @classmethod
+    def get_doc_md(cls, doc_md: str | None) -> str | None:
+        """Clean indentation in doc md."""
+        if doc_md is None:
+            return None
+        return inspect.cleandoc(doc_md)
 
 
 class GridRunsResponse(BaseModel):
@@ -82,6 +93,7 @@ class GridRunsResponse(BaseModel):
     run_type: DagRunType
     dag_versions: list[DagVersionResponse] = []
     has_missed_deadline: bool
+    has_note: bool
 
     @computed_field
     def duration(self) -> float:

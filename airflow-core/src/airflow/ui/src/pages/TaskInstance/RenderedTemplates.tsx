@@ -45,7 +45,10 @@ const RenderedTemplatesContent = () => {
         <Table.Body>
           {Object.entries(taskInstance?.rendered_fields ?? {}).map(([key, value]) => {
             if (value !== null && value !== undefined) {
-              const renderedValue = typeof value === "string" ? value : JSON.stringify(value);
+              const renderedValue =
+                typeof value === "string"
+                  ? value.replaceAll("\\n", "\n").replaceAll(/\\$/gmu, "")
+                  : JSON.stringify(value, null, 2);
               const language = detectLanguage(renderedValue);
 
               return (
@@ -59,10 +62,10 @@ const RenderedTemplatesContent = () => {
                         },
                       }}
                     >
-                      <Box as="pre" borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
+                      <Box borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
                         <SyntaxHighlighter
                           language={language}
-                          PreTag="div" // Prevents double <pre> nesting
+                          PreTag="pre"
                           showLineNumbers
                           style={style}
                           wrapLongLines

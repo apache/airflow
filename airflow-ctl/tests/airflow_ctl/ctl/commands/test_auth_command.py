@@ -477,3 +477,21 @@ class TestListEnvs:
 
             # Only production environment should be checked, not the special files
             mock_get_password.assert_called_once_with("airflowctl", "api_token_production")
+
+    def test_list_envs_environment_name_with_json_substring(self, monkeypatch):
+        """Test list-envs keeps '.json' substrings in environment name for key lookup."""
+        with (
+            tempfile.TemporaryDirectory() as temp_airflow_home,
+            patch("keyring.get_password") as mock_get_password,
+        ):
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+
+            with open(os.path.join(temp_airflow_home, "prod.json.region.json"), "w") as f:
+                json.dump({"api_url": "http://localhost:8080"}, f)
+
+            mock_get_password.return_value = "test_token"
+
+            args = self.parser.parse_args(["auth", "list-envs"])
+            auth_command.list_envs(args)
+
+            mock_get_password.assert_called_once_with("airflowctl", "api_token_prod.json.region")

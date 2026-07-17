@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from unittest.mock import call
 
 import pytest
 
@@ -29,6 +30,7 @@ from tests_common.test_utils.common_msg_queue import (
     collect_queue_param_deprecation_warning,
     mark_common_msg_queue_test,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 USED_FIXTURES = [collect_queue_param_deprecation_warning]
 
@@ -59,6 +61,9 @@ class MockedConsumer:
     def commit(*args, **kwargs):
         return True
 
+    def close(*args, **kwargs):
+        return None
+
 
 class TestTrigger:
     @pytest.fixture(autouse=True)
@@ -72,6 +77,21 @@ class TestTrigger:
                 ),
             )
         )
+
+    def test_trigger_initializes_base_state(self):
+        trigger = AwaitMessageTrigger(
+            kafka_config_id="kafka_d",
+            apply_function="test.noop",
+            topics=["noop"],
+        )
+
+        if AIRFLOW_V_3_3_PLUS:
+            # The trigger._task_instance attribute was introduced in https://github.com/apache/airflow/pull/55068
+            assert trigger._task_instance is None
+            assert trigger.task_instance is None
+        else:
+            assert not hasattr(trigger, "_task_instance")
+            assert trigger.task_instance is None
 
     def test_trigger_serialization(self):
         trigger = AwaitMessageTrigger(
@@ -141,6 +161,40 @@ class TestTrigger:
         await asyncio.sleep(1.0)
         assert task.done() is False
         asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    async def test_cleanup_closes_consumer(self, mocker):
+        consumer = MockedConsumer()
+        close_mock = mocker.patch.object(consumer, "close")
+
+        mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=consumer)
+
+        trigger = AwaitMessageTrigger(
+            kafka_config_id="kafka_d",
+            apply_function="unit.apache.kafka.triggers.test_await_message.apply_function_true",
+            topics=["noop"],
+            poll_timeout=0.0001,
+            poll_interval=5,
+        )
+
+        generator = trigger.run()
+        await generator.__anext__()
+        await trigger.cleanup()
+        await generator.aclose()
+
+        assert close_mock.mock_calls == [call()]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_does_not_raise_without_consumer(self):
+        trigger = AwaitMessageTrigger(
+            kafka_config_id="kafka_d",
+            apply_function="unit.apache.kafka.triggers.test_await_message.apply_function_true",
+            topics=["noop"],
+            poll_timeout=0.0001,
+            poll_interval=5,
+        )
+
+        await trigger.cleanup()
 
 
 @mark_common_msg_queue_test

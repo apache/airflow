@@ -28,12 +28,14 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_schedule_cron_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="21 13 29 2 4",  # Unlikely to ever get triggered by itself, February 29th and Thursday
@@ -51,5 +53,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

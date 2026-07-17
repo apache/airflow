@@ -28,13 +28,16 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import type { PropsWithChildren, ReactNode } from "react";
-import type { Components, Options } from "react-markdown";
+import { Children, isValidElement } from "react";
+import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 import ReactMD from "react-markdown";
+import type { Components, Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useColorMode } from "src/context/colorMode";
-import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
+import { oneDark, oneLight, type SyntaxTheme } from "src/utils/syntaxHighlighter";
+
+import { MarkdownCodeBlock } from "./ReactMarkdownBlocks";
 
 const fontSizeMapping = {
   h1: "1.5em",
@@ -55,19 +58,29 @@ const makeHeading =
 
 // Static components that don't depend on props
 
-const LinkComponent = ({
-  children,
-  href,
-  title,
-}: {
+type MarkdownLinkProps = {
   readonly children: ReactNode;
   readonly href: string;
   readonly title?: string;
-}) => (
-  <Link color="fg.info" fontWeight="bold" href={href} title={title}>
+};
+
+const MarkdownLink = ({ children, href, title }: MarkdownLinkProps) => (
+  <Link color="fg.info" fontWeight="bold" href={href} rel="noopener noreferrer" target="_blank" title={title}>
     {children}
   </Link>
 );
+
+const LinkComponent = ({ children, href, title }: ComponentProps<"a">) => {
+  if (href === undefined || children === undefined) {
+    return children;
+  }
+
+  return (
+    <MarkdownLink href={href} title={title}>
+      {children}
+    </MarkdownLink>
+  );
+};
 
 const BlockquoteComponent = ({ children }: PropsWithChildren) => (
   <Box
@@ -92,12 +105,24 @@ const OlComponent = ({ children }: PropsWithChildren) => (
     {children}
   </List.Root>
 );
+
+const markdownContentStyles = {
+  "& .katex-display": {
+    marginBlock: "0.75rem",
+    overflowX: "auto",
+    overflowY: "hidden",
+  },
+  "& .katex-display > .katex": {
+    marginInline: "auto",
+    width: "max-content",
+  },
+};
+
 const PComponent = ({ children }: PropsWithChildren) => (
   <Text overflowWrap="break-word" wordBreak="break-word">
     {children}
   </Text>
 );
-const PreComponent = ({ children }: PropsWithChildren) => <Box my={3}>{children}</Box>;
 const TableComponent = ({ children }: PropsWithChildren) => <Table.Root mb={3}>{children}</Table.Root>;
 const TextComponent = ({ children }: PropsWithChildren) => <Text as="span">{children}</Text>;
 const UlComponent = ({ children }: PropsWithChildren) => (
@@ -106,81 +131,86 @@ const UlComponent = ({ children }: PropsWithChildren) => (
   </List.Root>
 );
 
-// Factory function for the code component that needs style
-const createCodeComponent =
-  (style: typeof oneDark | typeof oneLight) =>
-  ({
-    children,
-    className,
-    inline,
-  }: {
-    readonly children: ReactNode;
-    readonly className?: string;
-    readonly inline?: boolean;
-  }) => {
-    if (inline) {
-      return (
-        <Code display="inline" p={2}>
-          {children}
-        </Code>
-      );
+type MarkdownCodeElementProps = {
+  readonly children?: ReactNode;
+  readonly className?: string;
+};
+
+const InlineCodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
+
+// Factory function for the pre component that needs style
+const createPreComponent =
+  (style: SyntaxTheme) =>
+  ({ children }: { readonly children?: ReactNode }) => {
+    const [codeElement] = Children.toArray(children);
+
+    if (!isValidElement<MarkdownCodeElementProps>(codeElement)) {
+      return <Box my={3}>{children}</Box>;
     }
 
     // Extract language from className (format: "language-python")
-    const match = /language-(?<lang>\w+)/u.exec(className ?? "");
+    const { children: codeChildren, className } = codeElement.props;
+    const match = /language-(?<lang>[-\w]+)/u.exec(className ?? "");
     const language = match?.groups?.lang;
 
-    // Safely extract string content from children
-    let childString = "";
+    const codeText = Array.isArray(codeChildren)
+      ? codeChildren.map((child) => (typeof child === "string" ? child : "")).join("")
+      : typeof codeChildren === "string"
+        ? codeChildren
+        : "";
 
-    if (typeof children === "string") {
-      childString = children;
-    } else if (Array.isArray(children)) {
-      childString = children.filter((child) => typeof child === "string").join("");
-    }
+    const childString = codeText.replace(/\n$/u, "");
 
-    return (
-      <SyntaxHighlighter language={language ?? "text"} PreTag="div" style={style} wrapLongLines>
-        {childString.replace(/\n$/u, "")}
-      </SyntaxHighlighter>
-    );
+    return <MarkdownCodeBlock language={language} style={style} value={childString} />;
   };
 
-const ReactMarkdown = (props: Options) => {
+const createMarkdownComponents = (style: SyntaxTheme): Components => ({
+  // eslint-disable-next-line id-length
+  a: LinkComponent,
+  blockquote: BlockquoteComponent,
+  code: InlineCodeComponent,
+  del: DelComponent,
+  em: EmComponent,
+  h1: makeHeading("h1"),
+  h2: makeHeading("h2"),
+  h3: makeHeading("h3"),
+  h4: makeHeading("h4"),
+  h5: makeHeading("h5"),
+  h6: makeHeading("h6"),
+  hr: HrComponent,
+  img: ImgComponent,
+  li: LiComponent,
+  ol: OlComponent,
+  // eslint-disable-next-line id-length
+  p: PComponent,
+  pre: createPreComponent(style),
+  table: TableComponent,
+  tbody: Table.Body,
+  td: Table.Cell,
+  text: TextComponent,
+  th: Table.ColumnHeader,
+  thead: Table.Header,
+  tr: Table.Row,
+  ul: UlComponent,
+});
+
+const ReactMarkdown = ({ children, components: componentOverrides, ...restProps }: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
+  const components = createMarkdownComponents(style);
 
-  const components = {
-    // eslint-disable-next-line id-length
-    a: LinkComponent,
-    blockquote: BlockquoteComponent,
-    code: createCodeComponent(style),
-    del: DelComponent,
-    em: EmComponent,
-    h1: makeHeading("h1"),
-    h2: makeHeading("h2"),
-    h3: makeHeading("h3"),
-    h4: makeHeading("h4"),
-    h5: makeHeading("h5"),
-    h6: makeHeading("h6"),
-    hr: HrComponent,
-    img: ImgComponent,
-    li: LiComponent,
-    ol: OlComponent,
-    // eslint-disable-next-line id-length
-    p: PComponent,
-    pre: PreComponent,
-    table: TableComponent,
-    tbody: Table.Body,
-    td: Table.Cell,
-    text: TextComponent,
-    th: Table.ColumnHeader,
-    thead: Table.Header,
-    tr: Table.Row,
-    ul: UlComponent,
-  };
-
-  return <ReactMD components={components as Components} {...props} remarkPlugins={[remarkGfm]} skipHtml />;
+  return (
+    <Box alignSelf="stretch" css={markdownContentStyles} maxWidth="100%" minWidth={0} width="100%">
+      <ReactMD
+        components={{ ...components, ...componentOverrides }}
+        {...restProps}
+        remarkPlugins={[remarkGfm]}
+        skipHtml
+      >
+        {children}
+      </ReactMD>
+    </Box>
+  );
 };
 
 export default ReactMarkdown;

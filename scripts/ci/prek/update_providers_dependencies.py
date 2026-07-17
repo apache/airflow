@@ -69,7 +69,7 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
     return tomllib.loads(pyproject_toml_file_path.read_text())
 
 
@@ -218,6 +218,8 @@ if __name__ == "__main__":
         )
         excluded_versions = ALL_PROVIDERS[key].get("excluded-python-versions")
         unique_sorted_dependencies[key]["excluded-python-versions"] = excluded_versions or []
+        excluded_platforms = ALL_PROVIDERS[key].get("excluded-platforms")
+        unique_sorted_dependencies[key]["excluded-platforms"] = excluded_platforms or []
         unique_sorted_dependencies[key]["state"] = STATES[key]
     if errors:
         console.print()

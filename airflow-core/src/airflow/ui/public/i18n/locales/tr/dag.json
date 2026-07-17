@@ -40,9 +40,37 @@
     "parseDuration": "Ayrıştırılma süresi:",
     "parsedAt": "Ayrıştırıldı:"
   },
+  "deadlineAlerts": {
+    "completionRule": "{{reference}} tarihinden itibaren {{interval}} içinde tamamlanmalıdır",
+    "count_one": "{{count}} son tarih",
+    "count_other": "{{count}} son tarih",
+    "referenceType": {
+      "AverageRuntimeDeadline": "ortalama çalışma süresi",
+      "DagRunLogicalDateDeadline": "mantıksal tarih",
+      "DagRunQueuedAtDeadline": "kuyruğa alınma zamanı"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Gerçekleşen",
+    "expected": "Beklenen",
+    "finishedEarly": "Son tarihten {{duration}} önce tamamlandı",
+    "finishedLate": "Son tarihten {{duration}} sonra tamamlandı",
+    "label": "Son Tarih",
+    "met": "Karşılandı",
+    "missed": "Kaçırıldı",
+    "missedCount_one": "{{count}} Kaçırılan Son Tarih",
+    "missedCount_other": "{{count}} Kaçırılan Son Tarih",
+    "mixedCount": "{{missedCount}} Kaçırılan, {{upcomingCount}} Yaklaşan",
+    "stillRunning": "Hâlâ çalışıyor",
+    "upcoming": "Yaklaşan",
+    "upcomingCount_one": "{{count}} Yaklaşan Son Tarih",
+    "upcomingCount_other": "{{count}} Yaklaşan Son Tarih"
+  },
   "extraLinks": "Ek Bağlantılar",
   "grid": {
     "buttons": {
+      "newerRuns": "Daha yeni çalıştırmalar",
+      "olderRuns": "Daha eski çalıştırmalar",
       "resetToLatest": "En son haline sıfırla",
       "toggleGroup": "Grubu aç/kapat"
     },
@@ -52,6 +80,9 @@
     "buttons": {
       "advanced": "Gelişmiş",
       "dagDocs": "Dag Belgeleri"
+    },
+    "status": {
+      "deactivated": "Devre Dışı Bırakıldı"
     }
   },
   "logs": {
@@ -66,13 +97,14 @@
     },
     "info": "BİLGİ",
     "noTryNumber": "Tekrar Deneme numarası yok",
+    "search": {
+      "matchCount": "{{total}} içinden {{current}}",
+      "noMatches": "Eşleşme yok",
+      "placeholder": "Günlüklerde ara..."
+    },
     "settings": "Günlük Ayarları",
     "viewInExternal": "Günlükleri {{name}} içinde görüntüle (deneme {{attempt}})",
     "warning": "UYARI"
-  },
-  "navigation": {
-    "navigation": "Gezin: {{arrow}}",
-    "toggleGroup": "Grubu aç/kapat: Space"
   },
   "notFound": {
     "back": "Geri Dön",
@@ -92,6 +124,10 @@
     "charts": {
       "assetEvent_one": "Oluşturulan Varlık Etkinliği",
       "assetEvent_other": "Oluşturulan Varlık Etkinlikleri"
+    },
+    "deadlines": {
+      "showAll": "Tümünü Göster",
+      "title": "Son Tarihler"
     },
     "failedLogs": {
       "hideLogs": "Günlükleri Gizle",
@@ -121,6 +157,16 @@
     },
     "graphDirection": {
       "label": "Grafik Yönü"
+    },
+    "graphFilters": {
+      "clearFilters": "Filtreleri Temizle",
+      "durationGte": "Min. süre (sn)",
+      "durationGteHint": "Haritalanmış görevler için tüm örnekler boyunca toplam süreyi ölçer",
+      "mapIndex": "Min. harita indeksi",
+      "mapIndexHint": "Haritalanmış görevleri en az bu indekse kadar genişletilmiş gösterir",
+      "selectStatus": "Durum seçin",
+      "selectTaskGroup": "Görev grubu seçin",
+      "title": "Görev Filtreleri"
     },
     "showVersionIndicator": {
       "label": "Versiyon Göstergesini Göster",

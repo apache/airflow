@@ -21,7 +21,8 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.mysql.assets.mysql import sanitize_uri
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.mysql.assets.mysql import convert_asset_to_openlineage, create_asset, sanitize_uri
 
 
 @pytest.mark.parametrize(
@@ -69,3 +70,37 @@ def test_sanitize_uri_fail_non_port() -> None:
     uri_i = urllib.parse.urlsplit("mysql://example.com:abcd/database/table")
     with pytest.raises(ValueError, match="Port could not be cast to integer value as 'abcd'"):
         sanitize_uri(uri_i)
+
+
+@pytest.mark.parametrize(
+    ("host", "database", "table", "port", "expected_uri"),
+    [
+        pytest.param(
+            "example.com", "mydb", "users", 3306, "mysql://example.com:3306/mydb/users", id="default-port"
+        ),
+        pytest.param(
+            "example.com", "mydb", "users", 3307, "mysql://example.com:3307/mydb/users", id="custom-port"
+        ),
+    ],
+)
+def test_create_asset(host: str, database: str, table: str, port: int, expected_uri: str) -> None:
+    result = create_asset(host=host, database=database, table=table, port=port)
+    assert result == Asset(uri=expected_uri)
+
+
+@pytest.mark.parametrize(
+    ("uri", "expected_namespace", "expected_name"),
+    [
+        pytest.param(
+            "mysql://example.com:3306/mydb/users", "mysql://example.com:3306", "mydb.users", id="default-port"
+        ),
+        pytest.param(
+            "mysql://db-host:3307/testdb/events", "mysql://db-host:3307", "testdb.events", id="custom-port"
+        ),
+    ],
+)
+def test_convert_asset_to_openlineage(uri: str, expected_namespace: str, expected_name: str) -> None:
+    asset = Asset(uri=uri)
+    ol_dataset = convert_asset_to_openlineage(asset=asset, lineage_context=None)
+    assert ol_dataset.namespace == expected_namespace
+    assert ol_dataset.name == expected_name

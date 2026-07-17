@@ -51,7 +51,17 @@ STATS_METHOD_TO_TYPE: dict[str, str] = {
     "timer": "timer",
 }
 
-STATS_OBJECTS = {"Stats", "stats", "DualStatsManager"}
+STATS_OBJECTS = {"Stats", "stats"}
+
+# Stats module path suffix. Currently, there are the following possible module paths:
+# ``airflow._shared.observability.metrics.stats``,
+# ``airflow.sdk._shared.observability.metrics.stats``, and
+# ``airflow_shared.observability.metrics.stats``.
+STATS_MODULE_SUFFIX = "observability.metrics.stats"
+
+# Names of exception classes that when present in a try-except, then it means that
+# the import is used for a back-compat version check, and it should be ignored.
+IMPORT_ERROR_NAMES = {"ImportError", "ModuleNotFoundError"}
 
 METRICS_REGISTRY_PATH = (
     AIRFLOW_ROOT_PATH / "shared/observability/src/airflow_shared/observability/metrics/metrics_template.yaml"
@@ -177,6 +187,47 @@ class MetricCall:
     is_dynamic: bool
 
 
+@dataclass
+class DirectStatsImport:
+    file_path: str
+    line_num: int
+    module: str
+    imported_names: list[str]
+
+
+def _is_stats_module_path(module: str | None) -> bool:
+    return module is not None and module.endswith(STATS_MODULE_SUFFIX)
+
+
+def _except_handler_catches_expected_error(handler: ast.ExceptHandler) -> bool:
+    """Return True if this except handler catches only names in ``IMPORT_ERROR_NAMES``."""
+    exc_type = handler.type
+    if isinstance(exc_type, ast.Name):
+        return exc_type.id in IMPORT_ERROR_NAMES
+    if isinstance(exc_type, ast.Tuple):
+        return bool(exc_type.elts) and all(
+            isinstance(elt, ast.Name) and elt.id in IMPORT_ERROR_NAMES for elt in exc_type.elts
+        )
+    return False
+
+
+def find_back_compat_check_import_ids(tree: ast.AST) -> set[int]:
+    """Return ``id()`` of every ImportFrom inside a try-except ImportError block.
+
+    Imports inside such blocks are used under providers for back-compat checks.
+    """
+    back_compat_check_import_ids: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try) and any(
+            _except_handler_catches_expected_error(h) for h in node.handlers
+        ):
+            for stmt in node.body:
+                for child in ast.walk(stmt):
+                    if isinstance(child, ast.ImportFrom):
+                        back_compat_check_import_ids.add(id(child))
+    return back_compat_check_import_ids
+
+
 def scan_file_for_metrics(file_path: Path) -> list[MetricCall]:
     """Return all Stats metric calls found in the provided file_path."""
     try:
@@ -220,6 +271,53 @@ def scan_file_for_metrics(file_path: Path) -> list[MetricCall]:
     return metrics_found
 
 
+def scan_file_for_direct_stats_imports(file_path: Path) -> list[DirectStatsImport]:
+    """Return direct imports of stats module-level functions.
+
+    Only the metric-emitting methods in ``STATS_METHOD_TO_TYPE`` (``incr``,
+    ``decr``, ``gauge``, ``timing``, ``timer``) are restricted; other names
+    exported from ``stats.py`` (helpers, the ``Stats`` shim, ``initialize``,
+    etc.) may still be imported directly.
+
+    Imports inside a ``try`` block that catches ``ImportError`` (or
+    ``ModuleNotFoundError``) are exempt: those are intentional
+    back-compat version checks whose success is the signal the code is checking
+    for, and rewriting them to namespace form would defeat the check.
+    """
+    try:
+        source = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(file_path))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return []
+
+    # Imports wrapped with try-except. These should be ignored.
+    back_compat_check_ids = find_back_compat_check_import_ids(tree)
+
+    violations: list[DirectStatsImport] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        if not _is_stats_module_path(node.module):
+            continue
+        if id(node) in back_compat_check_ids:
+            continue
+        offending: list[str] = []
+        for alias in node.names:
+            if alias.name in STATS_METHOD_TO_TYPE:
+                offending.append(f"{alias.name} as {alias.asname}" if alias.asname else alias.name)
+        if not offending:
+            continue
+        violations.append(
+            DirectStatsImport(
+                file_path=str(file_path),
+                line_num=node.lineno,
+                module=node.module or "",
+                imported_names=offending,
+            )
+        )
+    return violations
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check that metrics in the codebase are in sync with the metrics registry YAML file."
@@ -232,9 +330,26 @@ def main() -> None:
 
     metrics_registry = load_metrics_registry_yaml()
 
-    # Collect all metric calls across all provided files.
+    # The scanner only sees `<obj>.<method>`, but since the class functions were
+    # converted to module-level functions, if they are imported directly, the scanner
+    # won't recognize them as a metric calls that need validation.
+    # E.g.
+    # This is recognizable for the scanner
+    #       from airflow._shared.observability.metrics import stats
+    #       stats.incr()
+    # This isn't
+    #       from airflow._shared.observability.metrics.stats import incr
+    #       incr()
+    #
+    # The simpler solution is to ban direct imports.
+    direct_stats_imports: list[DirectStatsImport] = []
     code_metrics: dict[str, list[MetricCall]] = {}
     for file_path in [Path(f) for f in args.files]:
+        file_direct_imports = scan_file_for_direct_stats_imports(file_path)
+        if file_direct_imports:
+            direct_stats_imports.extend(file_direct_imports)
+            # If there are direct imports, then skip checking for metric calls in this file.
+            continue
         for call in scan_file_for_metrics(file_path):
             code_metrics.setdefault(call.metric_name, []).append(call)
 
@@ -266,7 +381,9 @@ def main() -> None:
     # because the script is comparing the entire YAML against certain files at a time.
     # For that to work, the script would have to run against all project files EVERY TIME.
 
-    total_violations = len(metrics_not_in_registry) + len(metrics_with_type_mismatch)
+    total_violations = (
+        len(metrics_not_in_registry) + len(metrics_with_type_mismatch) + len(direct_stats_imports)
+    )
 
     if total_violations:
         console.print(f"[red]Found {total_violations} violation(s).[/red]")
@@ -299,6 +416,24 @@ def main() -> None:
                         f"-- code type: [magenta]{code_type}[/magenta], registry type: [magenta]{registry_type}[/magenta]"
                     )
             console.print("    [yellow]Fix the type mismatch in either the code or the registry.[/yellow]")
+            console.print()
+
+        if direct_stats_imports:
+            console.print(
+                f"    [red]-> {len(direct_stats_imports)} direct import(s) of stats functions (use the `stats` namespace instead):[/red]"
+            )
+            for violation in direct_stats_imports:
+                console.print(
+                    f"        [yellow]{violation.file_path}[/yellow] line [yellow]{violation.line_num}[/yellow]: "
+                    f"[magenta]from {violation.module} import {', '.join(violation.imported_names)}[/magenta]"
+                )
+            console.print(
+                "    [yellow]Replace direct imports with namespace access: "
+                "`from <parent>.observability.metrics import stats` and call `stats.<method>(...)`.[/yellow]"
+            )
+            console.print(
+                "    [yellow]Imports inside a `try` block that catches `ImportError` are exempt (back-compat checks).[/yellow]"
+            )
             console.print()
 
         sys.exit(1)

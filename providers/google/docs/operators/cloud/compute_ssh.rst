@@ -43,6 +43,53 @@ To use instance metadata, make sure to set the Cloud OS Login argument to False 
 
 Please note that the target instance must allow tcp traffic on port 22.
 
+Sovereign Cloud from Google guidance
+""""""""""""""""""""""""""""""""""""
+
+In these environments, the practical question for Compute Engine SSH is which hook parameters to set.
+
+Use these settings for direct SSH in Sovereign Cloud from Google:
+
+.. code-block:: python
+
+    ComputeEngineSSHHook(
+        ...,
+        use_oslogin=False,
+        use_iap_tunnel=False,
+    )
+
+Use these settings for SSH over IAP in Sovereign Cloud from Google:
+
+.. code-block:: python
+
+    ComputeEngineSSHHook(
+        ...,
+        use_oslogin=False,
+        use_iap_tunnel=True,
+    )
+
+For the IAP case, the caller must also have the IAM permissions required to open an IAP tunnel. In Google
+Cloud deployments, this is typically the ``IAP-secured Tunnel User`` role
+(``roles/iap.tunnelResourceAccessor``).
+
+Avoid this setting in the tested Sovereign Cloud from Google environment:
+
+.. code-block:: python
+
+    ComputeEngineSSHHook(
+        ...,
+        use_oslogin=True,
+    )
+
+In the tested Sovereign Cloud from Google environment, the OS Login SSH flow was not available for this hook. For users, the
+practical guidance is to use metadata-managed SSH keys and set ``use_oslogin=False``.
+
+When you use metadata-managed SSH keys in Sovereign Cloud from Google:
+
+* set ``use_oslogin=False``,
+* do not enable instance metadata ``enable-oslogin=TRUE`` for that SSH path,
+* set ``use_iap_tunnel=True`` only when the required IAP IAM permissions are present.
+
 Below is the code to create the operator:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/compute/example_compute_ssh.py

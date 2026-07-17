@@ -16,11 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import {
+  useDagRunServiceGetDagRunsKey,
+  useGridServiceGetGridRunsKey,
+  useTaskInstanceServiceGetTaskInstancesKey,
+} from "openapi/queries";
 import type { GridTISummaries, TaskInstanceState } from "openapi/requests";
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+const GRID_MUTATION_WATCHED_KEYS = new Set([
+  useTaskInstanceServiceGetTaskInstancesKey,
+  useGridServiceGetGridRunsKey,
+  useDagRunServiceGetDagRunsKey,
+]);
 
 /**
  * Streams TI summaries for all grid runs over a single HTTP connection (NDJSON).
@@ -41,6 +53,7 @@ export const useGridTiSummariesStream = ({
   runIds: Array<string>;
   states?: Array<TaskInstanceState | null | undefined>;
 }) => {
+  const queryClient = useQueryClient();
   const [summariesByRunId, setSummariesByRunId] = useState<Map<string, GridTISummaries>>(new Map());
   const [refreshTick, setRefreshTick] = useState(0);
 
@@ -78,6 +91,10 @@ export const useGridTiSummariesStream = ({
 
         // eslint-disable-next-line no-await-in-loop -- sequential reads required; each chunk depends on the previous buffer state
         for (let result = await reader.read(); !result.done; result = await reader.read()) {
+          if (abortController.signal.aborted) {
+            break;
+          }
+
           const { value } = result;
 
           buffer += decoder.decode(value, { stream: true });
@@ -86,10 +103,18 @@ export const useGridTiSummariesStream = ({
 
           buffer = lines.pop() ?? "";
 
-          for (const line of lines.filter((ln) => ln.trim())) {
-            const summary = JSON.parse(line) as GridTISummaries;
+          const newSummaries = lines
+            .filter((ln) => ln.trim())
+            .map((line) => JSON.parse(line) as GridTISummaries);
 
-            setSummariesByRunId((prev) => new Map(prev).set(summary.run_id, summary));
+          if (newSummaries.length > 0) {
+            setSummariesByRunId((prev) => {
+              const next = new Map(prev);
+
+              newSummaries.forEach((summary) => next.set(summary.run_id, summary));
+
+              return next;
+            });
           }
         }
       } catch (error) {
@@ -104,7 +129,11 @@ export const useGridTiSummariesStream = ({
 
     return () => {
       abortController.abort();
-      void reader?.cancel();
+      if (reader) {
+        reader.cancel().catch(() => {
+          // Ignore cancellation errors
+        });
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runIdsKey (stable join) intentionally replaces runIds array to avoid spurious re-streams
   }, [dagId, runIdsKey, refreshTick]);
@@ -115,14 +144,61 @@ export const useGridTiSummariesStream = ({
       return undefined;
     }
 
-    // Kick off an immediate refresh so the stream doesn't have to wait for the first interval to elapse.
-    setRefreshTick((tick) => tick + 1);
+    // The stream already fetches on mount and whenever runIdsKey changes, so there is no first-interval
+    // wait to avoid. Bumping refreshTick here would abort that just-opened mount stream and immediately
+    // reopen it — a redundant connection plus an AbortError on every grid mount — so let the interval be
+    // the only re-stream trigger.
     const timer = setInterval(() => {
       setRefreshTick((tick) => tick + 1);
     }, baseRefetchInterval);
 
     return () => clearInterval(timer);
   }, [hasActiveRuns, baseRefetchInterval]);
+
+  // Re-stream whenever a mutation invalidates a grid-related query (TI states,
+  // run states, or grid structure).  Invalidation events only fire from explicit
+  // invalidateQueries() calls — never from polling intervals — so this never
+  // double-fires with the interval-based refresh above.
+  useEffect(() => {
+    let scheduleScheduled = false;
+    let isMounted = true;
+
+    const schedule =
+      typeof globalThis.queueMicrotask === "function"
+        ? globalThis.queueMicrotask
+        : (cb: () => void) => {
+            setTimeout(cb, 0);
+          };
+
+    const runScheduledRefresh = () => {
+      if (isMounted) {
+        setRefreshTick((tick) => tick + 1);
+      }
+      scheduleScheduled = false;
+    };
+
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      const [firstKey] = event.query.queryKey as Array<unknown>;
+
+      if (
+        event.type === "updated" &&
+        event.action.type === "invalidate" &&
+        typeof firstKey === "string" &&
+        GRID_MUTATION_WATCHED_KEYS.has(firstKey)
+      ) {
+        // Coalesce: multiple invalidations in the same execution tick only trigger one re-stream.
+        if (!scheduleScheduled) {
+          scheduleScheduled = true;
+          schedule(runScheduledRefresh);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [queryClient]);
 
   return { summariesByRunId };
 };

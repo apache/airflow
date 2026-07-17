@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import unittest
 import uuid
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
@@ -35,7 +34,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 
 if TYPE_CHECKING:
@@ -391,14 +389,14 @@ class TestSnowflakeSqlApiHook:
         mock_requests,
     ):
         """
-        Test execute_query method by mocking the exception response and raise airflow exception
+        Test execute_query method by mocking the exception response and raise RuntimeError
         without statementHandle in the response
         """
         # status_code, json payload without statementHandle
         mock_make_api_call.return_value = (None, {"foo": "bar"})
         hook = SnowflakeSqlApiHook("mock_conn_id")
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             hook.execute_query(sql, statement_count)
 
     @pytest.mark.parametrize(
@@ -431,6 +429,30 @@ class TestSnowflakeSqlApiHook:
             mock_log_warning.assert_called_once_with(
                 "Bindings are not supported for multi-statement queries. Bindings will be ignored."
             )
+
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}.get_headers")
+    def test_execute_query_with_timeout(
+        self,
+        mock_get_headers,
+        mock_conn_params,
+        mock_requests,
+    ):
+        """Test execute_query method with timeout value set"""
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_get_headers.return_value = HEADERS
+        mock_requests.codes.ok = 200
+        mock_requests.request.side_effect = [
+            create_successful_response_mock({"statementHandle": "uuid"}),
+        ]
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        hook.execute_query(sql=SINGLE_STMT, statement_count=1, timeout=120)
+
+        call_kwargs = mock_requests.request.call_args
+        payload = call_kwargs.kwargs["json"]
+        assert "timeout" in payload
+        assert payload["timeout"] == 120
 
     @pytest.mark.parametrize(
         "query_ids",
@@ -517,11 +539,11 @@ class TestSnowflakeSqlApiHook:
 
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_headers_pat_raises_when_password_missing(self, mock_conn_param):
-        """Test get_headers raises AirflowException when PAT authenticator is set but password is empty."""
+        """Test get_headers raises ValueError when PAT authenticator is set but password is empty."""
         conn_params_pat_no_password = {**CONN_PARAMS_PAT, "password": ""}
         mock_conn_param.return_value = conn_params_pat_no_password
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
-        with pytest.raises(AirflowException, match="Programmatic Access Token"):
+        with pytest.raises(ValueError, match="Programmatic Access Token"):
             hook.get_headers()
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
@@ -596,9 +618,7 @@ class TestSnowflakeSqlApiHook:
                 "private_key_content": base64_encoded_encrypted_private_key,
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
@@ -625,11 +645,9 @@ class TestSnowflakeSqlApiHook:
         }
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         with (
-            unittest.mock.patch.dict(
-                "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-            ),
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
             pytest.raises(
-                AirflowException,
+                ValueError,
                 match="The private_key_file and private_key_content extra fields are mutually "
                 "exclusive. Please remove one.",
             ),
@@ -652,9 +670,7 @@ class TestSnowflakeSqlApiHook:
                 "private_key_file": str(encrypted_temporary_private_key),
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
@@ -675,24 +691,18 @@ class TestSnowflakeSqlApiHook:
                 "private_key_file": str(unencrypted_temporary_private_key),
             },
         }
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
         connection_kwargs["password"] = ""
-        with unittest.mock.patch.dict(
-            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ):
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
             private_key = hook.get_private_key()
             assert private_key is not None
         connection_kwargs["password"] = _PASSWORD
         with (
-            unittest.mock.patch.dict(
-                "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-            ),
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
             pytest.raises(TypeError, match="Password was given but private key is not encrypted."),
         ):
             SnowflakeSqlApiHook(snowflake_conn_id="test_conn").get_private_key()
@@ -1222,19 +1232,19 @@ class TestSnowflakeSqlApiHook:
         assert result == {"status": "queued", "info": ["a", "b"]}
         sleep_mock.assert_not_called()
 
-    @mock.patch(f"{MODULE_PATH}.time.time")
     @mock.patch(f"{MODULE_PATH}.time.sleep")
-    def test_wait_for_query_timeout_error(self, sleep_mock, time_mock):
+    def test_wait_for_query_timeout_error(self, sleep_mock, time_machine):
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
 
         # Simulate a query that keeps running and never finishes
         hook.get_sql_api_query_status = mock.MagicMock(return_value={"status": "running"})
 
-        # More side effects to ensure we hit the timeout and avoid StopIteration error
-        time_mock.side_effect = list(range(10))
-
         qid = "qid-789"
         timeout = 3
+
+        # Freeze the clock. Each sleep advances it explicitly so logger time.time() calls do not skew the timeout.
+        time_machine.move_to(0, tick=False)
+        sleep_mock.side_effect = lambda seconds: time_machine.shift(seconds + 0.1)
 
         with pytest.raises(TimeoutError):
             hook.wait_for_query(query_id=qid, timeout=timeout, poll_interval=1)
@@ -1244,7 +1254,6 @@ class TestSnowflakeSqlApiHook:
         sleep_mock.assert_has_calls([mock.call(1)] * 3)
         assert hook.get_sql_api_query_status.call_count == 4
         hook.get_sql_api_query_status.assert_has_calls([mock.call(query_id=qid)] * 4)
-        assert time_mock.call_count >= 3
 
     @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
     @mock.patch(f"{HOOK_PATH}._process_response")

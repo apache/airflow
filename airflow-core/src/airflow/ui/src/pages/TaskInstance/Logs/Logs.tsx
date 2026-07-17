@@ -18,23 +18,23 @@
  */
 import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { Dialog } from "src/components/ui";
 import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
-import { parseStreamingLogContent } from "src/utils/logs";
 
 import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
+import { getDownloadText } from "./utils";
 
 export const Logs = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
@@ -89,7 +89,6 @@ export const Logs = () => {
     parsedData,
   } = useLogs({
     dagId,
-    expanded,
     logLevelFilters,
     showSource,
     showTimestamp,
@@ -98,25 +97,52 @@ export const Logs = () => {
     tryNumber,
   });
 
-  const getParsedLogs = () => {
-    const lines = parseStreamingLogContent(fetchedData);
+  const downloadTextLines = getDownloadText({
+    fetchedData,
+    logLevelFilters,
+    showSource,
+    showTimestamp,
+    sourceFilters,
+    translate,
+  });
 
-    return lines.map((line) =>
-      renderStructuredLog({
-        index: 0,
-        logLevelFilters,
-        logLink: "",
-        logMessage: line,
-        renderingMode: "text",
-        showSource,
-        showTimestamp,
-        sourceFilters,
-        translate,
-      }),
-    );
+  const getLogString = () => downloadTextLines.filter((line) => line !== "").join("\n");
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+
+  const searchMatchIndices = (() => {
+    if (!searchQuery) {
+      return [];
+    }
+    const query = searchQuery.toLowerCase();
+    const indices: Array<number> = [];
+
+    parsedData.searchableText.forEach((line, index) => {
+      if (line.toLowerCase().includes(query)) {
+        indices.push(index);
+      }
+    });
+
+    return indices;
+  })();
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setActiveSearchIndex(0);
   };
 
-  const getLogString = () => getParsedLogs().join("\n");
+  const handleSearchNext = () => {
+    if (searchMatchIndices.length > 0) {
+      setActiveSearchIndex((prev) => (prev + 1) % searchMatchIndices.length);
+    }
+  };
+
+  const handleSearchPrevious = () => {
+    if (searchMatchIndices.length > 0) {
+      setActiveSearchIndex((prev) => (prev - 1 + searchMatchIndices.length) % searchMatchIndices.length);
+    }
+  };
 
   const downloadLogs = () => {
     const logContent = getLogString();
@@ -135,12 +161,30 @@ export const Logs = () => {
   const toggleFullscreen = () => setFullscreen(!fullscreen);
   const toggleExpanded = () => setExpanded((act) => !act);
 
-  useHotkeys("w", toggleWrap);
-  useHotkeys("f", toggleFullscreen);
-  useHotkeys("e", toggleExpanded);
-  useHotkeys("t", toggleTimestamp);
-  useHotkeys("s", toggleSource);
-  useHotkeys("d", downloadLogs);
+  useShortcut({
+    ...SHORTCUTS.logs.toggleWrap,
+    callback: toggleWrap,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleFullscreen,
+    callback: toggleFullscreen,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleExpand,
+    callback: toggleExpanded,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleTimestamp,
+    callback: toggleTimestamp,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleSource,
+    callback: toggleSource,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.downloadLogs,
+    callback: downloadLogs,
+  });
 
   const onOpenChange = () => {
     setFullscreen(false);
@@ -154,6 +198,14 @@ export const Logs = () => {
     expanded,
     getLogString,
     onSelectTryNumber,
+    search: {
+      currentMatchIndex: activeSearchIndex,
+      onSearchChange: handleSearchChange,
+      onSearchNext: handleSearchNext,
+      onSearchPrevious: handleSearchPrevious,
+      searchQuery,
+      totalMatches: searchMatchIndices.length,
+    },
     showSource,
     showTimestamp,
     sourceOptions: parsedData.sources,
@@ -168,10 +220,14 @@ export const Logs = () => {
   };
 
   const logContentProps: TaskLogContentProps = {
+    currentMatchLineIndex: searchMatchIndices[activeSearchIndex],
     error,
+    expanded,
     isLoading: isLoading || isLoadingLogs,
     logError,
     parsedLogs: parsedData.parsedLogs ?? [],
+    searchMatchIndices: searchQuery ? new Set(searchMatchIndices) : undefined,
+    searchQuery: searchQuery || undefined,
     wrap,
   };
 

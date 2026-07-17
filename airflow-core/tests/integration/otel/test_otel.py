@@ -16,34 +16,35 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import logging
 import os
 import socket
 import subprocess
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import requests
-from sqlalchemy import func, select
+from sqlalchemy import select
 
-from airflow._shared.timezones import timezone
-from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.dagbag import DagBag
-from airflow.models import DagRun
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-from tests_common.test_utils.dag import create_scheduler_dag
+from tests_common.test_utils.integration_setup import (
+    serialize_and_get_dags,
+    start_scheduler,
+    terminate_process,
+    unpause_trigger_dag_and_get_run_id,
+    wait_for_dag_run,
+)
 from tests_common.test_utils.otel_utils import (
     dump_airflow_metadata_db,
     extract_metrics_from_output,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 log = logging.getLogger("integration.otel.test_otel")
 
@@ -86,57 +87,6 @@ def wait_for_otel_collector(host: str, port: int, timeout: int = 120) -> None:
     )
 
 
-def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
-    unpause_command = ["airflow", "dags", "unpause", dag_id]
-
-    # Unpause the dag using the cli.
-    subprocess.run(unpause_command, check=True, env=os.environ.copy())
-
-    execution_date = timezone.utcnow()
-    run_id = f"manual__{execution_date.isoformat()}"
-
-    trigger_command = [
-        "airflow",
-        "dags",
-        "trigger",
-        dag_id,
-        "--run-id",
-        run_id,
-        "--logical-date",
-        execution_date.isoformat(),
-    ]
-
-    # Trigger the dag using the cli.
-    subprocess.run(trigger_command, check=True, env=os.environ.copy())
-
-    return run_id
-
-
-def wait_for_dag_run(dag_id: str, run_id: str, max_wait_time: int):
-    # max_wait_time, is the timeout for the DAG run to complete. The value is in seconds.
-    start_time = timezone.utcnow().timestamp()
-
-    while timezone.utcnow().timestamp() - start_time < max_wait_time:
-        with create_session() as session:
-            dag_run = session.scalar(
-                select(DagRun).where(
-                    DagRun.dag_id == dag_id,
-                    DagRun.run_id == run_id,
-                )
-            )
-
-            if dag_run is None:
-                time.sleep(5)
-                continue
-
-            dag_run_state = dag_run.state
-            log.debug("DAG Run state: %s.", dag_run_state)
-
-            if dag_run_state in [State.SUCCESS, State.FAILED]:
-                break
-    return dag_run_state
-
-
 def print_ti_output_for_dag_run(dag_id: str, run_id: str):
     breeze_logs_dir = "/root/airflow/logs"
 
@@ -173,7 +123,7 @@ class TestOtelIntegration:
     - start breeze with '--integration otel'
     - run on the shell 'export use_otel=true'
     - run the test
-    - check 'http://localhost:36686/'
+    - check 'http://localhost:26686/'
 
     To get a db dump on the stdout, run 'export log_level=debug'.
     """
@@ -183,19 +133,6 @@ class TestOtelIntegration:
 
     use_otel = os.getenv("use_otel", default="false")
     log_level = os.getenv("log_level", default="none")
-
-    scheduler_command_args = [
-        "airflow",
-        "scheduler",
-    ]
-
-    apiserver_command_args = [
-        "airflow",
-        "api-server",
-        "--port",
-        "8080",
-        "--daemon",
-    ]
 
     dags: dict[str, SerializedDAG] = {}
 
@@ -246,67 +183,7 @@ class TestOtelIntegration:
         migrate_command = ["airflow", "db", "migrate"]
         subprocess.run(migrate_command, check=True, env=os.environ.copy())
 
-        cls.dags = cls.serialize_and_get_dags()
-
-    @classmethod
-    def serialize_and_get_dags(cls) -> dict[str, SerializedDAG]:
-        log.info("Serializing Dags from directory %s", cls.dag_folder)
-        # Load DAGs from the dag directory.
-        dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
-
-        dag_ids = dag_bag.dag_ids
-        assert len(dag_ids) == 1
-
-        dag_dict: dict[str, SerializedDAG] = {}
-        with create_session() as session:
-            for dag_id in dag_ids:
-                dag = dag_bag.get_dag(dag_id)
-                assert dag is not None, f"DAG with ID {dag_id} not found."
-                # Sync the DAG to the database.
-                if AIRFLOW_V_3_0_PLUS:
-                    from airflow.models.dagbundle import DagBundleModel
-
-                    count = session.scalar(
-                        select(func.count())
-                        .select_from(DagBundleModel)
-                        .where(DagBundleModel.name == "testing")
-                    )
-                    if count == 0:
-                        session.add(DagBundleModel(name="testing"))
-                        session.commit()
-                    SerializedDAG.bulk_write_to_db(
-                        bundle_name="testing", bundle_version=None, dags=[dag], session=session
-                    )
-                    dag_dict[dag_id] = create_scheduler_dag(dag)
-                else:
-                    dag.sync_to_db(session=session)
-                    dag_dict[dag_id] = dag
-                # Manually serialize the dag and write it to the db to avoid a db error.
-                if AIRFLOW_V_3_1_PLUS:
-                    from airflow.serialization.serialized_objects import LazyDeserializedDAG
-
-                    SerializedDagModel.write_dag(
-                        LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
-                    )
-                else:
-                    SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
-
-            session.commit()
-
-        TESTING_BUNDLE_CONFIG = [
-            {
-                "name": "testing",
-                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"path": f"{cls.dag_folder}", "refresh_interval": 1},
-            }
-        ]
-
-        os.environ["AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST"] = json.dumps(TESTING_BUNDLE_CONFIG)
-        # Initial add
-        manager = DagBundlesManager()
-        manager.sync_bundles_to_db()
-
-        return dag_dict
+        cls.dags = serialize_and_get_dags(dag_folder=cls.dag_folder)
 
     def dag_execution_for_testing_metrics(self, capfd):
         # Metrics.
@@ -322,7 +199,7 @@ class TestOtelIntegration:
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            scheduler_process, apiserver_process = self.start_scheduler(capture_output=True)
+            scheduler_process, apiserver_process = start_scheduler(capture_output=True)
 
             dag_id = "otel_test_dag"
 
@@ -336,8 +213,8 @@ class TestOtelIntegration:
             state = wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
             assert state == State.SUCCESS, f"Dag run did not complete successfully. Final state: {state}."
 
-            # The ti span_status is updated while processing the executor events,
-            # which is after the dag_run state has been updated.
+            # wait_for_dag_run returns on the dag_run DB state, but OTel metrics are exported
+            # asynchronously, so wait for them to reach stdout before we capture it below.
             time.sleep(10)
 
             task_dict = dag.task_dict
@@ -352,17 +229,13 @@ class TestOtelIntegration:
         finally:
             # Terminate the processes.
 
-            scheduler_process.terminate()
-            scheduler_process.wait()
-
+            terminate_process(scheduler_process)
             scheduler_status = scheduler_process.poll()
             assert scheduler_status is not None, (
                 "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
             )
 
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
+            terminate_process(apiserver_process)
             apiserver_status = apiserver_process.poll()
             assert apiserver_status is not None, (
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
@@ -382,6 +255,8 @@ class TestOtelIntegration:
             )
         return ti
 
+    # 160s = 10s startup + 90s dag-run wait + 10s post-run sleep + 30s shutdown grace + 20s CI buffer
+    @pytest.mark.execution_timeout(160)
     @pytest.mark.parametrize(
         ("legacy_names_on_bool", "legacy_names_exported"),
         [
@@ -417,6 +292,7 @@ class TestOtelIntegration:
             if legacy_names_exported:
                 assert set(legacy_metric_names).issubset(metrics_dict.keys())
 
+    @pytest.mark.execution_timeout(160)
     def test_export_metrics_during_process_shutdown(self, capfd):
         out, dag = self.dag_execution_for_testing_metrics(capfd)
 
@@ -435,15 +311,59 @@ class TestOtelIntegration:
 
             assert set(metrics_to_check).issubset(metrics_dict.keys())
 
-    @pytest.mark.execution_timeout(90)
-    def test_dag_execution_succeeds(self, capfd):
+    @pytest.mark.execution_timeout(160)
+    @pytest.mark.parametrize(
+        ("task_span_detail_level", "expected_hierarchy"),
+        [
+            pytest.param(
+                None,
+                {
+                    "dag_run.otel_test_dag": None,
+                    "sub_span1": "worker.task1",
+                    "task_run.task1": "dag_run.otel_test_dag",
+                    "worker.task1": "task_run.task1",
+                },
+                id="default_spans",
+            ),
+            pytest.param(
+                2,
+                # Additional detail spans are deferred to follow-up PRs; tracked
+                # at https://linear.app/astronomer/issue/ACD-157.
+                {
+                    "_verify_bundle_access": "parse",
+                    "parse": "startup",
+                    "get_template_context": "startup",
+                    "startup": "worker.task1",
+                    "render_templates": "_prepare",
+                    "_serialize_rendered_fields": "_prepare",
+                    "_validate_task_inlets_and_outlets": "_prepare",
+                    "_prepare": "run",
+                    "_execute_task": "run",
+                    "task.execute": "_execute_task",
+                    "finalize": "worker.task1",
+                    "run": "worker.task1",
+                    "sub_span1": "task.execute",
+                    "dag_run.otel_test_dag": None,
+                    "task_run.task1": "dag_run.otel_test_dag",
+                    "worker.task1": "task_run.task1",
+                    # OpenLineage registers a listener by default, so its
+                    # on_task_instance_running / on_task_instance_success hook
+                    # calls get wrapped in spans at detail level > 1.
+                    "listener.on_task_instance_running": "_prepare",
+                    "listener.on_task_instance_success": "finalize",
+                },
+                id="detail_spans",
+            ),
+        ],
+    )
+    def test_dag_execution_succeeds(self, capfd, task_span_detail_level, expected_hierarchy):
         """The same scheduler will start and finish the dag processing."""
         scheduler_process = None
         apiserver_process = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            scheduler_process, apiserver_process = self.start_scheduler()
+            scheduler_process, apiserver_process = start_scheduler()
 
             dag_id = "otel_test_dag"
 
@@ -452,13 +372,18 @@ class TestOtelIntegration:
 
             assert dag is not None
 
-            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
+            conf = None
+            if task_span_detail_level is not None:
+                from airflow_shared.observability.traces import TASK_SPAN_DETAIL_LEVEL_KEY
 
-            # Skip the span_status check.
+                conf = {TASK_SPAN_DETAIL_LEVEL_KEY: task_span_detail_level}
+
+            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
+
             wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
 
-            # The ti span_status is updated while processing the executor events,
-            # which is after the dag_run state has been updated.
+            # wait_for_dag_run returns on the dag_run DB state, but spans reach Jaeger
+            # asynchronously via the BatchSpanProcessor, so wait before querying the trace below.
             time.sleep(10)
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
@@ -468,17 +393,13 @@ class TestOtelIntegration:
                     dump_airflow_metadata_db(session)
 
             # Terminate the processes.
-            scheduler_process.terminate()
-            scheduler_process.wait()
-
+            terminate_process(scheduler_process)
             scheduler_status = scheduler_process.poll()
             assert scheduler_status is not None, (
                 "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
             )
 
-            apiserver_process.terminate()
-            apiserver_process.wait()
-
+            terminate_process(apiserver_process)
             apiserver_status = apiserver_process.poll()
             assert apiserver_status is not None, (
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
@@ -490,8 +411,19 @@ class TestOtelIntegration:
         service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
         r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
         data = r.json()
-
-        trace = data["data"][-1]
+        # Find the trace for *this* dag run; selecting by position in the
+        # response is flaky because earlier-test traces accumulate in Jaeger.
+        matching = [
+            t
+            for t in data["data"]
+            if any(
+                tag.get("key") == "airflow.dag_run.run_id" and tag.get("value") == run_id
+                for span in t["spans"]
+                for tag in span.get("tags", [])
+            )
+        ]
+        assert len(matching) == 1, f"expected exactly one trace for run_id={run_id}, got {len(matching)}"
+        trace = matching[0]
         spans = trace["spans"]
 
         def get_span_hierarchy():
@@ -507,32 +439,4 @@ class TestOtelIntegration:
             return nested
 
         nested = get_span_hierarchy()
-        assert nested == {
-            "dag_run.otel_test_dag": None,
-            "sub_span1": "worker.task1",
-            "task_run.task1": "dag_run.otel_test_dag",
-            "worker.task1": "task_run.task1",
-        }
-
-    def start_scheduler(self, capture_output: bool = False):
-        stdout = None if capture_output else subprocess.DEVNULL
-        stderr = None if capture_output else subprocess.DEVNULL
-
-        scheduler_process = subprocess.Popen(
-            self.scheduler_command_args,
-            env=os.environ.copy(),
-            stdout=stdout,
-            stderr=stderr,
-        )
-
-        apiserver_process = subprocess.Popen(
-            self.apiserver_command_args,
-            env=os.environ.copy(),
-            stdout=stdout,
-            stderr=stderr,
-        )
-
-        # Wait to ensure both processes have started.
-        time.sleep(10)
-
-        return scheduler_process, apiserver_process
+        assert nested == expected_hierarchy

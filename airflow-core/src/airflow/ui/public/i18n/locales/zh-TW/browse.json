@@ -9,7 +9,25 @@
     "filters": {
       "eventType": "事件類型"
     },
-    "title": "審計日誌事件"
+    "title": "稽核日誌事件"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "警示名稱",
+      "deadlineTime": "截止時間",
+      "status": "狀態"
+    },
+    "deadline_one": "截止期限",
+    "deadline_other": "截止期限",
+    "filters": {
+      "status": "狀態",
+      "statusOptions": {
+        "all": "全部",
+        "missed": "已逾期",
+        "pending": "待處理"
+      }
+    },
+    "title": "截止期限"
   },
   "xcom": {
     "add": {
@@ -26,11 +44,11 @@
     },
     "delete": {
       "error": "刪除 XCom 失敗",
-      "errorTitle": "Error",
+      "errorTitle": "錯誤",
       "success": "成功刪除 XCom",
       "successTitle": "已刪除 XCom",
       "title": "刪除 XCom",
-      "warning": "你確定要刪除這個 XCom 嗎？此動作無法復原。"
+      "warning": "您確定要刪除這個 XCom 嗎？此動作無法復原。"
     },
     "edit": {
       "error": "更新 XCom 失敗",

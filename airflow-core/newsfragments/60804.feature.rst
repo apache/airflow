@@ -1,0 +1,1 @@
+Add configurable LRU+TTL caching for API server DAG retrieval via ``dag_cache_size`` and ``dag_cache_ttl`` config options in the ``[api]`` section. This bounds memory growth from accumulated SerializedDAG objects in long-running API server processes.

@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.definitions.deadline import VariableInterval
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +51,7 @@ class DeadlineAlertFields:
     serializing DeadlineAlert instances to and from their dictionary representation.
     """
 
+    NAME = "name"
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
@@ -204,6 +207,7 @@ class SerializedReferenceModels:
             from sqlalchemy import func, select, text
 
             from airflow.models import DagRun
+            from airflow.utils.state import DagRunState
 
             dag_id = kwargs["dag_id"]
 
@@ -219,9 +223,17 @@ class SerializedReferenceModels:
             else:
                 raise ValueError(f"Unsupported database dialect: {dialect}")
 
+            # Only SUCCESSFUL runs represent a "normal" runtime. A run that failed fast or hung
+            # before failing would otherwise skew the average and produce a misleading deadline
+            # (too short -> spurious misses, or too long -> real slowness never trips it).
             query = (
                 select(duration_expr)
-                .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+                .filter(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == DagRunState.SUCCESS,
+                    DagRun.start_date.isnot(None),
+                    DagRun.end_date.isnot(None),
+                )
                 .order_by(DagRun.logical_date.desc())
                 .limit(self.max_runs)
             )
@@ -306,9 +318,9 @@ class SerializedReferenceModels:
 
         @classmethod
         def deserialize_reference(cls, reference_data: dict):
-            from airflow._shared.module_loading import import_string
+            from airflow.serialization.helpers import find_registered_custom_deadline_reference
 
-            custom_class = import_string(reference_data["__class_path"])
+            custom_class = find_registered_custom_deadline_reference(reference_data["__class_path"])
             inner_ref = custom_class.deserialize_reference(reference_data)
             return cls(inner_ref)
 
@@ -365,5 +377,6 @@ class SerializedDeadlineAlert:
     """Serialized representation of a deadline alert."""
 
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
-    interval: timedelta
+    interval: timedelta | VariableInterval
     callback: Any
+    name: str | None = None

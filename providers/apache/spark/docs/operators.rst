@@ -181,3 +181,134 @@ Reference
 """""""""
 
 For further information, look at `Apache Spark submitting applications <https://spark.apache.org/docs/latest/submitting-applications.html>`_.
+
+Cluster mode crash recovery (Spark standalone)
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+When running in Spark standalone cluster mode (``--deploy-mode cluster``), the Spark driver runs
+independently on the cluster. If the Airflow worker dies while the Spark job is running, the driver keeps running but
+Airflow loses track of it and the behaviour to submit a brand new job would be wasting
+the compute already done or even cause conflicts if the Spark job itself is not designed to be idempotent.
+
+Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>` immediately after submission. On retry, it reads
+the ID back and reconnects to the already-running driver instead of resubmitting.
+
+This is the **synchronous path** — the worker holds a slot for the duration of polling. This is
+a crash-safety net for teams running sync operators for log observability, org constraints, or
+because a Triggerer is not available. Teams with a Triggerer available may also consider
+deferrable operators, which free the worker slot but may come with added complexity.
+
+**Connection requirements for crash recovery**
+
+The reconnection polling calls the Spark standalone REST API
+(``GET /v1/submissions/status/{driverId}``). Make sure the Spark connection's
+``REST scheme`` and ``REST port`` extras match your cluster's configuration:
+
+* ``REST scheme`` — set to ``https`` if your cluster has TLS enabled on the REST port
+  (``spark.ssl.standalone.enabled=true``). Defaults to ``http``.
+* ``REST port`` — set to the value of ``spark.master.rest.port`` on your cluster. Defaults to ``6066``.
+
+See :doc:`connections/spark-submit` for how to configure these fields.
+
+.. note::
+    Crash recovery in cluster mode requires Airflow 3.3+ (``task_state_store`` support). On earlier
+    versions the operator falls back to the previous behavior of always submitting fresh.
+
+Tracking driver status via Kubernetes API
+""""""""""""""""""""""""""""""""""""""""""
+
+When running in Kubernetes cluster mode, ``spark-submit`` blocks for the duration of the job.
+The JVM runs processes which does nothing but polling of the pod phase and holds heap space for
+the entire duration. This is not ideal for long-running jobs, especially when the driver is idle
+for long periods (e.g. waiting for data or user input).
+
+Set ``track_driver_via_k8s_api=True`` to have the operator track the driver pod status via the
+Python Kubernetes client rather than holding ``spark-submit`` open for the full job duration:
+
+.. code-block:: python
+
+   from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+
+   run_spark = SparkSubmitOperator(
+       task_id="run_spark",
+       application="local:///opt/spark/examples/jars/spark-examples.jar",
+       conn_id="spark_k8s",
+       deploy_mode="cluster",
+       track_driver_via_k8s_api=True,
+       durable=True,
+   )
+
+**Requirements**
+
+* The Spark connection ``master`` must be ``k8s://...`` and ``deploy_mode`` must be ``cluster``.
+* Do not set ``spark.kubernetes.submission.waitAppCompletion=true`` in your ``conf`` — this
+  conflicts with the flag and a ``ValueError`` will be raised at task start.
+* The Airflow worker must be able to reach the Kubernetes API server and have permission to
+  read and delete pods in the driver's namespace; otherwise pod tracking and cleanup will fail.
+* Set ``durable=True`` (the default) to enable crash recovery: the driver pod name is
+  persisted to task state before polling begins, so a worker crash and retry reconnects to the
+  existing pod instead of submitting a fresh one. Set ``durable=False`` to always
+  submit a fresh driver on retry.
+* Pod completion is detected from ``pod.status.phase``. If your driver pods have sidecar
+  containers (e.g. Istio injection enabled for the driver namespace), the pod phase may not
+  advance to ``Succeeded`` until all sidecars exit. In that case the poll loop will wait
+  indefinitely — set ``execution_timeout`` as a hard bound.
+
+YARN ResourceManager API tracking
+"""""""""""""""""""""""""""""""""
+
+When running Spark applications on YARN in cluster deploy mode, the default Spark submit path keeps
+the local ``spark-submit`` JVM alive on the Airflow worker while the YARN
+application runs. For long-running Spark applications this can keep worker memory tied up for the
+whole application lifetime.
+
+Set ``yarn_track_via_rm_api=True`` to release the local ``spark-submit`` JVM after YARN accepts the
+application, then poll the YARN ResourceManager REST API until the application reaches a terminal
+state. The ResourceManager API polling interval is controlled by ``status_poll_interval`` with a
+minimum of 10 seconds.
+
+This mode requires the Spark connection extra to set ``yarn_resourcemanager_webapp_address`` before
+the application is submitted:
+
+.. code-block:: bash
+
+    airflow connections add spark_yarn_rm \
+        --conn-type spark \
+        --conn-host yarn \
+        --conn-extra '{
+            "deploy-mode": "cluster",
+            "yarn_resourcemanager_webapp_address": "http://rm.example.com:8088"
+        }'
+
+.. code-block:: python
+
+    SparkSubmitOperator(
+        task_id="spark_pi",
+        conn_id="spark_yarn_rm",
+        application="/path/to/spark-examples.jar",
+        java_class="org.apache.spark.examples.SparkPi",
+        deploy_mode="cluster",
+        yarn_track_via_rm_api=True,
+    )
+
+For Kerberized clusters, install ``requests-kerberos`` in the Airflow environment. When the
+Spark connection has both ``keytab`` and ``principal`` configured, Airflow automatically uses
+``HTTPKerberosAuth()`` for the ResourceManager REST requests.
+
+Use ``yarn_rm_auth`` only when the ResourceManager needs a custom ``requests`` authentication
+object:
+
+.. code-block:: python
+
+    import requests
+
+    SparkSubmitOperator(
+        task_id="spark_pi",
+        conn_id="spark_yarn_rm",
+        application="/path/to/spark-examples.jar",
+        java_class="org.apache.spark.examples.SparkPi",
+        deploy_mode="cluster",
+        yarn_track_via_rm_api=True,
+        yarn_rm_auth=requests.auth.HTTPBasicAuth("user", "password"),
+    )

@@ -17,23 +17,27 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import urllib.parse
+from uuid import uuid4
 
-import httpx
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serde import deserialize, serialize
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -55,7 +59,7 @@ def access_denied(client):
     assert isinstance(last_route.app, FastAPI)
     exec_app = last_route.app
 
-    async def _(
+    def _(
         request: Request,
         dag_id: str = Path(),
         run_id: str = Path(),
@@ -63,7 +67,8 @@ def access_denied(client):
         xcom_key: str = Path(alias="key"),
         token=CurrentTIToken,
     ):
-        await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
+        with create_session() as session:
+            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -467,21 +472,15 @@ class TestXComsSetEndpoint:
         assert task_map.length == 3
 
     @pytest.mark.parametrize(
-        ("length", "err_context"),
+        ("length", "expected_status"),
         [
-            pytest.param(
-                20,
-                contextlib.nullcontext(),
-                id="20-success",
-            ),
-            pytest.param(
-                2000,
-                pytest.raises(httpx.HTTPStatusError),
-                id="2000-too-long",
-            ),
+            pytest.param(20, 201, id="20-success"),
+            pytest.param(2000, 400, id="2000-too-long"),
         ],
     )
-    def test_xcom_set_downstream_of_mapped(self, client, create_task_instance, session, length, err_context):
+    def test_xcom_set_downstream_of_mapped(
+        self, client, create_task_instance, session, length, expected_status
+    ):
         """
         Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
         XCom.set then uses json.dumps to serialize it and store the value in the database.
@@ -490,14 +489,14 @@ class TestXComsSetEndpoint:
         ti = create_task_instance()
         session.commit()
 
-        with err_context:
-            response = client.post(
-                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
-                json='"valid json"',
-                params={"mapped_length": length},
-            )
-            response.raise_for_status()
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            json='"valid json"',
+            params={"mapped_length": length},
+        )
+        assert response.status_code == expected_status
 
+        if expected_status < 400:
             task_map = session.scalars(
                 select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
             ).one_or_none()
@@ -617,3 +616,153 @@ class TestXComsDeleteEndpoint:
             )
         ).first()
         assert xcom_ti is not None
+
+
+class TestXComTeamAccess:
+    """Multi-team isolation for the Execution API XCom routes (no cross-team sharing)."""
+
+    @staticmethod
+    def _make_dag(session, dag_maker, dag_id, team_name):
+        """
+        Create a dag (with a running dag run and a ``task`` TI) owned by ``team_name``.
+
+        ``team_name=None`` leaves the dag global (its bundle has no team). Always
+        assigns a fresh bundle so the dag's team ownership is independent of any
+        shared default bundle state. Returns ``(dag_run, task_instance)``.
+        """
+        from airflow.models import DagModel
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(run_id="run1", state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("task")
+
+        bundle_name = f"bundle-{dag_id}"
+        bundle = DagBundleModel(name=bundle_name)
+        if team_name is not None:
+            team = session.scalar(select(Team).where(Team.name == team_name)) or Team(name=team_name)
+            bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+        session.commit()
+        return dr, ti
+
+    @staticmethod
+    def _insert_xcom(session, dag_run, dag_id, key="k", value="v"):
+        session.add(
+            XComModel(
+                key=key,
+                value=value,
+                dag_run_id=dag_run.id,
+                run_id=dag_run.run_id,
+                task_id="task",
+                dag_id=dag_id,
+            )
+        )
+        session.commit()
+
+    @staticmethod
+    def _authenticate_as(exec_app, ti_id):
+        async def _auth(request: Request) -> TIToken:
+            return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
+
+        exec_app.dependency_overrides[require_auth] = _auth
+
+    @staticmethod
+    def _url(dag_id, key="k"):
+        return f"/execution/xcoms/{dag_id}/run1/task/{key}"
+
+    def test_multi_team_disabled_allows_cross_team(self, client, exec_app, session, dag_maker):
+        """With multi-team disabled, the check is a no-op even across teams."""
+        _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
+        target_dag = f"tgt_{uuid4().hex}"
+        target_dr, _ = self._make_dag(session, dag_maker, target_dag, "team_b")
+        self._insert_xcom(session, target_dr, target_dag)
+        self._authenticate_as(exec_app, requester_ti.id)
+
+        with conf_vars({("core", "multi_team"): "False"}):
+            response = client.get(self._url(target_dag))
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {"key": "k", "value": "v"}
+
+    def test_same_team_read_write_delete_allowed(self, client, exec_app, session, dag_maker):
+        """A task may read, write, and delete XCom within its own team."""
+        dag_id = f"dag_{uuid4().hex}"
+        dag_run, ti = self._make_dag(session, dag_maker, dag_id, "team_a")
+        self._insert_xcom(session, dag_run, dag_id, key="existing", value="v")
+        self._authenticate_as(exec_app, ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            read = client.get(self._url(dag_id, key="existing"))
+            write = client.post(self._url(dag_id, key="newkey"), json="w")
+            delete_ = client.delete(self._url(dag_id, key="existing"))
+
+        assert read.status_code == 200, read.json()
+        assert read.json() == {"key": "existing", "value": "v"}
+        assert write.status_code == 201, write.json()
+        assert delete_.status_code == 200, delete_.json()
+
+    def test_same_team_cross_dag_read_allowed(self, client, exec_app, session, dag_maker):
+        """A task may read another dag's XCom when both dags belong to the same team."""
+        _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
+        target_dag = f"tgt_{uuid4().hex}"
+        target_dr, _ = self._make_dag(session, dag_maker, target_dag, "team_a")
+        self._insert_xcom(session, target_dr, target_dag)
+        self._authenticate_as(exec_app, requester_ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.get(self._url(target_dag))
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {"key": "k", "value": "v"}
+
+    @pytest.mark.parametrize("method", ["get", "post", "delete"])
+    def test_cross_team_access_forbidden(self, client, exec_app, session, dag_maker, method):
+        """A task cannot read, write, or delete another team's XCom."""
+        _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
+        target_dag = f"tgt_{uuid4().hex}"
+        self._make_dag(session, dag_maker, target_dag, "team_b")
+        self._authenticate_as(exec_app, requester_ti.id)
+
+        kwargs = {"json": "v"} if method == "post" else {}
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = getattr(client, method)(self._url(target_dag), **kwargs)
+
+        assert response.status_code == 403, response.json()
+        assert response.json()["detail"]["reason"] == "access_denied"
+
+    def test_global_dag_read_allowed_but_write_forbidden(self, client, exec_app, session, dag_maker):
+        """A team task may read a global (teamless) dag's XCom but not mutate it."""
+        _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
+        global_dag = f"global_{uuid4().hex}"
+        global_dr, _ = self._make_dag(session, dag_maker, global_dag, None)
+        self._insert_xcom(session, global_dr, global_dag, key="k", value="v")
+        self._authenticate_as(exec_app, requester_ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            read = client.get(self._url(global_dag, key="k"))
+            write = client.post(self._url(global_dag, key="k2"), json="w")
+            delete_ = client.delete(self._url(global_dag, key="k"))
+
+        assert read.status_code == 200, read.json()
+        assert write.status_code == 403, write.json()
+        assert delete_.status_code == 403, delete_.json()
+
+    def test_teamless_requester_scoping(self, client, session, dag_maker):
+        """A teamless requester (default token) reaches global dags but not team dags."""
+        team_dag = f"team_{uuid4().hex}"
+        self._make_dag(session, dag_maker, team_dag, "team_b")
+        global_dag = f"global_{uuid4().hex}"
+        global_dr, _ = self._make_dag(session, dag_maker, global_dag, None)
+        self._insert_xcom(session, global_dr, global_dag, key="k", value="v")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            forbidden = client.get(self._url(team_dag, key="k"))
+            allowed = client.get(self._url(global_dag, key="k"))
+
+        assert forbidden.status_code == 403, forbidden.json()
+        assert allowed.status_code == 200, allowed.json()

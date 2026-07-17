@@ -35,6 +35,7 @@ const {
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
+  RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
@@ -50,6 +51,7 @@ export const TaskInstancesFilter = () => {
     DURATION_LTE_PARAM as FilterableSearchParamsKeys,
     TRY_NUMBER_PARAM as FilterableSearchParamsKeys,
     MAP_INDEX_PARAM as FilterableSearchParamsKeys,
+    RENDERED_MAP_INDEX_PARAM as FilterableSearchParamsKeys,
     DAG_VERSION_PARAM as FilterableSearchParamsKeys,
     OPERATOR_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
     POOL_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
@@ -86,14 +88,13 @@ export const TaskInstancesFilter = () => {
   });
 
   return (
-    <VStack align="start" justifyContent="space-between">
-      <VStack alignItems="flex-start" gap={1}>
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
+    <VStack align="start" gap={4} paddingY="4px">
+      <FilterBar
+        configs={filterConfigs}
+        initialValues={initialValues}
+        onFiltersChange={handleFiltersChange}
+        showPresetFilters={runId === undefined}
+      />
     </VStack>
   );
 };

@@ -53,12 +53,12 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
     "gitpython>=3.1.40",
-    "hatch>=1.16.5",
+    "hatch>=1.17.1",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
     "packaging>=25.0",
-    "prek>=0.3.8",
+    "prek>=0.4.8",
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
@@ -81,6 +81,16 @@ breeze = "airflow_breeze.breeze:main"
 
 [tool.flit.module]
 name = "airflow_breeze"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "autocomplete/",
+    "doc/",
+    "tests/",
+    "uv.lock",
+]
 
 [tool.black]
 line-length = 110

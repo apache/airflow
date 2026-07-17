@@ -19,5 +19,13 @@
 import { Box, type BoxProps } from "@chakra-ui/react";
 
 export const DurationAxis = (props: BoxProps) => (
-  <Box borderBottomWidth={1} left={0} position="absolute" right={0} zIndex={0} {...props} />
+  <Box
+    borderBottomWidth={1}
+    borderColor="border"
+    left={0}
+    position="absolute"
+    right={0}
+    zIndex={0}
+    {...props}
+  />
 );

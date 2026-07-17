@@ -103,7 +103,7 @@ class TestSageMakerTransformOperator:
                 (key3,) = key3_org
                 assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
             else:
-                self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
+                assert self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
@@ -340,6 +340,33 @@ class TestSageMakerTransformOperator:
         with pytest.raises(AirflowException):
             self.sagemaker.execute(context=None)
         assert not mock_defer.called
+
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    @mock.patch.object(SageMakerHook, "describe_model", return_value={"ModelName": "model_name"})
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_transform_job",
+        return_value={
+            "ModelName": "model_name",
+            "TransformJobStatus": "Failed",
+            "FailureReason": "it failed",
+        },
+    )
+    def test_execute_complete_raises_when_job_failed_during_deferred_wait(
+        self, mock_describe_transform_job, mock_describe_model, mock_serialize
+    ):
+        # When the transform job fails during the deferred wait, the trigger (an
+        # AwsBaseWaiterTrigger) yields {"status": "error", ...} instead of raising, so
+        # execute_complete must reject a non-success status rather than report the task as
+        # successful — matching every other SageMaker operator's execute_complete.
+        event = {
+            "status": "error",
+            "message": "Error while waiting for transform job: terminal failure",
+            "job_name": "job_name",
+        }
+
+        with pytest.raises(RuntimeError, match="Error while running transform job"):
+            self.sagemaker.execute_complete(context=None, event=event)
 
     @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator.defer")
     @mock.patch.object(SageMakerHook, "describe_model")

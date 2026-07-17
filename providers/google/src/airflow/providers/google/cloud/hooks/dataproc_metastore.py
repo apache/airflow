@@ -22,7 +22,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.metastore_v1 import DataprocMetastoreClient
 
@@ -43,19 +42,20 @@ class DataprocMetastoreHook(GoogleBaseHook):
 
     def get_dataproc_metastore_client(self) -> DataprocMetastoreClient:
         """Return DataprocMetastoreClient."""
-        client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
-
         return DataprocMetastoreClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
         )
 
     def get_dataproc_metastore_client_v1beta(self):
         """Return DataprocMetastoreClient (from v1 beta)."""
         from google.cloud.metastore_v1beta import DataprocMetastoreClient
 
-        client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
         return DataprocMetastoreClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
         )
 
     def wait_for_operation(self, timeout: float | None, operation: Operation):

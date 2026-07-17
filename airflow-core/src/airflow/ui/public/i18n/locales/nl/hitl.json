@@ -24,6 +24,20 @@
     "success": "{{taskId}} reactie succesvol",
     "title": "Human Task Instance - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Selecteer een vereiste actie om details te zien"
+    },
+    "list": {
+      "completedRequiredActions": "Voltooide vereiste acties ({{count}})",
+      "loadError": "Kan vereiste acties niet laden",
+      "loadingActions": "Vereiste acties laden...",
+      "pendingRequiredActions": "In afwachting van vereiste acties ({{count}})"
+    },
+    "openReviewDrawer": "Open Review Drawer",
+    "pageLimitHint": "Alleen de eerste paar acties worden hier weergegeven. Gebruik \"$t(review.viewAll)\" om ze allemaal te zien.",
+    "viewAll": "Bekijk alle vereiste acties"
+  },
   "state": {
     "approvalReceived": "Goedkeuring ontvangen",
     "approvalRequired": "Goedkeuring vereist",

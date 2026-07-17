@@ -319,7 +319,10 @@ class JWTValidator:
         self, unvalidated: str, required_claims: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
-        key = await self._get_validation_key(unvalidated)
+        try:
+            key = await self._get_validation_key(unvalidated)
+        except KeyError:
+            raise jwt.InvalidTokenError("Kid did not match any validation keys")
         algorithms = self.algorithm
         validation_key: str | jwt.PyJWK | Any = key
         if algorithms == ["GUESS"] and isinstance(key, jwt.PyJWK):
@@ -447,15 +450,21 @@ class JWTGenerator:
             assert self._secret_key
         return self._secret_key
 
-    def generate(self, extras: dict[str, Any] | None = None, headers: dict[str, Any] | None = None) -> str:
+    def generate(
+        self,
+        extras: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        valid_for: float | None = None,
+    ) -> str:
         """Generate a signed JWT for the subject."""
         now = int(datetime.now(tz=timezone.utc).timestamp())
+        effective_valid_for = valid_for if valid_for is not None else self.valid_for
         claims = {
             "jti": uuid.uuid4().hex,
             "iss": self.issuer,
             "aud": self.audience,
             "nbf": now,
-            "exp": int(now + self.valid_for),
+            "exp": int(now + effective_valid_for),
             "iat": now,
         }
 

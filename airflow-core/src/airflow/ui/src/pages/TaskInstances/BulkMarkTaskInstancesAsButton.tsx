@@ -24,7 +24,7 @@ import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { ErrorAlert } from "src/components/ErrorAlert";
+import { ActionErrors } from "src/components/ActionErrors";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 import { Dialog, Menu } from "src/components/ui";
@@ -33,18 +33,18 @@ import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
+  readonly deselectKeys: (keys: Array<string>) => void;
   readonly selectedTaskInstances: Array<TaskInstanceResponse>;
 };
 
-const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances }: Props) => {
+const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<TaskInstanceState>("success");
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
   const [note, setNote] = useState<string | null>(null);
-  const { bulkAction, error, isPending, setError } = useBulkTaskInstances({
-    clearSelections,
+  const { bulkAction, data, error, isPending, reset } = useBulkTaskInstances({
+    deselectKeys,
     onSuccessConfirm: onClose,
   });
 
@@ -73,7 +73,7 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
     setState(newState);
     setSelectedOptions([]);
     setNote(null);
-    setError(undefined);
+    reset();
     onOpen();
   };
 
@@ -83,16 +83,14 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "top" }}>
         <Menu.Trigger asChild>
-          <div>
-            <Button colorPalette="brand" size="sm" variant="outline">
-              <HStack gap={1} mx={1}>
-                <LuCheck />
-                <span>/</span>
-                <FiX />
-              </HStack>
-              {translate("dags:runAndTaskActions.markAs.button", { type: translate("taskInstance_other") })}
-            </Button>
-          </div>
+          <Button variant="outline">
+            <HStack gap={1} mx={1}>
+              <LuCheck />
+              <span>/</span>
+              <FiX />
+            </HStack>
+            {translate("dags:runAndTaskActions.markAs.button", { type: translate("taskInstance_other") })}
+          </Button>
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {
@@ -121,7 +119,7 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
         </Menu.Content>
       </Menu.Root>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -165,10 +163,9 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
               />
             </Flex>
             <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
-            <ErrorAlert error={error} />
+            <ActionErrors actionResponse={data?.update} error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="brand"
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isFetching}
                 onClick={() => {

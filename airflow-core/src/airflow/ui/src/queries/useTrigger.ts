@@ -19,20 +19,22 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useDagRunServiceTriggerDagRun, useDagServiceGetDagsUiKey } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
-import { createErrorToaster } from "src/utils";
+import { createErrorToaster, toNullablePartitionKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("components");
   const navigate = useNavigate();
+  const location = useLocation();
   const { dagId: selectedDagId } = useParams();
 
   const onSuccess = async (dagRun: TriggerDagRunResponse) => {
@@ -48,9 +50,23 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     });
     onSuccessConfirm();
 
-    // Only redirect if we're already on the dag page
+    // Only redirect if we're already on the dag page.
+    // Preserve search params so layout state (Grid limit, filters) survives the navigation,
+    // but drop the Grid date window — carrying an older ceiling forward would hide the
+    // newly triggered run, which sits at the current time.
     if (selectedDagId === dagRun.dag_id) {
-      void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`));
+      const params = new URLSearchParams(location.search);
+
+      params.delete(SearchParamsKeys.RUN_AFTER_LTE);
+      params.delete(SearchParamsKeys.RUN_AFTER_GTE);
+      const search = params.toString();
+
+      void Promise.resolve(
+        navigate({
+          pathname: `/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`,
+          search: search === "" ? "" : `?${search}`,
+        }),
+      );
     }
   };
 
@@ -68,19 +84,16 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
     const logicalDate = dagRunRequestBody.logicalDate ? new Date(dagRunRequestBody.logicalDate) : undefined;
-    // eslint-disable-next-line unicorn/no-null
     const formattedLogicalDate = logicalDate?.toISOString() ?? null;
 
     const dataIntervalStart = dagRunRequestBody.dataIntervalStart
       ? new Date(dagRunRequestBody.dataIntervalStart)
       : undefined;
-    // eslint-disable-next-line unicorn/no-null
     const formattedDataIntervalStart = dataIntervalStart?.toISOString() ?? null;
 
     const dataIntervalEnd = dagRunRequestBody.dataIntervalEnd
       ? new Date(dagRunRequestBody.dataIntervalEnd)
       : undefined;
-    // eslint-disable-next-line unicorn/no-null
     const formattedDataIntervalEnd = dataIntervalEnd?.toISOString() ?? null;
 
     const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
@@ -95,7 +108,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         data_interval_start: formattedDataIntervalStart,
         logical_date: formattedLogicalDate,
         note: checkNote,
-        partition_key: dagRunRequestBody.partitionKey ?? null,
+        partition_key: toNullablePartitionKey(dagRunRequestBody.partitionKey),
       },
     });
   };

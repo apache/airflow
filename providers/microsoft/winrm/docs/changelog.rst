@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+3.14.4
+......
+
+Misc
+~~~~
+
+* ``Fix Microsoft WinRM provider import failure under lowest dependencies (#69333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+3.14.3
+......
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+
+3.14.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed output encoding in WinRMTrigger for WinRMOperator in deferred mode (#64154)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.14.1
 ......
 

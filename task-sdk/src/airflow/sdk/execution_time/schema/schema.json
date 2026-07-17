@@ -1,0 +1,4994 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "api_version": "2026-06-16",
+  "description": "Apache Airflow SDK Supervisor Schema",
+  "$defs": {
+    "AssetAliasReferenceAssetEventDagRun": {
+      "additionalProperties": false,
+      "description": "Schema for AssetAliasModel used in AssetEventDagRunReference.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "AssetAliasReferenceAssetEventDagRun",
+      "type": "object"
+    },
+    "AssetEventResponse": {
+      "description": "Asset event schema with fields that are needed for Runtime.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
+        "asset": {
+          "$ref": "#/$defs/AssetResponse"
+        },
+        "created_dagruns": {
+          "items": {
+            "$ref": "#/$defs/DagRunAssetReference"
+          },
+          "title": "Created Dagruns",
+          "type": "array"
+        },
+        "source_task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Task Id"
+        },
+        "source_dag_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Dag Id"
+        },
+        "source_run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Run Id"
+        },
+        "source_map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Map Index"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        }
+      },
+      "required": [
+        "id",
+        "timestamp",
+        "asset",
+        "created_dagruns"
+      ],
+      "title": "AssetEventResponse",
+      "type": "object"
+    },
+    "AssetEventsResult": {
+      "description": "Response to GetAssetEvent request.",
+      "properties": {
+        "asset_events": {
+          "items": {
+            "$ref": "#/$defs/AssetEventResponse"
+          },
+          "title": "Asset Events",
+          "type": "array"
+        },
+        "type": {
+          "const": "AssetEventsResult",
+          "default": "AssetEventsResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_events"
+      ],
+      "title": "AssetEventsResult",
+      "type": "object"
+    },
+    "AssetProfile": {
+      "additionalProperties": false,
+      "description": "Profile of an asset-like object.\n\nAsset will have name, uri defined, with type set to 'Asset'.\nAssetNameRef will have name defined, type set to 'AssetNameRef'.\nAssetUriRef will have uri defined, type set to 'AssetUriRef'.\nAssetAlias will have name defined, type set to 'AssetAlias'.\n\nNote that 'type' here is distinct from 'asset_type' the user declares on an\nAsset (or subclass). This field is for distinguishing between different\nasset-related types (Asset, AssetRef, or AssetAlias).",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "AssetProfile",
+      "type": "object"
+    },
+    "AssetReferenceAssetEventDagRun": {
+      "additionalProperties": false,
+      "description": "Schema for AssetModel used in AssetEventDagRunReference.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "extra": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Extra",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "uri",
+        "extra"
+      ],
+      "title": "AssetReferenceAssetEventDagRun",
+      "type": "object"
+    },
+    "AssetResponse": {
+      "description": "Asset schema for responses with fields that are needed for Runtime.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        }
+      },
+      "required": [
+        "name",
+        "uri",
+        "group"
+      ],
+      "title": "AssetResponse",
+      "type": "object"
+    },
+    "AssetResult": {
+      "description": "Response to ReadXCom request.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
+        "type": {
+          "const": "AssetResult",
+          "default": "AssetResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "uri",
+        "group"
+      ],
+      "title": "AssetResult",
+      "type": "object"
+    },
+    "AssetStateStoreResult": {
+      "additionalProperties": false,
+      "description": "Response to GetAssetStateStore; wraps the generated API response for supervisor to worker comms.",
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "AssetStateStoreResult",
+          "default": "AssetStateStoreResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "AssetStateStoreResult",
+      "type": "object"
+    },
+    "AssetsByAliasResult": {
+      "description": "Response to GetAssetsByAlias; list of concrete assets resolved from an alias.",
+      "properties": {
+        "assets": {
+          "items": {
+            "$ref": "#/$defs/AssetResult"
+          },
+          "title": "Assets",
+          "type": "array"
+        },
+        "type": {
+          "const": "AssetsByAliasResult",
+          "default": "AssetsByAliasResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assets"
+      ],
+      "title": "AssetsByAliasResult",
+      "type": "object"
+    },
+    "AwaitInputTask": {
+      "additionalProperties": false,
+      "description": "Park a task instance awaiting human input (Human-in-the-loop), without a trigger.",
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "const": "awaiting_input",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "awaiting_input",
+          "title": "State"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout"
+        },
+        "next_method": {
+          "title": "Next Method",
+          "type": "string"
+        },
+        "next_kwargs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Kwargs"
+        },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        },
+        "type": {
+          "const": "AwaitInputTask",
+          "default": "AwaitInputTask",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "next_method"
+      ],
+      "title": "AwaitInputTask",
+      "type": "object"
+    },
+    "BundleInfo": {
+      "description": "Schema for telling task which bundle to run with.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "BundleInfo",
+      "type": "object"
+    },
+    "ClearAssetStateStoreByName": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "ClearAssetStateStoreByName",
+          "default": "ClearAssetStateStoreByName",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ClearAssetStateStoreByName",
+      "type": "object"
+    },
+    "ClearAssetStateStoreByUri": {
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "ClearAssetStateStoreByUri",
+          "default": "ClearAssetStateStoreByUri",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri"
+      ],
+      "title": "ClearAssetStateStoreByUri",
+      "type": "object"
+    },
+    "ClearTaskStateStore": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "ClearTaskStateStore",
+          "default": "ClearTaskStateStore",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id"
+      ],
+      "title": "ClearTaskStateStore",
+      "type": "object"
+    },
+    "ConnectionResult": {
+      "properties": {
+        "conn_id": {
+          "title": "Conn Id",
+          "type": "string"
+        },
+        "conn_type": {
+          "title": "Conn Type",
+          "type": "string"
+        },
+        "host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Host"
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema"
+        },
+        "login": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Login"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Password"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Port"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
+        "type": {
+          "const": "ConnectionResult",
+          "default": "ConnectionResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conn_id",
+        "conn_type"
+      ],
+      "title": "ConnectionResult",
+      "type": "object"
+    },
+    "CreateHITLDetailPayload": {
+      "description": "Add the input request part of a Human-in-the-loop response.",
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "defaults": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Defaults"
+        },
+        "multiple": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "title": "Multiple"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params"
+        },
+        "assigned_users": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/HITLUser"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assigned Users"
+        },
+        "type": {
+          "const": "CreateHITLDetailPayload",
+          "default": "CreateHITLDetailPayload",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "options",
+        "subject"
+      ],
+      "title": "CreateHITLDetailPayload",
+      "type": "object"
+    },
+    "DRCount": {
+      "description": "Response containing count of Dag Runs matching certain filters.",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "type": {
+          "const": "DRCount",
+          "default": "DRCount",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "count"
+      ],
+      "title": "DRCount",
+      "type": "object"
+    },
+    "DagCallbackRequest": {
+      "description": "A Class with information about the success/failure DAG callback to be executed.",
+      "properties": {
+        "filepath": {
+          "title": "Filepath",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Msg"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "context_from_server": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DagRunContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "is_failure_callback": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": true,
+          "title": "Is Failure Callback"
+        },
+        "type": {
+          "const": "DagCallbackRequest",
+          "default": "DagCallbackRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filepath",
+        "bundle_name",
+        "bundle_version",
+        "dag_id",
+        "run_id"
+      ],
+      "title": "DagCallbackRequest",
+      "type": "object"
+    },
+    "DagFileParseRequest": {
+      "description": "Request for DAG File Parsing.\n\nThis is the request that the manager will send to the DAG parser with the dag file and\nany other necessary metadata.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "bundle_path": {
+          "format": "path",
+          "title": "Bundle Path",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "callback_requests": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "DagCallbackRequest": "#/$defs/DagCallbackRequest",
+                "EmailRequest": "#/$defs/EmailRequest",
+                "TaskCallbackRequest": "#/$defs/TaskCallbackRequest"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DagCallbackRequest"
+              },
+              {
+                "$ref": "#/$defs/TaskCallbackRequest"
+              },
+              {
+                "$ref": "#/$defs/EmailRequest"
+              }
+            ]
+          },
+          "title": "Callback Requests",
+          "type": "array"
+        },
+        "type": {
+          "const": "DagFileParseRequest",
+          "default": "DagFileParseRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "bundle_path",
+        "bundle_name"
+      ],
+      "title": "DagFileParseRequest",
+      "type": "object"
+    },
+    "DagFileParsingResult": {
+      "description": "Result of DAG File Parsing.\n\nThis is the result of a successful DAG parse, in this class, we gather all serialized DAGs,\nimport errors and warnings to send back to the scheduler to store in the DB.",
+      "properties": {
+        "fileloc": {
+          "title": "Fileloc",
+          "type": "string"
+        },
+        "serialized_dags": {
+          "items": {
+            "$ref": "#/$defs/LazyDeserializedDAG"
+          },
+          "title": "Serialized Dags",
+          "type": "array"
+        },
+        "warnings": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Warnings"
+        },
+        "import_errors": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Import Errors"
+        },
+        "type": {
+          "const": "DagFileParsingResult",
+          "default": "DagFileParsingResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fileloc",
+        "serialized_dags"
+      ],
+      "title": "DagFileParsingResult",
+      "type": "object"
+    },
+    "DagResult": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "is_paused": {
+          "title": "Is Paused",
+          "type": "boolean"
+        },
+        "bundle_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Name"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
+        },
+        "relative_fileloc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relative Fileloc"
+        },
+        "owners": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owners"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "next_dagrun": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Dagrun"
+        },
+        "type": {
+          "const": "DagResult",
+          "default": "DagResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "is_paused",
+        "tags"
+      ],
+      "title": "DagResult",
+      "type": "object"
+    },
+    "DagRunAssetReference": {
+      "additionalProperties": false,
+      "description": "DagRun serializer for asset responses.",
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Date"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "data_interval_start": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Interval Start"
+        },
+        "data_interval_end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Interval End"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        }
+      },
+      "required": [
+        "run_id",
+        "dag_id",
+        "start_date",
+        "state"
+      ],
+      "title": "DagRunAssetReference",
+      "type": "object"
+    },
+    "DagRunContext": {
+      "description": "Class to pass context info from the server to build a Execution context object.",
+      "properties": {
+        "dag_run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DagRun"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "last_ti": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskInstance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "DagRunContext",
+      "type": "object"
+    },
+    "DagRunResult": {
+      "additionalProperties": false,
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Date"
+        },
+        "data_interval_start": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Interval Start"
+        },
+        "data_interval_end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Interval End"
+        },
+        "run_after": {
+          "format": "date-time",
+          "title": "Run After",
+          "type": "string"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Date"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "clear_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0,
+          "title": "Clear Number"
+        },
+        "run_type": {
+          "$ref": "#/$defs/DagRunType"
+        },
+        "state": {
+          "$ref": "#/$defs/DagRunState"
+        },
+        "conf": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conf"
+        },
+        "triggering_user_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Triggering User Name"
+        },
+        "consumed_asset_events": {
+          "items": {
+            "$ref": "#/$defs/AssetEventDagRunReference"
+          },
+          "title": "Consumed Asset Events",
+          "type": "array"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "team_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Name"
+        },
+        "type": {
+          "const": "DagRunResult",
+          "default": "DagRunResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id",
+        "run_after",
+        "run_type",
+        "state",
+        "consumed_asset_events"
+      ],
+      "title": "DagRunResult",
+      "type": "object"
+    },
+    "DagRunState": {
+      "description": "All possible states that a DagRun can be in.\n\nThese are \"shared\" with TaskInstanceState in some parts of the code,\nso please ensure that their values always match the ones with the\nsame name in TaskInstanceState.",
+      "enum": [
+        "queued",
+        "running",
+        "success",
+        "failed"
+      ],
+      "title": "DagRunState",
+      "type": "string"
+    },
+    "DagRunStateResult": {
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/DagRunState"
+        },
+        "type": {
+          "const": "DagRunStateResult",
+          "default": "DagRunStateResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "DagRunStateResult",
+      "type": "object"
+    },
+    "DagRunType": {
+      "description": "Class with DagRun types.",
+      "enum": [
+        "backfill",
+        "scheduled",
+        "manual",
+        "operator_triggered",
+        "asset_triggered",
+        "asset_materialization"
+      ],
+      "title": "DagRunType",
+      "type": "string"
+    },
+    "DeferTask": {
+      "additionalProperties": false,
+      "description": "Update a task instance state to deferred.",
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "const": "deferred",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "deferred",
+          "title": "State"
+        },
+        "classpath": {
+          "title": "Classpath",
+          "type": "string"
+        },
+        "trigger_kwargs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trigger Kwargs"
+        },
+        "trigger_timeout": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trigger Timeout"
+        },
+        "queue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Queue"
+        },
+        "next_method": {
+          "title": "Next Method",
+          "type": "string"
+        },
+        "next_kwargs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Kwargs"
+        },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        },
+        "type": {
+          "const": "DeferTask",
+          "default": "DeferTask",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "classpath",
+        "next_method"
+      ],
+      "title": "DeferTask",
+      "type": "object"
+    },
+    "DeleteAssetStateStoreByName": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "DeleteAssetStateStoreByName",
+          "default": "DeleteAssetStateStoreByName",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "key"
+      ],
+      "title": "DeleteAssetStateStoreByName",
+      "type": "object"
+    },
+    "DeleteAssetStateStoreByUri": {
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "DeleteAssetStateStoreByUri",
+          "default": "DeleteAssetStateStoreByUri",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri",
+        "key"
+      ],
+      "title": "DeleteAssetStateStoreByUri",
+      "type": "object"
+    },
+    "DeleteTaskStateStore": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "DeleteTaskStateStore",
+          "default": "DeleteTaskStateStore",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "key"
+      ],
+      "title": "DeleteTaskStateStore",
+      "type": "object"
+    },
+    "DeleteVariable": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "DeleteVariable",
+          "default": "DeleteVariable",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "title": "DeleteVariable",
+      "type": "object"
+    },
+    "DeleteXCom": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "type": {
+          "const": "DeleteXCom",
+          "default": "DeleteXCom",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "dag_id",
+        "run_id",
+        "task_id"
+      ],
+      "title": "DeleteXCom",
+      "type": "object"
+    },
+    "EmailRequest": {
+      "description": "Email notification request for task failures/retries.",
+      "properties": {
+        "filepath": {
+          "title": "Filepath",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Msg"
+        },
+        "ti": {
+          "$ref": "#/$defs/TaskInstance"
+        },
+        "email_type": {
+          "default": "failure",
+          "enum": [
+            "failure",
+            "retry"
+          ],
+          "title": "Email Type",
+          "type": "string"
+        },
+        "context_from_server": {
+          "$ref": "#/$defs/TIRunContext"
+        },
+        "type": {
+          "const": "EmailRequest",
+          "default": "EmailRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filepath",
+        "bundle_name",
+        "bundle_version",
+        "ti",
+        "context_from_server"
+      ],
+      "title": "EmailRequest",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorType",
+          "default": "GENERIC_ERROR"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "type": {
+          "const": "ErrorResponse",
+          "default": "ErrorResponse",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "ErrorType": {
+      "description": "Error types used in the API client.",
+      "enum": [
+        "CONNECTION_NOT_FOUND",
+        "VARIABLE_NOT_FOUND",
+        "XCOM_NOT_FOUND",
+        "ASSET_NOT_FOUND",
+        "TASK_STORE_NOT_FOUND",
+        "ASSET_STORE_NOT_FOUND",
+        "DAGRUN_ALREADY_EXISTS",
+        "PERMISSION_DENIED",
+        "GENERIC_ERROR",
+        "API_SERVER_ERROR"
+      ],
+      "title": "ErrorType",
+      "type": "string"
+    },
+    "GetAssetByName": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetAssetByName",
+          "default": "GetAssetByName",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "GetAssetByName",
+      "type": "object"
+    },
+    "GetAssetByUri": {
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetAssetByUri",
+          "default": "GetAssetByUri",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri"
+      ],
+      "title": "GetAssetByUri",
+      "type": "object"
+    },
+    "GetAssetEventByAsset": {
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Uri"
+        },
+        "after": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Before"
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit"
+        },
+        "ascending": {
+          "default": true,
+          "title": "Ascending",
+          "type": "boolean"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
+        "type": {
+          "const": "GetAssetEventByAsset",
+          "default": "GetAssetEventByAsset",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "uri"
+      ],
+      "title": "GetAssetEventByAsset",
+      "type": "object"
+    },
+    "GetAssetEventByAssetAlias": {
+      "properties": {
+        "alias_name": {
+          "title": "Alias Name",
+          "type": "string"
+        },
+        "after": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Before"
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit"
+        },
+        "ascending": {
+          "default": true,
+          "title": "Ascending",
+          "type": "boolean"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extra"
+        },
+        "type": {
+          "const": "GetAssetEventByAssetAlias",
+          "default": "GetAssetEventByAssetAlias",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "alias_name"
+      ],
+      "title": "GetAssetEventByAssetAlias",
+      "type": "object"
+    },
+    "GetAssetStateStoreByName": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetAssetStateStoreByName",
+          "default": "GetAssetStateStoreByName",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "key"
+      ],
+      "title": "GetAssetStateStoreByName",
+      "type": "object"
+    },
+    "GetAssetStateStoreByUri": {
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetAssetStateStoreByUri",
+          "default": "GetAssetStateStoreByUri",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri",
+        "key"
+      ],
+      "title": "GetAssetStateStoreByUri",
+      "type": "object"
+    },
+    "GetAssetsByAlias": {
+      "properties": {
+        "alias_name": {
+          "title": "Alias Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetAssetsByAlias",
+          "default": "GetAssetsByAlias",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "alias_name"
+      ],
+      "title": "GetAssetsByAlias",
+      "type": "object"
+    },
+    "GetConnection": {
+      "properties": {
+        "conn_id": {
+          "title": "Conn Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetConnection",
+          "default": "GetConnection",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conn_id"
+      ],
+      "title": "GetConnection",
+      "type": "object"
+    },
+    "GetDRCount": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "logical_dates": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Dates"
+        },
+        "run_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Ids"
+        },
+        "states": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "States"
+        },
+        "type": {
+          "const": "GetDRCount",
+          "default": "GetDRCount",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id"
+      ],
+      "title": "GetDRCount",
+      "type": "object"
+    },
+    "GetDag": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetDag",
+          "default": "GetDag",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id"
+      ],
+      "title": "GetDag",
+      "type": "object"
+    },
+    "GetDagRun": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetDagRun",
+          "default": "GetDagRun",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id"
+      ],
+      "title": "GetDagRun",
+      "type": "object"
+    },
+    "GetDagRunState": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetDagRunState",
+          "default": "GetDagRunState",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id"
+      ],
+      "title": "GetDagRunState",
+      "type": "object"
+    },
+    "GetHITLDetailResponse": {
+      "description": "Get the response content part of a Human-in-the-loop response.",
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetHITLDetailResponse",
+          "default": "GetHITLDetailResponse",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id"
+      ],
+      "title": "GetHITLDetailResponse",
+      "type": "object"
+    },
+    "GetPrevSuccessfulDagRun": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetPrevSuccessfulDagRun",
+          "default": "GetPrevSuccessfulDagRun",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id"
+      ],
+      "title": "GetPrevSuccessfulDagRun",
+      "type": "object"
+    },
+    "GetPreviousDagRun": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "format": "date-time",
+          "title": "Logical Date",
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "type": {
+          "const": "GetPreviousDagRun",
+          "default": "GetPreviousDagRun",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "logical_date"
+      ],
+      "title": "GetPreviousDagRun",
+      "type": "object"
+    },
+    "GetPreviousTI": {
+      "description": "Request to get previous task instance.",
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Date"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskInstanceState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "GetPreviousTI",
+          "default": "GetPreviousTI",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "task_id"
+      ],
+      "title": "GetPreviousTI",
+      "type": "object"
+    },
+    "GetTICount": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "task_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Ids"
+        },
+        "task_group_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Group Id"
+        },
+        "logical_dates": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Dates"
+        },
+        "run_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Ids"
+        },
+        "states": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "States"
+        },
+        "type": {
+          "const": "GetTICount",
+          "default": "GetTICount",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id"
+      ],
+      "title": "GetTICount",
+      "type": "object"
+    },
+    "GetTaskBreadcrumbs": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetTaskBreadcrumbs",
+          "default": "GetTaskBreadcrumbs",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id"
+      ],
+      "title": "GetTaskBreadcrumbs",
+      "type": "object"
+    },
+    "GetTaskRescheduleStartDate": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "try_number": {
+          "default": 1,
+          "title": "Try Number",
+          "type": "integer"
+        },
+        "type": {
+          "const": "GetTaskRescheduleStartDate",
+          "default": "GetTaskRescheduleStartDate",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id"
+      ],
+      "title": "GetTaskRescheduleStartDate",
+      "type": "object"
+    },
+    "GetTaskStateStore": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetTaskStateStore",
+          "default": "GetTaskStateStore",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "key"
+      ],
+      "title": "GetTaskStateStore",
+      "type": "object"
+    },
+    "GetTaskStates": {
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "task_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Ids"
+        },
+        "task_group_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Group Id"
+        },
+        "logical_dates": {
+          "anyOf": [
+            {
+              "items": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Dates"
+        },
+        "run_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Ids"
+        },
+        "type": {
+          "const": "GetTaskStates",
+          "default": "GetTaskStates",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id"
+      ],
+      "title": "GetTaskStates",
+      "type": "object"
+    },
+    "GetVariable": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetVariable",
+          "default": "GetVariable",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "title": "GetVariable",
+      "type": "object"
+    },
+    "GetVariableKeys": {
+      "properties": {
+        "prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prefix"
+        },
+        "limit": {
+          "default": 1000,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "type": {
+          "const": "GetVariableKeys",
+          "default": "GetVariableKeys",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "GetVariableKeys",
+      "type": "object"
+    },
+    "GetXCom": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "include_prior_dates": {
+          "default": false,
+          "title": "Include Prior Dates",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "GetXCom",
+          "default": "GetXCom",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "dag_id",
+        "run_id",
+        "task_id"
+      ],
+      "title": "GetXCom",
+      "type": "object"
+    },
+    "GetXComCount": {
+      "description": "Get the number of (mapped) XCom values available.",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "GetXComCount",
+          "default": "GetXComCount",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "dag_id",
+        "run_id",
+        "task_id"
+      ],
+      "title": "GetXComCount",
+      "type": "object"
+    },
+    "GetXComSequenceItem": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "offset": {
+          "title": "Offset",
+          "type": "integer"
+        },
+        "type": {
+          "const": "GetXComSequenceItem",
+          "default": "GetXComSequenceItem",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "dag_id",
+        "run_id",
+        "task_id",
+        "offset"
+      ],
+      "title": "GetXComSequenceItem",
+      "type": "object"
+    },
+    "GetXComSequenceSlice": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start"
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Stop"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Step"
+        },
+        "include_prior_dates": {
+          "default": false,
+          "title": "Include Prior Dates",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "GetXComSequenceSlice",
+          "default": "GetXComSequenceSlice",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "dag_id",
+        "run_id",
+        "task_id",
+        "start",
+        "stop",
+        "step"
+      ],
+      "title": "GetXComSequenceSlice",
+      "type": "object"
+    },
+    "HITLDetailRequestResult": {
+      "description": "Response to CreateHITLDetailPayload request.",
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "defaults": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Defaults"
+        },
+        "multiple": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "title": "Multiple"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params"
+        },
+        "assigned_users": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/HITLUser"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assigned Users"
+        },
+        "type": {
+          "const": "HITLDetailRequestResult",
+          "default": "HITLDetailRequestResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "options",
+        "subject"
+      ],
+      "title": "HITLDetailRequestResult",
+      "type": "object"
+    },
+    "HITLUser": {
+      "description": "Schema for a Human-in-the-loop users.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "HITLUser",
+      "type": "object"
+    },
+    "InactiveAssetsResult": {
+      "description": "Response of InactiveAssets requests.",
+      "properties": {
+        "inactive_assets": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AssetProfile"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inactive Assets"
+        },
+        "type": {
+          "const": "InactiveAssetsResult",
+          "default": "InactiveAssetsResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "InactiveAssetsResult",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LazyDeserializedDAG": {
+      "description": "Lazily build information from the serialized DAG structure.\n\nAn object that will present \"enough\" of the DAG like interface to update DAG db models etc, without having\nto deserialize the full DAG and Task hierarchy.",
+      "properties": {
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        },
+        "last_loaded": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Loaded"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "LazyDeserializedDAG",
+      "type": "object"
+    },
+    "MaskSecret": {
+      "description": "Add a new value to be redacted in task logs.",
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "type": {
+          "const": "MaskSecret",
+          "default": "MaskSecret",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "MaskSecret",
+      "type": "object"
+    },
+    "OKResponse": {
+      "properties": {
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "OKResponse",
+          "default": "OKResponse",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "title": "OKResponse",
+      "type": "object"
+    },
+    "PrevSuccessfulDagRunResult": {
+      "properties": {
+        "data_interval_start": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Interval Start"
+        },
+        "data_interval_end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Interval End"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Date"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "type": {
+          "const": "PrevSuccessfulDagRunResult",
+          "default": "PrevSuccessfulDagRunResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "PrevSuccessfulDagRunResult",
+      "type": "object"
+    },
+    "PreviousDagRunResult": {
+      "description": "Response containing previous Dag run information.",
+      "properties": {
+        "dag_run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DagRun"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "PreviousDagRunResult",
+          "default": "PreviousDagRunResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "PreviousDagRunResult",
+      "type": "object"
+    },
+    "PreviousTIResponse": {
+      "description": "Schema for response with previous TaskInstance information.",
+      "properties": {
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Date"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Date"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "try_number": {
+          "title": "Try Number",
+          "type": "integer"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": -1,
+          "title": "Map Index"
+        },
+        "duration": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration"
+        }
+      },
+      "required": [
+        "task_id",
+        "dag_id",
+        "run_id",
+        "try_number"
+      ],
+      "title": "PreviousTIResponse",
+      "type": "object"
+    },
+    "PreviousTIResult": {
+      "description": "Response containing previous task instance data.",
+      "properties": {
+        "task_instance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PreviousTIResponse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "PreviousTIResult",
+          "default": "PreviousTIResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "PreviousTIResult",
+      "type": "object"
+    },
+    "PutVariable": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Description"
+        },
+        "type": {
+          "const": "PutVariable",
+          "default": "PutVariable",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "value",
+        "description"
+      ],
+      "title": "PutVariable",
+      "type": "object"
+    },
+    "RescheduleTask": {
+      "additionalProperties": false,
+      "description": "Update a task instance state to reschedule/up_for_reschedule.",
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "const": "up_for_reschedule",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "up_for_reschedule",
+          "title": "State"
+        },
+        "reschedule_date": {
+          "format": "date-time",
+          "title": "Reschedule Date",
+          "type": "string"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "type": {
+          "const": "RescheduleTask",
+          "default": "RescheduleTask",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reschedule_date",
+        "end_date"
+      ],
+      "title": "RescheduleTask",
+      "type": "object"
+    },
+    "ResendLoggingFD": {
+      "properties": {
+        "type": {
+          "const": "ResendLoggingFD",
+          "default": "ResendLoggingFD",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "ResendLoggingFD",
+      "type": "object"
+    },
+    "RetryTask": {
+      "additionalProperties": false,
+      "description": "Update a task instance state to up_for_retry.",
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "const": "up_for_retry",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "up_for_retry",
+          "title": "State"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        },
+        "retry_delay_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry Delay Seconds"
+        },
+        "retry_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry Reason"
+        },
+        "type": {
+          "const": "RetryTask",
+          "default": "RetryTask",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "end_date"
+      ],
+      "title": "RetryTask",
+      "type": "object"
+    },
+    "SentFDs": {
+      "properties": {
+        "type": {
+          "const": "SentFDs",
+          "default": "SentFDs",
+          "title": "Type",
+          "type": "string"
+        },
+        "fds": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Fds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "fds"
+      ],
+      "title": "SentFDs",
+      "type": "object"
+    },
+    "SetAssetStateStoreByName": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "SetAssetStateStoreByName",
+          "default": "SetAssetStateStoreByName",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "key",
+        "value"
+      ],
+      "title": "SetAssetStateStoreByName",
+      "type": "object"
+    },
+    "SetAssetStateStoreByUri": {
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "SetAssetStateStoreByUri",
+          "default": "SetAssetStateStoreByUri",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri",
+        "key",
+        "value"
+      ],
+      "title": "SetAssetStateStoreByUri",
+      "type": "object"
+    },
+    "SetRenderedFields": {
+      "description": "Payload for setting RTIF for a task instance.",
+      "properties": {
+        "rendered_fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Rendered Fields",
+          "type": "object"
+        },
+        "type": {
+          "const": "SetRenderedFields",
+          "default": "SetRenderedFields",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rendered_fields"
+      ],
+      "title": "SetRenderedFields",
+      "type": "object"
+    },
+    "SetRenderedMapIndex": {
+      "description": "Payload for setting rendered_map_index for a task instance.",
+      "properties": {
+        "rendered_map_index": {
+          "title": "Rendered Map Index",
+          "type": "string"
+        },
+        "type": {
+          "const": "SetRenderedMapIndex",
+          "default": "SetRenderedMapIndex",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rendered_map_index"
+      ],
+      "title": "SetRenderedMapIndex",
+      "type": "object"
+    },
+    "SetTaskStateStore": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expires At"
+        },
+        "type": {
+          "const": "SetTaskStateStore",
+          "default": "SetTaskStateStore",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "key",
+        "value",
+        "expires_at"
+      ],
+      "title": "SetTaskStateStore",
+      "type": "object"
+    },
+    "SetXCom": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "dag_result": {
+          "default": false,
+          "title": "Dag Result",
+          "type": "boolean"
+        },
+        "mapped_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapped Length"
+        },
+        "type": {
+          "const": "SetXCom",
+          "default": "SetXCom",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "value",
+        "dag_id",
+        "run_id",
+        "task_id"
+      ],
+      "title": "SetXCom",
+      "type": "object"
+    },
+    "SkipDownstreamTasks": {
+      "additionalProperties": false,
+      "description": "Update state of downstream tasks within a task instance to 'skipped', while updating current task to success state.",
+      "properties": {
+        "tasks": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              }
+            ]
+          },
+          "title": "Tasks",
+          "type": "array"
+        },
+        "type": {
+          "const": "SkipDownstreamTasks",
+          "default": "SkipDownstreamTasks",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tasks"
+      ],
+      "title": "SkipDownstreamTasks",
+      "type": "object"
+    },
+    "StartupDetails": {
+      "properties": {
+        "ti": {
+          "$ref": "#/$defs/TaskInstance"
+        },
+        "dag_rel_path": {
+          "title": "Dag Rel Path",
+          "type": "string"
+        },
+        "bundle_info": {
+          "$ref": "#/$defs/BundleInfo"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        },
+        "ti_context": {
+          "$ref": "#/$defs/TIRunContext"
+        },
+        "sentry_integration": {
+          "title": "Sentry Integration",
+          "type": "string"
+        },
+        "type": {
+          "const": "StartupDetails",
+          "default": "StartupDetails",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti",
+        "dag_rel_path",
+        "bundle_info",
+        "start_date",
+        "ti_context",
+        "sentry_integration"
+      ],
+      "title": "StartupDetails",
+      "type": "object"
+    },
+    "SucceedTask": {
+      "additionalProperties": false,
+      "description": "Update a task's state to success. Includes task_outlets and outlet_events for registering asset events.",
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "const": "success",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "success",
+          "title": "State"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "task_outlets": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AssetProfile"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Outlets"
+        },
+        "outlet_events": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outlet Events"
+        },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        },
+        "type": {
+          "const": "SucceedTask",
+          "default": "SucceedTask",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "end_date"
+      ],
+      "title": "SucceedTask",
+      "type": "object"
+    },
+    "TICount": {
+      "description": "Response containing count of Task Instances matching certain filters.",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "type": {
+          "const": "TICount",
+          "default": "TICount",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "count"
+      ],
+      "title": "TICount",
+      "type": "object"
+    },
+    "TaskBreadcrumbsResult": {
+      "properties": {
+        "breadcrumbs": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Breadcrumbs",
+          "type": "array"
+        },
+        "type": {
+          "const": "TaskBreadcrumbsResult",
+          "default": "TaskBreadcrumbsResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "breadcrumbs"
+      ],
+      "title": "TaskBreadcrumbsResult",
+      "type": "object"
+    },
+    "TaskCallbackRequest": {
+      "description": "Task callback status information.\n\nA Class with information about the success/failure TI callback to be executed. Currently, only failure\ncallbacks when tasks are externally killed or experience heartbeat timeouts are run via DagFileProcessorProcess.",
+      "properties": {
+        "filepath": {
+          "title": "Filepath",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Msg"
+        },
+        "ti": {
+          "$ref": "#/$defs/TaskInstance"
+        },
+        "task_callback_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskInstanceState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "context_from_server": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TIRunContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "TaskCallbackRequest",
+          "default": "TaskCallbackRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filepath",
+        "bundle_name",
+        "bundle_version",
+        "ti"
+      ],
+      "title": "TaskCallbackRequest",
+      "type": "object"
+    },
+    "TaskInstanceState": {
+      "description": "All possible states that a Task Instance can be in.\n\nNote that None is also allowed, so always use this in a type hint with Optional.",
+      "enum": [
+        "removed",
+        "scheduled",
+        "queued",
+        "running",
+        "success",
+        "restarting",
+        "failed",
+        "up_for_retry",
+        "up_for_reschedule",
+        "upstream_failed",
+        "skipped",
+        "deferred",
+        "awaiting_input"
+      ],
+      "title": "TaskInstanceState",
+      "type": "string"
+    },
+    "TaskRescheduleStartDate": {
+      "description": "Response containing the first reschedule date for a task instance.",
+      "properties": {
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Date"
+        },
+        "type": {
+          "const": "TaskRescheduleStartDate",
+          "default": "TaskRescheduleStartDate",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start_date"
+      ],
+      "title": "TaskRescheduleStartDate",
+      "type": "object"
+    },
+    "TaskState": {
+      "description": "Update a task's state.\n\nIf a process exits without sending one of these the state will be derived from the exit code:\n- 0 = SUCCESS\n- anything else = FAILED",
+      "properties": {
+        "state": {
+          "enum": [
+            "failed",
+            "skipped",
+            "removed"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "type": {
+          "const": "TaskState",
+          "default": "TaskState",
+          "title": "Type",
+          "type": "string"
+        },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "TaskState",
+      "type": "object"
+    },
+    "TaskStateStoreResult": {
+      "additionalProperties": false,
+      "description": "Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms.",
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "TaskStateStoreResult",
+          "default": "TaskStateStoreResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "TaskStateStoreResult",
+      "type": "object"
+    },
+    "TaskStatesResult": {
+      "properties": {
+        "task_states": {
+          "additionalProperties": true,
+          "title": "Task States",
+          "type": "object"
+        },
+        "type": {
+          "const": "TaskStatesResult",
+          "default": "TaskStatesResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_states"
+      ],
+      "title": "TaskStatesResult",
+      "type": "object"
+    },
+    "TriggerDagRun": {
+      "additionalProperties": false,
+      "properties": {
+        "logical_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logical Date"
+        },
+        "run_after": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run After"
+        },
+        "conf": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conf"
+        },
+        "reset_dag_run": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "title": "Reset Dag Run"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Dag Run Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "TriggerDagRun",
+          "default": "TriggerDagRun",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id"
+      ],
+      "title": "TriggerDagRun",
+      "type": "object"
+    },
+    "UpdateHITLDetail": {
+      "description": "Update the response content part of an existing Human-in-the-loop response.",
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "chosen_options": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Chosen Options",
+          "type": "array"
+        },
+        "params_input": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params Input"
+        },
+        "type": {
+          "const": "UpdateHITLDetail",
+          "default": "UpdateHITLDetail",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "chosen_options"
+      ],
+      "title": "UpdateHITLDetail",
+      "type": "object"
+    },
+    "ValidateInletsAndOutlets": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "ValidateInletsAndOutlets",
+          "default": "ValidateInletsAndOutlets",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id"
+      ],
+      "title": "ValidateInletsAndOutlets",
+      "type": "object"
+    },
+    "VariableKeysResult": {
+      "properties": {
+        "keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Keys",
+          "type": "array"
+        },
+        "total_entries": {
+          "title": "Total Entries",
+          "type": "integer"
+        },
+        "type": {
+          "const": "VariableKeysResult",
+          "default": "VariableKeysResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "keys",
+        "total_entries"
+      ],
+      "title": "VariableKeysResult",
+      "type": "object"
+    },
+    "VariableResult": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "type": {
+          "const": "VariableResult",
+          "default": "VariableResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "title": "VariableResult",
+      "type": "object"
+    },
+    "XComCountResponse": {
+      "properties": {
+        "len": {
+          "title": "Len",
+          "type": "integer"
+        },
+        "type": {
+          "const": "XComCountResponse",
+          "default": "XComCountResponse",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "len"
+      ],
+      "title": "XComCountResponse",
+      "type": "object"
+    },
+    "XComResult": {
+      "description": "Response to ReadXCom request.",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "XComResult",
+          "default": "XComResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "title": "XComResult",
+      "type": "object"
+    },
+    "XComSequenceIndexResult": {
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "XComSequenceIndexResult",
+          "default": "XComSequenceIndexResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root"
+      ],
+      "title": "XComSequenceIndexResult",
+      "type": "object"
+    },
+    "XComSequenceSliceResult": {
+      "properties": {
+        "root": {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Root",
+          "type": "array"
+        },
+        "type": {
+          "const": "XComSequenceSliceResult",
+          "default": "XComSequenceSliceResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root"
+      ],
+      "title": "XComSequenceSliceResult",
+      "type": "object"
+    },
+    "ConnectionResponse": {
+      "description": "Connection schema for responses with fields that are needed for Runtime.",
+      "properties": {
+        "conn_id": {
+          "title": "Conn Id",
+          "type": "string"
+        },
+        "conn_type": {
+          "title": "Conn Type",
+          "type": "string"
+        },
+        "host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Host"
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema"
+        },
+        "login": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Login"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Password"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Port"
+        },
+        "extra": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Extra"
+        }
+      },
+      "required": [
+        "conn_id",
+        "conn_type",
+        "host",
+        "schema",
+        "login",
+        "password",
+        "port",
+        "extra"
+      ],
+      "title": "ConnectionResponse",
+      "type": "object"
+    },
+    "AssetEventDagRunReference": {
+      "additionalProperties": false,
+      "description": "Schema for AssetEvent model used in DagRun.",
+      "properties": {
+        "asset": {
+          "$ref": "#/$defs/AssetReferenceAssetEventDagRun"
+        },
+        "extra": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Extra",
+          "type": "object"
+        },
+        "source_task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Task Id"
+        },
+        "source_dag_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Dag Id"
+        },
+        "source_run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Run Id"
+        },
+        "source_map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Map Index"
+        },
+        "source_aliases": {
+          "items": {
+            "$ref": "#/$defs/AssetAliasReferenceAssetEventDagRun"
+          },
+          "title": "Source Aliases",
+          "type": "array"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        }
+      },
+      "required": [
+        "asset",
+        "extra",
+        "source_task_id",
+        "source_dag_id",
+        "source_run_id",
+        "source_map_index",
+        "source_aliases",
+        "timestamp"
+      ],
+      "title": "AssetEventDagRunReference",
+      "type": "object"
+    },
+    "DagRun": {
+      "additionalProperties": false,
+      "description": "Schema for DagRun model with minimal required fields needed for Runtime.",
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "logical_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Logical Date"
+        },
+        "data_interval_start": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data Interval Start"
+        },
+        "data_interval_end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data Interval End"
+        },
+        "run_after": {
+          "format": "date-time",
+          "title": "Run After",
+          "type": "string"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Date"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "End Date"
+        },
+        "clear_number": {
+          "default": 0,
+          "title": "Clear Number",
+          "type": "integer"
+        },
+        "run_type": {
+          "$ref": "#/$defs/DagRunType"
+        },
+        "state": {
+          "$ref": "#/$defs/DagRunState"
+        },
+        "conf": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conf"
+        },
+        "triggering_user_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Triggering User Name"
+        },
+        "consumed_asset_events": {
+          "items": {
+            "$ref": "#/$defs/AssetEventDagRunReference"
+          },
+          "title": "Consumed Asset Events",
+          "type": "array"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "team_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Name"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id",
+        "logical_date",
+        "data_interval_start",
+        "data_interval_end",
+        "run_after",
+        "start_date",
+        "end_date",
+        "run_type",
+        "state",
+        "consumed_asset_events",
+        "partition_key"
+      ],
+      "title": "DagRun",
+      "type": "object"
+    },
+    "TIRunContext": {
+      "description": "Response schema for TaskInstance run context.",
+      "properties": {
+        "dag_run": {
+          "$ref": "#/$defs/DagRun"
+        },
+        "task_reschedule_count": {
+          "default": 0,
+          "title": "Task Reschedule Count",
+          "type": "integer"
+        },
+        "max_tries": {
+          "title": "Max Tries",
+          "type": "integer"
+        },
+        "variables": {
+          "items": {
+            "$ref": "#/$defs/VariableResponse"
+          },
+          "title": "Variables",
+          "type": "array"
+        },
+        "connections": {
+          "items": {
+            "$ref": "#/$defs/ConnectionResponse"
+          },
+          "title": "Connections",
+          "type": "array"
+        },
+        "next_method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Method"
+        },
+        "next_kwargs": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Kwargs"
+        },
+        "xcom_keys_to_clear": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Xcom Keys To Clear",
+          "type": "array"
+        },
+        "should_retry": {
+          "default": false,
+          "title": "Should Retry",
+          "type": "boolean"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Date"
+        }
+      },
+      "required": [
+        "dag_run",
+        "max_tries"
+      ],
+      "title": "TIRunContext",
+      "type": "object"
+    },
+    "TaskInstance": {
+      "description": "Schema for TaskInstance model with minimal required fields needed for Runtime.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "try_number": {
+          "title": "Try Number",
+          "type": "integer"
+        },
+        "dag_version_id": {
+          "format": "uuid",
+          "title": "Dag Version Id",
+          "type": "string"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "hostname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hostname"
+        },
+        "context_carrier": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Carrier"
+        },
+        "queue": {
+          "default": "default",
+          "title": "Queue",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "dag_id",
+        "run_id",
+        "try_number",
+        "dag_version_id"
+      ],
+      "title": "TaskInstance",
+      "type": "object"
+    },
+    "VariableResponse": {
+      "additionalProperties": false,
+      "description": "Variable schema for responses with fields that are needed for Runtime.",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "title": "VariableResponse",
+      "type": "object"
+    }
+  }
+}

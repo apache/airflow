@@ -64,6 +64,33 @@ type worker struct {
 	sysInfo map[string]edgeapi.WorkerStateBody_Sysinfo_AdditionalProperties
 }
 
+type fetchedJobForLog edgeapi.EdgeJobFetched
+
+func buildFetchedJobLogAttrs(job fetchedJobForLog) []slog.Attr {
+	attrs := []slog.Attr{
+		slog.String("dag_id", job.DagId),
+		slog.String("task_id", job.TaskId),
+		slog.String("run_id", job.RunId),
+		slog.Int("try_number", job.TryNumber),
+		slog.Int("map_index", job.MapIndex),
+		slog.Int("concurrency_slots", job.ConcurrencySlots),
+		slog.String("bundle_name", job.Command.BundleInfo.Name),
+	}
+
+	if job.Command.BundleInfo.Version != nil {
+		attrs = append(attrs, slog.String("bundle_version", *job.Command.BundleInfo.Version))
+	}
+	if job.Command.Ti.Queue != "" {
+		attrs = append(attrs, slog.String("queue", job.Command.Ti.Queue))
+	}
+
+	return attrs
+}
+
+func (job fetchedJobForLog) LogValue() slog.Value {
+	return slog.GroupValue(buildFetchedJobLogAttrs(job)...)
+}
+
 var (
 	HeartbeatInterval = 30 * time.Second
 	DeregisterTimeout = 5 * time.Second
@@ -124,7 +151,7 @@ func NewWorker(conf config.WorkerConfig) (*worker, error) {
 		configOrDefault("edge.airflow_version", "3.2.0"),
 	))
 	edgeVer.FromWorkerStateBodySysinfo0(edgeapi.WorkerStateBodySysinfo0(
-		configOrDefault("edge.provider_version", "3.2.0"),
+		configOrDefault("edge.provider_version", "3.3.0"),
 	))
 	concurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
 	freeConcurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
@@ -308,6 +335,29 @@ type jobInfo struct {
 	ConcurrencySlots int32
 }
 
+func (job jobInfo) LogValue() slog.Value {
+	mapIndex := -1
+	if job.TI.MapIndex != nil {
+		mapIndex = *job.TI.MapIndex
+	}
+
+	attrs := []slog.Attr{
+		slog.String("dag_id", job.TI.DagId),
+		slog.String("task_id", job.TI.TaskId),
+		slog.String("run_id", job.TI.RunId),
+		slog.Int("try_number", job.TI.TryNumber),
+		slog.Int("map_index", mapIndex),
+		slog.Int("concurrency_slots", int(job.ConcurrencySlots)),
+		slog.String("bundle_name", job.BundleInfo.Name),
+	}
+
+	if job.BundleInfo.Version != nil {
+		attrs = append(attrs, slog.String("bundle_version", *job.BundleInfo.Version))
+	}
+
+	return slog.GroupValue(attrs...)
+}
+
 // fetchJobsForever will fetch jobs from the API server every second (if there is capacity), sending the
 // resulting workloads out on the channel.
 func (w *worker) fetchJobsForever(ctx context.Context) <-chan jobInfo {
@@ -361,7 +411,15 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		return nil, 0, nil
 	}
 
-	w.logger.Info("fetchJob", "resp", fmt.Sprintf("%#v\n", resp))
+	w.logger.Info("Fetched job", "job", fetchedJobForLog(edgeapi.EdgeJobFetched{
+		Command:          resp.Command,
+		ConcurrencySlots: resp.ConcurrencySlots,
+		DagId:            resp.DagId,
+		MapIndex:         resp.MapIndex,
+		RunId:            resp.RunId,
+		TaskId:           resp.TaskId,
+		TryNumber:        resp.TryNumber,
+	}))
 
 	// Round trip via json. Inefficient, but easy to code
 	asJSON, err := json.Marshal(resp.Command)
@@ -376,7 +434,6 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		// TODO: Report this to API server
 		return nil, 0, fmt.Errorf("unable to unmarshal into workload %w", err)
 	}
-	w.logger.Info("fetchJob", "out", fmt.Sprintf("%#v\n", out))
 
 	return &out, int32(resp.ConcurrencySlots), nil
 }
@@ -452,5 +509,8 @@ func (w *worker) runWorkload(
 
 	bundleClient := raw.(bundlev1client.BundleClient)
 	err = bundleClient.ExecuteTaskWorkload(ctx, workload)
+	if err != nil {
+		w.logger.Error("Workload failed", logging.AttrErr(err))
+	}
 	return err
 }

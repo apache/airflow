@@ -28,19 +28,31 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, 
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
+from airflow._shared.secrets_backend.base import call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+
+# AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
+# airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),
+# the import fails at module load time. The fallback class is never raised by
+# old task-sdk, so the except clause below simply never fires — behaviour is
+# identical to pre-1.2.2 task-sdk.
+try:
+    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+except ImportError:
+
+    class AirflowSecretsBackendAccessDenied(PermissionError):  # type: ignore[no-redef]
+        """Compat stub — never raised by task-sdk <1.2.2."""
+
+
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name
 
 if TYPE_CHECKING:
-    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
-    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
-    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
@@ -257,65 +269,22 @@ class Variable(Base, LoggingMixin):
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
 
-            # Create dialect-specific upsert statement
-            dialect_name = get_dialect_name(session)
-            stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
-
-            if dialect_name == "postgresql":
-                from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-                pg_stmt = pg_insert(Variable).values(
-                    key=key,
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-                stmt = pg_stmt.on_conflict_do_update(
-                    index_elements=["key"],
-                    set_=dict(
-                        val=val,
-                        description=description,
-                        is_encrypted=is_encrypted,
-                        team_name=team_name,
-                    ),
-                )
-            elif dialect_name == "mysql":
-                from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-                mysql_stmt = mysql_insert(Variable).values(
-                    key=key,
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-                stmt = mysql_stmt.on_duplicate_key_update(
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-            else:
-                from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-                sqlite_stmt = sqlite_insert(Variable).values(
-                    key=key,
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-                stmt = sqlite_stmt.on_conflict_do_update(
-                    index_elements=["key"],
-                    set_=dict(
-                        val=val,
-                        description=description,
-                        is_encrypted=is_encrypted,
-                        team_name=team_name,
-                    ),
-                )
-
+            upsert_values = dict(
+                key=key,
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+                team_name=team_name,
+            )
+            update_fields = dict(
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+                team_name=team_name,
+            )
+            stmt = build_upsert_stmt(
+                get_dialect_name(session), Variable, ["key"], upsert_values, update_fields
+            )
             session.execute(stmt)
             # invalidate key in cache for faster propagation
             # we cannot save the value set because it's possible that it's shadowed by a custom backend
@@ -511,9 +480,14 @@ class Variable(Base, LoggingMixin):
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                var_val = secrets_backend.get_variable(key=key, team_name=team_name)
+                var_val = call_secrets_backend_method(
+                    secrets_backend.get_variable, team_name=team_name, key=key
+                )
                 if var_val is not None:
                     break
+            except AirflowSecretsBackendAccessDenied:
+                # Authoritative deny — must NOT fall through to a less-restrictive backend.
+                raise
             except Exception:
                 log.exception(
                     "Unable to retrieve variable from secrets backend (%s). "
@@ -526,12 +500,14 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_team_name(variable_key: str, session=NEW_SESSION) -> str | None:
+    def get_team_name(variable_key: str, *, session=NEW_SESSION) -> str | None:
         stmt = select(Variable.team_name).where(Variable.key == variable_key)
         return session.scalar(stmt)
 
     @staticmethod
     @provide_session
-    def get_key_to_team_name_mapping(variable_keys: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_key_to_team_name_mapping(
+        variable_keys: list[str], *, session=NEW_SESSION
+    ) -> dict[str, str | None]:
         stmt = select(Variable.key, Variable.team_name).where(Variable.key.in_(variable_keys))
         return {key: team_name for key, team_name in session.execute(stmt)}

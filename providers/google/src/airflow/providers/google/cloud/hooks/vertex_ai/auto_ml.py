@@ -23,7 +23,6 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import (
     AutoMLForecastingTrainingJob,
@@ -71,18 +70,25 @@ class AutoMLHook(GoogleBaseHook, OperationHelper):
             | AutoMLVideoTrainingJob
         ) = None
 
+    def _get_api_endpoint(
+        self,
+        region: str | None = None,
+    ) -> str | None:
+        if region and region != "global" and self.is_default_universe():
+            return f"{region}-aiplatform.googleapis.com:443"
+        return None
+
     def get_pipeline_service_client(
         self,
         region: str | None = None,
     ) -> PipelineServiceClient:
         """Return PipelineServiceClient."""
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
-
         return PipelineServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     def get_job_service_client(
@@ -90,13 +96,12 @@ class AutoMLHook(GoogleBaseHook, OperationHelper):
         region: str | None = None,
     ) -> JobServiceClient:
         """Return JobServiceClient."""
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
-
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     def get_auto_ml_tabular_training_job(
