@@ -68,6 +68,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
+from airflow.utils.sqlalchemy import JsonContains
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -551,6 +552,60 @@ def prefix_search_param_factory(
         return search_parm.set_value(value)
 
     return depends_prefix_search
+
+
+class _JsonKVFilter(BaseParam[dict[str, str]]):
+    """
+    Filter on a JSON column by multiple key-value pairs (AND logic).
+
+    Uses dialect-aware SQL: ``@>`` (JSONB containment, GIN-indexable) on
+    PostgreSQL, ``JSON_CONTAINS`` on MySQL, and ``JSON_EXTRACT`` on SQLite.
+    """
+
+    def __init__(
+        self,
+        attribute: ColumnElement,
+        value: dict[str, str] | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+        self.value = value
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value:
+            return select
+        return select.where(JsonContains(self.attribute, self.value))
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use json_kv_filter_factory instead.")
+
+
+def json_kv_filter_factory(
+    attribute: ColumnElement,
+    param_name: str = "extra",
+) -> Callable[[list[str]], _JsonKVFilter]:
+    DESCRIPTION = (
+        "Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). "
+        "Format: key=value (e.g. extra=region=us&extra=env=prod)."
+    )
+
+    def depends_json_kv(
+        values: list[str] = Query(alias=param_name, default_factory=list, description=DESCRIPTION),
+    ) -> _JsonKVFilter:
+        kv_dict: dict[str, str] = {}
+        for item in values:
+            if "=" not in item:
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid {param_name} parameter format: {item!r}. Expected 'key=value'.",
+                )
+            k, v = item.split("=", 1)
+            kv_dict[k] = v
+        return _JsonKVFilter(attribute, kv_dict or None)
+
+    return depends_json_kv
 
 
 class SortParam(BaseParam[list[str]]):
@@ -1283,11 +1338,42 @@ class _PendingActionsFilter(BaseParam[bool]):
 
 QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
 
+
+class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
+    """Filter Dags that have any DagRun in the given state, not only the latest one."""
+
+    # Only these states have a partial index on dag_run; others would force a full table scan.
+    SUPPORTED_STATES = (DagRunState.QUEUED, DagRunState.RUNNING)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        run_subquery = sql_select(DagRun.dag_id).where(DagRun.state == self.value).distinct()
+        return select.where(DagModel.dag_id.in_(run_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        dag_run_state: DagRunState | None = Query(
+            None,
+            description="Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.",
+        ),
+    ) -> _AnyDagRunStateFilter:
+        if dag_run_state is not None and dag_run_state not in cls.SUPPORTED_STATES:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"dag_run_state only supports {[state.value for state in cls.SUPPORTED_STATES]}.",
+            )
+        return cls().set_value(dag_run_state)
+
+
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
     FilterParam[DagRunState | None],
     Depends(filter_param_factory(DagRun.state, DagRunState | None, filter_name="last_dag_run_state")),
 ]
+QueryAnyDagRunStateFilter = Annotated[_AnyDagRunStateFilter, Depends(_AnyDagRunStateFilter.depends)]
 
 
 def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
@@ -1578,6 +1664,23 @@ QueryUriPatternSearch = Annotated[_SearchParam, Depends(search_param_factory(Ass
 QueryUriPrefixPatternSearch = Annotated[
     _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.uri, "uri_prefix_pattern"))
 ]
+QueryUriExactMatch = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            AssetModel.uri,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            filter_name="uri",
+            default_factory=list,
+            description=(
+                "Exact-match filter on the full asset URI. Compiles to an indexed equality "
+                "comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match "
+                "multiple assets."
+            ),
+        )
+    ),
+]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))
 ]
@@ -1587,6 +1690,7 @@ QueryAssetAliasNamePrefixPatternSearch = Annotated[
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
 ]
+QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
     FilterParam[bool | None],
     Depends(

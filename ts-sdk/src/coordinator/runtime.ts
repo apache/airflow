@@ -38,6 +38,11 @@ import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
+  AIRFLOW_METADATA_FLAG,
+  AIRFLOW_METADATA_SENTINEL,
+  buildBundleManifest,
+} from "./manifest.js";
+import {
   asMsgFromSupervisor,
   SUPERVISOR_API_VERSION,
   type RuntimeDagFileParsingResult,
@@ -107,6 +112,10 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
  *  delivered its terminal frame and closed both sockets. */
 export async function startCoordinator(opts: StartCoordinatorOptions = {}): Promise<void> {
   const argv = opts.argv ?? process.argv;
+  if (argv.includes(AIRFLOW_METADATA_FLAG)) {
+    process.stdout.write(`${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest())}\n`);
+    return;
+  }
   const parsed =
     opts.commAddr && opts.logsAddr
       ? { commAddr: opts.commAddr, logsAddr: opts.logsAddr }

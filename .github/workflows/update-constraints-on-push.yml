@@ -16,7 +16,20 @@
 # under the License.
 #
 ---
-name: Update constraints on push for main (only when uv.lock changes)
+name: Update constraints (on uv.lock push or manual dispatch)
+# This workflow refreshes the pinned constraint files stored in the
+# `constraints-*` branches. It runs automatically whenever `uv.lock` changes on
+# `main` or a `vX-Y-test` branch, and can also be triggered manually via the
+# "Run workflow" button (workflow_dispatch) - for example to pick up newly
+# released providers/dependencies from PyPI just before promoting an RC.
+#
+# The manual run is always launched from `main` (so the workflow definition and
+# `breeze` come from `main`), and the `ref` input selects the commit-ish
+# (branch, tag or commit hash) whose sources the constraints are refreshed from.
+# The `constraints-X-Y` branch to push to is derived from that ref's
+# `dev/breeze/src/airflow_breeze/branch_defaults.py`, so no cherry-pick to the
+# `vX-Y-test` / `vX-Y-stable` branch is needed.
+# See dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md for details.
 on:  # yamllint disable-line rule:truthy
   push:
     branches:
@@ -24,11 +37,27 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-test
     paths:
       - 'uv.lock'
+  workflow_dispatch:
+    inputs:
+      # `ref` is optional. Leave it empty to refresh constraints for the branch
+      # you run the workflow from (normally `main` -> `constraints-main`). Set a
+      # branch, tag or commit to refresh a specific line, e.g.
+      # `v3-3-stable` -> `constraints-3-3`. The target `constraints-X-Y` branch
+      # is derived from that ref's branch_defaults.py.
+      ref:
+        description: "Optional repo reference to build constraints (e.g. v3-3-stable)"
+        required: false
+        default: ""
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Upgrade deps to newest from PyPI"
+        type: boolean
+        default: true
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.ref }}
   cancel-in-progress: true
 env:
   GITHUB_REPOSITORY: ${{ github.repository }}
@@ -39,6 +68,25 @@ jobs:
   build-info:
     name: "Build info"
     runs-on: ["ubuntu-22.04"]
+    # Automatic uv.lock-push runs are unrestricted; manual (workflow_dispatch)
+    # runs are limited to release managers (same allowlist as the prod image
+    # release workflow) because they push to the protected constraints-* branches.
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      contains(fromJSON('[
+      "ashb",
+      "bugraoz93",
+      "eladkal",
+      "ephraimbuddy",
+      "jedcunningham",
+      "jscheffl",
+      "kaxil",
+      "pierrejeambrun",
+      "potiuk",
+      "utkarsharma2",
+      "vincbeck",
+      "vatsrahul1001",
+      ]'), github.event.sender.login)
     outputs:
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
@@ -49,14 +97,10 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Checkout ${{ inputs.ref || github.ref }} ( ${{ inputs.ref || github.sha }} )"
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
-          persist-credentials: false
-      - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-        with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
           persist-credentials: false
       - name: "Install Breeze"
@@ -75,10 +119,30 @@ jobs:
         id: selective-checks
         env:
           PR_LABELS: "[]"
-          COMMIT_REF: "${{ github.sha }}"
+          COMMIT_REF: "${{ inputs.ref || github.sha }}"
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+      - name: "Parameters summary"
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ inputs.ref }}
+          UPGRADE: ${{ inputs.upgrade-to-newer-dependencies }}
+          CONSTRAINTS_BRANCH: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+        run: |
+          {
+            echo "## Update constraints"
+            echo ""
+            echo "| Parameter | Value |"
+            echo "|---|---|"
+            echo "| Triggered by | \`${EVENT_NAME}\` |"
+            if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+              echo "| Refresh from ref | \`${REF}\` |"
+              echo "| Upgrade to newer dependencies | \`${UPGRADE}\` |"
+            fi
+            echo "| Target constraints branch | \`${CONSTRAINTS_BRANCH}\` |"
+          } | tee -a "${GITHUB_STEP_SUMMARY}"
 
   build-ci-images:
     name: "Build CI images"
@@ -96,8 +160,11 @@ jobs:
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      checkout-ref: ${{ inputs.ref }}
       use-uv: "true"
-      upgrade-to-newer-dependencies: "false"
+      upgrade-to-newer-dependencies: >-
+        ${{ github.event_name == 'workflow_dispatch'
+            && inputs.upgrade-to-newer-dependencies && 'true' || 'false' }}
       docker-cache: "registry"
       disable-airflow-repo-cache: "false"
 
@@ -113,7 +180,10 @@ jobs:
       generate-pypi-constraints: "true"
       generate-no-providers-constraints: "true"
       debug-resources: "false"
+      checkout-ref: ${{ inputs.ref }}
       use-uv: "true"
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   update-constraints:
     runs-on: ["ubuntu-22.04"]
@@ -125,6 +195,7 @@ jobs:
       packages: read
     env:
       PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -133,14 +204,11 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
-      - name: "Set constraints branch name"
-        id: constraints-branch
-        run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
-      - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
+      - name: Checkout ${{ env.CONSTRAINTS_BRANCH }}
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           path: "constraints"
-          ref: ${{ steps.constraints-branch.outputs.branch }}
+          ref: ${{ env.CONSTRAINTS_BRANCH }}
           persist-credentials: true
           fetch-depth: 0
       - name: "Download constraints from the generate-constraints job"

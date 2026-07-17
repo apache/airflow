@@ -56,8 +56,24 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Java SDK e2e tests (true/false)"
         required: true
         type: string
+      java-sdk-version:
+        description: "JDK version used to build the Java SDK bundles natively in the e2e tests"
+        required: true
+        type: string
       run-go-sdk-e2e-tests:
         description: "Whether to run Go SDK e2e tests (true/false)"
+        required: true
+        type: string
+      run-openlineage-e2e-tests:
+        description: "Whether to run OpenLineage e2e tests (true/false)"
+        required: true
+        type: string
+      run-openlineage-e2e-compat-tests:
+        description: "Whether to run the OpenLineage older-Airflow compat matrix (true/false)"
+        required: true
+        type: string
+      providers-compatibility-tests-matrix:
+        description: "JSON matrix of released Airflow versions for the OpenLineage e2e compat tests."
         required: true
         type: string
       constraints-branch:
@@ -308,6 +324,7 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "java_sdk"
+      java-sdk-version: "${{ inputs.java-sdk-version }}"
     if: inputs.canary-run == 'true' || inputs.run-java-sdk-e2e-tests == 'true'
   test-e2e-integration-tests-go-sdk:
     name: "Go SDK e2e tests with PROD image"
@@ -320,6 +337,36 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "go_sdk"
     if: inputs.canary-run == 'true' || inputs.run-go-sdk-e2e-tests == 'true'
+
+  test-e2e-integration-tests-openlineage:
+    name: "OpenLineage e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "OpenLineage e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "openlineage"
+    if: inputs.canary-run == 'true' || inputs.run-openlineage-e2e-tests == 'true'
+
+  # Older-Airflow compatibility: costly, so it does not run on every OpenLineage PR — only on canary
+  # (scheduled / main) or when a maintainer sets the "full tests needed" label (both folded into the
+  # run-openlineage-e2e-compat-tests selective-check output). PRs otherwise run the PROD job only.
+  test-e2e-integration-tests-openlineage-compat:
+    name: "OpenLineage e2e compat tests with PROD image"
+    strategy:
+      fail-fast: false
+      matrix:
+        compat: ${{ fromJSON(inputs.providers-compatibility-tests-matrix) }}
+    uses: ./.github/workflows/openlineage-e2e-compat-tests.yml
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      airflow-version: ${{ matrix.compat.airflow-version }}
+    if: inputs.run-openlineage-e2e-compat-tests == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"

@@ -127,7 +127,7 @@ describe("patchPythonFStrings (tokenized)", () => {
   let singleLineTokens: Array<{ offset: number; type: string }> = [];
 
   beforeAll(async () => {
-    const monaco = await import("monaco-editor/esm/vs/editor/editor.api");
+    const monaco = await import("monaco-editor/esm/vs/editor/editor.api.js");
     const { conf, language } = await import("monaco-editor/esm/vs/basic-languages/python/python.js");
 
     monaco.languages.register({ id: "python" });

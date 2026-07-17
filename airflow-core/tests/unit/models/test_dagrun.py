@@ -45,7 +45,10 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow._shared.observability.traces import OverrideableRandomIdGenerator
+from airflow._shared.observability.traces import (
+    DAGRUN_PARENT_TRACE_CONTEXT_KEY,
+    OverrideableRandomIdGenerator,
+)
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -142,7 +145,6 @@ def deadline_test_dag(session):
 class TestDagRun:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
-        self._clean_db()
         yield
         self._clean_db()
 
@@ -4159,6 +4161,100 @@ class TestDagRunHandleDagCallback:
         mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
 
 
+_EXTERNAL_TRACE_ID = "11111111111111111111111111111111"
+_EXTERNAL_SPAN_ID = "2222222222222222"
+
+
+@pytest.mark.parametrize(
+    ("conf", "expected_trace_id"),
+    [
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+            _EXTERNAL_TRACE_ID,
+            id="traceparent-string",
+        ),
+        pytest.param(
+            {
+                DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+                    "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"
+                }
+            },
+            _EXTERNAL_TRACE_ID,
+            id="carrier-dict",
+        ),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: "not-a-traceparent"}, None, id="malformed"),
+        # An unknown version prefix is accepted by the propagator's forward-compat parsing,
+        # so a 99- traceparent still rides the external trace rather than being rejected.
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"99-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+            _EXTERNAL_TRACE_ID,
+            id="future-version-prefix",
+        ),
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-zz"},
+            None,
+            id="almost-valid-bad-flag-string",
+        ),
+        pytest.param(
+            {
+                DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+                    "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-zz"
+                }
+            },
+            None,
+            id="almost-valid-bad-flag-dict",
+        ),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: 123}, None, id="non-str"),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: {"nope": "x"}}, None, id="dict-without-traceparent"),
+        pytest.param({}, None, id="empty-conf"),
+        pytest.param(None, None, id="no-conf"),
+        pytest.param({"other": "x"}, None, id="unrelated-key"),
+    ],
+)
+def test_parent_trace_context(conf, expected_trace_id):
+    """Only a valid W3C traceparent (string or carrier dict) yields a parent context; else None."""
+    from airflow.models.dagrun import parent_trace_context
+
+    ctx = parent_trace_context(conf)
+    if expected_trace_id is None:
+        assert ctx is None
+    else:
+        span_ctx = otel_trace.get_current_span(ctx).get_span_context()
+        assert span_ctx.is_valid
+        assert format(span_ctx.trace_id, "032x") == expected_trace_id
+
+
+@pytest.mark.parametrize(
+    ("tracestate", "expected"),
+    [
+        pytest.param("foo=bar", "bar", id="str-preserved"),
+        pytest.param(123, None, id="non-str-dropped"),
+    ],
+)
+def test_parent_trace_context_tracestate(tracestate, expected):
+    """A str tracestate rides alongside the traceparent; a non-str one is dropped, not raised."""
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {
+        DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+            "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01",
+            "tracestate": tracestate,
+        }
+    }
+    span_ctx = otel_trace.get_current_span(parent_trace_context(conf)).get_span_context()
+    assert format(span_ctx.trace_id, "032x") == _EXTERNAL_TRACE_ID
+    assert span_ctx.trace_state.get("foo") == expected
+
+
+@mock.patch("airflow.models.dagrun.TraceContextTextMapPropagator.extract", side_effect=ValueError("boom"))
+def test_parent_trace_context_swallows_propagator_error(mock_extract):
+    """A propagator failure degrades to a root trace instead of failing run creation."""
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"}
+    assert parent_trace_context(conf) is None
+
+
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
 
@@ -4441,6 +4537,30 @@ class TestDagRunTracing:
         ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
         span_ctx = trace.get_current_span(ctx).get_span_context()
         assert span_ctx.trace_flags.sampled is flag
+
+    @pytest.mark.parametrize(
+        ("conf", "embeds"),
+        [
+            pytest.param(
+                {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+                True,
+                id="with-parent-conf-embeds",
+            ),
+            pytest.param(None, False, id="without-parent-conf-is-root"),
+        ],
+    )
+    def test_context_carrier_parent_conf(self, dag_maker, conf, embeds):
+        """The carrier rides the external trace only when the parent conf key is set; else a root trace."""
+        with dag_maker("test_tracing_parent_conf"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(conf=conf)
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        trace_id = format(otel_trace.get_current_span(ctx).get_span_context().trace_id, "032x")
+        if embeds:
+            assert trace_id == _EXTERNAL_TRACE_ID
+        else:
+            assert trace_id != _EXTERNAL_TRACE_ID
 
 
 class TestDagRunStatsTagsTeamName:
