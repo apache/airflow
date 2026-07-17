@@ -236,7 +236,7 @@ To check other usage types of the pre-commit framework, see `Pre-commit website 
      - "- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`"
      - "- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`"
      - "- **Build docs:** `breeze build-docs`"
-     - "- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`"
+     - "- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`"
 .. AGENT-SKILL-END
 
 Disabling particular checks
