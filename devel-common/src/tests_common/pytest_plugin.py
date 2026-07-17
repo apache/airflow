@@ -3107,7 +3107,7 @@ def listener_manager():
         get_sdk_lm = None
 
     core_lm = get_core_lm()
-    sdk_lm = get_sdk_lm() if get_sdk_lm else None
+    sdk_lm = get_sdk_lm() if get_sdk_lm is not None else None
 
     core_lm.clear()
     if sdk_lm:

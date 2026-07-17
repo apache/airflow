@@ -57,7 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners.listener import get_listener_manager_for_dag
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
@@ -195,7 +195,9 @@ def patch_dag_run_state(
     if state == DagRunMutableStates.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
         try:
-            get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+            get_listener_manager_for_dag(dag_run.dag_id, session=session).hook.on_dag_run_success(
+                dag_run=dag_run, msg=""
+            )
         except Exception:
             log.exception("error calling listener")
     elif state == DagRunMutableStates.QUEUED:
@@ -206,7 +208,9 @@ def patch_dag_run_state(
     elif state == DagRunMutableStates.FAILED:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
         try:
-            get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+            get_listener_manager_for_dag(dag_run.dag_id, session=session).hook.on_dag_run_failed(
+                dag_run=dag_run, msg=""
+            )
         except Exception:
             log.exception("error calling listener")
 

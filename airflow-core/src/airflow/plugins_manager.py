@@ -324,13 +324,22 @@ def integrate_macros_plugins() -> None:
     )
 
 
-def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
-    """Add listeners from plugins."""
+def integrate_listener_plugins(listener_manager: ListenerManager, team_name: str | None = None) -> None:
+    """
+    Add listeners from plugins to the given listener manager.
+
+    In multi-team mode, only listeners from global plugins (``team_name is None``)
+    and plugins belonging to ``team_name`` are registered, so a team-scoped manager
+    never receives another team's listeners. When multi-team mode is disabled every
+    plugin's listeners are registered (``team_name`` is ignored).
+    """
     from airflow._shared.plugins_manager import (
         integrate_listener_plugins as _integrate_listener_plugins,
     )
 
     plugins, _ = _get_plugins()
+    if conf.getboolean("core", "multi_team"):
+        plugins = [plugin for plugin in plugins if plugin.team_name in (None, team_name)]
     _integrate_listener_plugins(listener_manager, plugins=plugins)
 
 

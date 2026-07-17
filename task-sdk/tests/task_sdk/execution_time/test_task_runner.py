@@ -3521,6 +3521,20 @@ class TestRuntimeTaskInstance:
         assert response.dag_id == "test_dag"
         assert response.is_paused is False
 
+    def test_team_name_from_context(self, create_runtime_ti):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="task"))
+        runtime_ti._ti_context_from_server.dag_run.team_name = "team_a"
+        assert runtime_ti.team_name == "team_a"
+
+    def test_team_name_none_when_context_has_no_team(self, create_runtime_ti):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="task"))
+        assert runtime_ti.team_name is None
+
+    def test_team_name_none_without_server_context(self, create_runtime_ti):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="task"))
+        runtime_ti._ti_context_from_server = None
+        assert runtime_ti.team_name is None
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(

@@ -128,9 +128,17 @@ def integrate_macros_plugins() -> None:
     )
 
 
-def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
-    """Add listeners from plugins."""
+def integrate_listener_plugins(listener_manager: ListenerManager, team_name: str | None = None) -> None:
+    """
+    Add listeners from plugins to the given listener manager.
+
+    Only listeners from global plugins (``team_name is None``) and plugins belonging
+    to ``team_name`` are registered. On the worker, ``team_name`` comes from the
+    server-provided task instance context; filtering here is always applied and does
+    not depend on the worker reading ``core.multi_team`` from its own configuration.
+    """
     plugins, _ = _get_plugins()
+    plugins = [plugin for plugin in plugins if plugin.team_name in (None, team_name)]
     _integrate_listener_plugins(listener_manager, plugins=plugins)
 
 
