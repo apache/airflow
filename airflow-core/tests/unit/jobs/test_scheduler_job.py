@@ -9097,6 +9097,81 @@ class TestSchedulerJob:
         sibling.refresh_from_db(session=session)
         assert sibling.state == TaskInstanceState.FAILED
 
+    def test_heartbeat_timeout_skips_ti_completed_concurrently(self, dag_maker, session):
+        """
+        The heartbeat scan and a worker can race: the worker can commit a terminal state (SUCCESS)
+        around the same time the scan picks the TI up. The purge must revalidate the committed state
+        and skip such a TI, so it neither clobbers the terminal state with FAILED nor emits a
+        spurious failure callback.
+        """
+        with dag_maker(dag_id="hb_timeout_concurrent_success", session=session):
+            EmptyOperator(task_id="t1", on_failure_callback=lambda ctx: None)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        # Simulate the worker winning the race: the DB row is now SUCCESS, but the in-memory ``ti``
+        # still reads RUNNING, exactly as it would after an unlocked scan handed it to the purge.
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=TaskInstanceState.SUCCESS, end_date=timezone.utcnow())
+        )
+        session.commit()
+        assert ti.state == TaskInstanceState.RUNNING
+
+        self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        self.job_runner.executor.callback_sink.send.assert_not_called()
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    def test_heartbeat_timeout_scan_locks_rows(self, dag_maker, session):
+        """
+        The heartbeat scan must lock the TI rows (``with_row_locks``, ``of=TI``, ``skip_locked=True``)
+        so a worker cannot commit a terminal state on the same TI between the scan and the
+        handle_failure() that follows in the same transaction.
+        """
+        with dag_maker(dag_id="hb_timeout_scan_locks", session=session):
+            EmptyOperator(task_id="t1")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        with mock.patch(
+            "airflow.jobs.scheduler_job_runner.with_row_locks",
+            wraps=with_row_locks,
+        ) as wrapped:
+            found = self.job_runner._find_task_instances_without_heartbeats(session=session)
+
+        assert [t.id for t in found] == [ti.id]
+        ti_lock_calls = [call for call in wrapped.mock_calls if call.kwargs.get("of") is TaskInstance]
+        assert len(ti_lock_calls) == 1, f"Expected one with_row_locks call for TI, got {ti_lock_calls}"
+        assert ti_lock_calls[0].kwargs["skip_locked"] is True
+        assert ti_lock_calls[0].kwargs["session"] is session
+
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "1"})
     def test_stuck_in_queued_callback_bundle_version_follows_dag_run(
         self, dag_maker, session, mock_executors

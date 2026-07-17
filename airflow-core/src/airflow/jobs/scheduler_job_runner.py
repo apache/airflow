@@ -3543,22 +3543,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
-        task_instances_without_heartbeats = list(
-            session.scalars(
-                select(TI)
-                .options(selectinload(TI.dag_model))
-                .options(asset_loader)
-                .options(alias_loader)
-                .options(selectinload(TI.dag_version))
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(DM, TI.dag_id == DM.dag_id)
-                .where(
-                    TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
-                    TI.last_heartbeat_at < limit_dttm,
-                )
-                .where(TI.queued_by_job_id == self.job.id)
+        query = (
+            select(TI)
+            .options(selectinload(TI.dag_model))
+            .options(asset_loader)
+            .options(alias_loader)
+            .options(selectinload(TI.dag_version))
+            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+            .join(DM, TI.dag_id == DM.dag_id)
+            .where(
+                TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
+                TI.last_heartbeat_at < limit_dttm,
             )
+            .where(TI.queued_by_job_id == self.job.id)
         )
+        # Lock the rows (FOR UPDATE, of=TI so the FOR UPDATE isn't applied to the joined dag_model)
+        # so a worker can't commit a terminal state on the same TI between this scan and the
+        # handle_failure() in the purge that follows in the same transaction. skip_locked keeps HA
+        # schedulers from blocking on each other. _purge_task_instances_without_heartbeats still
+        # revalidates each row's state before acting, as defense in depth.
+        query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+        task_instances_without_heartbeats = list(session.scalars(query))
         if task_instances_without_heartbeats:
             self.log.warning(
                 "Failing %s TIs without heartbeat after %s",
@@ -3580,6 +3585,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id_to_team_name = {}
 
         for ti in task_instances_without_heartbeats:
+            # The scan locked this row (FOR UPDATE / skip_locked), but revalidate against the
+            # committed state before emitting any side effect: a worker can commit a terminal state
+            # (e.g. SUCCESS) around the same time the scan runs. Failing the TI here would clobber
+            # that terminal state and emit a spurious failure callback. Mirrors the lock-then-recheck
+            # guard in process_executor_events.
+            ti.refresh_from_db(session=session)
+            if ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING):
+                self.log.info(
+                    "Task instance %s is no longer running (state=%s); skipping heartbeat-timeout purge",
+                    ti,
+                    ti.state,
+                )
+                continue
+
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
             )
