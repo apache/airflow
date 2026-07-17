@@ -39,8 +39,7 @@ RAW_TABLE = "dq_taskflow_raw_orders"
 READY_TABLE = "dq_taskflow_ready_orders"
 RESULTS_PATH = Path("/tmp/airflow_dq_example/results")
 
-os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RESULTS_PATH}")
-
+# [START howto_rules_dq_ruleset]
 orders_ruleset = RuleSet(
     name="orders_taskflow_quality",
     rules=(
@@ -63,6 +62,9 @@ orders_ruleset = RuleSet(
         ),
     ),
 )
+# [END howto_rules_dq_ruleset]
+
+os.environ.setdefault("AIRFLOW__COMMON_DATAQUALITY__RESULTS_PATH", f"file://{RESULTS_PATH}")
 
 with DAG(
     dag_id=DAG_ID,

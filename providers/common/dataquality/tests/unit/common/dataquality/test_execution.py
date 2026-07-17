@@ -128,7 +128,9 @@ class TestPersistQualityResults:
 
         assert summary["passed"] == 2
         history = backend.read_task_rule_history(
-            "orders_pipeline", "custom_quality_task", ORDER_ID_NOT_NULL.rule_uid
+            dag_id="orders_pipeline",
+            task_id="custom_quality_task",
+            rule_uid=ORDER_ID_NOT_NULL.rule_uid,
         )["items"]
         assert len(history) == 1
         assert history[0]["status"] == "pass"

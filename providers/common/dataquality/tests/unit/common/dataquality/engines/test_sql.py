@@ -43,7 +43,7 @@ CUSTOM = DQRule(
 class TestBuildBatchSql:
     def test_batch_sql_unions_one_select_per_rule(self, hook):
         engine = SQLDQEngine(hook)
-        sql = engine.build_batch_sql([NULLS, VOLUME], "orders", None)
+        sql = engine.build_batch_sql(rules=[NULLS, VOLUME], table="orders", partition_clause=None)
         assert sql.count("UNION ALL") == 1
         assert f"'{NULLS.rule_uid}' AS rule_uid" in sql
         assert "SUM(CASE WHEN id IS NULL THEN 1 ELSE 0 END)" in sql
@@ -58,7 +58,9 @@ class TestBuildBatchSql:
             condition=Condition(equal_to=0),
             partition_clause="region = 'EU'",
         )
-        sql = SQLDQEngine(hook).build_batch_sql([rule], "orders", "ds = '2026-07-04'")
+        sql = SQLDQEngine(hook).build_batch_sql(
+            rules=[rule], table="orders", partition_clause="ds = '2026-07-04'"
+        )
         assert "WHERE ds = '2026-07-04' AND region = 'EU'" in sql
 
 
@@ -67,14 +69,14 @@ class TestMeasure:
         hook.get_records.return_value = [(NULLS.rule_uid, 0), (VOLUME.rule_uid, 42)]
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
 
-        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+        observations = SQLDQEngine(hook).measure(ruleset=ruleset, table="orders")
 
         hook.get_records.assert_called_once()
         by_name = {obs.rule.name: obs for obs in observations}
         assert by_name["nulls"].observed_value == 0
         assert by_name["volume"].observed_value == 42
-        assert by_name["nulls"].sql == SQLDQEngine(hook).build_rule_sql(NULLS, "orders")
-        assert by_name["volume"].sql == SQLDQEngine(hook).build_rule_sql(VOLUME, "orders")
+        assert by_name["nulls"].sql == SQLDQEngine(hook).build_rule_sql(rule=NULLS, table="orders")
+        assert by_name["volume"].sql == SQLDQEngine(hook).build_rule_sql(rule=VOLUME, table="orders")
         assert all(obs.error_message is None for obs in observations)
 
     def test_builds_each_rules_sql_exactly_once_on_success(self, hook):
@@ -83,7 +85,7 @@ class TestMeasure:
         engine = SQLDQEngine(hook)
 
         with mock.patch.object(engine, "build_rule_sql", wraps=engine.build_rule_sql) as build_rule_sql:
-            engine.measure(ruleset, "orders")
+            engine.measure(ruleset=ruleset, table="orders")
 
         assert build_rule_sql.call_count == 2
 
@@ -94,7 +96,7 @@ class TestMeasure:
         engine = SQLDQEngine(hook)
 
         with mock.patch.object(engine, "build_rule_sql", wraps=engine.build_rule_sql) as build_rule_sql:
-            engine.measure(ruleset, "orders")
+            engine.measure(ruleset=ruleset, table="orders")
 
         assert build_rule_sql.call_count == 2
 
@@ -103,7 +105,7 @@ class TestMeasure:
         hook.get_first.side_effect = [(NULLS.rule_uid, 0), (VOLUME.rule_uid, 0)]
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
 
-        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+        observations = SQLDQEngine(hook).measure(ruleset=ruleset, table="orders")
 
         assert hook.get_first.call_count == 2
         assert len(observations) == 2
@@ -120,7 +122,7 @@ class TestMeasure:
         ]
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
 
-        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+        observations = SQLDQEngine(hook).measure(ruleset=ruleset, table="orders")
 
         by_name = {obs.rule.name: obs for obs in observations}
         assert by_name["nulls"].observed_value == 0
@@ -133,7 +135,7 @@ class TestMeasure:
         hook.get_first.return_value = None
         ruleset = RuleSet(name="s", rules=(NULLS,))
 
-        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+        observations = SQLDQEngine(hook).measure(ruleset=ruleset, table="orders")
 
         assert observations[0].error_message == "No result returned for rule"
         assert observations[0].observed_value is None
@@ -142,7 +144,7 @@ class TestMeasure:
         hook.get_records.return_value = [(NULLS.rule_uid, 0)]
         ruleset = RuleSet(name="s", rules=(NULLS, VOLUME))
 
-        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+        observations = SQLDQEngine(hook).measure(ruleset=ruleset, table="orders")
 
         by_name = {obs.rule.name: obs for obs in observations}
         assert by_name["nulls"].error_message is None
@@ -152,7 +154,7 @@ class TestMeasure:
         hook.get_first.return_value = (3,)
         ruleset = RuleSet(name="s", rules=(CUSTOM,))
 
-        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+        observations = SQLDQEngine(hook).measure(ruleset=ruleset, table="orders")
 
         hook.get_first.assert_called_once_with("SELECT COUNT(*) FROM orders WHERE amount < 0")
         hook.get_records.assert_not_called()
@@ -163,6 +165,6 @@ class TestMeasure:
         hook.get_first.return_value = None
         ruleset = RuleSet(name="s", rules=(CUSTOM,))
 
-        observations = SQLDQEngine(hook).measure(ruleset, "orders")
+        observations = SQLDQEngine(hook).measure(ruleset=ruleset, table="orders")
 
         assert observations[0].error_message == "Query returned no rows"

@@ -100,7 +100,7 @@ def compute_score(results: list[RuleResult]) -> float | None:
     return round(1.0 - penalty / len(results), 4)
 
 
-def build_summary(run: DQRun, results: list[RuleResult]) -> dict[str, Any]:
+def build_summary(*, run: DQRun, results: list[RuleResult]) -> dict[str, Any]:
     """Compact run summary attached to XCom and outlet asset events."""
     return {
         "run_uid": run.run_uid,

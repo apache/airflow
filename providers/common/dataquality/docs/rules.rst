@@ -26,26 +26,10 @@ their own. They describe *what* to check; :class:`~airflow.providers.common.data
 (see :doc:`operators`) is what actually runs them. Rules are usually written by hand, but they
 can also be proposed by an LLM -- see :doc:`agents`.
 
-.. code-block:: python
-
-    from airflow.providers.common.dataquality.rules import DQRule, RuleSet
-
-    orders_ruleset = RuleSet(
-        name="orders_quality",
-        rules=(
-            DQRule(
-                name="order_id_not_null",
-                check="null_count",
-                column="order_id",
-                condition={"equal_to": 0},
-            ),
-            DQRule(
-                name="row_count_present",
-                check="row_count",
-                condition={"greater_than": 0},
-            ),
-        ),
-    )
+.. exampleinclude:: /../src/airflow/providers/common/dataquality/example_dags/example_dq_in_taskflow.py
+    :language: python
+    :start-after: [START howto_rules_dq_ruleset]
+    :end-before: [END howto_rules_dq_ruleset]
 
 ``DQRule`` fields
 ------------------

@@ -37,7 +37,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, TypedDict
 
 from airflow.providers.common.dataquality.results import DQRun, RuleResult, build_summary
 from airflow.sdk import ObjectStoragePath
@@ -45,24 +45,31 @@ from airflow.sdk import ObjectStoragePath
 log = logging.getLogger(__name__)
 
 
+class DQPageResult(TypedDict):
+    """Paginated DQ read result."""
+
+    items: list[dict[str, Any]]
+    next_cursor: str | None
+
+
 class ObjectStorageResultsBackend:
     """Persist DQ results as JSON files via ``ObjectStoragePath``."""
 
-    def __init__(self, results_path: str, conn_id: str | None = None) -> None:
+    def __init__(self, *, results_path: str, conn_id: str | None = None) -> None:
         self.root = ObjectStoragePath(results_path, conn_id=conn_id)
 
-    def write_run(self, run: DQRun, results: list[RuleResult]) -> None:
+    def write_run(self, *, run: DQRun, results: list[RuleResult]) -> None:
         timestamp = run.started_at or datetime.now(tz=timezone.utc).isoformat()
         compact_ts = self._get_safe_key(timestamp)
-        payload = self._build_run_payload(run, results)
+        payload = self._build_run_payload(run=run, results=results)
 
-        self._write_run_file(run, timestamp[:10], compact_ts, payload)
-        self._write_task_instance_index(run, payload)
-        self._write_rule_indexes(run, results, timestamp)
+        self._write_run_file(run=run, date_part=timestamp[:10], compact_ts=compact_ts, payload=payload)
+        self._write_task_instance_index(run=run, payload=payload)
+        self._write_rule_indexes(run=run, results=results, timestamp=timestamp)
 
     def read_task_rule_history(
-        self, dag_id: str, task_id: str, rule_uid: str, limit: int = 100, before: str | None = None
-    ) -> dict[str, Any]:
+        self, *, dag_id: str, task_id: str, rule_uid: str, limit: int = 100, before: str | None = None
+    ) -> DQPageResult:
         """Return recent results for one rule produced by one task, newest first."""
         rule_dir = (
             self.root
@@ -72,11 +79,11 @@ class ObjectStorageResultsBackend:
             / f"task_id={task_id}"
             / f"rule_uid={rule_uid}"
         )
-        return self._read_rule_history_dir(rule_dir, limit, before)
+        return self._read_rule_history_dir(rule_dir=rule_dir, limit=limit, before=before)
 
     def read_task_runs(
-        self, dag_id: str, task_id: str, limit: int = 50, before: str | None = None
-    ) -> dict[str, Any]:
+        self, *, dag_id: str, task_id: str, limit: int = 50, before: str | None = None
+    ) -> DQPageResult:
         """
         Return recent data quality runs for one task, newest first.
 
@@ -103,11 +110,9 @@ class ObjectStorageResultsBackend:
             for path in sorted(date_dir.iterdir(), key=lambda p: p.name, reverse=True):
                 if not path.name.endswith(".json"):
                     continue
-                payload = self._read_json(path)
-                if payload is None:
+                if (payload := self._read_json(path)) is None:
                     continue
-                cursor = self._get_run_payload_cursor(payload)
-                if before is not None and cursor >= before:
+                if before is not None and self._get_run_payload_cursor(payload) >= before:
                     continue
                 runs.append(payload)
                 if len(runs) > limit:
@@ -121,7 +126,7 @@ class ObjectStorageResultsBackend:
         return {"items": page, "next_cursor": next_cursor}
 
     def read_by_task_instance(
-        self, dag_id: str, task_id: str, run_id: str, map_index: int = -1
+        self, *, dag_id: str, task_id: str, run_id: str, map_index: int = -1
     ) -> dict[str, Any]:
         """Read the latest run for one task instance as ``{"run": ..., "results": ..., "summary": ...}``."""
         path = (
@@ -134,7 +139,9 @@ class ObjectStorageResultsBackend:
         )
         return self._read_json_or_raise(path)
 
-    def _write_run_file(self, run: DQRun, date_part: str, compact_ts: str, payload: dict[str, Any]) -> None:
+    def _write_run_file(
+        self, *, run: DQRun, date_part: str, compact_ts: str, payload: dict[str, Any]
+    ) -> None:
         run_dir = (
             self.root
             / "runs"
@@ -146,39 +153,41 @@ class ObjectStorageResultsBackend:
         run_dir.mkdir(parents=True, exist_ok=True)
         (run_dir / f"{compact_ts}__{run.run_uid}.json").write_text(json.dumps(payload, default=str))
 
-    def _write_task_instance_index(self, run: DQRun, payload: dict[str, Any]) -> None:
+    def _write_task_instance_index(self, *, run: DQRun, payload: dict[str, Any]) -> None:
         ti_dir = self.root / "runs" / "by_task_instance" / f"dag_id={run.dag_id}" / f"task_id={run.task_id}"
         ti_dir.mkdir(parents=True, exist_ok=True)
         (ti_dir / f"{self._get_safe_key(run.run_id)}__{run.map_index}.json").write_text(
             json.dumps(payload, default=str)
         )
 
-    def _write_rule_indexes(self, run: DQRun, results: list[RuleResult], timestamp: str) -> None:
+    def _write_rule_indexes(self, *, run: DQRun, results: list[RuleResult], timestamp: str) -> None:
         run_context = self._build_run_context(run)
         compact_ts = self._get_safe_key(timestamp)
         for result in results:
             payload = {"run": run_context, "result": result.to_dict()}
             self._write_rule_index(
-                self.root
-                / "rules"
-                / "by_task_rule"
-                / f"dag_id={run.dag_id}"
-                / f"task_id={run.task_id}"
-                / f"rule_uid={result.rule_uid}",
-                compact_ts,
-                run.run_uid,
-                payload,
+                rule_dir=(
+                    self.root
+                    / "rules"
+                    / "by_task_rule"
+                    / f"dag_id={run.dag_id}"
+                    / f"task_id={run.task_id}"
+                    / f"rule_uid={result.rule_uid}"
+                ),
+                compact_ts=compact_ts,
+                run_uid=run.run_uid,
+                payload=payload,
             )
 
     def _write_rule_index(
-        self, rule_dir: ObjectStoragePath, compact_ts: str, run_uid: str, payload: dict[str, Any]
+        self, *, rule_dir: ObjectStoragePath, compact_ts: str, run_uid: str, payload: dict[str, Any]
     ) -> None:
         rule_dir.mkdir(parents=True, exist_ok=True)
         (rule_dir / f"{compact_ts}__{run_uid}.json").write_text(json.dumps(payload, default=str))
 
     def _read_rule_history_dir(
-        self, rule_dir: ObjectStoragePath, limit: int, before: str | None = None
-    ) -> dict[str, Any]:
+        self, *, rule_dir: ObjectStoragePath, limit: int, before: str | None = None
+    ) -> DQPageResult:
         """
         Read rule-result records newest-first, as ``{"items": [...], "next_cursor": ...}``.
 
@@ -211,12 +220,12 @@ class ObjectStorageResultsBackend:
         return value.replace("/", "_").replace(":", "_").replace("+", "_")
 
     @staticmethod
-    def _build_run_payload(run: DQRun, results: list[RuleResult]) -> dict[str, Any]:
+    def _build_run_payload(*, run: DQRun, results: list[RuleResult]) -> dict[str, Any]:
         result_records = [result.to_dict() for result in results]
         return {
             "run": run.to_dict(),
             "results": result_records,
-            "summary": build_summary(run, results),
+            "summary": build_summary(run=run, results=results),
         }
 
     @staticmethod

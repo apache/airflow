@@ -62,16 +62,18 @@ class TestObjectStorageResultsBackend:
         return ObjectStorageResultsBackend(results_path=f"file://{tmp_path}")
 
     def test_write_run_creates_run_file_with_run_and_results(self, backend):
-        backend.write_run(make_run(), [make_result()])
+        backend.write_run(run=make_run(), results=[make_result()])
 
-        record = backend.read_by_task_instance("orders_pipeline", "dq", "scheduled__2026-07-04")
+        record = backend.read_by_task_instance(
+            dag_id="orders_pipeline", task_id="dq", run_id="scheduled__2026-07-04"
+        )
         assert record["run"]["run_uid"] == "abc123"
         assert record["run"]["dag_id"] == "orders_pipeline"
         assert record["results"][0]["rule_uid"] == "rule-1"
         assert record["results"][0]["status"] == "pass"
 
     def test_write_run_stores_keyed_json_payload(self, backend):
-        backend.write_run(make_run(), [make_result()])
+        backend.write_run(run=make_run(), results=[make_result()])
 
         path = (
             backend.root
@@ -89,7 +91,7 @@ class TestObjectStorageResultsBackend:
         assert payload["summary"]["passed"] == 1
 
     def test_write_run_stores_task_rule_index(self, backend):
-        backend.write_run(make_run(), [make_result()])
+        backend.write_run(run=make_run(), results=[make_result()])
 
         path = (
             backend.root
@@ -107,7 +109,7 @@ class TestObjectStorageResultsBackend:
         assert payload["result"]["rule_uid"] == "rule-1"
 
     def test_write_run_does_not_store_global_rule_index(self, backend):
-        backend.write_run(make_run(), [make_result()])
+        backend.write_run(run=make_run(), results=[make_result()])
 
         path = backend.root / "rules" / "by_rule" / "rule_uid=rule-1"
 
@@ -115,24 +117,26 @@ class TestObjectStorageResultsBackend:
 
     def test_rule_history_is_newest_first(self, backend):
         backend.write_run(
-            make_run(run_uid="run1", started_at="2026-07-01T06:00:00+00:00"),
-            [make_result(status="pass")],
+            run=make_run(run_uid="run1", started_at="2026-07-01T06:00:00+00:00"),
+            results=[make_result(status="pass")],
         )
         backend.write_run(
-            make_run(run_uid="run2", started_at="2026-07-02T06:00:00+00:00"),
-            [make_result(status="fail")],
+            run=make_run(run_uid="run2", started_at="2026-07-02T06:00:00+00:00"),
+            results=[make_result(status="fail")],
         )
 
-        result = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1")
+        result = backend.read_task_rule_history(dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1")
 
         assert [record["status"] for record in result["items"]] == ["fail", "pass"]
         assert result["items"][0]["run"]["run_uid"] == "run2"
         assert result["next_cursor"] is None
 
     def test_rule_history_includes_task_instance_route_context(self, backend):
-        backend.write_run(make_run(), [make_result()])
+        backend.write_run(run=make_run(), results=[make_result()])
 
-        history = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1")["items"]
+        history = backend.read_task_rule_history(dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1")[
+            "items"
+        ]
 
         assert history[0]["run"]["dag_id"] == "orders_pipeline"
         assert history[0]["run"]["task_id"] == "dq"
@@ -142,11 +146,13 @@ class TestObjectStorageResultsBackend:
     def test_rule_history_respects_limit(self, backend):
         for day in range(1, 4):
             backend.write_run(
-                make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        result = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1", limit=2)
+        result = backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1", limit=2
+        )
 
         assert len(result["items"]) == 2
         assert result["next_cursor"] == "2026-07-02T06:00:00+00:00|run2"
@@ -154,13 +160,19 @@ class TestObjectStorageResultsBackend:
     def test_rule_history_before_cursor_pages_further_back(self, backend):
         for day in range(1, 4):
             backend.write_run(
-                make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        first_page = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1", limit=2)
+        first_page = backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1", limit=2
+        )
         second_page = backend.read_task_rule_history(
-            "orders_pipeline", "dq", "rule-1", limit=2, before=first_page["next_cursor"]
+            dag_id="orders_pipeline",
+            task_id="dq",
+            rule_uid="rule-1",
+            limit=2,
+            before=first_page["next_cursor"],
         )
 
         assert [r["run"]["run_uid"] for r in first_page["items"]] == ["run3", "run2"]
@@ -168,16 +180,18 @@ class TestObjectStorageResultsBackend:
         assert second_page["next_cursor"] is None
 
     def test_concurrent_style_writes_do_not_collide(self, backend):
-        backend.write_run(make_run(run_uid="run1"), [make_result()])
-        backend.write_run(make_run(run_uid="run2"), [make_result()])
+        backend.write_run(run=make_run(run_uid="run1"), results=[make_result()])
+        backend.write_run(run=make_run(run_uid="run2"), results=[make_result()])
 
-        runs = backend.read_task_runs("orders_pipeline", "dq")["items"]
+        runs = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq")["items"]
         assert {run["run"]["run_uid"] for run in runs} == {"run1", "run2"}
 
     def test_read_by_task_instance_matches_run(self, backend):
-        backend.write_run(make_run(), [make_result()])
+        backend.write_run(run=make_run(), results=[make_result()])
 
-        record = backend.read_by_task_instance("orders_pipeline", "dq", "scheduled__2026-07-04")
+        record = backend.read_by_task_instance(
+            dag_id="orders_pipeline", task_id="dq", run_id="scheduled__2026-07-04"
+        )
 
         assert record["run"]["run_uid"] == "abc123"
         assert record["results"][0]["rule_uid"] == "rule-1"
@@ -185,15 +199,17 @@ class TestObjectStorageResultsBackend:
 
     def test_read_by_task_instance_unknown_raises(self, backend):
         with pytest.raises(FileNotFoundError):
-            backend.read_by_task_instance("orders_pipeline", "dq", "no_such_run")
+            backend.read_by_task_instance(dag_id="orders_pipeline", task_id="dq", run_id="no_such_run")
 
     def test_read_by_task_instance_last_write_wins_across_retries(self, backend):
         first = make_run(run_uid="try1")
-        backend.write_run(first, [make_result(status="fail")])
+        backend.write_run(run=first, results=[make_result(status="fail")])
         second = make_run(run_uid="try2")
-        backend.write_run(second, [make_result(status="pass")])
+        backend.write_run(run=second, results=[make_result(status="pass")])
 
-        record = backend.read_by_task_instance("orders_pipeline", "dq", "scheduled__2026-07-04")
+        record = backend.read_by_task_instance(
+            dag_id="orders_pipeline", task_id="dq", run_id="scheduled__2026-07-04"
+        )
 
         assert record["run"]["run_uid"] == "try2"
         assert record["results"][0]["status"] == "pass"
@@ -202,23 +218,23 @@ class TestObjectStorageResultsBackend:
     def test_read_by_task_instance_sanitizes_run_id(self, backend):
         run_id = "manual__2026-07-04T06:00:00+00:00"
         run = DQRun(dag_id="orders_pipeline", task_id="dq", run_id=run_id, run_uid="abc123")
-        backend.write_run(run, [make_result()])
+        backend.write_run(run=run, results=[make_result()])
 
-        record = backend.read_by_task_instance("orders_pipeline", "dq", run_id)
+        record = backend.read_by_task_instance(dag_id="orders_pipeline", task_id="dq", run_id=run_id)
 
         assert record["run"]["run_id"] == run_id
 
     def test_read_task_runs_returns_newest_first_with_summaries(self, backend):
         backend.write_run(
-            make_run(run_uid="run1", started_at="2026-07-01T06:00:00+00:00"),
-            [make_result(status="pass")],
+            run=make_run(run_uid="run1", started_at="2026-07-01T06:00:00+00:00"),
+            results=[make_result(status="pass")],
         )
         backend.write_run(
-            make_run(run_uid="run2", started_at="2026-07-02T06:00:00+00:00"),
-            [make_result(status="fail")],
+            run=make_run(run_uid="run2", started_at="2026-07-02T06:00:00+00:00"),
+            results=[make_result(status="fail")],
         )
 
-        result = backend.read_task_runs("orders_pipeline", "dq")
+        result = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq")
         runs = result["items"]
 
         assert [record["run"]["run_uid"] for record in runs] == ["run2", "run1"]
@@ -229,11 +245,11 @@ class TestObjectStorageResultsBackend:
     def test_read_task_runs_respects_limit(self, backend):
         for day in range(1, 4):
             backend.write_run(
-                make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        result = backend.read_task_runs("orders_pipeline", "dq", limit=2)
+        result = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq", limit=2)
 
         assert len(result["items"]) == 2
         assert result["next_cursor"] == "2026-07-02T06:00:00+00:00|run2"
@@ -241,13 +257,16 @@ class TestObjectStorageResultsBackend:
     def test_read_task_runs_before_cursor_pages_further_back(self, backend):
         for day in range(1, 4):
             backend.write_run(
-                make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        first_page = backend.read_task_runs("orders_pipeline", "dq", limit=2)
+        first_page = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq", limit=2)
         second_page = backend.read_task_runs(
-            "orders_pipeline", "dq", limit=2, before=first_page["next_cursor"]
+            dag_id="orders_pipeline",
+            task_id="dq",
+            limit=2,
+            before=first_page["next_cursor"],
         )
 
         assert [r["run"]["run_uid"] for r in first_page["items"]] == ["run3", "run2"]
@@ -257,13 +276,16 @@ class TestObjectStorageResultsBackend:
     def test_read_task_runs_cursor_keeps_same_timestamp_records(self, backend):
         for run_uid in ("run1", "run2", "run3"):
             backend.write_run(
-                make_run(run_uid=run_uid, started_at="2026-07-04T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=run_uid, started_at="2026-07-04T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        first_page = backend.read_task_runs("orders_pipeline", "dq", limit=2)
+        first_page = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq", limit=2)
         second_page = backend.read_task_runs(
-            "orders_pipeline", "dq", limit=2, before=first_page["next_cursor"]
+            dag_id="orders_pipeline",
+            task_id="dq",
+            limit=2,
+            before=first_page["next_cursor"],
         )
 
         assert [r["run"]["run_uid"] for r in first_page["items"]] == ["run3", "run2"]
@@ -273,8 +295,8 @@ class TestObjectStorageResultsBackend:
     def test_read_task_runs_stops_scanning_once_limit_is_reached(self, backend, monkeypatch):
         for day in range(1, 5):
             backend.write_run(
-                make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
+                results=[make_result()],
             )
 
         read_paths: list[Any] = []
@@ -283,7 +305,7 @@ class TestObjectStorageResultsBackend:
             backend, "_read_json", lambda path: (read_paths.append(path), original_read_json(path))[1]
         )
 
-        result = backend.read_task_runs("orders_pipeline", "dq", limit=1)
+        result = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq", limit=1)
 
         assert [record["run"]["run_uid"] for record in result["items"]] == ["run4"]
         assert result["next_cursor"] == "2026-07-04T06:00:00+00:00|run4"
@@ -294,8 +316,8 @@ class TestObjectStorageResultsBackend:
     def test_read_task_runs_stops_inside_date_partition_once_limit_is_reached(self, backend, monkeypatch):
         for index in range(1, 5):
             backend.write_run(
-                make_run(run_uid=f"run{index}", started_at=f"2026-07-04T06:00:0{index}+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{index}", started_at=f"2026-07-04T06:00:0{index}+00:00"),
+                results=[make_result()],
             )
 
         read_paths: list[Any] = []
@@ -304,7 +326,7 @@ class TestObjectStorageResultsBackend:
             backend, "_read_json", lambda path: (read_paths.append(path), original_read_json(path))[1]
         )
 
-        result = backend.read_task_runs("orders_pipeline", "dq", limit=1)
+        result = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq", limit=1)
 
         assert [r["run"]["run_uid"] for r in result["items"]] == ["run4"]
         assert result["next_cursor"] == "2026-07-04T06:00:04+00:00|run4"
@@ -318,29 +340,31 @@ class TestObjectStorageResultsBackend:
         """
         for index in (3, 1, 4, 2):
             backend.write_run(
-                make_run(run_uid=f"run{index}", started_at=f"2026-07-04T06:00:0{index}+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{index}", started_at=f"2026-07-04T06:00:0{index}+00:00"),
+                results=[make_result()],
             )
 
-        result = backend.read_task_runs("orders_pipeline", "dq", limit=2)
+        result = backend.read_task_runs(dag_id="orders_pipeline", task_id="dq", limit=2)
 
         assert [r["run"]["run_uid"] for r in result["items"]] == ["run4", "run3"]
         assert result["next_cursor"] == "2026-07-04T06:00:03+00:00|run3"
 
     def test_read_task_rule_history_filters_to_task(self, backend):
-        backend.write_run(make_run(run_uid="run1"), [make_result()])
+        backend.write_run(run=make_run(run_uid="run1"), results=[make_result()])
         backend.write_run(
-            DQRun(
+            run=DQRun(
                 dag_id="other_pipeline",
                 task_id="dq",
                 run_id="scheduled__2026-07-04",
                 run_uid="run2",
                 started_at="2026-07-04T07:00:00+00:00",
             ),
-            [make_result()],
+            results=[make_result()],
         )
 
-        history = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1")["items"]
+        history = backend.read_task_rule_history(dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1")[
+            "items"
+        ]
 
         assert len(history) == 1
         assert history[0]["run"]["dag_id"] == "orders_pipeline"
@@ -348,11 +372,13 @@ class TestObjectStorageResultsBackend:
     def test_read_task_rule_history_respects_limit(self, backend):
         for day in range(1, 4):
             backend.write_run(
-                make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        result = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1", limit=2)
+        result = backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1", limit=2
+        )
 
         assert [record["run"]["run_uid"] for record in result["items"]] == ["run3", "run2"]
         assert result["next_cursor"] == "2026-07-02T06:00:00+00:00|run2"
@@ -360,13 +386,19 @@ class TestObjectStorageResultsBackend:
     def test_read_task_rule_history_before_cursor_pages_further_back(self, backend):
         for day in range(1, 4):
             backend.write_run(
-                make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=f"run{day}", started_at=f"2026-07-0{day}T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        first_page = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1", limit=2)
+        first_page = backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1", limit=2
+        )
         second_page = backend.read_task_rule_history(
-            "orders_pipeline", "dq", "rule-1", limit=2, before=first_page["next_cursor"]
+            dag_id="orders_pipeline",
+            task_id="dq",
+            rule_uid="rule-1",
+            limit=2,
+            before=first_page["next_cursor"],
         )
 
         assert [r["run"]["run_uid"] for r in second_page["items"]] == ["run1"]
@@ -375,13 +407,19 @@ class TestObjectStorageResultsBackend:
     def test_read_task_rule_history_cursor_keeps_same_timestamp_records(self, backend):
         for run_uid in ("run1", "run2", "run3"):
             backend.write_run(
-                make_run(run_uid=run_uid, started_at="2026-07-04T06:00:00+00:00"),
-                [make_result()],
+                run=make_run(run_uid=run_uid, started_at="2026-07-04T06:00:00+00:00"),
+                results=[make_result()],
             )
 
-        first_page = backend.read_task_rule_history("orders_pipeline", "dq", "rule-1", limit=2)
+        first_page = backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid="rule-1", limit=2
+        )
         second_page = backend.read_task_rule_history(
-            "orders_pipeline", "dq", "rule-1", limit=2, before=first_page["next_cursor"]
+            dag_id="orders_pipeline",
+            task_id="dq",
+            rule_uid="rule-1",
+            limit=2,
+            before=first_page["next_cursor"],
         )
 
         assert [r["run"]["run_uid"] for r in first_page["items"]] == ["run3", "run2"]

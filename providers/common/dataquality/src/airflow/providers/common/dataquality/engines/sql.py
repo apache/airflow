@@ -57,21 +57,27 @@ class SQLDQEngine:
     def __init__(self, hook: DbApiHook) -> None:
         self.hook = hook
 
-    def measure(self, ruleset: RuleSet, table: str, partition_clause: str | None = None) -> list[Observation]:
+    def measure(
+        self, *, ruleset: RuleSet, table: str, partition_clause: str | None = None
+    ) -> list[Observation]:
         builtin_rules = [rule for rule in ruleset.rules if rule.check != CUSTOM_SQL_CHECK]
         custom_rules = [rule for rule in ruleset.rules if rule.check == CUSTOM_SQL_CHECK]
 
         observations = []
         if builtin_rules:
-            observations.extend(self._measure_builtin(builtin_rules, table, partition_clause))
+            observations.extend(
+                self._measure_builtin(rules=builtin_rules, table=table, partition_clause=partition_clause)
+            )
         for rule in custom_rules:
-            observations.append(self._measure_custom(rule, table))
+            observations.append(self._measure_custom(rule=rule, table=table))
         return observations
 
-    def build_batch_sql(self, rules: list[DQRule], table: str, partition_clause: str | None) -> str:
-        return " UNION ALL ".join(self.build_rule_sql(rule, table, partition_clause) for rule in rules)
+    def build_batch_sql(self, *, rules: list[DQRule], table: str, partition_clause: str | None) -> str:
+        return " UNION ALL ".join(
+            self.build_rule_sql(rule=rule, table=table, partition_clause=partition_clause) for rule in rules
+        )
 
-    def build_rule_sql(self, rule: DQRule, table: str, partition_clause: str | None = None) -> str:
+    def build_rule_sql(self, *, rule: DQRule, table: str, partition_clause: str | None = None) -> str:
         """Build the SQL used to measure one built-in rule."""
         expression = CHECK_SPECS[rule.check].expression.format(column=rule.column)
         predicates = [p for p in (partition_clause, rule.partition_clause) if p]
@@ -81,11 +87,14 @@ class SQLDQEngine:
         )
 
     def _measure_builtin(
-        self, rules: list[DQRule], table: str, partition_clause: str | None
+        self, *, rules: list[DQRule], table: str, partition_clause: str | None
     ) -> list[Observation]:
         # Built once per rule and reused below, instead of re-deriving each rule's SQL for the
         # batch, for the returned Observation, and again in the per-rule fallback.
-        rule_sql = {rule.rule_uid: self.build_rule_sql(rule, table, partition_clause) for rule in rules}
+        rule_sql = {
+            rule.rule_uid: self.build_rule_sql(rule=rule, table=table, partition_clause=partition_clause)
+            for rule in rules
+        }
         sql = " UNION ALL ".join(rule_sql.values())
         log.info("Running %d built-in checks against %s", len(rules), table)
         started = time.monotonic()
@@ -97,7 +106,7 @@ class SQLDQEngine:
                 table,
             )
 
-            return [self._measure_builtin_single(rule, rule_sql[rule.rule_uid]) for rule in rules]
+            return [self._measure_builtin_single(rule=rule, sql=rule_sql[rule.rule_uid]) for rule in rules]
         elapsed_ms = (time.monotonic() - started) * 1000
         observed_by_uid = {str(row[0]): row[1] for row in records or []}
         return [
@@ -111,7 +120,7 @@ class SQLDQEngine:
             for rule in rules
         ]
 
-    def _measure_builtin_single(self, rule: DQRule, sql: str) -> Observation:
+    def _measure_builtin_single(self, *, rule: DQRule, sql: str) -> Observation:
         started = time.monotonic()
         try:
             row = self.hook.get_first(sql)
@@ -126,7 +135,7 @@ class SQLDQEngine:
             )
         return Observation(rule=rule, observed_value=row[1], duration_ms=elapsed_ms, sql=sql)
 
-    def _measure_custom(self, rule: DQRule, table: str) -> Observation:
+    def _measure_custom(self, *, rule: DQRule, table: str) -> Observation:
         if rule.sql is None:
             raise ValueError(f"Rule {rule.name!r} has no SQL to execute")
         sql = rule.sql.replace("{table}", table)

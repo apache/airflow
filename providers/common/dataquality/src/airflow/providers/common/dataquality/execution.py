@@ -90,7 +90,11 @@ def run_quality_checks(
     resolved_ruleset = _resolve_ruleset(ruleset)
     resolved_hook = hook if hook is not None else _get_hook(conn_id, hook_params)
     started_at = datetime.now(tz=timezone.utc).isoformat()
-    observations = SQLDQEngine(resolved_hook).measure(resolved_ruleset, table, partition_clause)
+    observations = SQLDQEngine(resolved_hook).measure(
+        ruleset=resolved_ruleset,
+        table=table,
+        partition_clause=partition_clause,
+    )
     finished_at = datetime.now(tz=timezone.utc).isoformat()
     return DataQualityResult(
         ruleset=resolved_ruleset,
@@ -123,7 +127,7 @@ def persist_quality_results(
         finished_at=result.finished_at,
     )
     results = list(result.results)
-    summary = build_summary(run, results)
+    summary = build_summary(run=run, results=results)
 
     backend = get_backend_from_config()
     if backend is None:
@@ -132,7 +136,7 @@ def persist_quality_results(
         # Persistence is best-effort: an unreachable results store leaves a gap in
         # history but must not change the outcome of the check itself.
         try:
-            backend.write_run(run, results)
+            backend.write_run(run=run, results=results)
         except Exception:
             log.exception("Failed to persist data quality results; continuing")
 

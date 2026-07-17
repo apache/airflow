@@ -131,7 +131,9 @@ class TestDQCheckOperatorExecute:
         assert summary["passed"] == 2
         assert summary["failed"] == 0
         assert summary["score"] == 1.0
-        history = results_backend.read_task_rule_history("orders_pipeline", "dq", NULLS.rule_uid)["items"]
+        history = results_backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid=NULLS.rule_uid
+        )["items"]
         assert len(history) == 1
         assert history[0]["status"] == "pass"
 
@@ -145,9 +147,9 @@ class TestDQCheckOperatorExecute:
 
         # The failing result is persisted even though the task fails.
         assert (
-            results_backend.read_task_rule_history("orders_pipeline", "dq", NULLS.rule_uid)["items"][0][
-                "status"
-            ]
+            results_backend.read_task_rule_history(
+                dag_id="orders_pipeline", task_id="dq", rule_uid=NULLS.rule_uid
+            )["items"][0]["status"]
             == "fail"
         )
 
@@ -179,9 +181,9 @@ class TestDQCheckOperatorExecute:
 
         operator.execute(make_context())
 
-        history = results_backend.read_task_rule_history("orders_pipeline", "dq", described_rule.rule_uid)[
-            "items"
-        ]
+        history = results_backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid=described_rule.rule_uid
+        )["items"]
         assert history[0]["description"] == "Order IDs must always be present."
 
     @mock.patch.object(DQCheckOperator, "get_db_hook")
@@ -225,7 +227,9 @@ class TestDQCheckOperatorExecute:
         with pytest.raises(DQCheckFailedError, match="errored"):
             operator.execute(make_context())
 
-        history = results_backend.read_task_rule_history("orders_pipeline", "dq", NULLS.rule_uid)["items"]
+        history = results_backend.read_task_rule_history(
+            dag_id="orders_pipeline", task_id="dq", rule_uid=NULLS.rule_uid
+        )["items"]
         assert history[0]["status"] == "error"
         assert "Could not evaluate observed value" in history[0]["error_message"]
 

@@ -52,7 +52,7 @@ class TestBuildSummary:
             make_result("error", "d"),
         ]
 
-        summary = build_summary(run, results)
+        summary = build_summary(run=run, results=results)
 
         assert summary["passed"] == 1
         assert summary["warned"] == 1
