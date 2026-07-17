@@ -26,8 +26,9 @@ This example shows the coordinator-mode shape for TypeScript task handlers:
   starts the coordinator runtime.
 - `dist/bundle.mjs` is the generated Node.js bundle that Airflow launches.
 
-The TypeScript SDK does not include a packer yet, so this example builds the
-bundle with `esbuild` and writes the Airflow metadata file manually.
+The build uses the SDK's `airflow-ts-pack` tool, which bundles the entrypoint
+with esbuild and embeds the Airflow metadata generated from the bundle's
+registered tasks, producing a single deployable file.
 
 ## Build
 
@@ -39,7 +40,7 @@ pnpm install
 pnpm run build
 ```
 
-Build the example bundle:
+Build the example bundle and its metadata:
 
 ```bash
 cd ts-sdk/example
@@ -47,23 +48,11 @@ pnpm install
 pnpm run build
 ```
 
-Create the metadata file next to the generated bundle:
-
-```bash
-node --input-type=module > dist/airflow-metadata.yaml <<'EOF'
-import { SUPERVISOR_API_VERSION } from "@apache-airflow/ts-sdk";
-
-console.log(`sdk:
-  supervisor_schema_version: "${SUPERVISOR_API_VERSION}"`);
-EOF
-```
-
 The coordinator expects this layout:
 
 ```text
 ts-sdk/example/dist/
   bundle.mjs
-  airflow-metadata.yaml
 ```
 
 ## Airflow Configuration
