@@ -493,8 +493,8 @@ def test_task_group_to_dict_and_dag_edges(dag_maker):
     nodes = task_group_to_dict(dag.task_group)
     edges = dag_edges(dag)
 
-    # group_d depends on group_c (`group_d << group_c`), so it must sort after group_c,
-    # not before task1 as it did prior to the #65291/#67964 topological-sort fix.
+    # group_d depends on group_c (`group_d << group_c`), so it must sort after group_c
+    # rather than before task1, which has no dependency on it at all.
     expected_node_id = {
         "id": None,
         "children": [
@@ -722,8 +722,7 @@ def test_build_task_group_deco_context_manager(dag_maker):
 
     # Node IDs test
     # task_start feeds section_1.task_1 directly (a task-level dep crossing into the
-    # group), so section_1 must sort after task_start, not before it — see the
-    # #65291/#67964 topological-sort fix.
+    # group), so section_1 must sort after task_start, not before it.
     node_ids = {
         "id": None,
         "children": [
@@ -1186,9 +1185,9 @@ def test_topological_sort_serialized_layered():
 def test_topological_group_dep_list_syntax():
     """List-based deps (`[b0, b1] >> a`) must produce the same topological order as individual deps.
 
-    Regression test for apache/airflow#65291: declaring a group dependency via a list
-    (`groups >> a`) only populated `upstream_group_ids`, which `_project_child_deps` never
-    consulted, so `a` sorted as if it had no upstream at all.
+    Declaring a group dependency via a list (`groups >> a`) only populates
+    `upstream_group_ids`, not `upstream_task_ids`, so `a` must not sort as if it had no
+    upstream at all.
     """
     with DAG("test_dag_list_dep", schedule=None, start_date=DEFAULT_DATE) as dag:
         with TaskGroup("a") as tg_a:
@@ -1234,9 +1233,8 @@ def test_topological_sort_serialized_list_dep_between_groups():
 def test_topological_sort_serialized_task_level_cross_group_dep():
     """Task-level deps between groups are respected for ordering after serialization.
 
-    Regression test for apache/airflow#67964: a task-level dependency that crosses into
-    another group's entry task (bypassing any group-to-group edge) must still order the
-    downstream group after the upstream one.
+    A task-level dependency that crosses into another group's entry task (bypassing any
+    group-to-group edge) must still order the downstream group after the upstream one.
     """
     with DAG("test_cross_group_task_dep", schedule=None, start_date=DEFAULT_DATE) as dag:
         with TaskGroup("stage_b"):
@@ -1255,6 +1253,26 @@ def test_topological_sort_serialized_task_level_cross_group_dep():
     order = [node.node_id for node in serialized.task_group.topological_sort()]
 
     assert order.index("stage_b") < order.index("stage_a")
+
+
+def test_topological_sort_serialized_reuses_cached_group_dict():
+    with DAG("test_group_dict_cache", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("a"):
+            EmptyOperator(task_id="task")
+        with TaskGroup("b"):
+            EmptyOperator(task_id="task")
+
+    serialized = create_scheduler_dag(dag)
+    root = serialized.task_group
+    assert root.get_task_group_dict() is root.get_task_group_dict()
+    assert root._get_task_group_dict_cached.cache_info().misses == 1
+
+    for group in root.children.values():
+        if hasattr(group, "topological_sort"):
+            group.topological_sort()
+    cache_info = root._get_task_group_dict_cached.cache_info()
+    assert cache_info.misses == 1
+    assert cache_info.hits >= len(root.children)
 
 
 def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(monkeypatch):

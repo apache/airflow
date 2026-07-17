@@ -27,6 +27,7 @@ from collections.abc import Generator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import attrs
+import methodtools
 
 from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
@@ -491,7 +492,14 @@ class TaskGroup(DAGNode):
         return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> dict[str, TaskGroup]:
-        """Return a flat dictionary of group_id: TaskGroup."""
+        """Return a flat dictionary of group_id: TaskGroup. Cached per instance/DAG."""
+        return self._get_task_group_dict_cached()
+
+    # methodtools.lru_cache has no type stubs, so it widens this method's return type to
+    # Any for every caller; kept private behind the explicitly-typed wrapper above so mypy
+    # still trusts get_task_group_dict()'s declared return type.
+    @methodtools.lru_cache(maxsize=None)
+    def _get_task_group_dict_cached(self) -> dict[str, TaskGroup]:
         task_group_map = {}
 
         def build_map(task_group):
