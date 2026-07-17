@@ -96,16 +96,16 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ==================
- PIP package                                 Version required
-==========================================  ==================
- ``apache-airflow``                          ``>=2.11.0``
- ``apache-airflow-providers-common-compat``  ``>=1.12.0``
- ``apache-airflow-providers-common-sql``     ``>=1.32.0``
- ``ibm-db``                                  ``>=3.2.0``
- ``ibm-db-sa``                               ``>=0.4.0``
- ``methodtools``                             ``>=0.4.7``
-==========================================  ==================
+==========================================  ======================================
+PIP package                                 Version required
+==========================================  ======================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
+``ibm-db``                                  ``>=3.2.0``
+``ibm-db-sa``                               ``>=0.4.0``
+``methodtools``                             ``>=0.4.7``
+==========================================  ======================================
 
 Optional dependencies
 ---------------------
