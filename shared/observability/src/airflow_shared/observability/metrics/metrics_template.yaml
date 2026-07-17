@@ -459,10 +459,16 @@ metrics:
     name_variables: []
 
   - name: "scheduler.dagruns.running"
-    description: "Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state"
+    description: "Number of DagRuns currently in the ``RUNNING`` state, tagged by dag_id."
     type: "gauge"
-    legacy_name: "-"
-    name_variables: []
+    legacy_name: "scheduler.dagruns.running.{dag_id}"
+    name_variables: ["dag_id"]
+
+  - name: "scheduler.dagruns.queued"
+    description: "Number of DagRuns currently in the ``QUEUED`` state, tagged by dag_id."
+    type: "gauge"
+    legacy_name: "scheduler.dagruns.queued.{dag_id}"
+    name_variables: ["dag_id"]
 
   - name: "executor.open_slots"
     description: "Number of open slots on executor. Legacy metric only emitted

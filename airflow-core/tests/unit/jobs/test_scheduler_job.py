@@ -9234,8 +9234,8 @@ class TestSchedulerJob:
 
             mock_handle_miss.assert_not_called()
 
-    def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
-        """Test that the running_dags metric is emitted correctly."""
+    def test_emit_dag_runs_metric(self, dag_maker, monkeypatch):
+        """Test that the dagruns running/queued metrics are emitted correctly."""
         with dag_maker("metric_dag") as dag:
             _ = dag
         dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
@@ -9243,19 +9243,19 @@ class TestSchedulerJob:
             run_id="run_2", state=DagRunState.RUNNING, logical_date=timezone.utcnow() + timedelta(hours=1)
         )
 
-        recorded: list[tuple[str, int]] = []
+        recorded: list[tuple[str, int, dict]] = []
 
-        def _fake_gauge(metric: str, value: int, *_, **__):
-            recorded.append((metric, value))
+        def _fake_gauge(metric: str, value: int, *_, tags=None, **__):
+            recorded.append((metric, value, tags))
 
         monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
 
         with conf_vars({("metrics", "statsd_on"): "True"}):
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(scheduler_job)
-            self.job_runner._emit_running_dags_metric()
+            self.job_runner._emit_dag_runs_metric()
 
-        assert recorded == [("scheduler.dagruns.running", 2)]
+        assert recorded == [("scheduler.dagruns.running", 2, {"dag_id": "metric_dag"})]
 
     # Multi-team scheduling tests
     def test_multi_team_get_team_names_for_dag_ids_success(self, dag_maker, session):
