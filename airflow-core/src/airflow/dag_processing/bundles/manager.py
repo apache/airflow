@@ -268,7 +268,7 @@ class DagBundlesManager(LoggingMixin):
                 kwargs=bundle_config.kwargs,
                 team_name=bundle_config.team_name,
             )
-        self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
+        self.log.debug("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
