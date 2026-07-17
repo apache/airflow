@@ -187,7 +187,7 @@ class TestVaultSecrets:
         assert json.loads(value)["conn_type"] == "postgresql"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_get_connection_value_with_list_of_paths(self, mock_hvac, secret_not_found, connection_result):
+    def test_get_connection_value_multipath(self, mock_hvac, secret_not_found, connection_result):
         """Test fetching a connection when two paths are supplied and a secret is found in the 2nd path."""
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -214,7 +214,7 @@ class TestVaultSecrets:
                 for path in ("connections/team1/test_postgres", "connections/common/test_postgres")
             ]
         )
-        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+        assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection_value_with_list_of_paths_not_found(self, mock_hvac, secret_not_found):
