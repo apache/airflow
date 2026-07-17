@@ -756,13 +756,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        # Reuse the dag run's tags (dag_id, run_type, dag tags) and add the task-level ones.
-        # team_name is a transient attribute resolved per-object at scheduling time, so it may be set
-        # on the TI even when the dag run has not seen it — carry the TI's own value when present.
-        tags = {**self.dag_run.stats_tags, "task_id": self.task_id}
-        if team_name := getattr(self, "_team_name", None):
-            tags["team_name"] = team_name
-        return tags
+        # Reuse the dag run's tags and add the task-level ones.
+        return {**self.dag_run.stats_tags, "task_id": self.task_id}
 
     @staticmethod
     def insert_mapping(

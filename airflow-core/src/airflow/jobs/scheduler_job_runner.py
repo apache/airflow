@@ -737,10 +737,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     list(unique_dag_ids),
                 )
                 for ti in task_instances_to_examine:
-                    # Set team as a transient attribute; team lives on the Bundle, not
-                    # on the TI/DagRun schema, so we resolve it at scheduling time.
+                    # Team lives on the Bundle, not the TI/DagRun schema, so resolve it at scheduling
+                    # time and stash it on the dag run, where stats_tags reads it for metric tagging.
                     if team := dag_id_to_team_name.get(ti.dag_id):
-                        ti._team_name = team
+                        ti.dag_run._team_name = team
 
             executor_slots_available: dict[ExecutorName, int] = {}
             # First get a mapping of executor names to slots they have available
@@ -3573,9 +3573,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
-            for ti in task_instances_without_heartbeats:
-                if team := dag_id_to_team_name.get(ti.dag_id):
-                    ti._team_name = team
         else:
             dag_id_to_team_name = {}
 

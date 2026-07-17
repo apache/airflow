@@ -4374,7 +4374,7 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
 
 class TestTaskInstanceStatsTagsTeamName:
     def test_stats_tags_without_team_name(self, dag_maker, session):
-        """stats_tags should not include team_name when _team_name is not set."""
+        """stats_tags should not include team_name when the dag run has no team_name."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
@@ -4384,12 +4384,12 @@ class TestTaskInstanceStatsTagsTeamName:
         assert tags == {"dag_id": "test_dag", "task_id": "my_task", "run_type": dr.run_type}
 
     def test_stats_tags_with_team_name(self, dag_maker, session):
-        """stats_tags should include team_name when _team_name is set."""
+        """stats_tags takes team_name from the dag run's stats_tags."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
+        dr._team_name = "my_team"
         ti = dr.get_task_instance("my_task", session=session)
-        ti._team_name = "my_team"
         tags = ti.stats_tags
         assert tags["team_name"] == "my_team"
         assert tags == {
@@ -4400,12 +4400,12 @@ class TestTaskInstanceStatsTagsTeamName:
         }
 
     def test_stats_tags_with_none_team_name(self, dag_maker, session):
-        """stats_tags should not include team_name when _team_name is None."""
+        """stats_tags should not include team_name when the dag run's team_name is None."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
+        dr._team_name = None
         ti = dr.get_task_instance("my_task", session=session)
-        ti._team_name = None
         tags = ti.stats_tags
         assert "team_name" not in tags
 
@@ -4465,7 +4465,7 @@ class TestTaskInstanceStatsTagsTeamName:
         ti.state = TaskInstanceState.SCHEDULED
         ti.scheduled_dttm = timezone.utcnow()
         if team_name:
-            ti._team_name = team_name
+            dr._team_name = team_name
         session.merge(ti)
         session.flush()
 
