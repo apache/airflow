@@ -71,7 +71,7 @@ defaultAirflowTag: "3.3.0"
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-# Version 3.1.0 and above is supported.
+# Version 2.11.0 and above is supported.
 airflowVersion: "3.3.0"
 
 images:
