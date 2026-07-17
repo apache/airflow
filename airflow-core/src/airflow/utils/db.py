@@ -1325,8 +1325,8 @@ def _resetdb_mysql(session: Session) -> None:
 
 def _resetdb_default(session: Session) -> None:
     """Drop all Airflow tables for PostgreSQL/SQLite."""
-    connection = settings.get_engine().connect()
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+    engine = settings.get_engine()
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), engine.connect() as connection:
         drop_airflow_models(connection)
         drop_airflow_moved_tables(connection)
         log.info("Dropped all Airflow tables")

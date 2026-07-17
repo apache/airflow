@@ -186,9 +186,8 @@ class BaseDBManager(LoggingMixin):
 
         self._release_metadata_locks_if_needed()
 
-        connection = settings.engine.connect()
-
-        with create_global_lock(self.session, lock=DBLocks.MIGRATIONS), connection.begin():
+        engine = settings.engine
+        with create_global_lock(self.session, lock=DBLocks.MIGRATIONS), engine.connect() as connection:
             self.log.info("Dropping %s tables", self.__class__.__name__)
             self.drop_tables(connection)
         if not skip_init:
