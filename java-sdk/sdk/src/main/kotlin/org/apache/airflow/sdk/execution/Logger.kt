@@ -203,6 +203,11 @@ internal class Logger(
     arguments: Map<String, Any> = emptyMap(),
   ) = log(Level.ERROR, message, arguments)
 
+  fun warning(
+    message: String,
+    arguments: Map<String, Any> = emptyMap(),
+  ) = log(Level.WARNING, message, arguments)
+
   private fun log(
     level: Level,
     event: String,
