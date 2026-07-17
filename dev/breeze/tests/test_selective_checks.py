@@ -27,13 +27,14 @@ from rich.console import Console
 from airflow_breeze.global_constants import (
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    CI_AMD_PLATFORM,
+    CI_ARM_PLATFORM,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     JAVA_SDK_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
-    PUBLIC_AMD_RUNNERS,
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -2513,26 +2514,12 @@ def test_expected_output_pull_request_v2_7(
         ),
     ],
 )
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-@patch("requests.get")
 def test_expected_output_push(
-    mock_get,
     files: tuple[str, ...],
     pr_labels: tuple[str, ...],
     default_branch: str,
     expected_outputs: dict[str, str],
 ):
-    # Mock GitHub API calls for runner_type property (used in PUSH events)
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
-    }
-    mock_get.side_effect = [workflow_response, jobs_response]
-
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -2768,20 +2755,7 @@ def test_expected_output_pull_request_target(
         GithubEvents.SCHEDULE,
     ],
 )
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-@patch("requests.get")
-def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
-    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
-    }
-    mock_get.side_effect = [workflow_response, jobs_response]
-
+def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     stderr = SelectiveChecks(
         files=(),
         commit_ref="",
@@ -2814,20 +2788,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, gith
         GithubEvents.SCHEDULE,
     ],
 )
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-@patch("requests.get")
-def test_files_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
-    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
-    }
-    mock_get.side_effect = [workflow_response, jobs_response]
-
+def test_files_provided_trigger_full_build_for_any_event_type(github_event):
     stderr = SelectiveChecks(
         files=(
             "airflow-core/src/airflow/ui/src/pages/Run/Details.tsx",
@@ -3229,270 +3190,116 @@ def test_mypy_matches(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_get_job_label(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.get_job_label("push", "main")
-
-    assert result == "ubuntu-22.04"
-
-
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_get_job_label_not_found(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests (ubuntu-22.04)", "labels": []},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.get_job_label("push", "main")
-
-    assert result is None
-
-
 @pytest.mark.parametrize(
-    ("workflow_status", "jobs_status", "expected_result"),
-    [
-        pytest.param(504, 200, None, id="workflow_api_504_error"),
-        pytest.param(200, 503, None, id="jobs_api_503_error"),
-        pytest.param(200, 200, "ubuntu-22.04", id="both_apis_200_success"),
-    ],
-)
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_get_job_label_api_status_codes(
-    mock_get, workflow_status, jobs_status, expected_result, json_decode_error
-):
-    """Test that get_job_label handles various HTTP status codes correctly."""
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = workflow_status
-    if workflow_status == 200:
-        workflow_response.json.return_value = {
-            "workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]
-        }
-    else:
-        workflow_response.json.side_effect = json_decode_error
-        workflow_response.text = "<html>Gateway Timeout</html>"
-
-    jobs_response = Mock()
-    jobs_response.status_code = jobs_status
-    if jobs_status == 200:
-        jobs_response.json.return_value = {
-            "jobs": [
-                {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-                {"name": "Other job", "labels": ["ubuntu-22.04"]},
-            ]
-        }
-    else:
-        jobs_response.json.side_effect = json_decode_error
-        jobs_response.text = "<html>Service Unavailable</html>"
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.get_job_label("push", "main")
-
-    assert result == expected_result
-
-
-def test_runner_type_pr():
-    selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
-
-    result = selective_checks.runner_type
-
-    assert result == PUBLIC_AMD_RUNNERS
-
-
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_runner_type_schedule(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.SCHEDULE,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
-            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.runner_type
-
-    assert result == '["ubuntu-22.04-arm"]'
-
-
-@pytest.mark.parametrize(
-    ("integration", "runner_type", "expected_result"),
+    ("integration", "platform", "expected_result"),
     [
         # Test integrations disabled for all CI environments
         pytest.param(
             "mssql",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             True,
             id="mssql_disabled_on_amd",
         ),
         pytest.param(
             "localstack",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="localstack_disabled_on_arm",
         ),
         # Test integrations disabled only for ARM runners
         pytest.param(
             "kerberos",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="kerberos_disabled_on_arm",
         ),
         pytest.param(
             "drill",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="drill_disabled_on_arm",
         ),
         pytest.param(
             "tinkerpop",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="tinkerpop_disabled_on_arm",
         ),
         pytest.param(
             "pinot",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="pinot_disabled_on_arm",
         ),
         pytest.param(
             "trino",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="trino_disabled_on_arm",
         ),
         pytest.param(
             "ydb",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="ydb_disabled_on_arm",
         ),
         # Test integrations that are NOT disabled on AMD runners
         pytest.param(
             "kerberos",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="kerberos_enabled_on_amd",
         ),
         pytest.param(
             "drill",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="drill_enabled_on_amd",
         ),
         pytest.param(
             "tinkerpop",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="tinkerpop_enabled_on_amd",
         ),
         # Test an integration that is not in any disabled list
         pytest.param(
             "postgres",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="postgres_enabled_on_amd",
         ),
         pytest.param(
             "postgres",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             False,
             id="postgres_enabled_on_arm",
         ),
         pytest.param(
             "redis",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="redis_enabled_on_amd",
         ),
         pytest.param(
             "redis",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             False,
             id="redis_enabled_on_arm",
         ),
     ],
 )
-def test_is_disabled_integration(integration: str, runner_type: str, expected_result: bool):
+def test_is_disabled_integration(integration: str, platform: str, expected_result: bool):
     """Test that _is_disabled_integration correctly identifies disabled integrations."""
     selective_checks = SelectiveChecks(
         files=(),
         github_event=GithubEvents.PULL_REQUEST,
         github_repository="apache/airflow",
         github_context_dict={},
+        platform=platform,
     )
 
-    # Mock the runner_type property
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: runner_type)
-    ):
-        result = selective_checks._is_disabled_integration(integration)
-        assert result == expected_result
+    assert selective_checks._is_disabled_integration(integration) == expected_result
 
 
 def test_testable_core_integrations_excludes_disabled():
@@ -3506,14 +3313,10 @@ def test_testable_core_integrations_excludes_disabled():
             files=("airflow-core/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
+            platform=CI_AMD_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_amd.testable_core_integrations
             assert "postgres" in result
@@ -3530,16 +3333,10 @@ def test_testable_core_integrations_excludes_arm_disabled_on_arm():
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.SCHEDULE,
             github_context_dict={"ref_name": "main"},
+            platform=CI_ARM_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks,
-                "runner_type",
-                new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]'),
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_arm.testable_core_integrations
             assert "postgres" in result
@@ -3558,14 +3355,10 @@ def test_testable_providers_integrations_excludes_disabled():
             files=("providers/amazon/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
+            platform=CI_AMD_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_amd.testable_providers_integrations
             assert "postgres" in result
@@ -3583,16 +3376,10 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.SCHEDULE,
             github_context_dict={"ref_name": "main"},
+            platform=CI_ARM_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks,
-                "runner_type",
-                new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]'),
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_arm.testable_providers_integrations
             assert "postgres" in result
@@ -3616,12 +3403,9 @@ def test_testable_core_integrations_gated_by_source(changed_file, expected_integ
         files=(changed_file,),
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        result = selective_checks.testable_core_integrations
-        assert result == [expected_integration]
+    assert selective_checks.testable_core_integrations == [expected_integration]
 
 
 def test_testable_core_integrations_empty_when_unrelated_source():
@@ -3630,11 +3414,9 @@ def test_testable_core_integrations_empty_when_unrelated_source():
         files=("airflow-core/src/airflow/models/taskinstance.py",),
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        assert selective_checks.testable_core_integrations == []
+    assert selective_checks.testable_core_integrations == []
 
 
 def test_testable_providers_integrations_gated_by_affected_provider():
@@ -3643,15 +3425,13 @@ def test_testable_providers_integrations_gated_by_affected_provider():
         files=("providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py",),
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        result = selective_checks.testable_providers_integrations
-        assert "cassandra" in result
-        # Unrelated integrations whose providers are not affected must be absent.
-        assert "mongo" not in result
-        assert "ydb" not in result
+    result = selective_checks.testable_providers_integrations
+    assert "cassandra" in result
+    # Unrelated integrations whose providers are not affected must be absent.
+    assert "mongo" not in result
+    assert "ydb" not in result
 
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
@@ -3665,14 +3445,11 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
         github_context_dict={"ref_name": "main"},
         default_branch="main",
         pr_labels=("full tests needed",),
+        platform=CI_ARM_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
-    ):
-        assert arm_checks.platform == "linux/arm64"
-        arm_output = arm_checks.individual_providers_test_types_list_as_strings_in_json
-        assert arm_output is not None
-        assert "Providers[ibm.mq]" not in arm_output
+    arm_output = arm_checks.individual_providers_test_types_list_as_strings_in_json
+    assert arm_output is not None
+    assert "Providers[ibm.mq]" not in arm_output
 
     amd_checks = SelectiveChecks(
         files=("airflow-core/tests/test_example.py",),
@@ -3681,14 +3458,11 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
         github_context_dict={"ref_name": "main"},
         default_branch="main",
         pr_labels=("full tests needed",),
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        assert amd_checks.platform == "linux/amd64"
-        amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
-        assert amd_output is not None
-        assert "Providers[ibm.mq]" in amd_output
+    amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
+    assert amd_output is not None
+    assert "Providers[ibm.mq]" in amd_output
 
 
 def test_run_kubernetes_tests_forced_by_label():
