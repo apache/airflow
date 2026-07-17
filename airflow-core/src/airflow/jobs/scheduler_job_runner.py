@@ -1683,7 +1683,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_run.dag = dag
                     _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
                     if callback_to_run:
-                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                        self._send_dag_callbacks_to_processor(callback_to_run)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
@@ -1939,12 +1939,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
         for dag_run, callback_to_run in callback_tuples:
-            dag = cached_get_dag(dag_run)
-            if dag:
-                # Sending callbacks to the database, so it must be done outside of prohibit_commit.
-                self._send_dag_callbacks_to_processor(dag, callback_to_run)
-            else:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+            if callback_to_run:
+                dag = cached_get_dag(dag_run)
+                if dag:
+                    # Sending callbacks to the database, so it must be done outside of prohibit_commit.
+                    self._send_dag_callbacks_to_processor(callback_to_run)
+                else:
+                    self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
 
         with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB
@@ -2992,15 +2993,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return True
 
-    def _send_dag_callbacks_to_processor(
-        self,
-        dag: SerializedDAG,
-        callback: DagCallbackRequest | None = None,
-    ) -> None:
-        if callback:
-            self.executor.send_callback(callback)
-        else:
-            self.log.debug("callback is empty")
+    def _send_dag_callbacks_to_processor(self, callback: DagCallbackRequest) -> None:
+        self.executor.send_callback(callback)
 
     @provide_session
     def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:
