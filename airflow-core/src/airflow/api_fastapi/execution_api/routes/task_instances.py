@@ -29,6 +29,7 @@ import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, Response, Security, status
+from fastapi.responses import JSONResponse
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -122,6 +123,7 @@ tracer = trace.get_tracer(__name__)
             (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
         ]
     ),
+    response_model=TIRunContext,
     response_model_exclude_unset=True,
 )
 def ti_run(
@@ -214,16 +216,20 @@ def ti_run(
             previous_state=previous_state,
         )
 
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "type": "about:blank",
-                "title": "Conflict",
-                "status": status.HTTP_409_CONFLICT,
-                "detail": "TI was not in a state where it could be marked as running",
-                "reason": "invalid_state",
-                "previous_state": previous_state,
-            },
+        return cast(
+            "TIRunContext",
+            JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                media_type="application/problem+json",
+                content={
+                    "type": "about:blank",
+                    "title": "Conflict",
+                    "status": status.HTTP_409_CONFLICT,
+                    "detail": "TI was not in a state where it could be marked as running",
+                    "reason": "invalid_state",
+                    "previous_state": previous_state,
+                },
+            ),
         )
     else:
         log.info("Task started", previous_state=previous_state, hostname=ti_run_payload.hostname)

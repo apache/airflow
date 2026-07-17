@@ -855,15 +855,14 @@ class TestTIRunState:
         )
 
         assert response.status_code == 409
+        assert response.headers["content-type"] == "application/problem+json"
         assert response.json() == {
-            "detail": {
-                "type": "about:blank",
-                "title": "Conflict",
-                "status": 409,
-                "detail": "TI was not in a state where it could be marked as running",
-                "previous_state": initial_ti_state,
-                "reason": "invalid_state",
-            }
+            "type": "about:blank",
+            "title": "Conflict",
+            "status": 409,
+            "detail": "TI was not in a state where it could be marked as running",
+            "previous_state": initial_ti_state,
+            "reason": "invalid_state",
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state

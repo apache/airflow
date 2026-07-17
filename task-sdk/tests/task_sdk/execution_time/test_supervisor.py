@@ -959,15 +959,14 @@ class TestWatchedSubprocess:
             if request.url.path == f"/task-instances/{ti_id}/run":
                 return httpx.Response(
                     409,
+                    headers={"content-type": "application/problem+json"},
                     json={
-                        "detail": {
-                            "type": "about:blank",
-                            "title": "Conflict",
-                            "status": 409,
-                            "detail": "TI was not in a state where it could be marked as running",
-                            "reason": "invalid_state",
-                            "previous_state": "running",
-                        }
+                        "type": "about:blank",
+                        "title": "Conflict",
+                        "status": 409,
+                        "detail": "TI was not in a state where it could be marked as running",
+                        "reason": "invalid_state",
+                        "previous_state": "running",
                     },
                 )
             return httpx.Response(status_code=204)

@@ -1325,21 +1325,28 @@ class ServerResponseError(httpx.HTTPStatusError):
         if not (400 <= response.status_code < 600):
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        content_type = response.headers.get("content-type", "").split(";")[0]
+        if content_type != "application/json" and not content_type.endswith("+json"):
             return None
 
         detail: list[RemoteValidationError] | dict[str, Any] | None = None
         try:
-            body = _ErrorBody.model_validate_json(response.read())
+            body = msgspec.json.decode(response.read())
 
-            if isinstance(body.detail, list):
-                detail = body.detail
-                msg = "Remote server returned validation error"
-            elif isinstance(body.detail, dict):
-                detail = body.detail
+            if isinstance(body, dict) and {"type", "title", "status"}.issubset(body):
+                detail = body
                 msg = "Server returned error"
             else:
-                msg = body.detail or "Un-parseable error"
+                body = _ErrorBody.model_validate(body)
+
+                if isinstance(body.detail, list):
+                    detail = body.detail
+                    msg = "Remote server returned validation error"
+                elif isinstance(body.detail, dict):
+                    detail = body.detail
+                    msg = "Server returned error"
+                else:
+                    msg = body.detail or "Un-parseable error"
         except Exception:
             try:
                 detail = msgspec.json.decode(response.content)
