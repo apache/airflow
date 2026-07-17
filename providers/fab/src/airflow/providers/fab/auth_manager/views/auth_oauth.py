@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import session
+from flask import request, session
 from flask_appbuilder import expose
 from flask_appbuilder.security.views import AuthOAuthView
 
@@ -32,11 +32,39 @@ log = logging.getLogger(__name__)
 
 class CustomAuthOAuthView(AuthOAuthView):
     """
-    Custom OAuth authentication view that ensures session is committed before redirect.
+    Custom OAuth authentication view with proxy-aware URL scheme and session commit.
 
-    Fixes issue #57981 where UI requests fail with 401 during OAuth flow because
-    the Flask session is not yet committed when the redirect response is sent.
+    Fixes:
+    - Issue #70023: OAuth redirect URI uses ``http://`` behind reverse proxy by
+      honouring ``X-Forwarded-Proto`` to build the correct external scheme.
+    - Issue #57981: UI requests fail with 401 during OAuth flow because the Flask
+      session is not yet committed when the redirect response is sent.
     """
+
+    @expose("/login/")
+    @expose("/login/<provider>")
+    def login(self, provider=None):
+        """
+        OAuth login handler that corrects the URL scheme behind a TLS-terminating proxy.
+
+        When Airflow runs behind a reverse proxy that terminates TLS and forwards
+        requests as HTTP, ``wsgi.url_scheme`` is ``http``, so the redirect URI built
+        by ``url_for(..., _external=True)`` uses ``http://`` even though the public
+        endpoint is ``https://``. If the proxy sets ``X-Forwarded-Proto``, honour it
+        here so the generated redirect URI matches the external scheme regardless of
+        whether ProxyFix is configured.
+
+        Args:
+            provider: OAuth provider name (e.g., 'azure', 'google', 'github')
+
+        Returns:
+            Flask response object (redirect to the OAuth provider or home page)
+        """
+        forwarded_proto = request.headers.get("X-Forwarded-Proto")
+        if forwarded_proto:
+            request.environ["wsgi.url_scheme"] = forwarded_proto
+
+        return super().login(provider)
 
     @expose("/oauth-authorized/<provider>")
     def oauth_authorized(self, provider):
