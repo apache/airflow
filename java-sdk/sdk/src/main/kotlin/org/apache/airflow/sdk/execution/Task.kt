@@ -19,14 +19,17 @@
 
 package org.apache.airflow.sdk.execution
 
+import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.TaskDefinition
 import org.apache.airflow.sdk.execution.comm.AssetProfile
 import org.apache.airflow.sdk.execution.comm.RetryTask
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TaskState
+import org.apache.airflow.sdk.kotlin.AsyncClient
 import java.time.OffsetDateTime
 
 internal object TaskResult {
@@ -69,10 +72,24 @@ internal object TaskRunner {
     bundle: Bundle,
     request: StartupDetails,
     client: Client,
+    asyncClient: AsyncClient,
   ): Any {
     val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskResult.of(TaskState.State.REMOVED)
     return try {
-      task.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
+      when (task) {
+        is TaskDefinition.Sync ->
+          task.definition
+            .getDeclaredConstructor()
+            .newInstance()
+            .execute(Context.from(request), client)
+        is TaskDefinition.Async ->
+          runBlocking {
+            task.definition
+              .getDeclaredConstructor()
+              .newInstance()
+              .execute(Context.from(request), asyncClient)
+          }
+      }
       TaskResult.success()
     } catch (e: Throwable) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
@@ -90,10 +107,17 @@ internal fun runTask(
   bundle: Bundle,
   request: StartupDetails,
   comm: CoordinatorComm,
-): Any = TaskRunner.runTask(bundle, request, Client(request, CoordinatorClient(comm)))
+): Any =
+  TaskRunner.runTask(
+    bundle,
+    request,
+    Client(request, CoordinatorClient(comm)),
+    AsyncClient(request, CoordinatorAsyncClient(comm)),
+  )
 
 internal fun runTask(
   bundle: Bundle,
   request: StartupDetails,
   client: Client,
-) = TaskRunner.runTask(bundle, request, client)
+  asyncClient: AsyncClient,
+) = TaskRunner.runTask(bundle, request, client, asyncClient)

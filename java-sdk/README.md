@@ -47,6 +47,53 @@ development tools may have further requirements (see the toolchain in
 This uses [Dokka](https://kotl.in/dokka) to build documentation of the Java SDK.
 This generates both an HTML representation and Javadoc.
 
+## Coroutine tasks in Kotlin
+
+Kotlin tasks can use the coroutine-native client instead of blocking for each
+Airflow API call. Apply KAPT to the SDK annotation processor in the bundle's
+Gradle build:
+
+```kotlin
+plugins {
+    kotlin("jvm") version "<kotlin-version>"
+    kotlin("kapt") version "<kotlin-version>"
+    id("org.apache.airflow.sdk") version "<airflow-java-sdk-version>"
+}
+
+dependencies {
+    implementation("org.apache.airflow:airflow-sdk:<airflow-java-sdk-version>")
+    kapt("org.apache.airflow:airflow-sdk-processor:<airflow-java-sdk-version>")
+}
+```
+
+The existing annotations automatically recognize a `suspend` task function and
+generate an asynchronous task implementation:
+
+```kotlin
+import org.apache.airflow.sdk.Builder
+import org.apache.airflow.sdk.kotlin.AsyncClient
+
+@Builder.Dag(id = "kotlin_example")
+class KotlinExample {
+    @Builder.Task
+    suspend fun extract(client: AsyncClient): String =
+        client.getVariable("input") as String
+
+    @Builder.Task
+    suspend fun transform(
+        client: AsyncClient,
+        @Builder.XCom(task = "extract") input: String,
+    ): String {
+        val suffix = client.getVariable("suffix") as String
+        return "$input$suffix"
+    }
+}
+```
+
+Return values are pushed to XCom in the same way as synchronous annotated task
+functions. Existing Java tasks and the synchronous `Task` and `Client` APIs are
+unchanged.
+
 
 ## Running the example
 
