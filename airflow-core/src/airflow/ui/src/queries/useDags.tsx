@@ -21,6 +21,7 @@ import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export type DagWithLatest = {
+  last_run_run_after: string;
   last_run_start_date: string;
 } & DAGWithLatestDagRunsResponse;
 
