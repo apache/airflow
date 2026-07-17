@@ -2623,6 +2623,8 @@ export type NodeResponse = {
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    ui_color?: string | null;
+    ui_fgcolor?: string | null;
 };
 
 export type OklchColor = string;
