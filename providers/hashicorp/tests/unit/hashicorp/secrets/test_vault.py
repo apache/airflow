@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
 
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 from tests_common.test_utils.config import conf_vars
@@ -138,20 +140,6 @@ class TestVaultSecrets:
                 "foo",
                 id="team_conn_no_separation",
             ),
-            pytest.param(
-                ["secret_not_found", "connection_result"],
-                {"global_secrets_path": "global"},
-                ["/foo/test_postgres", "/global/test_postgres"],
-                "foo",
-                id="fallback_global_conn",
-            ),
-            pytest.param(
-                ["connection_result"],
-                {"global_secrets_path": "global"},
-                ["/global/test_postgres"],
-                None,
-                id="global_conn_no_team",
-            ),
         ],
     )
     @conf_vars({("core", "multi_team"): "True"})
@@ -184,7 +172,7 @@ class TestVaultSecrets:
         mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
             [
                 mock.call(
-                    path=test_client.connections_path + path,
+                    path=test_client.connections_path[0] + path,
                     mount_point="airflow",
                     version=None,
                     raise_on_deleted_version=True,
@@ -193,6 +181,54 @@ class TestVaultSecrets:
             ]
         )
         assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_connection_value_with_list_of_paths(self, mock_hvac, secret_not_found, connection_result):
+        """Test fetching a connection when two paths are supplied and a secret is found in the 2nd path."""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = [secret_not_found, connection_result]
+
+        kwargs = {
+            "connections_path": ["connections/team1", "connections/common"],
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        connection = test_client.get_connection(conn_id="test_postgres")
+        mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
+            [
+                mock.call(
+                    path=path,
+                    mount_point="airflow",
+                    version=None,
+                    raise_on_deleted_version=True,
+                )
+                for path in ("connections/team1/test_postgres", "connections/common/test_postgres")
+            ]
+        )
+        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_connection_value_with_list_of_paths_not_found(self, mock_hvac, secret_not_found):
+        """Test fetching a connection when two paths are supplied and a secret is not found in either path."""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = [secret_not_found, secret_not_found]
+
+        kwargs = {
+            "connections_path": ["connections/team1", "connections/common"],
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        assert test_client.get_connection(conn_id="test_postgres") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection_without_predefined_mount_point(self, mock_hvac):
@@ -294,20 +330,6 @@ class TestVaultSecrets:
                 "foo",
                 id="team_var_no_separation",
             ),
-            pytest.param(
-                ["secret_not_found", "variable_result"],
-                {"global_secrets_path": "global"},
-                ["/foo/hello", "/global/hello"],
-                "foo",
-                id="fallback_global_var",
-            ),
-            pytest.param(
-                ["variable_result"],
-                {"global_secrets_path": "global"},
-                ["/global/hello"],
-                None,
-                id="global_var_no_team",
-            ),
         ],
     )
     @conf_vars({("core", "multi_team"): "True"})
@@ -340,12 +362,42 @@ class TestVaultSecrets:
         mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
             [
                 mock.call(
-                    path=test_client.variables_path + path,
+                    path=test_client.variables_path[0] + path,
                     mount_point="airflow",
                     version=None,
                     raise_on_deleted_version=True,
                 )
                 for path in exp_paths
+            ]
+        )
+        assert returned_uri == "world"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_variable_value_multipath(self, mock_hvac, secret_not_found, variable_result):
+        """Verify fetching a variable and falling back with multiple paths configured."""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = [secret_not_found, variable_result]
+
+        kwargs = {
+            "variables_path": ["variables/team1", "variables/common"],
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        returned_uri = test_client.get_variable("hello")
+        mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
+            [
+                mock.call(
+                    path=path,
+                    mount_point="airflow",
+                    version=None,
+                    raise_on_deleted_version=True,
+                )
+                for path in ("variables/team1/hello", "variables/common/hello")
             ]
         )
         assert returned_uri == "world"
@@ -638,6 +690,42 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_config("sql_alchemy_conn")
+        assert returned_uri == "sqlite:////Users/airflow/airflow/airflow.db"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_config_value_multipath(self, mock_hvac, secret_not_found):
+        """Verify fetching a config value and falling back with multiple paths configured."""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        found_config = {
+            "data": {
+                "data": {"value": "sqlite:////Users/airflow/airflow/airflow.db"},
+                "metadata": {"version": 1},
+            },
+        }
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = [secret_not_found, found_config]
+
+        kwargs = {
+            "config_path": ["config/team1", "config/common"],
+            "mount_point": "secret",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.FnL7qg0YnHZDpf4zKKuFy0UK",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        returned_uri = test_client.get_config("sql_alchemy_conn")
+        mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
+            [
+                mock.call(
+                    path=path,
+                    mount_point="secret",
+                    version=None,
+                    raise_on_deleted_version=True,
+                )
+                for path in ("config/team1/sql_alchemy_conn", "config/common/sql_alchemy_conn")
+            ]
+        )
         assert returned_uri == "sqlite:////Users/airflow/airflow/airflow.db"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
