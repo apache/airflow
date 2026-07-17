@@ -334,7 +334,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        # When this processor only parses a subset of bundles, it does not see the full
+        # bundle configuration and must not deactivate bundles owned by other processors.
+        DagBundlesManager().sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
