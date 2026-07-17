@@ -343,7 +343,7 @@ class TestDbApiHookGetSqlalchemyEngine:
     @patch("airflow.providers.common.sql.hooks.sql.find_spec")
     @patch("airflow.providers.common.sql.hooks.sql.create_engine")
     def test_falls_back_to_psycopg_when_psycopg2_import_fails(
-        self, mock_create_engine, mock_find_spec, mock_is_sqlalchemy_2
+        self, mock_create_engine, mock_find_spec, mock_is_sqlalchemy_2, caplog
     ):
         mock_find_spec.return_value = object()
         mock_create_engine.side_effect = [ModuleNotFoundError("No module named 'psycopg2'"), MagicMock()]
@@ -354,13 +354,17 @@ class TestDbApiHookGetSqlalchemyEngine:
         assert mock_create_engine.call_count == 2
         retried_url = mock_create_engine.call_args.kwargs["url"]
         assert retried_url.drivername == "postgresql+psycopg"
+        assert (
+            "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+            "retrying with psycopg (v3) ('postgresql+psycopg')."
+        ) in caplog.text
 
     @pytest.mark.db_test
     @patch("airflow.providers.common.sql.hooks.sql._is_sqlalchemy_2", return_value=False)
     @patch("airflow.providers.common.sql.hooks.sql.find_spec")
     @patch("airflow.providers.common.sql.hooks.sql.create_engine")
     def test_falls_back_to_psycopg2_when_sqlalchemy_below_2(
-        self, mock_create_engine, mock_find_spec, mock_is_sqlalchemy_2
+        self, mock_create_engine, mock_find_spec, mock_is_sqlalchemy_2, caplog
     ):
         # SQLAlchemy 1.4 (shipped with Airflow 2.11) has no native "postgresql+psycopg" dialect,
         # so even when psycopg (v3) is importable the retry must use psycopg2, not psycopg.
@@ -373,11 +377,17 @@ class TestDbApiHookGetSqlalchemyEngine:
         assert mock_create_engine.call_count == 2
         retried_url = mock_create_engine.call_args.kwargs["url"]
         assert retried_url.drivername == "postgresql+psycopg2"
+        assert (
+            "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+            "retrying with 'postgresql+psycopg2'."
+        ) in caplog.text
 
     @pytest.mark.db_test
     @patch("airflow.providers.common.sql.hooks.sql.find_spec")
     @patch("airflow.providers.common.sql.hooks.sql.create_engine")
-    def test_falls_back_to_psycopg2_when_psycopg_unavailable(self, mock_create_engine, mock_find_spec):
+    def test_falls_back_to_psycopg2_when_psycopg_unavailable(
+        self, mock_create_engine, mock_find_spec, caplog
+    ):
         mock_find_spec.side_effect = lambda name: None if name == "psycopg" else object()
         mock_create_engine.side_effect = [ModuleNotFoundError("No module named 'psycopg2'"), MagicMock()]
         dbapi_hook = mock_db_hook(DbApiHook, conn_params={"conn_type": "postgresql"})
@@ -387,6 +397,10 @@ class TestDbApiHookGetSqlalchemyEngine:
         assert mock_create_engine.call_count == 2
         retried_url = mock_create_engine.call_args.kwargs["url"]
         assert retried_url.drivername == "postgresql+psycopg2"
+        assert (
+            "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+            "retrying with 'postgresql+psycopg2'."
+        ) in caplog.text
 
     @pytest.mark.db_test
     @patch("airflow.providers.common.sql.hooks.sql.find_spec", return_value=None)

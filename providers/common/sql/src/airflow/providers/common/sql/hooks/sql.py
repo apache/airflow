@@ -358,8 +358,16 @@ class DbApiHook(BaseHook):
             # native "postgresql+psycopg" dialect and would raise NoSuchModuleError — so only
             # prefer it on SQLAlchemy 2.0+; otherwise fall back to psycopg2.
             if find_spec("psycopg") is not None and _is_sqlalchemy_2():
+                self.log.info(
+                    "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+                    "retrying with psycopg (v3) ('postgresql+psycopg')."
+                )
                 return create_engine(url=parsed_url.set(drivername="postgresql+psycopg"), **engine_kwargs)
             if find_spec("psycopg2") is not None:
+                self.log.info(
+                    "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+                    "retrying with 'postgresql+psycopg2'."
+                )
                 return create_engine(url=parsed_url.set(drivername="postgresql+psycopg2"), **engine_kwargs)
             raise
 
