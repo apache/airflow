@@ -3718,6 +3718,19 @@ def test_run_kubernetes_tests_forced_by_label_with_no_changed_files():
     assert checks.full_tests_needed is False
 
 
+@pytest.mark.parametrize("files", [("INTHEWILD.md",), ()], ids=["unrelated-file", "no-files"])
+def test_prod_image_build_forced_by_e2e_test_label(files):
+    checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+        pr_labels=("area:e2e-test",),
+    )
+    assert checks.prod_image_build is True
+    assert checks.full_tests_needed is False
+
+
 def test_filter_platform_excluded_test_types_handles_all_shapes():
     """Direct unit check of the in-place filter for the three Providers[...] shapes."""
     checks = SelectiveChecks(

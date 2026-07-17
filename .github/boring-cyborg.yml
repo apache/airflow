@@ -596,6 +596,9 @@ labelPRBasedOnFilePath:
   area:docker-tests:
     - docker-tests/**/*
 
+  area:e2e-test:
+    - airflow-e2e-tests/**/*
+
   area:kubernetes-tests:
     - kubernetes-tests/**/*
 
