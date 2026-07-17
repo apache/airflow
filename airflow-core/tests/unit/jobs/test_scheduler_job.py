@@ -9020,7 +9020,7 @@ class TestSchedulerJob:
             last_ti=dag_run.get_task_instance(task_id="test_task"),
         )
 
-    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    @mock.patch("airflow.models.dagrun.get_listener_manager_for_dag")
     def test_dag_start_notifies_with_started_msg(self, mock_get_listener_manager, dag_maker, session):
         """Test that notify_dagrun_state_changed is called with msg='started' when DAG starts."""
         mock_listener_manager = MagicMock()
@@ -9045,7 +9045,7 @@ class TestSchedulerJob:
         assert call_args.kwargs["msg"] == "started"
         assert call_args.kwargs["dag_run"].dag_id == dag_run.dag_id
 
-    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    @mock.patch("airflow.models.dagrun.get_listener_manager_for_dag")
     def test_dag_timeout_notifies_with_timed_out_msg(self, mock_get_listener_manager, dag_maker, session):
         """Test that notify_dagrun_state_changed is called with msg='timed_out' when DAG times out."""
         mock_listener_manager = MagicMock()
