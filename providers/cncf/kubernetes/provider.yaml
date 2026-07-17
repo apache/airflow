@@ -233,6 +233,12 @@ connection-types:
           type:
             - string
             - 'null'
+      xcom_sidecar_container_security_context:
+        label: XCom sidecar security context (JSON format)
+        schema:
+          type:
+            - string
+            - 'null'
     ui-field-behaviour:
       hidden-fields:
         - host
