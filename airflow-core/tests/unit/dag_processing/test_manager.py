@@ -2726,11 +2726,15 @@ class TestDagFileProcessorManager:
 
         assert state == BundleState(last_refreshed=initial_refreshed_at, version="old")
 
-        with create_session() as update_session:
+        with create_session(scoped=False) as update_session:
             update_model = update_session.get(DagBundleModel, bundle_name)
             assert update_model is not None
             update_model.last_refreshed = refreshed_at
             update_model.version = "fresh"
+
+        # End the read transaction started by the first get_bundle_state() call so we don't keep
+        # reading a stale snapshot on backends like SQLite.
+        session.commit()
 
         state = manager.get_bundle_state(bundle_name, session=session)
 
