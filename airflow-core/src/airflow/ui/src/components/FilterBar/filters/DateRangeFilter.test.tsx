@@ -251,6 +251,7 @@ describe("DateRangeFilter", () => {
       const { startDateInput } = getInputs();
 
       changeDateInput(startDateInput, "2024/01/15");
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         // onChange should NOT be called when typing — only on popover close
         expect(onChange).not.toHaveBeenCalled();
