@@ -1,0 +1,1 @@
+``dag_processing.processes`` metric now correctly emits a decrement on graceful DAG-file processor exit (``action=success``), so the gauge no longer drifts upward under normal operation.
