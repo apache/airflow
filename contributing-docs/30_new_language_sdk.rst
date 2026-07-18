@@ -245,7 +245,7 @@ subprocess relative to the ``--logs`` socket:
 
 .. code-block:: text
 
-    1. Coordinator launches the subprocess with
+    1. Supervisor launches the subprocess with
        --comm=<host>:<port> --logs=<host>:<port>
       │
       └─► 2. Subprocess starts. Its logger is already active, but the
