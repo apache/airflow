@@ -142,7 +142,7 @@ def _warn_if_missing_remote_task_log(logging_class_path: str) -> None:
     remote_logging_enabled = conf.getboolean("logging", "remote_logging", fallback=False)
     if not (has_user_defined_logging_config_class and remote_logging_enabled):
         return
-    if _ActiveLoggingConfig.remote_task_log is not None:
+    if get_remote_task_log() is not None:
         return
     # Strip the trailing ``.<config_attr>`` to leave the enclosing module path.
     # ``logging_class_path`` should always be dotted since ``import_string``

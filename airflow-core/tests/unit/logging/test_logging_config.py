@@ -244,3 +244,22 @@ class TestWarnIfMissingRemoteTaskLog:
         else:
             mock_log.warning.assert_called_once()
             assert expected_module in mock_log.warning.call_args.args
+
+    def test_skips_warning_when_resolved_lazily_via_provider_dispatch(self, monkeypatch):
+        """The cache may still be cold (no ES/OS handler self-registered during dictConfig),
+        but a working setup resolved through ProvidersManager dispatch must still suppress
+        the warning -- so the check has to trigger the real resolution via
+        get_remote_task_log() rather than only inspecting the cached field."""
+        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", False, raising=False)
+        sentinel_handler = object()
+        with (
+            conf_vars({("logging", "remote_logging"): "True"}),
+            mock.patch("airflow.logging_config.resolve_remote_task_log") as mock_resolve,
+            mock.patch("airflow.providers_manager.ProvidersManager"),
+            mock.patch("airflow.logging_config.log") as mock_log,
+        ):
+            mock_resolve.return_value = (sentinel_handler, None)
+            _warn_if_missing_remote_task_log("my_pkg.custom_settings.LOGGING_CONFIG")
+
+        mock_log.warning.assert_not_called()
+        assert _ActiveLoggingConfig.remote_task_log is sentinel_handler
