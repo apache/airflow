@@ -105,6 +105,7 @@ from airflow.sdk.execution_time.comms import (
     TICount,
     UpdateHITLDetail,
     XComCountResponse,
+    XComDeleteCountResult,
 )
 
 if TYPE_CHECKING:
@@ -651,6 +652,27 @@ class XComOperations:
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return OKResponse(ok=True)
+
+    def delete_all(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str | None = None,
+        key: str | None = None,
+        map_index: int | None = None,
+    ) -> XComDeleteCountResult:
+        """Bulk delete XCom values via the API server."""
+        params: dict[str, str | int] = {}
+
+        if map_index is not None and map_index >= 0:
+            params["map_index"] = map_index
+        if task_id is not None:
+            params["task_id"] = task_id
+        if key is not None:
+            params["key"] = key
+
+        resp = self.client.delete(url=f"xcoms/{dag_id}/{run_id}", params=params)
+        return XComDeleteCountResult(count=resp.json()["count"])
 
     def get_sequence_item(
         self,

@@ -62,6 +62,7 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
+    BulkDeleteXCom,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     CommsDecoder,
@@ -102,6 +103,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.sdk.execution_time.request_handlers import (
+    handle_bulk_delete_xcom,
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
     handle_delete_asset_state_store_by_name,
@@ -392,6 +394,7 @@ ToTriggerSupervisor = Annotated[
     | GetVariableKeys
     | PutVariable
     | DeleteXCom
+    | BulkDeleteXCom
     | GetXCom
     | SetXCom
     | GetTICount
@@ -633,6 +636,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteXCom):
             resp, dump_opts = handle_delete_xcom(self.client, msg)
+        elif isinstance(msg, BulkDeleteXCom):
+            resp, dump_opts = handle_bulk_delete_xcom(self.client, msg)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, SetXCom):

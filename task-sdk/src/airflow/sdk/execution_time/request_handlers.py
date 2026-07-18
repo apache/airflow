@@ -42,6 +42,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
+    BulkDeleteXCom,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     ConnectionResult,
@@ -196,6 +197,12 @@ def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | Non
     """Delete an XCom value."""
     client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
     return None, {}
+
+
+def handle_bulk_delete_xcom(client: Client, msg: BulkDeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Bulk delete XCom values."""
+    resp = client.xcoms.delete_all(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+    return resp, {}
 
 
 def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | None, dict[str, bool]]:
