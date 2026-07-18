@@ -152,6 +152,7 @@ export class LogChannel {
         this.shared.sock.destroy();
         resolve();
       }, CLOSE_FLUSH_TIMEOUT_MS);
+      timer.unref();
       this.shared.sock.end(() => {
         clearTimeout(timer);
         resolve();
