@@ -233,6 +233,10 @@ def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
     """Collect extension points for the API."""
     log.debug("Initialize FastAPI plugins")
 
+    # Validate here (the API-server, DB-available path) so callers cannot mount
+    # plugins without the team check running.
+    validate_plugin_teams()
+
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
     for plugin in _get_plugins()[0]:
@@ -432,30 +436,26 @@ def validate_plugin_teams() -> None:
     metadata database access (the API server) — never in the Dag processor, triggerer,
     or workers, which reach the database only through the Execution API.
 
-    Raises ``AirflowConfigException`` if any plugin declares a ``team_name`` that is not
-    present in the database, naming the offending plugins and unknown teams so the
-    misconfiguration can be fixed quickly.
+    A plugin that declares a ``team_name`` not present in the database is recorded as a
+    plugin import error (surfaced like any other plugin load failure) and logged, rather
+    than raising, so a single misconfigured plugin does not stop the API server and every
+    other plugin from starting.
     """
     if not conf.getboolean("core", "multi_team"):
         return
 
-    from airflow.exceptions import AirflowConfigException
     from airflow.models.team import Team
 
+    plugins, import_errors = _get_plugins()
     known_teams = Team.get_all_team_names()
-    unknown_by_plugin = {
-        plugin.name: plugin.team_name
-        for plugin in _get_plugins()[0]
-        if plugin.team_name is not None and plugin.team_name not in known_teams
-    }
-    if unknown_by_plugin:
-        lines = [
-            f"  - Plugin '{plugin_name}' is assigned to team '{team_name}', which does not exist."
-            for plugin_name, team_name in unknown_by_plugin.items()
-        ]
-        raise AirflowConfigException(
-            "Some plugins are assigned to teams that do not exist:\n"
-            + "\n".join(lines)
-            + "\n\nCreate a team with `airflow teams create <team_name>`, "
+    for plugin in plugins:
+        if plugin.team_name is None or plugin.team_name in known_teams:
+            continue
+        message = (
+            f"Plugin '{plugin.name}' is assigned to team '{plugin.team_name}', which does not exist. "
+            "Create a team with `airflow teams create <team_name>`, "
             "or update the plugin to use an existing team."
         )
+        log.warning(message)
+        source = str(plugin.source) if plugin.source else plugin.name or ""
+        import_errors[source] = message

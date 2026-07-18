@@ -22,15 +22,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.capabilities import Toolset
 from pydantic_ai.messages import (
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
     TextPart,
+    ToolCallPart,
+    ToolReturnPart,
     UserPromptPart,
 )
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import UsageLimits
 
+from airflow.providers.common.ai.durable.base import DurableStorageProtocol
+from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
+from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
@@ -69,6 +78,33 @@ def _make_mock_agent(output):
     mock_agent = MagicMock(spec=["run_sync"])
     mock_agent.run_sync.return_value = _make_mock_run_result(output)
     return mock_agent
+
+
+class _InMemoryDurableStorage:
+    """In-memory DurableStorageProtocol backend for exercising real replay in tests."""
+
+    def __init__(self):
+        self.models: dict = {}
+        self.tools: dict = {}
+
+    def save_model_response(self, key, response, *, fingerprint):
+        self.models[key] = (response, fingerprint)
+
+    def load_model_response(self, key):
+        return self.models.get(key, (None, None))
+
+    def save_tool_result(self, key, result, *, fingerprint):
+        self.tools[key] = (result, fingerprint)
+
+    def load_tool_result(self, key):
+        if key in self.tools:
+            value, fingerprint = self.tools[key]
+            return True, value, fingerprint
+        return False, None, None
+
+    def cleanup(self):
+        self.models.clear()
+        self.tools.clear()
 
 
 class TestAgentOperatorValidation:
@@ -584,7 +620,10 @@ class TestAgentOperatorDurable:
         storage = op._build_durable_storage({"task_instance": ti})
 
         assert isinstance(storage, DurableStorage)
-        assert storage._cache_id == "d_t_r"
+        # cache_id is a stable hash of the identity components, not a raw concat.
+        assert (
+            storage._cache_id == DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)._cache_id
+        )
 
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)
@@ -628,6 +667,97 @@ class TestAgentOperatorDurable:
 
         # run_sync called directly, no override
         mock_agent.run_sync.assert_called_once_with("test", usage_limits=None)
+
+    def test_build_durable_capabilities_wraps_toolset_capability(self):
+        """A ``Toolset`` capability's inner toolset is wrapped with CachingToolset;
+        capabilities that are not ``Toolset`` pass through unchanged."""
+        inner = FunctionToolset()
+        passthrough = object()
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
+
+        result = op._build_durable_capabilities(
+            [Toolset(inner), passthrough], MagicMock(spec=DurableStorageProtocol), DurableStepCounter()
+        )
+
+        assert isinstance(result[0], Toolset)
+        assert isinstance(result[0].toolset, CachingToolset)
+        assert result[0].toolset.wrapped is inner
+        assert result[1] is passthrough
+
+    def test_build_durable_capabilities_skips_callable_toolset_factory(self):
+        """A ``Toolset`` holding a callable factory (resolved per run with
+        RunContext) cannot be wrapped with CachingToolset, so it passes through."""
+
+        def factory(ctx):
+            return FunctionToolset()
+
+        cap = Toolset(factory)
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
+
+        result = op._build_durable_capabilities(
+            [cap], MagicMock(spec=DurableStorageProtocol), DurableStepCounter()
+        )
+
+        assert result[0] is cap
+
+    def test_toolset_capability_tool_replayed_on_retry(self):
+        """A tool supplied via a ``Toolset`` capability is cached and replayed on a
+        retry instead of re-executing. Regression: such tools bypassed the
+        ``CachingToolset`` because they did not arrive via the ``toolsets=`` list."""
+        calls = {"n": 0}
+
+        def my_tool() -> str:
+            calls["n"] += 1
+            return "tool-result"
+
+        def model_fn(messages, info):
+            saw_return = any(isinstance(p, ToolReturnPart) for m in messages for p in getattr(m, "parts", []))
+            if saw_return:
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(parts=[ToolCallPart(tool_name="my_tool", args={}, tool_call_id="c1")])
+
+        # Shared storage across two attempts; the second (a retry) must replay the
+        # cached tool result rather than executing the tool a second time.
+        storage = _InMemoryDurableStorage()
+        for _ in range(2):
+            op = AgentOperator(
+                task_id="t",
+                prompt="hi",
+                llm_conn_id="c",
+                durable=True,
+                enable_tool_logging=False,
+                agent_params={"capabilities": [Toolset(FunctionToolset(tools=[my_tool]))]},
+            )
+            op._durable_storage = storage
+            op._durable_counter = DurableStepCounter()
+            hook = MagicMock(spec=["create_agent"])
+            hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+            op.llm_hook = hook
+            op._build_agent().run_sync("hi")
+
+        assert calls["n"] == 1
+
+    @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
+    @patch("pydantic_ai.models.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_storage")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_cleanup_skipped_when_post_run_step_fails(self, mock_hook_cls, mock_build_storage, mock_infer, _):
+        """Durable cleanup must not run if a post-run step (the message-history XCom
+        push) fails, so the Airflow retry can still replay the cached steps."""
+        storage = MagicMock(spec=DurableStorageProtocol)
+        mock_build_storage.return_value = storage
+
+        mock_agent = MagicMock(spec=["run_sync", "model", "override"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_agent.model = "test-model"
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, message_history="[]")
+        with patch.object(op, "_emit_message_history", side_effect=RuntimeError("xcom down")):
+            with pytest.raises(RuntimeError, match="xcom down"):
+                op.execute(context={})
+
+        storage.cleanup.assert_not_called()
 
 
 @pytest.mark.skipif(

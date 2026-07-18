@@ -54,7 +54,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
-- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
+- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`
 <!-- END generated-commands, please keep comment here to allow auto update -->
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
