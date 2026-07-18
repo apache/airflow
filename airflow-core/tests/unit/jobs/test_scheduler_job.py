@@ -5723,8 +5723,19 @@ class TestSchedulerJob:
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
         )
-
         asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+
+        # Consumer must exist before events so the events fall inside its schedule window
+        # (catchup=False ignores pre-creation backlog; see #39456).
+        with dag_maker(dag_id="asset-consumer-62929", schedule=[asset1], session=session):
+            EmptyOperator(task_id="consume")
+        consumer_dag_id = dag_maker.dag.dag_id
+        reference_created_at = session.scalar(
+            select(DagScheduleAssetReference.created_at).where(
+                DagScheduleAssetReference.dag_id == consumer_dag_id
+            )
+        )
+
         session.add(
             AssetEvent(
                 asset_id=asset1_id,
@@ -5732,14 +5743,16 @@ class TestSchedulerJob:
                 source_dag_id=producer_run.dag_id,
                 source_run_id=producer_run.run_id,
                 source_map_index=-1,
+                timestamp=reference_created_at + timedelta(seconds=1),
             )
         )
-
-        # Consumer: scheduled on the asset, with the asset already queued for it.
-        with dag_maker(dag_id="asset-consumer-62929", schedule=[asset1], session=session):
-            EmptyOperator(task_id="consume")
-        consumer_dag_id = dag_maker.dag.dag_id
-        session.add(AssetDagRunQueue(asset_id=asset1_id, target_dag_id=consumer_dag_id))
+        session.add(
+            AssetDagRunQueue(
+                asset_id=asset1_id,
+                target_dag_id=consumer_dag_id,
+                created_at=reference_created_at + timedelta(hours=1),
+            )
+        )
 
         # Time-based Dag that is eligible for a scheduled run right now (catchup + past start_date).
         with dag_maker(dag_id="time-based-62929", schedule="@daily", catchup=True, session=session):
@@ -5761,12 +5774,14 @@ class TestSchedulerJob:
         self.job_runner._do_scheduling(session)
 
         # The asset-triggered consumer run IS created despite use_job_schedule=False.
+        # Re-query: _do_scheduling may expunge_all.
         consumer_runs = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).all()
         assert len(consumer_runs) == 1
         # The run was created; it may already have been moved to RUNNING by the
         # _start_queued_dagruns step inside the same _do_scheduling call, so accept either
         # non-terminal state. #62929 is about the run being created at all.
         assert consumer_runs[0].state in (State.QUEUED, State.RUNNING)
+        assert consumer_runs[0].run_type == DagRunType.ASSET_TRIGGERED
         assert consumer_runs[0].consumed_asset_events  # the AssetEvent was attached
         # The asset queue row was consumed.
         assert (
@@ -5917,7 +5932,6 @@ class TestSchedulerJob:
         assert created_run.state == State.QUEUED
         expected = {new_event.id} | ({old_event.id} if expects_old_event else set())
         assert {e.id for e in created_run.consumed_asset_events} == expected
-
 
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
