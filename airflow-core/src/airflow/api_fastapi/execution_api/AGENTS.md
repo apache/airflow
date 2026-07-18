@@ -1,3 +1,17 @@
+---
+triage_review_imbalance:
+  area: execution-api
+  criticality: critical          # workers depend on this; backward compat across independent deploys is critical
+  review_difficulty: expert
+  structural_risk_paths:
+    - "versions/"
+    - "datamodels/"
+    - "routes/"
+    - "security.py"
+  codeowners_ref: ".github/CODEOWNERS"
+  experts: ["ashb", "kaxil", "amoghrajesh"]   # internal signal only — never @-mentioned
+---
+
  <!-- SPDX-License-Identifier: Apache-2.0
       https://www.apache.org/licenses/LICENSE-2.0 -->
 
@@ -67,3 +81,84 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 ## Token Scope Infrastructure
 
 Token types (`"execution"`, `"workload"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`.
+
+## Review criteria
+
+Mined from real review discussion on ~193 merged and ~12 closed-unmerged
+execution-API PRs. These **complement** the versioning + end-to-end guidance
+above (they don't repeat it). **If you are preparing a change here, apply this
+pre-flight checklist _before_ opening the PR.** Triage applies the same list: a
+PR that lands with unmet items is drafted back with the specific gaps. Ordered
+by how often reviewers raise each.
+
+**Cadwyn versioning (the defining concern of this area):**
+
+- [ ] **New `VersionChange` goes in the latest *unreleased* version file** —
+      never a released one, never a file backdated *between* releases (it breaks
+      the linear migration chain Cadwyn replays).
+- [ ] **A new route/endpoint needs a matching `endpoint(...).didnt_exist`** (and
+      a new/changed field its `schema(...).field(...).didnt_exist`) in the
+      unreleased version file, so a newer SDK against an older server fails
+      cleanly through version negotiation.
+- [ ] **Removing/renaming a response or request field needs a migration even
+      when it "isn't technically breaking"** — Airflow (unlike typical Cadwyn
+      users) doesn't control which server version a client hits, so **err toward
+      adding the migration**.
+- [ ] **Reason explicitly about the four compat directions.** Cadwyn solves
+      *older client → newer server*; *newer SDK → older server* is **not**
+      covered and must be handled another way or scoped out. Old
+      endpoints/params must keep working after a new one is added.
+- [ ] The `# type: ignore` on Cadwyn decorators is the **accepted pattern**
+      (mypy can't read its signatures) — mirror existing version files, don't
+      restructure to appease mypy.
+
+**End-to-end wiring & prek hooks:**
+
+- [ ] A new field/param is **wired end-to-end** (datamodel → route → version
+      file → SDK client → `comms.py` → regenerated `_generated.py`) — half-wired
+      changes get flagged (see "Adding a New Feature End-to-End" above).
+- [ ] **`check-supervisor-schemas-versions`**: a Task-SDK schema-snapshot change
+      must be paired with a `VersionChange`; otherwise regen must produce a
+      clean/no-op diff.
+- [ ] **Shared enums/types go through the ExecAPI/OpenAPI spec**, not by
+      importing Python (rule of thumb: would another language defining Dags need
+      it? → put it in the spec).
+
+**Security (gated — not opportunistic):**
+
+- [ ] **Do not unilaterally change token scopes / auth guards.** Widening a
+      route's accepted token type (e.g. `token:workload` onto write routes) is a
+      security regression. Auth / token / task-level-authorization changes are
+      **gated on the security-model process (devlist + security team)**, not
+      merged as standalone PRs.
+
+**Route hygiene:**
+
+- [ ] **`DagBag` via FastAPI `Depends`, not global `app.state`** — traceable,
+      less leakage risk.
+- [ ] **Correct, justified HTTP status + structured `{"reason","message"}`
+      detail**; translate domain errors at the route boundary (no 500 leaks).
+- [ ] **Optional/nullable fields default to `None`** (or `default_factory`) so
+      "not passed" ≠ "empty"; version-converters reading non-required body fields
+      use `.get(...)`.
+- [ ] **Bound DB access even in exec-API-adjacent server code** (`.limit()` +
+      `skip_locked`, `joinedload` to avoid N+1 on per-trigger paths); guard
+      unbounded growth of fields serialized end-to-end on every workload (SQS
+      256 KB / K8s pod-env ~1 MB).
+- [ ] **Tests live per-version** — new behaviour under `versions/head/test_*`,
+      already-released behaviour stays in that version's folder; don't create a
+      new dated test folder for a `head` change.
+
+**Scope & process:**
+
+- [ ] **Don't reshape error/response formats as a standalone cleanup** — it's a
+      private-but-contractual API (Python + beta Go SDKs consume it); changes go
+      through a Cadwyn migration, not a bulk rewrite.
+- [ ] **Check for an existing/redundant fix first** — verify the client request
+      layer doesn't already handle it, and that no duplicate PR exists.
+
+> Mined from PR review history. Note the Cadwyn author's general advice
+> ("migrate only breaking changes") is deliberately overridden by the Airflow
+> house rule above (err toward migrating), because deployed server versions
+> vary. Extend as new patterns emerge, and add an equivalent `## Review
+> criteria` section to the `AGENTS.md` of every other area over time.
