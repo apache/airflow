@@ -171,7 +171,7 @@ def get_import_errors(
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
 
     # Subquery for files that have any Dags
-    files_with_any_dags = select(DagModel.relative_fileloc).distinct().subquery()
+    files_with_any_dags = select(DagModel.relative_fileloc, DagModel.bundle_name).distinct().subquery()
 
     # Import errors for files that have **no** registered Dag have no per-Dag
     # key to authorize on. Authorize them on the dedicated ``IMPORT_ERRORS_ALL``
@@ -182,7 +182,11 @@ def get_import_errors(
     # cross-team file/bundle names -- does not leak.
     unregistered_errors = session.execute(
         select(ParseImportError.id, ParseImportError.bundle_name)
-        .outerjoin(files_with_any_dags, ParseImportError.filename == files_with_any_dags.c.relative_fileloc)
+        .outerjoin(
+            files_with_any_dags,
+            (ParseImportError.filename == files_with_any_dags.c.relative_fileloc)
+            & (ParseImportError.bundle_name == files_with_any_dags.c.bundle_name),
+        )
         .where(files_with_any_dags.c.relative_fileloc.is_(None))
     ).all()
     team_name_by_bundle = DagBundleModel.get_team_names(
