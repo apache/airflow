@@ -7,7 +7,7 @@
  "License"); you may not use this file except in compliance
  with the License.  You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+   https://www.apache.org/licenses/LICENSE-2.0
 
  Unless required by applicable law or agreed to in writing,
  software distributed under the License is distributed on an
@@ -67,7 +67,7 @@ Following source releases Apache Airflow release manager also distributes conven
 Those convenience packages are not "official releases" of Apache Airflow, but the users who
 cannot or do not want to build the packages themselves can use them as a convenient way of installing
 Apache Airflow, however they are not considered as "official source releases". You can read more
-details about it in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html).
+details about it in the [ASF Release Policy](https://www.apache.org/legal/release-policy.html).
 
 Detailed instruction of releasing provider distributions can be found in the
 [README_RELEASE_AIRFLOW.md](README_RELEASE_AIRFLOW.md)
@@ -90,7 +90,7 @@ package (in `airflow/providers/<PROVIDER>` folder) as well as in the PyPI instal
 
 The sources released in SVN allow to build all the provider distributions by the user, following the
 instructions and scripts provided. Those are also "official_source releases" as described in the
-[ASF Release Policy](http://www.apache.org/legal/release-policy.html) and they are available
+[ASF Release Policy](https://www.apache.org/legal/release-policy.html) and they are available
 via [Official Apache Download for providers](https://downloads.apache.org/airflow/providers/).
 
 The full provider's list can be found here:
@@ -120,7 +120,7 @@ Source tree - without polluting your editable installation with installed provid
 # Prerequisites for the release manager preparing the release
 
 The person acting as release manager has to fulfill certain pre-requisites. More details and FAQs are
-available in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html) but here some important
+available in the [ASF Release Policy](https://www.apache.org/legal/release-policy.html) but here some important
 pre-requisites are listed below. Note that release manager does not have to be a PMC member - it is enough
 to be committer to assume the release manager role, but there are final steps in the process (uploading
 final releases to SVN) that can only be done by PMC member. If needed, the release manager
@@ -154,7 +154,7 @@ svn commit -m "Add PGP keys of Airflow developers"
 
 See this for more detail on creating keys and what is required for signing releases.
 
-http://www.apache.org/dev/release-signing.html#basic-facts
+https://www.apache.org/dev/release-signing.html#basic-facts
 
 ## Configure PyPI uploads
 
@@ -204,7 +204,7 @@ The best way to prepare and verify the releases is to prepare them on a hardware
 by the committer acting as release manager. While strictly speaking, releases must only be verified
 on hardware owned and controlled by the committer, for practical reasons it's best if the packages are
 prepared using such hardware. More information can be found in this
-[FAQ](http://www.apache.org/legal/release-policy.html#owned-controlled-hardware)
+[FAQ](https://www.apache.org/legal/release-policy.html#owned-controlled-hardware)
 
 # How to backport PR with `cherry-picker` CLI
 
