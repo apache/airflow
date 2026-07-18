@@ -47,6 +47,8 @@ export interface LogRecord {
 
 const DEFAULT_LOGGER_NAME = "ts-sdk";
 
+const CLOSE_FLUSH_TIMEOUT_MS = 3_000;
+
 interface LogChannelState {
   sock: Socket;
   connected: boolean;
@@ -75,7 +77,7 @@ export class LogChannel {
       process.stderr.write(`[${name}] log socket error: ${err.message}\n`);
     });
     shared.sock.on("close", () => {
-      if (shared.closed) return;
+      if (shared.closed || !shared.connected) return;
       shared.connected = false;
       process.stderr.write(`[${name}] log socket closed unexpectedly; further logs go to stderr\n`);
     });
@@ -115,7 +117,7 @@ export class LogChannel {
       timestamp: record.timestamp ?? new Date().toISOString(),
     });
     const payload = line + "\n";
-    if (!this.shared.connected) {
+    if (!this.shared.connected || !this.shared.sock.writable) {
       process.stderr.write(payload);
       return;
     }
@@ -146,7 +148,14 @@ export class LogChannel {
       return;
     }
     return new Promise((resolve) => {
-      this.shared.sock.end(() => resolve());
+      const timer = setTimeout(() => {
+        this.shared.sock.destroy();
+        resolve();
+      }, CLOSE_FLUSH_TIMEOUT_MS);
+      this.shared.sock.end(() => {
+        clearTimeout(timer);
+        resolve();
+      });
     });
   }
 }

@@ -163,6 +163,57 @@ describe("LogChannel", () => {
     expect(records[0]).toMatchObject({ event: "[ts-sdk] before close" });
   });
 
+  it("writes only the error message when error and close fire together", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
+
+    try {
+      sock.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+      sock.destroy();
+      await fx.sockClosed;
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(write.mock.calls[0]?.[0]).toBe("[ts-sdk] log socket error: write EPIPE\n");
+    } finally {
+      write.mockRestore();
+      await root.close();
+    }
+  });
+
+  it("falls back to stderr when the socket is no longer writable", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
+
+    try {
+      sock.end();
+      root.info("peer died");
+      const line = write.mock.calls.find((c) => String(c[0]).includes("peer died"))?.[0];
+      expect(String(line)).toContain('"event":"[ts-sdk] peer died"');
+    } finally {
+      write.mockRestore();
+      await root.close();
+      await fx.sockClosed;
+    }
+  });
+
+  it("close() resolves via timeout when the flush never completes", async () => {
+    const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
+    const sock = (root as unknown as { shared: { sock: net.Socket } }).shared.sock;
+    vi.spyOn(sock, "end").mockImplementation(() => sock);
+    const destroy = vi.spyOn(sock, "destroy");
+
+    vi.useFakeTimers();
+    try {
+      const closed = root.close();
+      await vi.advanceTimersByTimeAsync(3_000);
+      await closed;
+      expect(destroy).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports close-time socket errors", async () => {
     const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
