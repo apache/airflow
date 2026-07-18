@@ -238,7 +238,10 @@ def get_import_errors(
         select(ParseImportError, file_dags_cte.c.dag_id)
         .outerjoin(
             files_with_any_dags,
-            ParseImportError.filename == files_with_any_dags.c.relative_fileloc,
+            and_(
+                ParseImportError.filename == files_with_any_dags.c.relative_fileloc,
+                ParseImportError.bundle_name == files_with_any_dags.c.bundle_name,
+            ),
         )
         .outerjoin(
             file_dags_cte,

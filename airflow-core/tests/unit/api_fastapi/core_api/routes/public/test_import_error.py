@@ -526,6 +526,63 @@ class TestGetImportErrors:
         assert response_json["import_errors"][0]["bundle_name"] == BUNDLE_NAME
         assert response_json["import_errors"][0]["stack_trace"] == STACKTRACE1
 
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors__file_registered_only_in_other_bundle_is_unregistered(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        session,
+    ):
+        """Regression: the has-any-Dag lookup is scoped per bundle. The same
+        ``relative_fileloc`` can exist in several bundles, so an import error
+        whose file has a registered Dag only in a *different* bundle must still
+        be treated as unregistered in its own bundle and gated on
+        ``IMPORT_ERRORS_ALL`` -- matching on the filename alone leaked it as
+        registered and could duplicate the row across bundles.
+        """
+        clear_db_import_errors()
+        other_bundle = "other_bundle"
+        session.add(DagBundleModel(name=other_bundle))
+        session.flush()
+        # FILENAME1 has a registered Dag only in ``other_bundle`` ...
+        session.add(
+            DagModel(
+                fileloc=f"/other/{FILENAME1}",
+                relative_fileloc=FILENAME1,
+                dag_id="dag_in_other_bundle",
+                is_paused=False,
+                bundle_name=other_bundle,
+            )
+        )
+        # ... while the import error for the same path is in BUNDLE_NAME, which
+        # has no Dag for it.
+        error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=FILENAME1,
+            stacktrace=STACKTRACE1,
+            timestamp=TIMESTAMP1,
+        )
+        session.add(error)
+        session.commit()
+
+        # Being able to read the other-bundle Dag must not grant visibility into
+        # the same-named file's error in BUNDLE_NAME.
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {"dag_in_other_bundle"})
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+        mock_view = set_mock_auth_manager__is_authorized_view_for_team(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors")
+
+        assert response.status_code == 200
+        body = response.json()
+        # Exactly one row (no filename-only-join duplication), admitted only via
+        # the IMPORT_ERRORS_ALL view.
+        assert body["total_entries"] == 1
+        assert [e["bundle_name"] for e in body["import_errors"]] == [BUNDLE_NAME]
+        mock_view.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
+        )
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/importErrors")
         assert response.status_code == 401
@@ -712,6 +769,13 @@ class TestGetImportErrors:
         dag_model1.bundle_name = "another_bundle_name"
         session.merge(dag_model1)
         session.commit()
+
+        # FILENAME1 now has no Dag in BUNDLE_NAME (its only Dag moved to another
+        # bundle), so its error there is unregistered and gated on the dedicated
+        # IMPORT_ERRORS_ALL view -- which this caller does not hold, so the row
+        # is hidden. (Matching on filename alone would have wrongly treated it as
+        # registered via the same-named Dag in the other bundle.)
+        set_mock_auth_manager__is_authorized_view_for_team(mock_get_auth_manager, False)
 
         response2 = test_client.get("/importErrors")
 
