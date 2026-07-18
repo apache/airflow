@@ -2878,26 +2878,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ):
                 self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
 
-            dag_run_reloaded = session.scalar(
-                select(DagRun)
-                .where(DagRun.id == dag_run.id)
-                .options(
-                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
-                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+            callback_to_execute: DagCallbackRequest | None = None
+            if dag.has_on_failure_callback:
+                # Only load the asset events when a callback will actually be produced.
+                dag_run_reloaded = session.scalar(
+                    select(DagRun)
+                    .where(DagRun.id == dag_run.id)
+                    .options(
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+                    )
                 )
-            )
-            if dag_run_reloaded is None:
-                # This should never happen since we just had the dag_run
-                self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
-                return None
-            dag_run = dag_run_reloaded
-            callback_to_execute = dag_run.produce_dag_callback(
-                dag=dag,
-                success=False,
-                relevant_ti=last_unfinished_ti,
-                reason="timed_out",
-                execute=False,
-            )
+                if dag_run_reloaded is None:
+                    # This should never happen since we just had the dag_run
+                    self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
+                    return None
+                dag_run = dag_run_reloaded
+                callback_to_execute = dag_run.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=last_unfinished_ti,
+                    reason="timed_out",
+                    execute=False,
+                )
 
             dag_run.notify_dagrun_state_changed(msg="timed_out")
             if dag_run.end_date and dag_run.start_date:

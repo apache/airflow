@@ -1116,6 +1116,7 @@ class TestSchedulerJob:
             schedule=[asset1],
             fileloc="/test_path1/",
             dagrun_timeout=timedelta(minutes=1),
+            on_failure_callback=lambda ctx: None,
         ):
             EmptyOperator(task_id="dummy_task")
 
@@ -4130,6 +4131,7 @@ class TestSchedulerJob:
             start_date=DEFAULT_DATE,
             max_active_runs=1,
             dagrun_timeout=datetime.timedelta(seconds=60),
+            on_failure_callback=lambda ctx: None,
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -4194,6 +4196,7 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id="test_scheduler_fail_dagrun_timeout",
             dagrun_timeout=datetime.timedelta(seconds=60),
+            on_failure_callback=lambda ctx: None,
             session=session,
         ):
             EmptyOperator(task_id="dummy")
@@ -4213,6 +4216,35 @@ class TestSchedulerJob:
         assert callback.dag_id == dr.dag_id
         assert callback.run_id == dr.run_id
         assert callback.msg == "timed_out"
+
+        session.rollback()
+        session.close()
+
+    @mock.patch.object(DagRun, "produce_dag_callback", autospec=True)
+    def test_dagrun_timeout_without_on_failure_callback_produces_no_callback(
+        self, mock_produce_dag_callback, dag_maker
+    ):
+        """A timed-out run of a dag without on_failure_callback must not build a callback request."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_scheduler_dagrun_timeout_no_callback",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        callback = self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(dr)
+        assert dr.state == State.FAILED
+        assert callback is None
+        mock_produce_dag_callback.assert_not_called()
 
         session.rollback()
         session.close()
