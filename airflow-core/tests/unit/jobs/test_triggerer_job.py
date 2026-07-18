@@ -1582,9 +1582,9 @@ class TestTriggerRunner:
         runner.team_name = team_name
         runner.to_create.append(workload)
 
-        with patch(
-            "airflow.jobs.triggerer_job_runner.time.time",
-            return_value=101.5,
+        with (
+            patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=101.5),
+            patch("airflow.jobs.triggerer_job_runner.time.time", return_value=90.0),
         ):
             await runner.create_triggers()
 
@@ -2291,6 +2291,8 @@ def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker)
     supervisor = supervisor_builder()
     supervisor.running_triggers = {1, 3}
     workload = workloads.RunTrigger(id=2, classpath="some.trigger", encrypted_kwargs="", ti=None)
+    monotonic = mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=100.0)
+    mocker.patch("airflow.jobs.triggerer_job_runner.time.time", return_value=90.0)
     build_trigger_workloads = mocker.patch.object(
         TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[workload]
     )
@@ -2299,6 +2301,8 @@ def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker)
 
     build_trigger_workloads.assert_called_once_with(supervisor, {2})
     assert list(supervisor.creating_triggers) == [workload]
+    assert workload.queued_at == 100.0
+    monotonic.assert_called_once_with()
     assert supervisor.cancelling_triggers == {1}
 
 
