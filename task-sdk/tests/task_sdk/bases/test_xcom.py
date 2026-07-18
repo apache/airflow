@@ -23,9 +23,11 @@ import pytest
 
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.comms import (
+    BulkDeleteXCom,
     DeleteXCom,
     GetXCom,
     GetXComSequenceSlice,
+    XComDeleteCountResult,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -77,6 +79,24 @@ class TestBaseXCom:
             assert sent_message.task_id == "test_task"
             assert sent_message.run_id == "test_run"
             assert sent_message.map_index == map_index
+
+    def test_delete_all_returns_deleted_count(self, mock_supervisor_comms):
+        """BaseXCom.delete_all returns the deleted count and sends a BulkDeleteXCom message."""
+        mock_supervisor_comms.send.return_value = XComDeleteCountResult(count=4)
+
+        deleted = BaseXCom.delete_all(
+            dag_id="test_dag",
+            run_id="test_run",
+        )
+
+        assert deleted == 4
+
+        mock_supervisor_comms.send.assert_called_once()
+        sent_message = mock_supervisor_comms.send.call_args[0][0]
+
+        assert isinstance(sent_message, BulkDeleteXCom)
+        assert sent_message.dag_id == "test_dag"
+        assert sent_message.run_id == "test_run"
 
     @pytest.mark.asyncio
     async def test_aget_one_returns_value(self, mock_supervisor_comms):

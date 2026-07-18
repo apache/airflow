@@ -65,6 +65,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     AssetStateStoreResult,
     AwaitInputTask,
+    BulkDeleteXCom,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     ClearTaskStateStore,
@@ -134,6 +135,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 from airflow.sdk.execution_time.request_handlers import (
+    handle_bulk_delete_xcom,
     handle_delete_variable,
     handle_delete_xcom,
     handle_get_connection,
@@ -1734,6 +1736,8 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, DeleteXCom):
             resp, dump_opts = handle_delete_xcom(self.client, msg)
+        elif isinstance(msg, BulkDeleteXCom):
+            resp, dump_opts = handle_bulk_delete_xcom(self.client, msg)
         elif isinstance(msg, PutVariable):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, SetRenderedFields):

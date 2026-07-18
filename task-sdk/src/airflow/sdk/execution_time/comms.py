@@ -553,6 +553,11 @@ class XComCountResponse(BaseModel):
     type: Literal["XComCountResponse"] = "XComCountResponse"
 
 
+class XComDeleteCountResult(BaseModel):
+    count: int
+    type: Literal["XComDeleteCountResult"] = "XComDeleteCountResult"
+
+
 class XComSequenceIndexResult(BaseModel):
     root: JsonValue
     type: Literal["XComSequenceIndexResult"] = "XComSequenceIndexResult"
@@ -832,6 +837,7 @@ ToTask = Annotated[
     | VariableResult
     | VariableKeysResult
     | XComCountResponse
+    | XComDeleteCountResult
     | XComResult
     | XComSequenceIndexResult
     | XComSequenceSliceResult
@@ -959,6 +965,15 @@ class DeleteXCom(BaseModel):
     task_id: str
     map_index: int | None = None
     type: Literal["DeleteXCom"] = "DeleteXCom"
+
+
+class BulkDeleteXCom(BaseModel):
+    dag_id: str
+    run_id: str
+    task_id: str | None = None
+    key: str | None = None
+    map_index: int | None = None
+    type: Literal["BulkDeleteXCom"] = "BulkDeleteXCom"
 
 
 class GetTaskStateStore(BaseModel):
@@ -1251,6 +1266,7 @@ ToSupervisor = Annotated[
     | DeleteAssetStateStoreByUri
     | DeleteTaskStateStore
     | DeleteXCom
+    | BulkDeleteXCom
     | GetAssetByName
     | GetAssetByUri
     | GetAssetsByAlias
