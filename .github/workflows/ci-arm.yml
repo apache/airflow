@@ -215,6 +215,7 @@ jobs:
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          PLATFORM: "linux/arm64"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
