@@ -762,7 +762,8 @@ class KubernetesExecutor(BaseExecutor):
 
             client = get_kube_client()
 
-            messages.append(f"Attempting to fetch logs from pod {ti.hostname} through kube API")
+            hostname_desc = f" {ti.hostname}" if ti.hostname else ""
+            messages.append(f"Attempting to fetch logs from pod{hostname_desc} through kube API")
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,

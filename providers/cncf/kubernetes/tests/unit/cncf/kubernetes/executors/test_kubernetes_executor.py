@@ -2652,7 +2652,7 @@ class TestKubernetesExecutor:
 
         mock_kube_client.read_namespaced_pod_log.assert_called_once()
         assert messages == [
-            "Attempting to fetch logs from pod  through kube API",
+            "Attempting to fetch logs from pod through kube API",
             "Found logs through kube API",
         ]
         assert list(log_streams[0]) == ["a_", "b_", "c_"]
@@ -2663,7 +2663,7 @@ class TestKubernetesExecutor:
         messages, log_streams = executor.get_streaming_task_log(ti=ti, try_number=1)
         assert log_streams == []
         assert messages == [
-            "Attempting to fetch logs from pod  through kube API",
+            "Attempting to fetch logs from pod through kube API",
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
@@ -2689,7 +2689,7 @@ class TestKubernetesExecutor:
         messages, logs = executor.get_task_log(ti=ti, try_number=1)
 
         assert messages == [
-            "Attempting to fetch logs from pod  through kube API",
+            "Attempting to fetch logs from pod through kube API",
             "Found logs through kube API",
         ]
         assert logs == ["a_\nb_\nc_"]
@@ -2701,7 +2701,7 @@ class TestKubernetesExecutor:
 
         assert logs == [""]
         assert messages == [
-            "Attempting to fetch logs from pod  through kube API",
+            "Attempting to fetch logs from pod through kube API",
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
