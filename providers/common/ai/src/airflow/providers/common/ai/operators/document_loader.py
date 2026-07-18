@@ -262,6 +262,9 @@ class DocumentLoaderOperator(BaseOperator):
         if backend == "python-docx":
             return self._parse_docx_stream(io.BytesIO(raw))
 
+        if backend not in ("text", "csv", "json"):
+            raise ValueError(f"No parser found for backend '{backend}'.")
+
         text = self._decode(raw, source_hint=f"<bytes:{ext}>")
         if backend == "csv":
             return self._parse_csv_text(text)
