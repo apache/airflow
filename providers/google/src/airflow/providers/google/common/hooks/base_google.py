@@ -436,7 +436,7 @@ class GoogleBaseHook(BaseHook):
 
     @staticmethod
     def get_high_value_cookie_domain() -> str:
-        return os.getenv("GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN", "google.com")
+        return os.getenv("GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN") or "google.com"
 
     def get_client_options(
         self,
