@@ -84,7 +84,7 @@ class TestCliTeams:
         with conf_vars(
             {
                 ("core", "multi_team"): "True",
-                ("multi_team", "default_team_pool_slots"): "128",
+                ("multi_team", "default_pool_task_slot_count"): "128",
             }
         ):
             with stdout_capture:
