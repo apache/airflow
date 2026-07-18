@@ -178,6 +178,11 @@ def pre_process_mypy_files(files: list[str]) -> list[str]:
     return [file for file in files if not file.startswith("providers")]
 
 
+def is_hidden_within_root(path: Path, root: Path) -> bool:
+    """Whether any path component below ``root`` is dot-prefixed."""
+    return any(part.startswith(".") for part in path.relative_to(root).parts)
+
+
 def insert_documentation(
     file_path: Path,
     content: list[str],
