@@ -135,8 +135,18 @@ def team_delete(args, *, session=NEW_SESSION):
         associations.append(f"{variable_count} variable(s)")
 
     # Check pool associations
-    if pool_count := session.scalar(select(func.count(Pool.id)).where(Pool.team_name == team.name)):
+    if pool_count := session.scalar(
+        select(func.count(Pool.id)).where(
+            Pool.team_name == team.name,
+            Pool.pool != Pool.get_default_team_pool_name(team.name),
+        )
+    ):
         associations.append(f"{pool_count} pool(s)")
+
+    default_pool = session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name(team.name)))
+
+    if default_pool:
+        session.delete(default_pool)
 
     # If there are associations, prevent deletion
     if associations:
@@ -189,10 +199,27 @@ def team_sync(args, *, session=NEW_SESSION):
     teams_added = 0
 
     try:
-        for team_name in dag_bundle_teams - Team.get_all_team_names(session=session):
-            team = Team(name=team_name)
-            session.add(team)
-            teams_added += 1
+        existing_teams = Team.get_all_team_names(session=session)
+        for team_name in dag_bundle_teams:
+            if team_name not in existing_teams:
+                session.add(Team(name=team_name))
+                teams_added += 1
+
+            session.flush()
+
+            if conf.getboolean("core", "multi_team"):
+                Pool.create_or_update_pool(
+                    name=Pool.get_default_team_pool_name(team_name),
+                    slots=conf.getint(
+                        "core",
+                        "default_pool_task_slot_count",
+                    ),
+                    description=f"Default pool for team '{team_name}'",
+                    include_deferred=False,
+                    team_name=team_name,
+                    session=session,
+                )
+
         session.commit()
     except Exception as e:
         session.rollback()
