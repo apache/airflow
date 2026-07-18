@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -67,7 +66,6 @@ from airflow_e2e_tests.constants import (
     TS_COMPOSE_PATH,
     TS_SDK_BUILD_HOME_PATH,
     TS_SDK_EXAMPLE_PATH,
-    TS_SDK_ROOT_PATH,
     XCOM_BUCKET,
 )
 
@@ -650,10 +648,11 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     """Set up the ts_sdk E2E test mode.
 
     Builds the ts-sdk example bundle with pnpm inside an ephemeral Node
-    container (the host needs no Node toolchain), drops it with its
-    airflow-metadata.yaml sidecar into the directory ``NodeCoordinator``
-    scans, copies the Python stub Dag, and writes the coordinator
-    configuration.
+    container (the host needs no Node toolchain); the example build runs
+    ``airflow-ts-pack``, which embeds the airflow metadata in the bundle
+    itself. The bundle is dropped into the directory ``NodeCoordinator``
+    scans, the Python stub Dag is copied, and the coordinator
+    configuration is written.
 
     The worker has no Node runtime of its own; the node-provider service in
     ``ts.yml`` copies the node binary out of the same image used here for the
@@ -706,18 +705,13 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     # Copy the compose override into the temp directory.
     copyfile(TS_COMPOSE_PATH, tmp_dir / "ts.yml")
 
-    # Place the bundle and its metadata sidecar where the compose bind-mount
-    # (./ts-bundles) exposes them to the worker at /opt/airflow/ts-bundles.
+    # Place the bundle where the compose bind-mount (./ts-bundles) exposes it
+    # to the worker at /opt/airflow/ts-bundles. airflow-ts-pack embeds the
+    # airflow metadata in bundle.mjs itself, so no sidecar is written — the
+    # coordinator must resolve the schema version from the embedded manifest.
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
-    supervisor_ts = (TS_SDK_ROOT_PATH / "src" / "generated" / "supervisor.ts").read_text()
-    version_match = re.search(r'SUPERVISOR_API_VERSION = "(\d{4}-\d{2}-\d{2})"', supervisor_ts)
-    if not version_match:
-        raise RuntimeError("Cannot find SUPERVISOR_API_VERSION in ts-sdk/src/generated/supervisor.ts")
-    (ts_bundles_dir / "airflow-metadata.yaml").write_text(
-        f'sdk:\n  supervisor_schema_version: "{version_match.group(1)}"\n'
-    )
 
     # Copy the TS SDK example stub Dag so Airflow can discover and serialize it.
     copyfile(

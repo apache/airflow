@@ -24,8 +24,9 @@ Run with::
 What is verified
 ----------------
 ``conftest._setup_ts_sdk_integration`` builds the ``ts-sdk/example`` bundle with
-pnpm inside an ephemeral Node container and drops ``bundle.mjs`` plus its
-``airflow-metadata.yaml`` sidecar into the directory ``NodeCoordinator`` scans.
+pnpm inside an ephemeral Node container — the example build runs
+``airflow-ts-pack``, which embeds the airflow metadata in ``bundle.mjs`` — and
+drops the bundle into the directory ``NodeCoordinator`` scans.
 The ``typescript_example`` Dag (``ts-sdk/example/dags/typescript_example.py``)
 mixes a native Python task with TypeScript stub tasks::
 
