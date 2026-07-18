@@ -57,15 +57,15 @@ def _get_bundle_url() -> str:
 if AIRFLOW_V_3_1_PLUS:
     import mimetypes
     from pathlib import Path
-    from types import SimpleNamespace
 
     from fastapi import Depends, FastAPI, HTTPException, Query
     from fastapi.staticfiles import StaticFiles
-    from sqlalchemy import select
+    from sqlalchemy import delete, select
     from sqlalchemy.orm import Session
 
     from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
     from airflow.api_fastapi.core_api.security import requires_access_dag
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance as TI
     from airflow.models.xcom import XComModel
     from airflow.providers.common.ai.utils.hitl_review import (
@@ -104,7 +104,7 @@ if AIRFLOW_V_3_1_PLUS:
         ).first()
         if row is None:
             return None
-        return XComModel.deserialize_value(row)
+        return row.value
 
     def _read_xcom_by_prefix(
         session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, prefix: str
@@ -121,25 +121,37 @@ if AIRFLOW_V_3_1_PLUS:
         for key, value in session.execute(query).all():
             suffix = key[len(prefix) :]
             if suffix.isdigit():
-                # deserialize_value expects an object with a .value attribute;
-                # wrap the raw column value so we can reuse the standard deserialization path.
-                row = SimpleNamespace(value=value)
-                result[int(suffix)] = XComModel.deserialize_value(row)
+                result[int(suffix)] = value
         return result
 
     def _write_xcom(
         session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str, value
     ):
         """Write data to db."""
-        XComModel.set(
-            key=key,
-            value=value,
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            session=session,
+        dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+        if dag_run_id is None:
+            raise HTTPException(404, f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
+        session.execute(
+            delete(XComModel).where(
+                XComModel.key == key,
+                XComModel.run_id == run_id,
+                XComModel.task_id == task_id,
+                XComModel.dag_id == dag_id,
+                XComModel.map_index == map_index,
+            )
         )
+        session.add(
+            XComModel(
+                dag_run_id=dag_run_id,
+                key=key,
+                value=value,
+                run_id=run_id,
+                task_id=task_id,
+                dag_id=dag_id,
+                map_index=map_index,
+            )
+        )
+        session.flush()
 
     _RUNNING_TI_STATES = frozenset(
         {
