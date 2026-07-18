@@ -1068,6 +1068,41 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json()["log_id_template"] == custom_elasticsearch_id
 
+    def test_ti_run_populates_latest_log_id_template(
+        self, client, session, create_task_instance, create_log_template, time_machine
+    ):
+        """Each Dag run pins whichever LogTemplate row is newest when it is created."""
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        for i in range(3):
+            elasticsearch_id = f"{{dag_id}}-{{task_id}}-{{logical_date}}-{{try_number}}-v{i}"
+            create_log_template(f"{{{{ ti.dag_id }}}}-v{i}.log", elasticsearch_id)
+
+            ti = create_task_instance(
+                task_id="test_ti_run_populates_latest_log_id_template",
+                state=State.QUEUED,
+                dagrun_state=DagRunState.RUNNING,
+                session=session,
+                start_date=instant,
+                dag_id=str(uuid4()),
+            )
+            session.commit()
+
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": instant.isoformat(),
+                },
+            )
+
+            assert response.status_code == 200
+            assert response.json()["log_id_template"] == elasticsearch_id
+
     def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
         """Test that transitioning to RUNNING creates an audit log record."""
         instant_str = "2024-09-30T12:00:00Z"
