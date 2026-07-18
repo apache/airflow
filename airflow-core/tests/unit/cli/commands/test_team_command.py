@@ -157,20 +157,29 @@ class TestCliTeams:
 
     def test_team_delete_success(self, stdout_capture):
         """Test successful team deletion."""
-        # Create team first
-        team_command.team_create(self.parser.parse_args(["teams", "create", "delete-me"]))
+        with conf_vars({("core", "multi_team"): "True"}):
+            # Create team first
+            team_command.team_create(self.parser.parse_args(["teams", "create", "delete-me"]))
 
-        # Verify team exists
-        team = self.session.scalar(select(Team).where(Team.name == "delete-me"))
-        assert team is not None
+            # Verify team exists
+            team = self.session.scalar(select(Team).where(Team.name == "delete-me"))
+            assert team is not None
 
-        # Delete team with --yes flag
-        with stdout_capture as stdout:
-            team_command.team_delete(self.parser.parse_args(["teams", "delete", "delete-me", "--yes"]))
+            # Delete team with --yes flag
+            with stdout_capture as stdout:
+                team_command.team_delete(self.parser.parse_args(["teams", "delete", "delete-me", "--yes"]))
 
-        # Verify team was deleted
-        team = self.session.scalar(select(Team).where(Team.name == "delete-me"))
-        assert team is None
+            # Verify team was deleted
+            team = self.session.scalar(select(Team).where(Team.name == "delete-me"))
+            assert team is None
+
+            # Verify default pool was deleted
+            assert (
+                self.session.scalar(
+                    select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("delete-me"))
+                )
+                is None
+            )
 
         # Verify output message
         output = stdout.getvalue()
@@ -419,6 +428,50 @@ class TestCliTeams:
         teams = self.session.scalars(select(Team)).all()
         assert len(teams) == 2
 
-        team_names = [team.name for team in teams]
-        assert "team1" in team_names
-        assert "team2" in team_names
+        team_names = {team.name for team in teams}
+        assert team_names == {"team1", "team2"}
+
+        team1_pool = self.session.scalar(
+            select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team1"))
+        )
+        team2_pool = self.session.scalar(
+            select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team2"))
+        )
+
+        assert team1_pool is not None
+        assert team1_pool.team_name == "team1"
+
+        assert team2_pool is not None
+        assert team2_pool.team_name == "team2"
+
+    def test_team_sync_creates_missing_default_pool(self):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        # Simulate an existing team created before automatic default pools existed.
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        assert (
+            self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team1")))
+            is None
+        )
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            team_command.team_sync(self.parser.parse_args(["teams", "sync"]))
+
+        pool = self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team1")))
+
+        assert pool is not None
+        assert pool.team_name == "team1"
