@@ -1534,6 +1534,7 @@ export type PluginImportErrorResponse = {
  */
 export type PluginResponse = {
     name: string;
+    team_name?: string | null;
     macros: Array<(string)>;
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
@@ -2622,6 +2623,8 @@ export type NodeResponse = {
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    ui_color?: string | null;
+    ui_fgcolor?: string | null;
 };
 
 export type OklchColor = string;
@@ -8371,7 +8374,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+    '/ui/pending_partitioned_dag_run/{dag_id}': {
         get: {
             req: GetPendingPartitionedDagRunData;
             res: {
