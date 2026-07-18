@@ -23,6 +23,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
+import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
@@ -75,8 +76,13 @@ const TriggerDAGForm = ({
   const [unpause, setUnpause] = useState(true);
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
+  const { data: recentDagRuns } = useDagRunServiceGetDagRuns({
+    dagId,
+    limit: 5,
+    orderBy: ["-logical_date"],
+  });
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const { control, handleSubmit, reset, watch, setValue } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -236,6 +242,34 @@ const TriggerDAGForm = ({
             </Checkbox>
             <Spacer />
           </>
+        ) : undefined}
+        {recentDagRuns?.dag_runs?.length ? (
+          <Field.Root orientation="horizontal">
+            <Field.Label fontSize="md">{translate("components:triggerDag.recentConfigurations")}</Field.Label>
+
+            <select
+              onChange={(event) => {
+                const selectedRun = recentDagRuns.dag_runs.find(
+                  (run) => run.dag_run_id === event.target.value,
+                );
+
+                if (selectedRun?.conf) {
+                  const config = JSON.stringify(selectedRun.conf, undefined, 2);
+
+                  setConf(config);
+                  setValue("conf", config);
+                }
+              }}
+            >
+              <option value="">{translate("components:triggerDag.selectRecentConfiguration")}</option>
+
+              {recentDagRuns.dag_runs.map((run) => (
+                <option key={run.dag_run_id} value={run.dag_run_id}>
+                  {run.dag_run_id}
+                </option>
+              ))}
+            </select>
+          </Field.Root>
         ) : undefined}
         <ConfigForm
           control={control}
