@@ -125,7 +125,7 @@ apache-airflow-providers-common-compat==1.15.0
 apache-airflow-providers-common-io==1.8.0
 apache-airflow-providers-common-messaging==2.0.4
 apache-airflow-providers-common-sql==2.0.1
-apache-airflow-providers-databricks==6.13.0
+apache-airflow-providers-databricks==7.16.1
 apache-airflow-providers-datadog==3.10.5
 apache-airflow-providers-dbt-cloud==4.9.2
 apache-airflow-providers-dingding==3.9.5
@@ -274,7 +274,7 @@ cron_descriptor==2.1.0
 croniter==6.2.2
 cryptography==48.0.1
 curlify==3.0.0
-databricks-sql-connector==2.0.2
+databricks-sql-connector==4.2.5
 datadog==0.52.2
 db-dtypes==1.7.0
 debugpy==1.8.21
@@ -661,7 +661,7 @@ text-unidecode==1.3
 textual==6.2.1
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
-thrift==0.23.0
+thrift==0.16.0
 tiktoken==0.13.0
 tinycss2==1.5.1
 tokenizers==0.23.1
