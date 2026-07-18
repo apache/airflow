@@ -1401,6 +1401,8 @@ class TriggerRunner:
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
                 )
             if workload.queued_at is not None:
+                # `queued_at` is captured by the supervisor process and consumed by the runner process.
+                # Both run on the same host, so their monotonic timestamps are comparable.
                 stats.timing(
                     "triggerer.trigger_queue_delay",
                     int((time.monotonic() - workload.queued_at) * 1000),
