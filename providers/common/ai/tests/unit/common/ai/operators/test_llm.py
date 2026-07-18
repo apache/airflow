@@ -379,6 +379,21 @@ class TestLLMOperatorApproval:
         assert isinstance(result, Summary)
         assert result.text == "hello"
 
+    @pytest.mark.parametrize(
+        ("output_type", "generated_output", "expected"),
+        [(int, "5", 5), (list[str], '["a","b"]', ["a", "b"])],
+        ids=["int", "list"],
+    )
+    def test_execute_complete_restores_non_str_output_type(self, output_type, generated_output, expected):
+        op = LLMOperator(
+            task_id="t", prompt="p", llm_conn_id="c", output_type=output_type, require_approval=True
+        )
+        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+
+        result = op.execute_complete({}, generated_output=generated_output, event=event)
+
+        assert result == expected
+
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
