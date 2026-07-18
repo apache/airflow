@@ -9911,6 +9911,49 @@ class TestSchedulerJob:
         session.refresh(ti)
         assert ti.state != State.NONE
 
+    def test_start_queued_dagrun_with_unresolvable_pinned_version_is_marked_failed(self, dag_maker, session):
+        with dag_maker(dag_id="test_pinned_version_unresolvable", max_active_runs=1):
+            EmptyOperator(task_id="dummy_task")
+        dag_run = dag_maker.create_dagrun(
+            run_id="queued_with_deleted_pinned_version",
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.MANUAL,
+            session=session,
+        )
+        dag_run.bundle_version = "0123456789abcdef"
+        dag_run.created_dag_version_id = None
+        session.merge(dag_run)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        dag_run = session.get(DagRun, dag_run.id)
+        assert dag_run.state == DagRunState.FAILED
+        assert dag_run.end_date is not None
+
+    def test_start_queued_dagrun_without_pinned_version_keeps_retrying(self, dag_maker, session, monkeypatch):
+        with dag_maker(dag_id="test_unpinned_no_version_yet", max_active_runs=1):
+            EmptyOperator(task_id="dummy_task")
+        dag_run = dag_maker.create_dagrun(
+            run_id="queued_unpinned_no_version",
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.MANUAL,
+            session=session,
+        )
+        dag_run.bundle_version = None
+        dag_run.created_dag_version_id = None
+        session.merge(dag_run)
+        session.flush()
+        monkeypatch.setattr(
+            "airflow.models.dagbag.DagVersion.get_latest_version",
+            lambda *args, **kwargs: None,
+        )
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        dag_run = session.get(DagRun, dag_run.id)
+        assert dag_run.state == DagRunState.QUEUED
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
