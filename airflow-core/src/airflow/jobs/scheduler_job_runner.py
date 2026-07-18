@@ -2768,6 +2768,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             backfill_id = dag_run.backfill_id
             dag = dag_run.dag = cached_get_dag(dag_run)
             if not dag:
+                if dag_run.bundle_version is not None and dag_run.created_dag_version_id is None:
+                    self.log.error(
+                        "Queued DagRun '%s' for DAG '%s' has an unresolvable pinned version "
+                        "(bundle_version=%s, created_dag_version_id=None); marking run as failed",
+                        dag_run.run_id,
+                        dag_run.dag_id,
+                        dag_run.bundle_version,
+                    )
+                    dag_run.state = DagRunState.FAILED
+                    dag_run.notify_dagrun_state_changed(msg="unresolvable_pinned_version")
+                    continue
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
             active_runs = active_runs_of_dags[(dag_id, backfill_id)]

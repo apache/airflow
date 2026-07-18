@@ -10037,6 +10037,31 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
         )
         assert running_count == 2
 
+    def test_start_queued_dagrun_with_unresolvable_pinned_version_is_marked_failed(self, dag_maker, session):
+        with dag_maker(dag_id="test_unresolvable_pinned_dagrun_version", max_active_runs=1):
+            EmptyOperator(task_id="dummy_task")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="queued_unresolvable_version",
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.MANUAL,
+            session=session,
+        )
+        dag_run.bundle_version = "0123456789abcdef"
+        dag_run.created_dag_version_id = None
+        session.merge(dag_run)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dag_run = session.get(DagRun, dag_run.id)
+        assert dag_run is not None
+        assert dag_run.state == DagRunState.FAILED
+
 
 class TestSchedulerJobQueriesCount:
     """
