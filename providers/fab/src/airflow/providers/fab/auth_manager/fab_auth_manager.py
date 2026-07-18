@@ -56,6 +56,7 @@ from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.security.access_view import IMPORT_ERRORS_ALL_ACCESS_VIEW
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -140,13 +141,18 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.CLUSTER_ACTIVITY: RESOURCE_CLUSTER_ACTIVITY,
     AccessView.DOCS: RESOURCE_DOCS,
     AccessView.IMPORT_ERRORS: RESOURCE_IMPORT_ERROR,
-    AccessView.IMPORT_ERRORS_ALL: RESOURCE_IMPORT_ERROR_ALL,
     AccessView.JOBS: RESOURCE_JOB,
     AccessView.PLUGINS: RESOURCE_PLUGIN,
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
     AccessView.TRIGGERS: RESOURCE_TRIGGER,
     AccessView.WEBSITE: RESOURCE_WEBSITE,
 }
+
+# ``AccessView.IMPORT_ERRORS_ALL`` only exists on Airflow core >= 3.4.0. Map it only
+# when the running core defines it, so this provider keeps importing against older
+# core (resolved via the common.compat shim, which yields ``None`` when absent).
+if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
 
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
