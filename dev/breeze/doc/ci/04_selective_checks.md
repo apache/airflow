@@ -227,6 +227,15 @@ The same matched-file approach drives the **prek hook skip list** (`skip_prek_ho
 compile / lint hook is skipped when nothing in its area changed. See
 [Skipping prek hooks](#skipping-prek-hooks-static-checks).
 
+#### The run's platform (`--platform`)
+
+Some integrations and providers only work on one CPU architecture, so the selection above is filtered
+by the platform the run's tests will execute on:
+
+* **Integrations** in `DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM` are dropped on ARM.
+* **Providers** that declare `excluded-platforms` in their `provider.yaml` (e.g. `ibm.mq` excludes
+  `linux/arm64`) are removed from the providers test-type matrix on that platform.
+
 ## Individually simple rules
 
 The list of rules is long, but each rule is a one-liner you can reason about in isolation. A few
