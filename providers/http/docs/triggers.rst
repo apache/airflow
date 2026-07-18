@@ -22,7 +22,7 @@ HTTP Event Trigger
 .. _howto/trigger:HttpEventTrigger:
 
 The ``HttpEventTrigger`` is an event-based trigger that monitors whether responses from an API meet the conditions set
-by the user in the ``response_check`` callable. If the condition is met, then the Trigger "fires". Otherwise, it waits
+by the user in the ``response_check_path`` callable. If the condition is met, then the trigger "fires". Otherwise, it waits
 a certain amount of time before repeating the request and check.
 
 The ``HttpEventTrigger`` is designed for **Airflow 3.0+** to be used in combination with the ``AssetWatcher`` system,
@@ -69,7 +69,7 @@ Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to mo
         # Convert Variable.get to be asynchronous to be used on the Triggerer
         get_variable_async = sync_to_async(Variable.get)
 
-        # Retrieve the previous and current release ID's (one from Variables, one from response)
+        # Retrieve the previous and current release IDs (one from Variables, one from response)
         previous_release_id = await get_variable_async(key="release_id_var", default=None)
         data = response.json()
         release_id = str(data["id"])
@@ -121,7 +121,7 @@ Parameters
 ----------
 
 ``http_conn_id``
-    HTTP Connection ID that has the base API url i.e https://www.google.com/ and optional authentication credentials. Default headers can also be specified in the ``extra`` field in JSON format.
+    HTTP Connection ID that has the base API URL, e.g. ``https://www.google.com/``, and optional authentication credentials. Default headers can also be specified in the ``extra`` field in JSON format.
 
 ``auth_type``
     The auth type for the service
