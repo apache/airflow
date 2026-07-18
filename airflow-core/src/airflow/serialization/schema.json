@@ -201,11 +201,6 @@
                     "type": "array",
                     "items": { "$ref": "#/definitions/dict" }
                 },
-                {
-                    "$comment": "A Dag's deadline alerts are saved as rows in the deadline_alert table, so once stored the serialized Dag keeps only a list of UUID strings pointing at those rows (see SerializedDagModel._generate_deadline_uuids).",
-                    "type": "array",
-                    "items": { "type": "string" }
-                },
                 { "type": "null" }
             ]
         },
