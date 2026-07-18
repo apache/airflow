@@ -159,4 +159,4 @@ class TestTimeSensor:
             second = op.target_datetime
 
         assert first.date() == pendulum.datetime(2025, 6, 1).date()
-        assert second.date() == pendulum.datetime(2025, 6, 2).date()        
+        assert second.date() == pendulum.datetime(2025, 6, 2).date()
