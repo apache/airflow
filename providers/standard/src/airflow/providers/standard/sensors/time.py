@@ -107,6 +107,7 @@ class TimeSensor(BaseSensorOperator):
         self.log.info("Checking if the time (%s) has come", target_datetime)
         return timezone.utcnow() > target_datetime
 
+
 class TimeSensorAsync(TimeSensor):
     """
     Deprecated. Use TimeSensor with deferrable=True instead.
