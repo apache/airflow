@@ -201,6 +201,11 @@
                     "type": "array",
                     "items": { "$ref": "#/definitions/dict" }
                 },
+                {
+                    "$comment": "Once persisted, a Dag's deadline alerts live as rows in the deadline_alert table and the serialized Dag keeps only a list of UUID strings referencing them (see SerializedDagModel._generate_deadline_uuids). This branch lets the stored form validate at any lifecycle stage, not only before the dict->UUID rewrite.",
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
                 { "type": "null" }
             ]
         },

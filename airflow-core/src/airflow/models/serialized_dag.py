@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import zlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -645,6 +646,12 @@ class SerializedDagModel(Base):
         name_updated = False
         reused_deadline_data: dict[str, dict] | None = None
         if dag.data.get("dag", {}).get("deadline"):
+            # The deadline handling below rewrites data["dag"]["deadline"] from a list of
+            # encoded dicts into a list of UUID references. Work on a copy so we never mutate
+            # the caller's LazyDeserializedDAG in place.
+            from airflow.serialization.serialized_objects import LazyDeserializedDAG
+
+            dag = LazyDeserializedDAG(data=copy.deepcopy(dag.data), last_loaded=dag.last_loaded)
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
             # This preserves the hash and avoids unnecessary SerializedDagModel recreations.
             existing_serialized_dag = session.scalar(

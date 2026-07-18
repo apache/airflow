@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from datetime import timedelta
 from unittest import mock
@@ -1155,3 +1156,68 @@ class TestSerializedDagModel:
         alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
         assert alert is not None
         assert alert.id == orig_alert.id
+
+    def test_write_dag_with_deadline_passes_schema_validation(self, testing_dag_bundle, session):
+        """The persisted serialized Dag for a deadline-bearing Dag must satisfy the JSON schema.
+
+        write_dag stores ``data["dag"]["deadline"]`` as a list of UUID strings referencing
+        deadline_alert rows, so the schema has to accept that persisted form and not only the
+        list-of-dicts form produced before the dict->UUID rewrite.
+        """
+        dag_id = "test_deadline_schema_valid"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        result = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        persisted_deadline = result.data["dag"]["deadline"]
+        assert isinstance(persisted_deadline, list)
+        assert persisted_deadline
+        assert all(isinstance(ref, str) for ref in persisted_deadline)
+
+        # Must not raise: the stored UUID-reference form has to satisfy the serialized Dag schema.
+        DagSerialization.validate_schema(result.data)
+
+    def test_write_dag_does_not_mutate_caller_deadline_data(self, testing_dag_bundle, session):
+        """write_dag must not rewrite the caller's LazyDeserializedDAG deadline in place.
+
+        The dict->UUID replacement in ``_generate_deadline_uuids`` has to happen on a copy so a
+        LazyDeserializedDAG the caller still references keeps its original list-of-dicts deadline.
+        """
+        dag_id = "test_deadline_no_mutation"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        # Change the interval so write_dag regenerates UUIDs (the dict->UUID rewrite path)
+        # rather than reusing the existing ones.
+        dag.deadline = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=10),
+            callback=AsyncCallback(empty_callback_for_deadline),
+        )
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        original_deadline = copy.deepcopy(lazy_dag.data["dag"]["deadline"])
+        assert original_deadline
+        assert all(isinstance(item, dict) for item in original_deadline)
+
+        SDM.write_dag(lazy_dag, bundle_name="testing", session=session)
+        session.commit()
+
+        assert lazy_dag.data["dag"]["deadline"] == original_deadline
