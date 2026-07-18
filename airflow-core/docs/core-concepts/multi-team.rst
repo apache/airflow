@@ -274,6 +274,9 @@ Use the ``--team-name`` option with ``airflow pools set`` to assign a pool to a 
     bundles associated with that team that do not explicitly specify a pool will
     use the team's default pool automatically.
 
+    Existing multi-team deployments should run ``airflow teams sync`` after upgrading
+    to provision default pools for existing teams before DAG parsing assigns tasks to them.
+
 Creating Team-scoped Pools via the REST API
 """""""""""""""""""""""""""""""""""""""""""
 
