@@ -1,0 +1,139 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-anthropic
+
+name: Anthropic
+
+description: |
+    `Anthropic <https://docs.claude.com/>`__ provider for Apache Airflow.
+    Wraps the official Anthropic Python SDK to run the Claude Message Batches API
+    asynchronously from Airflow, plus direct message and token-counting helpers.
+
+state: ready
+lifecycle: incubation
+source-date-epoch: 1780426378
+
+# Note that those versions are maintained by release manager - do not update them manually
+versions:
+  - 0.1.0
+
+integrations:
+  - integration-name: Anthropic
+    external-doc-url: https://docs.claude.com/
+    logo: /docs/integration-logos/Anthropic.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-anthropic/operators/anthropic.rst
+    tags:
+      - ai
+
+hooks:
+  - integration-name: Anthropic
+    python-modules:
+      - airflow.providers.anthropic.hooks.anthropic
+
+operators:
+  - integration-name: Anthropic
+    python-modules:
+      - airflow.providers.anthropic.operators.batch
+      - airflow.providers.anthropic.operators.agent
+
+sensors:
+  - integration-name: Anthropic
+    python-modules:
+      - airflow.providers.anthropic.sensors.batch
+
+triggers:
+  - integration-name: Anthropic
+    python-modules:
+      - airflow.providers.anthropic.triggers.batch
+      - airflow.providers.anthropic.triggers.agent
+
+connection-types:
+  - hook-class-name: airflow.providers.anthropic.hooks.anthropic.AnthropicHook
+    hook-name: "Anthropic"
+    connection-type: anthropic
+    conn-fields:
+      platform:
+        label: Platform
+        schema:
+          type:
+            - string
+            - 'null'
+          enum:
+            - anthropic
+            - bedrock
+            - vertex
+            - aws
+            - foundry
+          default: anthropic
+        description: >-
+          Which client to build: anthropic (first-party API, default), bedrock (Amazon
+          Bedrock), vertex (Google Vertex AI), aws (Claude Platform on AWS) or foundry
+          (Microsoft Foundry).
+      model:
+        label: Default Model
+        schema:
+          type:
+            - string
+            - 'null'
+        description: >-
+          Default model id used whenever an operator or hook call does not pass model
+          (for example hook.create_message(...)). Falls back to claude-opus-4-8.
+      aws_region:
+        label: AWS Region
+        schema:
+          type:
+            - string
+            - 'null'
+        description: AWS region for the bedrock platform (for example us-east-1).
+      project_id:
+        label: GCP Project ID
+        schema:
+          type:
+            - string
+            - 'null'
+        description: Google Cloud project id for the vertex platform.
+      region:
+        label: GCP Region
+        schema:
+          type:
+            - string
+            - 'null'
+        description: Google Cloud region for the vertex platform (for example us-east5).
+      resource:
+        label: Azure Resource
+        schema:
+          type:
+            - string
+            - 'null'
+        description: Azure resource name for the foundry platform.
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+      relabeling:
+        password: API Key
+        host: Base URL
+      placeholders:
+        extra: >-
+          {"anthropic_client_kwargs": {"timeout": 30, "max_retries": 5},
+          "workload_identity": {"federation_rule_id": "fdrl_...", "organization_id": "...",
+          "service_account_id": "svac_...", "workspace_id": "wrkspc_...",
+          "identity_token_file": "/var/run/secrets/anthropic.com/token"}}

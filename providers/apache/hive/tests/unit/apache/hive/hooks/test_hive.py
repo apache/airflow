@@ -55,6 +55,17 @@ class EmptyMockConnectionCursor(BaseMockConnectionCursor):
         self.iterable = []
 
 
+def get_hive_cli_connection(extra_dejson=None, login=None, password=None):
+    connection = mock.MagicMock()
+    connection.extra_dejson = {"use_beeline": True, **(extra_dejson or {})}
+    connection.host = "localhost"
+    connection.port = 10000
+    connection.schema = "default"
+    connection.login = login
+    connection.password = password
+    return connection
+
+
 @pytest.mark.db_test
 class TestHiveCliHook:
     @mock.patch("tempfile.tempdir", "/tmp/")
@@ -617,6 +628,113 @@ class TestHiveMetastoreHook:
         ret = self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
         table_exist_mock.assert_called_once_with(self.table, self.database)
         assert metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
+
+
+class TestHiveCliHookJdbcParams:
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_jdbc_params_append_to_beeline_url(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+
+        hook = HiveCliHook(
+            jdbc_params={
+                "transportMode": "http",
+                "sslTrustStore": "/opt/hive/truststore.jks",
+                "trustStorePassword": "secret=ok",
+            }
+        )
+
+        assert hook._prepare_cli_cmd() == [
+            "beeline",
+            "-u",
+            '"jdbc:hive2://localhost:10000/default;'
+            'transportMode=http;sslTrustStore=/opt/hive/truststore.jks;trustStorePassword=secret=ok"',
+        ]
+
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_jdbc_params_compose_with_auth_login_and_password(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection(login="user", password="password")
+
+        hook = HiveCliHook(auth="LDAP", jdbc_params={"transportMode": "http"})
+
+        assert hook._prepare_cli_cmd() == [
+            "beeline",
+            "-u",
+            '"jdbc:hive2://localhost:10000/default;auth=LDAP;transportMode=http"',
+            "-n",
+            "user",
+            "-p",
+            "password",
+        ]
+
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_hook_jdbc_params_append_in_order(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+
+        hook = HiveCliHook(
+            jdbc_params={
+                "transportMode": "http",
+                "sslTrustStore": "/opt/hive/truststore.jks",
+            }
+        )
+
+        assert hook._prepare_cli_cmd() == [
+            "beeline",
+            "-u",
+            '"jdbc:hive2://localhost:10000/default;transportMode=http;sslTrustStore=/opt/hive/truststore.jks"',
+        ]
+
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_empty_jdbc_param_value_is_ignored(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+
+        hook = HiveCliHook(jdbc_params={"transportMode": "", "sslTrustStore": "/opt/hive/truststore.jks"})
+
+        assert hook._prepare_cli_cmd() == [
+            "beeline",
+            "-u",
+            '"jdbc:hive2://localhost:10000/default;sslTrustStore=/opt/hive/truststore.jks"',
+        ]
+
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_all_empty_jdbc_param_values_return_base_beeline_url(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+
+        hook = HiveCliHook(jdbc_params={"transportMode": "", "sslTrustStore": ""})
+
+        assert hook._prepare_cli_cmd() == [
+            "beeline",
+            "-u",
+            '"jdbc:hive2://localhost:10000/default"',
+        ]
+
+    @pytest.mark.parametrize(
+        ("jdbc_params", "message"),
+        [
+            ({"transportMode;ssl": "http"}, "Invalid JDBC parameter name"),
+            ({"transportMode=ssl": "http"}, "Invalid JDBC parameter name"),
+            ({"transport Mode": "http"}, "Invalid JDBC parameter name"),
+            ({"transportMode-": "http"}, "Invalid JDBC parameter name"),
+            ({"foo.": "x"}, "Invalid JDBC parameter name"),
+            ({"bar_": "x"}, "Invalid JDBC parameter name"),
+            ({"transportMode": "http;ssl=true"}, "Invalid JDBC parameter value"),
+        ],
+    )
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_invalid_jdbc_params_are_rejected(self, mock_get_connection, jdbc_params, message):
+        mock_get_connection.return_value = get_hive_cli_connection()
+        hook = HiveCliHook(jdbc_params=jdbc_params)
+
+        with pytest.raises(ValueError, match=message):
+            hook._prepare_cli_cmd()
+
+    @pytest.mark.parametrize("value", [None, 1, True, {"mode": "http"}])
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_non_string_jdbc_param_values_are_rejected(self, mock_get_connection, value):
+        mock_get_connection.return_value = get_hive_cli_connection()
+        hook = HiveCliHook(jdbc_params={"transportMode": value})
+
+        with pytest.raises(ValueError, match="Invalid JDBC parameter value"):
+            hook._prepare_cli_cmd()
 
 
 @pytest.mark.db_test

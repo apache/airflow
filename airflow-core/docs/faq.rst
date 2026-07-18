@@ -420,6 +420,23 @@ Additionally, you can catch these issues earlier in your development workflow by
 dynamic values in Dag and Task constructors as part of static linting. See
 :ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
 
+.. _faq:duplicate-dag-id-warning:
+
+Why do I see a "duplicate dag id" warning?
+------------------------------------------
+
+The Dag processor recognizes each Dag by its ``dag_id``, not by its file path. If two files define a
+Dag with the same ``dag_id``, only one of them is shown in the UI at a time — whichever file was parsed
+most recently — and Airflow records a **Dag warning** naming the other, overwritten file.
+
+This is expected in one common case: you renamed or moved a Dag file. The old file's row is not removed
+from the database until it goes unobserved for
+:ref:`stale_dag_threshold <config:dag_processor__stale_dag_threshold>`, so the warning briefly
+appears for both the old and new paths and then clears on its own once the old file stops being parsed.
+
+If the warning does not clear, two files with the same ``dag_id`` genuinely coexist. Which one "wins" is
+not guaranteed to stay stable across parses, so rename one of them to give each Dag a unique ``dag_id``.
+
 
 Dag construction
 ^^^^^^^^^^^^^^^^

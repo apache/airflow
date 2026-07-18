@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 from functools import lru_cache
 from typing import Any
@@ -26,10 +27,11 @@ from typing import Any
 import structlog
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse
 
-log = structlog.get_logger(logger_name="task")
-
 # Sentinel to distinguish "cached None" from "no cache entry" for tool results.
-_SENTINEL = "__durable_cached__"
+# Shared with the task state store backend so the envelope shape cannot drift.
+from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL as _SENTINEL
+
+log = structlog.get_logger(logger_name="task")
 
 SECTION = "common.ai"
 
@@ -53,8 +55,9 @@ class DurableStorage:
     Stores step-level caches in a single JSON file on ObjectStorage.
 
     All step caches (model responses and tool results) are stored as entries
-    in a single JSON blob, written to a file named after the task execution:
-    ``{base_path}/{dag_id}_{task_id}_{run_id}[_{map_index}].json``.
+    in a single JSON blob, written to ``{base_path}/{cache_id}.json`` where
+    ``cache_id`` is a hash of the task instance's identity (dag, task, run,
+    map index) so distinct task instances never share a file.
 
     The file survives Airflow task retries since it lives outside the
     XCom system.  It is deleted on successful task completion.
@@ -73,8 +76,14 @@ class DurableStorage:
         run_id: str,
         map_index: int = -1,
     ) -> None:
-        suffix = f"_{map_index}" if map_index >= 0 else ""
-        self._cache_id = f"{dag_id}_{task_id}_{run_id}{suffix}"
+        # Hash the identity components with a separator that cannot appear in
+        # them, so distinct task instances can never alias to the same cache
+        # file. A plain ``_``-joined string collides -- e.g. dag ``etl`` + task
+        # ``load_data`` and dag ``etl_load`` + task ``data`` both yield
+        # ``etl_load_data`` -- letting one task read, overwrite, or delete
+        # another's durable cache.
+        identity = "\x00".join([dag_id, task_id, run_id, str(map_index)])
+        self._cache_id = hashlib.sha256(identity.encode()).hexdigest()
         self._cache: dict[str, Any] | None = None
 
     def _get_path(self):

@@ -344,6 +344,19 @@ Airflow scheduler ──Edge Executor API──► airflow-go-edge-worker ──
 - The Task API itself has no way to deliver an `ExecuteTaskWorkload` to a Go worker, so the Edge Executor
   API fills that gap. Longer term that API will likely need stabilising and versioning.
 
+## Regenerating the coordinator-protocol models
+
+The types in `pkg/execution/genmodels/` are generated from the in-tree supervisor schema snapshot
+(`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit them by hand. To move the
+SDK to a newer schema version:
+
+1. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
+   snapshot's `api_version` date.
+2. Run `just generate-models`.
+
+`TestSupervisorSchemaVersionMatchesSnapshot` fails when the constant and the snapshot's `api_version`
+drift, so a missed bump is caught by `go test` instead of needing a dedicated prek hook.
+
 ## Architectural decisions
 
 The [`adr/`](./adr) directory records the design decisions behind the SDK:

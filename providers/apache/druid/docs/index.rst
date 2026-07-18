@@ -124,6 +124,23 @@ Dependent package                                                               
 `apache-airflow-providers-apache-hive <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive>`_  ``apache.hive``
 ==============================================================================================================  ===============
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-druid[apache.hive]
+
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``apache.hive``  ``apache-airflow-providers-apache-hive``
+===============  ========================================
+
 Downloading official packages
 -----------------------------
 
