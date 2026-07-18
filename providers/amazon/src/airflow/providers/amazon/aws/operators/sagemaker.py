@@ -258,8 +258,25 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         (default) and "fail".
     :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
         set to True.
-    :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
+    :param output_files_to_xcom: Read small JSON output files from S3 after the job completes and push
+        their parsed contents to XCom useful for feeding metrics into downstream tasks. Each entry is a dict with:
+        ``output_name`` (matches an output you declared in ``ProcessingOutputConfig.Outputs`` - the
+        operator uses it to locate that output's S3 URI), ``file_name`` (the file your processing script
+        wrote inside that output, and ``result_name`` (a label
+        you choose for the parsed contents in the returned ``OutputFiles`` dict). Intended for small JSON
+        summary files (metrics, evaluation reports), not large datasets. Optional; if omitted, no post-job
+        S3 reading occurs. Example::
+
+            output_files_to_xcom=[
+                {"output_name": "evaluation", "file_name": "metrics.json", "result_name": "EvaluationReport"}
+            ]
+            # Downstream: ti.xcom_pull("this_task")["OutputFiles"]["EvaluationReport"]["mse"]
+    :return: Dict with a ``Processing`` key (the job description) and, when ``output_files_to_xcom``
+        is configured, an ``OutputFiles`` key containing the parsed JSON contents of the configured
+        output files (keyed by their ``result_name``).
     """
+
+    template_fields: Sequence[str] = (*SageMakerBaseOperator.template_fields, "output_files_to_xcom")
 
     def __init__(
         self,
@@ -272,13 +289,20 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         action_if_job_exists: str = "timestamp",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        output_files_to_xcom: list[dict] | None = None,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
+        self.output_files_to_xcom = output_files_to_xcom
         if action_if_job_exists not in ("fail", "timestamp"):
             raise AirflowException(
                 f"Argument action_if_job_exists accepts only 'timestamp' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
+            )
+        if output_files_to_xcom and not wait_for_completion:
+            raise ValueError(
+                "output_files_to_xcom requires wait_for_completion=True. "
+                "Output files cannot be read before the job completes."
             )
         self.action_if_job_exists = action_if_job_exists
         self.wait_for_completion = wait_for_completion
@@ -339,7 +363,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
             if status == "Completed":
                 self.log.info("%s completed successfully.", self.task_id)
-                return {"Processing": serialize(response)}
+                result = {"Processing": serialize(response)}
+                result.update(self._read_output_files())
+                return result
 
             timeout = self.execution_timeout
             if self.max_ingestion_time:
@@ -358,7 +384,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             )
 
         self.serialized_job = serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))
-        return {"Processing": self.serialized_job}
+        result = {"Processing": self.serialized_job}
+        result.update(self._read_output_files())
+        return result
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         validated_event = validate_execute_complete_event(event)
@@ -369,7 +397,71 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         self.serialized_job = serialize(self.hook.describe_processing_job(validated_event["job_name"]))
         self.log.info("%s completed successfully.", self.task_id)
-        return {"Processing": self.serialized_job}
+        result = {"Processing": self.serialized_job}
+        result.update(self._read_output_files())
+        return result
+
+    def _read_output_files(self) -> dict:
+        """Read configured output files from S3 after job completion and return them for XCom."""
+        if not self.output_files_to_xcom:
+            return {}
+
+        s3_client = self.hook.get_session().client("s3")
+        processing_outputs = self.config.get("ProcessingOutputConfig", {}).get("Outputs", [])
+        output_files_data: dict = {}
+
+        for output_file in self.output_files_to_xcom:
+            missing_keys = {"result_name", "output_name", "file_name"} - output_file.keys()
+            if missing_keys:
+                raise ValueError(
+                    f"output_files_to_xcom entry missing required keys: {missing_keys}. "
+                    f"Each entry requires 'result_name', 'output_name', and 'file_name'."
+                )
+            result_name = output_file["result_name"]
+            output_name = output_file["output_name"]
+            file_name = output_file["file_name"]
+
+            matching_output = next(
+                (output for output in processing_outputs if output["OutputName"] == output_name),
+                None,
+            )
+            if not matching_output:
+                self.log.warning(
+                    "output_files_to_xcom '%s': no matching output '%s' found.",
+                    result_name,
+                    output_name,
+                )
+                continue
+
+            s3_output_uri = matching_output["S3Output"]["S3Uri"].rstrip("/")
+            s3_full_path = f"{s3_output_uri}/{file_name}"
+            bucket_name, object_key = s3_full_path.replace("s3://", "").split("/", 1)
+            self.log.debug("Attempting to read output file: s3://%s/%s", bucket_name, object_key)
+
+            try:
+                s3_response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+                file_content = s3_response["Body"].read().decode("utf-8")
+                output_files_data[result_name] = json.loads(file_content)
+                self.log.info("Output file '%s' loaded from %s", result_name, s3_full_path)
+            except ClientError as error:
+                if error.response.get("Error", {}).get("Code") == "NoSuchKey":
+                    self.log.warning("Output file '%s' not found at %s", result_name, s3_full_path)
+                    output_files_data[result_name] = {"_error": f"File not found: {s3_full_path}"}
+                else:
+                    self.log.exception("Failed to read output file '%s' from %s", result_name, s3_full_path)
+                    output_files_data[result_name] = {"_error": f"Failed to read from {s3_full_path}"}
+            except json.JSONDecodeError as error:
+                self.log.exception(
+                    "Output file '%s' at %s is not valid JSON: %s", result_name, s3_full_path, error
+                )
+                output_files_data[result_name] = {"_error": f"Invalid JSON at {s3_full_path}"}
+            except Exception:
+                self.log.exception("Failed to read output file '%s' from %s", result_name, s3_full_path)
+                output_files_data[result_name] = {"_error": f"Failed to read from {s3_full_path}"}
+
+        if output_files_data:
+            return {"OutputFiles": output_files_data}
+        return {}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """Return OpenLineage data gathered from SageMaker's API response saved by processing job."""
@@ -851,6 +943,9 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while running transform job: {validated_event}")
 
         self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         return self.serialize_result(validated_event["job_name"])

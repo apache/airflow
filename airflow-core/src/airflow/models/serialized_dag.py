@@ -376,6 +376,7 @@ class SerializedDagModel(Base):
         # bundle_path and relative fileloc more correctly determines the
         # dag file location.
         data_["dag"].pop("fileloc", None)
+        data_["dag"].pop("bundle_name", None)
         data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
@@ -642,6 +643,7 @@ class SerializedDagModel(Base):
         dag_version = _prefetched.dag_version
 
         name_updated = False
+        reused_deadline_data: dict[str, dict] | None = None
         if dag.data.get("dag", {}).get("deadline"):
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
             # This preserves the hash and avoids unnecessary SerializedDagModel recreations.
@@ -673,6 +675,7 @@ class SerializedDagModel(Base):
                         )
                     name_updated = bool(name_updates)
                     dag.data["dag"]["deadline"] = existing_deadline_uuids
+                    reused_deadline_data = deadline_uuid_mapping
                     deadline_uuid_mapping = {}
                 else:
                     # At least one deadline has changed, generate new UUIDs and update the hash.
@@ -683,13 +686,9 @@ class SerializedDagModel(Base):
         else:
             deadline_uuid_mapping = {}
 
-        new_serialized_dag = cls(dag)
+        new_dag_hash = cls.hash(dag.data)
 
-        if (
-            serialized_dag_hash == new_serialized_dag.dag_hash
-            and dag_version
-            and dag_version.bundle_name == bundle_name
-        ):
+        if serialized_dag_hash == new_dag_hash and dag_version and dag_version.bundle_name == bundle_name:
             # Serialized content is unchanged, so we don't create a new DagVersion.
             # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
             # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
@@ -727,6 +726,7 @@ class SerializedDagModel(Base):
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
+            new_serialized_dag = cls(dag)
 
             # Use direct UPDATE to avoid loading the full serialized DAG
             result = session.execute(
@@ -772,8 +772,15 @@ class SerializedDagModel(Base):
             session=session,
         )
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
+
+        if reused_deadline_data:
+            deadline_uuid_mapping = {str(uuid6.uuid7()): data for data in reused_deadline_data.values()}
+            dag.data["dag"]["deadline"] = list(deadline_uuid_mapping.keys())
+
+        new_serialized_dag = cls(dag)
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
+
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)

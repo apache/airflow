@@ -24,6 +24,7 @@ import argparse
 import ast
 import datetime
 import inspect
+import json
 import os
 import sys
 from argparse import Namespace
@@ -195,6 +196,19 @@ def string_lower_type(val):
     return val.strip().lower()
 
 
+def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
+    """Parse JSON object argument."""
+    if isinstance(val, dict):
+        return val
+    try:
+        parsed = json.loads(val)
+    except json.JSONDecodeError as e:
+        raise argparse.ArgumentTypeError(f"invalid JSON object: {val!r}") from e
+    if not isinstance(parsed, dict):
+        raise argparse.ArgumentTypeError(f"expected JSON object: {val!r}")
+    return parsed
+
+
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
     """Load the help texts yaml for the auto-generated commands."""
     help_texts_path = Path(__file__).parent / "help_texts.yaml"
@@ -266,6 +280,11 @@ ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
     help="The Dag ID of the Dag to pause or unpause",
+)
+ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
+    flags=("logical_date_or_run_id",),
+    type=str,
+    help="The logical date with a timezone offset or run ID of the Dag run",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -511,11 +530,11 @@ class CommandFactory:
             "str": str,
             "bytes": bytes,
             "list": list,
-            "dict": dict,
+            "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
             "datetime.datetime": datetime.datetime,
-            "dict[str, typing.Any]": dict,
+            "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
@@ -975,6 +994,15 @@ DAG_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="state",
+        help="Get the status of a Dag run",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
         ),
     ),
     ActionCommand(

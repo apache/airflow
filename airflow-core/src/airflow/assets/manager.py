@@ -518,12 +518,17 @@ class AssetManager(LoggingMixin):
         # mapped) tasks update the same asset, this can fail with a unique
         # constraint violation.
         #
-        # If we support it, use ON CONFLICT to do nothing, otherwise
-        # "fallback" to running this in a nested transaction. This is needed
-        # so that the adding of these rows happens in the same transaction
-        # where `ti.state` is changed.
-        if get_dialect_name(session) == "postgresql":
+        # Where the dialect supports a single-statement "insert, ignore on
+        # conflict" we use it; it is atomic, avoids the per-row SAVEPOINT churn,
+        # and holds locks for far less time (which on MySQL/InnoDB also makes the
+        # concurrent fan-out much less deadlock-prone). Otherwise we "fallback" to
+        # a nested transaction per row. Either way the rows are added in the same
+        # transaction where `ti.state` is changed.
+        dialect_name = get_dialect_name(session)
+        if dialect_name == "postgresql":
             return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
+        if dialect_name == "mysql":
+            return cls._queue_dagruns_nonpartitioned_mysql(asset_id, non_partitioned_dags, session)
         return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)
 
     @classmethod
@@ -795,7 +800,7 @@ class AssetManager(LoggingMixin):
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
             item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
-            # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
+            # https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#using-savepoint
             try:
                 with session.begin_nested():
                     session.merge(item)
@@ -815,6 +820,20 @@ class AssetManager(LoggingMixin):
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
         stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
+        session.execute(stmt, values)
+
+    @classmethod
+    def _queue_dagruns_nonpartitioned_mysql(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
+        from sqlalchemy.dialects.mysql import insert
+
+        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
+        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id)
+        # MySQL has no "ON CONFLICT DO NOTHING"; a no-op ON DUPLICATE KEY UPDATE turns a
+        # conflicting (asset_id, target_dag_id) row into a no-op rather than an error,
+        # matching the Postgres path.
+        stmt = stmt.on_duplicate_key_update(target_dag_id=stmt.inserted.target_dag_id)
         session.execute(stmt, values)
 
 
