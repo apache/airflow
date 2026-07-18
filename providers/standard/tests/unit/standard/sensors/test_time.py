@@ -27,10 +27,15 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.sdk import DAG
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
+else:
+    from airflow.models.dag import DAG  # type: ignore[no-redef]
 
 DEFAULT_TIMEZONE = pendulum.timezone("Asia/Singapore")  # UTC+08:00
 DEFAULT_DATE_WO_TZ = datetime(2015, 1, 1)
