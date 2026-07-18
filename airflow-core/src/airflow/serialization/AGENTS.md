@@ -11,6 +11,7 @@ triage_review_imbalance:
     - "decoders.py"
   codeowners_ref: ".github/CODEOWNERS"
   experts: ["ashb", "bolkedebruin"]   # internal signal only — never @-mentioned
+  adr_ref: "adr/"                # area Architecture Decision Records — checked for conformance (step §2c)
 ---
 
 <!-- SPDX-License-Identifier: Apache-2.0

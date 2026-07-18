@@ -10,6 +10,7 @@ triage_review_imbalance:
     - "security.py"
   codeowners_ref: ".github/CODEOWNERS"
   experts: ["ashb", "kaxil", "amoghrajesh"]   # internal signal only — never @-mentioned
+  adr_ref: "adr/"                             # area Architecture Decision Records — checked for conformance (§2c)
 ---
 
  <!-- SPDX-License-Identifier: Apache-2.0

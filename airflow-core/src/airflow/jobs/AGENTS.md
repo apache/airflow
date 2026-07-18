@@ -10,6 +10,7 @@ triage_review_imbalance:
     - "job.py"
   codeowners_ref: ".github/CODEOWNERS"
   experts: ["ashb", "XD-DENG"]   # internal signal only — never @-mentioned in drafted PR text
+  adr_ref: "adr/"                # area Architecture Decision Records — checked for conformance (step §2c)
 ---
 
 <!-- SPDX-License-Identifier: Apache-2.0

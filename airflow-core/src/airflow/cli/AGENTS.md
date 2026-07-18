@@ -8,6 +8,7 @@ triage_review_imbalance:
     - "commands/triggerer_command.py"
   codeowners_ref: ".github/CODEOWNERS"
   experts: ["bugraoz93", "potiuk", "dheerajturaga", "henry3260"]   # internal signal only — never @-mentioned
+  adr_ref: "adr/"                # area Architecture Decision Records — checked for conformance (step §2c)
   # No small_diff override — inherits the central medium ceiling (100 lines / 6 files).
 ---
 

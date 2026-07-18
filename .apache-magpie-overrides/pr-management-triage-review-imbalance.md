@@ -186,6 +186,38 @@ proposed back into it, not left only in a PR comment.
 
 ---
 
+## 2c. ADR conformance (does the change follow the grain of the area?)
+
+Where an area carries an **`adr/`** directory of numbered Architecture Decision
+Records (referenced from its `AGENTS.md` frontmatter as `adr_ref: "adr/"`, one
+decision per `NNNN-title.md` file, Nygard/MADR format), the step checks the
+change against the area's **`Accepted`** decisions. The `## Review criteria` are
+the *checklist* (did it miss a required test/migration?); the ADRs are the *why*
+— so this catches a change that **contradicts an architectural decision** even
+when it passes every checklist item.
+
+- **Conforms / neutral** → no effect.
+- **Contradicts an `accepted` ADR** → a **blocking finding**, cited by ADR id.
+  Where it belongs in the disposition depends on what the change is doing:
+  - A change that *violates* a decision but is otherwise fixable (e.g. reshapes
+    an Execution-API response without a Cadwyn migration, ADR-5) → the ADR
+    violation is a `criteria_gap` feeding **draft-back** (§6), with the ADR
+    quoted so the author knows the rule and its rationale.
+  - A change that *deliberately reverses* a decision (e.g. removes the version
+    negotiation, or widens a token scope, ADR-4) argued in a bare PR → this is
+    an architecture-level disagreement, not a checklist miss: route to
+    **discuss-first** (or, from a no-standing author with no discussion, the
+    matrix's CLOSE with the mentorship message) and point at the ADR + the
+    "changing an ADR is itself an architectural decision" rule.
+- **Proposing to change the ADR itself** is legitimate — but it must be argued
+  (issue / dev-list / an ADR update in the PR with `Status: proposed`), not done
+  implicitly in passing. A PR that silently contradicts an `accepted` ADR is
+  treated as not having made that argument.
+
+The ADR check never *lowers* a verdict (a conforming change gets no bonus); it
+only surfaces contradictions. Unknown/`proposed`/`superseded` decisions are not
+blocking. Areas without an `ADR.md` skip this step entirely.
+
 ## 3. ReviewCost
 
 `ReviewCost ∈ {low, moderate, high, extreme}`.
