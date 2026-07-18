@@ -153,7 +153,15 @@ sides:
   written as author-facing checks for exactly this reason. This is
   the "apply the criteria before the drafts are in" requirement:
   the cheapest place to satisfy a review criterion is before the PR
-  is ever created.
+  is ever created. Critical/high areas additionally carry a
+  **`## Before opening a PR here — authoring-agent guard`** section:
+  if the criteria cannot be met — **especially when the driving
+  person lacks the experience the area demands** — the authoring
+  agent must **refuse to create the PR** and instead propose a
+  better-matched next step (a simpler issue in the area, a different
+  area suited to their competences, or discussing the approach
+  first). Refusing up front is strictly cheaper than a maintainer
+  closing/drafting it back later.
 - **Reviewing / triage side (this step).** The same checklist drives
   the §6 draft-back assessment — a PR that skipped the pre-flight
   and lands with unmet criteria is drafted back to the author with
@@ -193,6 +201,17 @@ over all changed files — this, with `review_difficulty`, gives the
 base. So a metrics tweak in `jobs/` (base `high`) scores `high`, while
 a change to `scheduler_job_runner.py` (a `structural_risk_paths` match)
 scores `critical` → `extreme`, even in the same directory.
+
+**Docstring / comment / prose-only override.** If the PR's diff changes
+**only docstrings, comments, or prose** — no functional code (no change
+to logic, control flow, signatures, imports, config values, or data) —
+treat the whole PR as a **`docs`** change: effective criticality `low`,
+`review_difficulty` `low`, regardless of which files or
+`structural_risk_paths` it touches. A docstring fix in
+`taskinstance.py` carries no more runtime risk than a docs edit and must
+not be scored `extreme`. This requires reading the diff (not just
+paths); when a diff mixes docstring and real code changes, it is **not**
+docstring-only — score it on the code.
 
 **Base from effective criticality** (max over touched files/areas):
 
@@ -317,10 +336,21 @@ If **any** holds, emit `pass` immediately and do not query standing:
    issue assigned to the author by a committer, a committer comment
    inviting the PR ("please send a PR", "go ahead and open one"), or
    the PR implements an AIP the author was asked to implement.
-4. **Maintainer already engaged + author responding** — a committer
-   has already reviewed / commented on this PR *and* the author has
-   responded. The review conversation is underway; the imbalance
-   step must not cut across a maintainer's in-flight engagement.
+4. **Maintainer already engaged in _substantive review_ + author
+   responding** — a committer has left a **substantive code review**
+   (a submitted review — `APPROVED` / `CHANGES_REQUESTED` / a review
+   carrying a body or inline comments on the diff — or a substantive
+   inline/design comment on the code) *and* the author has responded.
+   **Triage-only engagement does NOT count.** A rebase/CI-rerun nudge,
+   a PR-template or quality-criteria reminder, a label change, a stale
+   ping, or a draft-conversion is *triage*, not review — it does not
+   mean a maintainer has committed review attention to the change, so
+   it must not exempt the PR. The point of the exemption is to avoid
+   cutting across a real in-flight review, not to wave through any PR
+   a committer merely touched while triaging the queue. Operational
+   test: the committer appears in the PR's **reviews** (with a state
+   and/or code feedback), not only as an issue-comment whose content
+   is a triage action.
 
 ---
 
@@ -375,7 +405,8 @@ a PR that fails here never enters the reviewable queue.
      qualification — links an issue *and* genuinely solves it, per
      review or diff evidence);
    - the PR is **maintainer-solicited** (would also be a §5 exemption);
-   - a maintainer is **already engaged** and the author is responding.
+   - a maintainer is **already engaged in substantive review** (§5.4 —
+     triage-only nudges do not count) and the author is responding.
    These gates exist because the fast objective matrix over-closes:
    the signals that most often make a CLOSE wrong (a real linked+solved
    issue, a solicited change) must be evaluated for real before any
