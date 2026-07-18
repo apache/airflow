@@ -169,7 +169,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go-sdk/go.sum') }}
+          key: e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go-sdk/go.mod', 'go-sdk/go.sum') }}  # yamllint disable-line rule:line-length
           restore-keys: |
             e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: "Test e2e integration tests"
