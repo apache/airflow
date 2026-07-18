@@ -72,7 +72,7 @@ with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Serialized output is deterministic** — no memory addresses, no unstable
       `str(obj)` fallbacks. Any `<... at 0x...>` in the JSON creates a new
       `DagVersion` every parse cycle. Fix **all** paths that can carry the value
-      (task- *and* DAG-level `default_args`, mapped *and* non-mapped), not just
+      (task- _and_ DAG-level `default_args`, mapped _and_ non-mapped), not just
       the one in the diff.
 - [ ] **New serialized fields are forward/backward compatible** — optional,
       defaulting to `None`, ignorable by an older reader. State the compat
@@ -95,7 +95,7 @@ with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Round-trip / symmetry test through `DagSerialization`, and it must fail
       without the change.** Reject tests that pass with the bug present (e.g. the
       same lambda reused in-process reuses its address — build two equivalent
-      dicts with *different* callable instances).
+      dicts with _different_ callable instances).
 
 **Correctness of the change itself:**
 

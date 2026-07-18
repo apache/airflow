@@ -111,8 +111,8 @@ by how often reviewers raise each.
 
 **Cadwyn versioning (the defining concern of this area):**
 
-- [ ] **New `VersionChange` goes in the latest *unreleased* version file** —
-      never a released one, never a file backdated *between* releases (it breaks
+- [ ] **New `VersionChange` goes in the latest _unreleased_ version file** —
+      never a released one, never a file backdated _between_ releases (it breaks
       the linear migration chain Cadwyn replays).
 - [ ] **A new route/endpoint needs a matching `endpoint(...).didnt_exist`** (and
       a new/changed field its `schema(...).field(...).didnt_exist`) in the
@@ -123,7 +123,7 @@ by how often reviewers raise each.
       users) doesn't control which server version a client hits, so **err toward
       adding the migration**.
 - [ ] **Reason explicitly about the four compat directions.** Cadwyn solves
-      *older client → newer server*; *newer SDK → older server* is **not**
+      _older client → newer server_; _newer SDK → older server_ is **not**
       covered and must be handled another way or scoped out. Old
       endpoints/params must keep working after a new one is added.
 - [ ] The `# type: ignore` on Cadwyn decorators is the **accepted pattern**

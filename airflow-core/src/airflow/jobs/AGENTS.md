@@ -75,7 +75,7 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] Fix the **root cause, not a workaround** — retrying, catching, or skipping
       past a deadlock/race is not an acceptable fix. For lock contention, fix the
       lock ordering / use `FOR UPDATE SKIP LOCKED` with deterministic PK order so
-      the locks are *avoided*, not reacted to.
+      the locks are _avoided_, not reacted to.
 - [ ] **Prove the diagnosis on a live setup first** — the scheduler is a vital
       hot path; substantial changes need a real repro and logs/screenshots/
       benchmarks. Many rejected PRs "fixed" a misdiagnosed config issue or benign
@@ -129,7 +129,7 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
       `print`); underscore-prefix non-public members; branch on a
       property/method, not `isinstance`.
 - [ ] **No duplicated logic** — reuse/generalize existing helpers; three copies of
-      a derivation *will* drift.
+      a derivation _will_ drift.
 - [ ] **Explicit resource cleanup** (`close()` at the call site, guard double-close)
       rather than `__del__`/GC-dependent teardown.
 - [ ] **Right severity** — user-configured conditions warn/degrade, they don't

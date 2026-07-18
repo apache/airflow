@@ -46,7 +46,7 @@ from the diff.
 Mined from real review discussion on ~110 merged and ~21 closed-unmerged CLI
 PRs — the changes reviewers repeatedly required, and the reasons CLI PRs get
 turned away. **If you are preparing a change here, treat this as a pre-flight
-checklist and fix every applicable item _before_ opening the PR.** Triage
+checklist and fix every applicable item *before* opening the PR.** Triage
 applies the same list: a PR that lands with unmet items is drafted back to its
 author with the specific gaps. Ordered roughly by how often reviewers raise
 each one.
