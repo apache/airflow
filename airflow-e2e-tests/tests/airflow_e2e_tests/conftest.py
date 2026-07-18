@@ -647,24 +647,17 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir):
 def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     """Set up the ts_sdk E2E test mode.
 
-    Builds the ts-sdk example bundle with pnpm inside an ephemeral Node
-    container (the host needs no Node toolchain); the example build runs
-    ``airflow-ts-pack``, which embeds the airflow metadata in the bundle
-    itself. The bundle is dropped into the directory ``NodeCoordinator``
-    scans, the Python stub Dag is copied, and the coordinator
-    configuration is written.
-
-    The worker has no Node runtime of its own; the node-provider service in
-    ``ts.yml`` copies the node binary out of the same image used here for the
-    build, so the bundle executes on the runtime it was built for.
+    Builds the ts-sdk example bundle in an ephemeral Node container (no host
+    Node toolchain needed); the example build runs ``airflow-ts-pack``, which
+    embeds the airflow metadata in ``bundle.mjs``. The node-provider service
+    in ``ts.yml`` gives the worker the node binary from the same image, so
+    the bundle runs on the runtime it was built for.
     """
-    # --user keeps build outputs owned by the current user (not root); HOME
-    # points at a writable, gitignored dir so the pnpm store and corepack
-    # cache persist between runs. corepack resolves the pnpm version pinned
-    # by ts-sdk/package.json's packageManager field.
+    # --user keeps build outputs owned by the current user; HOME is a
+    # writable, gitignored dir so pnpm/corepack caches persist between runs.
     TS_SDK_BUILD_HOME_PATH.mkdir(parents=True, exist_ok=True)
-    # Shims go into a writable dir on PATH (the container user cannot write to
-    # /usr/local/bin) so nested `pnpm run ...` invocations resolve pnpm too.
+    # corepack shims go in $HOME/bin (on PATH) because the container user
+    # cannot write to /usr/local/bin.
     build_script = (
         'export PATH="$HOME/bin:$PATH"'
         ' && mkdir -p "$HOME/bin"'
@@ -689,8 +682,6 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
             "-e",
             "COREPACK_ENABLE_DOWNLOAD_PROMPT=0",
             "-e",
-            # Non-interactive pnpm: never prompt (e.g. before replacing a
-            # node_modules left behind by a host-side install).
             "CI=true",
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
@@ -702,26 +693,18 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # Copy the compose override into the temp directory.
     copyfile(TS_COMPOSE_PATH, tmp_dir / "ts.yml")
 
-    # Place the bundle where the compose bind-mount (./ts-bundles) exposes it
-    # to the worker at /opt/airflow/ts-bundles. airflow-ts-pack embeds the
-    # airflow metadata in bundle.mjs itself, so no sidecar is written — the
-    # coordinator must resolve the schema version from the embedded manifest.
+    # Deliberately no metadata sidecar: the coordinator must resolve the schema
+    # version from the metadata airflow-ts-pack embedded in the bundle.
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
 
-    # Copy the TS SDK example stub Dag so Airflow can discover and serialize it.
     copyfile(
         TS_SDK_EXAMPLE_PATH / "dags" / "typescript_example.py", tmp_dir / "dags" / "typescript_example.py"
     )
 
-    # Coordinator registry: maps the logical name "ts" to NodeCoordinator, which
-    # scans bundles_root for bundle.mjs and launches it with the node binary
-    # provided by the node-provider service.
-    # Queue mapping: routes tasks on the "typescript" queue to "ts".
     coordinator_config = json.dumps(
         {
             "ts": {
@@ -738,10 +721,9 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         f"NODE_IMAGE={NODE_IMAGE}\n"
-        # Single-quote the JSON values so Docker Compose reads them literally.
+        # single-quoted so Docker Compose reads the JSON literally
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
-        # Connection and variable read by the TS example bundle tasks.
         "AIRFLOW_CONN_TYPESCRIPT_EXAMPLE_HTTP=http://user:pass@example.com/\n"
         "AIRFLOW_VAR_TYPESCRIPT_EXAMPLE_GREETING=greetings from e2e\n"
     )

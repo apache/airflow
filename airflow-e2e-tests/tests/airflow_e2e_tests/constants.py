@@ -94,12 +94,10 @@ GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
 TS_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "ts-sdk"
 TS_SDK_EXAMPLE_PATH = TS_SDK_ROOT_PATH / "example"
 TS_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "ts.yml"
-# Node image used both to build the bundle and to provide the node binary to the
-# worker (ts.yml); keeping them identical guarantees the bundle runs on the same
-# runtime it was built for.
+# Builds the bundle and provides the worker's node binary (ts.yml), so the
+# bundle runs on the runtime it was built for.
 NODE_IMAGE = os.environ.get("NODE_IMAGE", "node:22-slim")
-# Writable HOME for the containerized pnpm build; keeps the pnpm store and
-# corepack cache between runs (files/ is gitignored).
+# Writable HOME for the containerized pnpm build; gitignored, caches persist.
 TS_SDK_BUILD_HOME_PATH = AIRFLOW_ROOT_PATH / "files" / "pnpm-home"
 
 # Local provider sources are mounted into the airflow containers under this directory so

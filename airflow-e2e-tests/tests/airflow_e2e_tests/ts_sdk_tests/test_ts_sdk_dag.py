@@ -21,37 +21,14 @@ Run with::
     E2E_TEST_MODE=ts_sdk uv run --project airflow-e2e-tests pytest \\
         tests/airflow_e2e_tests/ts_sdk_tests/ -xvs
 
-What is verified
-----------------
-``conftest._setup_ts_sdk_integration`` builds the ``ts-sdk/example`` bundle with
-pnpm inside an ephemeral Node container — the example build runs
-``airflow-ts-pack``, which embeds the airflow metadata in ``bundle.mjs`` — and
-drops the bundle into the directory ``NodeCoordinator`` scans.
-The ``typescript_example`` Dag (``ts-sdk/example/dags/typescript_example.py``)
-mixes a native Python task with TypeScript stub tasks::
-
-    python_start >> build_message; read_connection
-
-* ``build_message`` / ``read_connection`` are ``@task.stub(queue="typescript")``
-  tasks whose handlers live in the bundle (``ts-sdk/example/src/main.ts``). The
-  ``typescript`` queue is routed to ``NodeCoordinator``, which launches the
-  bundle with the node binary provided by the ``node-provider`` compose service
-  and drives it through the msgpack-over-IPC coordinator protocol.
-* ``python_start`` (Python) pushes an XCom; ``build_message`` (TS) pulls it,
-  reads the ``typescript_example_greeting`` Variable, pushes the
-  ``typescript_message`` XCom, and returns a message object; ``read_connection``
-  (TS) fetches the ``typescript_example_http`` Connection.
-
-The Dag is triggered exactly once by the module-scoped ``completed_run``
-fixture; each test asserts a different facet of that single run. Together they
-confirm, end-to-end:
-
-1. ``NodeCoordinator`` locates the bundle, launches it with the volume-provided
-   Node runtime, and every TypeScript task reports ``SucceedTask``.
-2. Variable / Connection reads and XCom writes work through the Task Execution
-   API, and XCom crosses the Python <-> TypeScript boundary in both directions.
-3. Structured task logs emitted by the TypeScript runtime over the coordinator
-   logs channel reach Airflow's task-log store.
+The ``typescript_example`` Dag mixes a Python task with ``@task.stub``
+TypeScript tasks whose handlers live in the ``airflow-ts-pack`` bundle built
+by ``conftest._setup_ts_sdk_integration``. Triggered once via the
+module-scoped ``completed_run`` fixture, the run confirms end-to-end that
+``NodeCoordinator`` launches the bundle on the volume-provided Node runtime,
+Variable/Connection reads and Python <-> TypeScript XCom round-trips work
+through the Task Execution API, and coordinator-channel logs reach the
+task-log store.
 """
 
 from __future__ import annotations
@@ -76,8 +53,6 @@ _DAG_ID = "typescript_example"
 
 @dataclass
 class _CompletedRun:
-    """The single ``typescript_example`` run shared across the assertions in this module."""
-
     client: AirflowClient
     run_id: str
     state: str
@@ -89,7 +64,7 @@ class _CompletedRun:
         )
 
     def logs(self, task_id: str, try_number: int = 1) -> str:
-        """Return the concatenated task-log records for *task_id*, retrying until present."""
+        """Fetch task logs, retrying until present (log upload is async)."""
         deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
         while True:
             resp = self.client.get_task_logs(
@@ -103,11 +78,7 @@ class _CompletedRun:
 
 @pytest.fixture(scope="module")
 def completed_run() -> _CompletedRun:
-    """Trigger ``typescript_example`` once and wait for it to finish.
-
-    Module-scoped so the run happens a single time; every test in this module
-    inspects the resulting states, XComs, and logs.
-    """
+    """Trigger ``typescript_example`` once; every test inspects the same run."""
     client = AirflowClient()
     resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(timezone.utc).isoformat()})
     run_id = resp["dag_run_id"]
@@ -124,7 +95,6 @@ def test_dag_run_succeeded(completed_run: _CompletedRun):
 
 
 def test_task_states(completed_run: _CompletedRun):
-    """The Python task and both coordinator-mode TypeScript tasks end ``success``."""
     expected = {
         "python_start": "success",
         "build_message": "success",
@@ -137,12 +107,8 @@ def test_task_states(completed_run: _CompletedRun):
 
 
 def test_build_message_xcom_round_trip(completed_run: _CompletedRun):
-    """XCom crosses Python -> TypeScript -> XCom, including the Variable read.
-
-    ``build_message`` pulls ``python_start``'s XCom, prefixes it with the
-    ``typescript_example_greeting`` Variable, pushes the combined text under the
-    ``typescript_message`` key, and returns it as ``return_value``.
-    """
+    """``build_message`` combines ``python_start``'s XCom with the Variable,
+    pushes it under ``typescript_message``, and returns it."""
     assert completed_run.xcom("python_start") == "hello from Python"
 
     message = "greetings from e2e; upstream=hello from Python"
@@ -154,7 +120,6 @@ def test_build_message_xcom_round_trip(completed_run: _CompletedRun):
 
 
 def test_read_connection_xcom(completed_run: _CompletedRun):
-    """The TypeScript task reads the ``typescript_example_http`` Connection."""
     value = completed_run.xcom("read_connection")
     assert value == {
         "id": "typescript_example_http",
@@ -166,5 +131,4 @@ def test_read_connection_xcom(completed_run: _CompletedRun):
 
 
 def test_coordinator_logs_reach_task_log_store(completed_run: _CompletedRun):
-    """Runtime logs emitted over the coordinator logs channel land in the task logs."""
     assert "[ts-sdk.runtime] Coordinator runtime started" in completed_run.logs("build_message")

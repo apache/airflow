@@ -17,13 +17,10 @@
 
 # Docker Compose override for ts_sdk E2E test mode.
 #
-# NodeCoordinator launches the TypeScript bundle with a Node.js runtime, which
-# the stock Airflow worker image does not ship. The node-provider service
-# copies the node binary from the official Node image (the same image
-# conftest._setup_ts_sdk_integration builds the bundle with) into a shared
-# volume, the bundle built by conftest is bind-mounted into the directory
-# NodeCoordinator scans, and the worker consumes the "typescript" Celery queue
-# where @task.stub tasks are routed.
+# The stock worker image ships no Node.js runtime, so node-provider copies the
+# node binary from the same image conftest builds the bundle with into a
+# shared volume. The bundle is bind-mounted where NodeCoordinator scans, and
+# the worker consumes the "typescript" queue where @task.stub tasks are routed.
 ---
 services:
   node-provider:
