@@ -33,6 +33,7 @@ from sqlalchemy.orm import joinedload
 
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
@@ -3714,12 +3715,15 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         parent_ti.dag_id = parent_dag_id
         parent_ti.id = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
+        child_dag_id = "child_dag_caller_cannot_edit"
         child_ti = mock.MagicMock(spec=TaskInstance)
-        child_ti.dag_id = "child_dag_caller_cannot_edit"
+        child_ti.dag_id = child_dag_id
         child_ti.id = uuid.UUID("00000000-0000-0000-0000-000000000002")
 
         mock_dag_clear.return_value = [parent_ti, child_ti]
-        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = {parent_dag_id}
+        mock_get_auth_manager.return_value.is_authorized_dag.side_effect = lambda **kwargs: (
+            kwargs["details"].id == parent_dag_id
+        )
 
         response = test_client.post(
             f"/dags/{parent_dag_id}/clearTaskInstances",
@@ -3727,9 +3731,16 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
 
         assert response.status_code == 200
-        mock_get_auth_manager.return_value.get_authorized_dag_ids.assert_called_once_with(
-            method="PUT", user=mock.ANY
-        )
+
+        auth_calls = mock_get_auth_manager.return_value.is_authorized_dag.call_args_list
+
+        # Auth calls should be made for both the parent and child DAGs
+        assert {call.kwargs["details"].id for call in auth_calls} == {parent_dag_id, child_dag_id}
+
+        # Auth calls should be for a TI
+        for call in auth_calls:
+            assert call.kwargs["method"] == "PUT"
+            assert call.kwargs["access_entity"] == DagAccessEntity.TASK_INSTANCE
 
         cleared_tis = mock_clear_tis.call_args[0][0]
         assert cleared_tis == [parent_ti]  # Child ID's are NOT cleared
@@ -3763,6 +3774,21 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
         assert response.status_code == 404
         assert "child_dag" in response.json()["detail"]
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    def test_invalid_external_task_marker_logical_date_returns_400(self, mock_clear, test_client, session):
+        """A non-ISO logical_date rendered from an ExternalTaskMarker template must return 400, not 500."""
+        from pendulum.parsing.exceptions import ParserError
+
+        self.create_task_instances(session)
+        mock_clear.side_effect = ParserError("Unable to parse string [not-a-date]")
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 400
+        assert "Invalid logical_date" in response.json()["detail"]
 
     def test_should_respond_200_with_reset_dag_run(self, test_client, session):
         dag_id = "example_python_operator"

@@ -22,12 +22,13 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
+from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.cursors import (
     apply_cursor_filter,
     encode_cursor,
@@ -110,7 +111,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, DagNotFound, TaskNotFound
-from airflow.models import Base, DagRun
+from airflow.models import Base, DagModel, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.serialization.definitions.dag import MaxRecursionDepthError
@@ -967,9 +968,30 @@ def post_clear_task_instances(
     except DagNotFound as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
+    except ParserError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid logical_date: {e}") from e
+
     if include_dependent_dags:
         # Ensure proper access to downstream dags/tasks with dag.clear and include_dependent_dags
-        editable_dag_ids = get_auth_manager().get_authorized_dag_ids(method="PUT", user=user)
+        auth_manager = get_auth_manager()
+        all_dag_ids = {ti.dag_id for ti in task_instances}  # Retrieve all DAG ID's from task instances
+
+        # Used to find a team name from a DAG iD
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(list(all_dag_ids), session=session)
+
+        # set of DAG ID's that can be cleared
+        editable_dag_ids = {
+            other_dag_id
+            for other_dag_id in all_dag_ids
+            if auth_manager.is_authorized_dag(
+                method="PUT",
+                access_entity=DagAccessEntity.TASK_INSTANCE,
+                details=DagDetails(id=other_dag_id, team_name=dag_id_to_team.get(other_dag_id)),
+                user=user,
+            )
+        }
+
+        # list of all TI's that can be cleared (TI's within the DAGs from above)
         task_instances = [ti for ti in task_instances if ti.dag_id in editable_dag_ids]
 
     if not dry_run:
