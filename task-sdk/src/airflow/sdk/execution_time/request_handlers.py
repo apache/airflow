@@ -180,9 +180,6 @@ def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseMode
 def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store an XCom value."""
     client.xcoms.set(
-        msg.dag_id,
-        msg.run_id,
-        msg.task_id,
         msg.key,
         msg.value,
         msg.map_index,

@@ -62,14 +62,10 @@ def access_denied(client):
 
     def _(
         request: Request,
-        dag_id: str = Path(),
-        run_id: str = Path(),
-        task_id: str = Path(),
-        xcom_key: str = Path(alias="key"),
         token=CurrentTIToken,
     ):
         with create_session() as session:
-            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
+            has_xcom_access(request, session, token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -110,7 +106,7 @@ class TestXComsGetEndpoint:
         session.add(x)
         session.commit()
 
-        response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
+        response = client.get("/execution/xcoms/xcom_1")
 
         assert response.status_code == 200
         assert response.json() == {"key": "xcom_1", "value": db_value}
@@ -129,7 +125,7 @@ class TestXComsGetEndpoint:
     @pytest.mark.usefixtures("access_denied")
     def test_xcom_access_denied(self, client, caplog):
         with caplog.at_level(logging.DEBUG):
-            response = client.get("/execution/xcoms/dag/runid/task/xcom_perms")
+            response = client.get("/execution/xcoms/xcom_perms")
 
         assert response.status_code == 403, response.json()
         assert response.json() == {
@@ -354,7 +350,7 @@ class TestXComsSetEndpoint:
         session.commit()
         value = serialize(value)
         response = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            "/execution/xcoms/xcom_1",
             json=value,
         )
 
@@ -382,7 +378,7 @@ class TestXComsSetEndpoint:
         mock_xcom_set.side_effect = ValueError("Mocked value error")
         
         response = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            "/execution/xcoms/xcom_1",
             json="value",
         )
         
@@ -437,7 +433,7 @@ class TestXComsSetEndpoint:
         assert value == ser_value
 
         response = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            "/execution/xcoms/xcom_1",
             json=value,
         )
 
@@ -465,7 +461,7 @@ class TestXComsSetEndpoint:
         value = serialize("value1")
 
         response = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            "/execution/xcoms/xcom_1",
             params={"map_index": -1, "mapped_length": 3},
             json=value,
         )
@@ -511,7 +507,7 @@ class TestXComsSetEndpoint:
         session.commit()
 
         response = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            "/execution/xcoms/xcom_1",
             json='"valid json"',
             params={"mapped_length": length},
         )
@@ -527,7 +523,7 @@ class TestXComsSetEndpoint:
     def test_xcom_access_denied(self, client, caplog):
         with caplog.at_level(logging.DEBUG):
             response = client.post(
-                "/execution/xcoms/dag/runid/task/xcom_perms",
+                "/execution/xcoms/xcom_perms",
                 json='"value1"',
             )
 
@@ -562,7 +558,7 @@ class TestXComsSetEndpoint:
         value = serialize(value)
         session.commit()
         client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/test_xcom_roundtrip",
+            "/execution/xcoms/test_xcom_roundtrip",
             json=value,
         )
 
@@ -575,7 +571,7 @@ class TestXComsSetEndpoint:
         ).first()
         assert xcom.value == expected_value
 
-        response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/test_xcom_roundtrip")
+        response = client.get("/execution/xcoms/test_xcom_roundtrip")
 
         assert response.status_code == 200
         assert XComResponse.model_validate_json(response.read()).value == expected_value
@@ -586,7 +582,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value",
+            "/execution/xcoms/return_value",
             params={"dag_result": True},
             json=123,
         )
@@ -615,7 +611,7 @@ class TestXComsDeleteEndpoint:
         assert xcoms is not None
         assert len(xcoms) == 2
 
-        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
+        response = client.delete("/execution/xcoms/xcom_1")
 
         assert response.status_code == 200
         assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
@@ -696,6 +692,10 @@ class TestXComTeamAccess:
     def _url(dag_id, key="k"):
         return f"/execution/xcoms/{dag_id}/run1/task/{key}"
 
+    @staticmethod
+    def _post_url(key="k"):
+        return f"/execution/xcoms/{key}"
+
     def test_multi_team_disabled_allows_cross_team(self, client, exec_app, session, dag_maker):
         """With multi-team disabled, the check is a no-op even across teams."""
         _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
@@ -719,7 +719,7 @@ class TestXComTeamAccess:
 
         with conf_vars({("core", "multi_team"): "True"}):
             read = client.get(self._url(dag_id, key="existing"))
-            write = client.post(self._url(dag_id, key="newkey"), json="w")
+            write = client.post(self._post_url("newkey"), json="w")
             delete_ = client.delete(self._url(dag_id, key="existing"))
 
         assert read.status_code == 200, read.json()
@@ -766,7 +766,7 @@ class TestXComTeamAccess:
 
         with conf_vars({("core", "multi_team"): "True"}):
             read = client.get(self._url(global_dag, key="k"))
-            write = client.post(self._url(global_dag, key="k2"), json="w")
+            write = client.post(self._post_url("k2"), json="w")
             delete_ = client.delete(self._url(global_dag, key="k"))
 
         assert read.status_code == 200, read.json()

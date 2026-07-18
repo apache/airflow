@@ -27,22 +27,20 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 
 def has_xcom_access(
-    dag_id: str,
-    run_id: str,
-    task_id: str,
-    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     session: SessionDep,
     token=CurrentTIToken,
@@ -68,6 +66,13 @@ def has_xcom_access(
     from airflow.configuration import conf
 
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
+    dag_id = request.path_params.get("dag_id")
+    xcom_key = request.path_params.get("key", "")
+
+    if not dag_id:
+        # If dag_id is not in the URL, the operation is inherently for the
+        # current task (e.g. set_xcom). Access is strictly scoped to the requester's team.
+        return True
 
     log.debug(
         "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
@@ -359,15 +364,13 @@ def get_xcom(
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
 # the token
 @router.post(
-    "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    "/{key:path}",
     status_code=status.HTTP_201_CREATED,
 )
 def set_xcom(
-    dag_id: str,
-    run_id: str,
-    task_id: str,
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
+    token: TIToken = CurrentTIToken,
     value: Annotated[
         JsonValue,
         Body(
@@ -407,6 +410,22 @@ def set_xcom(
                 "message": "XCom key must be a non-empty string.",
             },
         )
+
+    ti = session.execute(
+        Select(TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id).where(
+            TaskInstance.id == token.id
+        )
+    ).one_or_none()
+
+    if not ti:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found",
+            },
+        )
+    dag_id, run_id, task_id = ti
 
     if mapped_length is not None:
         task_map = TaskMap(
