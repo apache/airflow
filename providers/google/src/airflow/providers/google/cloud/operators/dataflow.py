@@ -708,8 +708,8 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
     :param append_job_name: Optional. Set to True if a unique suffix has to be appended to the `job_name`.
         Defaults to True.
     :param drain_pipeline: Optional. Set to True if you want to stop a streaming pipeline job by draining it
-        instead of canceling when killing the task instance. Note that this does not work for batch pipeline jobs
-        or in the deferrable mode. Defaults to False.
+        instead of canceling when killing the task instance. Note that this does not work for batch pipeline jobs.
+        Defaults to False.
         For more info see: https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param cancel_on_kill: If True (default), cancel the Dataflow job when the task is killed,
