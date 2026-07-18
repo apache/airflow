@@ -245,7 +245,7 @@ subprocess relative to the ``--logs`` socket:
 
 .. code-block:: text
 
-    1. Coordinator forks the subprocess with
+    1. Coordinator launches the subprocess with
        --comm=<host>:<port> --logs=<host>:<port>
       │
       └─► 2. Subprocess starts. Its logger is already active, but the
@@ -253,7 +253,7 @@ subprocess relative to the ``--logs`` socket:
              │
              └─► 3. Subprocess connects to --comm and --logs.
                     │
-                    └─► 4. Every later record is streamed straight to the
+                    └─► 4. Each subsequent record is sent over the
                             --logs socket.
 
 The gap is stage 2: the SDK's own startup code (argument parsing, the connect
