@@ -54,6 +54,10 @@ KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
 # openlineage_tests/prepare_dags.py; the overlay carries the OpenLineage-specific env + dag_doc mount.
 OPENLINEAGE_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage.yml"
 
+# CI sets this (the same switch the lang-SDK k8s job uses) to build the lang-SDK
+# artifacts with the host toolchain instead of ephemeral toolchain containers.
+LANG_SDK_NATIVE_TOOLCHAIN = os.environ.get("LANG_SDK_NATIVE_TOOLCHAIN", "").lower() == "true"
+
 # Java SDK E2E test paths
 JAVA_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
 JAVA_SDK_EXAMPLE_DAGS_PATH = JAVA_SDK_ROOT_PATH / "example" / "src" / "resources" / "dags"
@@ -79,7 +83,8 @@ GO_SDK_BUNDLE_NAME = "example_dags"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
-# Go toolchain image used to build the bundle; must satisfy go-sdk/go.mod's toolchain.
+# Go toolchain image used to build the bundle in the containerized path (i.e. unless
+# LANG_SDK_NATIVE_TOOLCHAIN is set); must satisfy go-sdk/go.mod's toolchain.
 # The Alpine variant is ~7x smaller than the Debian one and is safe here because the
 # bundle is built with CGO_ENABLED=0 (a fully static binary, independent of musl/glibc)
 # and module fetches go through the HTTPS proxy (no git/gcc needed).

@@ -42,6 +42,8 @@ class NodeResponse(BaseNodeResponse):
     setup_teardown_type: Literal["setup", "teardown"] | None = None
     operator: str | None = None
     asset_condition_type: Literal["or-gate", "and-gate"] | None = None
+    ui_color: str | None = None
+    ui_fgcolor: str | None = None
 
 
 class StructureDataResponse(BaseGraphResponse[EdgeResponse, NodeResponse]):

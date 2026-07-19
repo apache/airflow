@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,16 +17,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PropsWithChildren } from "react";
-import { useState } from "react";
 
-import { HoverContext } from "./Context";
+import { runPack } from "./pack.js";
 
-export const HoverProvider = ({ children }: PropsWithChildren) => {
-  const [hoveredRunId, setHoveredRunId] = useState<string | undefined>(undefined);
-  const [hoveredTaskId, setHoveredTaskId] = useState<string | undefined>(undefined);
-
-  const value = { hoveredRunId, hoveredTaskId, setHoveredRunId, setHoveredTaskId };
-
-  return <HoverContext.Provider value={value}>{children}</HoverContext.Provider>;
-};
+try {
+  await runPack(process.argv.slice(2));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}

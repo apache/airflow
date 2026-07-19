@@ -31,6 +31,11 @@ export const GridFilters = () => {
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
-    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
+    <FilterBar
+      configs={filterConfigs}
+      initialValues={initialValues}
+      onFiltersChange={handleFiltersChange}
+      showPresetFilters={false}
+    />
   );
 };
