@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.snowflake.operators.snowpark_containers import SnowparkContainerJobOperator
-from airflow.providers.snowflake.triggers.snowpark_containers_trigger import SnowparkContainerJobTrigger
+from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
 
 TASK_ID = "test_spcs_job"
 COMPUTE_POOL = "test_pool"

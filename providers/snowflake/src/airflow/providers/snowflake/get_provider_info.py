@@ -164,7 +164,10 @@ def get_provider_info():
         "triggers": [
             {
                 "integration-name": "Snowflake",
-                "python-modules": ["airflow.providers.snowflake.triggers.snowflake_trigger"],
+                "python-modules": [
+                    "airflow.providers.snowflake.triggers.snowflake_trigger",
+                    "airflow.providers.snowflake.triggers.snowpark_containers",
+                ],
             }
         ],
         "config": {

@@ -21,10 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.snowflake.triggers.snowpark_containers_trigger import SnowparkContainerJobTrigger
+from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
 from airflow.triggers.base import TriggerEvent
 
-TRIGGER_PATH = "airflow.providers.snowflake.triggers.snowpark_containers_trigger"
+TRIGGER_PATH = "airflow.providers.snowflake.triggers.snowpark_containers"
 CLASSPATH = f"{TRIGGER_PATH}.SnowparkContainerJobTrigger"
 HOOK = f"{TRIGGER_PATH}.SnowflakeHook"
 
