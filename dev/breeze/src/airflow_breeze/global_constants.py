@@ -37,13 +37,10 @@ from airflow_breeze.utils.path_utils import (
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
-# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
-RUNNERS_TYPE_CROSS_MAPPING = {
-    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
-    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
-    "windows-2022": '["windows-2022"]',
-    "windows-2025": '["windows-2025"]',
-}
+# Platform the tests of a CI run execute on.
+CI_AMD_PLATFORM = "linux/amd64"
+CI_ARM_PLATFORM = "linux/arm64"
+CI_PLATFORMS = [CI_AMD_PLATFORM, CI_ARM_PLATFORM]
 
 ANSWER = ""
 
