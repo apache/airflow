@@ -85,8 +85,6 @@ class _DatabricksWarehouseBaseOperator(BaseOperator):
             state = self._hook.get_warehouse_state(self.warehouse_id)
             last_state = state.state
             now = time.monotonic()
-            if now >= deadline:
-                break
             if state.state == target:
                 return
             if state.state in failure_states:
@@ -94,6 +92,8 @@ class _DatabricksWarehouseBaseOperator(BaseOperator):
                     f"Databricks SQL warehouse {self.warehouse_id} entered {state.state} "
                     f"while waiting for {target}."
                 )
+            if now >= deadline:
+                break
             self.log.info(
                 "Databricks SQL warehouse %s is %s; waiting for %s.",
                 self.warehouse_id,
