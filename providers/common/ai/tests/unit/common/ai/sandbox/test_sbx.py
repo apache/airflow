@@ -144,14 +144,32 @@ class TestSbxSandboxBackendRun:
             result = backend.run("sbx-1", ["sleep", "60"], timeout=10.0)
         assert result.timed_out is True
 
-    @pytest.mark.parametrize("exit_code", [0, 1, 137])
-    def test_run_non_124_is_not_timeout(self, exit_code):
-        # 137 = OOM-kill / SIGKILL escalation / self-exit — a failure, not a timeout.
+    @pytest.mark.parametrize("exit_code", [0, 1])
+    def test_run_normal_exit_is_not_timeout(self, exit_code):
         backend = SbxSandboxBackend()
         with patch.object(backend, "_exec_capped", return_value=(exit_code, "", "x", False)):
             result = backend.run("sbx-1", ["python3", "-c", "..."], timeout=10.0)
         assert result.timed_out is False
         assert result.exit_code == exit_code
+
+    @pytest.mark.parametrize(
+        ("elapsed", "expected_timed_out"),
+        [
+            # SIGKILL escalation after the budget elapsed (command ignored SIGTERM).
+            (15.0, True),
+            # Fast SIGKILL well before the budget — an OOM kill, not a timeout.
+            (2.0, False),
+        ],
+    )
+    def test_run_exit_137_is_timeout_only_after_budget(self, elapsed, expected_timed_out):
+        backend = SbxSandboxBackend()
+        with (
+            patch(f"{_MOD}.time.monotonic", side_effect=[100.0, 100.0 + elapsed]),
+            patch.object(backend, "_exec_capped", return_value=(137, "", "", False)),
+        ):
+            result = backend.run("sbx-1", ["python3", "-c", "..."], timeout=10.0)
+        assert result.timed_out is expected_timed_out
+        assert result.exit_code == 137
 
     def test_run_propagates_truncation_flag(self):
         backend = SbxSandboxBackend()

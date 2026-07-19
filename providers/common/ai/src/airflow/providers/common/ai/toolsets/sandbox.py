@@ -35,8 +35,6 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.ai.sandbox.base import SandboxBackend
 
-_PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
-
 # Deliberately not "run_code": that name is reserved by the Monty code_mode
 # meta-tool, and the pinned pydantic-ai-harness rejects a second tool claiming
 # it. A distinct name lets this toolset and code_mode coexist.
@@ -49,6 +47,16 @@ _RUN_CODE_SCHEMA: dict[str, Any] = {
     },
     "required": ["code"],
 }
+
+# Must stay in sync with _RUN_CODE_SCHEMA. A ValidationError raised here becomes
+# a retry prompt (honoring max_retries) instead of a KeyError in call_tool that
+# would fail the whole task.
+_RUN_CODE_VALIDATOR = SchemaValidator(
+    core_schema.typed_dict_schema(
+        {"code": core_schema.typed_dict_field(core_schema.str_schema())},
+        extra_behavior="ignore",
+    )
+)
 
 _RUN_CODE_DESCRIPTION = (
     "Execute Python code in an isolated sandbox and return a JSON object with "
@@ -171,7 +179,7 @@ class SandboxToolset(AbstractToolset[Any]):
                 toolset=self,
                 tool_def=tool_def,
                 max_retries=2,
-                args_validator=_PASSTHROUGH_VALIDATOR,
+                args_validator=_RUN_CODE_VALIDATOR,
             )
         }
 
