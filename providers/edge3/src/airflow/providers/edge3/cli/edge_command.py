@@ -260,7 +260,7 @@ def list_edge_workers(args) -> None:
     _check_valid_db_connection()
     from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts
 
-    all_hosts_iter = get_registered_edge_hosts(states=args.state)
+    all_hosts_iter = get_registered_edge_hosts(states=args.state, worker_name_pattern=args.name_pattern)
     # Format and print worker info on the screen
     fields = [
         "worker_name",
