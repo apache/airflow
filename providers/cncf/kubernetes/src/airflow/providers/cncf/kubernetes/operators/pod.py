@@ -204,6 +204,8 @@ class KubernetesPodOperator(BaseOperator):
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
+    :param xcom_sidecar_container_security_context: security options the xcom sidecar container should
+        run with. Overrides the value configured on the Kubernetes connection.
     :param dnspolicy: dnspolicy for the pod.
     :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
     :param hostname: hostname for the pod. (templated)
@@ -343,6 +345,7 @@ class KubernetesPodOperator(BaseOperator):
         tolerations: list[k8s.V1Toleration] | None = None,
         security_context: k8s.V1PodSecurityContext | dict | None = None,
         container_security_context: k8s.V1SecurityContext | dict | None = None,
+        xcom_sidecar_container_security_context: k8s.V1SecurityContext | dict | None = None,
         dnspolicy: str | None = None,
         dns_config: k8s.V1PodDNSConfig | None = None,
         hostname: str | None = None,
@@ -431,6 +434,7 @@ class KubernetesPodOperator(BaseOperator):
         )
         self.security_context = security_context or {}
         self.container_security_context = container_security_context
+        self.xcom_sidecar_container_security_context = xcom_sidecar_container_security_context
         self.dnspolicy = dnspolicy
         self.dns_config = dns_config
         self.hostname = hostname
@@ -1555,6 +1559,11 @@ class KubernetesPodOperator(BaseOperator):
                 pod,
                 sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
                 sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
+                sidecar_container_security_context=(
+                    self.xcom_sidecar_container_security_context
+                    if self.xcom_sidecar_container_security_context is not None
+                    else self.hook.get_xcom_sidecar_container_security_context()
+                ),
             )
 
         labels = self._get_ti_pod_labels(context)

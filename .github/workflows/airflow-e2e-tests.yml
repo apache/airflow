@@ -121,19 +121,20 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
         id: breeze
-      # Only the java_sdk mode runs the Gradle builds; every other e2e mode skips the
-      # steps below. LANG_SDK_NATIVE_TOOLCHAIN=true (the same switch the lang-SDK k8s
-      # job uses) makes the e2e conftest build with the host toolchain provisioned
-      # here instead of ephemeral eclipse-temurin containers, skipping the
-      # toolchain-image pull; local runs keep the containerized build. Without the
-      # cache each run re-downloads the example bundles' full dependency tree (Spark
-      # alone is ~1GB) into a fresh ~/.gradle. The key carries a ``-vN-`` salt (bump
-      # to force-invalidate a poisoned cache) and runner.arch keys the cache per
-      # architecture: ~/.gradle/jdks holds arch-specific auto-provisioned JDKs (the
-      # example pins a Java 11 toolchain) and this job runs on amd64 and arm64.
+      # The java_sdk mode runs the Gradle builds and the go_sdk mode runs the Go
+      # build; every other e2e mode skips the toolchain steps below.
+      # LANG_SDK_NATIVE_TOOLCHAIN=true (the same switch the lang-SDK k8s job uses)
+      # makes the e2e conftest build with the host toolchain provisioned here
+      # instead of an ephemeral toolchain container, skipping the image pull; local
+      # runs keep the containerized builds. The cache keys carry a ``-vN-`` salt
+      # (bump to force-invalidate a poisoned cache) and runner.arch keys each cache
+      # per architecture, as this job runs on amd64 and arm64. Without its cache
+      # each java_sdk run re-downloads the example bundles' full dependency tree
+      # (Spark alone is ~1GB) into a fresh ~/.gradle, whose ~/.gradle/jdks holds
+      # arch-specific auto-provisioned JDKs (the example pins a Java 11 toolchain).
       - name: "Setup Java for the Java SDK build"
         if: inputs.e2e_test_mode == 'java_sdk'
-        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520  # v5.4.0
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
         with:
           distribution: 'temurin'
           java-version: ${{ inputs.java-sdk-version }}
@@ -151,12 +152,32 @@ jobs:
           key: e2e-java-sdk-gradle-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('java-sdk/**/*.gradle*', 'java-sdk/**/gradle.properties', 'java-sdk/gradle/wrapper/gradle-wrapper.properties', 'java-sdk/gradle/libs.versions.toml') }}  # yamllint disable-line rule:line-length
           restore-keys: |
             e2e-java-sdk-gradle-v1-${{ runner.os }}-${{ runner.arch }}-
+      # go-version-file sources the Go toolchain from go-sdk/go.mod, so there is no
+      # separate version pin to keep in sync; cache: false because the explicit
+      # restore/save pair below persists the module + build caches even on red runs.
+      - name: "Setup Go for the Go SDK build"
+        if: inputs.e2e_test_mode == 'go_sdk'
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        with:
+          go-version-file: go-sdk/go.mod
+          cache: false
+      - name: "Restore Go SDK module + build cache"
+        if: inputs.e2e_test_mode == 'go_sdk'
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go-sdk/go.mod', 'go-sdk/go.sum') }}  # yamllint disable-line rule:line-length
+          restore-keys: |
+            e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: "Test e2e integration tests"
         run: breeze testing airflow-e2e-tests
         env:
           DOCKER_IMAGE: "${{ inputs.docker-image-tag }}"
           E2E_TEST_MODE: "${{ inputs.e2e_test_mode }}"
-          LANG_SDK_NATIVE_TOOLCHAIN: "${{ inputs.e2e_test_mode == 'java_sdk' && 'true' || 'false' }}"
+          LANG_SDK_NATIVE_TOOLCHAIN: "${{ (inputs.e2e_test_mode == 'java_sdk' || inputs.e2e_test_mode == 'go_sdk') && 'true' || 'false' }}"  # yamllint disable-line rule:line-length
       - name: "Save Java SDK Gradle dependency cache"
         # Saved even when the e2e tests fail: the Gradle warm-up is independent of
         # test outcome, and actions/cache's post step would drop it on every red run.
@@ -170,6 +191,15 @@ jobs:
             !~/.gradle/caches/*.lock
             !~/.gradle/caches/journal-1
           key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
+      - name: "Save Go SDK module + build cache"
+        # Saved even when the e2e tests fail, for the same reason as the Gradle cache above.
+        if: always() && inputs.e2e_test_mode == 'go_sdk' && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
       - name: Zip logs
         run: |
           cd ./airflow-e2e-tests && zip -r logs.zip logs
