@@ -14,10 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import sys
+
+if sys.platform == "win32":
+    import types
+
+    fcntl = types.ModuleType("fcntl")
+    fcntl.flock = lambda *args, **kwargs: None
+    fcntl.LOCK_EX = 1
+    fcntl.LOCK_SH = 2
+    fcntl.LOCK_NB = 4
+    fcntl.LOCK_UN = 8
+    sys.modules["fcntl"] = fcntl
+
 from socket import socketpair
 
 import pytest
