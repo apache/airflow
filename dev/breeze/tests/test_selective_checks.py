@@ -1109,7 +1109,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
                 "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
