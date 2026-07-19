@@ -22,6 +22,7 @@ import threading
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.sandbox.base import SandboxBackend, SandboxResult
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
@@ -116,6 +117,25 @@ class TestSandboxToolsetGetTools:
         assert tool.tool_def.parameters_json_schema["required"] == ["code"]
         assert tool.tool_def.parameters_json_schema["properties"]["code"]["type"] == "string"
         assert tool.max_retries == 2
+
+    @pytest.mark.parametrize("bad_args", [{}, {"code": 42}, {"script": "print(1)"}])
+    def test_args_validator_rejects_malformed_args(self, bad_args):
+        """A malformed call must raise ValidationError so pydantic-ai retries instead of failing the task."""
+        ts = SandboxToolset(_RecordingBackend())
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
+
+        with pytest.raises(ValidationError):
+            tool.args_validator.validate_python(bad_args)
+        with pytest.raises(ValidationError):
+            tool.args_validator.validate_json(json.dumps(bad_args))
+
+    def test_args_validator_accepts_valid_args_and_ignores_extras(self):
+        ts = SandboxToolset(_RecordingBackend())
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["run_python_in_sandbox"]
+
+        args = {"code": "print(1)", "unexpected": True}
+        assert tool.args_validator.validate_python(args) == {"code": "print(1)"}
+        assert tool.args_validator.validate_json(json.dumps(args)) == {"code": "print(1)"}
 
     @pytest.mark.skipif(
         not _SUPPORTS_RETURN_SCHEMA, reason="pydantic-ai too old for ToolDefinition.return_schema"

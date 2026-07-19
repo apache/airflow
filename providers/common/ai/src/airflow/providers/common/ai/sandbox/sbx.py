@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 from contextlib import suppress
 
 from airflow.providers.common.ai.sandbox.base import (
@@ -196,11 +197,10 @@ class SbxSandboxBackend(SandboxBackend):
         # Round up: GNU timeout treats 0 as "no timeout", so a sub-second value
         # must not truncate to it.
         seconds = max(1, math.ceil(timeout))
-        # Default (SIGTERM) timeout with a SIGKILL fallback: GNU ``timeout`` exits
-        # exactly 124 when the budget is hit, and passes the command's own exit
-        # code through otherwise. So exit 124 is an unambiguous timeout, while an
-        # OOM-kill or a crash surfaces as its real nonzero code (137, …) rather
-        # than being mislabelled a timeout — no wall-clock guessing needed.
+        # GNU ``timeout`` exits 124 when the budget is hit and the command dies to
+        # the SIGTERM; if the command ignores it, ``--kill-after`` escalates to
+        # SIGKILL and ``timeout`` exits 137 instead — ambiguous with an OOM kill,
+        # so 137 counts as a timeout only when the call also outlived the budget.
         exec_args = [
             "exec",
             sandbox,
@@ -209,6 +209,7 @@ class SbxSandboxBackend(SandboxBackend):
             str(seconds),
             *command,
         ]
+        start = time.monotonic()
         try:
             returncode, stdout, stderr, truncated = self._exec_capped(
                 exec_args, timeout=timeout + _EXEC_GRACE
@@ -225,11 +226,12 @@ class SbxSandboxBackend(SandboxBackend):
                 timed_out=True,
                 sandbox_terminated=True,
             )
+        elapsed = time.monotonic() - start
         return SandboxResult(
             exit_code=returncode,
             stdout=stdout,
             stderr=stderr,
-            timed_out=returncode == 124,
+            timed_out=returncode == 124 or (returncode == 137 and elapsed >= seconds),
             truncated=truncated,
         )
 
