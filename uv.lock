@@ -6300,6 +6300,7 @@ dependencies = [
     { name = "msal-extensions" },
     { name = "msgraph-core" },
     { name = "msgraphfs" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -6382,6 +6383,7 @@ requires-dist = [
     { name = "msal-extensions", specifier = ">=1.3.0" },
     { name = "msgraph-core", specifier = ">=1.3.3" },
     { name = "msgraphfs", specifier = ">=0.3.0" },
+    { name = "requests", specifier = ">=2.27.0" },
 ]
 provides-extras = ["amazon", "oracle", "sftp", "common-messaging", "google", "openlineage"]
 
