@@ -21,7 +21,7 @@
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
 requires = [
-    "hatchling==1.30.1",
+    "hatchling==1.31.0",
     "packaging==26.2",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
@@ -86,13 +86,15 @@ dependencies = [
 # Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
 # opt-in extra so its churn never breaks the base provider install.
 "code-mode" = ["pydantic-ai-harness[codemode]>=0.3.0"]
+# Shield capabilities such as InputGuard, OutputGuard, ToolGuard, and CostTracking.
+"shields" = ["pydantic-ai-shields>=0.3.4"]
 # Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;
 # the git provider supplies GitHook + GitPython for cloning GitSkills with
 # credentials from a `git` connection. Native progressive disclosure is tracked
 # upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
 "skills" = [
     "apache-airflow-providers-git>=0.4.0",
-    "pydantic-ai-skills>=0.11.0",
+    "pydantic-ai-skills>=1.2.0",
 ]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
@@ -136,7 +138,7 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
-    "pydantic-ai-skills>=0.11.0",
+    "pydantic-ai-skills>=1.2.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
     "llama-index-core>=0.13.0",

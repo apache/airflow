@@ -1175,6 +1175,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OPA
 OpenAI
 openai
 openapi
@@ -1226,6 +1227,7 @@ paramiko
 Params
 params
 parsers
+passthrough
 passwd
 pathlib
 pathType
@@ -1420,6 +1422,7 @@ req
 reqs
 requeue
 requeued
+requeues
 reserialize
 resetdb
 resizable
