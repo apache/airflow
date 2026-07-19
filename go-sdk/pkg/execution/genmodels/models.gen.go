@@ -1644,6 +1644,9 @@ type TaskArgBinding struct {
 	// Kind corresponds to the JSON schema field "kind".
 	Kind TaskArgBindingKind `msgpack:"kind"`
 
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
+
 	// TaskID corresponds to the JSON schema field "task_id".
 	TaskID interface{} `msgpack:"task_id,omitempty"`
 

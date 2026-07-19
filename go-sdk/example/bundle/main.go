@@ -60,6 +60,7 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
 	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
 	bindingDag.AddTaskWithName("combine", taskflowbinding.Combine)
+	bindingDag.AddTaskWithName("combine_via_task_input", taskflowbinding.CombineViaTaskInput)
 
 	return nil
 }

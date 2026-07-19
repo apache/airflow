@@ -72,7 +72,7 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
     assert completed_run.state == "success", (
         f"expected the run to succeed; got {completed_run.state!r}. task states: {completed_run.ti_states}"
     )
-    for task_id in ("make_config", "make_numbers", "combine"):
+    for task_id in ("make_config", "make_numbers", "combine", "combine_via_task_input"):
         assert completed_run.ti_states.get(task_id) == "success", completed_run.ti_states
 
 
@@ -99,4 +99,17 @@ def test_combine_summary_reflects_bound_arguments(completed_run: _CompletedRun):
         "debug": True,
         "sum": 20,
         "note_was_null": True,
+    }
+
+
+def test_combine_via_task_input_summary_reflects_bound_arguments(completed_run: _CompletedRun):
+    """``combine_via_task_input`` demonstrates the Go SDK's ``sdk.TaskInput``
+    struct-field injection mode: ``region_code``/``threshold`` bind by name onto
+    the struct exactly like ``combine``'s flat parameters do, while the struct's
+    third field is an ad hoc XCom pull of ``make_config``'s return value declared
+    purely in Go, with no corresponding TaskFlow call argument here."""
+    assert completed_run.xcom("combine_via_task_input") == {
+        "region": "eu-west-1",
+        "threshold": 0.75,
+        "environment": "production",
     }

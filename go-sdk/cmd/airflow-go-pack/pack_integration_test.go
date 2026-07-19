@@ -159,6 +159,7 @@ dags:
       - "make_config"
       - "make_numbers"
       - "combine"
+      - "combine_via_task_input"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

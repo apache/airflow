@@ -4584,6 +4584,71 @@
       "title": "ConnectionResponse",
       "type": "object"
     },
+    "TaskArgBinding": {
+      "description": "One positional argument of a stub (foreign-runtime) task, in declaration order.\n\nA deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema\ngenerates a plain struct in the foreign-language SDKs consuming the supervisor schema.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "xcom",
+            "literal"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "data_type": {
+          "default": "any",
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "object",
+            "array",
+            "any"
+          ],
+          "title": "Data Type",
+          "type": "string"
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Id"
+        },
+        "key": {
+          "default": "return_value",
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ],
+      "title": "TaskArgBinding",
+      "type": "object"
+    },
     "AssetEventDagRunReference": {
       "additionalProperties": false,
       "description": "Schema for AssetEvent model used in DagRun.",
@@ -4969,66 +5034,6 @@
         "max_tries"
       ],
       "title": "TIRunContext",
-      "type": "object"
-    },
-    "TaskArgBinding": {
-      "description": "One positional argument of a stub (foreign-runtime) task, in declaration order.\n\nA deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema\ngenerates a plain struct in the foreign-language SDKs consuming the supervisor schema.",
-      "properties": {
-        "kind": {
-          "enum": [
-            "xcom",
-            "literal"
-          ],
-          "title": "Kind",
-          "type": "string"
-        },
-        "data_type": {
-          "default": "any",
-          "enum": [
-            "string",
-            "integer",
-            "number",
-            "boolean",
-            "object",
-            "array",
-            "any"
-          ],
-          "title": "Data Type",
-          "type": "string"
-        },
-        "task_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Task Id"
-        },
-        "key": {
-          "default": "return_value",
-          "title": "Key",
-          "type": "string"
-        },
-        "value": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/JsonValue"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "required": [
-        "kind"
-      ],
-      "title": "TaskArgBinding",
       "type": "object"
     },
     "TaskInstance": {

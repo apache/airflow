@@ -124,6 +124,12 @@ class TestArgBindingsFieldBackwardCompat:
         response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
-            {"kind": "literal", "data_type": "string", "value": "uk"},
-            {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
+            {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "data_type": "object",
+                "task_id": "extract",
+                "key": "return_value",
+            },
         ]

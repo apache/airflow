@@ -20,6 +20,9 @@
 // XCom), this Dag stresses the full argument surface: literals of every scalar
 // type, an array literal, keyword arguments, a defaulted null, and XCom fan-in
 // from two upstream Go tasks decoded into a strict struct and a typed slice.
+// CombineViaTaskInput additionally shows the sdk.TaskInput struct-field
+// injection mode: the same binding surface collapsed into one struct
+// parameter instead of a long flat list.
 package taskflowbinding
 
 import (
@@ -125,5 +128,50 @@ func Combine(
 		"debug":         config.Debug,
 		"sum":           sum,
 		"note_was_null": note == nil,
+	}, nil
+}
+
+// CombineInput demonstrates the sdk.TaskInput struct-field injection mode: an
+// ergonomic alternative to Combine's long flat parameter list. Region binds
+// by an explicit arg: tag; Threshold has no tag, so it falls back to its Go
+// field name snake_cased ("threshold"); Config is an ad hoc XCom pull of
+// make_config's return value, independent of the Python call's TaskFlow
+// arguments entirely.
+type CombineInput struct {
+	sdk.TaskInput
+	Region    string `arg:"region_code"`
+	Threshold float64
+	Config    Config `                  xcom:"make_config"`
+}
+
+// CombineViaTaskInput is the TaskInput-struct sibling of Combine: the same
+// kind of binding surface -- a named literal, a snake_case-fallback literal,
+// and an ad hoc XCom pull -- collapsed into one struct parameter instead of
+// many flat ones. The Python side calls it as
+//
+//	combine_via_task_input(region_code="eu-west-1", threshold=0.75)
+func CombineViaTaskInput(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
+	if input.Region != "eu-west-1" || input.Threshold != 0.75 {
+		return nil, fmt.Errorf(
+			"TaskInput fields bound incorrectly: region=%q threshold=%v",
+			input.Region,
+			input.Threshold,
+		)
+	}
+	if want := (Config{Environment: "production", Region: "eu-west-1", Debug: true}); input.Config != want {
+		return nil, fmt.Errorf(
+			"ad hoc xcom field bound incorrectly: config=%+v, want %+v", input.Config, want,
+		)
+	}
+
+	log.InfoContext(ctx, "Bound TaskInput struct",
+		"region", input.Region,
+		"threshold", input.Threshold,
+		"environment", input.Config.Environment,
+	)
+	return map[string]any{
+		"region":      input.Region,
+		"threshold":   input.Threshold,
+		"environment": input.Config.Environment,
 	}, nil
 }

@@ -144,6 +144,7 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) []binding.Arg {
 			taskID = s
 		}
 		args[i] = binding.Arg{
+			Name:     spec.Name,
 			Kind:     binding.ArgKind(spec.Kind),
 			TaskID:   taskID,
 			Key:      spec.Key,

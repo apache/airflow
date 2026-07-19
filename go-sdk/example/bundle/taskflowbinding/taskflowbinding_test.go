@@ -58,3 +58,27 @@ func TestCombineRejectsWrongBinding(t *testing.T) {
 	)
 	assert.ErrorContains(t, err, "object XCom bound incorrectly")
 }
+
+func TestCombineViaTaskInput(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	got, err := CombineViaTaskInput(ctx, slog.Default(), CombineInput{
+		Region:    "eu-west-1",
+		Threshold: 0.75,
+		Config:    Config{Environment: "production", Region: "eu-west-1", Debug: true},
+	})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "CombineViaTaskInput should return a map summary, got %T", got)
+	assert.Equal(t, "production", summary["environment"])
+}
+
+func TestCombineViaTaskInputRejectsWrongBinding(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	_, err := CombineViaTaskInput(ctx, slog.Default(), CombineInput{
+		Region:    "eu-west-1",
+		Threshold: 0.75,
+		Config:    Config{},
+	})
+	assert.ErrorContains(t, err, "ad hoc xcom field bound incorrectly")
+}

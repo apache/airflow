@@ -20,7 +20,9 @@ Python stub Dags mirroring the Go SDK example bundle (``go-sdk/example/bundle``)
 Three Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
 load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
 timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag``
-(stressing the TaskFlow argument-binding surface, see its Dag function below).
+(stressing the TaskFlow argument-binding surface -- both the flat parameter
+list ``combine`` binds onto and the ``sdk.TaskInput`` struct ``combine_via_task_input``
+binds onto instead, see its Dag function below).
 
 ``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
 run exercises XCom across the language boundary, the same way
@@ -138,6 +140,10 @@ def combine(
 ): ...
 
 
+@task.stub(queue="golang")
+def combine_via_task_input(region_code: str, threshold: float): ...
+
+
 @dag(dag_id="taskflow_binding_dag")
 def taskflow_binding_dag():
     """
@@ -150,16 +156,25 @@ def taskflow_binding_dag():
     default is captured and arrives in Go as a nil ``*string``. The Go ``combine``
     (``go-sdk/example/bundle/taskflowbinding``) verifies every bound value and fails
     the task on any mismatch.
+
+    ``combine_via_task_input`` demonstrates the Go SDK's ``sdk.TaskInput`` struct
+    injection mode: ``region_code``/``threshold`` bind by name onto the struct's
+    fields exactly like ``combine``'s flat parameters do, but the struct's third
+    field is an ad hoc XCom pull of ``make_config``'s return value declared purely
+    in Go (an ``xcom:`` struct tag) -- it is never passed as a TaskFlow argument
+    here, so the explicit ``>>`` below is what orders it after ``make_config``.
     """
+    config = make_config()
     combine(
         "summary",
         3,
         2.5,
         True,
         ["metrics", "hourly"],
-        config=make_config(),
+        config=config,
         numbers=make_numbers(),
     )
+    config >> combine_via_task_input(region_code="eu-west-1", threshold=0.75)
 
 
 taskflow_binding_dag()

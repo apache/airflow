@@ -25,6 +25,7 @@ from cadwyn import (
     schema,
 )
 
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TaskInstance,
@@ -148,7 +149,10 @@ class AddArgBindingsToTIRunContext(VersionChange):
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("arg_bindings").didnt_exist,
+        schema(TaskArgBinding).field("name").didnt_exist,
+    )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
     def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]

@@ -394,6 +394,7 @@ class TaskArgBinding(BaseModel):
     generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
     """
 
+    name: Annotated[str, Field(title="Name")]
     kind: Annotated[Kind, Field(title="Kind")]
     data_type: Annotated[DataType | None, Field(title="Data Type")] = DataType.ANY
     task_id: Annotated[str | None, Field(title="Task Id")] = None

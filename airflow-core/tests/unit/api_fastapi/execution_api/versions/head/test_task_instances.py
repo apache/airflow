@@ -398,8 +398,14 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{tis['transform'].id}/run", json=payload)
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
-            {"kind": "literal", "data_type": "string", "value": "uk"},
-            {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
+            {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "data_type": "object",
+                "task_id": "extract",
+                "key": "return_value",
+            },
         ]
 
         # An argless stub has no captured spec, so the field stays unset.

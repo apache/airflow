@@ -102,9 +102,15 @@ class TestStubTaskflowArgs:
 
         op = result.operator
         assert op._arg_bindings == [
-            {"kind": "literal", "data_type": "string", "value": "uk"},
-            {"kind": "xcom", "data_type": "object", "task_id": "fn_extract", "key": "return_value"},
-            {"kind": "literal", "data_type": "integer", "value": 3},
+            {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "data_type": "object",
+                "task_id": "fn_extract",
+                "key": "return_value",
+            },
+            {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 3},
         ]
         assert op.upstream_task_ids == {"fn_extract"}
 
@@ -114,9 +120,15 @@ class TestStubTaskflowArgs:
             result = stub(fn_transform)(extracted=extracted["part"], country="fr", retries_num=7)
 
         assert result.operator._arg_bindings == [
-            {"kind": "literal", "data_type": "string", "value": "fr"},
-            {"kind": "xcom", "data_type": "object", "task_id": "fn_extract", "key": "part"},
-            {"kind": "literal", "data_type": "integer", "value": 7},
+            {"name": "country", "kind": "literal", "data_type": "string", "value": "fr"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "data_type": "object",
+                "task_id": "fn_extract",
+                "key": "part",
+            },
+            {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 7},
         ]
 
     def test_zero_param_stub_has_no_spec(self):
@@ -127,8 +139,8 @@ class TestStubTaskflowArgs:
             result = stub(fn_untyped)(1, "x")
 
         assert result.operator._arg_bindings == [
-            {"kind": "literal", "data_type": "any", "value": 1},
-            {"kind": "literal", "data_type": "any", "value": "x"},
+            {"name": "a", "kind": "literal", "data_type": "any", "value": 1},
+            {"name": "b", "kind": "literal", "data_type": "any", "value": "x"},
         ]
 
     def test_unresolvable_annotation_degrades_to_any(self):
@@ -138,7 +150,9 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d"):
             result = stub(fn)("v")
 
-        assert result.operator._arg_bindings == [{"kind": "literal", "data_type": "any", "value": "v"}]
+        assert result.operator._arg_bindings == [
+            {"name": "x", "kind": "literal", "data_type": "any", "value": "v"}
+        ]
 
     def test_varargs_rejected(self):
         with pytest.raises(ValueError, match="fixed number of parameters"):

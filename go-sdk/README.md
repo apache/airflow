@@ -141,6 +141,51 @@ Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` inste
 unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
 source of truth for which `dag_id`s and `task_id`s a bundle can run.
 
+### TaskInput structs
+
+A struct that anonymously embeds `sdk.TaskInput` opts into **per-field, name-based** binding instead
+of a long flat parameter list — at most one such parameter is allowed per function, and it can be
+mixed with plain flat parameters:
+
+```go
+type CombineInput struct {
+    sdk.TaskInput            // one-line opt-in, zero runtime cost
+    Region    string  `arg:"region_code"` // named lookup against the TaskFlow call argument "region_code"
+    Threshold float64                     // no tag -> falls back to the snake_cased field name "threshold"
+    Config    Config  `xcom:"make_config"` // ad hoc pull of make_config's return-value XCom, independent
+                                            // of the TaskFlow call -- there is no "config" argument at all
+}
+
+func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
+    // input.Region, input.Threshold, input.Config are all populated.
+    return nil, nil
+}
+```
+
+Each exported field supports three all-optional tags:
+
+- `arg:"<name>"` — bind from the TaskFlow call argument with this name (matched against the stub
+  function's Python parameter name, independent of declaration order on either side). With no tag,
+  the field's own Go name, snake_cased (`RatioValue` → `ratio_value`, `TaskID` → `task_id`), is used.
+- `xcom:"<task-id>"` — an explicit, ad hoc XCom pull from the named upstream task, fully independent
+  of the TaskFlow call: the field need not correspond to any argument the Dag file passes at all. This
+  pull is unchecked — the runtime does not verify `<task-id>` is an actual upstream dependency, the
+  same trust model as calling `sdk.Client.GetXCom` by hand.
+- `xcom-key:"<key>"` — the XCom key for an `xcom:`-tagged field; defaults to the return-value key.
+  Setting it without `xcom:` is a registration-time error (a key with no task id is meaningless), as is
+  setting both `arg:` and `xcom:` on the same field.
+
+When a `TaskInput` struct and plain flat parameters coexist in the same function, the struct's fields
+claim entries out of the TaskFlow call's argument spec by name first; the *remaining, unclaimed*
+entries are then distributed, in their original relative order, onto the flat parameters in
+declaration order. With no `TaskInput` struct present, this is exactly today's positional-only
+behaviour. A plain custom struct type *without* the `sdk.TaskInput` embed is unaffected by any of
+this — it keeps working as a single flat data parameter, JSON-decoded whole from one TaskFlow
+argument (see `Config` in
+[`example/bundle/taskflowbinding/taskflowbinding.go`](./example/bundle/taskflowbinding/taskflowbinding.go)),
+which is a different mechanism from per-field `TaskInput` binding. See
+[`CombineViaTaskInput`](./example/bundle/taskflowbinding/taskflowbinding.go) for a full worked example.
+
 ### Reading the task runtime context
 
 Declare an `sdk.TIRunContext` parameter on a task to read the identifiers and scheduling timestamps of the

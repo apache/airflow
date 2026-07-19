@@ -93,7 +93,10 @@ def _build_arg_bindings(
 
     Each spec entry is a plain dict matching the execution API ``TaskArgBinding`` shape: an XCom
     reference (``kind="xcom"``) for upstream TaskFlow outputs, or an inline value
-    (``kind="literal"``) for everything else. Returns ``None`` for parameterless stubs.
+    (``kind="literal"``) for everything else. ``name`` is always the stub function's parameter
+    name, so a foreign runtime can bind by name (e.g. the Go SDK's ``sdk.TaskInput`` struct
+    fields) in addition to the existing positional order. Returns ``None`` for parameterless
+    stubs.
     """
     signature = inspect.signature(python_callable)
 
@@ -137,6 +140,7 @@ def _build_arg_bindings(
         if isinstance(value, PlainXComArg):
             spec.append(
                 {
+                    "name": name,
                     "kind": "xcom",
                     "data_type": data_type,
                     "task_id": value.operator.task_id,
@@ -159,7 +163,7 @@ def _build_arg_bindings(
                 f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
                 "to the foreign runtime"
             )
-        spec.append({"kind": "literal", "data_type": data_type, "value": value})
+        spec.append({"name": name, "kind": "literal", "data_type": data_type, "value": value})
     return spec
 
 

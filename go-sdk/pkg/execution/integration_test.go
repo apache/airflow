@@ -308,6 +308,51 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	assert.False(t, ran, "the task body must not run on an arity mismatch")
 }
 
+// combineInput is a TaskInput struct whose sole field claims a named entry
+// out of ti_context.arg_bindings.
+type combineInput struct {
+	sdk.TaskInput
+	Region string `arg:"region"`
+}
+
+// TestTaskRunnerBindsTaskInputStructArgs covers the TaskFlow path through
+// RunTask for a TaskInput struct parameter: convertArgBindings must propagate
+// each spec's Name through to binding.Arg so the struct's `arg:"region"` field
+// can claim it by name.
+func TestTaskRunnerBindsTaskInputStructArgs(t *testing.T) {
+	var got combineInput
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(input combineInput) error {
+				got = input
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				{Name: "region", Kind: "literal", DataType: "string", Value: "eu-west-1"},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "eu-west-1", got.Region)
+}
+
 // TestTaskRunnerArgBindingsTypeMismatch: a declared Dag type that cannot bind to
 // the Go parameter type fails the task loudly before the body runs.
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {

@@ -420,8 +420,14 @@ class TestRealBundleArgBindingsDowngrade:
                 ),
                 max_tries=1,
                 arg_bindings=[
-                    {"kind": "literal", "data_type": "string", "value": "uk"},
-                    {"kind": "xcom", "data_type": "object", "task_id": "extract", "key": "return_value"},
+                    {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
+                    {
+                        "name": "extracted",
+                        "kind": "xcom",
+                        "data_type": "object",
+                        "task_id": "extract",
+                        "key": "return_value",
+                    },
                 ],
             ),
             sentry_integration="",
@@ -439,3 +445,4 @@ class TestRealBundleArgBindingsDowngrade:
         out = real_migrator.downgrade(startup_details, "2026-07-30")
         assert out.ti_context.arg_bindings is not None
         assert [a.kind for a in out.ti_context.arg_bindings] == ["literal", "xcom"]
+        assert [a.name for a in out.ti_context.arg_bindings] == ["country", "extracted"]

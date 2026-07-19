@@ -287,6 +287,45 @@ type extractResult struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
+// simpleTaskInput is the minimal TaskInput struct: one field, no tags, so it
+// falls back to matching its own (lowercased) field name.
+type simpleTaskInput struct {
+	sdk.TaskInput
+	Name string
+}
+
+// nonEmbeddingStruct has no sdk.TaskInput sentinel, so it must keep resolving
+// as today's whole-value decode target, not per-field TaskInput binding.
+type nonEmbeddingStruct struct {
+	Name string
+}
+
+// combineInput exercises every TaskInput field-tag combination: Name falls
+// back to its field name, Count is explicitly named, Note is an ad hoc XCom
+// pull at the default key, and Debug is an ad hoc XCom pull at a custom key.
+type combineInput struct {
+	sdk.TaskInput
+	Name  string
+	Count int     `arg:"count"`
+	Note  *string `            xcom:"make_note"`
+	Debug bool    `            xcom:"make_config" xcom-key:"debug_flag"`
+}
+
+// reportInput deliberately declares Ratio before Region, the reverse of the
+// wire order those names appear in, to prove field declaration order is
+// irrelevant to by-name claiming.
+type reportInput struct {
+	sdk.TaskInput
+	Ratio  float64
+	Region string `arg:"region"`
+}
+
+// xcomOnlyInput's sole field never touches the argument spec at all.
+type xcomOnlyInput struct {
+	sdk.TaskInput
+	Extra string `xcom:"make_config"`
+}
+
 func (s *BindingSuite) TestResolveXComArgs() {
 	client := &fakeXComClient{values: map[string]any{
 		"extract/return_value": map[string]any{"go_version": "go1.24", "timestamp": int64(42)},
@@ -390,4 +429,182 @@ func (s *BindingSuite) TestResolveTIRunContextRebuild() {
 	s.Equal(ti, rc.TaskInstance())
 	s.Equal(dagRun, rc.DagRun())
 	s.Equal("uk", got[1].Interface())
+}
+
+func (s *BindingSuite) TestAnalyzeTaskInputClassification() {
+	plan := analyze(s, func(input simpleTaskInput) error { return nil })
+	s.Zero(plan.NumData(), "a TaskInput struct claims by name, not by position")
+
+	ptrPlan := analyze(s, func(input *simpleTaskInput) error { return nil })
+	s.Zero(ptrPlan.NumData(), "a pointer to a TaskInput struct is detected the same way")
+
+	plainPlan := analyze(s, func(cfg nonEmbeddingStruct) error { return nil })
+	s.Equal(
+		1, plainPlan.NumData(),
+		"a plain struct without the TaskInput sentinel stays a whole-value data parameter",
+	)
+}
+
+func (s *BindingSuite) TestAnalyzeTaskInputTagValidation() {
+	type conflictingTags struct {
+		sdk.TaskInput
+		Field string `arg:"a" xcom:"b"`
+	}
+	type orphanXComKey struct {
+		sdk.TaskInput
+		Field string `xcom-key:"k"`
+	}
+	type duplicateArgNames struct {
+		sdk.TaskInput
+		A string
+		B string `arg:"a"`
+	}
+	type nonDecodableXComField struct {
+		sdk.TaskInput
+		Bad chan int `xcom:"t"`
+	}
+
+	cases := map[string]struct {
+		fn          any
+		errContains string
+	}{
+		"conflicting-arg-and-xcom-tags": {
+			func(input conflictingTags) error { return nil },
+			"cannot set both `arg` and `xcom` tags",
+		},
+		"orphan-xcom-key": {
+			func(input orphanXComKey) error { return nil },
+			"`xcom-key` requires `xcom` to also be set",
+		},
+		"duplicate-arg-names": {
+			func(input duplicateArgNames) error { return nil },
+			`fields A and B both bind arg name "a"`,
+		},
+		"non-decodable-xcom-field": {
+			func(input nonDecodableXComField) error { return nil },
+			"cannot receive a task argument",
+		},
+		"two-taskinput-params": {
+			func(a simpleTaskInput, b simpleTaskInput) error { return nil },
+			"only one TaskInput struct parameter is allowed",
+		},
+	}
+	for name, tt := range cases {
+		s.Run(name, func() {
+			_, err := Analyze(reflect.TypeOf(tt.fn), "testFn")
+			if s.Assert().Error(err) {
+				s.Assert().Contains(err.Error(), tt.errContains)
+			}
+		})
+	}
+}
+
+func (s *BindingSuite) TestResolveTaskInputAllStruct() {
+	client := &fakeXComClient{values: map[string]any{
+		"make_note/return_value": "hello",
+		"make_config/debug_flag": true,
+	}}
+	fn := func(input combineInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+		{Name: "count", Kind: ArgKindLiteral, Value: 7, DataType: DataTypeInteger},
+	}, client)
+	s.Require().NoError(err)
+
+	input := got[0].Interface().(combineInput)
+	s.Equal("widget", input.Name)
+	s.Equal(7, input.Count)
+	s.Require().NotNil(input.Note)
+	s.Equal("hello", *input.Note)
+	s.True(input.Debug)
+
+	s.Require().Len(client.calls, 2, "the ad hoc xcom: fields, in struct declaration order")
+	s.Equal("make_note", client.calls[0].taskID)
+	s.Equal(
+		api.XComReturnValueKey,
+		client.calls[0].key,
+		"no xcom-key tag defaults to the return-value key",
+	)
+	s.Equal("make_config", client.calls[1].taskID)
+	s.Equal("debug_flag", client.calls[1].key)
+}
+
+func (s *BindingSuite) TestResolveTaskInputMixedWithFlat() {
+	fn := func(prefix string, input reportInput, suffix string) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		{Name: "prefix", Kind: ArgKindLiteral, Value: "head", DataType: DataTypeString},
+		{Name: "region", Kind: ArgKindXCom, TaskID: "make_region", DataType: DataTypeString},
+		{Name: "ratio", Kind: ArgKindLiteral, Value: 0.5, DataType: DataTypeNumber},
+		{Name: "suffix", Kind: ArgKindLiteral, Value: "footer", DataType: DataTypeString},
+	}, &fakeXComClient{values: map[string]any{"make_region/return_value": "east"}})
+	s.Require().NoError(err)
+
+	s.Equal(
+		"head",
+		got[0].Interface(),
+		"the leading flat parameter claims the first unclaimed wire entry",
+	)
+	input := got[1].Interface().(reportInput)
+	s.Equal("east", input.Region, "Region resolves by name despite being declared after Ratio")
+	s.Equal(0.5, input.Ratio)
+	s.Equal(
+		"footer",
+		got[2].Interface(),
+		"the trailing flat parameter claims the last unclaimed wire entry",
+	)
+}
+
+func (s *BindingSuite) TestResolveTaskInputXComTagIndependentOfArgs() {
+	client := &fakeXComClient{values: map[string]any{"make_config/return_value": "cfg-value"}}
+	fn := func(input xcomOnlyInput) error { return nil }
+	got, err := s.resolve(fn, nil, client)
+	s.Require().NoError(err)
+
+	input := got[0].Interface().(xcomOnlyInput)
+	s.Equal("cfg-value", input.Extra)
+	s.Require().Len(client.calls, 1)
+	s.Equal("make_config", client.calls[0].taskID)
+	s.Equal(api.XComReturnValueKey, client.calls[0].key)
+}
+
+func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
+	fn := func(input simpleTaskInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal("widget", got[0].Interface().(simpleTaskInput).Name)
+}
+
+func (s *BindingSuite) TestResolveTaskInputPointerStruct() {
+	fn := func(input *simpleTaskInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	input := got[0].Interface().(*simpleTaskInput)
+	s.Require().NotNil(input)
+	s.Equal("widget", input.Name)
+}
+
+func (s *BindingSuite) TestResolveTaskInputUnmatchedArgName() {
+	fn := func(input simpleTaskInput) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		{Name: "different_name", Kind: ArgKindLiteral, Value: "x", DataType: DataTypeString},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), `arg name "name" not found`)
+	}
+}
+
+func (s *BindingSuite) TestResolveTaskInputArityMismatchForLeftoverArgs() {
+	fn := func(input simpleTaskInput, extra string) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "argument count mismatch")
+		s.Contains(err.Error(), "passes 0 positional argument(s)")
+		s.Contains(err.Error(), "declares 1 data parameter(s)")
+	}
 }

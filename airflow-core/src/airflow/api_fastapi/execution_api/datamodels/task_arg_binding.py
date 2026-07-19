@@ -42,6 +42,9 @@ class TaskArgBinding(BaseModel):
     generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
     """
 
+    name: str
+    """The stub function's parameter name this binding fills, in declaration order."""
+
     kind: Literal["xcom", "literal"]
     """Whether the value comes from an upstream task's XCom or is a literal from the Dag file."""
 
