@@ -4402,6 +4402,9 @@ anthropic = [
 avro = [
     { name = "fastavro" },
 ]
+aws = [
+    { name = "apache-airflow-providers-amazon" },
+]
 bedrock = [
     { name = "pydantic-ai-slim", extra = ["bedrock"] },
 ]
@@ -4457,6 +4460,7 @@ sql = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-amazon" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["datafusion"] },
     { name = "apache-airflow-providers-git" },
@@ -4477,6 +4481,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-amazon", marker = "extra == 'aws'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'common-sql'", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'sql'", editable = "providers/common/sql" },
@@ -4505,12 +4510,13 @@ requires-dist = [
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "aws", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-amazon", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["datafusion"], editable = "providers/common/sql" },

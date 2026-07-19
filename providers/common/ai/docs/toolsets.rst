@@ -263,6 +263,69 @@ Parameters
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
+``AWSToolset``
+--------------
+
+Curated toolset that gives an agent allow-listed access to AWS APIs with
+three tools:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 50
+
+   * - Tool
+     - Description
+   * - ``list_aws_operations``
+     - Lists the operations the toolset allows, grouped by service
+   * - ``describe_aws_operation``
+     - Returns an operation's parameter and response shapes (from the
+       botocore service model), so the agent can check what a call expects
+       before making it
+   * - ``call_aws``
+     - Executes an allowed operation and returns the response as JSON,
+       aggregating paginated results
+
+Credentials, region, and session configuration come from the Airflow
+connection (``aws_conn_id``) via the amazon provider — the model cannot
+override them through tool arguments. Requires the ``aws`` extra::
+
+    pip install "apache-airflow-providers-common-ai[aws]"
+
+.. exampleinclude:: /../src/airflow/providers/common/ai/example_dags/example_aws_toolset.py
+    :language: python
+    :start-after: [START howto_operator_agent_aws]
+    :end-before: [END howto_operator_agent_aws]
+
+Access is deny-by-default: ``allowed_actions`` is required and supports ``*``
+wildcards in the operation part only (``"athena:*"``, ``"s3:List*"``).
+Operations that return credentials or decrypted secrets — ``sts:AssumeRole``,
+``secretsmanager:GetSecretValue``, ``kms:Decrypt``, and similar — are never
+matched by a wildcard and must be listed verbatim to be callable.
+
+.. warning::
+    ``allowed_actions`` bounds what the agent can ask for, not what the
+    credentials can do. Point ``aws_conn_id`` at a least-privilege IAM role
+    scoped to the same operations.
+
+Parameters
+^^^^^^^^^^
+
+- ``aws_conn_id``: Airflow connection ID for AWS credentials. Default
+  ``aws_default``.
+- ``allowed_actions``: Operations the agent may call, in
+  ``"<service>:<Operation>"`` form using boto3 service names and API
+  operation names. Required — there is no auto-discovery. Matching is case-
+  and underscore-insensitive, so ``"s3:list_buckets"`` equals
+  ``"s3:ListBuckets"``. Validated against botocore's bundled service
+  definitions at instantiation time (local metadata only — no network, no
+  credentials).
+- ``region_name``: AWS region for API calls. Default ``None`` — use the
+  region configured on the connection.
+- ``max_items``: Upper bound on items aggregated from paginated operations.
+  Default ``1000``.
+- ``max_output_bytes``: Upper bound on the serialized response returned to
+  the agent; larger payloads are clipped and flagged. Default ``65536``.
+
 ``LoggingToolset``
 ------------------
 
