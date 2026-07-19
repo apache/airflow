@@ -2776,7 +2776,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_run.dag_id,
                         dag_run.bundle_version,
                     )
-                    dag_run.state = DagRunState.FAILED
+                    dag_run.set_state(DagRunState.FAILED)
                     dag_run.notify_dagrun_state_changed(msg="unresolvable_pinned_version")
                     continue
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
