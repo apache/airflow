@@ -25,11 +25,22 @@ RESOURCE_DETAILS_MODULE = "airflow.api_fastapi.auth.managers.models.resource_det
 ACCESS_VIEW_SHIM_MODULE = "airflow.providers.common.compat.security.access_view"
 
 
-def test_resolves_to_enum_member_when_core_defines_it():
-    from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
+def test_resolves_to_the_core_access_view_member_or_none():
+    """The shim mirrors the running core: the ``AccessView.IMPORT_ERRORS_ALL``
+    member on a core that defines it (>= 3.4.0), otherwise ``None``. Kept
+    version-agnostic so it holds across the whole provider compatibility matrix,
+    including cores that predate the member or lack ``api_fastapi`` entirely.
+    """
     from airflow.providers.common.compat.security.access_view import IMPORT_ERRORS_ALL_ACCESS_VIEW
 
-    assert IMPORT_ERRORS_ALL_ACCESS_VIEW is AccessView.IMPORT_ERRORS_ALL
+    try:
+        from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
+
+        expected = getattr(AccessView, "IMPORT_ERRORS_ALL", None)
+    except ImportError:
+        expected = None
+
+    assert IMPORT_ERRORS_ALL_ACCESS_VIEW is expected
 
 
 def test_is_none_on_older_core_without_the_member():
