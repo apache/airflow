@@ -27,7 +27,7 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.standard.operators import BaseOperator
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.providers.snowflake.triggers.snowpark_containers_trigger import (
+from airflow.providers.snowflake.triggers.snowpark_containers import (
     NON_TERMINAL_STATUSES,
     TERMINAL_STATUSES,
     SnowparkContainerJobStatus,

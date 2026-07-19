@@ -99,7 +99,7 @@ class SnowparkContainerJobTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize SnowparkContainerJobTrigger arguments and class path."""
         return (
-            "airflow.providers.snowflake.triggers.snowpark_containers_trigger.SnowparkContainerJobTrigger",
+            "airflow.providers.snowflake.triggers.snowpark_containers.SnowparkContainerJobTrigger",
             {
                 "job_name": self.job_name,
                 "snowflake_conn_id": self.snowflake_conn_id,
