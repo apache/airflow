@@ -242,7 +242,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
         ],
         FileGroupForCi.GO_SDK_E2E_FILES: [
-            r"^go-sdk/.*",
+            # `.md` excluded — doc-only edits do not affect the Go build or e2e tests.
+            r"^go-sdk/(?!.*\.md$).*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/go_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/go\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
@@ -418,7 +419,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk-integration-tests/.*\.py$",
         ],
         FileGroupForCi.GO_SDK_FILES: [
-            r"^go-sdk/.*\.go$",
+            # `.md` excluded — doc-only edits do not affect the Go build or tests, but
+            # everything else (go.mod, go.sum, build config) must trigger the unit tests.
+            r"^go-sdk/(?!.*\.md$).*",
         ],
         FileGroupForCi.JAVA_SDK_FILES: [
             r"^java-sdk/",
