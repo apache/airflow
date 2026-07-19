@@ -327,13 +327,21 @@ class TestGetRunJobs:
 
 class TestWorkDuration:
     def test_subtracts_image_build(self, durations_module):
-        assert durations_module.work_duration({"duration": 1200, "prepare_breeze_duration": 300}) == 900
+        assert (
+            durations_module.calculate_work_duration({"duration": 1200, "prepare_breeze_duration": 300})
+            == 900
+        )
 
     def test_full_duration_when_no_image_build_step(self, durations_module):
-        assert durations_module.work_duration({"duration": 1200, "prepare_breeze_duration": None}) == 1200
+        assert (
+            durations_module.calculate_work_duration({"duration": 1200, "prepare_breeze_duration": None})
+            == 1200
+        )
 
     def test_never_negative(self, durations_module):
-        assert durations_module.work_duration({"duration": 100, "prepare_breeze_duration": 300}) == 0
+        assert (
+            durations_module.calculate_work_duration({"duration": 100, "prepare_breeze_duration": 300}) == 0
+        )
 
 
 class TestRunImageBuildSeconds:
@@ -343,18 +351,18 @@ class TestRunImageBuildSeconds:
             "b": {"duration": 0, "prepare_breeze_duration": 500},
             "c": {"duration": 0, "prepare_breeze_duration": 400},
         }
-        assert durations_module.run_image_build_seconds(jobs) == 400
+        assert durations_module.calculate_image_build_seconds(jobs) == 400
 
     def test_ignores_jobs_without_the_step(self, durations_module):
         jobs = {
             "a": {"duration": 0, "prepare_breeze_duration": None},
             "b": {"duration": 0, "prepare_breeze_duration": 500},
         }
-        assert durations_module.run_image_build_seconds(jobs) == 500
+        assert durations_module.calculate_image_build_seconds(jobs) == 500
 
     def test_none_when_no_job_recorded_the_step(self, durations_module):
         jobs = {"a": {"duration": 0, "prepare_breeze_duration": None}}
-        assert durations_module.run_image_build_seconds(jobs) is None
+        assert durations_module.calculate_image_build_seconds(jobs) is None
 
 
 class TestAnalyzeJobs:

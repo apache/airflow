@@ -259,7 +259,7 @@ def get_prepare_breeze_step_duration(job: dict) -> float | None:
     return None
 
 
-def work_duration(job_data: JobDuration) -> float:
+def calculate_work_duration(job_data: JobDuration) -> float:
     """Return a job's wall-clock with the image-build (prepare breeze) step removed.
 
     The image build occasionally balloons — a cache miss forces a full rebuild
@@ -272,7 +272,7 @@ def work_duration(job_data: JobDuration) -> float:
     return max(job_data["duration"] - prepare_breeze, 0.0)
 
 
-def run_image_build_seconds(jobs: dict[str, JobDuration]) -> float | None:
+def calculate_image_build_seconds(jobs: dict[str, JobDuration]) -> float | None:
     """Return a representative image-build duration for a run.
 
     The same CI image is prepared by every job, so the median prepare-breeze
@@ -371,19 +371,19 @@ def analyze_jobs(
 ) -> list[dict]:
     """Return the jobs whose latest duration regressed, image-build time excluded.
 
-    The comparison uses :func:`work_duration` (wall-clock minus the image-build
+    The comparison uses :func:`calculate_work_duration` (wall-clock minus the image-build
     step) on both sides, so an occasional image rebuild spike does not flag a job
     that did not actually get slower.
     """
     latest_job_durations: dict[str, list[float]] = {}
     for run in latest_runs:
         for name, job_data in jobs_by_run_id.get(run["id"], {}).items():
-            latest_job_durations.setdefault(name, []).append(work_duration(job_data))
+            latest_job_durations.setdefault(name, []).append(calculate_work_duration(job_data))
 
     baseline_job_durations: dict[str, list[float]] = {}
     for run in baseline_runs:
         for name, job_data in jobs_by_run_id.get(run["id"], {}).items():
-            baseline_job_durations.setdefault(name, []).append(work_duration(job_data))
+            baseline_job_durations.setdefault(name, []).append(calculate_work_duration(job_data))
 
     regressions: list[dict] = []
     for name, latest_values in latest_job_durations.items():
@@ -415,14 +415,14 @@ def detect_image_build_regression(
     Image-build time is discounted from every other trend precisely because it
     spikes on a one-off cache miss. A genuinely slow image (a bad base image, a
     heavier install) shows up as an elevation that *persists* across runs. So we
-    compare each run's representative image-build time (:func:`run_image_build_seconds`)
+    compare each run's representative image-build time (:func:`calculate_image_build_seconds`)
     against a baseline drawn from the oldest runs in the window, then require an
     unbroken streak of elevated runs — starting at the most recent — that spans
     more than ``persistence_days``. A single slow night never alerts.
     """
     per_run: list[tuple[dict, float]] = []
     for run in runs:
-        seconds = run_image_build_seconds(jobs_by_run_id.get(run["id"], {}))
+        seconds = calculate_image_build_seconds(jobs_by_run_id.get(run["id"], {}))
         if seconds is not None:
             per_run.append((run, seconds))
     if len(per_run) < latest_runs_count + min_baseline_runs:
@@ -710,14 +710,14 @@ def main() -> None:
     # per-job trend, and the image-build persistence check.
     jobs_by_run_id = fetch_run_jobs_map(repo, runs) if do_analyze_jobs else {}
 
-    def adjusted_run_duration(run: dict) -> float:
+    def calculate_adjusted_run_duration(run: dict) -> float:
         """Run wall-clock with the image-build component of its critical path removed."""
-        image_build = run_image_build_seconds(jobs_by_run_id.get(run["id"], {})) or 0.0
+        image_build = calculate_image_build_seconds(jobs_by_run_id.get(run["id"], {})) or 0.0
         return max(run["duration"] - image_build, 0.0)
 
     overall_regression = detect_regression(
-        [adjusted_run_duration(r) for r in latest_runs],
-        [adjusted_run_duration(r) for r in baseline_runs],
+        [calculate_adjusted_run_duration(r) for r in latest_runs],
+        [calculate_adjusted_run_duration(r) for r in baseline_runs],
         rel_threshold,
         min_abs_increase_seconds,
     )
