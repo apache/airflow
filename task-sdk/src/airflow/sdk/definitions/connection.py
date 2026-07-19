@@ -25,6 +25,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
+from airflow.sdk._shared.configuration import parse_and_validate_port
 from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
@@ -154,19 +155,7 @@ class Connection:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
 
     def __attrs_post_init__(self) -> None:
-        if self.port is not None:
-            if isinstance(self.port, str) and not self.port.strip():
-                self.port = None
-                return
-            try:
-                port_val = int(self.port)
-            except (ValueError, TypeError):
-                raise ValueError(f"Expected integer value for `port`, but got {self.port!r} instead.")
-            if not (1 <= port_val <= 65535):
-                raise ValueError(
-                    f"The `port` field must be a value between 1 and 65535, but got {port_val!r} instead."
-                )
-            self.port = port_val
+        self.port = parse_and_validate_port(self.port)
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,16 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Shared configuration parser for Airflow distributions."""
-
 from __future__ import annotations
 
-__all__ = [
-    "AirflowConfigException",
-    "AirflowConfigParser",
-    "parse_and_validate_port",
-]
 
-from .connection import parse_and_validate_port
-from .exceptions import AirflowConfigException
-from .parser import AirflowConfigParser
+def parse_and_validate_port(port: int | str | None) -> int | None:
+    """Parse and validate connection port range."""
+    if port is None:
+        return None
+    if isinstance(port, str) and not port.strip():
+        return None
+    try:
+        port_val = int(port)
+    except (ValueError, TypeError):
+        raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+    if not (1 <= port_val <= 65535):
+        raise ValueError(
+            f"The `port` field must be a value between 1 and 65535, but got {port_val!r} instead."
+        )
+    return port_val
