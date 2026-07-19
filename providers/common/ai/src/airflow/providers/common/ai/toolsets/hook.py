@@ -26,9 +26,8 @@ from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hin
 
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from pydantic_core import SchemaValidator, core_schema
 
-from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
+from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -36,9 +35,6 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
 
     from airflow.providers.common.compat.sdk import BaseHook
-
-# Single shared validator — accepts any JSON-decoded dict from the LLM.
-_PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
 # Maps Python types to JSON Schema fragments.
 _TYPE_MAP: dict[type, dict[str, Any]] = {
@@ -127,7 +123,7 @@ class HookToolset(AbstractToolset[Any]):
                 toolset=self,
                 tool_def=tool_def,
                 max_retries=1,
-                args_validator=_PASSTHROUGH_VALIDATOR,
+                args_validator=build_args_validator(json_schema),
             )
         return tools
 
@@ -152,17 +148,16 @@ class HookToolset(AbstractToolset[Any]):
 def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
     """Convert a Python type annotation to a JSON Schema fragment."""
     if annotation is inspect.Parameter.empty or annotation is Any:
-        return {"type": "string"}
+        return {}
+
+    if annotation is type(None):
+        return {"type": "null"}
 
     origin = get_origin(annotation)
     args = get_args(annotation)
 
-    # Optional[X] is Union[X, None] — handle both types.UnionType (3.10+) and typing.Union
     if origin is types.UnionType or origin is Union:
-        non_none = [a for a in args if a is not type(None)]
-        if len(non_none) == 1:
-            return _python_type_to_json_schema(non_none[0])
-        return {"type": "string"}
+        return {"anyOf": [_python_type_to_json_schema(arg) for arg in args]}
 
     # list[X]
     if origin is list:
@@ -175,7 +170,7 @@ def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
 
     # Always return a fresh copy — callers may mutate the dict (e.g. adding "description").
     schema = _TYPE_MAP.get(annotation)
-    return dict(schema) if schema else {"type": "string"}
+    return dict(schema) if schema else {}
 
 
 def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, Any]:
@@ -189,12 +184,15 @@ def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, A
 
     properties: dict[str, Any] = {}
     required: list[str] = []
+    allows_additional_properties = False
 
     for name, param in sig.parameters.items():
         if name in ("self", "cls"):
             continue
-        # Skip **kwargs and *args
-        if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+        if param.kind is param.VAR_POSITIONAL:
+            continue
+        if param.kind is param.VAR_KEYWORD:
+            allows_additional_properties = True
             continue
 
         annotation = hints.get(name, param.annotation)
@@ -207,6 +205,8 @@ def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, A
     schema: dict[str, Any] = {"type": "object", "properties": properties}
     if required:
         schema["required"] = required
+    if allows_additional_properties:
+        schema["additionalProperties"] = True
     return schema
 
 

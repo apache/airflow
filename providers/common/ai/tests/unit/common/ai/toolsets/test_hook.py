@@ -20,6 +20,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.hook import (
     HookToolset,
@@ -34,13 +35,13 @@ from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_S
 class _FakeHook:
     """Fake hook for testing HookToolset introspection."""
 
-    def list_keys(self, bucket: str, prefix: str = "") -> list[str]:
+    def list_keys(self, bucket: str, prefix: str | None = None) -> list[str]:
         """List object keys in a bucket.
 
         :param bucket: Name of the S3 bucket.
         :param prefix: Key prefix to filter by.
         """
-        return [f"{prefix}file1.txt", f"{prefix}file2.txt"]
+        return [f"{prefix or ''}file1.txt", f"{prefix or ''}file2.txt"]
 
     def read_file(self, key: str) -> str:
         """Read a file from storage."""
@@ -48,6 +49,11 @@ class _FakeHook:
 
     def no_docstring(self, x: int) -> int:
         return x * 2
+
+    def request(
+        self, endpoint: str | None = None, data: dict[str, object] | str | None = None, **kwargs: object
+    ) -> dict[str, object]:
+        return {"endpoint": endpoint, "data": data, **kwargs}
 
 
 class TestHookToolsetInit:
@@ -143,6 +149,31 @@ class TestHookToolsetGetTools:
         assert "S3 bucket" in props["bucket"]["description"]
 
 
+class TestHookToolsetArgsValidator:
+    @pytest.fixture
+    def list_keys_tool(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+        return asyncio.run(ts.get_tools(ctx=MagicMock()))["list_keys"]
+
+    def test_enforces_method_signature(self, list_keys_tool):
+        with pytest.raises(ValidationError, match="bucket"):
+            list_keys_tool.args_validator.validate_python({"prefix": "data/"})
+
+        assert list_keys_tool.args_validator.validate_python({"bucket": "my-bucket", "prefix": None}) == {
+            "bucket": "my-bucket",
+            "prefix": None,
+        }
+        assert list_keys_tool.args_validator.validate_python({"bucket": "my-bucket", "bogus": 1}) == {
+            "bucket": "my-bucket"
+        }
+
+    def test_preserves_kwargs_accepted_by_method(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["request"])
+        tool = asyncio.run(ts.get_tools(ctx=MagicMock()))["request"]
+        args = {"endpoint": None, "data": {"key": "value"}, "timeout": 10}
+        assert tool.args_validator.validate_python(args) == args
+
+
 class TestHookToolsetCallTool:
     def test_dispatches_to_hook_method(self):
         hook = _FakeHook()
@@ -184,12 +215,20 @@ class TestBuildJsonSchemaFromSignature:
         assert schema["properties"]["active"] == {"type": "boolean"}
         assert set(schema["required"]) == {"name", "count", "rate", "active"}
 
-    def test_optional_params_not_required(self):
-        def fn(name: str, prefix: str = ""):
+    def test_optional_params_accept_null(self):
+        def fn(name: str, prefix: str | None = None):
             pass
 
         schema = _build_json_schema_from_signature(fn)
         assert schema["required"] == ["name"]
+        assert schema["properties"]["prefix"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+    def test_union_types(self):
+        def fn(data: dict[str, object] | str):
+            pass
+
+        schema = _build_json_schema_from_signature(fn)
+        assert schema["properties"]["data"] == {"anyOf": [{"type": "object"}, {"type": "string"}]}
 
     def test_list_type(self):
         def fn(items: list[str]):
@@ -198,12 +237,19 @@ class TestBuildJsonSchemaFromSignature:
         schema = _build_json_schema_from_signature(fn)
         assert schema["properties"]["items"] == {"type": "array", "items": {"type": "string"}}
 
-    def test_no_annotation_defaults_to_string(self):
+    def test_no_annotation_is_untyped(self):
         def fn(x):
             pass
 
         schema = _build_json_schema_from_signature(fn)
-        assert schema["properties"]["x"] == {"type": "string"}
+        assert schema["properties"]["x"] == {}
+
+    def test_kwargs_allow_additional_properties(self):
+        def fn(x: int, **kwargs):
+            pass
+
+        schema = _build_json_schema_from_signature(fn)
+        assert schema["additionalProperties"] is True
 
     def test_skips_self_and_cls(self):
         class Foo:
