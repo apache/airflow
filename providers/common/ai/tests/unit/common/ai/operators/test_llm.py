@@ -381,8 +381,12 @@ class TestLLMOperatorApproval:
 
     @pytest.mark.parametrize(
         ("output_type", "generated_output", "expected"),
-        [(int, "5", 5), (list[str], '["a","b"]', ["a", "b"])],
-        ids=["int", "list"],
+        [
+            (int, "5", 5),
+            (list[str], '["a","b"]', ["a", "b"]),
+            pytest.param(Summary, '{"text":"hello"}', Summary(text="hello"), marks=requires_typed_xcom),
+        ],
+        ids=["int", "list", "basemodel"],
     )
     def test_execute_complete_restores_non_str_output_type(self, output_type, generated_output, expected):
         op = LLMOperator(
