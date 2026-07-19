@@ -19,7 +19,12 @@
 package-name: apache-airflow-providers-common-dataquality
 name: Common Data Quality
 description: |
-  Common Data Quality Provider
+  ``Data Quality Provider``
+
+  Declarative data quality rules with durable, per-rule execution history.
+  Checks run through ``common.sql`` DB-API hooks; results are persisted to a
+  configurable results store (object storage or local files) so task, run,
+  and rule-level quality can be inspected over time.
 
 state: ready
 lifecycle: incubation
@@ -32,3 +37,41 @@ build-system: flit_core
 # to be done in the same PR
 versions:
   - 0.1.0
+
+integrations:
+  - integration-name: Common Data Quality
+    external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-dataquality/
+    how-to-guide:
+      - /docs/apache-airflow-providers-common-dataquality/operators.rst
+    tags: [software]
+
+operators:
+  - integration-name: Common Data Quality
+    python-modules:
+      - airflow.providers.common.dataquality.operators.dq_check
+
+task-decorators:
+  - class-name: airflow.providers.common.dataquality.decorators.dq_check.dq_check_task
+    name: dq_check
+
+config:
+  common.dataquality:
+    description: |
+      Configuration for the Data Quality provider results store.
+    options:
+      results_path:
+        description: |
+          Any fsspec-compatible URL understood by ``ObjectStoragePath`` where data quality
+          results are persisted, e.g. ``s3://bucket/airflow-dq`` or ``file:///opt/airflow/dq``.
+          When unset, checks still run but no history is persisted.
+        version_added: 0.1.0
+        type: string
+        example: s3://data-platform/airflow-dq
+        default: ~
+      results_conn_id:
+        description: |
+          Optional Airflow connection used to access ``results_path``.
+        version_added: 0.1.0
+        type: string
+        example: aws_default
+        default: ~
