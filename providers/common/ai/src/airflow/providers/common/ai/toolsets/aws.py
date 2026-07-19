@@ -353,6 +353,15 @@ class AWSToolset(AbstractToolset[Any]):
             )
         return service
 
+    def _resolve_allowed_operation(self, service: str, operation: str) -> tuple[str, ServiceModel]:
+        model = _load_service_model(self._get_allowed_service(service))
+        canonical = _resolve_operation_name(model, operation)
+        if canonical is None:
+            raise ValueError(f"Unknown operation {operation!r} for service {service!r}.")
+        if not self._is_action_allowed(service, canonical):
+            raise ValueError(f"Operation {service}:{canonical} is not in this toolset's allowed actions.")
+        return canonical, model
+
     # ------------------------------------------------------------------
     # Tool implementations
     # ------------------------------------------------------------------
@@ -370,12 +379,7 @@ class AWSToolset(AbstractToolset[Any]):
         return json.dumps(listing)
 
     def _describe_operation(self, service: str, operation: str) -> str:
-        model = _load_service_model(self._get_allowed_service(service))
-        canonical = _resolve_operation_name(model, operation)
-        if canonical is None:
-            raise ValueError(f"Unknown operation {operation!r} for service {service!r}.")
-        if not self._is_action_allowed(service, canonical):
-            raise ValueError(f"Operation {service}:{canonical} is not in this toolset's allowed actions.")
+        canonical, model = self._resolve_allowed_operation(service, operation)
         op = model.operation_model(canonical)
         return json.dumps(
             {
@@ -388,15 +392,7 @@ class AWSToolset(AbstractToolset[Any]):
         )
 
     def _call_aws(self, service: str, operation: str, parameters: dict[str, Any]) -> str:
-        model = _load_service_model(self._get_allowed_service(service))
-        canonical = _resolve_operation_name(model, operation)
-        if canonical is None:
-            raise ValueError(f"Unknown operation {operation!r} for service {service!r}.")
-        if not self._is_action_allowed(service, canonical):
-            raise ValueError(
-                f"Operation {service}:{canonical} is not in this toolset's allowed actions. "
-                "Use list_aws_operations to see what you may call."
-            )
+        canonical, _ = self._resolve_allowed_operation(service, operation)
         client = self._get_client(service)
         method_name = xform_name(canonical)
         if client.can_paginate(method_name):

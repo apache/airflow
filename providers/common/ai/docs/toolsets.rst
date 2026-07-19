@@ -24,7 +24,7 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Three toolsets are included:
+Four toolsets are included:
 
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
@@ -33,8 +33,11 @@ Three toolsets are included:
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
+- :class:`~airflow.providers.common.ai.toolsets.aws.AWSToolset` — configured
+  AWS services toolset for agent access to AWS APIs through Airflow-managed
+  AWS connections.
 
-All three implement pydantic-ai's
+All four implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -291,7 +294,7 @@ override them through tool arguments. Requires the ``aws`` extra::
 
     pip install "apache-airflow-providers-common-ai[aws]"
 
-.. exampleinclude:: /../src/airflow/providers/common/ai/example_dags/example_aws_toolset.py
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_aws_toolset.py
     :language: python
     :start-after: [START howto_operator_agent_aws]
     :end-before: [END howto_operator_agent_aws]
