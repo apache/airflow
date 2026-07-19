@@ -92,6 +92,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
+AREA_E2E_TESTS_LABEL = "area:e2e-tests"
 AREA_KUBERNETES_TESTS_LABEL = "area:kubernetes-tests"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
@@ -1139,6 +1140,12 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
+        if AREA_E2E_TESTS_LABEL in self._pr_labels:
+            console_print(
+                "[warning]Building the PROD image to run Airflow E2E tests because "
+                f"label '{AREA_E2E_TESTS_LABEL}' is in {self._pr_labels}[/]"
+            )
+            return True
         return (
             self.run_kubernetes_tests
             or self.run_helm_tests
