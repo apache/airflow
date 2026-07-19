@@ -128,6 +128,7 @@ if AIRFLOW_V_3_1_PLUS:
         session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str, value
     ):
         """Write data to db."""
+        # Stores value natively to match worker-written XComs; use XComModel.set(serialize=False) once min Airflow >= 3.2.
         dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
         if dag_run_id is None:
             raise HTTPException(404, f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
