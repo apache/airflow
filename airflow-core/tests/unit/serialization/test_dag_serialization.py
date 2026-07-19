@@ -567,8 +567,6 @@ class TestStringifiedDAGs:
             # AirflowProviderDeprecationWarning etc show up in import_errors, and being aware of all of those is
             # not relevant to this test; we only care about actual errors
             if "airflow.exceptions.AirflowProviderDeprecationWarning" not in error
-            # TODO: TaskSDK
-            if "`use_airflow_context=True` is not yet implemented" not in error
             # This "looks" like a problem, but is just a quirk of the parse-all-dags-in-one-process we do
             # in this test
             if "AirflowDagDuplicatedIdException: Ignoring DAG example_sagemaker" not in error
