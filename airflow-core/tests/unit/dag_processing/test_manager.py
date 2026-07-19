@@ -295,6 +295,20 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
+    def test_sync_bundles_deactivates_missing_when_owning_all_bundles(self):
+        """A processor with no bundle filter owns the full config and may deactivate missing bundles."""
+        manager = DagFileProcessorManager(max_runs=1)
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
+        """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
+        manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
         bundle_path = tmp_path / "bundleone"
