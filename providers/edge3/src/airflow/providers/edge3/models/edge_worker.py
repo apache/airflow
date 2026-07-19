@@ -28,6 +28,7 @@ from sqlalchemy.orm import Mapped
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -181,12 +182,11 @@ def set_metrics(
         "free_concurrency",
     }
     metric_tags = prune_dict({"worker_name": worker_name, "team_name": team_name})
+    status = sysinfo.get("status", logging.NOTSET)
+    if not isinstance(status, (int, float)):
+        status = logging.NOTSET
 
-    Stats.gauge(
-        "edge_worker.status",
-        sysinfo.get("status", logging.NOTSET),  # type: ignore
-        tags=metric_tags,
-    )
+    Stats.gauge("edge_worker.status", status, tags=metric_tags)
     Stats.gauge("edge_worker.connected", int(connected), tags=metric_tags)
     Stats.gauge("edge_worker.maintenance", int(maintenance), tags=metric_tags)
     Stats.gauge("edge_worker.jobs_active", jobs_active, tags=metric_tags)
@@ -202,6 +202,21 @@ def set_metrics(
         value = sysinfo.get(key)
         if isinstance(value, (int, float)):
             Stats.gauge(f"edge_worker.{key}", value, tags=metric_tags)
+
+    if not AIRFLOW_V_3_3_PLUS:
+        # Airflow < 3.3: export legacy per-worker metrics (no auto-tag expansion).
+        Stats.gauge(f"edge_worker.status.{worker_name}", int(status))
+        Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
+        Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
+        Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
+        Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
+        Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
+        Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
+
+        for key in additional_keys:
+            value = sysinfo.get(key)
+            if isinstance(value, (int, float)):
+                Stats.gauge(f"edge_worker.{key}.{worker_name}", value)
 
 
 def reset_metrics(worker_name: str, team_name: str | None = None) -> None:
