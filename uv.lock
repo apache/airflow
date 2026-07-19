@@ -4396,6 +4396,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+amazon = [
+    { name = "apache-airflow-providers-amazon" },
+]
 anthropic = [
     { name = "pydantic-ai-slim", extra = ["anthropic"] },
 ]
@@ -4481,6 +4484,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'aws'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'common-sql'", editable = "providers/common/sql" },
@@ -4510,7 +4514,7 @@ requires-dist = [
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "aws", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "aws", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "amazon"]
 
 [package.metadata.requires-dev]
 dev = [
