@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-16T17:01:17.831179
+# This constraints file was automatically generated on 2026-07-19T22:00:01.068827
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.2
 MarkupSafe==3.0.3
-PyAthena==3.35.1
+PyAthena==3.35.2
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -80,22 +80,19 @@ aiosqlite==0.22.1
 airbyte-api==0.53.0
 akeyless==5.0.28
 alembic==1.18.5
-alibabacloud-adb20211201==3.7.0
+alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.1
 alibabacloud-credentials==1.0.9
 alibabacloud-gateway-spi==0.0.4
-alibabacloud-openapi-util==0.2.4
 alibabacloud-oss-v2==1.3.2
+alibabacloud-tea-openapi==0.4.5
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
-alibabacloud_endpoint_util==0.0.4
-alibabacloud_tea_openapi==0.3.16
-alibabacloud_tea_xml==0.0.3
 amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anthropic==0.116.0
-anyio==4.14.1
+anyio==4.14.2
 apache-airflow-providers-airbyte==5.5.2
 apache-airflow-providers-akeyless==0.2.0
 apache-airflow-providers-alibaba==3.3.9
@@ -201,7 +198,7 @@ apprise==1.12.0
 argcomplete==3.7.0
 arrow==1.4.0
 asana==5.2.5
-asgiref==3.11.1
+asgiref==3.12.1
 asn1crypto==1.5.1
 asttokens==3.0.2
 async-timeout==5.0.1
@@ -265,7 +262,7 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.4.2
-clickhouse-connect==1.4.2
+clickhouse-connect==1.5.0
 cloudpickle==3.1.1
 cohere==7.0.5
 colorama==0.4.6
@@ -278,6 +275,7 @@ cron_descriptor==2.1.0
 croniter==6.2.4
 cryptography==48.0.1
 curlify==3.0.0
+darabonba-core==1.0.8
 databricks-sql-connector==4.2.5
 dataclasses-json==0.6.7
 datadog==0.52.2
@@ -303,10 +301,10 @@ eventlet==0.41.0
 exceptiongroup==1.3.1
 executing==2.2.1
 facebook_business==25.0.2
-fastapi-cli==0.0.29
+fastapi-cli==0.0.30
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.14.5
+fastcore==2.1.0
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.7
@@ -330,7 +328,7 @@ google-api-core==2.31.0
 google-api-python-client==2.198.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
-google-auth==2.55.2
+google-auth==2.56.0
 google-cloud-aiplatform==1.148.1
 google-cloud-alloydb==0.11.0
 google-cloud-appengine-logging==1.10.0
@@ -369,7 +367,7 @@ google-cloud-spanner==3.69.0
 google-cloud-speech==2.40.0
 google-cloud-storage-control==1.12.0
 google-cloud-storage-transfer==1.21.0
-google-cloud-storage==3.12.1
+google-cloud-storage==3.13.0
 google-cloud-tasks==2.23.0
 google-cloud-texttospeech==2.37.0
 google-cloud-translate==3.27.0
@@ -400,12 +398,12 @@ hdfs==2.7.3
 hf-xet==1.5.1
 hmsclient==0.1.1
 hpack==4.2.0
-httpcore2==2.5.0
+httpcore2==2.7.0
 httpcore==1.0.9
 httplib2==0.32.0
 httpr==0.4.8
 httptools==0.8.0
-httpx2==2.5.0
+httpx2==2.7.0
 httpx==0.28.1
 huggingface_hub==1.23.0
 humanize==4.16.0
@@ -429,7 +427,7 @@ isoduration==20.11.0
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
-jaraco.functools==4.5.0
+jaraco.functools==4.6.0
 jedi==0.20.0
 jeepney==0.9.0
 jiter==0.16.0
@@ -448,7 +446,7 @@ jwcrypto==1.5.8
 keyring==25.7.0
 kombu==5.6.2
 krb5==0.9.0
-kubernetes==36.0.2
+kubernetes==36.0.3
 kubernetes_asyncio==36.1.0
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
@@ -458,7 +456,7 @@ linkify-it-py==2.1.0
 litellm==1.82.6
 lockfile==0.12.2
 logfire-api==4.37.0
-looker_sdk==26.10.0
+looker_sdk==26.12.0
 lxml==6.1.1
 lz4==4.4.5
 markdown-it-py==4.2.0
@@ -481,7 +479,7 @@ more-itertools==11.1.0
 msal-extensions==1.3.1
 msal==1.37.0
 msgpack==1.2.1
-msgraph-core==1.4.0
+msgraph-core==1.5.1
 msgraphfs==0.5
 msgspec==0.21.1
 msrest==0.7.1
@@ -520,12 +518,12 @@ opentelemetry-resourcedetector-gcp==1.12.0a0
 opentelemetry-sdk==1.43.0
 opentelemetry-semantic-conventions==0.64b0
 opsgenie-sdk==2.1.5
-oracledb==4.0.1
+oracledb==4.0.2
 ordered-set==4.1.0
 orjson==3.11.9
 outcome==1.3.0.post0
 packaging==26.2
-pagerduty==6.3.0
+pagerduty==7.0.0
 pandas-gbq==0.35.0
 pandas-stubs==2.3.3.260113
 pandas==2.3.3
@@ -569,9 +567,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.9.0
+pydantic-ai-slim==2.10.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.9.0
+pydantic-graph==2.10.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -586,7 +584,7 @@ pyodbc==5.3.0
 pyodps==0.13.0
 pyparsing==3.3.2
 pypsrp==0.9.1
-pyspark-client==4.1.2
+pyspark-client==4.2.0
 pyspnego==0.12.1
 python-arango==8.3.3
 python-daemon==3.1.2
@@ -621,7 +619,7 @@ requests==2.34.2
 requests_ntlm==1.3.0
 retryhttp==1.5.0
 rich-argparse==1.8.0
-rich-toolkit==0.20.1
+rich-toolkit==0.20.3
 rich==13.9.4
 rpds-py==0.30.0
 rsa==4.9.1
@@ -635,17 +633,17 @@ scramp==1.4.12
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
-sentry-sdk==2.64.0
+sentry-sdk==2.65.0
 setproctitle==1.3.7
 shellingham==1.5.4
 simple-salesforce==1.12.10
 six==1.17.0
 slack_sdk==3.43.0
-smart_open==8.0.0
+smart_open==8.0.1
 smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
-snowflake-connector-python==4.6.0
+snowflake-connector-python==4.7.1
 snowflake-snowpark-python==1.53.0
 snowflake-sqlalchemy==1.11.0
 sortedcontainers==2.4.0
@@ -661,11 +659,11 @@ starlette==1.3.1
 statsd==4.0.1
 std-uritemplate==2.0.11
 structlog==26.1.0
-svcs==25.1.0
+svcs==26.1.0
 tableauserverclient==0.41
 tabulate==0.10.0
 tenacity==9.1.4
-teradatasql==20.0.0.62
+teradatasql==20.0.0.63
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 text-unidecode==1.3
@@ -683,7 +681,7 @@ tqdm==4.68.4
 traitlets==5.15.1
 trino==0.338.0
 truststore==0.10.4
-typer==0.26.8
+typer==0.27.0
 types-protobuf==7.34.1.20260518
 types-pytz==2026.2.0.20260518
 types-requests==2.33.0.20260712
@@ -697,7 +695,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.11.28
+uv==0.11.29
 uvicorn==0.51.0
 uvloop==0.22.1
 validators==0.35.0
@@ -716,7 +714,7 @@ wrapt==2.2.2
 xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
-yandexcloud==0.398.0
+yandexcloud==0.399.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
 ydb==3.30.0
