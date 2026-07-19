@@ -34,11 +34,11 @@ class CustomAuthOAuthView(AuthOAuthView):
     """
     Custom OAuth authentication view with proxy-aware URL scheme and session commit.
 
-    Fixes:
-    - Issue #70023: OAuth redirect URI uses ``http://`` behind reverse proxy by
-      honouring ``X-Forwarded-Proto`` to build the correct external scheme.
-    - Issue #57981: UI requests fail with 401 during OAuth flow because the Flask
-      session is not yet committed when the redirect response is sent.
+    Fixes issue #70023, where the OAuth redirect URI used ``http://`` behind a reverse
+    proxy, by honouring ``X-Forwarded-Proto`` to build the correct external scheme.
+
+    Fixes issue #57981, where UI requests failed with 401 during the OAuth flow because
+    the Flask session was not yet committed when the redirect response was sent.
     """
 
     @expose("/login/")
