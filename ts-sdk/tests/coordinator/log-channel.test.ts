@@ -148,6 +148,39 @@ describe("LogChannel", () => {
     }
   });
 
+  it("buffers records emitted before connect and flushes them in order on connect", async () => {
+    const root = LogChannel.createBuffered();
+    const child = root.child("runtime");
+    child.debug("connecting", { attempt: 1 });
+    root.info("still starting");
+
+    await root.connect(`127.0.0.1:${fx.port}`);
+    root.info("connected");
+    await root.close();
+    await fx.sockClosed;
+
+    const records = readRecords(fx.received);
+    expect(records.map((r) => r["event"])).toEqual([
+      "[ts-sdk.runtime] connecting",
+      "[ts-sdk] still starting",
+      "[ts-sdk] connected",
+    ]);
+    expect(records[0]).toMatchObject({ attempt: 1, level: "debug" });
+  });
+
+  it("close() before connect writes buffered records to stderr", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = LogChannel.createBuffered();
+    try {
+      root.info("never made it");
+      await root.close();
+      const line = write.mock.calls.find((c) => String(c[0]).includes("never made it"))?.[0];
+      expect(String(line)).toContain('"event":"[ts-sdk] never made it"');
+    } finally {
+      write.mockRestore();
+    }
+  });
+
   it("drops records sent after close instead of writing to the ended socket", async () => {
     const root = await LogChannel.connect(`127.0.0.1:${fx.port}`);
     const child = root.child("comm");
