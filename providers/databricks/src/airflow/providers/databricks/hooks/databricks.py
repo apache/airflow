@@ -69,6 +69,7 @@ WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "2.0/workspace/get-status")
 
 SPARK_VERSIONS_ENDPOINT = ("GET", "2.1/clusters/spark-versions")
 SQL_STATEMENTS_ENDPOINT = "2.0/sql/statements"
+SQL_WAREHOUSES_ENDPOINT = "2.0/sql/warehouses"
 
 
 class RunLifeCycleState(Enum):
@@ -265,6 +266,53 @@ class SQLStatementState:
     @classmethod
     def from_json(cls, data: str) -> SQLStatementState:
         return SQLStatementState(**json.loads(data))
+
+
+class WarehouseState:
+    """Utility class for the state of a Databricks SQL warehouse."""
+
+    WAREHOUSE_STATES = ["STARTING", "RUNNING", "STOPPING", "STOPPED", "DELETING", "DELETED"]
+
+    def __init__(self, state: str = "", *args, **kwargs) -> None:
+        if state not in self.WAREHOUSE_STATES:
+            raise ValueError(
+                f"Unexpected warehouse state: {state}: If the state has been introduced recently, "
+                "please check the Databricks user guide for troubleshooting information"
+            )
+        self.state = state
+
+    @property
+    def is_running(self) -> bool:
+        """Return whether the warehouse is running."""
+        return self.state == "RUNNING"
+
+    @property
+    def is_stopped(self) -> bool:
+        """Return whether the warehouse is stopped."""
+        return self.state == "STOPPED"
+
+    @property
+    def is_deleted(self) -> bool:
+        """Return whether the warehouse is deleting or deleted."""
+        return self.state in ("DELETING", "DELETED")
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, WarehouseState):
+            return NotImplemented
+        return self.state == other.state
+
+    def __hash__(self):
+        return hash(self.state)
+
+    def __repr__(self) -> str:
+        return str(self.__dict__)
+
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def from_json(cls, data: str) -> WarehouseState:
+        return WarehouseState(**json.loads(data))
 
 
 class DatabricksHook(BaseDatabricksHook):
@@ -740,6 +788,38 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: json dictionary containing cluster specification.
         """
         self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
+
+    def get_warehouse(self, warehouse_id: str) -> dict[str, Any]:
+        """
+        Retrieve a Databricks SQL warehouse.
+
+        :param warehouse_id: ID of the SQL warehouse.
+        """
+        return self._do_api_call(("GET", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}"))
+
+    def get_warehouse_state(self, warehouse_id: str) -> WarehouseState:
+        """
+        Retrieve the state of a Databricks SQL warehouse.
+
+        :param warehouse_id: ID of the SQL warehouse.
+        """
+        return WarehouseState(self.get_warehouse(warehouse_id)["state"])
+
+    def start_warehouse(self, warehouse_id: str) -> None:
+        """
+        Start a Databricks SQL warehouse.
+
+        :param warehouse_id: ID of the SQL warehouse.
+        """
+        self._do_api_call(("POST", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}/start"))
+
+    def stop_warehouse(self, warehouse_id: str) -> None:
+        """
+        Stop a Databricks SQL warehouse.
+
+        :param warehouse_id: ID of the SQL warehouse.
+        """
+        self._do_api_call(("POST", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}/stop"))
 
     def install(self, json: dict) -> None:
         """

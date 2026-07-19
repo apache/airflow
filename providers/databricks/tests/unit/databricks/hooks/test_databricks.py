@@ -43,6 +43,7 @@ from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunState,
     SQLStatementState,
+    WarehouseState,
 )
 from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_MANAGEMENT_ENDPOINT,
@@ -1550,6 +1551,77 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
         assert run_page_url == {"bar": "baz"}
         mock_get.assert_called_once()
         assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
+
+
+class TestWarehouseLifecycle:
+    @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
+    def test_get_warehouse_calls_correct_endpoint(self, mock_do_api_call):
+        mock_do_api_call.return_value = {"id": "wh-1", "state": "RUNNING"}
+        hook = DatabricksHook()
+
+        result = hook.get_warehouse("wh-1")
+
+        assert result == {"id": "wh-1", "state": "RUNNING"}
+        mock_do_api_call.assert_called_once_with(hook, ("GET", "2.0/sql/warehouses/wh-1"))
+
+    @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
+    def test_get_warehouse_state_wraps_state(self, mock_do_api_call):
+        mock_do_api_call.return_value = {"state": "RUNNING"}
+        hook = DatabricksHook()
+
+        state = hook.get_warehouse_state("wh-1")
+
+        assert state == WarehouseState("RUNNING")
+        assert state.is_running
+        mock_do_api_call.assert_called_once_with(hook, ("GET", "2.0/sql/warehouses/wh-1"))
+
+    @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
+    def test_start_warehouse_endpoint(self, mock_do_api_call):
+        hook = DatabricksHook()
+
+        hook.start_warehouse("wh-1")
+
+        mock_do_api_call.assert_called_once_with(hook, ("POST", "2.0/sql/warehouses/wh-1/start"))
+
+    @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
+    def test_stop_warehouse_endpoint(self, mock_do_api_call):
+        hook = DatabricksHook()
+
+        hook.stop_warehouse("wh-1")
+
+        mock_do_api_call.assert_called_once_with(hook, ("POST", "2.0/sql/warehouses/wh-1/stop"))
+
+    @pytest.mark.parametrize(
+        ("state", "is_running", "is_stopped", "is_deleted"),
+        [
+            ("STARTING", False, False, False),
+            ("RUNNING", True, False, False),
+            ("STOPPING", False, False, False),
+            ("STOPPED", False, True, False),
+            ("DELETING", False, False, True),
+            ("DELETED", False, False, True),
+        ],
+    )
+    def test_warehouse_state_valid_and_properties(self, state, is_running, is_stopped, is_deleted):
+        warehouse_state = WarehouseState(state)
+
+        assert warehouse_state.state == state
+        assert warehouse_state.is_running is is_running
+        assert warehouse_state.is_stopped is is_stopped
+        assert warehouse_state.is_deleted is is_deleted
+
+    def test_warehouse_state_unexpected_raises_value_error(self):
+        with pytest.raises(ValueError, match="Unexpected warehouse state: FOO"):
+            WarehouseState("FOO")
+
+    def test_warehouse_state_json_roundtrip(self):
+        state = WarehouseState("STARTING")
+        restored = WarehouseState.from_json(state.to_json())
+
+        assert restored == state
+        assert restored != object()
+        assert hash(restored) == hash(state)
+        assert repr(restored) == "{'state': 'STARTING'}"
 
 
 class TestRunState:
