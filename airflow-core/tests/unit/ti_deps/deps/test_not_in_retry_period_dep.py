@@ -65,3 +65,13 @@ class TestNotInRetryPeriodDep:
         """
         ti = self._get_task_instance(State.SUCCESS)
         assert NotInRetryPeriodDep().is_met(ti=ti)
+
+    def test_up_for_retry_with_no_end_date(self):
+        """
+        Task instances that are up for retry but have no recorded end_date (for example
+        because the process running them was killed before it could be recorded) must not
+        raise, and are treated as though their retry period just started.
+        """
+        ti = self._get_task_instance(State.UP_FOR_RETRY, end_date=None)
+        assert ti.is_premature
+        assert not NotInRetryPeriodDep().is_met(ti=ti)

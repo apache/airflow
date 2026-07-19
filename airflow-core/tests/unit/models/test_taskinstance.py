@@ -761,6 +761,27 @@ class TestTaskInstance:
         date_zero = ti.next_retry_datetime()
         assert date_zero == ti.end_date
 
+    def test_next_retry_datetime_with_none_end_date(self, dag_maker):
+        """A task instance with end_date=None (e.g. up_for_retry without a recorded end date)
+        must fall back to the current time instead of raising a TypeError."""
+        delay = datetime.timedelta(seconds=30)
+
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_no_end_date",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=delay,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = None
+
+        now = timezone.utcnow()
+        with time_machine.travel(now, tick=False):
+            date = ti.next_retry_datetime()
+        assert date == now + delay
+
     @pytest.mark.usefixtures("test_pool")
     def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
         """
