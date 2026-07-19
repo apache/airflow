@@ -66,6 +66,7 @@ from airflow_e2e_tests.constants import (
     TS_COMPOSE_PATH,
     TS_SDK_BUILD_HOME_PATH,
     TS_SDK_EXAMPLE_PATH,
+    TS_SDK_ROOT_PATH,
     XCOM_BUCKET,
 )
 
@@ -644,15 +645,14 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir):
     copyfile(OPENLINEAGE_COMPOSE_PATH, tmp_dir / "openlineage.yml")
 
 
-def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
-    """Set up the ts_sdk E2E test mode.
-
-    Builds the ts-sdk example bundle in an ephemeral Node container (no host
-    Node toolchain needed); the example build runs ``airflow-ts-pack``, which
-    embeds the airflow metadata in ``bundle.mjs``. The node-provider service
-    in ``ts.yml`` gives the worker the node binary from the same image, so
-    the bundle runs on the runtime it was built for.
-    """
+def _build_ts_sdk_example_bundle(*, native=False):
+    build_commands = (
+        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install && pnpm run build"
+    )
+    if native:
+        console.print("[yellow]Building TypeScript SDK example bundle (host toolchain)...")
+        subprocess.run(["bash", "-c", build_commands], cwd=TS_SDK_ROOT_PATH, check=True)
+        return
     # --user keeps build outputs owned by the current user; HOME is a
     # writable, gitignored dir so pnpm/corepack caches persist between runs.
     TS_SDK_BUILD_HOME_PATH.mkdir(parents=True, exist_ok=True)
@@ -663,11 +663,7 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         ' && mkdir -p "$HOME/bin"'
         ' && corepack enable --install-directory "$HOME/bin"'
         " && cd /repo/ts-sdk"
-        " && pnpm install --frozen-lockfile"
-        " && pnpm run build"
-        " && cd example"
-        " && pnpm install"
-        " && pnpm run build"
+        f" && {build_commands}"
     )
     console.print(f"[yellow]Building TypeScript SDK example bundle ({NODE_IMAGE})...")
     subprocess.run(
@@ -692,6 +688,11 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         ],
         check=True,
     )
+
+
+def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the ts_sdk E2E test mode."""
+    _build_ts_sdk_example_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
 
     copyfile(TS_COMPOSE_PATH, tmp_dir / "ts.yml")
 

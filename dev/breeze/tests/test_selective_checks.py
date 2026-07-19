@@ -828,6 +828,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("ts-sdk/README.md",),
+                {
+                    "prod-image-build": "false",
+                    "run-ts-sdk-e2e-tests": "false",
+                    "full-tests-needed": "false",
+                },
+                id="TypeScript SDK README-only change - TS SDK e2e tests should be skipped",
+            )
+        ),
+        (
+            pytest.param(
                 ("airflow-ctl/src/airflowctl/random.py",),
                 {
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
