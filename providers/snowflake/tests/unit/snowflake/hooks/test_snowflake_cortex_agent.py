@@ -127,6 +127,7 @@ class TestSnowflakeCortexAgentHook:
                 ],
                 "stream": False,
             },
+            params=None,
             timeout=REQUEST_TIMEOUT,
         )
 
@@ -316,3 +317,160 @@ class TestSnowflakeCortexAgentHook:
         expected,
     ):
         assert SnowflakeCortexAgentHook.get_text_response(response) == expected
+
+    @mock.patch(f"{MODULE_PATH}.requests.request")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_describe_agent(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+    ):
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_request.return_value = create_response(
+            json_body={"name": AGENT_NAME},
+        )
+
+        hook = SnowflakeCortexAgentHook(
+            snowflake_conn_id="mock_conn_id",
+        )
+
+        result = hook.describe_agent(
+            database=DATABASE,
+            schema=SCHEMA,
+            agent_name=AGENT_NAME,
+        )
+
+        assert result == {"name": AGENT_NAME}
+
+        mock_request.assert_called_once_with(
+            method="GET",
+            url=(
+                f"https://{ACCOUNT}.snowflakecomputing.com"
+                f"/api/v2/databases/{DATABASE}"
+                f"/schemas/{SCHEMA}"
+                f"/agents/{AGENT_NAME}"
+            ),
+            headers={
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json=None,
+            params=None,
+            timeout=None,
+        )
+
+    @mock.patch(f"{MODULE_PATH}.requests.request")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_list_agents(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+    ):
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_request.return_value = create_response(
+            json_body=[{"name": AGENT_NAME}],
+        )
+
+        hook = SnowflakeCortexAgentHook(
+            snowflake_conn_id="mock_conn_id",
+        )
+
+        result = hook.list_agents(
+            database=DATABASE,
+            schema=SCHEMA,
+            like="AIRFLOW%",
+            from_name="AIRFLOW_TEST",
+            show_limit=10,
+        )
+
+        assert result == [{"name": AGENT_NAME}]
+
+        mock_request.assert_called_once_with(
+            method="GET",
+            url=(
+                f"https://{ACCOUNT}.snowflakecomputing.com"
+                f"/api/v2/databases/{DATABASE}"
+                f"/schemas/{SCHEMA}"
+                f"/agents"
+            ),
+            headers={
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json=None,
+            params={
+                "like": "AIRFLOW%",
+                "fromName": "AIRFLOW_TEST",
+                "showLimit": 10,
+            },
+            timeout=None,
+        )
+
+    @pytest.mark.parametrize(
+        ("if_exists", "expected"),
+        [
+            pytest.param(True, "true", id="if_exists"),
+            pytest.param(False, "false", id="error_if_missing"),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.requests.request")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_delete_agent(
+        self,
+        mock_static_conn_params,
+        mock_conn_params,
+        mock_request,
+        if_exists,
+        expected,
+    ):
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
+        mock_request.return_value = create_response(
+            json_body={"status": "deleted"},
+        )
+
+        hook = SnowflakeCortexAgentHook(
+            snowflake_conn_id="mock_conn_id",
+        )
+
+        result = hook.delete_agent(
+            database=DATABASE,
+            schema=SCHEMA,
+            agent_name=AGENT_NAME,
+            if_exists=if_exists,
+        )
+
+        assert result == {"status": "deleted"}
+
+        mock_request.assert_called_once_with(
+            method="DELETE",
+            url=(
+                f"https://{ACCOUNT}.snowflakecomputing.com"
+                f"/api/v2/databases/{DATABASE}"
+                f"/schemas/{SCHEMA}"
+                f"/agents/{AGENT_NAME}"
+            ),
+            headers={
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json=None,
+            params={"ifExists": expected},
+            timeout=None,
+        )
