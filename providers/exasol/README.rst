@@ -56,7 +56,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``pyexasol``                                ``>=0.26.0,<2``
+``pyexasol``                                ``>=2.0.0,<3``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
