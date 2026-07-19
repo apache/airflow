@@ -1149,3 +1149,20 @@ def test_iter_partition_dagrun_infos_dst_america_new_york_spring_forward() -> No
     # run_after == partition_date for both ticks.
     for info in infos:
         assert info.run_after == info.partition_date
+
+
+@time_machine.travel(pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc), tick=False)
+def test_cron_trigger_run_immediately_does_not_pick_future_run():
+    """``run_immediately`` must select a past tick, never one that has not happened yet.
+
+    At 01:30 EDT on the fold day the 1am tick's second occurrence (06:00Z) is still in
+    the future, so the previous day's tick is the one to run.
+    """
+    timetable = CronTriggerTimetable("0 1 * * *", timezone="America/New_York", run_immediately=True)
+    info = timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+    )
+    assert info is not None
+    assert info.run_after <= pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc)
+    assert info.run_after == pendulum.DateTime(2024, 11, 2, 5, tzinfo=utc)
