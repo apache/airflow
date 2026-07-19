@@ -29,6 +29,7 @@ from ci.prek.common_prek_utils import (
     get_provider_id_from_path,
     initialize_breeze_prek,
     insert_documentation,
+    is_hidden_within_root,
     pre_process_mypy_files,
     read_airflow_version,
     read_allowed_kubernetes_versions,
@@ -168,6 +169,21 @@ class TestPreProcessMypyFiles:
         files = [PROVIDERS_AMAZON_S3_PATH]
         result = pre_process_mypy_files(files)
         assert PROVIDERS_AMAZON_S3_PATH in result
+
+
+class TestIsHiddenWithinRoot:
+    @pytest.mark.parametrize(
+        ("relative_path", "expected"),
+        [
+            ("airflow-core/src/airflow/models/dag.py", False),
+            (".build/mypy-venvs/foo.py", True),
+            ("airflow-core/.venv/lib/foo.py", True),
+            (".hidden.py", True),
+        ],
+    )
+    def test_only_components_below_root_count(self, tmp_path, relative_path, expected):
+        root = tmp_path / ".claude" / "worktrees"
+        assert is_hidden_within_root(root / relative_path, root) is expected
 
 
 class TestGetImportsFromFile:
