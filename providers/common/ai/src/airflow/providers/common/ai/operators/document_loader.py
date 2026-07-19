@@ -262,9 +262,6 @@ class DocumentLoaderOperator(BaseOperator):
         if backend == "python-docx":
             return self._parse_docx_stream(io.BytesIO(raw))
 
-        if backend not in ("text", "csv", "json"):
-            raise ValueError(f"No parser found for backend '{backend}'.")
-
         text = self._decode(raw, source_hint=f"<bytes:{ext}>")
         if backend == "csv":
             return self._parse_csv_text(text)
@@ -292,6 +289,8 @@ class DocumentLoaderOperator(BaseOperator):
 
     def _resolve_backend(self, ext: str) -> str:
         if self.parser != "auto":
+            if self.parser not in set(self.EXTENSION_BACKEND_MAP.values()):
+                raise ValueError(f"No parser found for backend '{self.parser}'.")
             return self.parser
 
         ext = ext.lower()
