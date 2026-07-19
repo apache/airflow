@@ -24,6 +24,11 @@
     },
     "runIdPatternFilter": "Search Dag Runs"
   },
+  "latestRunTaskStateCounts": {
+    "label": "Latest run tasks",
+    "loading": "Loading latest run task state counts",
+    "tooltip": "{{state}}: {{formattedCount}} — click to filter tasks"
+  },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
