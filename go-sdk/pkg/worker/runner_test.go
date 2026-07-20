@@ -252,6 +252,27 @@ func (s *WorkerSuite) TestTaskHeartbeatConflictStopsTask() {
 	s.NoError(err)
 }
 
+func (s *WorkerSuite) TestTaskHeartbeatNilResponseDoesNotPanic() {
+	id := uuid.New().String()
+	testWorkload := newTestWorkLoad(id, id[:8])
+
+	s.registry.AddDag(testWorkload.TI.DagId).
+		AddTaskWithName(testWorkload.TI.TaskId, func() error {
+			time.Sleep(250 * time.Millisecond)
+			return nil
+		})
+
+	s.ExpectTaskRun(id)
+	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
+	s.ti.EXPECT().
+		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
+		Return(&api.GeneralHTTPError{Response: nil})
+	s.client.EXPECT().TaskInstances().Return(s.ti)
+
+	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
+	s.NoError(err, "ExecuteTaskWorkload should not report an error")
+}
+
 func (s *WorkerSuite) TestTaskHeartbeatErrorStopsTaskAndLogs() {
 	s.T().Skip("TODO: Not implemented yet")
 }
