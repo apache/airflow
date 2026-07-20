@@ -37,6 +37,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    and_,
     case,
     func,
     inspect as sa_inspect,
