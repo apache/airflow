@@ -1,1 +1,0 @@
-The Dag Run and Task Instance duration charts on the overview pages label the value axis in compact time units (``5m``, ``1h 30m``) on human-scale tick steps instead of ``HH:mm:ss``, mark the median total duration rather than the mean, show a legend, and stack queued time beneath run time so it is visible. The chart also sizes to the available width instead of a fixed 350px.

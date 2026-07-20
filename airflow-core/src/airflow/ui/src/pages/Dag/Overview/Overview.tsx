@@ -128,7 +128,15 @@ export const Overview = () => {
         />
       </HStack>
       <HStack alignItems="flex-start" flexWrap="wrap">
-        <Box borderRadius={4} borderStyle="solid" borderWidth={1} flex="1 1 520px" minWidth="320px" p={2}>
+        <Box
+          borderRadius={4}
+          borderStyle="solid"
+          borderWidth={1}
+          flex="1 1 520px"
+          maxWidth="900px"
+          minWidth="320px"
+          p={2}
+        >
           {isLoadingRuns ? (
             <Skeleton height="310px" w="full" />
           ) : (
