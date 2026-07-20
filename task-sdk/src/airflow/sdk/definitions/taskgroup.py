@@ -117,8 +117,10 @@ class TaskGroup(DAGNode):
         `default_args`, the actual value will be `False`.
     :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
     :param doc_md: Markdown documentation for the TaskGroup displayed in the UI
-    :param ui_color: The fill color of the TaskGroup node when displayed in the UI
-    :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
+    :param ui_color: The fill color of the TaskGroup node in the graph view -- a raw color (hex code
+        or CSS name) or a Chakra palette or semantic token (e.g. ``blue.500`` or ``brand.solid``)
+    :param ui_fgcolor: The label color of the TaskGroup node in the graph view -- a raw color (hex
+        code or CSS name) or a Chakra palette or semantic token
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
     :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
@@ -149,8 +151,14 @@ class TaskGroup(DAGNode):
         on_setattr=attrs.setters.frozen,
     )
 
-    ui_color: str = attrs.field(default="CornflowerBlue", validator=attrs.validators.instance_of(str))
-    ui_fgcolor: str = attrs.field(default="#000", validator=attrs.validators.instance_of(str))
+    ui_color: str = attrs.field(
+        default="CornflowerBlue",
+        validator=attrs.validators.instance_of(str),
+    )
+    ui_fgcolor: str = attrs.field(
+        default="#000",
+        validator=attrs.validators.instance_of(str),
+    )
 
     add_suffix_on_collision: bool = False
 

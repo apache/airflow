@@ -27,7 +27,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs
 
-from google.api_core.exceptions import Conflict
+from google.api_core.exceptions import Conflict, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.routine import Routine
@@ -73,9 +73,29 @@ except ImportError:
         return value is not NOTSET
 
 
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
+
+        external_id_key: str = "bigquery_job_id"
+
+        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = durable
+
+        def execute_resumable(self, context):
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
+    from pydantic import JsonValue
 
     from airflow.providers.common.compat.sdk import Context
 
@@ -2260,7 +2280,9 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         return OperatorLineage(outputs=[output_dataset])
 
 
-class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
+class BigQueryInsertJobOperator(
+    ResumableJobMixin, GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin
+):
     """
     Execute a BigQuery job.
 
@@ -2313,6 +2335,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
+    :param durable: When ``True`` (the default), the submitted BigQuery job id is persisted to task
+        state before polling begins. A worker crash on retry reconnects to the existing job instead of
+        submitting a duplicate, this works regardless of ``force_rerun``, since the persisted id is
+        read back directly rather than recomputed. Set to ``False`` to always submit fresh on retry.
+        Requires Airflow 3.3+; no-op on earlier versions.
     """
 
     template_fields: Sequence[str] = (
@@ -2329,6 +2356,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
     operator_extra_links = (BigQueryTableLink(), BigQueryJobDetailLink())
+    external_id_key = "bigquery_job_id"
 
     def __init__(
         self,
@@ -2351,6 +2379,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         self.configuration = configuration
         self.location = location
         self.job_id = job_id
+        self._configured_job_id = job_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.force_rerun = force_rerun
@@ -2422,98 +2451,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         if job.state != "DONE":
             raise AirflowException(f"Job failed with state: {job.state}")
 
-    def _submit_new_job_on_retry(
-        self,
-        context: Any,
-        hook: BigQueryHook,
-    ) -> BigQueryJob | UnknownJob:
-        self.log.info("Job retry attempt, try_number is: %s", context["ti"].try_number)
-        self.job_id = hook.generate_job_id(
-            job_id=None,
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            logical_date=None,
-            configuration=self.configuration,
-            run_after=hook.get_run_after_or_logical_date(context),
-            force_rerun=self.force_rerun,
-            try_number=context["ti"].try_number,
-        )
-        job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
-        return job
-
-    def execute(self, context: Any):
-        hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.hook = hook
-        if self.project_id is None:
-            self.project_id = hook.project_id
-
-        self._add_job_labels(hook)
-
-        # Handles Operator retries when a user does not explicitly set a job_id.
-        # For example, if a previous job failed due to a 429 "Too Many Requests" error,
-        # the Operator will retry and resubmit the job. We need to ensure we don't lose
-        # the ability to reattach to this resubmitted job if Airflow components fail.
-        # To maintain backward compatibility, the try_number is appended to the job name
-        # only starting from the 2nd attempt.
-        ti_try_number = None
-        if self.job_id is None and context["ti"].try_number > 2:
-            ti_try_number = context["ti"].try_number - 1
-
-        self.job_id = hook.generate_job_id(
-            job_id=self.job_id,
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            logical_date=None,
-            configuration=self.configuration,
-            run_after=hook.get_run_after_or_logical_date(context),
-            force_rerun=self.force_rerun,
-            try_number=ti_try_number,
-        )
-
-        try:
-            self.log.info("Executing: %s'", self.configuration)
-            # Create a job
-            if self.job_id is None:
-                raise ValueError("job_id cannot be None")
-            job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
-        except Conflict:
-            # If the job already exists retrieve it
-            job = hook.get_job(
-                project_id=self.project_id,
-                location=self.location,
-                job_id=self.job_id,
-            )
-
-            # This block handles cases where job_id is None and a 429 error occurs.
-            # A new job_id will be generated because BigQuery does not allow rerunning an existing job once it reaches
-            # the DONE state. A 429 error can occur because many BigQueryInsertJobOperators are running in parallel
-            # and hitting quota limits. However, over time, other clients will finish their jobs, making it
-            # possible to execute a new job.
-            if (
-                job.state == "DONE"
-                and (job.error_result and "429" in job.error_result)
-                and context["ti"].try_number > 1
-            ):
-                job = self._submit_new_job_on_retry(context, hook)  # type: ignore[no-redef]
-            else:
-                if job.state not in self.reattach_states:
-                    # Same job configuration, so we need force_rerun
-                    raise AirflowException(
-                        f"Job with id: {self.job_id} already exists and is in {job.state} state. If you "
-                        f"want to force rerun it consider setting `force_rerun=True`."
-                        f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
-                    )
-
-                # Job already reached state DONE
-                if job.state == "DONE":
-                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
-
-                # We are reattaching to a job
-                self.log.info("Reattaching to existing Job in state %s", job.state)
-
+    def _persist_job_links(self, job: BigQueryJob | UnknownJob, context: Any) -> None:
         job_types = {
             LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
             CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
@@ -2562,11 +2500,33 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         }
         BigQueryJobDetailLink.persist(**persist_kwargs)
 
-        # Wait for the job to complete
+    def _submit_new_job_on_retry(
+        self,
+        context: Any,
+        hook: BigQueryHook,
+    ) -> BigQueryJob | UnknownJob:
+        self.log.info("Job retry attempt, try_number is: %s", context["ti"].try_number)
+        self.job_id = hook.generate_job_id(
+            job_id=None,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=None,
+            configuration=self.configuration,
+            run_after=hook.get_run_after_or_logical_date(context),
+            force_rerun=self.force_rerun,
+            try_number=context["ti"].try_number,
+        )
+        job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
+        return job
+
+    def execute(self, context: Any):
+        self._configured_job_id = self.job_id
         if not self.deferrable:
-            job.result(timeout=self.result_timeout, retry=self.result_retry)
-            self._handle_job_error(job)
+            self.execute_resumable(context)
             return self.job_id
+
+        self.job_id = self.submit_job(context)
+        job = self._job
 
         if job.running():
             self.defer(
@@ -2575,7 +2535,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                     conn_id=self.gcp_conn_id,
                     job_id=self.job_id,
                     project_id=self.project_id,
-                    location=self.location or hook.location,
+                    location=self.location or self.hook.location,  # type: ignore[union-attr]
                     poll_interval=self.poll_interval,
                     impersonation_chain=self.impersonation_chain,
                     cancel_on_kill=self.cancel_on_kill,
@@ -2585,6 +2545,126 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         self.log.info("Current state of job %s is %s", job.job_id, job.state)
         self._handle_job_error(job)
         return self.job_id
+
+    def submit_job(self, context: Any) -> str:
+        """Submit the job (or reattach per today's Conflict/reattach_states/429 rules) and return its id."""
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.hook = hook
+        if self.project_id is None:
+            self.project_id = hook.project_id
+
+        self._add_job_labels(hook)
+
+        # Handles Operator retries when a user does not explicitly set a job_id.
+        # For example, if a previous job failed due to a 429 "Too Many Requests" error,
+        # the Operator will retry and resubmit the job. We need to ensure we don't lose
+        # the ability to reattach to this resubmitted job if Airflow components fail.
+        # To maintain backward compatibility, the try_number is appended to the job name
+        # only starting from the 2nd attempt.
+        ti_try_number = None
+        if self._configured_job_id is None and context["ti"].try_number > 2:
+            ti_try_number = context["ti"].try_number - 1
+
+        self.job_id = hook.generate_job_id(
+            job_id=self._configured_job_id,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=None,
+            configuration=self.configuration,
+            run_after=hook.get_run_after_or_logical_date(context),
+            force_rerun=self.force_rerun,
+            try_number=ti_try_number,
+        )
+
+        try:
+            self.log.info("Executing: %s", self.configuration)
+            if self.sql:
+                self.log.info("SQL query:\n%s", self.sql)
+            # Create a job
+            if self.job_id is None:
+                raise ValueError("job_id cannot be None")
+            job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
+        except Conflict:
+            # If the job already exists retrieve it
+            job = hook.get_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.job_id,
+            )
+
+            # This block handles cases where job_id is None and a 429 error occurs.
+            # A new job_id will be generated because BigQuery does not allow rerunning an existing job once it reaches
+            # the DONE state. A 429 error can occur because many BigQueryInsertJobOperators are running in parallel
+            # and hitting quota limits. However, over time, other clients will finish their jobs, making it
+            # possible to execute a new job.
+            if (
+                job.state == "DONE"
+                and (job.error_result and "429" in job.error_result)
+                and context["ti"].try_number > 1
+            ):
+                job = self._submit_new_job_on_retry(context, hook)  # type: ignore[no-redef]
+            else:
+                if job.state not in self.reattach_states:
+                    # Same job configuration, so we need force_rerun
+                    raise AirflowException(
+                        f"Job with id: {self.job_id} already exists and is in {job.state} state. If you "
+                        f"want to force rerun it consider setting `force_rerun=True`."
+                        f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
+                    )
+
+                # Job already reached state DONE
+                if job.state == "DONE":
+                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+
+                # We are reattaching to a job
+                self.log.info("Reattaching to existing Job in state %s", job.state)
+
+        self._job = job
+        self._persist_job_links(job, context)
+        return job.job_id
+
+    def get_job_status(self, external_id: JsonValue, context: Any) -> str:
+        """Query the raw job status; a missing job degrades to a not_found sentinel."""
+        job_id = str(external_id)
+        # On reconnect/already-succeeded, submit_job never runs, so hook/project_id normally
+        # resolved there must be resolved here too.
+        if self.hook is None:
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            )
+        if self.project_id is None:
+            self.project_id = self.hook.project_id
+
+        try:
+            job = self.hook.get_job(project_id=self.project_id, location=self.location, job_id=job_id)
+        except NotFound:
+            return "not_found"
+        # Reuse the same link bookkeeping as submit_job: this is the only place a job object is
+        # obtained when reconnecting to (or finding already-succeeded) a previously stored id.
+        self._job = job
+        self._persist_job_links(job, context)
+        if job.state != "DONE":
+            return job.state
+        return "error" if job.error_result else "success"
+
+    def is_job_active(self, status: str) -> bool:
+        return status not in ("success", "error", "not_found")
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == "success"
+
+    def poll_until_complete(self, external_id: JsonValue, context: Any) -> None:
+        # self._job is set by whichever of submit_job / get_job_status last obtained it,
+        # never fetched again here, since neither of those calls skip setting it.
+        job = self._job
+        job.result(timeout=self.result_timeout, retry=self.result_retry)
+        self._handle_job_error(job)
+
+    def get_job_result(self, external_id: JsonValue, context: Any) -> None:
+        return None
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """

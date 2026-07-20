@@ -80,7 +80,7 @@ def test_client():
             yield TestClient(create_app())
 
 
-def get_login_callback_response(relay_state: str):
+def get_login_callback_response(relay_state: str, *, base_url: str = "http://testserver"):
     with conf_vars(
         {
             (
@@ -88,7 +88,7 @@ def get_login_callback_response(relay_state: str):
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
             ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
-            ("api", "ssl_cert"): "false",
+            ("api", "ssl_cert"): "",
         }
     ):
         with (
@@ -112,7 +112,7 @@ def get_login_callback_response(relay_state: str):
                 "email": ["email"],
             }
             mock_init_saml_auth.return_value = auth
-            client = TestClient(create_app())
+            client = TestClient(create_app(), base_url=base_url)
             return client.post(
                 AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback",
                 follow_redirects=False,
@@ -140,6 +140,11 @@ class TestLoginRouter:
         assert "location" in response.headers
         assert "_token" in response.cookies
         assert response.headers["location"].startswith("http://localhost:8080/")
+
+    def test_login_callback_sets_secure_cookie_behind_tls_proxy(self):
+        response = get_login_callback_response("login-redirect", base_url="https://testserver")
+
+        assert "Secure" in response.headers["set-cookie"]
 
     def test_login_callback_successful_with_relay_state_token(self):
         response = get_login_callback_response("login-token")

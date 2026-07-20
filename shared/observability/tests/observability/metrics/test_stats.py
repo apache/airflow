@@ -64,6 +64,13 @@ def get_statsd_logger_factory(
     )
 
 
+class TestGetStatsdLogger:
+    @mock.patch("statsd.StatsClient")
+    def test_passes_ipv6_as_keyword(self, mock_stats_client):
+        statsd_logger.get_statsd_logger(stats_class=mock_stats_client, ipv6=True)
+        assert mock_stats_client.call_args.kwargs["ipv6"] is True
+
+
 class TestStats:
     def setup_method(self):
         self.statsd_client = Mock(spec=statsd.StatsClient)

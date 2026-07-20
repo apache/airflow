@@ -227,6 +227,15 @@ The same matched-file approach drives the **prek hook skip list** (`skip_prek_ho
 compile / lint hook is skipped when nothing in its area changed. See
 [Skipping prek hooks](#skipping-prek-hooks-static-checks).
 
+#### The run's platform (`--platform`)
+
+Some integrations and providers only work on one CPU architecture, so the selection above is filtered
+by the platform the run's tests will execute on:
+
+* **Integrations** in `DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM` are dropped on ARM.
+* **Providers** that declare `excluded-platforms` in their `provider.yaml` (e.g. `ibm.mq` excludes
+  `linux/arm64`) are removed from the providers test-type matrix on that platform.
+
 ## Individually simple rules
 
 The list of rules is long, but each rule is a one-liner you can reason about in isolation. A few
@@ -244,6 +253,7 @@ representative examples (file → effect):
 | `scripts/ci/prek/check_*.py` (static-check hook)       | CI image + static checks, **no full matrix**                         | prek hooks are static checks → `Prek files` carve-out |
 | the generated OpenAPI spec                             | **full matrix**                                                      | the API *contract* ripples to UI codegen + every client |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
+| `task-sdk/.../task_runner.py` or `airflow-core/tests/integration/otel/...` | the `otel` core integration                       | matches `OTEL_FILES`; the otel integration tests assert the span hierarchy task_runner emits |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
 
 The "complexity" you feel reading the code is just *many* such rules stacked up — each one on its own
@@ -309,7 +319,7 @@ all versions), the cause is almost always a single rule that fired. To find it:
 2. **Reproduce locally** with Breeze, pointing at the squashed commit of your change:
 
    ```bash
-   breeze selective-checks --commit-ref <commit_sha>
+   breeze ci selective-check --commit-ref <commit_sha>
    ```
 
    It prints the same outputs and the same `[warning]` reasons CI uses, so you can iterate without
@@ -426,6 +436,21 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     of affected providers (but not recursively - only direct dependencies are added)
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
+* `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
+  `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
+  `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
+  openlineage e2e suite change — and always on `canary` runs (where `full tests needed` also
+  covers core/task-sdk changes). Like the other deployed e2e suites, enabling them forces
+  `PROD Image building`.
+* `OpenLineage E2E compat tests` (the same suite rerun against older released Airflow versions with
+  current provider code, exposed as the `run-openlineage-e2e-compat-tests` output) are costly, so
+  they do NOT run on every OpenLineage PR: on `canary` runs, when the `full tests needed` label is
+  explicitly set, or when a file that drives the compat setup but does not itself force the full
+  matrix changes — the shared e2e harness
+  (`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py` / `constants.py`) or the compat Dockerfile
+  (`airflow-e2e-tests/docker/openlineage-compat.Dockerfile`). The compat workflow
+  (`.github/workflows/openlineage-e2e-compat-tests.yml`) matches `ENVIRONMENT_FILES` and so already
+  forces the full matrix — the same rationale as `run-ui-e2e-tests`.
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
   (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
@@ -479,6 +504,10 @@ when some files are not changed. Those are the rules implemented:
   * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
     wrapper, which downloads the Gradle distribution, so we avoid that download on PRs that do
     not touch `java-sdk/`)
+  * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
+    skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
+    wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
+    the ts-sdk follow-up PR's job, not the schema author's)
   * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
     `check-provider-yaml-valid` check is skipped
 
@@ -530,6 +559,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
+| java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
 | kind-version                                            | Which Kind version to use for tests                                                                     | v0.24.0                                  |      |
 | kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.10-v1.25.2 3.11-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |
@@ -554,6 +584,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
@@ -621,6 +652,8 @@ This table summarizes the labels you can use on PRs to control the selective che
 |----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
 | all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
 | allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| area:e2e-tests                   | prod-image-build                 | If set, the Airflow E2E tests are run regardless of changed files (does not force the full test matrix). |
+| area:kubernetes-tests            | run-kubernetes-tests             | If set, the Kubernetes tests job is run regardless of changed files (does not force the full test matrix). |
 | canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
 | default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |

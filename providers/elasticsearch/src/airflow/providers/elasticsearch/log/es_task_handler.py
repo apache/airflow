@@ -40,6 +40,7 @@ import elasticsearch
 import pendulum
 from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
+from pydantic import ValidationError
 
 import airflow.logging_config as alc
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -51,6 +52,7 @@ from airflow.providers.elasticsearch.log.es_response import ElasticSearchRespons
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow._shared.module_loading import import_string
@@ -74,6 +76,8 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     EsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
+
+logger = logging.getLogger(__name__)
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
@@ -137,6 +141,29 @@ def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     if "error_detail" in fields and not fields["error_detail"]:
         fields.pop("error_detail")
     return fields
+
+
+def _safe_build_structured_log_message(hit_dict: dict[str, Any]) -> StructuredLogMessage:
+    """
+    Build a StructuredLogMessage from a stored Elasticsearch hit, tolerating malformed fields.
+
+    A single malformed stored log entry (for example a non-string ``event`` produced by
+    logging a list or dict as the sole message argument) must not fail the entire
+    log-fetch request. Fall back to a stringified event, mirroring the fallback used for
+    unparsable raw log lines in ``_log_stream_to_parsed_log_stream``.
+    """
+    fields = _build_log_fields(hit_dict)
+    try:
+        return StructuredLogMessage(**fields)
+    except ValidationError:
+        logger.debug(
+            "Failed to parse stored log entry into StructuredLogMessage; falling back to "
+            "stringified event. Offending fields: %s",
+            fields,
+        )
+        return StructuredLogMessage(
+            event=str(fields.get("event", hit_dict)), timestamp=fields.get("timestamp")
+        )
 
 
 VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
@@ -388,6 +415,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
+        # In Airflow 3 logs reach Elasticsearch only after the task finishes, so a running task
+        # has nothing to read there yet. Defer to the base handler for live worker/executor logs,
+        # as S3/GCS do. Airflow 2 has no remote-log-IO read path, so it keeps the ES-only path below.
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and ti.try_number == try_number
+            and ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        ):
+            return super()._read(ti, try_number, metadata)  # type: ignore[return-value]
+
         if not metadata:
             # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
@@ -461,7 +498,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(**_build_log_fields(hit.to_dict()))
+                    _safe_build_structured_log_message(hit.to_dict())
                     for hits in logs_by_host.values()
                     for hit in hits
                 ]

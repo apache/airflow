@@ -22,10 +22,12 @@
 package org.apache.airflow.sdk
 
 import com.squareup.javapoet.ClassName
+import com.squareup.javapoet.CodeBlock
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
 import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
+import java.util.Optional
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
@@ -161,12 +163,7 @@ class BuilderProcessor : AbstractProcessor() {
         }
       }
     required.forEach {
-      executeSpec.addStatement(
-        $$"var $L = ($T) client.getXCom($S)",
-        it.paramName,
-        with(TypeName.get(it.paramType)) { if (isPrimitive) box() else this },
-        it.taskId,
-      )
+      executeSpec.addStatement($$"var $L = $L", it.paramName, xcomAccess(it))
     }
     if (inner.returnType.kind == TypeKind.VOID) {
       $$"new $T().$L($L)"
@@ -202,6 +199,58 @@ private data class RequiredXCom(
   val paramName: String,
   val taskId: String,
 )
+
+private val NUMBER_ACCESSORS: Map<TypeName, String> =
+  buildMap {
+    mapOf(
+      TypeName.BYTE to "byteValue",
+      TypeName.SHORT to "shortValue",
+      TypeName.INT to "intValue",
+      TypeName.LONG to "longValue",
+      TypeName.FLOAT to "floatValue",
+      TypeName.DOUBLE to "doubleValue",
+    ).forEach { (primitive, accessor) ->
+      put(primitive, accessor)
+      put(primitive.box(), accessor)
+    }
+  }
+
+private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
+  val type = TypeName.get(xcom.paramType)
+  val accessor = NUMBER_ACCESSORS[type]
+  val number = ClassName.get(Number::class.java)
+  val optional = ClassName.get(Optional::class.java)
+  // A primitive parameter cannot hold null, so fail with a clear error instead of an
+  // opaque NullPointerException while unboxing when the XCom is absent.
+  val value =
+    if (type.isPrimitive) {
+      CodeBlock.of(
+        $$"$T.ofNullable(client.getXCom($S)).orElseThrow(() -> new $T($S, $S))",
+        optional,
+        xcom.taskId,
+        ClassName.get(MissingXComException::class.java),
+        xcom.taskId,
+        xcom.paramName,
+      )
+    } else {
+      CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
+    }
+  // Wire integers decode to Long and floats to Double, so a direct (Integer)/(Float)
+  // cast throws ClassCastException; widen via Number instead.
+  return when {
+    accessor == null -> CodeBlock.of($$"($T) $L", if (type.isPrimitive) type.box() else type, value)
+    type.isPrimitive -> CodeBlock.of($$"(($T) $L).$L()", number, value, accessor)
+    else ->
+      CodeBlock.of(
+        $$"$T.ofNullable(($T) $L).map($T::$L).orElse(null)",
+        optional,
+        number,
+        value,
+        number,
+        accessor,
+      )
+  }
+}
 
 private data class BuildTaskResult(
   val spec: TypeSpec,

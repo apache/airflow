@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1781642052
+source-date-epoch: 1783356304
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.32.0
   - 9.31.0
   - 9.30.0
   - 9.29.0
@@ -181,6 +182,8 @@ integrations:
   - integration-name: Amazon Elastic Container Registry (ECR)
     external-doc-url: https://aws.amazon.com/ecr/
     logo: /docs/integration-logos/Amazon-Elastic-Container-Registry_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/ecr.rst
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
@@ -446,6 +449,9 @@ operators:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.operators.ec2
+  - integration-name: Amazon Elastic Container Registry (ECR)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.ecr
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.operators.ecs

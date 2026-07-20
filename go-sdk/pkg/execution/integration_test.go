@@ -31,8 +31,34 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
+
+// assertSucceedTask asserts RunTask produced a terminal SucceedTask body.
+func assertSucceedTask(t *testing.T, result any) {
+	t.Helper()
+	_, ok := result.(genmodels.SucceedTask)
+	assert.True(t, ok, "expected SucceedTask, got %T", result)
+}
+
+// assertTaskState asserts RunTask produced a terminal TaskState body in the
+// expected state.
+func assertTaskState(t *testing.T, result any, want genmodels.TaskStateState) {
+	t.Helper()
+	ts, ok := result.(genmodels.TaskState)
+	require.True(t, ok, "expected TaskState, got %T", result)
+	assert.Equal(t, want, ts.State)
+}
+
+// assertRetryTask asserts RunTask produced a RetryTask body whose retry_reason
+// contains reasonSubstr.
+func assertRetryTask(t *testing.T, result any, reasonSubstr string) {
+	t.Helper()
+	rt, ok := result.(genmodels.RetryTask)
+	require.True(t, ok, "expected RetryTask, got %T", result)
+	assert.Contains(t, ifaceString(rt.RetryReason), reasonSubstr)
+}
 
 // --- Test task functions ---
 
@@ -64,22 +90,22 @@ func TestTaskRunnerSuccess(t *testing.T) {
 		r.AddDag("test_dag").AddTask(simpleTask)
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:       "550e8400-e29b-41d4-a716-446655440000",
 			DagID:    "test_dag",
 			TaskID:   "simpleTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	assert.Equal(t, "SucceedTask", result["type"])
+	assertSucceedTask(t, result)
 }
 
 func TestTaskRunnerFailure(t *testing.T) {
@@ -87,23 +113,22 @@ func TestTaskRunnerFailure(t *testing.T) {
 		r.AddDag("test_dag").AddTask(failingTask)
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:       "550e8400-e29b-41d4-a716-446655440000",
 			DagID:    "test_dag",
 			TaskID:   "failingTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	assert.Equal(t, "TaskState", result["type"])
-	assert.Equal(t, "failed", result["state"])
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
 func TestTaskRunnerRetry(t *testing.T) {
@@ -111,16 +136,16 @@ func TestTaskRunnerRetry(t *testing.T) {
 		r.AddDag("test_dag").AddTask(failingTask)
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:       "550e8400-e29b-41d4-a716-446655440000",
 			DagID:    "test_dag",
 			TaskID:   "failingTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
-		TIContext: TIRunContext{
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
 			ShouldRetry: true,
 			MaxTries:    3,
 		},
@@ -130,8 +155,7 @@ func TestTaskRunnerRetry(t *testing.T) {
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	assert.Equal(t, "RetryTask", result["type"])
-	assert.Equal(t, "task failed intentionally", result["retry_reason"])
+	assertRetryTask(t, result, "task failed intentionally")
 }
 
 func TestTaskRunnerTaskNotFound(t *testing.T) {
@@ -139,22 +163,21 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 		r.AddDag("test_dag").AddTask(simpleTask)
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:     "550e8400-e29b-41d4-a716-446655440000",
 			DagID:  "test_dag",
 			TaskID: "nonexistent",
 			RunID:  "run1",
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	assert.Equal(t, "TaskState", result["type"])
-	assert.Equal(t, "removed", result["state"])
+	assertTaskState(t, result, genmodels.TaskStateStateRemoved)
 }
 
 func TestTaskRunnerPanic(t *testing.T) {
@@ -162,23 +185,22 @@ func TestTaskRunnerPanic(t *testing.T) {
 		r.AddDag("test_dag").AddTask(panicTask)
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:       "550e8400-e29b-41d4-a716-446655440000",
 			DagID:    "test_dag",
 			TaskID:   "panicTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	assert.Equal(t, "TaskState", result["type"])
-	assert.Equal(t, "failed", result["state"])
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
 func TestTaskRunnerPanicRetry(t *testing.T) {
@@ -186,16 +208,16 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 		r.AddDag("test_dag").AddTask(panicTask)
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:       "550e8400-e29b-41d4-a716-446655440000",
 			DagID:    "test_dag",
 			TaskID:   "panicTask",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
-		TIContext: TIRunContext{
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
 			ShouldRetry: true,
 			MaxTries:    3,
 		},
@@ -205,8 +227,7 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	assert.Equal(t, "RetryTask", result["type"])
-	assert.Contains(t, result["retry_reason"], "panic: something went wrong")
+	assertRetryTask(t, result, "panic: something went wrong")
 }
 
 func TestRunTaskHonorsContextCancellation(t *testing.T) {
@@ -215,15 +236,15 @@ func TestRunTaskHonorsContextCancellation(t *testing.T) {
 			func(ctx context.Context) error { return ctx.Err() })
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:       "550e8400-e29b-41d4-a716-446655440000",
 			DagID:    "test_dag",
 			TaskID:   "ctxcheck",
 			RunID:    "run1",
-			MapIndex: -1,
+			MapIndex: ptr(-1),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
 
 	// A cancelled root context must reach the user task through RunTask's
@@ -235,8 +256,7 @@ func TestRunTaskHonorsContextCancellation(t *testing.T) {
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(ctx, bundle, details, comm, logger)
-	assert.Equal(t, "TaskState", result["type"])
-	assert.Equal(t, "failed", result["state"])
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
 func TestRunTaskInjectsRuntimeContext(t *testing.T) {
@@ -253,20 +273,24 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 			})
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:        "550e8400-e29b-41d4-a716-446655440000",
 			DagID:     "test_dag",
 			TaskID:    "ctxgrab",
 			RunID:     "run1",
 			TryNumber: 2,
-			MapIndex:  -1,
+			MapIndex:  ptr(-1),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
-		TIContext: TIRunContext{
-			LogicalDate:       &logical,
-			DataIntervalStart: &start,
-			DataIntervalEnd:   &end,
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		// The supervisor nests scheduling timestamps under dag_run; the
+		// generated nullable date-time fields hold time.Time values directly.
+		TIContext: genmodels.TIRunContext{
+			DagRun: genmodels.DagRun{
+				LogicalDate:       logical,
+				DataIntervalStart: start,
+				DataIntervalEnd:   end,
+			},
 		},
 	}
 
@@ -274,7 +298,7 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	require.Equal(t, "SucceedTask", result["type"])
+	assertSucceedTask(t, result)
 
 	require.NotNil(
 		t,
@@ -309,22 +333,22 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 			})
 	})
 
-	details := &StartupDetails{
-		TI: TaskInstanceInfo{
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
 			ID:       "550e8400-e29b-41d4-a716-446655440000",
 			DagID:    "test_dag",
 			TaskID:   "ctxgrab",
 			RunID:    "run1",
-			MapIndex: 5,
+			MapIndex: ptr(5),
 		},
-		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
-	require.Equal(t, "SucceedTask", result["type"])
+	assertSucceedTask(t, result)
 
 	require.NotNil(t, got.TaskInstance().MapIndex, "a mapped task must surface its index")
 	assert.Equal(t, 5, *got.TaskInstance().MapIndex)
@@ -417,8 +441,8 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 
 	frame, err := readFrame(commConn)
 	require.NoError(t, err)
-	require.Nil(t, frame.Err)
-	assert.Equal(t, "SucceedTask", frame.Body["type"])
+	require.True(t, isNilRaw(frame.Err))
+	assert.Equal(t, "SucceedTask", peekBodyType(frame.Body))
 
 	select {
 	case err := <-done:
@@ -490,9 +514,10 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	// 2. The task's GetVariable call blocks until the supervisor answers.
 	varReq, err := readFrame(commConn)
 	require.NoError(t, err)
-	require.Nil(t, varReq.Err)
-	assert.Equal(t, "GetVariable", varReq.Body["type"])
-	assert.Equal(t, varKey, varReq.Body["key"])
+	require.True(t, isNilRaw(varReq.Err))
+	varReqBody := rawToMap(t, varReq.Body)
+	assert.Equal(t, "GetVariable", varReqBody["type"])
+	assert.Equal(t, varKey, varReqBody["key"])
 
 	varReply, err := encodeRequest(varReq.ID, map[string]any{
 		"type":  "VariableResult",
@@ -506,10 +531,11 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	//    an empty (non-error) response so PushXCom unblocks.
 	xcomReq, err := readFrame(commConn)
 	require.NoError(t, err)
-	require.Nil(t, xcomReq.Err)
-	assert.Equal(t, "SetXCom", xcomReq.Body["type"])
-	assert.Equal(t, "return_value", xcomReq.Body["key"])
-	assert.Equal(t, "xval", xcomReq.Body["value"])
+	require.True(t, isNilRaw(xcomReq.Err))
+	xcomReqBody := rawToMap(t, xcomReq.Body)
+	assert.Equal(t, "SetXCom", xcomReqBody["type"])
+	assert.Equal(t, "return_value", xcomReqBody["key"])
+	assert.Equal(t, "xval", xcomReqBody["value"])
 	assert.NotEqual(t, varReq.ID, xcomReq.ID, "second runtime request must use a fresh frame id")
 
 	xcomReply, err := encodeRequest(xcomReq.ID, map[string]any{})
@@ -520,8 +546,8 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	//    terminal SucceedTask frame on the StartupDetails frame id.
 	term, err := readFrame(commConn)
 	require.NoError(t, err)
-	require.Nil(t, term.Err)
-	assert.Equal(t, "SucceedTask", term.Body["type"])
+	require.True(t, isNilRaw(term.Err))
+	assert.Equal(t, "SucceedTask", peekBodyType(term.Body))
 
 	select {
 	case err := <-done:

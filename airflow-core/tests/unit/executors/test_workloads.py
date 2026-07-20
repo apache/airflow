@@ -28,7 +28,7 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
 from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
 from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
-from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models.callback import CallbackKey
@@ -184,12 +184,21 @@ class TestExecuteTaskMakeVersionData:
         )
 
     @staticmethod
-    def _make_mock_ti(bundle_version, version_data, *, has_dag_version=True):
+    def _make_mock_ti(
+        bundle_version,
+        version_data,
+        *,
+        has_created_dag_version=True,
+        ti_dag_version_data=None,
+    ):
         """Build a mock TI with the attributes ExecuteTask.make() reads.
 
-        ``has_dag_version`` controls whether the TI has an associated DagVersion
-        (legacy/backfilled TIs may not), independently of ``version_data`` so the
-        pin-guard can be exercised with version_data present on an unpinned run.
+        ``version_data`` is the manifest on the run's pinned version
+        (``dag_run.created_dag_version``) -- the source make() must use.
+        ``ti_dag_version_data`` is the manifest on ``ti.dag_version``, which make()
+        must IGNORE (it can diverge from the run's pin after a mid-run DAG re-parse).
+        ``has_created_dag_version`` toggles whether the run has a pinned DagVersion
+        (legacy/backfilled runs may not).
         """
         from unittest.mock import Mock
 
@@ -215,15 +224,18 @@ class TestExecuteTaskMakeVersionData:
 
         ti.dag_run.bundle_version = bundle_version
 
-        if has_dag_version:
-            ti.dag_version.version_data = version_data
+        # make() must source version_data from the run's pinned version, never ti.dag_version.
+        ti.dag_version.version_data = ti_dag_version_data
+
+        if has_created_dag_version:
+            ti.dag_run.created_dag_version.version_data = version_data
         else:
-            ti.dag_version = None
+            ti.dag_run.created_dag_version = None
 
         return ti
 
     def test_pinned_run_populates_version_data(self):
-        """When the run is pinned, version_data from dag_version flows to BundleInfo."""
+        """When the run is pinned, version_data from the run's created_dag_version flows to BundleInfo."""
         version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
         ti = self._make_mock_ti(bundle_version="abc123", version_data=version_data)
 
@@ -233,7 +245,7 @@ class TestExecuteTaskMakeVersionData:
         assert workload.bundle_info.version_data == version_data
 
     def test_unpinned_run_suppresses_present_version_data(self):
-        """An unpinned run must not expose version_data even when the dag_version carries it."""
+        """An unpinned run must not expose version_data even when created_dag_version carries it."""
         version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
         ti = self._make_mock_ti(bundle_version=None, version_data=version_data)
 
@@ -242,11 +254,88 @@ class TestExecuteTaskMakeVersionData:
         assert workload.bundle_info.version is None
         assert workload.bundle_info.version_data is None
 
-    def test_missing_dag_version_yields_none(self):
-        """A pinned run whose TI has no dag_version (legacy/backfilled) yields no version_data."""
-        ti = self._make_mock_ti(bundle_version="abc123", version_data=None, has_dag_version=False)
+    def test_missing_created_dag_version_yields_none(self):
+        """A pinned run whose DagRun has no created_dag_version yields no version_data."""
+        ti = self._make_mock_ti(bundle_version="abc123", version_data=None, has_created_dag_version=False)
 
         workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data is None
+
+    def test_mid_run_dag_version_bump_uses_run_pinned_manifest(self):
+        """Regression: a mid-run DAG re-parse can bump ti.dag_version to a newer version while the
+        run stays pinned. make() must ship the run's pinned manifest (created_dag_version), not the
+        TI's bumped one -- otherwise a versioned bundle would fetch the wrong (latest) code.
+        """
+        run_manifest = {"schema_version": 1, "files": {"dags/my_dag.py": "v1-object-id"}}
+        bumped_manifest = {"schema_version": 1, "files": {"dags/my_dag.py": "v2-object-id"}}
+        ti = self._make_mock_ti(
+            bundle_version="v1hash",
+            version_data=run_manifest,
+            ti_dag_version_data=bumped_manifest,
+        )
+
+        workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version == "v1hash"
+        assert workload.bundle_info.version_data == run_manifest
+        assert workload.bundle_info.version_data != bumped_manifest
+
+
+class TestExecuteCallbackMakeVersionData:
+    """Tests for ExecuteCallback.make() threading version_data through BundleInfo."""
+
+    @staticmethod
+    def _make_mocks(bundle_version, version_data, *, has_created_dag_version=True):
+        """Build mock Callback + DagRun with the attributes ExecuteCallback.make() reads."""
+        from unittest.mock import Mock
+
+        callback = Mock()
+        callback.id = uuid4()
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        callback.data = {"path": "my_module.my_callback"}
+
+        dag_run = Mock()
+        dag_run.dag_id = "test_dag"
+        dag_run.run_id = "test_run"
+        dag_run.bundle_version = bundle_version
+        dag_run.dag_model.bundle_name = "test-bundle"
+        dag_run.dag_model.relative_fileloc = "dags/test_dag.py"
+        if has_created_dag_version:
+            dag_run.created_dag_version.version_data = version_data
+        else:
+            dag_run.created_dag_version = None
+
+        return callback, dag_run
+
+    def test_pinned_run_populates_version_data(self):
+        """When the run is pinned, version_data from created_dag_version flows to BundleInfo."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        callback, dag_run = self._make_mocks(bundle_version="abc123", version_data=version_data)
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data == version_data
+
+    def test_unpinned_run_suppresses_present_version_data(self):
+        """An unpinned run must not expose version_data even when created_dag_version carries it."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        callback, dag_run = self._make_mocks(bundle_version=None, version_data=version_data)
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+        assert workload.bundle_info.version is None
+        assert workload.bundle_info.version_data is None
+
+    def test_missing_created_dag_version_yields_none(self):
+        """A pinned run without a created_dag_version yields no version_data."""
+        callback, dag_run = self._make_mocks(
+            bundle_version="abc123", version_data=None, has_created_dag_version=False
+        )
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
 
         assert workload.bundle_info.version == "abc123"
         assert workload.bundle_info.version_data is None

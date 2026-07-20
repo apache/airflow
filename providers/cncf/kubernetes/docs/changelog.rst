@@ -27,15 +27,35 @@
 Changelog
 ---------
 
-10.18.1
+.. note::
+   The ``KubernetesExecutor`` now transparently requeues a worker pod that fails *before* the
+   task process starts (node drain, autoscaler scale-down, node boot race, transient image pull
+   failure, etc.) instead of failing the task on the first pod failure. This is a change in
+   default behavior, controlled by the new ``[kubernetes_executor] pod_launch_failure_retries``
+   option (default ``1``); requeues do not consume a task-level retry. Set it to ``0`` to restore
+   the previous behavior of failing immediately. Avoid ``-1`` (unlimited) with a pod that fails on
+   every launch, as the failed pods are not cleaned up under the default
+   ``delete_worker_pods_on_failure = False`` and will accumulate. The companion
+   ``pod_launch_failure_excluded_container_reasons`` option (default ``Error``) lists container
+   reasons that are excluded from the requeue path.
+
+10.19.0
 .......
+
+Features
+~~~~~~~~
+
+* ``Decide pod_template and image based on Coordinator for lang-SDK tasks on KubernetesExecutor (#68713)``
+* ``Add team_name tags to Kubernetes executor metrics (#69046)``
 
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix KubernetesExecutor leaking a Manager process when reading running task logs (#68800)``
+* ``Fix KubernetesExecutor never draining its 'self.completed' adoption set (#68674)``
 * ``Make cncf.kubernetes model deserialization picklable in-cluster (#68848)``
 * ``Run 'await_pod_start' before 'await_init_containers_completion' to prevent hanging when streaming init-container logs (#68450)``
-* ``Kubernetes Pod Operator - handle pod preemption before container creation (#68328)``
+* ``Handle pod preemption before container creation in KubernetesPodOperator (#68328)``
 
 Misc
 ~~~~
@@ -46,9 +66,13 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Trim redundant comments from KubernetesExecutor lazy-Manager tests (#69216)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
    * ``[main] Upgrade important CI environment (#68322)``
    * ``[main] Upgrade important CI environment (#68560)``
    * ``Add regression test for KPO awaiting pod start before init-container logs (#68503)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
 
 10.18.0
 .......
