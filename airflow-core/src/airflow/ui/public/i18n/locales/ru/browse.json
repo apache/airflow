@@ -11,6 +11,26 @@
     },
     "title": "Журнал аудита"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Название оповещения",
+      "deadlineTime": "Время крайнего срока",
+      "status": "Статус"
+    },
+    "deadline_few": "Крайние сроки",
+    "deadline_many": "Крайних сроков",
+    "deadline_one": "Крайний срок",
+    "deadline_other": "Крайних сроков",
+    "filters": {
+      "status": "Статус",
+      "statusOptions": {
+        "all": "Все",
+        "missed": "Пропущенные",
+        "pending": "Ожидающие"
+      }
+    },
+    "title": "Крайние сроки"
+  },
   "xcom": {
     "add": {
       "error": "Не удалось добавить XCom",

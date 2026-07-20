@@ -1,29 +1,32 @@
 {
   "backfill": {
-    "affected_few": "Будет запущено {{count}} процесса.",
-    "affected_one": "Будет запущен 1 процесс.",
-    "affected_other": "Будет запущено {{count}} процессов.",
-    "affectedNone": "Нет процессов, соответствующих выбранным критериям.",
-    "allRuns": "Все процессы",
-    "backwards": "Запуск назад",
+    "affected_few": "Будет запущено {{count}} запуска.",
+    "affected_many": "Будет запущено {{count}} запусков.",
+    "affected_one": "Будет запущен 1 запуск.",
+    "affected_other": "Будет запущено {{count}} запусков.",
+    "affectedNone": "Нет запусков, соответствующих выбранным критериям.",
+    "allRuns": "Все запуски",
+    "backwards": "Запустить в обратном порядке",
     "dateRange": "Диапазон дат",
     "errorStartDateBeforeEndDate": "Дата начала должна быть раньше даты окончания",
     "maxRuns": "Максимум активных запусков",
     "missingAndErroredRuns": "Отсутствующие и ошибочные запуски",
     "missingRuns": "Отсутствующие запуски",
-    "permissionDenied": "Не удалось выполнить пробный запуск, так как у пользователя нет разрешения на создание Заполнения.",
+    "overrideExistingParams": "Переопределить параметры существующих запусков",
+    "permissionDenied": "Не удалось выполнить пробный запуск, так как у пользователя нет разрешения на создание Backfill.",
     "reprocessBehavior": "Поведение повторной обработки",
-    "run": "Запуск Заполнения",
-    "selectDescription": "Запуск этого Dag-а для диапазона дат",
-    "selectLabel": "Заполнение",
-    "title": "Запуск Заполнения",
+    "run": "Запустить Backfill",
+    "scheduleNotBackfillable": "Расписание этого Dag-а не поддерживает Backfill",
+    "schedulerPriorityHint": "Запуски Backfill обрабатываются после обычных запусков в каждом цикле планировщика. Запуски Backfill могут дольше оставаться в очереди при наличии других обычных запусков.",
+    "selectDescription": "Запустить этот Dag для диапазона дат",
+    "selectLabel": "Backfill",
+    "title": "Запуск Backfill",
     "toaster": {
       "success": {
-        "description": "Запуск выполнения Заполнения успешно инициирован.",
-        "title": "Заполнение сгенерировано"
+        "description": "Запуск Backfill успешно инициирован.",
+        "title": "Backfill создан"
       }
     },
-    "tooltip": "Заполнение требует расписания",
     "unpause": "Возобновить {{dag_display_name}} при запуске",
     "validation": {
       "datesRequired": "Необходимо указать как дату начала, так и дату окончания.",
@@ -31,10 +34,10 @@
     }
   },
   "banner": {
-    "backfillInProgress": "Заполнение в процессе",
-    "cancel": "Отменить Заполнение",
-    "pause": "Приостановить Заполнение",
-    "unpause": "Возобновить Заполнения"
+    "backfillInProgress": "Backfill выполняется",
+    "cancel": "Отменить Backfill",
+    "pause": "Приостановить Backfill",
+    "unpause": "Возобновить Backfill"
   },
   "clipboard": {
     "copy": "Копировать"
@@ -49,6 +52,7 @@
     "error_one": "1 ошибка",
     "errorAndWarning": "1 ошибка и {{warningText}}",
     "warning_few": "{{count}} предупреждения",
+    "warning_many": "{{count}} предупреждений",
     "warning_one": "1 предупреждение",
     "warning_other": "{{count}} предупреждений"
   },
@@ -60,23 +64,27 @@
     }
   },
   "durationChart": {
-    "duration": "Продолжительность (секунды)",
+    "duration": "Длительность (секунды)",
     "lastDagRun_few": "Последние {{count}} запуска Dag-а",
+    "lastDagRun_many": "Последние {{count}} запусков Dag-а",
     "lastDagRun_one": "Последний запуск Dag-а",
     "lastDagRun_other": "Последние {{count}} запусков Dag-а",
     "lastTaskInstance_few": "Последние {{count}} экземпляра задачи",
+    "lastTaskInstance_many": "Последние {{count}} экземпляров задачи",
     "lastTaskInstance_one": "Последний экземпляр задачи",
     "lastTaskInstance_other": "Последние {{count}} экземпляров задачи",
     "queuedDuration": "Длительность в очереди",
-    "runAfter": "Запустить после",
+    "runAfter": "Запуск после",
     "runDuration": "Длительность запуска"
   },
   "fileUpload": {
     "files_few": "{{count}} файла",
+    "files_many": "{{count}} файлов",
     "files_one": "{{count}} файл",
     "files_other": "{{count}} файлов"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Введите длительность в формате ISO 8601",
     "placeholder": "Выбрать значение",
     "placeholderArray": "Введите каждую строку с новой строки",
     "placeholderExamples": "Начните вводить текст, чтобы увидеть варианты",
@@ -84,6 +92,7 @@
     "validationErrorArrayNotArray": "Значение должно быть массивом.",
     "validationErrorArrayNotNumbers": "Все элементы в массиве должны быть числами.",
     "validationErrorArrayNotObject": "Все элементы в массиве должны быть объектами.",
+    "validationErrorDuration": "Некорректный формат длительности ISO 8601",
     "validationErrorRequired": "Это поле обязательно для заполнения"
   },
   "graph": {
@@ -96,19 +105,23 @@
     "downloadImageErrorTitle": "Ошибка загрузки",
     "otherDagRuns": "+Другие запуски Dag-а",
     "taskCount_few": "{{count}} задачи",
+    "taskCount_many": "{{count}} задач",
     "taskCount_one": "{{count}} задача",
     "taskCount_other": "{{count}} задач",
-    "taskGroup": "Группа задач"
+    "taskGroup": "Группа задач",
+    "zoomToTask": "Приблизить к выбранной задаче"
   },
   "limitedList": "Ещё +{{count}}",
   "limitedList.allItems": "Все {{count}} элемента(ов):",
   "limitedList.allTags_few": "Все теги ({{count}})",
+  "limitedList.allTags_many": "Все теги ({{count}})",
   "limitedList.allTags_one": "Все теги (1)",
   "limitedList.allTags_other": "Все теги ({{count}})",
   "limitedList.clickToInteract": "Нажмите на тег, чтобы фильтровать Dag-и",
   "limitedList.clickToOpenFull": "Нажмите \"Ещё +{{count}}\", чтобы открыть полный вид",
   "limitedList.copyPasteText": "Вы можете скопировать и вставить текст выше",
   "limitedList.showingItems_few": "Показано {{count}} элемента",
+  "limitedList.showingItems_many": "Показано {{count}} элементов",
   "limitedList.showingItems_one": "Показан 1 элемент",
   "limitedList.showingItems_other": "Показано {{count}} элементов",
   "logs": {
@@ -128,8 +141,8 @@
       "placeHolder": "Выберите команду"
     }
   },
-  "toggleCardView": "Карточный вид",
-  "toggleTableView": "Табличный вид",
+  "toggleCardView": "Показать карточный вид",
+  "toggleTableView": "Показать табличный вид",
   "triggerDag": {
     "button": "Запустить",
     "dataInterval": "Временной интервал",
@@ -141,7 +154,7 @@
     "loadingFailed": "Не удалось загрузить информацию о Dag-е. Пожалуйста, попробуйте снова.",
     "manualRunDenied": "Ручные запуски не разрешены для этого Dag-а",
     "runIdHelp": "Необязательно - будет сгенерирован, если не предоставлен",
-    "selectDescription": "Запустить один процесс этого Dag-а",
+    "selectDescription": "Запустить этот Dag один раз",
     "selectLabel": "Единичный запуск",
     "title": "Запуск Dag-а",
     "toaster": {

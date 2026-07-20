@@ -14,26 +14,41 @@
     "lightMode": "Светлая тема",
     "systemMode": "Следовать системным настройкам"
   },
+  "asset_few": "Активы",
+  "asset_many": "Активы",
   "asset_one": "Актив",
   "asset_other": "Активы",
+  "assetEvent_few": "События активов",
+  "assetEvent_many": "События активов",
   "assetEvent_one": "Событие актива",
   "assetEvent_other": "События активов",
-  "backfill_one": "Заполнение",
-  "backfill_other": "Заполнения",
+  "assetInactive": {
+    "tooltip": "Вышестоящий актив был деактивирован; планировщик приостанавливает оценку разделов до его повторной активации."
+  },
+  "backfill_few": "Backfills",
+  "backfill_many": "Backfills",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Журнал аудита",
+    "deadlines": "Крайние сроки",
     "jobs": "Задания",
     "requiredActions": "Необходимые действия",
     "xcoms": "XCom-ы"
   },
   "collapseAllExtra": "Свернуть все дополнительные JSON",
   "collapseDetailsPanel": "Свернуть панель деталей",
+  "consumingAsset": "Потребляющий актив",
+  "createdAssetEvent_few": "Созданы события активов",
+  "createdAssetEvent_many": "Созданы события активов",
   "createdAssetEvent_one": "Создано событие актива",
   "createdAssetEvent_other": "Созданы события активов",
+  "dag_few": "Dag-и",
+  "dag_many": "Dag-и",
   "dag_one": "Dag",
   "dag_other": "Dag-и",
   "dagDetails": {
-    "catchup": "Сбор данных",
+    "catchup": "Наверстывание",
     "dagRunTimeout": "Тайм-аут запуска Dag-а",
     "defaultArgs": "Аргументы по умолчанию",
     "description": "Описание",
@@ -64,24 +79,25 @@
       "mean": "Среднее",
       "mode": "Мода"
     },
-    "expectedDuration": "Ожидаемая Длительность",
+    "expectedDuration": "Ожидаемая длительность",
     "lastSchedulingDecision": "Последнее решение о расписании",
-    "mappedPartitionKey": "Ключ распределенной части",
-    "partitionKey": "Ключ части",
+    "mappedPartitionKey": "Маппированный ключ раздела",
+    "partitionDate": "Дата раздела",
+    "partitionKey": "Ключ раздела",
     "queuedAt": "В очереди в",
-    "runAfter": "Запустить после",
+    "runAfter": "Запуск после",
     "runType": "Тип запуска",
     "sourceAssetEvent": "Источник события актива",
     "triggeredBy": "Инициировано",
     "triggeringUser": "Инициатор запуска"
   },
-  "dagRun_few": "Запуск Dag-ов",
-  "dagRun_many": "Запуск Dag-ов",
+  "dagRun_few": "Запуски Dag-ов",
+  "dagRun_many": "Запусков Dag-ов",
   "dagRun_one": "Запуск Dag-а",
   "dagRun_other": "Запусков Dag-ов",
   "dagRunId": "ID запуска Dag-а",
   "dagWarnings": "Предупреждения/ошибки Dag-а",
-  "defaultToGraphView": "По умолчанию отображать график",
+  "defaultToGraphView": "По умолчанию открывать граф",
   "defaultToGridView": "По умолчанию отображать в сетке",
   "delete": "Удалить",
   "diff": "Разница",
@@ -97,7 +113,7 @@
   "download": {
     "download": "Скачать",
     "hotkey": "D",
-    "tooltip": "Нажмите {{hotkey}}, чтобы скачать журналы"
+    "tooltip": "Нажмите {{hotkey}}, чтобы скачать логи"
   },
   "duration": "Длительность",
   "edit": "Редактировать",
@@ -110,6 +126,12 @@
     "notFound": "Страница не найдена",
     "title": "Ошибка"
   },
+  "errors": {
+    "forbidden": {
+      "description": "У вас нет разрешения на выполнение этого действия.",
+      "title": "Доступ запрещён"
+    }
+  },
   "expand": {
     "collapse": "Свернуть",
     "expand": "Развернуть",
@@ -118,28 +140,33 @@
   },
   "expandAllExtra": "Развернуть все дополнительные JSON",
   "expression": {
-    "all": "ВСЕ",
+    "all": "Все",
     "and": "И",
-    "any": "ЛЮБОЙ",
+    "any": "Любой",
     "or": "ИЛИ"
   },
   "filter": "Фильтр",
   "filters": {
-    "durationFrom": "Продолжительность с",
-    "durationTo": "Продолжительность до",
+    "durationFrom": "Длительность от",
+    "durationTo": "Длительность до",
     "endTime": "Время окончания",
     "logicalDateFrom": "Логическая дата с",
     "logicalDateTo": "Логическая дата до",
-    "runAfterFrom": "Запустить после с",
-    "runAfterTo": "Запустить после до",
+    "runAfterFrom": "Запуск после, с",
+    "runAfterTo": "Запуск после, до",
+    "searchAsset": "Поиск актива",
     "selectDateRange": "Выбрать диапазон дат",
     "startTime": "Время начала"
   },
+  "fullscreen": {
+    "tooltip": "Нажмите {{hotkey}} для полноэкранного режима"
+  },
   "generateToken": "Сгенерировать токен",
+  "key": "Ключ",
   "logicalDate": "Логическая дата",
   "logout": "Выйти",
   "logoutConfirmation": "Вы собираетесь выйти из приложения.",
-  "mapIndex": "Индекс отображения",
+  "mapIndex": "Индекс маппинга",
   "modal": {
     "add": "Добавить",
     "cancel": "Отменить",
@@ -165,23 +192,48 @@
   "note": {
     "add": "Добавить заметку",
     "dagRun": "Заметка запуска Dag-а",
+    "edit": "Редактировать заметку",
     "label": "Заметка",
     "placeholder": "Добавьте заметку...",
-    "taskInstance": "Заметка для экземпляра задачи"
+    "preview": "Предпросмотр",
+    "taskInstance": "Заметка для экземпляра задачи",
+    "write": "Написать"
   },
+  "overallStatus": "Общий статус",
+  "partitionedDagRun_few": "Разделенные запуски Dag-а",
+  "partitionedDagRun_many": "Разделенных запусков Dag-а",
   "partitionedDagRun_one": "Разделенный запуск Dag-а",
   "partitionedDagRun_other": "Разделенных запусков Dag-а",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Полученные события актива"
   },
   "pendingDagRun_few": "{{count}} Dag-а ожидают запуска",
+  "pendingDagRun_many": "{{count}} Dag-ов ожидают запуска",
   "pendingDagRun_one": "{{count}} Dag ожидает запуска",
   "pendingDagRun_other": "{{count}} Dag-ов ожидают запуска",
+  "presetFilters": {
+    "deleteTitle": "Удалить предустановленный фильтр",
+    "deleteWarning": "Предустановленные фильтры хранятся только в этом браузере.",
+    "duplicate": "Предустановленный фильтр «{{name}}» уже сохраняет эту конфигурацию.",
+    "empty": "Пока нет предустановленных фильтров",
+    "info": {
+      "default": "Закрепите предустановленный фильтр как фильтр по умолчанию, и он будет применяться автоматически при переходе на эту страницу без активных фильтров.",
+      "save": "Сохраните текущие фильтры и сортировку как именованный предустановленный фильтр и возвращайтесь к нему в любой момент.",
+      "storage": "Предустановленные фильтры хранятся в этом браузере."
+    },
+    "namePlaceholder": "Название предустановленного фильтра",
+    "nothingToSave": "Нечего сохранять. Примените фильтры или сортировку, чтобы сохранить предустановленный фильтр.",
+    "save": "Сохранить",
+    "setDefault": "Сделать фильтром по умолчанию",
+    "title": "Предустановленные фильтры",
+    "unsetDefault": "Убрать из фильтров по умолчанию"
+  },
   "reset": "Сбросить",
   "runId": "ID запуска",
   "runTypes": {
+    "asset_materialization": "Материализация актива",
     "asset_triggered": "Запущено активом",
-    "backfill": "Заполнение",
+    "backfill": "Backfill",
     "manual": "Вручную",
     "scheduled": "Запланировано"
   },
@@ -192,6 +244,12 @@
     },
     "tooltip": "Нажмите {{hotkey}}, чтобы прокрутить {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Совпадение в любом месте значения (поиск по подстроке). Медленнее на крупных развёртываниях, так как не может использовать стандартный индекс B-tree. Подробности см. в разделе документации о пользовательских индексах метаданных.",
+      "title": "Совпадение в любом месте"
+    }
+  },
   "security": {
     "actions": "Действия",
     "permissions": "Разрешения",
@@ -200,6 +258,48 @@
     "users": "Пользователи"
   },
   "selectLanguage": "Выбор языка",
+  "selected": "Выбрано",
+  "shortcuts": {
+    "categories": {
+      "code": "Код",
+      "dagView": "Просмотр Dag-а",
+      "filters": "Фильтры",
+      "global": "Глобальные",
+      "logs": "Логи",
+      "navigation": "Навигация",
+      "runActions": "Действия с запусками и задачами",
+      "search": "Поиск"
+    },
+    "descriptions": {
+      "clearRun": "Очистить запуск Dag-а",
+      "clearTaskInstance": "Очистить экземпляр задачи",
+      "downloadLogs": "Скачать логи",
+      "focusFilterSearch": "Перейти к поиску фильтров",
+      "focusLogSearch": "Поиск по логам",
+      "focusSearch": "Перейти к поиску",
+      "markRunFailed": "Отметить запуск Dag-а как неудачный",
+      "markRunSuccess": "Отметить запуск Dag-а как успешный",
+      "markTaskFailed": "Отметить задачу как неудачную",
+      "markTaskGroupFailed": "Отметить группу задач как неудачную",
+      "markTaskGroupSuccess": "Отметить группу задач как успешную",
+      "markTaskSuccess": "Отметить задачу как успешную",
+      "navigateTasks": "Навигация по задачам",
+      "openGraphFilters": "Открыть фильтры графа",
+      "scrollBottom": "Прокрутить вниз",
+      "scrollTop": "Прокрутить вверх",
+      "searchDags": "Поиск Dag-ов",
+      "showHelp": "Показать горячие клавиши",
+      "toggleExpand": "Развернуть или свернуть все группы",
+      "toggleFullscreen": "Переключить полноэкранный режим",
+      "toggleGraphGrid": "Переключить вид граф / сетка",
+      "toggleSource": "Переключить источник",
+      "toggleTaskGroup": "Развернуть или свернуть группу задач",
+      "toggleTimestamp": "Переключить временные метки",
+      "toggleWrap": "Переключить перенос"
+    },
+    "empty": "На этой странице нет доступных горячих клавиш.",
+    "title": "Горячие клавиши"
+  },
   "showDetailsPanel": "Показать панель деталей",
   "signedInAs": "Вошли как",
   "source": {
@@ -207,11 +307,14 @@
     "hotkey": "S",
     "show": "Показать источник"
   },
+  "sourceAssetEvent_few": "События источника актива",
+  "sourceAssetEvent_many": "Событий источника актива",
   "sourceAssetEvent_one": "Событие источника актива",
   "sourceAssetEvent_other": "Событий источника актива",
   "startDate": "Дата начала",
   "state": "Состояние",
   "states": {
+    "awaiting_input": "Ожидает ввода",
     "deferred": "Отложен",
     "failed": "Ошибка",
     "no_status": "Нет статуса",
@@ -227,13 +330,15 @@
     "success": "Успех",
     "up_for_reschedule": "Готов к переназначению",
     "up_for_retry": "Готов к повтору",
-    "upstream_failed": "Ошибка в upstream"
+    "upstream_failed": "Ошибка вышестоящей задачи"
   },
   "table": {
     "completedAt": "Завершен в",
     "createdAt": "Создан в",
     "filterByTag": "Фильтровать Dag-и по тегу",
     "filterColumns": "Фильтровать столбцы таблицы",
+    "filterReset_few": "Сбросить фильтры",
+    "filterReset_many": "Сбросить фильтры",
     "filterReset_one": "Сбросить фильтр",
     "filterReset_other": "Сбросить фильтры",
     "from": "От",
@@ -244,23 +349,37 @@
       "any": "Любой"
     },
     "tagPlaceholder": "Фильтр по тегу",
-    "to": "До"
+    "to": "До",
+    "updatedAt": "Обновлено в"
   },
   "task": {
+    "dependsOnPast": "Зависит от прошлого",
     "documentation": "Документация задачи",
     "lastInstance": "Последний экземпляр",
     "operator": "Оператор",
-    "triggerRule": "Правило запуска"
+    "retries": "Повторные попытки",
+    "triggerRule": "Правило запуска",
+    "waitForDownstream": "Ожидать нижестоящие"
   },
+  "task_few": "Задачи",
+  "task_many": "Задач",
   "task_one": "Задача",
   "task_other": "Задач",
-  "taskGroup": "Группа задач",
+  "taskGroup": {
+    "documentation": "Документация группы задач"
+  },
+  "taskGroup_few": "Группы задач",
+  "taskGroup_many": "Групп задач",
+  "taskGroup_one": "Группа задач",
+  "taskGroup_other": "Групп задач",
   "taskId": "ID задачи",
   "taskInstance": {
+    "additionalAttributes": "Дополнительные атрибуты экземпляра задачи",
     "dagVersion": "Версия Dag-а",
     "executor": "Исполнитель",
     "executorConfig": "Конфигурация исполнителя",
     "hostname": "Имя хоста",
+    "id": "ID",
     "maxTries": "Максимум попыток",
     "pid": "PID",
     "pool": "Пул",
@@ -268,18 +387,21 @@
     "priorityWeight": "Приоритетный вес",
     "queue": "Очередь",
     "queuedWhen": "В очереди в",
+    "renderedMapIndex": "Отрендеренный индекс маппинга",
     "scheduledWhen": "Запланировано в",
+    "trigger": "Триггер",
     "triggerer": {
-      "assigned": "Назначенный триггер",
+      "assigned": "Назначенный триггерер",
       "class": "Класс триггера",
       "createdAt": "Время создания триггера",
       "id": "ID триггера",
-      "latestHeartbeat": "Последний heartbeat-сигнал триггера",
-      "title": "Информация о триггере"
+      "job": "Задание триггерера",
+      "latestHeartbeat": "Последний heartbeat-сигнал триггерера",
+      "title": "Информация о триггерере"
     },
     "unixname": "Имя Unix"
   },
-  "taskInstance_few": "Экземпляра задачи",
+  "taskInstance_few": "Экземпляры задачи",
   "taskInstance_many": "Экземпляров задачи",
   "taskInstance_one": "Экземпляр задачи",
   "taskInstance_other": "Экземпляров задачи",
@@ -302,11 +424,25 @@
     "utc": "UTC (Всемирное координированное время)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Ошибка запроса на массовую очистку {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} успешно очищены. Ключи: {{keys}}",
+        "title": "Запрос на массовую очистку {{resourceName}} отправлен"
+      }
+    },
     "bulkDelete": {
       "error": "Ошибка массового удаления {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} успешно удалены. Ключи: {{keys}}",
         "title": "Запрос на массовое удаление {{resourceName}} отправлен"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Ошибка запроса на массовое обновление {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} успешно обновлены. Ключи: {{keys}}",
+        "title": "Запрос на массовое обновление {{resourceName}} отправлен"
       }
     },
     "create": {
@@ -322,10 +458,6 @@
         "description": "{{resourceName}} успешно удалён.",
         "title": "Запрос на удаление {{resourceName}} отправлен"
       }
-    },
-    "forbidden": {
-      "description": "У вас нет разрешения на выполнение этого действия.",
-      "title": "Доступ запрещён"
     },
     "import": {
       "error": "Ошибка импорта {{resourceName}}",
@@ -358,10 +490,15 @@
   "triggered": "Запущено",
   "tryNumber": "Номер попытки",
   "user": "Пользователь",
+  "validation": {
+    "mustBeAtLeast": "Должно быть не менее {{min}}.",
+    "mustBeValidNumber": "Должно быть корректным числом."
+  },
+  "value": "Значение",
   "wrap": {
     "hotkey": "W",
-    "tooltip": "Нажмите {{hotkey}}, чтобы свернуть/развернуть",
-    "unwrap": "Развернуть",
-    "wrap": "Свернуть"
+    "tooltip": "Нажмите {{hotkey}}, чтобы переключить перенос строк",
+    "unwrap": "Отключить перенос строк",
+    "wrap": "Включить перенос строк"
   }
 }
