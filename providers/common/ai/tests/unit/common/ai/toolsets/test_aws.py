@@ -237,22 +237,20 @@ class TestAWSToolsetDescribeOperation:
         )
         assert described["operation"] == "ListObjectsV2"
 
-    def test_disallowed_operation_raises_model_retry(self):
-        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
-        with pytest.raises(ModelRetry, match="not in this toolset's allowed actions"):
-            _call(ts, "describe_aws_operation", {"service": "s3", "operation": "GetObject"})
-
-    def test_model_supplied_service_outside_allow_list_raises_model_retry(self):
-        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
-
-        with pytest.raises(ModelRetry, match="Service 'ec2' is not in this toolset's allowed actions"):
-            _call(ts, "describe_aws_operation", {"service": "ec2", "operation": "DescribeInstances"})
-
-    def test_model_supplied_unknown_operation_raises_model_retry(self):
+    @pytest.mark.parametrize(
+        ("service", "operation", "match"),
+        [
+            ("s3", "GetObject", "not in this toolset's allowed actions"),
+            ("ec2", "DescribeInstances", "Service 'ec2' is not in this toolset's allowed actions"),
+            ("s3", "NoSuchOperation", "Unknown operation 'NoSuchOperation' for service 's3'"),
+        ],
+        ids=["disallowed_operation", "service_outside_allow_list", "unknown_operation"],
+    )
+    def test_model_supplied_invalid_operation_raises_model_retry(self, service, operation, match):
         ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
 
-        with pytest.raises(ModelRetry, match="Unknown operation 'NoSuchOperation' for service 's3'"):
-            _call(ts, "describe_aws_operation", {"service": "s3", "operation": "NoSuchOperation"})
+        with pytest.raises(ModelRetry, match=match):
+            _call(ts, "describe_aws_operation", {"service": service, "operation": operation})
 
 
 class TestAWSToolsetCallAws:
@@ -304,24 +302,22 @@ class TestAWSToolsetCallAws:
         paginator.paginate.assert_called_once_with(Bucket="b", PaginationConfig={"MaxItems": 250})
         assert result["Contents"] == [{"Key": "a.parquet"}]
 
-    def test_disallowed_operation_raises_model_retry_without_client(self):
-        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
-        with pytest.raises(ModelRetry, match="not in this toolset's allowed actions"):
-            _call(ts, "call_aws", {"service": "s3", "operation": "DeleteBucket"})
-        assert ts._clients == {}
-
-    def test_model_supplied_service_outside_allow_list_raises_model_retry_without_client(self):
-        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
-
-        with pytest.raises(ModelRetry, match="Service 'ec2' is not in this toolset's allowed actions"):
-            _call(ts, "call_aws", {"service": "ec2", "operation": "DescribeInstances"})
-        assert ts._clients == {}
-
-    def test_model_supplied_unknown_operation_raises_model_retry_without_client(self):
+    @pytest.mark.parametrize(
+        ("service", "operation", "match"),
+        [
+            ("s3", "DeleteBucket", "not in this toolset's allowed actions"),
+            ("ec2", "DescribeInstances", "Service 'ec2' is not in this toolset's allowed actions"),
+            ("s3", "NoSuchOperation", "Unknown operation 'NoSuchOperation' for service 's3'"),
+        ],
+        ids=["disallowed_operation", "service_outside_allow_list", "unknown_operation"],
+    )
+    def test_model_supplied_invalid_operation_raises_model_retry_without_client(
+        self, service, operation, match
+    ):
         ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
 
-        with pytest.raises(ModelRetry, match="Unknown operation 'NoSuchOperation' for service 's3'"):
-            _call(ts, "call_aws", {"service": "s3", "operation": "NoSuchOperation"})
+        with pytest.raises(ModelRetry, match=match):
+            _call(ts, "call_aws", {"service": service, "operation": operation})
         assert ts._clients == {}
 
     def test_client_error_raises_model_retry(self):
