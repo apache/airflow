@@ -314,6 +314,52 @@ class TestGetImportError:
             access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
         )
 
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_error__file_registered_only_in_other_bundle_is_unregistered(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+        session,
+    ):
+        """Regression: the has-any-Dag lookup is scoped per bundle. Matching on
+        ``relative_fileloc`` alone would resolve the same-named file's Dag in a
+        *different* bundle, treat this error as registered, and hand back the raw
+        stacktrace on the strength of an unrelated bundle's read permission --
+        never consulting ``IMPORT_ERRORS_ALL``.
+        """
+        import_error_id = import_errors[0].id
+        other_bundle = "other_bundle"
+        session.add(DagBundleModel(name=other_bundle))
+        session.flush()
+        # FILENAME1 has a registered Dag only in ``other_bundle``, while the
+        # import error for the same path lives in BUNDLE_NAME, which has none.
+        session.add(
+            DagModel(
+                fileloc=f"/other/{FILENAME1}",
+                relative_fileloc=FILENAME1,
+                dag_id="dag_in_other_bundle",
+                is_paused=False,
+                bundle_name=other_bundle,
+            )
+        )
+        session.commit()
+
+        # Readable other-bundle Dag must not grant visibility into the
+        # same-named file's error in BUNDLE_NAME.
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {"dag_in_other_bundle"})
+        mock_method = set_mock_auth_manager__is_authorized_view_for_team(mock_get_auth_manager, False)
+
+        response = test_client.get(f"/importErrors/{import_error_id}")
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "You do not have permission to view import errors for files with no registered Dag"
+        }
+        mock_method.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
+        )
+
 
 class TestGetImportErrors:
     @pytest.mark.parametrize(
