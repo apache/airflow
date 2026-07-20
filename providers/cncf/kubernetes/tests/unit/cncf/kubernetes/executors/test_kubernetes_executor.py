@@ -2388,6 +2388,56 @@ class TestKubernetesExecutor:
             "_alive_other_scheduler_job_ids closed/detached the caller's scoped session"
         )
 
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.cleanup_kpo_zombie_pods")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_sync_skips_kpo_zombie_pod_cleanup_when_disabled(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_adopt_completed_pods, mock_cleanup
+    ):
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            executor.kube_config.kpo_zombie_pod_cleanup_enabled = False
+
+            executor.sync()
+
+            mock_cleanup.assert_not_called()
+        finally:
+            executor.end()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.cleanup_kpo_zombie_pods")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_sync_runs_kpo_zombie_pod_cleanup_when_enabled(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_adopt_completed_pods, mock_cleanup
+    ):
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            executor.kube_config.kpo_zombie_pod_cleanup_enabled = True
+            executor.kube_config.kpo_zombie_pod_cleanup_interval = 0
+            executor.kube_config.kpo_zombie_pod_cleanup_max_deletes_per_loop = 100
+            executor.kube_config.kpo_zombie_pod_deletion_grace_period_seconds = 5
+
+            executor.sync()
+
+            mock_cleanup.assert_called_once_with(
+                list_pods=executor._list_pods,
+                kube_client=executor.kube_client,
+                max_deletes=100,
+                grace_period_seconds=5,
+                delete_options=executor.kube_config.delete_option_kwargs,
+                kube_client_request_args=executor.kube_config.kube_client_request_args,
+            )
+        finally:
+            executor.end()
+
     @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")

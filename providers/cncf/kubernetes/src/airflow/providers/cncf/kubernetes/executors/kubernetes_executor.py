@@ -53,6 +53,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.utils.pod_cleanup import cleanup_kpo_zombie_pods
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
@@ -131,6 +132,7 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
         self._last_completed_pod_adoption = 0.0
+        self._last_kpo_zombie_pod_cleanup = 0.0
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = self.conf.getint(
@@ -406,6 +408,19 @@ class KubernetesExecutor(BaseExecutor):
         if now - self._last_completed_pod_adoption >= adoption_interval:
             self._last_completed_pod_adoption = now
             self._adopt_completed_pods(self.kube_client)
+
+        if self.kube_config.kpo_zombie_pod_cleanup_enabled:
+            cleanup_interval = self.kube_config.kpo_zombie_pod_cleanup_interval
+            if now - self._last_kpo_zombie_pod_cleanup >= cleanup_interval:
+                self._last_kpo_zombie_pod_cleanup = now
+                cleanup_kpo_zombie_pods(
+                    list_pods=self._list_pods,
+                    kube_client=self.kube_client,
+                    max_deletes=max(0, self.kube_config.kpo_zombie_pod_cleanup_max_deletes_per_loop),
+                    grace_period_seconds=self.kube_config.kpo_zombie_pod_deletion_grace_period_seconds,
+                    delete_options=self.kube_config.delete_option_kwargs,
+                    kube_client_request_args=self.kube_config.kube_client_request_args,
+                )
 
         if self.running:
             self.log.debug("self.running: %s", self.running)
