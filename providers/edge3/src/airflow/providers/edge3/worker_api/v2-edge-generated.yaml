@@ -1318,6 +1318,11 @@ components:
           type: string
           title: Queue
           default: default
+        external_executor_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Executor Id
         pool_slots:
           type: integer
           title: Pool Slots
