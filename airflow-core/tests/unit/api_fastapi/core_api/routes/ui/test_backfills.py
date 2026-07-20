@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 
 import pytest
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
-from airflow.models.backfill import Backfill
+from airflow.models.backfill import Backfill, ReprocessBehavior
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -159,6 +160,88 @@ class TestListBackfills(TestBackfillEndpoint):
             "backfills": expected_response,
             "total_entries": total_entries,
         }
+
+    def test_list_backfill_by_start_end_date(self, test_client, session, testing_dag_bundle):
+        (dag,) = self._create_dag_models(count=1)
+        from_date = timezone.utcnow()
+        b1 = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=from_date)
+        other_date = from_date + timedelta(days=1)
+        b2 = Backfill(dag_id=dag.dag_id, from_date=other_date, to_date=other_date)
+        session.add_all([b1, b2])
+        session.commit()
+
+        response = test_client.get(
+            "/backfills",
+            params={
+                "from_date_gte": from_datetime_to_zulu(other_date),
+                "to_date_lte": from_datetime_to_zulu(other_date),
+            },
+        )
+        assert response.status_code == 200
+        assert [each["id"] for each in response.json()["backfills"]] == [b2.id]
+
+    def test_list_backfill_by_completed_at(self, test_client, session, testing_dag_bundle):
+        (dag,) = self._create_dag_models(count=1)
+        from_date = timezone.utcnow()
+        b1 = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=from_date)
+        other_completed_at = timezone.utcnow() + timedelta(days=1)
+        b2 = Backfill(
+            dag_id=dag.dag_id, from_date=from_date, to_date=from_date, completed_at=other_completed_at
+        )
+        session.add_all([b1, b2])
+        session.commit()
+
+        # b1's completed_at is NULL, so it never matches a bound
+        response = test_client.get(
+            "/backfills", params={"completed_at_gte": from_datetime_to_zulu(other_completed_at)}
+        )
+        assert response.status_code == 200
+        assert [each["id"] for each in response.json()["backfills"]] == [b2.id]
+
+    def test_list_backfill_by_created_at(self, test_client, session, testing_dag_bundle):
+        (dag,) = self._create_dag_models(count=1)
+        from_date = timezone.utcnow()
+        b1 = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=from_date)
+        other_created_at = timezone.utcnow() - timedelta(days=1)
+        b2 = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=from_date, created_at=other_created_at)
+        session.add_all([b1, b2])
+        session.commit()
+
+        # b1's created_at defaults to ~now, b2's is 1 day in the past
+        response = test_client.get(
+            "/backfills", params={"created_at_lte": from_datetime_to_zulu(other_created_at)}
+        )
+        assert response.status_code == 200
+        assert [each["id"] for each in response.json()["backfills"]] == [b2.id]
+
+    def test_list_backfill_by_reprocess_behavior(self, test_client, session, testing_dag_bundle):
+        (dag,) = self._create_dag_models(count=1)
+        from_date = timezone.utcnow()
+        b1 = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=from_date)
+        b2 = Backfill(
+            dag_id=dag.dag_id,
+            from_date=from_date,
+            to_date=from_date,
+            reprocess_behavior=ReprocessBehavior.COMPLETED,
+        )
+        session.add_all([b1, b2])
+        session.commit()
+
+        response = test_client.get("/backfills", params={"reprocess_behavior": "completed"})
+        assert response.status_code == 200
+        assert [each["id"] for each in response.json()["backfills"]] == [b2.id]
+
+    def test_list_backfill_by_max_active_runs(self, test_client, session, testing_dag_bundle):
+        (dag,) = self._create_dag_models(count=1)
+        from_date = timezone.utcnow()
+        b1 = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=from_date)  # default max_active_runs=10
+        b2 = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=from_date, max_active_runs=3)
+        session.add_all([b1, b2])
+        session.commit()
+
+        response = test_client.get("/backfills", params={"max_active_runs_lte": 5})
+        assert response.status_code == 200
+        assert [each["id"] for each in response.json()["backfills"]] == [b2.id]
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/backfills", params={})

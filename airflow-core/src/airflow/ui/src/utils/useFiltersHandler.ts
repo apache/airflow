@@ -59,6 +59,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.BUNDLE_VERSION
+  | SearchParamsKeys.COMPLETED_AT_RANGE
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CONSUMING_ASSET_PATTERN
   | SearchParamsKeys.CREATED_AT_RANGE
@@ -81,6 +82,8 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.MAX_ACTIVE_RUNS_GTE
+  | SearchParamsKeys.MAX_ACTIVE_RUNS_LTE
   | SearchParamsKeys.MISSED
   | SearchParamsKeys.NAME_PATTERN
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
@@ -88,6 +91,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
   | SearchParamsKeys.RENDERED_MAP_INDEX
+  | SearchParamsKeys.REPROCESS_BEHAVIOR
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_RANGE
