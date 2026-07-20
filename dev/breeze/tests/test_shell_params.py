@@ -24,6 +24,7 @@ from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.path_utils import SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_LOCAL_THEME_PATH
 
 console = Console(width=400, color_system="standard")
 
@@ -166,6 +167,22 @@ console = Console(width=400, color_system="standard")
             },
             id="PYTHONWARNINGS should be set when specified in environment",
         ),
+        pytest.param(
+            {},
+            {"local_theme": "/tmp/sphinx_airflow_theme"},
+            {
+                "LOCAL_THEME_PATH": "/tmp/sphinx_airflow_theme",
+            },
+            id="Local theme path set when local_theme provided",
+        ),
+        pytest.param(
+            {},
+            {},
+            {
+                "LOCAL_THEME_PATH": "",
+            },
+            id="Local theme path empty by default",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(
@@ -193,3 +210,15 @@ def test_shell_params_to_env_var_conversion(
                 console.print(env_vars)
                 error = True
         assert not error, "Some values are not as expected."
+
+
+def test_local_theme_compose_overlay_appended():
+    with patch("os.environ", {}):
+        params = ShellParams(local_theme="/tmp/my_theme")
+        assert str(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_LOCAL_THEME_PATH) in params.compose_file
+
+
+def test_local_theme_compose_overlay_absent_by_default():
+    with patch("os.environ", {}):
+        params = ShellParams()
+        assert str(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_LOCAL_THEME_PATH) not in params.compose_file
