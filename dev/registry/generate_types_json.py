@@ -29,7 +29,14 @@ REGISTRY_DATA_DIR = Path(__file__).parent.parent.parent / "registry" / "src" / "
 
 def main() -> None:
     types_list = [
-        {"id": type_id, "label": info["label"], "icon": info["icon"]}
+        {
+            "id": type_id,
+            "label": info["label"],
+            "icon": info["icon"],
+            # "guide" is optional -- only present for types that deep-link to a
+            # published how-to guide (e.g. "toolset").
+            **({"guide": info["guide"]} if "guide" in info else {}),
+        }
         for type_id, info in MODULE_TYPES.items()
     ]
     output_path = REGISTRY_DATA_DIR / "types.json"

@@ -68,10 +68,15 @@ def load_types_from_py() -> list[dict]:
                     if k is None:
                         continue
                     field_name = _extract_string(k)
-                    if field_name in ("label", "icon"):
+                    if field_name in ("label", "icon", "guide"):
                         info[field_name] = _extract_string(v)
                 if "label" in info and "icon" in info:
-                    result.append({"id": type_id, "label": info["label"], "icon": info["icon"]})
+                    entry = {"id": type_id, "label": info["label"], "icon": info["icon"]}
+                    # "guide" is optional -- only some types deep-link to a published
+                    # how-to guide. Mirrors generate_types_json.py's emission logic.
+                    if "guide" in info:
+                        entry["guide"] = info["guide"]
+                    result.append(entry)
             return result
 
     print(f"ERROR: Could not find MODULE_TYPES in {TYPES_PY}", file=sys.stderr)
