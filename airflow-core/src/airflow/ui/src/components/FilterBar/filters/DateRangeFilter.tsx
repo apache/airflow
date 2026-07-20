@@ -39,13 +39,13 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const {
+    applyDateRange,
     editingState,
     endDateValue,
     formatDisplayValue,
     getFieldError,
     handleDateClick,
     handleInputChange,
-    applyDateRange,
     setEditingState,
     startDateValue,
   } = useDateRangeFilter({
