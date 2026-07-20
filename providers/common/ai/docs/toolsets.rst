@@ -545,7 +545,7 @@ and removes any cloned directories when the ``with`` block exits.
 ------------------
 
 :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` gives the
-agent one tool, ``run_code``, that executes agent-written Python in a
+agent one tool, ``run_python_in_sandbox``, that executes agent-written Python in a
 disposable sandbox provisioned by a
 :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` — off the Airflow
 worker process. Airflow does not inject its context, connections, credentials,
@@ -561,7 +561,7 @@ isolated environment, so the agent can crunch data with the full language and
 whatever the sandbox image provides — at the cost of provisioning a microVM
 per run.
 
-The sandbox is created lazily on the first ``run_code`` call, shared by every
+The sandbox is created lazily on the first ``run_python_in_sandbox`` call, shared by every
 call within the agent run, and destroyed when the run ends. Each call runs a
 fresh interpreter (``python3 -c``), so files written by earlier calls persist
 in the sandbox while in-memory variables do not. A nonzero exit code or a
@@ -664,7 +664,7 @@ Parameters
 
 - ``backend``: The :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`
   that provisions and runs the sandbox.
-- ``timeout``: Timeout in seconds for a single ``run_code`` call.
+- ``timeout``: Timeout in seconds for a single ``run_python_in_sandbox`` call.
   Default ``300``.
 - ``python_command``: Python executable inside the sandbox.
   Default ``"python3"``.
@@ -849,15 +849,15 @@ No single layer is sufficient — they work together.
        shell, filesystem, or network access. Run only trusted servers and
        audit the tools they expose.
    * - **SandboxToolset: off-worker execution**
-     - Executes agent-written code in a disposable sandbox, never in the
+     - Executes agent-written code in a disposable microVM, never in the
        worker process. Airflow does not inject its context, connections,
-       credentials, or worker environment. The Docker backend applies
-       network, privilege, filesystem, memory, CPU, process-count, output,
-       and lifetime limits by default.
-     - Does not sanitize what the code computes or returns. The Docker
-       backend isolates at the container level, not in a microVM. Custom
-       images can contain secrets, hosted backends can expose their own
-       identity, and network access follows the backend's settings.
+       credentials, or worker environment. The backends enforce command
+       timeouts, cap each output stream at 64 KiB, and tear down the sandbox
+       after the run; the islo backend also sets a server-side cleanup TTL.
+     - Does not sanitize what the code computes or returns. Custom images can
+       contain secrets, hosted backends can expose their own identity, and
+       Docker Sandboxes network access follows the host ``sbx policy``. Its
+       CPU allocation defaults to all host CPUs unless explicitly limited.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.

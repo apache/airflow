@@ -79,7 +79,7 @@ class SandboxToolset(AbstractToolset[Any]):
     not inject its context, connections, credentials, or worker environment;
     custom images and hosted backends can still provide their own credentials.
 
-    The sandbox is created lazily on the first ``run_code`` call, shared by
+    The sandbox is created lazily on the first ``run_python_in_sandbox`` call, shared by
     every call within the agent run, and destroyed when the run ends. A run
     that never calls the tool never provisions one.
 
@@ -92,7 +92,7 @@ class SandboxToolset(AbstractToolset[Any]):
     :param backend: Sandbox backend that provisions and runs the sandbox, e.g.
         :class:`~airflow.providers.common.ai.sandbox.SbxSandboxBackend` or
         :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend`.
-    :param timeout: Timeout in seconds for a single ``run_code`` call.
+    :param timeout: Timeout in seconds for a single ``run_python_in_sandbox`` call.
         Default ``300``.
     :param python_command: Python executable inside the sandbox.
         Default ``"python3"``.
