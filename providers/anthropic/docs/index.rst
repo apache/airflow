@@ -19,6 +19,45 @@
 ``apache-airflow-providers-anthropic``
 ======================================
 
+The ``anthropic`` provider gives Dags direct access to Anthropic's own APIs — this page
+compares that choice against ``common.ai``.
+
+When to use this provider
+--------------------------
+
+Use ``anthropic`` when a Dag needs Anthropic's native API surface — services Anthropic runs
+for you, which no vendor-neutral operator wraps:
+
+* ``AnthropicBatchOperator`` and ``AnthropicBatchSensor`` — submit a Claude
+  `Message Batches <https://docs.claude.com/en/docs/build-with-claude/batch-processing>`__
+  job for asynchronous bulk processing and wait for it to complete; Message Batches run at
+  50% of standard cost, with most completing within an hour and a 24-hour SLA.
+* ``AnthropicAgentSessionOperator`` — start a Managed Agents session in which the agent loop
+  runs server-side on Anthropic's infrastructure; the Airflow task only kicks off the session
+  and waits for its outcome.
+
+Use :doc:`apache-airflow-providers-common-ai:index` instead when the AI step should be run by
+Airflow itself and stay vendor-neutral:
+
+* Generation, classification, or structured extraction with ``LLMOperator`` — it works with
+  Claude via a connection, and switching to another model provider later is a connection
+  change, not a Dag rewrite.
+* Agents whose loop runs **in the Airflow worker** with ``AgentOperator`` — Airflow-defined
+  toolsets (SQL, hooks, MCP servers), human-in-the-loop review, and durable step replay.
+
+Both ``AgentOperator`` and ``AnthropicAgentSessionOperator`` run agents with Claude models;
+the difference is where the loop executes and who controls the tools. ``AgentOperator``
+orchestrates the loop in the worker and calls tools you define in the Dag.
+``AnthropicAgentSessionOperator`` hands the whole session to Anthropic's managed service —
+the agent runs autonomously against a pre-created agent and environment, without
+Airflow-side tool execution.
+
+For example, running the Message Batches API directly:
+
+.. exampleinclude:: /../tests/system/anthropic/example_anthropic_batch.py
+    :language: python
+    :start-after: [START howto_operator_anthropic_batch]
+    :end-before: [END howto_operator_anthropic_batch]
 
 .. toctree::
     :hidden:
@@ -34,6 +73,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Quick start <quickstart>
     Connection types <connections>
     Operators <operators/anthropic>
 
@@ -101,24 +141,24 @@ PIP package                                 Version required
 ``anthropic``                               ``>=0.101.0``
 ==========================================  ==================
 
-Optional cross provider package dependencies
---------------------------------------------
+Optional dependencies
+---------------------
 
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-anthropic[common.compat]
+    pip install apache-airflow-providers-anthropic[bedrock]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
+===========  ===============================
+Extra        Dependencies
+===========  ===============================
+``bedrock``  ``anthropic[bedrock]>=0.101.0``
+``vertex``   ``anthropic[vertex]>=0.101.0``
+``aws``      ``anthropic[aws]>=0.101.0``
+===========  ===============================
 
 Downloading official packages
 -----------------------------

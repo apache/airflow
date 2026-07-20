@@ -19,16 +19,21 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import pathlib
 from typing import TYPE_CHECKING, Any
 
 import attrs
 import structlog
-import yaml
 
+from airflow.sdk.coordinators._bundle_metadata import (
+    ResolvedBundle,
+    convert_roots,
+    extract_supervisor_schema_version,
+    parse_metadata_mapping,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -41,16 +46,38 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node"
 
 BUNDLE_FILENAME = "bundle.mjs"
 METADATA_FILENAME = "airflow-metadata.yaml"
+EMBEDDED_METADATA_MARKER = b"//# airflowMetadata="
+EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024
 
 
-def _validate_schema_version(instance, _, value) -> str:
-    return get_schema_version_migrator().resolve_version(str(value))
+def _read_embedded_metadata(bundle_path: pathlib.Path) -> dict[str, Any] | None:
+    """
+    Read the manifest ``airflow-ts-pack`` embeds in the bundle itself.
 
+    The packer prepends the ``airflow-metadata.yaml`` content as a leading
+    ``//# airflowMetadata=<base64>`` line comment, keeping bundle and metadata
+    a single artifact. Returns ``None`` when the bundle has no such marker.
+    """
+    try:
+        with bundle_path.open("rb") as bundle_file:
+            line = bundle_file.readline(EMBEDDED_METADATA_MAX_BYTES + 1)
+    except OSError as exc:
+        raise ValueError(f"cannot read {bundle_path.name}: {exc}") from exc
 
-@attrs.define
-class _NodeBundle:
-    path: pathlib.Path
-    schema_version: str = attrs.field(validator=_validate_schema_version)
+    if not line.startswith(EMBEDDED_METADATA_MARKER):
+        return None
+    if len(line) > EMBEDDED_METADATA_MAX_BYTES:
+        raise ValueError(
+            f"embedded airflow metadata exceeds {EMBEDDED_METADATA_MAX_BYTES} bytes; "
+            f"rebuild {bundle_path.name} with airflow-ts-pack"
+        )
+
+    payload = line[len(EMBEDDED_METADATA_MARKER) :].strip()
+    try:
+        decoded = base64.b64decode(payload, validate=True)
+    except ValueError as exc:
+        raise ValueError(f"cannot parse embedded airflow metadata: {exc}") from exc
+    return parse_metadata_mapping(decoded, source="embedded airflow metadata")
 
 
 def _read_bundle_metadata(metadata_path: pathlib.Path) -> dict[str, Any]:
@@ -58,35 +85,20 @@ def _read_bundle_metadata(metadata_path: pathlib.Path) -> dict[str, Any]:
         raise ValueError(f"missing {METADATA_FILENAME}")
 
     try:
-        with metadata_path.open(encoding="utf-8") as metadata_file:
-            data = yaml.safe_load(metadata_file)
+        content = metadata_path.read_text(encoding="utf-8")
     except OSError as exc:
         raise ValueError(f"cannot read {METADATA_FILENAME}: {exc}") from exc
-    except yaml.YAMLError as exc:
-        raise ValueError(f"cannot parse {METADATA_FILENAME}: {exc}") from exc
 
-    if not isinstance(data, dict):
-        raise ValueError(f"{METADATA_FILENAME} must contain a mapping")
-    return data
+    return parse_metadata_mapping(content, source=METADATA_FILENAME)
 
 
-def _supervisor_schema_version(metadata: dict[str, Any]) -> str:
-    sdk = metadata.get("sdk")
-    if not isinstance(sdk, dict):
-        raise ValueError("missing sdk metadata mapping")
-
-    value = sdk.get("supervisor_schema_version")
-    if not isinstance(value, str) or not value:
-        raise ValueError("missing or invalid sdk.supervisor_schema_version")
-    return value
-
-
-def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
+def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> ResolvedBundle:
     """
     Locate the ``.mjs`` entry point in *bundles_root*.
 
-    Scans each configured directory for ``bundle.mjs`` and reads the sibling
-    ``airflow-metadata.yaml`` for the bundle's supervisor schema version.
+    Scans each configured directory for ``bundle.mjs`` and reads the bundle's
+    supervisor schema version from the metadata embedded in the bundle,
+    falling back to a sibling ``airflow-metadata.yaml`` sidecar.
 
     This is an ordered fallback search, not Dag/task-aware multi-bundle
     routing. The first bundle found wins. A future version can use the
@@ -99,11 +111,13 @@ def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
         if not candidate.is_file():
             continue
         try:
-            metadata = _read_bundle_metadata(root / METADATA_FILENAME)
+            metadata = _read_embedded_metadata(candidate)
+            if metadata is None:
+                metadata = _read_bundle_metadata(root / METADATA_FILENAME)
             log.debug("Selected TypeScript bundle", path=candidate, root=root)
-            return _NodeBundle(
+            return ResolvedBundle(
                 path=candidate,
-                schema_version=_supervisor_schema_version(metadata),
+                schema_version=extract_supervisor_schema_version(metadata),
             )
         except (TypeError, ValueError) as exc:
             log.debug(
@@ -121,16 +135,6 @@ def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
             f"Cannot find usable TypeScript bundle in {searched}: matching bundles were rejected ({details})"
         )
     raise FileNotFoundError(f"Cannot find {BUNDLE_FILENAME} in {searched}")
-
-
-def _convert_bundles_root(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
 
 
 @attrs.define(kw_only=True)
@@ -155,15 +159,17 @@ class NodeCoordinator(SubprocessCoordinator):
         ``"node"``, which relies on ``$PATH``).
     :param bundles_root: Ordered list of directories scanned for a usable
         TypeScript bundle. Each bundle directory must contain ``bundle.mjs``
-        and ``airflow-metadata.yaml``. This is a fallback search path; it does
-        not yet route different Dag/task pairs to different bundles.
+        with embedded metadata (as produced by ``airflow-ts-pack``), or
+        ``bundle.mjs`` plus an ``airflow-metadata.yaml`` sidecar. This is a
+        fallback search path; it does not yet route different Dag/task pairs
+        to different bundles.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
-        converter=_convert_bundles_root,
+        converter=convert_roots,
         validator=attrs.validators.min_len(1),
     )
 

@@ -168,6 +168,14 @@ The snapshot is gitignored — destroying it loses no
 committed work. Do this **before** the new install to avoid
 "new layered on top of old" partial state.
 
+**Sandboxed agents:** the snapshot's nested `.git/` (its
+`config` + `hooks/*.sample`) sits in Claude Code's built-in
+git-internals write-deny set, so this `rm -rf` fails with
+`operation not permitted` and leaves the snapshot half-deleted.
+Propose a sandbox bypass to the operator *before* running it —
+the same propose-then-bypass pattern Step 6c uses for its
+`.claude/` writes.
+
 ## Step 4 — Install per the committed lock
 
 Per `<committed-lock>.method`:
@@ -183,6 +191,13 @@ Per `<committed-lock>.method`:
   `unzip` to `.apache-magpie/`. The verification step is
   **mandatory**; mismatched SHA-512 stops the upgrade and
   surfaces the discrepancy.
+
+**Sandboxed agents (git methods):** writing the clone's nested
+`.apache-magpie/.git/hooks/*.sample` hits the same git-internals
+write-deny set, so `git clone` fails with `operation not
+permitted`. The fetch host is already allowlisted — only the
+local `.git/` write needs the bypass; propose it before cloning,
+as in Step 3.
 
 After install, capture the actual on-disk state for the
 new `<local-lock>`:
@@ -656,6 +671,41 @@ upgrade an ASF adopter actually runs. If a registered MCP is
 missing entirely, point the operator at
 [`adopt.md` Step 9c](adopt.md#step-9c--comdev-mcp-prerequisites-asf-projects)
 to (re-)install it.
+
+## Step 6f — Re-fetch trusted external sources
+
+If `<project-config>/skill-sources.md` lists any source, reconcile
+the source snapshots the same way this upgrade reconciled the
+framework one — but from the **committed
+`.apache-magpie.sources.lock`** pins, not the framework lock, and
+**without** deleting them alongside `<snapshot-dir>` (source
+snapshots are a separate, sibling tree — see
+[Step 3](#step-3--delete-the-old-snapshot), which deletes only
+`.apache-magpie/`):
+
+1. **Source drift.** For each source, compare its
+   `.apache-magpie.sources.lock` block (committed pin) against its
+   `.apache-magpie.sources.local.lock` block (what this machine
+   fetched). Report any gap in the upgrade summary, exactly like
+   the framework drift row.
+2. **Re-fetch per the committed pin.** Run the
+   [`skill-sources`](skill-sources.md) fetch + verify for every
+   trusted source (git-tag `commit` / svn-zip `sha512` re-checked),
+   refresh `.apache-magpie-sources/<id>/`, and refresh the
+   canonical + relay `magpie-<name>` symlinks — adding skills a
+   source newly `provides`, removing ones it dropped, repairing
+   broken links. This is the source counterpart of
+   [Step 6](#step-6--refresh-framework-skill-symlinks).
+3. **Update the source local lock** to the new fetch fingerprint.
+
+Nothing happens when the trust list is absent or empty. Because
+each worktree shares main's `.apache-magpie-sources/` through the
+snapshot symlink [`worktree-init`](worktree-init.md) seeds
+(alongside `<snapshot-dir>`), the refreshed source **content** is
+visible to every worktree immediately; a worktree that predates a
+newly-`provides`-d source skill picks up its per-worktree symlink
+on its next `worktree-init` or
+`/magpie-setup verify --auto-fix-symlinks`.
 
 ## Step 7 — Update `<local-lock>`
 

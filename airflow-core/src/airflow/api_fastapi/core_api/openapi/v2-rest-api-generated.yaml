@@ -79,6 +79,20 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: uri
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: Exact-match filter on the full asset URI. Compiles to an indexed
+            equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+            to match multiple assets.
+          title: Uri
+        description: Exact-match filter on the full asset URI. Compiles to an indexed
+          equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+          to match multiple assets.
       - name: uri_pattern
         in: query
         required: false
@@ -478,6 +492,18 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: extra
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+            (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
+          title: Extra
+        description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+          (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
       - name: timestamp_gte
         in: query
         required: false
@@ -1161,6 +1187,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -1191,6 +1223,85 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BackfillResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/backfills/{backfill_id}/dag_runs:
+    get:
+      tags:
+      - Backfill
+      summary: List Backfill Dag Runs
+      description: List Dag runs associated with a backfill, including skipped slots.
+      operationId: list_backfill_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: backfill_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+          title: Backfill Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`'
+          default:
+          - sort_ordinal
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, sort_ordinal`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackfillDagRunCollectionResponse'
         '401':
           content:
             application/json:
@@ -1416,6 +1527,12 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
         '409':
           description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '503':
+          description: Service Unavailable
           content:
             application/json:
               schema:
@@ -11966,6 +12083,75 @@ components:
       - total_entries
       title: BackfillCollectionResponse
       description: Backfill Collection serializer for responses.
+    BackfillDagRunCollectionResponse:
+      properties:
+        backfill_dag_runs:
+          items:
+            $ref: '#/components/schemas/BackfillDagRunResponse'
+          type: array
+          title: Backfill Dag Runs
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - backfill_dag_runs
+      - total_entries
+      title: BackfillDagRunCollectionResponse
+      description: BackfillDagRun Collection serializer for responses.
+    BackfillDagRunResponse:
+      properties:
+        id:
+          type: integer
+          minimum: 0.0
+          title: Id
+        backfill_id:
+          type: integer
+          minimum: 0.0
+          title: Backfill Id
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+        sort_ordinal:
+          type: integer
+          title: Sort Ordinal
+        exception_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exception Reason
+        dag_run_state:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - backfill_id
+      - dag_id
+      - logical_date
+      - partition_key
+      - sort_ordinal
+      - exception_reason
+      title: BackfillDagRunResponse
+      description: Serializer for a single BackfillDagRun entry with joined DagRun
+        state.
     BackfillPostBody:
       properties:
         dag_id:
@@ -13264,6 +13450,8 @@ components:
         partition_key:
           anyOf:
           - type: string
+            maxLength: 250
+            pattern: \S
           - type: 'null'
           title: Partition Key
         extra:
@@ -14530,6 +14718,7 @@ components:
       type: string
       enum:
       - asset conflict
+      - duplicate dag id
       - non-existent pool
       - runtime varying value
       title: DagWarningType
@@ -15233,6 +15422,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -15335,6 +15529,11 @@ components:
         name:
           type: string
           title: Name
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         macros:
           items:
             type: string
@@ -16766,6 +16965,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       required:

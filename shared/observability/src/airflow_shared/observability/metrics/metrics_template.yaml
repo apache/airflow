@@ -186,6 +186,33 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.loop_exceptions"
+    description: "Number of times the scheduler loop exited with an unhandled exception.
+    Metric with exception_class tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.processed"
+    description: "Number of executor events processed per ``process_executor_events`` call."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.failed"
+    description: "Number of times ``process_executor_events`` raised an exception.
+    Metric with exception_class tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.zombies.detected"
+    description: "Number of zombie task instances detected by the Scheduler.
+    Metric with reason tagging (``heartbeat_timeout``)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.critical_section_busy"
     description: "Count of times a scheduler process tried to get a lock on the critical
     section (needed to send tasks to the executor) and found it locked by another process."
@@ -414,6 +441,12 @@ metrics:
 
   - name: "scheduler.tasks.starving"
     description: "Number of tasks that cannot be scheduled because of no open slot in pool"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.batch_size"
+    description: "Number of executor events in the batch processed per ``process_executor_events`` call."
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -686,6 +719,13 @@ metrics:
   - name: "scheduler.executor_heartbeat_duration"
     description: "Milliseconds spent in ``executor.heartbeat()`` per scheduler loop iteration, tagged
       by executor class name so each configured executor is reported separately."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "triggerer.trigger_queue_delay"
+    description: "Time in milliseconds between a trigger workload being queued and being processed by
+      the TriggerRunner."
     type: "timer"
     legacy_name: "-"
     name_variables: []

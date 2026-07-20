@@ -431,6 +431,10 @@ class ConnectionTestResponse(BaseModel):
     message: Annotated[str, Field(title="Message")]
 
 
+class PartitionKey(RootModel[str]):
+    root: Annotated[str, Field(max_length=250, pattern="\\S", title="Partition Key")]
+
+
 class CreateAssetEventsBody(BaseModel):
     """
     Create asset events request.
@@ -440,7 +444,7 @@ class CreateAssetEventsBody(BaseModel):
         extra="forbid",
     )
     asset_id: Annotated[int, Field(title="Asset Id")]
-    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_key: Annotated[PartitionKey | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     access_control: AssetEventAccessControl | None = None
 
@@ -642,6 +646,7 @@ class DagWarningType(str, Enum):
     """
 
     ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
 
@@ -825,6 +830,7 @@ class MaterializeAssetBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class NewTaskResponse(BaseModel):
@@ -1155,6 +1161,7 @@ class TriggerDAGRunPostBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class TriggerResponse(BaseModel):
@@ -1406,6 +1413,22 @@ class AssetStateStoreResponse(BaseModel):
     value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
     last_updated_by: AssetStateStoreLastUpdatedBy | None = None
+
+
+class BackfillDagRunResponse(BaseModel):
+    """
+    Serializer for a single BackfillDagRun entry with joined DagRun state.
+    """
+
+    id: Annotated[int, Field(ge=0, title="Id")]
+    backfill_id: Annotated[int, Field(ge=0, title="Backfill Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    sort_ordinal: Annotated[int, Field(title="Sort Ordinal")]
+    exception_reason: Annotated[str | None, Field(title="Exception Reason")] = None
+    dag_run_state: DagRunState | None = None
 
 
 class BackfillPostBody(BaseModel):
@@ -1993,6 +2016,7 @@ class PluginResponse(BaseModel):
     """
 
     name: Annotated[str, Field(title="Name")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
     macros: Annotated[list[str], Field(title="Macros")]
     flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
     fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
@@ -2221,6 +2245,15 @@ class BackfillCollectionResponse(BaseModel):
     """
 
     backfills: Annotated[list[BackfillResponse], Field(title="Backfills")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class BackfillDagRunCollectionResponse(BaseModel):
+    """
+    BackfillDagRun Collection serializer for responses.
+    """
+
+    backfill_dag_runs: Annotated[list[BackfillDagRunResponse], Field(title="Backfill Dag Runs")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

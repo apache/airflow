@@ -26,6 +26,41 @@
 Changelog
 ---------
 
+9.32.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add CRUD methods to DynamoDBHook (#69142)``
+* ``Add Amazon Provider Neptune Analytics (#64274)``
+* ``Add team_name tags to Amazon executor metrics (#69072)``
+* ``Add S3CopyPrefixOperator to copy all objects under a prefix (#68946)``
+* ``Add output_files_to_xcom parameter to SageMakerProcessingOperator (#69002)``
+* ``Propagate AWS hook parameters through RedshiftClusterTrigger (#68925)``
+* ``Propagate verify and botocore_config through EC2StateSensorTrigger (#68921)``
+* ``Adds Airflow 3 compatibility in 'try_adopt_task_instances' for BatchExec (#68027)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent path traversal in s3 to sftp/ftp transfer destinations (#68984)``
+* ``Fix SageMakerTransformOperator succeeding on a failed deferred job (#69042)``
+* ``Close S3 download_file handle once the download finishes or fails (#69084)``
+* ``Make Amazon SageMaker triggers inherit AWS base classes (#68927)``
+* ``Persist BatchOperator deferrable xcom links (#64745)``
+* ``Standardize ECS TaskDoneTrigger on region_name and AWS hook parameters (#68923)``
+* ``Fix CloudWatch remote logging for ephemeral lifecycle executor (#68779)``
+* ``Fix Cloudwatch remote logging crash API server if ResourceNotFoundException (#68781)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Thread version_data through BundleInfo to worker-side bundle initialization (#67217)``
+   * ``Fix mypy type errors in DynamoDB example system test (#68849)``
+   * ``Fix AwsBatchExecutor test_try_adopt_task_instances after TaskInstanceDTO hostname requirement (#68871)``
+
 9.31.0
 ......
 
