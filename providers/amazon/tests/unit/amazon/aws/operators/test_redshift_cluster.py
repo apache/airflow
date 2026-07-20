@@ -870,11 +870,36 @@ class TestDeleteClusterOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             delete_cluster._retry_delete_when_settled(
-                context=None, event={"status": "success", "message": "Cluster settled"}
+                context=None, event={"status": "success", "cluster_identifier": "test_cluster"}
             )
 
         assert isinstance(exc.value.trigger, RedshiftDeleteClusterTrigger)
         mock_delete_cluster.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
+    def test_retry_delete_when_settled_uses_cluster_id_from_event(
+        self, mock_delete_cluster, mock_cluster_status
+    ):
+        """The re-issued delete targets the identifier from the trigger event, not the operator field."""
+        mock_delete_cluster.return_value = True
+        mock_cluster_status.return_value = "cluster_not_found"
+        delete_cluster = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="rerendered_different_value",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        delete_cluster._retry_delete_when_settled(
+            context=None, event={"status": "success", "cluster_identifier": "original_cluster"}
+        )
+
+        mock_delete_cluster.assert_called_once_with(
+            cluster_identifier="original_cluster",
+            skip_final_cluster_snapshot=True,
+            final_cluster_snapshot_identifier=None,
+        )
 
     @mock.patch.object(RedshiftHook, "conn")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
@@ -893,7 +918,7 @@ class TestDeleteClusterOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             delete_cluster._retry_delete_when_settled(
-                context=None, event={"status": "success", "message": "Cluster settled"}
+                context=None, event={"status": "success", "cluster_identifier": "test_cluster"}
             )
 
         assert isinstance(exc.value.trigger, RedshiftClusterSettledTrigger)

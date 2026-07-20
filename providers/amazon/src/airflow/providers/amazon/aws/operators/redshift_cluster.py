@@ -976,6 +976,7 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error waiting for cluster to become deletable: {validated_event}")
 
+        self.cluster_identifier = validated_event["cluster_identifier"]
         self._delete_or_defer_until_settled()
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
