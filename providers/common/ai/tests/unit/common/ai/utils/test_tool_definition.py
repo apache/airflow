@@ -53,6 +53,19 @@ TOOL_SCHEMA = {
 }
 
 
+NESTED_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "config": {
+            "type": "object",
+            "properties": {"port": {"type": "integer"}},
+            "required": ["port"],
+        },
+    },
+    "required": ["config"],
+}
+
+
 def _validate(validator, args: dict, use_json: bool):
     if use_json:
         return validator.validate_json(json.dumps(args))
@@ -126,3 +139,25 @@ class TestBuildArgsValidator:
     def test_empty_properties_accepts_empty_args(self, use_json):
         validator = build_args_validator({"type": "object", "properties": {}, "required": []})
         assert _validate(validator, {}, use_json) == {}
+
+    def test_nested_object_validated_recursively(self, use_json):
+        validator = build_args_validator(NESTED_SCHEMA)
+        assert _validate(validator, {"config": {"port": "5432"}}, use_json) == {"config": {"port": 5432}}
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            {"config": {"port": "not-an-int"}},
+            {"config": {}},
+        ],
+    )
+    def test_nested_object_invalid_rejected(self, args, use_json):
+        validator = build_args_validator(NESTED_SCHEMA)
+        with pytest.raises(ValidationError):
+            _validate(validator, args, use_json)
+
+    def test_untyped_nested_object_passthrough(self, use_json):
+        schema = {"type": "object", "properties": {"payload": {"type": "object"}}}
+        validator = build_args_validator(schema)
+        args = {"payload": {"any": 1, "deep": {"k": "v"}}}
+        assert _validate(validator, args, use_json) == args

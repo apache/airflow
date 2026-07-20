@@ -79,19 +79,34 @@ def _fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.CoreSchema
                 _fragment_to_core_schema(items) if isinstance(items, dict) else None
             )
         case "object":
-            return core_schema.dict_schema()
+            return _object_fragment_to_core_schema(fragment)
         case _:
             return core_schema.any_schema()
 
 
-def build_args_validator(parameters_json_schema: dict[str, Any]) -> SchemaValidator:
-    """Build an argument validator from the schema advertised to the model."""
-    required = set(parameters_json_schema.get("required", []))
+def _object_fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.CoreSchema:
+    """
+    Convert a JSON Schema ``object`` fragment to a core schema.
+
+    A fragment with no ``properties`` key is an untyped object (e.g. from a
+    ``dict[K, V]`` annotation): accept any dict rather than stripping its
+    contents. When ``properties`` is present, build a typed-dict that validates
+    each declared field recursively — nested objects are handled the same way
+    arrays already recurse into ``items``.
+    """
+    if "properties" not in fragment:
+        return core_schema.dict_schema()
+    required = set(fragment.get("required", []))
     fields = {
         name: core_schema.typed_dict_field(_fragment_to_core_schema(prop), required=name in required)
-        for name, prop in parameters_json_schema.get("properties", {}).items()
+        for name, prop in fragment["properties"].items()
     }
     extra_behavior: Literal["allow", "ignore"] = (
-        "allow" if parameters_json_schema.get("additionalProperties") is True else "ignore"
+        "allow" if fragment.get("additionalProperties") is True else "ignore"
     )
-    return SchemaValidator(core_schema.typed_dict_schema(fields, extra_behavior=extra_behavior))
+    return core_schema.typed_dict_schema(fields, extra_behavior=extra_behavior)
+
+
+def build_args_validator(parameters_json_schema: dict[str, Any]) -> SchemaValidator:
+    """Build an argument validator from the schema advertised to the model."""
+    return SchemaValidator(_object_fragment_to_core_schema(parameters_json_schema))
