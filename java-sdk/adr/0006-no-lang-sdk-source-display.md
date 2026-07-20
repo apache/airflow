@@ -98,11 +98,7 @@ Concretely, none of the following is implemented:
    functions already display a file that does not contain the "real" definition. Mixed-language
    Dags are another instance of a known, accepted limitation — not a new gap that must be
    closed.
-4. **Per-Dag source slicing hides information.** Many existing Dags depend on module-level
-   variables and shared context in their file. Filtering the source view per-Dag to avoid
-   sibling artifact leakage would end up hiding information users actually need; the whole-file
-   view is the safer default.
-5. **The problem is transient and will be rare.** Once Dags can be natively authored in other
+4. **The problem is transient and will be rare.** Once Dags can be natively authored in other
    languages (pure Java Dags per [ADR-0003](0003-pure-java-dags.md) /
    [ADR-0004](0004-dag-parsing.md), likely after AIP-85 stabilises), authors who care about
    seeing Lang-SDK code in the UI can write native Lang-SDK Dags, whose entrypoint source is
@@ -114,8 +110,8 @@ Concretely, none of the following is implemented:
 
 - **Full proposal (per-Dag multi-file `get_source_code` + multiple `DagCode` rows per
   `DagVersion` + REST/UI changes).** Rejected: interface and schema complexity, atomic
-  multi-row write semantics, artifact-hash coupling into `dag_hash`, and per-Dag filtering
-  that hides shared file context — all for a rare and transient case.
+  multi-row write semantics, and artifact-hash coupling into `dag_hash` — all for a rare and
+  transient case.
 - **Show only the Lang-SDK entrypoint file as a second tab.** Rejected: Java code tends to be
   spread across many small files, so the entrypoint alone has limited value, yet this still
   requires nearly all of the same schema, API, and UI changes.
