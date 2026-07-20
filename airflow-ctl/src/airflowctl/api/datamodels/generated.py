@@ -695,6 +695,7 @@ class Destination(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    ASSET = "asset"
     BASE = "base"
 
 
@@ -931,6 +932,7 @@ class Destination1(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    ASSET = "asset"
     BASE = "base"
     DASHBOARD = "dashboard"
 

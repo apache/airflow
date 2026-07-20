@@ -20,11 +20,14 @@ import { Spinner } from "@chakra-ui/react";
 import { type FC, lazy, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
+import { useAssetServiceGetAsset } from "openapi/queries";
 import type { ReactAppResponse } from "openapi/requests/types.gen";
 
 import { ErrorPage } from "./Error";
 
 export type PluginProps = {
+  assetId?: string;
+  assetUri?: string;
   dagId?: string;
   mapIndex?: string;
   runId?: string;
@@ -62,7 +65,16 @@ const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginCompon
     });
 
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
-  const { dagId, mapIndex, runId, taskId } = useParams();
+  const { assetId, dagId, mapIndex, runId, taskId } = useParams();
+
+  // The asset URI is not part of the route, so resolve it from the asset record. This is a
+  // cache hit because the asset details page has already fetched it.
+  const { data: asset } = useAssetServiceGetAsset(
+    { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
+    undefined,
+    { enabled: Boolean(assetId) },
+  );
+  const assetUri = asset?.uri;
 
   // If the plugin component was already registered on the global object by a previous load,
   // render it directly without going through Suspense/lazy (avoids flashing the spinner).
@@ -71,7 +83,16 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
   if (typeof existing === "function") {
     const Plugin = existing as PluginComponentType;
 
-    return <Plugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />;
+    return (
+      <Plugin
+        assetId={assetId}
+        assetUri={assetUri}
+        dagId={dagId}
+        mapIndex={mapIndex}
+        runId={runId}
+        taskId={taskId}
+      />
+    );
   }
 
   // Otherwise, lazy-load the bundle once. When it resolves, it must set a function component
@@ -80,7 +101,14 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
 
   return (
     <Suspense fallback={<Spinner />}>
-      <LazyPlugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+      <LazyPlugin
+        assetId={assetId}
+        assetUri={assetUri}
+        dagId={dagId}
+        mapIndex={mapIndex}
+        runId={runId}
+        taskId={taskId}
+      />
     </Suspense>
   );
 };
