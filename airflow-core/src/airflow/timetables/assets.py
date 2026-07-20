@@ -35,6 +35,13 @@ if typing.TYPE_CHECKING:
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 
 
+def _validate_asset_time_schedule(*, timetable: Timetable, asset_condition: SerializedAssetBase) -> None:
+    if timetable.asset_triggered or timetable.asset_gated:
+        raise AirflowTimetableInvalid("cannot nest asset-aware timetables")
+    if not isinstance(asset_condition, SerializedAssetBase):
+        raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
+
+
 class AssetOrTimeSchedule(AssetTriggeredTimetable):
     """Combine time-based scheduling with event-based scheduling."""
 
@@ -61,10 +68,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         )
 
     def validate(self) -> None:
-        if self.timetable.asset_triggered or self.timetable.asset_gated:
-            raise AirflowTimetableInvalid("cannot nest asset-aware timetables")
-        if not isinstance(self.asset_condition, SerializedAssetBase):
-            raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
+        _validate_asset_time_schedule(
+            timetable=self.timetable,
+            asset_condition=self.asset_condition,
+        )
 
     def serialize(self) -> dict[str, typing.Any]:
         from airflow.serialization.encoders import encode_asset_like, encode_timetable
@@ -143,10 +150,10 @@ class AssetAndTimeSchedule(Timetable):
         }
 
     def validate(self) -> None:
-        if self.timetable.asset_triggered or self.timetable.asset_gated:
-            raise AirflowTimetableInvalid("cannot nest asset-aware timetables")
-        if not isinstance(self.asset_condition, SerializedAssetBase):
-            raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
+        _validate_asset_time_schedule(
+            timetable=self.timetable,
+            asset_condition=self.asset_condition,
+        )
 
     @property
     def summary(self) -> str:
