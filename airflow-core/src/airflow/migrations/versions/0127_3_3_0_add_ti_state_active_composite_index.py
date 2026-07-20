@@ -30,7 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "c7e1f40d6e24"
-down_revision = "d2f4e1b3c5a7"
+down_revision = "c4e7a1f9b2d0"
 branch_labels = None
 depends_on = None
 airflow_version = "3.3.0"
