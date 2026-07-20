@@ -161,8 +161,12 @@ class TableScan(NamedTuple):
     #: Human-readable descriptions of constructs that cannot be checked against an
     #: allow-list and so must be rejected while one is active: table-valued functions
     #: (``dblink``), ``TABLE('name')`` row sources, ``SHOW``, dynamic SQL
-    #: (``EXEC``/``Command``), inline comments (a parser-vs-engine differential), and
-    #: the ``TABLE <name>`` shorthand. Empty when every construct is verifiable.
+    #: (``EXEC``/``Command``), inline comments (a parser-vs-engine differential), the
+    #: ``TABLE <name>`` shorthand, a quoted identifier (case-sensitive on the engine but
+    #: matched case-insensitively here), ``COPY`` (file/program I/O), and any function
+    #: sqlglot cannot type (``exp.Anonymous``) that is not in ``allowed_functions`` -- the
+    #: channel through which ``pg_read_file`` / ``query_to_xml`` / scalar ``dblink`` reach
+    #: data with no table node. Empty when every construct is verifiable.
     unverifiable_sources: list[str]
 
 
@@ -244,7 +248,9 @@ def _is_in_scope_cte(table: exp.Table) -> bool:
     return False
 
 
-def collect_table_references(statements: list[exp.Expr]) -> TableScan:
+def collect_table_references(
+    statements: list[exp.Expr], allowed_functions: frozenset[str] = frozenset()
+) -> TableScan:
     """
     Walk parsed statements and report every real table they reach, scope-correctly.
 
@@ -270,11 +276,27 @@ def collect_table_references(statements: list[exp.Expr]) -> TableScan:
       ``TABLE <name>`` shorthand (which sqlglot parses incorrectly, leaking the
       ``TABLE`` keyword as a column), a **quoted identifier** (case-sensitive on the engine but
       matched case-insensitively here, so ``"Orders"`` could otherwise reach a table
-      distinct from the allow-listed ``orders``), and **any inline comment** --
+      distinct from the allow-listed ``orders``), **any inline comment** --
       comments are where parser-vs-engine differentials hide (MySQL executable
-      ``/*! ... */``, ``--`` not followed by whitespace, ``#``).
+      ``/*! ... */``, ``--`` not followed by whitespace, ``#``) -- and **COPY**
+      (file/program I/O whose data channel is not a table).
+    - **Any function sqlglot does not recognise is rejected (fail-closed).** A function
+      whose argument is a file path or a SQL string -- ``pg_read_file`` (a file),
+      ``query_to_xml`` (SQL over another table), a scalar ``dblink`` (a remote database) --
+      reaches data with no ``exp.Table`` node for the walk to catch. Rather than enumerate
+      every such function (a denylist is unbounded, engine-specific, and fails *open* on
+      anything missed), this rejects every unrecognised function: sqlglot models these as
+      ``exp.Anonymous``, while ordinary builtins (``count``, ``lower``) parse to typed
+      ``exp.Func`` subclasses. Legitimate builtins sqlglot does not type
+      (``json_build_object``, ``jsonb_agg``, ``age``) and bespoke UDFs are also
+      ``exp.Anonymous``; pass their names in ``allowed_functions`` to permit them. This is
+      consistent with the module's allowlist philosophy -- an incomplete allow-list refuses
+      a query (recoverable), it never leaks.
 
     :param statements: Parsed sqlglot statements (from :func:`parse_sql`).
+    :param allowed_functions: Case-folded names of otherwise-unrecognised functions to
+        allow (e.g. ``{"json_build_object"}``). Empty by default, so every function
+        sqlglot cannot type is rejected while an allow-list is active.
     :return: A :class:`TableScan` of real table references and unverifiable constructs.
     """
     tables: list[tuple[str, str, str]] = []
@@ -288,6 +310,38 @@ def collect_table_references(statements: list[exp.Expr]) -> TableScan:
         # data through text the parser cannot inspect.
         if isinstance(stmt, (exp.Command, exp.Execute)):
             unverifiable.append(f"a {type(stmt).__name__.lower()} statement")
+            continue
+        # COPY moves data between a table and the server filesystem or a spawned program
+        # (``COPY t FROM/TO PROGRAM '...'``, ``COPY t FROM/TO '<file>'``). The table it
+        # names is real and allow-listed, but the data channel -- a file or a program --
+        # is not a table the allow-list can describe, and ``FROM PROGRAM`` is arbitrary
+        # command execution. Top-level COPY is already blocked in read-only mode by the
+        # statement-type allow-list; this also refuses it under ``allow_writes`` while an
+        # allow-list is active, where only this scan runs.
+        if isinstance(stmt, exp.Copy):
+            unverifiable.append("a COPY statement")
+            continue
+        # A function whose string argument reaches a file, another table, or a program
+        # (``pg_read_file``, ``query_to_xml``, scalar ``dblink``, ...) carries no
+        # ``exp.Table`` node, so the table scan below cannot see it. sqlglot parses any
+        # function it cannot type as ``exp.Anonymous`` (typed builtins like ``count`` are
+        # ``exp.Func`` subclasses), so reject every ``exp.Anonymous`` not explicitly
+        # allow-listed rather than chase an unbounded denylist of dangerous names. A
+        # schema-qualified call (``pg_catalog.pg_read_file(...)``) parses as
+        # ``Dot(this=..., expression=Anonymous)`` with the bare name on the nested
+        # ``Anonymous``, so ``find_all`` still reaches it.
+        unknown = sorted(
+            {
+                name
+                for fn in stmt.find_all(exp.Anonymous)
+                if (name := fn.name.casefold()) not in allowed_functions
+            }
+        )
+        if unknown:
+            unverifiable.append(
+                f"function(s) the parser cannot verify against allowed_tables "
+                f"({', '.join(unknown)}); if safe, permit them via allowed_functions"
+            )
             continue
 
         # A comment is a parser-vs-engine differential vector: sqlglot drops it, but the

@@ -567,6 +567,103 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         assert "cannot be checked against allowed_tables" in exc_info.value.message
         ts._hook.get_records.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            # File read (needs a privileged role) and table exfiltration (needs only a
+            # read role) -- the two headline classes. The full function family is covered
+            # at the unit layer (test_sql_validation.py); here we prove the wiring.
+            "SELECT pg_read_file('/etc/passwd')",
+            "SELECT query_to_xml('SELECT * FROM secret_salaries', true, false, '')",
+        ],
+        ids=["pg_read_file", "query_to_xml"],
+    )
+    def test_query_blocks_data_reaching_functions(self, sql):
+        """A function reaching a file/other table/program carries no table node, so it
+        would otherwise slip past the allow-list. It must be refused before execution,
+        surfaced as a ModelRetry, with the query never handed to the database."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, sql)
+
+        assert "cannot be checked against allowed_tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_query_blocks_copy_from_program_under_allow_writes(self):
+        """COPY ... FROM PROGRAM is OS command execution. Even with allow_writes=True (only
+        the table scan runs there), the allow-list must refuse it -- its allow-listed target
+        table does not make the program channel safe."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "COPY orders FROM PROGRAM 'id > /tmp/x'")
+
+        assert "cannot be checked against allowed_tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_check_query_reports_data_reaching_function_invalid(self):
+        """check_query surfaces the same rejection so the agent learns before executing."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        result = _run_check(ts, "SELECT pg_read_file('/etc/passwd')")
+
+        assert result["valid"] is False
+        assert "cannot be checked against allowed_tables" in result["error"]
+
+    def test_query_allows_typed_builtins_over_allowed_table(self):
+        """sqlglot-recognised builtins over an allowed table pass without allowed_functions."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook(records=[(2,)], last_description=[("n",)])
+        ts._hook.dialect_name = "postgresql"
+
+        result = _run_query(ts, "SELECT count(*), lower(name) FROM orders")
+
+        assert "rows" in json.loads(result)
+        ts._hook.get_records.assert_called_once_with("SELECT count(*), lower(name) FROM orders")
+
+    def test_query_blocks_unrecognized_function_by_default(self):
+        """Fail-closed: a legit-but-unrecognised builtin (json_build_object) is refused
+        until the operator permits it, so an unknown function can never slip through."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"])
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "SELECT json_build_object('id', id) FROM orders")
+
+        assert "cannot be checked against allowed_tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
+    def test_query_allows_function_named_in_allowed_functions(self):
+        """allowed_functions is the opt-in escape hatch for a safe unrecognised function."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allowed_functions=["json_build_object"])
+        ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("obj",)])
+        ts._hook.dialect_name = "postgresql"
+
+        result = _run_query(ts, "SELECT json_build_object('id', id) FROM orders")
+
+        assert "rows" in json.loads(result)
+        ts._hook.get_records.assert_called_once_with("SELECT json_build_object('id', id) FROM orders")
+
+    def test_allowed_functions_does_not_permit_a_dangerous_sibling(self):
+        """Permitting one function does not open the door to another unlisted one."""
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allowed_functions=["json_build_object"])
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _run_query(ts, "SELECT json_build_object('x', pg_read_file('/etc/passwd')) FROM orders")
+
+        assert "cannot be checked against allowed_tables" in exc_info.value.message
+        ts._hook.get_records.assert_not_called()
+
     def test_query_blocks_show_when_allowlist_active(self):
         ts = SQLToolset("sf_default", allowed_tables=["orders"])
         ts._hook = _make_mock_db_hook()

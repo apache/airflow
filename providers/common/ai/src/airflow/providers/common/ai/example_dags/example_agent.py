@@ -65,6 +65,13 @@ if SQLToolset is not None:
                 "the schema and answer the question with data."
             ),
             toolsets=[
+                # ``allowed_tables`` scopes the agent's intent, but it is an
+                # application-level guardrail, not a security boundary. Point
+                # ``postgres_default`` at a least-privilege role whose SELECT grants
+                # are limited to these tables -- that is the boundary that holds even
+                # if the agent (which may be under prompt injection) reaches for data
+                # through a function the parser cannot see. See the "Security" section
+                # of the toolsets docs.
                 SQLToolset(
                     db_conn_id="postgres_default",
                     allowed_tables=["customers", "orders"],
