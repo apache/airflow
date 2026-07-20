@@ -70,6 +70,7 @@ from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
@@ -484,6 +485,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         # The following should be removed when Airflow 2 support is dropped.
         "triggering_dataset_events",
     }
+    if AIRFLOW_V_3_4_PLUS:
+        AIRFLOW_SERIALIZABLE_CONTEXT_KEYS.add("extra_links")
 
     def __init__(
         self,
