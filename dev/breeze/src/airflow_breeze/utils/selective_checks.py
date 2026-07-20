@@ -32,6 +32,8 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    CI_AMD_PLATFORM,
+    CI_ARM_PLATFORM,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -51,7 +53,6 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
-    RUNNERS_TYPE_CROSS_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATION_OWNERS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
@@ -92,6 +93,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
+AREA_E2E_TESTS_LABEL = "area:e2e-tests"
 AREA_KUBERNETES_TESTS_LABEL = "area:kubernetes-tests"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
@@ -134,6 +136,7 @@ class FileGroupForCi(Enum):
     GO_SDK_E2E_FILES = auto()
     OPENLINEAGE_E2E_FILES = auto()
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
+    TS_SDK_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -269,6 +272,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
+        ],
+        FileGroupForCi.TS_SDK_E2E_FILES: [
+            r"^ts-sdk/(?!.*\.md$).*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/ts_sdk_tests/.*",
+            r"^airflow-e2e-tests/docker/ts\.yml$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -683,6 +693,7 @@ class SelectiveChecks:
         github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
         github_actor: str = "",
         github_context_dict: dict[str, Any] | None = None,
+        platform: str = CI_AMD_PLATFORM,
     ):
         self._files = files
         self._default_branch = default_branch
@@ -693,6 +704,7 @@ class SelectiveChecks:
         self._github_repository = github_repository
         self._github_actor = github_actor
         self._github_context_dict = github_context_dict or {}
+        self._platform = platform
         self._new_toml: dict[str, Any] = {}
         self._old_toml: dict[str, Any] = {}
 
@@ -1076,6 +1088,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
 
     @cached_property
+    def run_ts_sdk_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_E2E_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1205,6 +1221,12 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
+        if AREA_E2E_TESTS_LABEL in self._pr_labels:
+            console_print(
+                "[warning]Building the PROD image to run Airflow E2E tests because "
+                f"label '{AREA_E2E_TESTS_LABEL}' is in {self._pr_labels}[/]"
+            )
+            return True
         return (
             self.run_kubernetes_tests
             or self.run_helm_tests
@@ -1219,6 +1241,7 @@ class SelectiveChecks:
             or self.run_go_sdk_e2e_tests
             or self.run_openlineage_e2e_tests
             or self.run_openlineage_e2e_compat_tests
+            or self.run_ts_sdk_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1400,7 +1423,7 @@ class SelectiveChecks:
 
     @cached_property
     def _platform_excluded_providers(self) -> set[str]:
-        """Provider ids that opt out of the current ``self.platform`` via provider.yaml.
+        """Provider ids that opt out of the current platform via provider.yaml.
 
         Mirrors the ``excluded-python-versions`` mechanism but keyed by Docker platform
         string (e.g. ``linux/arm64``) so providers whose native dependencies are unavailable
@@ -1408,7 +1431,7 @@ class SelectiveChecks:
         """
         excluded: set[str] = set()
         for provider_id, provider_info in get_provider_dependencies().items():
-            if self.platform in provider_info.get("excluded-platforms", []):
+            if self._platform in provider_info.get("excluded-platforms", []):
                 excluded.add(provider_id)
         return excluded
 
@@ -1803,80 +1826,6 @@ class SelectiveChecks:
         suspended = set(get_suspended_provider_ids())
         return " ".join(sorted(p for p in affected_providers if p not in suspended))
 
-    def get_job_label(self, event_type: str, branch: str):
-        import requests  # type: ignore[import-untyped]
-
-        # The main CI is now split into ci-arm.yml and ci-amd.yml; the old
-        # ci-amd-arm.yml file no longer exists. This lookup is dormant for the
-        # main pipeline (which hardcodes runner-type per wrapper) and only
-        # remains here for the `is_disabled_integration` code path that still
-        # reads `runner_type`. The API call against a missing workflow returns
-        # nothing and the caller falls back to PUBLIC_AMD_RUNNERS.
-        job_name = "Basic tests"
-        workflow_name = "ci-amd-arm.yml"
-        headers = {"Accept": "application/vnd.github.v3+json"}
-        if os.environ.get("GITHUB_TOKEN"):
-            headers["Authorization"] = f"token {os.environ.get('GITHUB_TOKEN')}"
-
-        url = f"https://api.github.com/repos/{self._github_repository}/actions/workflows/{workflow_name}/runs"
-        payload = {"event": event_type, "status": "completed", "branch": branch}
-
-        response = requests.get(url, headers=headers, params=payload)
-        if response.status_code != 200:
-            try:
-                error_msg = response.json()
-            except ValueError:
-                error_msg = response.text[:200]  # Truncate long HTML responses
-            console_print(f"[red]Error while listing workflow runs error: {error_msg}.\n")
-            return None
-        runs = response.json().get("workflow_runs", [])
-        if not runs:
-            console_print(
-                f"[yellow]No runs information found for workflow {workflow_name}, params: {payload}.\n"
-            )
-            return None
-        jobs_url = runs[0].get("jobs_url")
-        jobs_response = requests.get(jobs_url, headers=headers)
-        if jobs_response.status_code != 200:
-            try:
-                error_msg = jobs_response.json()
-            except ValueError:
-                error_msg = jobs_response.text[:200]
-            console_print(f"[red]Error while listing jobs error: {error_msg}.\n")
-            return None
-        jobs = jobs_response.json().get("jobs", [])
-        if not jobs:
-            console_print("[yellow]No jobs information found for jobs %s.\n", jobs_url)
-            return None
-
-        for job in jobs:
-            if job_name in job.get("name", ""):
-                runner_labels = job.get("labels", [])
-                if "windows-2025" in runner_labels:
-                    continue
-                if not runner_labels:
-                    console_print("[yellow]No labels found for job {job_name}.\n", jobs_url)
-                    return None
-                return runner_labels[0]
-
-        return None
-
-    @cached_property
-    def runner_type(self):
-        if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
-            branch = self._github_context_dict.get("ref_name", "main")
-            label = self.get_job_label(event_type=str(self._github_event.value), branch=branch)
-
-            return RUNNERS_TYPE_CROSS_MAPPING.get(label, PUBLIC_AMD_RUNNERS) if label else PUBLIC_AMD_RUNNERS
-
-        return PUBLIC_AMD_RUNNERS
-
-    @cached_property
-    def platform(self):
-        if "arm" in self.runner_type:
-            return "linux/arm64"
-        return "linux/amd64"
-
     @cached_property
     def amd_runners(self) -> str:
         return PUBLIC_AMD_RUNNERS
@@ -1913,10 +1862,8 @@ class SelectiveChecks:
         return json.dumps(sorted_providers_to_exclude)
 
     def _is_disabled_integration(self, integration: str) -> bool:
-        return (
-            integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-            or integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM
-            and self.runner_type in PUBLIC_ARM_RUNNERS
+        return integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI or (
+            integration in DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM and self._platform == CI_ARM_PLATFORM
         )
 
     @cached_property

@@ -1341,7 +1341,18 @@ class KubernetesPodOperator(BaseOperator):
         if not pod:
             return False
 
-        remote_pod = self.pod_manager.read_pod(pod)
+        try:
+            remote_pod = self.pod_manager.read_pod(pod)
+        except ApiException as e:
+            if e.status == 404:
+                # Pod was likely GC'd between the trigger firing and re-entry
+                log.warning(
+                    "Pod %s/%s not found during istio check.",
+                    pod.metadata.namespace,
+                    pod.metadata.name,
+                )
+                return False
+            raise e
 
         return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
 
