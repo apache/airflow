@@ -8293,7 +8293,7 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
-    { name = "weaviate-client", specifier = ">=4.4.0,!=4.16.7" },
+    { name = "weaviate-client", specifier = ">=4.16.0,!=4.16.7" },
 ]
 
 [package.metadata.requires-dev]
