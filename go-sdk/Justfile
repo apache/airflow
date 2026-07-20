@@ -50,3 +50,7 @@ protoc:
 # Regenerate the coordinator-protocol data models from the task-sdk supervisor schema
 generate-models:
   go generate ./pkg/execution/genmodels/...
+
+# Regenerate the bundle spec structs from the Airflow dag-serialization schema
+generate-specs:
+  go generate ./bundle/bundlev1/...

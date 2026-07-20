@@ -172,7 +172,13 @@ func TestSerializeTaskDefaultQueueOmitted(t *testing.T) {
 	assert.False(t, hasQueue, "queue=\"default\" matches the schema default and should be omitted")
 }
 
-func TestApplyTaskSpec_EmitsAndOmits(t *testing.T) {
+func applySpecFields(data map[string]any, s bundlev1.TaskSpec) {
+	for k, v := range s.SchemaFields() {
+		data[k] = unwrapTypeEncoding(serializeValue(v))
+	}
+}
+
+func TestTaskSpecSchemaFields_EmitsAndOmits(t *testing.T) {
 	spec := bundlev1.TaskSpec{
 		Queue:                   "gpu",
 		Pool:                    "gpu_pool",
@@ -198,7 +204,7 @@ func TestApplyTaskSpec_EmitsAndOmits(t *testing.T) {
 		MaxActiveTisPerDagrun:   1,
 	}
 	data := map[string]any{}
-	applyTaskSpec(data, spec)
+	applySpecFields(data, spec)
 
 	assert.Equal(t, "gpu", data["queue"])
 	assert.Equal(t, "gpu_pool", data["pool"])
@@ -224,7 +230,7 @@ func TestApplyTaskSpec_EmitsAndOmits(t *testing.T) {
 	assert.Equal(t, 1, data["max_active_tis_per_dagrun"])
 }
 
-func TestApplyTaskSpec_OmitsSchemaDefaults(t *testing.T) {
+func TestTaskSpecSchemaFields_OmitsSchemaDefaults(t *testing.T) {
 	// Values equal to schema defaults must be dropped.
 	spec := bundlev1.TaskSpec{
 		Queue:          "default",
@@ -241,13 +247,13 @@ func TestApplyTaskSpec_OmitsSchemaDefaults(t *testing.T) {
 		EmailOnRetry:   bundlev1.Bool(true),
 	}
 	data := map[string]any{}
-	applyTaskSpec(data, spec)
+	applySpecFields(data, spec)
 	assert.Empty(t, data, "all fields equal schema defaults; nothing should be emitted")
 }
 
-func TestApplyTaskSpec_EmptySpecNoOp(t *testing.T) {
+func TestTaskSpecSchemaFields_EmptySpecNoOp(t *testing.T) {
 	data := map[string]any{}
-	applyTaskSpec(data, bundlev1.TaskSpec{})
+	applySpecFields(data, bundlev1.TaskSpec{})
 	assert.Empty(t, data)
 }
 
