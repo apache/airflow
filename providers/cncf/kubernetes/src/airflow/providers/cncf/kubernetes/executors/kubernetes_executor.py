@@ -391,13 +391,7 @@ class KubernetesExecutor(BaseExecutor):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
-    @provide_session
-    def _should_create_pod_for_job(
-        self,
-        task: KubernetesJob,
-        *,
-        session: Session = NEW_SESSION,
-    ) -> bool:
+    def _should_create_pod_for_job(self, task: KubernetesJob) -> bool:
         """
         Check whether an executor job still represents the current queued task instance.
 
@@ -408,13 +402,28 @@ class KubernetesExecutor(BaseExecutor):
         immutable task instance id and launch ownership here prevents an obsolete workload from creating
         a stale worker pod.
         """
-        from airflow.executors.workloads import ExecuteTask
-        from airflow.models.taskinstance import TaskInstance
+        try:
+            from airflow.executors.workloads import ExecuteTask
+        except ImportError:
+            # Compatibility with older Airflow versions tested by provider compatibility jobs.
+            return True
 
         if not task.command or not isinstance(task.command[0], ExecuteTask):
             return True
 
-        workload = task.command[0]
+        return self._should_create_pod_for_execute_task(task, task.command[0])
+
+    @provide_session
+    def _should_create_pod_for_execute_task(
+        self,
+        task: KubernetesJob,
+        workload: Any,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> bool:
+        """Check that an ``ExecuteTask`` workload still owns the queued task instance row."""
+        from airflow.models.taskinstance import TaskInstance
+
         workload_ti = workload.ti
         try:
             scheduler_job_id = int(self.scheduler_job_id) if self.scheduler_job_id is not None else None

@@ -632,6 +632,12 @@ metrics:
     legacy_name: "-"
     name_variables: ["status"]
 
+  - name: "kubernetes_executor.stale_workload_dropped"
+    description: "Number of stale KubernetesExecutor workloads dropped before worker pod creation."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "kubernetes_executor.pod_deletion_status"
     description: "Number of Kubernetes delete_namespaced_pod calls from the Kubernetes Executor,
     tagged by HTTP response status (``200`` on success, the ``ApiException`` status code on failure)."
