@@ -5834,7 +5834,7 @@ class TestCallbackSpans:
         return provider.get_tracer("test")
 
     def test_state_change_callback_span_at_level_2(self):
-        """A state-change callback gets a callback.<kind> span carrying kind/index/name attributes."""
+        """A state-change callback gets a callback.<kind> span carrying index/name attributes."""
         exporter = InMemorySpanExporter()
         t = self._make_tracer(exporter)
         parent_ctx = TraceContextTextMapPropagator().extract(
@@ -5853,7 +5853,6 @@ class TestCallbackSpans:
         spans = {s.name: s for s in exporter.get_finished_spans()}
         assert "callback.on_failure_callback" in spans
         attrs = spans["callback.on_failure_callback"].attributes
-        assert attrs["airflow.callback.kind"] == "on_failure_callback"
         assert attrs["airflow.callback.index"] == 0
         assert attrs["airflow.callback.name"] == "my_callback"
 

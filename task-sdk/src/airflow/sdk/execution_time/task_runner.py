@@ -1989,7 +1989,6 @@ def _run_task_state_change_callbacks(
             with detail_span(
                 f"callback.{kind}",
                 attributes={
-                    "airflow.callback.kind": kind,
                     "airflow.callback.index": i,
                     "airflow.callback.name": getattr(callback, "__name__", repr(callback)),
                 },
