@@ -447,6 +447,25 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Classifying provider changes
+""""""""""""""""""""""""""""
+
+You can use Breeze to classify each provider's unreleased changes using hard-coded,
+high-confidence rules, flagging ambiguous commits as ``needs_llm`` for an agent or skill
+to assess. The result is emitted as JSON, providing a deterministic alternative to the
+``--non-interactive`` documentation run used purely for change discovery.
+
+The below example classifies the pending changes for all providers.
+
+.. code-block:: bash
+
+     breeze release-management classify-provider-changes
+
+.. image:: ./images/output_release-management_classify-provider-changes.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_classify-provider-changes.svg
+  :width: 100%
+  :alt: Breeze classify-provider-changes
+
 Updating provider next version
 """"""""""""""""""""""""""""""
 
@@ -1060,6 +1079,39 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_publish-docs.svg
   :width: 100%
   :alt: Breeze workflow-run publish-docs
+
+Publishing the schema files to S3
+"""""""""""""""""""""""""""""""""
+
+Alongside the documentation, the ``Publish Docs to S3`` workflow also publishes two generated schema artifacts
+to the same docs bucket, under the ``schemas/`` prefix (served at ``https://airflow.apache.org/schemas/``):
+
+* The Execution API OpenAPI spec ``schemas/execution-api/<version>.json``
+* The Supervisor JSON Schema ``schemas/supervisor-schema/<version>.json``
+
+Each dated file is immutable, so the command uploads individual objects and skips a date that already exists
+unless ``--overwrite`` is given. Publishing is gated on the package set. The schema files are only published
+when ``apache-airflow`` or ``task-sdk`` is built.
+
+To publish the schema files to S3, use the ``release-management publish-schemas-to-s3`` command:
+
+.. code-block:: bash
+
+     breeze release-management publish-schemas-to-s3 \
+       --execution-api execution-api.json \
+       --supervisor supervisor-schema.json \
+       --destination-location s3://live-docs-airflow-apache-org/schemas/
+
+``--destination-location`` is the ``s3://<bucket>/schemas/`` location to publish under; each schema is
+written to ``<location>/<schema-type>/<version>.json``. Pass at least one of
+``--execution-api`` / ``--supervisor``.
+
+These are all available flags of ``release-management publish-schemas-to-s3`` command:
+
+.. image:: ./images/output_release-management_publish-schemas-to-s3.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-schemas-to-s3.svg
+  :width: 100%
+  :alt: Breeze release-management publish-schemas-to-s3
 
 Checking release files
 """"""""""""""""""""""

@@ -20,9 +20,23 @@ name: "CodeQL"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
   schedule:
     - cron: '0 2 * * *'
 
@@ -110,30 +124,25 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
 
-      # Keep these in sync:
-      # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
-      # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
-      # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
-      # - java-version in .github/workflows/codeql-analysis.yml
       - name: Setup Java
         if: matrix.language == 'java'
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
         with:
           distribution: 'temurin'
           java-version: '11'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9  # v4.37.0
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
         if: matrix.language != 'java'
-        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+        uses: github/codeql-action/autobuild@99df26d4f13ea111d4ec1a7dddef6063f76b97e9  # v4.37.0
 
       - name: Build Java SDK
         if: matrix.language == 'java'
@@ -141,7 +150,7 @@ jobs:
         run: ./gradlew classes testClasses
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9  # v4.37.0
         with:
           # Provide more context to the SARIF output (shows up in run.automationDetails.id field)
           category: "/language:${{matrix.language}}"

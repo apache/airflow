@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "सभी रन प्रकार",
     "allStates": "सभी स्थितियां",
+    "anyRunState": "कोई भी रन",
     "favorite": {
       "all": "सभी",
       "favorite": "पसंदीदा",
       "unfavorite": "गैर-पसंदीदा"
     },
+    "lastRunState": "अंतिम रन",
     "paused": {
       "active": "सक्रिय",
       "all": "सभी",
@@ -33,6 +35,11 @@
       "buttonTooltip": "साफ करने के लिए shift+c दबाएं",
       "error": "{{type}} साफ करने में विफल",
       "title": "{{type}} साफ करें"
+    },
+    "clearAllMapped": {
+      "button": "सभी मैप किए गए टास्क साफ़ करें",
+      "buttonTooltip": "सभी मैप किए गए task instance साफ़ करने के लिए shift+c दबाएं",
+      "title": "सभी मैप किए गए Task Instance साफ़ करें"
     },
     "confirmationDialog": {
       "description": "टास्क वर्तमान में {{state}} स्थिति में है जो उपयोगकर्ता {{user}} द्वारा {{time}} पर शुरू किया गया था। \nउपयोगकर्ता इस टास्क को तब तक साफ नहीं कर सकता जब तक यह चलना समाप्त नहीं हो जाता या उपयोगकर्ता क्लियर टास्क डायलॉग में \"यदि टास्क चल रहा है तो पुनः चलाने से रोकें\" विकल्प को अनचेक नहीं करता।",
@@ -70,6 +77,11 @@
       "runOnLatestVersion": "नवीनतम बंडल संस्करण के साथ चलाएं",
       "upstream": "अपस्ट्रीम"
     }
+  },
+  "runStateCounts": {
+    "label": "रन स्थितियां",
+    "loading": "रन स्थिति गणना लोड हो रही है",
+    "tooltip": "{{state}}: {{formattedCount}} — रन फ़िल्टर करने के लिए क्लिक करें"
   },
   "search": {
     "advanced": "उन्नत खोज",

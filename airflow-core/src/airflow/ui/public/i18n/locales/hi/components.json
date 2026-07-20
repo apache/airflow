@@ -10,9 +10,12 @@
     "maxRuns": "अधिकतम सक्रिय रन्स",
     "missingAndErroredRuns": "गुम और त्रुटि वाले रन्स",
     "missingRuns": "गुम रन्स",
+    "overrideExistingParams": "मौजूदा रन पर पैरामीटर ओवरराइड करें",
     "permissionDenied": "ड्राई रन विफल: उपयोगकर्ता के पास बैकफ़िल बनाने की अनुमति नहीं है।",
     "reprocessBehavior": "पुनः प्रक्रिया व्यवहार",
     "run": "बैकफ़िल चलाएं",
+    "scheduleNotBackfillable": "इस Dag का शेड्यूल बैकफिल का समर्थन नहीं करता",
+    "schedulerPriorityHint": "प्रत्येक शेड्यूलर चक्र में बैकफिल Dag रन को गैर-बैकफिल Dag रन के बाद क्रमित किया जाता है। यदि अन्य गैर-बैकफिल रन मौजूद हों तो बैकफिल रन अधिक समय तक कतार में रह सकते हैं।",
     "selectDescription": "तिथियों की रेंज के लिए इस डैग को चलाएं",
     "selectLabel": "बैकफ़िल",
     "title": "बैकफ़िल चलाएं",
@@ -45,7 +48,6 @@
   },
   "dagWarnings": {
     "error_one": "1 त्रुटि",
-    "error_other": "{{count}} त्रुटियां",
     "errorAndWarning": "1 त्रुटि और {{warningText}}",
     "warning_one": "1 चेतावनी",
     "warning_other": "{{count}} चेतावनियां"
@@ -72,6 +74,7 @@
     "files_other": "{{count}} फ़ाइलें"
   },
   "flexibleForm": {
+    "durationPlaceholder": "ISO 8601 प्रारूप में अवधि दर्ज करें",
     "placeholder": "मान चुनें",
     "placeholderArray": "प्रत्येक स्ट्रिंग को नई लाइन में दर्ज करें",
     "placeholderExamples": "विकल्प देखने के लिए टाइप करना शुरू करें",
@@ -79,6 +82,7 @@
     "validationErrorArrayNotArray": "मान एक array होना चाहिए।",
     "validationErrorArrayNotNumbers": "Array के सभी तत्व संख्या होने चाहिए।",
     "validationErrorArrayNotObject": "Array के सभी तत्व ऑब्जेक्ट होने चाहिए।",
+    "validationErrorDuration": "अमान्य ISO 8601 अवधि प्रारूप",
     "validationErrorRequired": "यह फ़ील्ड आवश्यक है"
   },
   "graph": {
@@ -92,7 +96,8 @@
     "otherDagRuns": "+अन्य डैग रन्स",
     "taskCount_one": "{{count}} टास्क",
     "taskCount_other": "{{count}} टास्क्स",
-    "taskGroup": "टास्क ग्रुप"
+    "taskGroup": "टास्क ग्रुप",
+    "zoomToTask": "चयनित टास्क पर ज़ूम करें"
   },
   "limitedList": "+{{count}} और",
   "limitedList.allItems": "सभी {{count}} आइटम:",
@@ -131,6 +136,8 @@
     "intervalStart": "प्रारंभ",
     "loading": "डैग जानकारी लोड हो रही है...",
     "loadingFailed": "डैग जानकारी लोड करने में विफल। कृपया पुनः प्रयास करें।",
+    "manualRunDenied": "इस Dag के लिए मैनुअल रन की अनुमति नहीं है",
+    "partitionKeyHelp": "वैकल्पिक - केवल विभाजित Dags पर लागू होता है",
     "runIdHelp": "वैकल्पिक - प्रदान न किए जाने पर जेनरेट किया जाएगा",
     "selectDescription": "इस डैग का एक रन ट्रिगर करें",
     "selectLabel": "सिंगल रन",

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import pickle
 import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
@@ -27,7 +28,7 @@ from typing import TYPE_CHECKING
 import pendulum
 import pytest
 from dateutil import relativedelta
-from kubernetes.client import models as k8s
+from kubernetes.client import Configuration, models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
@@ -39,7 +40,6 @@ from airflow.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
     SerializationError,
-    TaskDeferred,
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -83,6 +83,7 @@ from airflow.sdk.definitions.deadline import (
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
+from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization import serialized_objects
@@ -104,7 +105,6 @@ from airflow.serialization.serialized_objects import (
     LazyDeserializedDAG,
     _has_kubernetes,
 )
-from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
 
 from unit.models import DEFAULT_DATE
@@ -570,42 +570,14 @@ def test_ser_of_asset_event_accessor():
     assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
 
-class MyTrigger(BaseTrigger):
-    def __init__(self, hi):
-        self.hi = hi
-
-    def serialize(self):
-        return "unit.serialization.test_serialized_objects.MyTrigger", {"hi": self.hi}
-
-    async def run(self):
-        yield
-
-
 def test_roundtrip_exceptions():
-    """
-    This is for AIP-44 when we need to send certain non-error exceptions
-    as part of an RPC call e.g. TaskDeferred or AirflowRescheduleException.
-    """
+    """Non-error AirflowExceptions (e.g. AirflowRescheduleException) round-trip through BaseSerialization."""
     some_date = pendulum.now()
     resched_exc = AirflowRescheduleException(reschedule_date=some_date)
     ser = BaseSerialization.serialize(resched_exc)
     deser = BaseSerialization.deserialize(ser)
     assert isinstance(deser, AirflowRescheduleException)
     assert deser.reschedule_date == some_date
-    del ser
-    del deser
-    exc = TaskDeferred(
-        trigger=MyTrigger(hi="yo"),
-        method_name="meth_name",
-        kwargs={"have": "pie"},
-        timeout=timedelta(seconds=30),
-    )
-    ser = BaseSerialization.serialize(exc)
-    deser = BaseSerialization.deserialize(ser)
-    assert deser.trigger.hi == "yo"
-    assert deser.method_name == "meth_name"
-    assert deser.kwargs == {"have": "pie"}
-    assert deser.timeout == timedelta(seconds=30)
 
 
 @pytest.mark.parametrize(
@@ -772,7 +744,6 @@ def test_encode_asset_with_access_control():
     encoded = encode_asset_like(asset)
     assert encoded["access_control"] == {
         "producer_teams": ["team_a"],
-        "consumer_teams": [],
         "allow_global": False,
     }
 
@@ -1120,21 +1091,21 @@ def test_encode_fan_out_mapper():
             "upstream_mapper": {
                 Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfWeekMapper",
                 Encoding.VAR: {
-                    "timezone": "UTC",
                     "input_format": "%Y-%m-%dT%H:%M:%S",
                     "output_format": "%Y-%m-%d (W%V)",
+                    "timezone": "UTC",
                 },
             },
             "window": {
                 Encoding.TYPE: "airflow.partition_mappers.window.WeekWindow",
-                Encoding.VAR: {},
+                Encoding.VAR: {"direction": "forward"},
             },
             "downstream_mapper": {
                 Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
                 Encoding.VAR: {
-                    "timezone": "UTC",
                     "input_format": "%Y-%m-%dT%H:%M:%S",
                     "output_format": "%Y-%m-%d",
+                    "timezone": "UTC",
                 },
             },
         },
@@ -1309,7 +1280,6 @@ class TestRetryPolicySerialization:
     def test_has_retry_policy_flag_set_when_policy_present(self):
         """When retry_policy is set, has_retry_policy=True in serialized form."""
         from airflow.sdk import DAG, BaseOperator
-        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
         from airflow.serialization.serialized_objects import DagSerialization
 
         policy = ExceptionRetryPolicy(
@@ -1338,6 +1308,110 @@ class TestRetryPolicySerialization:
 
         task = deserialized.task_dict["op_no_policy"]
         assert task.has_retry_policy is False
+
+    def test_mapped_task_retry_policy_serializes_as_flag(self):
+        """A mapped task's retry_policy must serialize as has_retry_policy, not the object."""
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
+
+        policy = ExceptionRetryPolicy(
+            rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="bad data")],
+        )
+
+        with DAG(dag_id="test_mapped_retry_policy_ser", start_date=DEFAULT_DATE) as dag:
+
+            @task(retries=3, retry_policy=policy)
+            def mapped(x):
+                return x
+
+            mapped.expand(x=[1, 2, 3])
+
+        serialized = DagSerialization.serialize_dag(dag)
+        # The RetryPolicy object must never be embedded -- str(obj) leaks a memory address.
+        assert "ExceptionRetryPolicy object at 0x" not in json.dumps(serialized)
+
+        deserialized = DagSerialization.deserialize_dag(serialized)
+        assert deserialized.task_dict["mapped"].has_retry_policy is True
+
+    def test_mapped_task_retry_policy_serialization_is_deterministic(self):
+        """Serializing the same mapped-task-with-policy DAG twice yields identical output.
+
+        Regression test: the RetryPolicy object was serialized via str(obj), embedding a
+        per-process memory address, so every re-parse produced a different serialized DAG
+        (and a spurious new DagVersion).
+        """
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
+
+        def build():
+            policy = ExceptionRetryPolicy(
+                rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL)],
+            )
+            with DAG(dag_id="test_mapped_retry_policy_determinism", start_date=DEFAULT_DATE) as dag:
+
+                @task(retries=3, retry_policy=policy)
+                def mapped(x):
+                    return x
+
+                mapped.expand(x=[1, 2, 3])
+            return dag
+
+        assert DagSerialization.serialize_dag(build()) == DagSerialization.serialize_dag(build())
+
+    def test_dag_default_args_retry_policy_serializes_as_flag(self):
+        """A retry_policy in DAG default_args must not leak the object into serialized default_args.
+
+        Regression test: serialize_dag serializes the raw default_args dict, so a RetryPolicy
+        there hit the str(obj) fallback (memory address -> new DagVersion every parse) even
+        though each task's has_retry_policy was set correctly.
+        """
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
+
+        def build():
+            policy = ExceptionRetryPolicy(
+                rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL)],
+            )
+            with DAG(
+                dag_id="test_default_args_retry_policy",
+                start_date=DEFAULT_DATE,
+                default_args={"retry_policy": policy},
+            ) as dag:
+
+                @task
+                def plain():
+                    return 1
+
+                plain()
+            return dag
+
+        serialized = DagSerialization.serialize_dag(build())
+        # The RetryPolicy object must never be embedded in serialized default_args...
+        assert "ExceptionRetryPolicy object at 0x" not in json.dumps(serialized)
+        # ...and the has_retry_policy flag must be written in its place.
+        default_args_dict = serialized["default_args"][Encoding.VAR]
+        assert default_args_dict.get("has_retry_policy") is True
+        assert "retry_policy" not in default_args_dict
+        # Deterministic across independent parses (no embedded memory address).
+        assert DagSerialization.serialize_dag(build()) == DagSerialization.serialize_dag(build())
+
+    def test_mapped_task_no_retry_policy_flag_false(self):
+        """A mapped task without a retry_policy must not spuriously set has_retry_policy.
+
+        Mapped resolves the flag via _get_partial_kwargs_or_operator_default (falling back to
+        SerializedBaseOperator.has_retry_policy=False), a different path than the non-mapped
+        dataclass default — so it needs its own negative test.
+        """
+        from airflow.sdk import DAG  # module-level DAG is airflow.models.dag.DAG
+
+        with DAG(dag_id="test_mapped_no_retry_policy", start_date=DEFAULT_DATE) as dag:
+
+            @task(retries=3)
+            def mapped(x):
+                return x
+
+            mapped.expand(x=[1, 2, 3])
+
+        serialized = DagSerialization.serialize_dag(dag)
+        deserialized = DagSerialization.deserialize_dag(serialized)
+        assert deserialized.task_dict["mapped"].has_retry_policy is False
 
 
 class TestKubernetesImportAvoidance:
@@ -1419,6 +1493,39 @@ class TestKubernetesImportAvoidance:
         assert decoded.metadata.name == "test-pod"
 
         _has_kubernetes.cache_clear()
+
+    def test_deserialized_v1pod_does_not_capture_unpicklable_config(self, monkeypatch):
+        """A deserialized V1Pod must not capture the in-cluster Configuration.
+
+        In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
+        ``refresh_api_key_hook`` is an unpicklable local closure. Under kubernetes-client v36,
+        ``ApiClient.__deserialize_model`` copies that config onto the pod and every nested model, so a
+        naively deserialized ``pod_override`` cannot be pickled onto the KubernetesExecutor queue and
+        crashes the scheduler. Deserializing through a fresh ``Configuration`` keeps the pod picklable.
+        """
+        k8s = pytest.importorskip("kubernetes.client.models")
+
+        def _make_unpicklable_hook():
+            def _refresh_api_key(config):
+                return None
+
+            return _refresh_api_key
+
+        dirty = Configuration()
+        dirty.refresh_api_key_hook = _make_unpicklable_hook()
+        monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="test-pod"),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base", image="airflow:3")]),
+        )
+        decoded = BaseSerialization.deserialize(BaseSerialization.serialize(pod))
+
+        assert isinstance(decoded, k8s.V1Pod)
+        # The top-level pod and every nested model must carry a clean, picklable Configuration.
+        pickle.dumps(decoded)
+        assert decoded.local_vars_configuration.refresh_api_key_hook is None
+        assert decoded.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
 
 
 @pytest.mark.db_test

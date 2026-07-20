@@ -50,6 +50,16 @@ except ImportError:
 
 CMD_TIMEOUT = 10
 
+_HostKeyConstructor = type[paramiko.RSAKey] | type[paramiko.ECDSAKey] | type[paramiko.Ed25519Key]
+_SUPPORTED_HOST_KEY_TYPES = (
+    "ssh-rsa",
+    "ssh-ecdsa",
+    "ecdsa-sha2-nistp256",
+    "ecdsa-sha2-nistp384",
+    "ecdsa-sha2-nistp521",
+    "ssh-ed25519",
+)
+
 
 class SSHHook(BaseHook):
     """
@@ -82,21 +92,26 @@ class SSHHook(BaseHook):
         lifetime of the transport
     :param ciphers: list of ciphers to use in order of preference
     :param auth_timeout: timeout (in seconds) for the attempt to authenticate with the remote_host
+    :param conn_retry_attempts: number of times to attempt the initial SSH connection before
+        giving up (default 3). Raising this helps when many tasks target the same SSH server at
+        once and some connections are transiently refused (e.g. ``sshd`` ``MaxStartups`` throttling).
     """
 
-    # List of classes to try loading private keys as, ordered (roughly) by most common to least common
+    # List of classes to try loading private keys as, ordered (roughly) by most common to least common.
+    # DSA/DSS keys are not supported (removed in paramiko 4.0).
     _pkey_loaders: Sequence[type[paramiko.PKey]] = (
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
-        paramiko.DSSKey,
     )
 
-    _host_key_mappings = {
-        "rsa": paramiko.RSAKey,
-        "dss": paramiko.DSSKey,
-        "ecdsa": paramiko.ECDSAKey,
-        "ed25519": paramiko.Ed25519Key,
+    _host_key_mappings: dict[str, _HostKeyConstructor] = {
+        "ssh-rsa": paramiko.RSAKey,
+        "ssh-ecdsa": paramiko.ECDSAKey,
+        "ecdsa-sha2-nistp256": paramiko.ECDSAKey,
+        "ecdsa-sha2-nistp384": paramiko.ECDSAKey,
+        "ecdsa-sha2-nistp521": paramiko.ECDSAKey,
+        "ssh-ed25519": paramiko.Ed25519Key,
     }
 
     conn_name_attr = "ssh_conn_id"
@@ -130,9 +145,11 @@ class SSHHook(BaseHook):
         ciphers: list[str] | None = None,
         auth_timeout: int | None = None,
         host_proxy_cmd: str | None = None,
+        conn_retry_attempts: int = 3,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
+        self.conn_retry_attempts = max(1, conn_retry_attempts)
         self.remote_host = remote_host
         self.username = username
         self.password = password
@@ -222,11 +239,25 @@ class SSHHook(BaseHook):
                     self.ciphers = extra_options.get("ciphers")
 
                 if host_key is not None:
-                    if host_key.startswith("ssh-"):
-                        key_type, host_key = host_key.split(None)[:2]
-                        key_constructor = self._host_key_mappings[key_type[4:]]
-                    else:
-                        key_constructor = paramiko.RSAKey
+                    host_key = host_key.strip()
+                    host_key_parts = host_key.split()
+                    key_constructor: _HostKeyConstructor = paramiko.RSAKey
+                    if len(host_key_parts) >= 2:
+                        key_type, host_key = host_key_parts[:2]
+                        if key_type == "ssh-dss":
+                            raise ValueError(
+                                "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
+                                "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
+                            )
+                        key_constructor_for_type = self._host_key_mappings.get(key_type)
+                        if key_constructor_for_type is None:
+                            raise ValueError(
+                                f"Unsupported SSH host key algorithm {key_type!r}. "
+                                f"Supported types are: {', '.join(_SUPPORTED_HOST_KEY_TYPES)}."
+                            )
+                        key_constructor = key_constructor_for_type
+                    elif host_key in self._host_key_mappings or host_key == "ssh-dss":
+                        raise ValueError(f"SSH host key {host_key!r} is missing key data.")
                     decoded_host_key = decodebytes(host_key.encode("utf-8"))
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
@@ -344,7 +375,7 @@ class SSHHook(BaseHook):
         for attempt in Retrying(
             reraise=True,
             wait=wait_fixed(3) + wait_random(0, 2),
-            stop=stop_after_attempt(3),
+            stop=stop_after_attempt(self.conn_retry_attempts),
             before_sleep=log_before_sleep,
         ):
             with attempt:
@@ -418,9 +449,9 @@ class SSHHook(BaseHook):
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
-            "Private key provided cannot be read by paramiko."
-            "Ensure key provided is valid for one of the following"
-            "key formats: RSA, DSS, ECDSA, or Ed25519"
+            "Private key provided cannot be read by paramiko. "
+            "Ensure key provided is valid for one of the following "
+            "key formats: RSA, ECDSA, or Ed25519."
         )
 
     def exec_ssh_client_command(
@@ -553,6 +584,7 @@ class SSHHookAsync(BaseHook):
         key_file: str = "",
         passphrase: str = "",
         private_key: str = "",
+        keepalive_interval: int = 30,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -564,6 +596,7 @@ class SSHHookAsync(BaseHook):
         self.key_file = key_file
         self.passphrase = passphrase
         self.private_key = private_key
+        self.keepalive_interval = keepalive_interval
 
     def _parse_extras(self, conn: Any) -> None:
         """Parse extra fields from the connection into instance fields."""
@@ -592,6 +625,15 @@ class SSHHookAsync(BaseHook):
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
             self.known_hosts = "none"
         elif host_key is not None:
+            host_key = host_key.strip()
+            host_key_parts = host_key.split()
+            if host_key_parts and host_key_parts[0] == "ssh-dss":
+                raise ValueError(
+                    "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
+                    "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
+                )
+            if len(host_key_parts) >= 2:
+                host_key = " ".join(host_key_parts[:2])
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self):
@@ -631,9 +673,25 @@ class SSHHookAsync(BaseHook):
             conn_config["client_keys"] = [_private_key]
         if self.passphrase:
             conn_config["passphrase"] = self.passphrase
+        if self.keepalive_interval:
+            # The trigger holds one connection for the whole job; a keepalive stops idle
+            # NAT/firewall timeouts from silently dropping it between long poll intervals.
+            conn_config["keepalive_interval"] = self.keepalive_interval
 
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
+
+    async def get_conn(self):
+        """
+        Open an asyncssh connection that can be reused for multiple commands.
+
+        Unlike :meth:`run_command`, the returned connection is **not** closed
+        automatically; the caller owns its lifecycle (e.g.
+        ``async with await hook.get_conn() as conn: ...`` or an explicit
+        ``conn.close()``). Reusing one connection avoids a new TCP/SSH handshake
+        per command, which matters when many tasks poll the same SSH server.
+        """
+        return await self._get_conn()
 
     async def run_command(self, command: str, timeout: float | None = None) -> tuple[int, str, str]:
         """

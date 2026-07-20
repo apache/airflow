@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.execution.comm.AssetProfile
+import org.apache.airflow.sdk.execution.comm.RetryTask
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TaskState
@@ -39,6 +40,14 @@ internal object TaskResult {
     it.endDate = endDate
     it.taskOutlets = taskOutlets
     it.outletEvents = outletEvents
+    it.renderedMapIndex = renderedMapIndex
+  }
+
+  fun retry(
+    endDate: OffsetDateTime = OffsetDateTime.now(),
+    renderedMapIndex: String? = null,
+  ) = RetryTask().also {
+    it.endDate = endDate
     it.renderedMapIndex = renderedMapIndex
   }
 
@@ -65,10 +74,14 @@ internal object TaskRunner {
     return try {
       task.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
       TaskResult.success()
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
       e.printStackTrace()
-      TaskResult.of(TaskState.State.FAILED)
+      if (request.tiContext.shouldRetry) {
+        TaskResult.retry()
+      } else {
+        TaskResult.of(TaskState.State.FAILED)
+      }
     }
   }
 }

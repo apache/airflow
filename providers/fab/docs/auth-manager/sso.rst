@@ -145,11 +145,11 @@ Configuration Steps
 
    Adjust these values according to your provider's documentation.
 
-5. **Restart Airflow Webserver**
+5. **Restart Airflow API Server**
 
    .. code-block:: bash
 
-      airflow webserver --reload
+      airflow api-server
 
 6. **Test SSO Login**
 

@@ -27,9 +27,8 @@ import signal
 import socket
 import subprocess
 import sys
-import threading
 import time
-from contextlib import nullcontext, suppress
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
@@ -61,10 +60,12 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    ConnectionResponse,
     DagRun,
     DagRunState,
     DagRunType,
     PreviousTIResponse,
+    TaskInstance,
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
@@ -73,11 +74,11 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
-    AssetStoreResult,
+    AssetStateStoreResult,
     AwaitInputTask,
-    ClearAssetStoreByName,
-    ClearAssetStoreByUri,
-    ClearTaskStore,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -85,9 +86,9 @@ from airflow.sdk.execution_time.comms import (
     DagRunResult,
     DagRunStateResult,
     DeferTask,
-    DeleteAssetStoreByName,
-    DeleteAssetStoreByUri,
-    DeleteTaskStore,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
     DRCount,
@@ -97,8 +98,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetAssetsByAlias,
-    GetAssetStoreByName,
-    GetAssetStoreByUri,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -111,7 +112,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
-    GetTaskStore,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -131,11 +132,11 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStoreByName,
-    SetAssetStoreByUri,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskStore,
+    SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
@@ -143,7 +144,7 @@ from airflow.sdk.execution_time.comms import (
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
-    TaskStoreResult,
+    TaskStateStoreResult,
     TICount,
     ToSupervisor,
     TriggerDagRun,
@@ -172,7 +173,6 @@ from airflow.sdk.execution_time.supervisor import (
     supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.config import conf_vars
 
@@ -235,16 +235,14 @@ class TestSupervisor:
         """
         Test that the supervisor validates server URL and dry_run parameter combinations correctly.
         """
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -263,54 +261,6 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
-
-    def test_on_kill_hook_called_when_supervisor_receives_sigterm(
-        self,
-        test_dags_dir,
-        captured_logs,
-        client_with_ti_start,
-    ):
-        """SIGTERM to the supervisor process is forwarded to the task subprocess."""
-        ti = TaskInstanceDTO(
-            id=uuid7(),
-            task_id="signal_task",
-            dag_id="signal_forward_test",
-            run_id="r",
-            try_number=1,
-            dag_version_id=uuid7(),
-            pool_slots=1,
-            queue="default",
-            priority_weight=1,
-        )
-        bundle_info = BundleInfo(name="my-bundle", version=None)
-
-        supervisor_pid = os.getpid()
-
-        def _kill_children():
-            for child in psutil.Process(supervisor_pid).children(recursive=True):
-                with suppress(psutil.NoSuchProcess):
-                    child.kill()
-
-        watchdog = threading.Timer(20.0, _kill_children)
-        watchdog.daemon = True
-        watchdog.start()
-
-        try:
-            with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
-                supervise_task(
-                    ti=ti,
-                    dag_rel_path="signal_forward_test.py",
-                    token="",
-                    dry_run=True,
-                    client=client_with_ti_start,
-                    bundle_info=bundle_info,
-                )
-        finally:
-            watchdog.cancel()
-
-        stdout_events = [entry["event"] for entry in captured_logs if entry.get("logger") == "task.stdout"]
-        assert "EXECUTE_STARTED" in stdout_events
-        assert "ON_KILL_CALLED_VIA_SIGNAL_FORWARDING" in stdout_events
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -379,16 +329,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -457,16 +405,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -557,16 +503,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -589,16 +533,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -627,16 +569,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=mock_client,
             target=subprocess_main,
@@ -674,16 +614,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=mock_client,
             target=lambda: None,
@@ -720,16 +658,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -765,16 +701,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -789,16 +723,14 @@ class TestWatchedSubprocess:
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="hello",
             dag_id="super_basic_run",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -833,16 +765,14 @@ class TestWatchedSubprocess:
         """
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         # Create a mock client to assert calls to the client
@@ -963,16 +893,14 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -1049,16 +977,14 @@ class TestWatchedSubprocess:
             ActivitySubprocess.start(
                 dag_rel_path=os.devnull,
                 bundle_info=FAKE_BUNDLE,
-                what=TaskInstanceDTO(
+                what=TaskInstance(
                     id=ti_id,
                     task_id="b",
                     dag_id="c",
                     run_id="d",
                     try_number=1,
                     dag_version_id=uuid7(),
-                    pool_slots=1,
                     queue="default",
-                    priority_weight=1,
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,
@@ -1262,16 +1188,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -1425,16 +1349,14 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -2018,6 +1940,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2061,6 +1986,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2097,6 +2025,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2140,6 +2071,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2176,6 +2110,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2219,6 +2156,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2254,6 +2194,9 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2295,6 +2238,9 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": None,
             },
             response=AssetEventsResult(
                 asset_events=[
@@ -2308,6 +2254,174 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_asset_alias_with_filters",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name="test",
+            partition_key="us|2024-01-15",
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": "us|2024-01-15",
+                "partition_key_regexp_pattern": None,
+                "extra": None,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_name_with_partition_key",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name="test",
+            extra={"region": "us"},
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": {"region": "us"},
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ],
+            ),
+        ),
+        test_id="get_asset_events_with_extra_filter",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(
+            alias_name="test_alias",
+            partition_key="eu|2024-03",
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "alias_name": "test_alias",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": "eu|2024-03",
+                "partition_key_regexp_pattern": None,
+                "extra": None,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_alias_with_partition_key",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(
+            alias_name="test_alias",
+            extra={"env": "prod"},
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "alias_name": "test_alias",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
+                "extra": {"env": "prod"},
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_alias_with_extra_filter",
     ),
     RequestTestCase(
         message=ValidateInletsAndOutlets(ti_id=TI_ID),
@@ -2428,6 +2542,7 @@ REQUEST_TEST_CASES = [
             "run_id": "prev_run",
             "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
             "partition_key": None,
+            "partition_date": None,
             "run_type": "scheduled",
             "start_date": timezone.parse("2024-01-15T12:00:00Z"),
             "run_after": timezone.parse("2024-01-15T12:00:00Z"),
@@ -2481,6 +2596,7 @@ REQUEST_TEST_CASES = [
                 "run_id": "prev_run",
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
                 "partition_key": None,
+                "partition_date": None,
                 "run_type": "scheduled",
                 "start_date": timezone.parse("2024-01-15T12:00:00Z"),
                 "run_after": timezone.parse("2024-01-15T12:00:00Z"),
@@ -2846,17 +2962,17 @@ REQUEST_TEST_CASES = [
         test_id="get_dag",
     ),
     RequestTestCase(
-        message=GetTaskStore(ti_id=TI_ID, key="job_id"),
+        message=GetTaskStateStore(ti_id=TI_ID, key="job_id"),
         test_id="get_task_store",
         client_mock=ClientMock(
-            method_path="task_store.get",
+            method_path="task_state_store.get",
             args=(TI_ID, "job_id"),
-            response=TaskStoreResult(value="spark_app_001"),
+            response=TaskStateStoreResult(value="spark_app_001"),
         ),
-        expected_body={"value": "spark_app_001", "type": "TaskStoreResult"},
+        expected_body={"value": "spark_app_001", "type": "TaskStateStoreResult"},
     ),
     RequestTestCase(
-        message=SetTaskStore(
+        message=SetTaskStateStore(
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
@@ -2864,7 +2980,7 @@ REQUEST_TEST_CASES = [
         ),
         test_id="set_task_store",
         client_mock=ClientMock(
-            method_path="task_store.set",
+            method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
             kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
@@ -2872,7 +2988,7 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=SetTaskStore(
+        message=SetTaskStateStore(
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
@@ -2880,7 +2996,7 @@ REQUEST_TEST_CASES = [
         ),
         test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
-            method_path="task_store.set",
+            method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
             kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
@@ -2888,66 +3004,55 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteTaskStore(ti_id=TI_ID, key="job_id"),
+        message=DeleteTaskStateStore(ti_id=TI_ID, key="job_id"),
         test_id="delete_task_store",
         client_mock=ClientMock(
-            method_path="task_store.delete",
+            method_path="task_state_store.delete",
             args=(TI_ID, "job_id"),
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskStore(ti_id=TI_ID),
+        message=ClearTaskStateStore(ti_id=TI_ID),
         test_id="clear_task_store",
         client_mock=ClientMock(
-            method_path="task_store.clear",
+            method_path="task_state_store.clear",
             args=(TI_ID,),
-            kwargs={"all_map_indices": False},
+            kwargs={},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskStore(ti_id=TI_ID, all_map_indices=True),
-        test_id="clear_task_store_all_map_indices",
-        client_mock=ClientMock(
-            method_path="task_store.clear",
-            args=(TI_ID,),
-            kwargs={"all_map_indices": True},
-            response=OKResponse(ok=True),
-        ),
-        expected_body={"ok": True, "type": "OKResponse"},
-    ),
-    RequestTestCase(
-        message=GetAssetStoreByName(name="debug_watcher_asset", key="watermark"),
+        message=GetAssetStateStoreByName(name="debug_watcher_asset", key="watermark"),
         test_id="get_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.get",
+            method_path="asset_state_store.get",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
-            response=AssetStoreResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStoreResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
     ),
     RequestTestCase(
-        message=GetAssetStoreByUri(uri="s3://bucket/key", key="watermark"),
+        message=GetAssetStateStoreByUri(uri="s3://bucket/key", key="watermark"),
         test_id="get_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.get",
+            method_path="asset_state_store.get",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
-            response=AssetStoreResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStoreResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
     ),
     RequestTestCase(
-        message=SetAssetStoreByName(
+        message=SetAssetStateStoreByName(
             name="debug_watcher_asset", key="watermark", value="2026-04-30T00:00:00Z"
         ),
-        test_id="set_asset_store_by_name",
+        test_id="set_asset_state_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.set",
+            method_path="asset_state_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2955,10 +3060,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=SetAssetStoreByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
-        test_id="set_asset_store_by_uri",
+        message=SetAssetStateStoreByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
+        test_id="set_asset_state_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.set",
+            method_path="asset_state_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2966,10 +3071,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStoreByName(name="debug_watcher_asset", key="watermark"),
+        message=DeleteAssetStateStoreByName(name="debug_watcher_asset", key="watermark"),
         test_id="delete_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.delete",
+            method_path="asset_state_store.delete",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2977,10 +3082,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStoreByUri(uri="s3://bucket/key", key="watermark"),
+        message=DeleteAssetStateStoreByUri(uri="s3://bucket/key", key="watermark"),
         test_id="delete_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.delete",
+            method_path="asset_state_store.delete",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2988,10 +3093,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStoreByName(name="debug_watcher_asset"),
+        message=ClearAssetStateStoreByName(name="debug_watcher_asset"),
         test_id="clear_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.clear",
+            method_path="asset_state_store.clear",
             args=(),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2999,10 +3104,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStoreByUri(uri="s3://bucket/key"),
+        message=ClearAssetStateStoreByUri(uri="s3://bucket/key"),
         test_id="clear_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.clear",
+            method_path="asset_state_store.clear",
             args=(),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -3178,6 +3283,45 @@ class TestHandleRequest:
             "message": str(error),
             "detail": error.response.json(),
         }
+
+    @pytest.mark.parametrize(
+        ("status_code", "expects_error"),
+        [
+            pytest.param(410, False, id="410_gone_is_swallowed"),
+            pytest.param(404, True, id="404_not_found_propagates"),
+        ],
+    )
+    def test_set_rendered_fields_swallows_410_but_propagates_404(
+        self, watched_subprocess, mocker, status_code, expects_error
+    ):
+        """A stale-id RTIF overwrite (410) is skipped silently; a bogus-id (404) still propagates as an error."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        error = ServerResponseError(
+            message="boom",
+            request=httpx.Request("PUT", "http://test"),
+            response=httpx.Response(status_code, json={"detail": "boom"}),
+        )
+        watched_subprocess.client.task_instances.set_rtif = mocker.Mock(side_effect=error)
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        msg = SetRenderedFields(rendered_fields={"field1": "v1"})
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+
+        assert frame.id == req_frame.id
+        if expects_error:
+            assert frame.error is not None
+            assert frame.error["error"] == "API_SERVER_ERROR"
+            assert frame.error["detail"]["status_code"] == status_code
+        else:
+            assert frame.error is None
 
     def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
         """A transient network error must not crash the IPC generator.
@@ -3454,16 +3598,14 @@ class TestInProcessTestSupervisor:
         task.dag = DAG(dag_id="test_dag")
 
         # Create a simple TaskInstance datamodel to pass to the supervisor
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             dag_version_id=uuid7(),
             dag_id="test_dag",
             task_id=task.task_id,
             run_id="r",
             try_number=1,
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         # Patch the API client used by InProcessTestSupervisor to return a predictable TI context
@@ -3612,6 +3754,37 @@ def test_log_upload_failures_are_non_fatal(mocker):
         ti_id=TI_ID,
         pid=12345,
     )
+
+
+def test_logs_uploaded_even_when_state_update_fails(mocker):
+    """`wait()` must upload remote logs even if the final state update raises.
+
+    A failed state update (e.g. a transient API error) is exactly when the logs
+    matter most for debugging, so `_upload_logs()` runs in a `finally` block and
+    the original exception still propagates to the caller.
+    """
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    # Leave `_exit_code` unset so `wait()` doesn't short-circuit; the no-op
+    # `_monitor_subprocess` mock leaves it as None and `wait()` defaults it to 1.
+    mocker.patch.object(ActivitySubprocess, "_monitor_subprocess")
+    mocker.patch.object(
+        ActivitySubprocess,
+        "update_task_state_if_needed",
+        side_effect=httpx.ConnectError("connection refused"),
+    )
+    upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs")
+
+    with pytest.raises(httpx.ConnectError):
+        proc.wait()
+
+    upload_logs.assert_called_once_with()
 
 
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
@@ -3822,6 +3995,37 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
         assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
 
 
+def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
+    """Test that connection caching doesn't cache failed lookups as None."""
+    conn_id = "test_conn"
+    client = mocker.Mock()
+    mocker.patch.object(supervisor, "ensure_secrets_backend_loaded", return_value=[])
+    mocker.patch.dict(supervisor._REMOTE_LOGGING_CONN_CACHE, {}, clear=True)
+    client.connections.get.side_effect = [
+        ErrorResponse(error=ErrorType.PERMISSION_DENIED),
+        ConnectionResponse(
+            conn_id=conn_id,
+            conn_type="example",
+            host=None,
+            schema_=None,
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+        ),
+    ]
+
+    assert supervisor._fetch_remote_logging_conn(conn_id, client) is None
+    assert conn_id not in supervisor._REMOTE_LOGGING_CONN_CACHE
+
+    second_call_result = supervisor._fetch_remote_logging_conn(conn_id, client)
+    assert second_call_result is not None
+    assert second_call_result.conn_id == conn_id
+    assert supervisor._REMOTE_LOGGING_CONN_CACHE[conn_id] is not None
+    # The first call resulted in None and was not cached, so the second fetch calls the API again.
+    assert client.connections.get.call_count == 2
+
+
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     from airflow.sdk._shared.logging.structlog import PER_LOGGER_LEVELS
 
@@ -3880,16 +4084,14 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,
         bundle_info=FAKE_BUNDLE,
-        what=TaskInstanceDTO(
+        what=TaskInstance(
             id="4d828a62-a417-4936-a7a6-2b3fabacecab",
             task_id="b",
             dag_id="c",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         ),
         client=client_with_ti_start,
         target=subprocess_main,
@@ -4039,15 +4241,38 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         in_process_api_server.cache_clear()
 
 
+class TestResolveChildTarget:
+    """Test rehydrating the exec'd child's entry point from _AIRFLOW_CHILD_TARGET."""
+
+    def test_empty_defaults_to_subprocess_main(self):
+        assert supervisor._resolve_child_target("") is supervisor._subprocess_main
+
+    def test_module_level_function(self):
+        resolved = supervisor._resolve_child_target("airflow.sdk.execution_time.supervisor:_subprocess_main")
+        assert resolved is supervisor._subprocess_main
+
+    def test_classmethod_entry_point(self):
+        """A ``module:ClassName.method`` target rehydrates the bound classmethod (e.g. the triggerer's)."""
+        resolved = supervisor._resolve_child_target(
+            "airflow.sdk.execution_time.supervisor:WatchedSubprocess.start"
+        )
+        assert resolved == supervisor.WatchedSubprocess.start
+        assert callable(resolved)
+
+    def test_start_rejects_non_importable_target_under_exec(self):
+        """A closure/lambda target can't be named for the exec'd child, so start() fails fast."""
+        with pytest.raises(ValueError, match="top-level importable target"):
+            supervisor.WatchedSubprocess.start(target=lambda: None, use_exec=True)
+
+
 @pytest.mark.usefixtures("disable_capturing")
 class TestChildExecMain:
     """Test the macOS fork+exec child entry point."""
 
-    def test_uses_fds_012_and_requests_log_channel(self, monkeypatch):
-        """_child_exec_main wraps FDs 0/1/2 as sockets, passes log_fd=0, sets _AIRFLOW_FORK_EXEC."""
+    def test_uses_fds_0123_and_inherits_log_channel(self, monkeypatch):
+        """_child_exec_main wraps FDs 0/1/2 as sockets and passes log_fd=3 (inherited log channel)."""
         # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
-        # parent before exec).  It passes log_fd=0 to _fork_main (structured
-        # logging is requested later via ResendLoggingFD).
+        # parent before exec) and the structured log channel inherited on FD 3.
         req_a, req_b = socket.socketpair()
         out_a, out_b = socket.socketpair()
         err_a, err_b = socket.socketpair()
@@ -4056,6 +4281,9 @@ class TestChildExecMain:
         saved_0 = os.dup(0)
         saved_1 = os.dup(1)
         saved_2 = os.dup(2)
+
+        # The parent names the entry point to run via this env var.
+        monkeypatch.setenv("_AIRFLOW_CHILD_TARGET", "airflow.sdk.execution_time.supervisor:_subprocess_main")
 
         try:
             os.dup2(req_a.fileno(), 0)
@@ -4083,11 +4311,10 @@ class TestChildExecMain:
             assert captured["requests_fd"] == 0
             assert captured["stdout_fd"] == 1
             assert captured["stderr_fd"] == 2
-            assert captured["log_fd"] == 0
+            assert captured["log_fd"] == 3
             assert captured["target"] is supervisor._subprocess_main
-            # _child_exec_main sets this so the task runner knows to request
-            # the log channel via ResendLoggingFD.
-            assert os.environ.pop("_AIRFLOW_FORK_EXEC") == "1"
+            # The env var is consumed (popped) so it does not leak to grandchildren.
+            assert "_AIRFLOW_CHILD_TARGET" not in os.environ
         finally:
             # Restore original FDs.
             os.dup2(saved_0, 0)

@@ -34,7 +34,7 @@ import uuid6
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import delete, func, inspect as sa_inspect, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 from sqlalchemy.orm.attributes import set_committed_value
@@ -106,13 +106,13 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -1804,6 +1804,41 @@ class TestTaskInstance:
         ti.set_duration()
         assert ti.duration is None
 
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.parametrize(
+        ("start_date", "end_date", "expected_duration"),
+        [
+            (
+                timezone.datetime(2026, 6, 7, 12, 0, 1, 200000),
+                timezone.datetime(2026, 6, 7, 12, 0, 3, 500000),
+                2.3,
+            ),
+            (
+                timezone.datetime(2026, 6, 7, 12, 0, 59, 200000),
+                timezone.datetime(2026, 6, 7, 12, 1, 0, 500000),
+                1.3,
+            ),
+            (
+                timezone.datetime(2026, 6, 7, 12),
+                timezone.datetime(2026, 6, 7, 13),
+                3600.0,
+            ),
+        ],
+    )
+    def test_duration_expression_update_sqlite(
+        self, create_task_instance, session, start_date, end_date, expected_duration
+    ):
+        ti = create_task_instance()
+        ti.start_date = start_date
+        session.flush()
+
+        query = update(TI).where(TI.id == ti.id)
+        session.execute(TI.duration_expression_update(end_date, query, session.get_bind()))
+        ti.refresh_from_db(session=session)
+
+        assert ti.end_date == end_date
+        assert ti.duration == expected_duration
+
     def test_outlet_asset_extra(self, dag_maker: DagMaker, session: Session):
         from airflow.sdk.definitions.asset import Asset
 
@@ -2396,7 +2431,7 @@ class TestTaskInstance:
         ti.task = None
         ti.state = State.QUEUED
         session.flush()
-        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": dr.run_type}
 
         assert ti.task is None, "Check critical pre-condition"
 
@@ -2552,7 +2587,6 @@ class TestTaskInstance:
             "task_display_name": "Test Refresh from DB Task",
             "dag_version_id": mock.ANY,
             "context_carrier": {},
-            "span_status": SpanStatus.ENDED,
             "retry_delay_override": 60.0,
             "retry_reason": "Rate limit, backing off",
         }
@@ -2679,6 +2713,30 @@ class TestTaskInstance:
         # the new try_id should be different from what's recorded in tih
         assert tih[0].task_instance_id == try_id
 
+    def test_record_ti_stamps_end_date_when_unset_for_non_finished_state(self, dag_maker, session):
+        """record_ti() must fill in end_date/duration when archiving a non-finished TI with end_date=None."""
+        archive_time = pendulum.datetime(2024, 6, 15, 12, 0, 0, tz="UTC")
+        start = pendulum.datetime(2024, 6, 15, 11, 50, 0, tz="UTC")
+
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="test_record_ti_fallback")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.state = TaskInstanceState.RUNNING
+        ti.start_date = start
+        ti.end_date = None
+        session.flush()
+
+        with time_machine.travel(archive_time, tick=False):
+            TaskInstanceHistory.record_ti(ti, session=session)
+        session.flush()
+
+        tih = session.scalars(select(TaskInstanceHistory)).one()
+        assert tih.state == str(TaskInstanceState.FAILED)
+        assert tih.end_date == archive_time
+        assert tih.duration == (archive_time - start).total_seconds()
+
     @pytest.mark.parametrize(
         ("first_ti", "second_ti"),
         [
@@ -2762,7 +2820,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     expected_queue = queue_by_policy or default_queue
     if queue_by_policy:
         # Apply a dummy cluster policy to check if it is always applied
-        def mock_policy(task_instance: TaskInstance):
+        def mock_policy(task_instance: TaskInstance, dag_run=None):
             task_instance.queue = queue_by_policy
 
         monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
@@ -3231,6 +3289,170 @@ class TestMappedTaskInstanceReceiveValue:
             dag_maker.run_ti(ti.task_id, dag_run=dag_run, map_index=ti.map_index, session=session)
         assert outputs == expected_outputs
 
+    def test_map_xcom_wide_batched_expand(self, dag_maker, session):
+        """Wide XCom-driven expand goes through the batched add_all()/flush() path.
+
+        Exercises ``TaskMap.expand_mapped_task`` over a 20-element upstream XCom and
+        asserts the batched expansion creates exactly N mapped TIs with contiguous
+        ``map_index`` 0..N-1, the expected ``None`` (schedulable) state, and that the
+        returned instances are usable: they keep their ``.task`` (no merge() that drops
+        it), are attached to the session, and have ``dag_run`` primed so a later
+        ``ti.get_dagrun()`` -- as dependency evaluation makes per index -- is a cache hit
+        rather than an N+1 SELECT. Also pins the expansion call's query count.
+        """
+        from sqlalchemy import event
+        from sqlalchemy.orm.base import NO_VALUE
+
+        width = 20
+        upstream_return = list(range(width))
+
+        with dag_maker(dag_id="xcom_wide", session=session, serialized=True) as dag:
+
+            @dag.task
+            def emit():
+                return upstream_return
+
+            @dag.task
+            def show(value):
+                return value
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag_maker.serialized_dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
+
+        show_task = dag_maker.serialized_dag.get_task("show")
+        # Pins the query count so a regression back to per-index session.merge() -- which
+        # would issue a merge-load + reload SELECT per index -- fails this test, not just
+        # a slower one. Measured at 7 for this fixture; margin allows for minor backend
+        # differences while staying far below what a per-index merge() would cost.
+        with assert_queries_count(7, margin=2):
+            mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+
+        # Correct count + contiguous indexes 0..N-1.
+        assert len(mapped_tis) == width
+        assert max_map_index + 1 == width
+        assert sorted(ti.map_index for ti in mapped_tis) == list(range(width))
+
+        # Freshly-expanded mapped TIs are schedulable (state None) and are attached to
+        # the session. The batched path (indexes >= 1) additionally keeps its ``.task``
+        # because we never merge(); index 0 is the repurposed unmapped TI (loaded from
+        # the DB, so ``.task`` is None) which is stock behaviour untouched by this change.
+        for ti in mapped_tis:
+            assert ti.state is None
+            assert ti in session
+        batched_tis = [ti for ti in mapped_tis if ti.map_index >= 1]
+        assert len(batched_tis) == width - 1
+        for ti in batched_tis:
+            assert ti.task is not None
+            assert sa_inspect(ti).attrs.dag_run.loaded_value is not NO_VALUE
+
+        # And they are actually persisted as rows.
+        persisted = session.scalars(
+            select(TI)
+            .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert [ti.map_index for ti in persisted] == list(range(width))
+
+        # dag_run priming means get_dagrun() is a cache hit: zero SELECTs against dag_run.
+        dag_run_selects = []
+
+        def _on_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            normalized = " ".join(statement.lower().split())
+            if "select" in normalized and "from dag_run" in normalized:
+                dag_run_selects.append(statement)
+
+        event.listen(session.bind, "after_cursor_execute", _on_cursor_execute)
+        try:
+            for ti in batched_tis:
+                returned = ti.get_dagrun(session=session)
+                assert returned.run_id == dag_run.run_id
+        finally:
+            event.remove(session.bind, "after_cursor_execute", _on_cursor_execute)
+        assert dag_run_selects == [], (
+            f"get_dagrun() on primed mapped TIs issued {len(dag_run_selects)} dag_run SELECT(s); "
+            "the relationship priming should make these cache hits"
+        )
+
+    def test_revise_map_indexes_grow_batched(self, dag_maker, session):
+        """``DagRun._revise_map_indexes_if_mapped`` adds the new TIs via the batched path.
+
+        Simulates a mid-run length grow: expand once at a narrow width, then re-run the
+        revise path after the upstream XCom has grown, and assert the additional indexes
+        are created contiguously without losing any existing ones. Also pins the revise
+        call's query count.
+        """
+        from airflow.models.xcom import XComModel
+
+        with dag_maker(dag_id="xcom_revise", session=session, serialized=True) as dag:
+
+            @dag.task
+            def emit():
+                return [1, 2, 3]
+
+            @dag.task
+            def show(value):
+                return value
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag_maker.serialized_dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
+
+        show_task = dag_maker.serialized_dag.get_task("show")
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        assert len(mapped_tis) == 3
+        assert max_map_index == 2
+
+        # Grow the upstream's pushed length 3 -> 5 by rewriting the return-value XCom and
+        # the TaskMap row that records the mapped length.
+        XComModel.set(
+            key="return_value",
+            value=[1, 2, 3, 4, 5],
+            dag_id=dag_run.dag_id,
+            task_id="emit",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        task_map = session.scalars(
+            select(TaskMap).where(
+                TaskMap.dag_id == dag_run.dag_id,
+                TaskMap.task_id == "emit",
+                TaskMap.run_id == dag_run.run_id,
+            )
+        ).one()
+        task_map.length = 5
+        task_map.keys = None
+        session.flush()
+
+        # Pins the query count so a regression back to per-index session.merge() -- which
+        # would issue a merge-load + reload SELECT per index -- fails this test. Measured
+        # at 3 for this fixture (2 new indexes); margin allows for minor backend
+        # differences while staying below what a per-index merge() would cost.
+        with assert_queries_count(3, margin=1):
+            new_tis = list(
+                dag_run._revise_map_indexes_if_mapped(
+                    show_task, dag_version_id=mapped_tis[0].dag_version_id, session=session
+                )
+            )
+        # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
+        assert sorted(ti.map_index for ti in new_tis) == [3, 4]
+        for ti in new_tis:
+            assert ti.task is not None
+            assert ti in session
+
+        persisted = session.scalars(
+            select(TI)
+            .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert [ti.map_index for ti in persisted] == [0, 1, 2, 3, 4]
+
     def test_map_literal_cross_product(self, dag_maker, session):
         """Test a mapped task with literal cross product args expand properly."""
         outputs = []
@@ -3548,9 +3770,26 @@ def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, sessio
     assert result == {"t1"}
 
 
+def test_register_asset_changes_in_db_no_outlets_is_a_noop(dag_maker, session):
+    """A task with no outlets and no outlet events must not issue any queries."""
+    with dag_maker(dag_id="no_outlets", schedule=None, session=session):
+        EmptyOperator(task_id="hi")
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with assert_queries_count(0):
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[],
+            outlet_events=[],
+            session=session,
+        )
+
+
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
     assert dr.partition_key == "abc123"
@@ -3573,7 +3812,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     session,
 ):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime(), session=session) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionedAtRuntime(), session=session) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dag1_id = dag.dag_id
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
@@ -3639,7 +3878,7 @@ def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, se
 def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
     """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_no_overwrite", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_no_overwrite", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="scheduler-key", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3690,7 +3929,7 @@ def test_runtime_partition_key_inherits_dag_run_key_when_event_has_no_key(dag_ma
     can still be routed correctly.
     """
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_none", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_none", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3710,7 +3949,7 @@ def test_runtime_partition_key_inherits_dag_run_key_when_event_has_no_key(dag_ma
 def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
     """One event with an explicit key + one without produce two AssetEvents (explicit key + inherited run key)."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_mixed", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_mixed", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3755,17 +3994,17 @@ def test_runtime_partition_key_event_stays_none_when_no_key_and_no_run_key(dag_m
     assert event.partition_key is None
 
 
-def test_runtime_partition_key_does_not_backfill_partition_at_runtime_run(dag_maker, session):
-    """Task-emitted key lands on AssetEvent but does NOT back-fill DagRun.partition_key on a PartitionAtRuntime run.
+def test_runtime_partition_key_does_not_backfill_partitioned_at_runtime_run(dag_maker, session):
+    """Task-emitted key lands on AssetEvent but does NOT back-fill DagRun.partition_key on a PartitionedAtRuntime run.
 
     Provenance contract: DagRun.partition_key is set only at run-creation/trigger time.
-    A PartitionAtRuntime Dag triggered via REST without a partition_key starts with
+    A PartitionedAtRuntime Dag triggered via REST without a partition_key starts with
     partition_key=None. Even when a task discovers a partition at runtime and emits an
     outlet event carrying an explicit key, DagRun.partition_key must remain None — the
     key belongs to the AssetEvent, not to the run's provenance.
     """
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_par_backfill", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_par_backfill", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(session=session)
     assert dr.partition_key is None
@@ -4059,6 +4298,44 @@ def test_clear_task_instances_preserves_detail_level(dag_maker, session):
 
 
 @pytest.mark.db_test
+@pytest.mark.parametrize("flag", [True, False])
+def test_clear_task_instances_honors_trace_sampled_conf(dag_maker, session, flag):
+    """The regenerated carrier honors the airflow/trace_sampled override from dag run conf."""
+    with dag_maker("test_clear_trace_sampled"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun(conf={"airflow/trace_sampled": flag})
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span_ctx = trace.get_current_span(new_ctx).get_span_context()
+    assert span_ctx.trace_flags.sampled is flag
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_keeps_external_parent_trace(dag_maker, session):
+    """The regenerated carrier keeps riding the external trace from airflow/dagrun_parent_trace_context."""
+    external_trace_id = "11111111111111111111111111111111"
+    with dag_maker("test_clear_parent_trace"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun(
+        conf={"airflow/dagrun_parent_trace_context": f"00-{external_trace_id}-2222222222222222-01"}
+    )
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span_ctx = trace.get_current_span(new_ctx).get_span_context()
+    assert format(span_ctx.trace_id, "032x") == external_trace_id
+
+
+@pytest.mark.db_test
 def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, session):
     """``TaskInstance.__repr__`` must survive *any* deferred column it reads.
 
@@ -4093,3 +4370,109 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
 
     assert "<deferred>" in result
     assert "[queued]" not in result
+
+
+class TestTaskInstanceStatsTagsTeamName:
+    def test_stats_tags_without_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when the dag run has no team_name."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        tags = ti.stats_tags
+        assert "team_name" not in tags
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "run_type": dr.run_type}
+
+    def test_stats_tags_with_team_name(self, dag_maker, session):
+        """stats_tags takes team_name from the dag run's stats_tags."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = "my_team"
+        ti = dr.get_task_instance("my_task", session=session)
+        tags = ti.stats_tags
+        assert tags["team_name"] == "my_team"
+        assert tags == {
+            "dag_id": "test_dag",
+            "task_id": "my_task",
+            "team_name": "my_team",
+            "run_type": dr.run_type,
+        }
+
+    def test_stats_tags_with_none_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when the dag run's team_name is None."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = None
+        ti = dr.get_task_instance("my_task", session=session)
+        tags = ti.stats_tags
+        assert "team_name" not in tags
+
+    @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+    def test_stats_tags_match_worker_tag_set(self, dag_maker, session):
+        """ti_failures (and other ti.* metrics) are emitted from both the worker
+        (RuntimeTaskInstance.stats_tags) and the scheduler (TaskInstance.stats_tags); both must produce
+        the same tag set. The worker side is asserted in test_task_runner.py
+        (test_stats_tags_with_standalone_and_key_value_tags); this guards the scheduler side against drift:
+        dag tags + dag_id + task_id + run_type.
+        """
+        with dag_maker("parity_dag", tags=["env:prod", "production"], session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("t1", session=session)
+        tags = ti.stats_tags
+        assert tags == {
+            "dag_id": "parity_dag",
+            "task_id": "t1",
+            "run_type": "manual",
+            "env": "prod",
+            "production": "",
+        }
+        # run_type must be the bare value (not a DagRunType enum) so it serializes identically to
+        # the worker side, e.g. "manual" not "dagruntype.manual".
+        assert type(tags["run_type"]) is str
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(
+                "my_team",
+                {
+                    "dag_id": "test_dag",
+                    "task_id": "my_task",
+                    "team_name": "my_team",
+                    "queue": "default",
+                    "run_type": "manual",
+                },
+                id="with_team",
+            ),
+            pytest.param(
+                None,
+                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default", "run_type": "manual"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.timing")
+    def test_emit_state_change_metric_includes_team_name(
+        self, mock_timing, team_name, expected_tags, dag_maker, session
+    ):
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        ti.scheduled_dttm = timezone.utcnow()
+        if team_name:
+            dr._team_name = team_name
+        session.merge(ti)
+        session.flush()
+
+        ti.emit_state_change_metric(TaskInstanceState.QUEUED)
+
+        mock_timing.assert_called_once_with(
+            "task.scheduled_duration",
+            mock.ANY,
+            tags=expected_tags,
+        )

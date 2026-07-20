@@ -30,10 +30,16 @@ scheduling remain in Python; individual tasks delegate to a JVM subprocess that 
    :local:
    :depth: 2
 
+API reference
+-------------
+
+The generated API reference for the Java SDK is published with the Airflow documentation at
+`Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__.
+
 Prerequisites
 -------------
 
-* JRE 17 or later must be available on the Airflow worker nodes.
+* JRE 11 or later must be available on the Airflow worker nodes.
 * The compiled task JAR(s) and JVM dependencies must be accessible from the worker.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator;
   no additional Python packages are needed.
@@ -226,9 +232,162 @@ Register tasks manually in a ``BundleBuilder``:
       }
     }
 
-See the Java SDK's published JavaDoc for more details.
+See the `Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__ for more details.
 
-.. TODO: (AIP-108) Put a link here once we publish the JavaDoc.
+.. _java-sdk/logging:
+
+Logging
+-------
+
+Task code can emit log records through any common Java logging framework. The SDK ships optional
+integration libraries that forward those records to Airflow's task log store, where they appear
+alongside the standard task output in the Airflow UI.
+
+Declare a logger as a static field on the task class, using the class's own type as the name. This
+is the conventional pattern regardless of which logging framework you choose:
+
+.. code-block:: java
+
+    private static final System.Logger log =
+        System.getLogger(SalesPipeline.class.getName());
+
+    @Builder.Task(id = "extract")
+    public long extract(Client client) {
+        log.log(System.Logger.Level.INFO, "Starting extraction");
+        return recordCount;
+    }
+
+The Gradle snippets below show the dependency declarations; all Airflow artifact versions are managed
+by ``airflow-sdk-bom``. Maven users apply the same artifact IDs following the pattern in
+:ref:`java-sdk/build/maven`.
+
+.. _java-sdk/logging/jpl:
+
+``System.Logger`` (Java Platform Logging)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Java 9's new logging facade ``java.lang.System.Logger`` (JEP 264), commonly abbreviated *JPL*, can be
+used by libraries without pulling in any third-party API. The ``airflow-sdk-jpl`` artifact registers an
+``AirflowSystemLoggerFinder`` via ``ServiceLoader``, which routes all ``System.Logger`` calls directly
+to Airflow's task log store.
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-jpl:${version}")
+
+No configuration file or startup call is required. The ``ServiceLoader`` mechanism discovers the
+provider automatically as long as the JAR is on the classpath.
+
+.. note::
+
+    Do not add a second ``System.LoggerFinder`` implementation alongside
+    ``airflow-sdk-jpl``. The JVM selects one finder via ``ServiceLoader``; having
+    multiple providers on the classpath leads to unpredictable behaviour.
+
+.. _java-sdk/logging/slf4j:
+
+SLF4J 2.x
+~~~~~~~~~
+
+The SLF4J binding is discovered automatically via ``ServiceLoader``; no configuration file or
+startup call is required.
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-slf4j:${version}")
+
+The above automatically pulls in the SLF4J API, so you don't need to add ``slf4j-api`` yourself.
+
+.. note::
+
+    Do not add a second SLF4J binding (such as ``logback-classic`` or ``slf4j-simple``) alongside
+    ``airflow-sdk-slf4j``. SLF4J 2.x warns about multiple bindings and selects one unpredictably.
+
+.. _java-sdk/logging/log4j2:
+
+Log4j 2
+~~~~~~~
+
+``airflow-sdk-log4j2`` declares ``log4j-api`` as a transitive dependency, so you do not need to add the latter
+separately. You must also place ``log4j-core`` on the runtime classpath to host the plugin loader that
+discovers the custom ``AirflowAppender`` supplied by ``airflow-sdk-log4j2`` at startup:
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-log4j2:${version}")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:${log4jVersion}")
+
+Declare ``AirflowAppender`` in your ``log4j2.xml``:
+
+.. code-block:: xml
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Configuration>
+      <Appenders>
+        <AirflowAppender name="Airflow"/>
+      </Appenders>
+      <Loggers>
+        <Root level="info">
+          <AppenderRef ref="Airflow"/>
+        </Root>
+      </Loggers>
+    </Configuration>
+
+.. _java-sdk/logging/jul:
+
+``java.util.logging``
+~~~~~~~~~~~~~~~~~~~~~
+
+Add the artifact:
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-jul:${version}")
+
+and call ``AirflowJulHandler.setup()`` on startup, before any task runs. It clears the JUL root
+logger's existing handlers (including the default ``ConsoleHandler``, whose stderr output Airflow
+would otherwise capture as ``task.stderr`` at ERROR level, duplicating each record and mislabeling
+its level) and installs ``AirflowJulHandler`` in their place:
+
+.. code-block:: java
+
+    public static void main(String[] args) {
+        AirflowJulHandler.setup();
+        Server.create(args).serve(new MyBundle());
+    }
+
+Alternatively, declare the handler in a ``logging.properties`` file and point JUL at it with the
+``java.util.logging.config.file`` system property (set via ``jvm_args`` in the coordinator
+configuration):
+
+.. code-block:: properties
+
+    handlers = org.apache.airflow.sdk.jul.AirflowJulHandler
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-jdk17": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+          "jars_root": ["/opt/airflow/jars"],
+          "jvm_args": ["-Djava.util.logging.config.file=/opt/airflow/logging.properties"]
+        }
+      }
+    }
+
+.. _java-sdk/logging/other:
+
+Other frameworks
+~~~~~~~~~~~~~~~~
+
+Several commonly used logging APIs are covered without a dedicated Airflow artifact:
+
+* **Logback** is itself an SLF4J binding. Replace ``logback-classic`` with ``airflow-sdk-slf4j``
+  and no changes are needed in your task code.
+* **Apache Commons Logging (JCL)** can be bridged to SLF4J via ``org.slf4j:jcl-over-slf4j`` or
+  to Log4j 2 via ``org.apache.logging.log4j:log4j-jcl``.
 
 .. _java-sdk/types:
 
@@ -267,29 +426,52 @@ represented as Java objects when read back via ``getXCom``.
      - object
      - ``Map<String, Object>``
 
+.. note::
+
+   An ``@Builder.XCom`` parameter that reads a value which was never pushed resolves to
+   ``null``.  A boxed parameter (``Integer``, ``Long``, ``Boolean``, …) receives ``null``
+   safely, but a primitive parameter (``int``, ``long``, ``boolean``, …) cannot represent
+   ``null`` and the task fails with ``MissingXComException``.  Declare the parameter with a
+   boxed type when the upstream XCom may be absent.
+
 .. _java-sdk/build:
 
 Building and packaging
 -----------------------
 
-The Java SDK is distributed as a JAR. Use any build tool; Gradle is shown here.
+The Java SDK is distributed as a JAR. The sections below show how to build a bundle with Gradle or Maven.
 
-**Gradle setup**
+.. _java-sdk/build/gradle:
 
-Add the SDK dependency to your ``build.gradle.kts``:
+Gradle
+~~~~~~
 
-.. code-block:: kotlin
+Apply the Airflow SDK Gradle plugin in your ``build.gradle``:
+
+.. code-block:: groovy
+
+    plugins {
+        id("org.apache.airflow.sdk") version "${version}"
+    }
 
     dependencies {
-      implementation("org.apache.airflow:airflow-java-sdk:<version>")
-      annotationProcessor("org.apache.airflow:airflow-java-sdk:<version>")
+        annotationProcessor("org.apache.airflow:airflow-sdk-processor:${version}")
+        implementation("org.apache.airflow:airflow-sdk:${version}")
     }
 
-    tasks.withType<Jar> {
-      manifest {
-        attributes("Main-Class" to "com.example.Main")
-      }
+    airflowBundle {
+        mainClass = "com.example.Main"  // Point to your main class instead.
     }
+
+Then run:
+
+.. code-block:: bash
+
+    ./gradlew bundle
+
+The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the directory pointed to
+by ``jars_root`` in the coordinator configuration. :class:`~airflow.sdk.coordinators.java.JavaCoordinator`
+scans ``jars_root`` recursively and builds the classpath automatically.
 
 .. note::
 
@@ -298,20 +480,172 @@ Add the SDK dependency to your ``build.gradle.kts``:
 
 .. note::
 
-  The ``Main-Class`` manifest value is needed for the coordinator to know how to run the JAR. You can choose
-  to set this *on the coordinator itself* too by adding the ``main_class`` kwarg in coordinator configuration.
+  The plugin generates a fat JAR with the `Shadow <https://gradleup.com/shadow/>`__ plugin by default. This is
+  generally a good idea since you only deploy one JAR file to avoid dependency issues between projects. If this
+  does not suit you, set ``fatJar = false`` in ``airflowBundle`` to produce thin JARs instead. The rest of the
+  process stays the same, but you will need to put all dependency JARs somewhere Airflow can find with
+  ``jars_root``.
 
-Building a distribution
-~~~~~~~~~~~~~~~~~~~~~~~
+.. _java-sdk/build/maven:
+
+Maven
+~~~~~
+
+Import the ``airflow-sdk-bom`` Bill of Materials so that artifact versions and the
+``${airflow.supervisor.schema.version}`` property are managed in one place:
+
+.. code-block:: xml
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.airflow</groupId>
+                <artifactId>airflow-sdk-bom</artifactId>
+                <version>${version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+Add the SDK as a dependency (version is managed by the BOM):
+
+.. code-block:: xml
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.airflow</groupId>
+            <artifactId>airflow-sdk</artifactId>
+        </dependency>
+    </dependencies>
+
+Wire the annotation processor through ``maven-compiler-plugin`` so it stays off the runtime classpath:
+
+.. code-block:: xml
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+            <annotationProcessorPaths>
+                <path>
+                    <groupId>org.apache.airflow</groupId>
+                    <artifactId>airflow-sdk-processor</artifactId>
+                    <version>${version}</version>
+                </path>
+            </annotationProcessorPaths>
+        </configuration>
+    </plugin>
+
+**Option 1 (recommended): fat JAR**
+
+Use ``maven-shade-plugin`` to bundle your code and all dependencies into a single JAR. This is the
+simplest deployment: one file, no dependency management at runtime.
+
+.. code-block:: xml
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+            <execution>
+                <phase>package</phase>
+                <goals><goal>shade</goal></goals>
+                <configuration>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                            <!-- Replace with your BundleBuilder implementation. -->
+                            <mainClass>com.example.Main</mainClass>
+                            <manifestEntries>
+                                <!-- Resolved from the BOM; do not hard-code this value. -->
+                                <Airflow-Supervisor-Schema-Version>${airflow.supervisor.schema.version}</Airflow-Supervisor-Schema-Version>
+                            </manifestEntries>
+                        </transformer>
+                    </transformers>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+
+Then run:
 
 .. code-block:: bash
 
-    ./gradlew :myproject:installDist
+    mvn package
 
-The ``lib/`` directory of the resulting distribution contains all required JARs. Copy or mount it into the
-directory pointed to by ``jars_root`` in the coordinator configuration.
-:class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans ``jars_root``
-recursively and builds the classpath automatically.
+The fat JAR is written to ``target/<artifactId>-<version>.jar``. Copy it to the directory configured as
+``jars_root`` in your coordinator.
+
+**Option 2: thin JAR with separate dependencies**
+
+If a fat JAR does not suit your project, use ``maven-jar-plugin`` to set ``Main-Class`` on the regular
+JAR and ``maven-dependency-plugin`` to collect all runtime dependencies alongside it. Note that
+``Airflow-Supervisor-Schema-Version`` does not need to be set here since Airflow reads it directly from the
+``airflow-sdk`` JAR on the classpath.
+
+.. code-block:: xml
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+            <archive>
+                <manifestEntries>
+                    <Main-Class>com.example.Main</Main-Class>
+                </manifestEntries>
+            </archive>
+        </configuration>
+    </plugin>
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+            <execution>
+                <id>copy-dependencies</id>
+                <phase>package</phase>
+                <goals><goal>copy-dependencies</goal></goals>
+                <configuration>
+                    <outputDirectory>${project.build.directory}/bundle</outputDirectory>
+                    <includeScope>runtime</includeScope>
+                </configuration>
+            </execution>
+            <execution>
+                <id>copy-artifact</id>
+                <phase>package</phase>
+                <goals><goal>copy</goal></goals>
+                <configuration>
+                    <artifactItems>
+                        <artifactItem>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <version>${project.version}</version>
+                            <outputDirectory>${project.build.directory}/bundle</outputDirectory>
+                        </artifactItem>
+                    </artifactItems>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+
+Then run:
+
+.. code-block:: bash
+
+    mvn package
+
+``target/bundle/`` will contain the thin JAR and all runtime dependency JARs. Point ``jars_root`` at
+this directory.
+
+.. note::
+
+  You only need the ``annotationProcessorPaths`` entry if you use the annotation-based API.
+
+.. note::
+
+  Unlike the Gradle plugin, Maven has no equivalent of the ``verifyBundleMainClass`` validation step.
+  A wrong ``<mainClass>`` value will not be caught until runtime.
 
 .. _java-sdk/coordinator-config:
 
@@ -348,6 +682,40 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
        JVM startup is slow (e.g. on constrained hardware or with a large classpath).
+
+.. note::
+
+  The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
+  ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
+  scheduler (or ``airflow standalone``). A rebuilt bundle JAR, by contrast, is picked up on the next
+  task launch without a restart, because a fresh JVM is spawned per task instance.
+
+.. _java-sdk/java-executable:
+
+Pinning the Java executable
+---------------------------
+
+As a general recommendation, set ``java_executable`` to an absolute path rather than relying on
+``java`` resolving from ``$PATH``. This pins tasks to a known JDK, which matters most in production or
+corporate environments where the Airflow admin may not control the system-wide ``java`` (the same
+reasoning behind pinning a Python version).
+
+For example, if you install the JDK with Homebrew on macOS, its ``java`` is not on ``$PATH``, so
+point ``java_executable`` at it explicitly:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-jdk17": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+          "jars_root": ["/opt/airflow/jars"],
+          "java_executable": "/opt/homebrew/opt/openjdk@17/bin/java"
+        }
+      }
+    }
+    queue_to_coordinator = {"java": "java-jdk17"}
 
 .. _java-sdk/limitations:
 

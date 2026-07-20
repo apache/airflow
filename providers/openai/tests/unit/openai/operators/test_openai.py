@@ -20,9 +20,15 @@ from unittest.mock import Mock
 
 import pytest
 from openai.types.batch import Batch
+from openai.types.responses import Response
 
 from airflow.providers.common.compat.sdk import Context, TaskDeferred
-from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAITriggerBatchOperator
+from airflow.providers.openai.hooks.openai import OpenAIHook
+from airflow.providers.openai.operators.openai import (
+    OpenAIEmbeddingOperator,
+    OpenAIResponseOperator,
+    OpenAITriggerBatchOperator,
+)
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 openai = pytest.importorskip("openai")
@@ -50,7 +56,7 @@ def test_execute_with_input_text():
     operator = OpenAIEmbeddingOperator(
         task_id=TASK_ID, conn_id=CONN_ID, model="test_model", input_text="Test input text"
     )
-    mock_hook_instance = Mock()
+    mock_hook_instance = Mock(spec=OpenAIHook)
     mock_hook_instance.create_embeddings.return_value = [1.0, 2.0, 3.0]
     operator.hook = mock_hook_instance
 
@@ -73,6 +79,31 @@ def test_execute_with_invalid_input(invalid_input):
         operator.execute(context)
 
 
+def test_openai_response_operator_execute():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Write a haiku.",
+        model="test_model",
+        response_kwargs={"instructions": "Be concise.", "previous_response_id": "resp_prev"},
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.create_response.return_value = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed"
+    )
+    operator.hook = mock_hook_instance
+
+    result = operator.execute(Context())
+
+    assert result == "haiku text"
+    mock_hook_instance.create_response.assert_called_once_with(
+        input="Write a haiku.",
+        model="test_model",
+        instructions="Be concise.",
+        previous_response_id="resp_prev",
+    )
+
+
 @pytest.mark.parametrize("wait_for_completion", [True, False])
 def test_openai_trigger_batch_operator_not_deferred(mock_batch, wait_for_completion):
     operator = OpenAITriggerBatchOperator(
@@ -83,7 +114,7 @@ def test_openai_trigger_batch_operator_not_deferred(mock_batch, wait_for_complet
         wait_for_completion=wait_for_completion,
         deferrable=False,
     )
-    mock_hook_instance = Mock()
+    mock_hook_instance = Mock(spec=OpenAIHook)
     mock_hook_instance.get_batch.return_value = mock_batch
     mock_hook_instance.create_batch.return_value = mock_batch
     operator.hook = mock_hook_instance
@@ -103,7 +134,7 @@ def test_openai_trigger_batch_operator_with_deferred(mock_batch, wait_for_comple
         deferrable=True,
         wait_for_completion=wait_for_completion,
     )
-    mock_hook_instance = Mock()
+    mock_hook_instance = Mock(spec=OpenAIHook)
     mock_hook_instance.get_batch.return_value = mock_batch
     mock_hook_instance.create_batch.return_value = mock_batch
     operator.hook = mock_hook_instance

@@ -120,6 +120,8 @@ To delete an Amazon Bedrock AgentCore Runtime, you can use
 
 The operator accepts the runtime ID, which can be extracted from the ARN returned by
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateAgentRuntimeOperator`.
+By default, it waits until the runtime deletion is complete. Set ``wait_for_completion=False``
+to return immediately after submitting the delete request.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
     :language: python

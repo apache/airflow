@@ -28,6 +28,7 @@ from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 
+from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
@@ -1058,6 +1059,28 @@ def test_resetdb(
 
 
 @pytest.mark.db_test
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS,
+    reason="Compat matrix against Airflow < 3.1 uses NullPool, which does not track checked-out connections.",
+)
+class TestDeserializeUserSessionLifecycle:
+    def test_no_connection_checked_out_after_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "session_lifecycle_test_user")
+        try:
+            settings.engine.dispose()
+            auth_manager_with_appbuilder.cache.clear()
+
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+            assert result.id == user.id
+
+            assert settings.engine.pool.checkedout() == 0, (
+                "deserialize_user left a connection checked out — session was not closed"
+            )
+        finally:
+            delete_user(flask_app, "session_lifecycle_test_user")
+
+
+@pytest.mark.db_test
 class TestDeserializeUserSessionCleanup:
     """Test that deserialize_user cleans up the FAB scoped session on database errors.
 
@@ -1072,11 +1095,22 @@ class TestDeserializeUserSessionCleanup:
     """
 
     @staticmethod
+    @contextmanager
     def _patched_session(auth_manager, mock_session):
-        """Replace the ``session`` property on *auth_manager* with *mock_session*."""
-        return mock.patch.object(
-            type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
-        )
+        """Route both ``self.session`` and ``create_session()`` to *mock_session*."""
+        create_session_cm = MagicMock(spec=["__enter__", "__exit__"])
+        create_session_cm.__enter__.return_value = mock_session
+        create_session_cm.__exit__.return_value = False
+        with (
+            mock.patch.object(
+                type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
+            ),
+            mock.patch(
+                "airflow.providers.fab.auth_manager.fab_auth_manager.create_session",
+                return_value=create_session_cm,
+            ),
+        ):
+            yield
 
     @pytest.mark.parametrize(
         "raised_exc",

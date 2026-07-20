@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
       - name: "Install uv"
@@ -50,7 +50,7 @@ jobs:
       # yamllint disable rule:line-length
       - name: "Notify Slack on failure"
         if: failure()
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
+        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
