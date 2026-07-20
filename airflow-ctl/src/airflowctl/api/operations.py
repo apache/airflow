@@ -945,7 +945,7 @@ class TaskInstancesOperations(BaseOperations):
         dag_id: str,
         dag_run_id: str,
         task_id: str,
-        map_index: int = None,  # type: ignore
+        map_index: int | None = None,
     ) -> TaskInstanceResponse | ServerResponseError:
         """
         Get a task instance.

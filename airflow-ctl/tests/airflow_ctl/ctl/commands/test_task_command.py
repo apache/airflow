@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import uuid
 
 import pytest
@@ -51,7 +52,7 @@ class TestTaskCommands:
         state=TaskInstanceState.SUCCESS,
     )
 
-    def test_task_state(self, api_client_maker):
+    def test_task_state(self, api_client_maker, capsys):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}",
             response_json=self.task_instance_response.model_dump(mode="json"),
@@ -63,13 +64,14 @@ class TestTaskCommands:
                 [
                     "tasks",
                     "state",
-                    f"--dag-id={self.dag_id}",
-                    f"--dag-run-id={self.dag_run_id}",
-                    f"--task-id={self.task_id}",
+                    self.dag_id,
+                    self.dag_run_id,
+                    self.task_id,
                 ]
             ),
             api_client=api_client,
         )
+        assert json.loads(capsys.readouterr().out) == [{"state": "success"}]
 
     def test_task_state_not_found(self, api_client_maker):
         api_client = api_client_maker(
@@ -84,16 +86,16 @@ class TestTaskCommands:
                     [
                         "tasks",
                         "state",
-                        f"--dag-id={self.dag_id}",
-                        f"--dag-run-id={self.dag_run_id}",
-                        f"--task-id={self.task_id}",
+                        self.dag_id,
+                        self.dag_run_id,
+                        self.task_id,
                     ]
                 ),
                 api_client=api_client,
             )
 
     @pytest.mark.parametrize("map_index", [0, 1, 7])
-    def test_task_state_mapped(self, api_client_maker, map_index):
+    def test_task_state_mapped(self, api_client_maker, capsys, map_index):
         mapped_response = self.task_instance_response.model_copy(update={"map_index": map_index})
         api_client = api_client_maker(
             path=(
@@ -109,11 +111,12 @@ class TestTaskCommands:
                 [
                     "tasks",
                     "state",
-                    f"--dag-id={self.dag_id}",
-                    f"--dag-run-id={self.dag_run_id}",
-                    f"--task-id={self.task_id}",
+                    self.dag_id,
+                    self.dag_run_id,
+                    self.task_id,
                     f"--map-index={map_index}",
                 ]
             ),
             api_client=api_client,
         )
+        assert json.loads(capsys.readouterr().out) == [{"state": "success"}]

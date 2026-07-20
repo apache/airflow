@@ -30,4 +30,6 @@ def task_state(args, api_client=NEW_API_CLIENT) -> None:
         task_id=args.task_id,
         map_index=args.map_index,
     )
-    AirflowConsole().print_as(data=[{"state": ti.state}], output=args.output)
+    # ``state`` is a str-mixin enum; ``str()`` on it yields "TaskInstanceState.SUCCESS".
+    state = getattr(ti.state, "value", ti.state)
+    AirflowConsole().print_as(data=[{"state": state}], output=args.output)

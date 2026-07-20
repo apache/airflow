@@ -102,6 +102,3 @@ xcom:
 plugins:
   list: "List all installed Airflow plugins"
   list-import-errors: "List all plugin import errors"
-
-taskinstances:
-  get: "Retrieve a task instance by Dag ID, run ID, and task ID"

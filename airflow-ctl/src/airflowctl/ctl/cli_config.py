@@ -279,7 +279,7 @@ ARG_AUTH_PASSWORD = Arg(
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
-    help="The Dag ID of the Dag to pause or unpause",
+    help="The Dag ID",
 )
 ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
     flags=("logical_date_or_run_id",),
@@ -288,25 +288,14 @@ ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
 )
 
 # Task Commands Args
-ARG_TASK_DAG_ID = Arg(
-    flags=("--dag-id",),
-    type=str,
-    dest="dag_id",
-    required=True,
-    help="The Dag ID",
-)
 ARG_DAG_RUN_ID = Arg(
-    flags=("--dag-run-id",),
+    flags=("dag_run_id",),
     type=str,
-    dest="dag_run_id",
-    required=True,
     help="The Dag Run ID",
 )
 ARG_TASK_ID = Arg(
-    flags=("--task-id",),
+    flags=("task_id",),
     type=str,
-    dest="task_id",
-    required=True,
     help="The Task ID",
 )
 ARG_MAP_INDEX = Arg(
@@ -444,7 +433,13 @@ class CommandFactory:
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
         self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
-        self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
+        self.exclude_operation_names = [
+            "LoginOperations",
+            "VersionOperations",
+            "BaseOperations",
+            # Task instances are exposed through the hand-written ``tasks`` command group.
+            "TaskInstancesOperations",
+        ]
         self.exclude_method_names = [
             "error",
             "__init__",
@@ -1079,7 +1074,7 @@ TASK_COMMANDS = (
         help="Get the state of a task instance",
         func=lazy_load_command("airflowctl.ctl.commands.task_command.task_state"),
         args=(
-            ARG_TASK_DAG_ID,
+            ARG_DAG_ID,
             ARG_DAG_RUN_ID,
             ARG_TASK_ID,
             ARG_MAP_INDEX,
