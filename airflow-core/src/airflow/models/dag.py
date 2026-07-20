@@ -36,6 +36,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    and_,
     case,
     func,
     or_,
