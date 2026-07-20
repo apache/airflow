@@ -2768,7 +2768,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             backfill_id = dag_run.backfill_id
             dag = dag_run.dag = cached_get_dag(dag_run)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                # The serialized DAG for this run cannot be resolved. This happens when the run is
+                # pinned to a dag version (bundle_version set, created_dag_version_id populated) whose
+                # dag_version row was later deleted: the FK's ondelete="set null" clears
+                # created_dag_version_id and the pinned resolver does not fall back to the latest
+                # version. Without an explicit outcome the run is re-selected and skipped on every
+                # loop forever, with no failure signal. Fail it explicitly, mirroring how a SCHEDULED
+                # task instance whose serialized DAG cannot be found is failed elsewhere in the loop.
+                self.log.error(
+                    "DAG '%s' for queued run %s could not be resolved "
+                    "(created_dag_version_id=%s, bundle_version=%s); marking the run as failed",
+                    dag_id,
+                    run_id,
+                    dag_run.created_dag_version_id,
+                    dag_run.bundle_version,
+                )
+                dag_run.set_state(DagRunState.FAILED)
                 continue
             active_runs = active_runs_of_dags[(dag_id, backfill_id)]
             if backfill_id is not None:
