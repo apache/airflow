@@ -94,6 +94,7 @@ def get_provider_info():
                 "integration-name": "Amazon Elastic Container Registry (ECR)",
                 "external-doc-url": "https://aws.amazon.com/ecr/",
                 "logo": "/docs/integration-logos/Amazon-Elastic-Container-Registry_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ecr.rst"],
                 "tags": ["aws"],
             },
             {
@@ -423,6 +424,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon EC2",
                 "python-modules": ["airflow.providers.amazon.aws.operators.ec2"],
+            },
+            {
+                "integration-name": "Amazon Elastic Container Registry (ECR)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ecr"],
             },
             {
                 "integration-name": "Amazon ECS",

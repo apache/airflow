@@ -17,7 +17,7 @@
 
 [build-system]
 requires = [
-    "hatchling==1.30.1",
+    "hatchling==1.31.0",
     "packaging==26.2",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
@@ -190,6 +190,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
+]
+"common.dataquality" = [
+    "apache-airflow-providers-common-dataquality>=0.1.0"
 ]
 "common.io" = [
     "apache-airflow-providers-common-io>=1.4.2"
@@ -441,6 +444,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-ai>=0.1.0",
     "apache-airflow-providers-common-compat>=1.2.1",
+    "apache-airflow-providers-common-dataquality>=0.1.0",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
@@ -532,7 +536,9 @@ apache-airflow = "airflow.__main__:main"
    "apache-airflow-providers-amazon[python3-saml]",
 ]
 "cloudpickle" = [
-    "cloudpickle>=2.2.1",
+    # Remove this cap once snowflake-snowpark-python relaxes its own cloudpickle pin;
+    # tracked at https://github.com/apache/airflow/issues/70084
+    "cloudpickle>=2.2.1,<3.1.2",
 ]
 "github-enterprise" = [
     "apache-airflow-providers-fab>=2.2.0",
@@ -563,7 +569,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.26",
+    "uv>=0.11.28",
 ]
 
 [project.urls]
@@ -819,7 +825,6 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "airflow-ctl-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "airflow-e2e-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
-"providers-e2e-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -1086,7 +1091,6 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/task-sdk-integration-tests/tests",
-    "$MYPY_CONFIG_FILE_DIR/providers-e2e-tests/openlineage/tests",
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
@@ -1150,6 +1154,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/common/ai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/dataquality/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/dataquality/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/messaging/src",
@@ -1346,7 +1352,6 @@ dev = [
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
-    "apache-airflow-openlineage-e2e-tests",
     "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk[all]",
@@ -1431,7 +1436,6 @@ apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
-apache-airflow-openlineage-e2e-tests = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-akeyless = false
@@ -1464,6 +1468,7 @@ apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
 apache-airflow-providers-common-ai = false
 apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
@@ -1557,6 +1562,12 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
+# Temporary: pydantic-ai-skills 1.2.0 (adds exclude_resources, required by the
+# apache-airflow-providers-common-ai[skills] floor) was published 2026-07-15,
+# inside the "4 days" exclude-newer window. This pins the per-package cutoff just
+# past that release so 1.2.0 resolves while any later release stays quarantined.
+# Remove once the rolling window advances past 2026-07-15.
+pydantic-ai-skills = "2026-07-16T00:00:00Z"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1577,7 +1588,6 @@ apache-airflow-e2e-tests = false
 apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
-apache-airflow-openlineage-e2e-tests = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-akeyless = false
@@ -1610,6 +1620,7 @@ apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
 apache-airflow-providers-common-ai = false
 apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
@@ -1703,6 +1714,8 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
+# Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
+pydantic-ai-skills = "2026-07-16T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1720,7 +1733,6 @@ apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-integration-tests = { workspace = true }
-apache-airflow-openlineage-e2e-tests = { workspace = true }
 apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
@@ -1771,6 +1783,7 @@ apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-ai = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
+apache-airflow-providers-common-dataquality = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-messaging = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
@@ -1860,7 +1873,6 @@ members = [
     "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
-    "providers-e2e-tests/openlineage",
     "chart",
     "kubernetes-tests",
     "task-sdk",
@@ -1912,6 +1924,7 @@ members = [
     "providers/cohere",
     "providers/common/ai",
     "providers/common/compat",
+    "providers/common/dataquality",
     "providers/common/io",
     "providers/common/messaging",
     "providers/common/sql",

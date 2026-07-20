@@ -142,7 +142,7 @@ from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceS
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
@@ -1424,6 +1424,41 @@ class TestSchedulerJob:
         assert len(queued_tis) == 2
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
+
+    def test_executable_task_instances_no_per_ti_queries(self, dag_maker, session):
+        """Guard against an N+1 when enqueuing task instances.
+
+        ``ExecuteTask.make()`` reads ``ti.dag_run.created_dag_version.version_data`` to ship the
+        run's pinned bundle manifest. ``dag_run`` is eager-joined and ``created_dag_version`` is a
+        single batched ``selectin``, so the number of queries in
+        ``_executable_task_instances_to_queued`` must be independent of how many task instances are
+        in the batch. If a future change lazy-loads ``dag_run``/``created_dag_version`` per TI, the
+        count would scale with the task count and this test fails.
+        """
+        scheduler_job = Job()
+        runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner = runner
+
+        def _measure(dag_id: str, num_tasks: int) -> int:
+            with dag_maker(dag_id=dag_id, max_active_tasks=64, session=session):
+                for i in range(num_tasks):
+                    EmptyOperator(task_id=f"t{i}")
+            dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+            for ti in dr.task_instances:
+                ti.state = State.SCHEDULED
+            session.flush()
+            with count_queries(session=session) as result:
+                runner._executable_task_instances_to_queued(max_tis=64, session=session)
+            session.rollback()
+            return sum(result.values())
+
+        one_task = _measure("q_count_one", 1)
+        many_tasks = _measure("q_count_many", 10)
+
+        assert one_task == many_tasks, (
+            f"query count scaled with task-instance count ({one_task} -> {many_tasks}); "
+            "likely a per-TI lazy load (N+1) of dag_run/created_dag_version"
+        )
 
     def test_find_executable_task_instances_mysql_hint_only_applies_to_inner_query(self, dag_maker, session):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_mysql_hint_only_applies_to_inner_query"
@@ -8676,6 +8711,121 @@ class TestSchedulerJob:
         assert callback_request.context_from_server is not None
         assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
         assert callback_request.context_from_server.max_tries == ti.max_tries
+
+    @pytest.mark.parametrize(
+        ("state", "retries", "try_number", "expected_callback_type", "expected_dispatched_callback"),
+        [
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                0,
+                1,
+                TaskInstanceState.FAILED,
+                "on_failure_callback",
+                id="no_retries",
+            ),
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                2,
+                1,
+                TaskInstanceState.UP_FOR_RETRY,
+                "on_retry_callback",
+                id="retries_available_first_attempt",
+            ),
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                2,
+                2,
+                TaskInstanceState.UP_FOR_RETRY,
+                "on_retry_callback",
+                id="retries_available_mid_chain",
+            ),
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                2,
+                3,
+                TaskInstanceState.FAILED,
+                "on_failure_callback",
+                id="retries_exhausted",
+            ),
+            pytest.param(
+                TaskInstanceState.RESTARTING,
+                1,
+                5,
+                TaskInstanceState.UP_FOR_RETRY,
+                "on_retry_callback",
+                id="restarting_stays_eligible_past_max_tries",
+            ),
+        ],
+    )
+    def test_heartbeat_timeout_sets_callback_type_by_retry_eligibility(
+        self,
+        dag_maker,
+        session,
+        state,
+        retries,
+        try_number,
+        expected_callback_type,
+        expected_dispatched_callback,
+    ):
+        """Heartbeat-timeout cleanup must populate ``task_callback_type`` so the Dag processor
+        fires ``on_retry_callback`` when the task still has retries left, not
+        ``on_failure_callback``.
+
+        Reproduces the bug end-to-end through the actual scheduler purge path:
+
+        1. A TI is ``RUNNING`` (or ``RESTARTING``) with a stale ``last_heartbeat_at`` (worker
+           OOMKilled, node evicted, scheduler restarted, etc.).
+        2. ``_find_and_purge_task_instances_without_heartbeats`` builds a
+           ``TaskCallbackRequest`` and hands it to the executor's ``send_callback``.
+        3. The Dag processor branches on ``request.task_callback_type``:
+           ``UP_FOR_RETRY`` -> ``task.on_retry_callback``; anything else (including ``None``)
+           -> ``task.on_failure_callback``. See
+           ``airflow-core/src/airflow/dag_processing/processor.py``::``_execute_task_callbacks``.
+
+        Before the fix, step 2 left ``task_callback_type`` as ``None``, so step 3 always fell
+        into the ``else`` branch and ``on_failure_callback`` fired even when the task still had
+        retries left -- producing spurious failure alerts for tasks that ultimately succeeded on
+        retry.
+
+        The parametrized cases cover the full ``max_tries`` / ``try_number`` matrix for a
+        ``RUNNING`` TI -- no retries, retries available (first attempt and mid-chain), and
+        retries exhausted (``try_number > max_tries``) -- plus a ``RESTARTING`` TI (cleared
+        while running), which ``is_eligible_to_retry`` keeps retry-eligible even past
+        ``max_tries``. The ``expected_dispatched_callback`` column mirrors the Dag processor's
+        branch so the assertion captures the user-visible outcome, not just the field value.
+        """
+        with dag_maker(dag_id=f"hb_timeout_r{retries}_t{try_number}", session=session):
+            EmptyOperator(task_id="test_task", retries=retries)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        ti = dag_run.get_task_instance(task_id="test_task")
+        ti.state = state
+        ti.try_number = try_number
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        mock_executor.send_callback.assert_called_once()
+        request = mock_executor.send_callback.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == expected_callback_type
+        # Mirror processor._execute_task_callbacks: UP_FOR_RETRY -> on_retry_callback, else
+        # on_failure_callback. Asserting the dispatched callback closes the loop on the
+        # user-visible behaviour, not just the field value.
+        dispatched_callback = (
+            "on_retry_callback"
+            if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY
+            else "on_failure_callback"
+        )
+        assert dispatched_callback == expected_dispatched_callback
 
     @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),

@@ -21,7 +21,7 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
@@ -107,9 +107,9 @@ class LLMApprovalMixin:
 
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
-        if not isinstance(output, str):
-            # Always make string output so that when comparing in the execute_complete matches
-            output = str(output)
+        elif not isinstance(output, str):
+            # JSON round-trip: execute_complete validates the string back into output_type.
+            output = TypeAdapter(type(output)).dump_json(output).decode()
 
         ti_id = context["task_instance"].id
 

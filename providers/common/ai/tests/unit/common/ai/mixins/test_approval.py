@@ -118,15 +118,20 @@ class TestDeferForApproval:
         defer_kwargs = approval_op.defer.call_args[1]
         assert defer_kwargs["kwargs"]["generated_output"] == '{"text":"Paris","confidence":0.95}'
 
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [(42, "42"), (True, "true"), ([1, "a"], '[1,"a"]'), ({"k": "v"}, '{"k":"v"}')],
+        ids=["int", "bool", "list", "dict"],
+    )
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_non_string_non_pydantic_output_is_stringified(
-        self, mock_upsert, mock_trigger_cls, approval_op, context
+    def test_non_string_non_pydantic_output_is_json_encoded(
+        self, mock_upsert, mock_trigger_cls, approval_op, context, output, expected
     ):
-        approval_op.defer_for_approval(context, 42)
+        approval_op.defer_for_approval(context, output)
 
         defer_kwargs = approval_op.defer.call_args[1]
-        assert defer_kwargs["kwargs"]["generated_output"] == "42"
+        assert defer_kwargs["kwargs"]["generated_output"] == expected
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)

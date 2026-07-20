@@ -215,26 +215,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze testing providers-e2e-tests": [
-        {
-            "name": "Docker-compose tests flag",
-            "options": [
-                "--image-name",
-                "--python",
-                "--airflow-version",
-                "--skip-docker-compose-deletion",
-                "--skip-mounting-local-volumes",
-                "--down",
-            ],
-        },
-        {
-            "name": "Common CI options",
-            "options": [
-                "--include-success-outputs",
-                "--github-repository",
-            ],
-        },
-    ],
     "breeze testing airflow-ctl-tests": [
         {
             "name": "Test environment",
@@ -333,6 +313,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-success-outputs",
                 "--github-repository",
                 "--e2e-test-mode",
+                "--airflow-version",
             ],
         }
     ],

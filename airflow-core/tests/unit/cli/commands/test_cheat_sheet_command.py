@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 from airflow.cli import cli_parser
@@ -72,18 +73,23 @@ MOCK_COMMANDS: list[CLICommand] = [
 ]
 
 ALL_COMMANDS = """\
-airflow cmd_b                                   | Help text D
+airflow cmd_b | Help text D
 """
 
 SECTION_A = """\
-airflow cmd_a cmd_b                             | Help text B
-airflow cmd_a cmd_c                             | Help text C
+airflow cmd_a cmd_b | Help text B
+airflow cmd_a cmd_c | Help text C
 """
 
 SECTION_E = """\
-airflow cmd_e cmd_f                             | Help text F
-airflow cmd_e cmd_g                             | Help text G
+airflow cmd_e cmd_f | Help text F
+airflow cmd_e cmd_g | Help text G
 """
+
+
+def normalize_spaces(text: str) -> str:
+    """Collapse runs of spaces so assertions do not depend on the rich version's exact column padding."""
+    return re.sub(r" +", " ", text)
 
 
 class TestCheatSheetCommand:
@@ -96,7 +102,7 @@ class TestCheatSheetCommand:
         with stdout_capture as temp_stdout:
             args = self.parser.parse_args(["cheat-sheet"])
             args.func(args)
-        output = temp_stdout.getvalue()
+        output = normalize_spaces(temp_stdout.getvalue())
         assert ALL_COMMANDS in output
         assert SECTION_A in output
         assert SECTION_E in output
