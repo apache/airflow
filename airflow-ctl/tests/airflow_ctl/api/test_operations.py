@@ -1429,6 +1429,7 @@ class TestJobsOperations:
             assert request.url.path == "/api/v2/jobs"
             params = dict(request.url.params)
             assert params["limit"] == "50"
+            assert params["order_by"] == "-start_date"
             for key, value in expected_subset.items():
                 assert params[key] == value
 

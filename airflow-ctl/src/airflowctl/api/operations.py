@@ -698,7 +698,7 @@ class JobsOperations(BaseOperations):
             is_alive=is_alive,
             dag_id=dag_id or None,
             job_state=state or None,
-            order_by=order_by or ("-start_date" if limit is not None else None),
+            order_by=order_by or "-start_date",
             limit=limit,
             offset=offset,
         )
