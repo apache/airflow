@@ -1338,6 +1338,7 @@ class TestDagFileProcessorManager:
             parsing_result=processor.parsing_result,
             run_duration=mock.ANY,
             relative_fileloc="abc.txt",
+            bundle_path=TEST_DAGS_FOLDER,
             session=session,
         )
         assert manager._file_stats[file] is not original_stat
