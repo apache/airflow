@@ -121,6 +121,7 @@ class TestAirbyteJobSensor:
     @pytest.mark.parametrize(
         ("status", "message"),
         [
+            pytest.param("error", "Job run 1 has failed.", id="error"),
             pytest.param("cancelled", "Job run 1 has been cancelled.", id="cancelled"),
             pytest.param("unmapped_status", "Job run 1 did something unexpected.", id="fail-closed"),
         ],
