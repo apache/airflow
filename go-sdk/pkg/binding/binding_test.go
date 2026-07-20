@@ -294,6 +294,15 @@ type simpleTaskInput struct {
 	Name string
 }
 
+// twoFieldTaskInput has one field the args always match (Name) and one whose
+// arg name is never present in the tests that use it (Missing), to prove an
+// unmatched field is left at its Go zero value instead of failing the task.
+type twoFieldTaskInput struct {
+	sdk.TaskInput
+	Name    string
+	Missing string `arg:"missing"`
+}
+
 // nonEmbeddingStruct has no sdk.TaskInput sentinel, so it must keep resolving
 // as today's whole-value decode target, not per-field TaskInput binding.
 type nonEmbeddingStruct struct {
@@ -587,14 +596,28 @@ func (s *BindingSuite) TestResolveTaskInputPointerStruct() {
 	s.Equal("widget", input.Name)
 }
 
-func (s *BindingSuite) TestResolveTaskInputUnmatchedArgName() {
+func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameLeavesFieldZeroValued() {
 	fn := func(input simpleTaskInput) error { return nil }
 	_, err := s.resolve(fn, []Arg{
 		{Name: "different_name", Kind: ArgKindLiteral, Value: "x", DataType: DataTypeString},
 	}, &fakeXComClient{})
+	// simpleTaskInput has no other flat parameter to absorb "different_name",
+	// so the arity check (0 unclaimed args expected) still fails the task --
+	// this asserts the unmatched TaskInput field itself is not what errors.
 	if s.Assert().Error(err) {
-		s.Contains(err.Error(), `arg name "name" not found`)
+		s.Contains(err.Error(), "argument count mismatch")
 	}
+}
+
+func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMatch() {
+	fn := func(input twoFieldTaskInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	input := got[0].Interface().(twoFieldTaskInput)
+	s.Equal("widget", input.Name, "the matched field binds normally")
+	s.Equal("", input.Missing, "the unmatched field is left at its Go zero value, not an error")
 }
 
 func (s *BindingSuite) TestResolveTaskInputArityMismatchForLeftoverArgs() {

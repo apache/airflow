@@ -158,8 +158,11 @@ dags:
     tasks:
       - "make_config"
       - "make_numbers"
-      - "combine"
-      - "combine_via_task_input"
+      - "via_flat_args"
+      - "via_struct_no_tags"
+      - "via_struct_arg_tag"
+      - "via_struct_xcom_tag"
+      - "via_struct_unmatched_arg"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

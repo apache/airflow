@@ -145,7 +145,14 @@ source of truth for which `dag_id`s and `task_id`s a bundle can run.
 
 A struct that anonymously embeds `sdk.TaskInput` opts into **per-field, name-based** binding instead
 of a long flat parameter list — at most one such parameter is allowed per function, and it can be
-mixed with plain flat parameters:
+mixed with plain flat parameters.
+
+Conceptually, a plain flat parameter list is **positional-argument** binding: order matters, and
+every parameter must be filled or the task fails before its body runs. A `TaskInput` struct is
+closer to **keyword-argument** binding: fields match by name instead of position, and (see the
+`arg:` bullet below) a field whose name has no corresponding TaskFlow call argument is simply left
+at its Go zero value rather than failing the task — the same way an unpassed keyword argument falls
+back to a caller-side default in a kwargs-style call.
 
 ```go
 type CombineInput struct {
@@ -167,6 +174,8 @@ Each exported field supports three all-optional tags:
 - `arg:"<name>"` — bind from the TaskFlow call argument with this name (matched against the stub
   function's Python parameter name, independent of declaration order on either side). With no tag,
   the field's own Go name, snake_cased (`RatioValue` → `ratio_value`, `TaskID` → `task_id`), is used.
+  If no TaskFlow call argument carries that name, the field is simply left at its Go zero value —
+  it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg` below).
 - `xcom:"<task-id>"` — an explicit, ad hoc XCom pull from the named upstream task, fully independent
   of the TaskFlow call: the field need not correspond to any argument the Dag file passes at all. This
   pull is unchecked — the runtime does not verify `<task-id>` is an actual upstream dependency, the
@@ -184,7 +193,8 @@ this — it keeps working as a single flat data parameter, JSON-decoded whole fr
 argument (see `Config` in
 [`example/bundle/taskflowbinding/taskflowbinding.go`](./example/bundle/taskflowbinding/taskflowbinding.go)),
 which is a different mechanism from per-field `TaskInput` binding. See
-[`CombineViaTaskInput`](./example/bundle/taskflowbinding/taskflowbinding.go) for a full worked example.
+[`ViaStructNoTags`, `ViaStructArgTag`, `ViaStructXComTag`, and `ViaStructUnmatchedArg`](./example/bundle/taskflowbinding/taskflowbinding.go)
+for a full worked example of each tag mode — and the unmatched-field case — in isolation.
 
 ### Reading the task runtime context
 

@@ -19,9 +19,9 @@
 The stub Dag's single mixed positional/keyword TaskFlow call carries literals
 of every scalar type, an array literal, a defaulted ``None``, and XComs from
 two upstream Go tasks (an object bound onto a strict Go struct and an array
-bound onto ``[]int``). The Go ``combine`` task verifies every bound value and
-errors on any mismatch, so a green run *is* the binding assertion; the tests
-here check the run outcome and the summary XCom it pushes.
+bound onto ``[]int``). The Go ``via_flat_args`` task verifies every bound
+value and errors on any mismatch, so a green run *is* the binding assertion;
+the tests here check the run outcome and the summary XCom it pushes.
 """
 
 from __future__ import annotations
@@ -67,12 +67,20 @@ def completed_run() -> _CompletedRun:
 
 
 def test_all_tasks_succeeded(completed_run: _CompletedRun):
-    """The Go ``combine`` task errors on any mis-bound argument, so success here
+    """The Go ``via_flat_args`` task errors on any mis-bound argument, so success here
     proves every literal, XCom, keyword, and defaulted-None binding was correct."""
     assert completed_run.state == "success", (
         f"expected the run to succeed; got {completed_run.state!r}. task states: {completed_run.ti_states}"
     )
-    for task_id in ("make_config", "make_numbers", "combine", "combine_via_task_input"):
+    for task_id in (
+        "make_config",
+        "make_numbers",
+        "via_flat_args",
+        "via_struct_no_tags",
+        "via_struct_arg_tag",
+        "via_struct_xcom_tag",
+        "via_struct_unmatched_arg",
+    ):
         assert completed_run.ti_states.get(task_id) == "success", completed_run.ti_states
 
 
@@ -86,10 +94,10 @@ def test_upstream_xcoms_keep_their_shapes(completed_run: _CompletedRun):
     assert completed_run.xcom("make_numbers") == [1, 1, 2, 3, 5, 8]
 
 
-def test_combine_summary_reflects_bound_arguments(completed_run: _CompletedRun):
-    """``combine`` re-emits every bound value, confirming types survived the
+def test_via_flat_args_summary_reflects_bound_arguments(completed_run: _CompletedRun):
+    """``via_flat_args`` re-emits every bound value, confirming types survived the
     Python literal / XCom -> Go parameter -> XCom round trip."""
-    assert completed_run.xcom("combine") == {
+    assert completed_run.xcom("via_flat_args") == {
         "name": "summary",
         "count": 3,
         "ratio": 2.5,
@@ -102,14 +110,40 @@ def test_combine_summary_reflects_bound_arguments(completed_run: _CompletedRun):
     }
 
 
-def test_combine_via_task_input_summary_reflects_bound_arguments(completed_run: _CompletedRun):
-    """``combine_via_task_input`` demonstrates the Go SDK's ``sdk.TaskInput``
-    struct-field injection mode: ``region_code``/``threshold`` bind by name onto
-    the struct exactly like ``combine``'s flat parameters do, while the struct's
-    third field is an ad hoc XCom pull of ``make_config``'s return value declared
-    purely in Go, with no corresponding TaskFlow call argument here."""
-    assert completed_run.xcom("combine_via_task_input") == {
+def test_via_struct_no_tags_reflects_bound_arguments(completed_run: _CompletedRun):
+    """``via_struct_no_tags`` demonstrates the Go SDK's ``sdk.TaskInput`` struct-field
+    injection mode with no field tags at all: both fields bind by their Go field name
+    snake_cased."""
+    assert completed_run.xcom("via_struct_no_tags") == {
+        "region_code": "eu-west-1",
+        "threshold": 0.75,
+    }
+
+
+def test_via_struct_arg_tag_reflects_bound_arguments(completed_run: _CompletedRun):
+    """``via_struct_arg_tag`` demonstrates the ``arg:`` tag renaming a struct field
+    away from its snake_cased default."""
+    assert completed_run.xcom("via_struct_arg_tag") == {
         "region": "eu-west-1",
         "threshold": 0.75,
+    }
+
+
+def test_via_struct_xcom_tag_reflects_bound_arguments(completed_run: _CompletedRun):
+    """``via_struct_xcom_tag`` demonstrates the ``xcom:`` tag: its ``Config`` field is
+    an ad hoc pull of ``make_config``'s return value, with no corresponding TaskFlow
+    call argument here."""
+    assert completed_run.xcom("via_struct_xcom_tag") == {
+        "threshold": 0.75,
         "environment": "production",
+    }
+
+
+def test_via_struct_unmatched_arg_reflects_zero_valued_field(completed_run: _CompletedRun):
+    """``via_struct_unmatched_arg`` demonstrates that a struct field whose name has
+    no corresponding TaskFlow call argument stays at its Go zero value instead of
+    failing the task -- kwarg-style, an unpassed name simply isn't bound."""
+    assert completed_run.xcom("via_struct_unmatched_arg") == {
+        "region": "eu-west-1",
+        "missing_was_empty": True,
     }

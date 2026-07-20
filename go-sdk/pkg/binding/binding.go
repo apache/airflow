@@ -46,11 +46,20 @@
 // sits, and (with no TaskInput struct present) this reduces to exactly
 // today's positional-only behaviour.
 //
+// Conceptually, flat data parameters are positional-argument binding: order
+// matters, and every parameter must be filled or Resolve fails the task
+// before its body runs. A TaskInput struct is closer to keyword-argument
+// binding: fields match by name, and a field whose name has no corresponding
+// TaskFlow call argument is simply left at its Go zero value instead of
+// failing the task -- the same way an unpassed keyword argument falls back
+// to its default in a kwargs-style call.
+//
 // Analyze inspects a function once at registration and returns a Plan; Resolve
 // builds the call arguments for each execution from that Plan and the
-// per-execution argument spec, failing loudly on arity or type mismatches. A
-// declared type of "any" (or a Go parameter typed any) opts that argument out
-// of the type check; the decode step still fails loudly on unusable values.
+// per-execution argument spec, failing loudly on arity or type mismatches of
+// flat data parameters. A declared type of "any" (or a Go parameter typed
+// any) opts that argument out of the type check; the decode step still fails
+// loudly on unusable values.
 //
 // Mapped upstream fan-in is out of scope: XCom arguments always pull the
 // unmapped upstream instance (map_index is never sent).
@@ -326,7 +335,9 @@ func (p *Plan) resolveData(
 // resolveTaskInput builds the struct value for one TaskInput parameter. A
 // field tagged `xcom:` pulls directly and never touches byName/claimed; a
 // field claiming an argument spec entry by name marks it claimed so the
-// later flat-parameter cursor skips it.
+// later flat-parameter cursor skips it. A field whose name claims nothing
+// (kwarg-style: it was never "passed") is left unset at its Go zero value
+// rather than failing the task.
 func (p *Plan) resolveTaskInput(
 	ctx context.Context,
 	client sdk.Client,
@@ -360,12 +371,11 @@ func (p *Plan) resolveTaskInput(
 		case taskInputFieldFromArg:
 			idx, ok := byName[tif.argName]
 			if !ok {
-				return reflect.Value{}, fmt.Errorf(
-					"task function %s: %s: arg name %q not found among the Dag's TaskFlow call arguments",
-					p.fnName,
-					typeCheckCtx,
-					tif.argName,
-				)
+				// No TaskFlow call argument carries this name -- kwarg-style, an
+				// unpassed name leaves the field at its Go zero value rather than
+				// failing the task (unlike a flat data parameter, where arity is
+				// checked strictly; see the package doc comment).
+				continue
 			}
 			claimed[idx] = true
 			arg = args[idx]

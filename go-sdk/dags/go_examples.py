@@ -20,9 +20,11 @@ Python stub Dags mirroring the Go SDK example bundle (``go-sdk/example/bundle``)
 Three Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
 load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
 timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag``
-(stressing the TaskFlow argument-binding surface -- both the flat parameter
-list ``combine`` binds onto and the ``sdk.TaskInput`` struct ``combine_via_task_input``
-binds onto instead, see its Dag function below).
+(stressing the TaskFlow argument-binding surface -- the flat, positional
+parameter list ``via_flat_args`` binds onto, plus four ``sdk.TaskInput``
+(keyword-style) struct examples, ``via_struct_no_tags``/``via_struct_arg_tag``/
+``via_struct_xcom_tag``/``via_struct_unmatched_arg``, each isolating one
+field-binding mode; see its Dag function below).
 
 ``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
 run exercises XCom across the language boundary, the same way
@@ -128,7 +130,7 @@ def make_numbers(): ...
 
 
 @task.stub(queue="golang")
-def combine(
+def via_flat_args(
     name: str,
     count: int,
     ratio: float,
@@ -141,7 +143,19 @@ def combine(
 
 
 @task.stub(queue="golang")
-def combine_via_task_input(region_code: str, threshold: float): ...
+def via_struct_no_tags(region_code: str, threshold: float): ...
+
+
+@task.stub(queue="golang")
+def via_struct_arg_tag(region_code: str, threshold: float): ...
+
+
+@task.stub(queue="golang")
+def via_struct_xcom_tag(threshold: float): ...
+
+
+@task.stub(queue="golang")
+def via_struct_unmatched_arg(region_code: str): ...
 
 
 @dag(dag_id="taskflow_binding_dag")
@@ -149,23 +163,39 @@ def taskflow_binding_dag():
     """
     Stress the TaskFlow argument-binding surface beyond ``simple_dag``'s transform.
 
-    One mixed positional/keyword call carries literals of every scalar type plus an
-    array literal, and fans in XComs from *two* upstream Go tasks: ``make_config``
-    returns an object that binds onto a strictly-decoded Go struct, ``make_numbers``
-    an array that binds onto ``[]int``. ``note`` is not passed, so its ``None``
-    default is captured and arrives in Go as a nil ``*string``. The Go ``combine``
-    (``go-sdk/example/bundle/taskflowbinding``) verifies every bound value and fails
-    the task on any mismatch.
+    Conceptually, the flat parameter list is *positional-argument* binding: order
+    matters, and every parameter must be filled or the task fails before it runs.
+    ``sdk.TaskInput`` structs are closer to *keyword-argument* binding: fields match
+    by name, and (see ``via_struct_unmatched_arg`` below) a field whose name has no
+    corresponding TaskFlow call argument simply stays at its zero value instead of
+    failing the task -- the same way an unpassed keyword argument falls back to a
+    default in kwargs-style calls.
 
-    ``combine_via_task_input`` demonstrates the Go SDK's ``sdk.TaskInput`` struct
-    injection mode: ``region_code``/``threshold`` bind by name onto the struct's
-    fields exactly like ``combine``'s flat parameters do, but the struct's third
-    field is an ad hoc XCom pull of ``make_config``'s return value declared purely
-    in Go (an ``xcom:`` struct tag) -- it is never passed as a TaskFlow argument
-    here, so the explicit ``>>`` below is what orders it after ``make_config``.
+    ``via_flat_args``'s one mixed positional/keyword call carries literals of every
+    scalar type plus an array literal, and fans in XComs from *two* upstream Go
+    tasks: ``make_config`` returns an object that binds onto a strictly-decoded Go
+    struct, ``make_numbers`` an array that binds onto ``[]int``. ``note`` is not
+    passed, so its ``None`` default is captured and arrives in Go as a nil
+    ``*string``. The Go ``via_flat_args`` (``go-sdk/example/bundle/taskflowbinding``)
+    verifies every bound value and fails the task on any mismatch.
+
+    Four further tasks demonstrate the Go SDK's ``sdk.TaskInput`` struct injection
+    mode, one field-binding mode at a time:
+
+    * ``via_struct_no_tags``: both struct fields fall back to their Go field name
+      snake_cased -- no ``arg:``/``xcom:`` tags at all.
+    * ``via_struct_arg_tag``: one field is renamed via an explicit ``arg:`` tag,
+      proving the tag remaps the name rather than coincidentally matching it.
+    * ``via_struct_xcom_tag``: one field is an ad hoc XCom pull of ``make_config``'s
+      return value declared purely in Go (an ``xcom:`` struct tag) -- it is never
+      passed as a TaskFlow argument here, so the explicit ``>>`` below is what
+      orders it after ``make_config``.
+    * ``via_struct_unmatched_arg``: the Go struct declares a field with no
+      corresponding argument in this TaskFlow call at all -- it stays at its Go
+      zero value rather than failing the task.
     """
     config = make_config()
-    combine(
+    via_flat_args(
         "summary",
         3,
         2.5,
@@ -174,7 +204,10 @@ def taskflow_binding_dag():
         config=config,
         numbers=make_numbers(),
     )
-    config >> combine_via_task_input(region_code="eu-west-1", threshold=0.75)
+    via_struct_no_tags(region_code="eu-west-1", threshold=0.75)
+    via_struct_arg_tag(region_code="eu-west-1", threshold=0.75)
+    config >> via_struct_xcom_tag(threshold=0.75)
+    via_struct_unmatched_arg(region_code="eu-west-1")
 
 
 taskflow_binding_dag()

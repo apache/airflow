@@ -30,9 +30,9 @@ import (
 
 // Like example/bundle/main_test.go, this shows a task fn is unit-testable by
 // passing the data parameters directly, exactly as the runtime binds them.
-func TestCombine(t *testing.T) {
+func TestViaFlatArgs(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := Combine(ctx, slog.Default(),
+	got, err := ViaFlatArgs(ctx, slog.Default(),
 		"summary", 3, 2.5, true,
 		[]string{"metrics", "hourly"},
 		Config{Environment: "production", Region: "eu-west-1", Debug: true},
@@ -42,14 +42,14 @@ func TestCombine(t *testing.T) {
 	require.NoError(t, err)
 
 	summary, ok := got.(map[string]any)
-	require.True(t, ok, "Combine should return a map summary, got %T", got)
+	require.True(t, ok, "ViaFlatArgs should return a map summary, got %T", got)
 	assert.Equal(t, 20, summary["sum"])
 	assert.Equal(t, true, summary["note_was_null"])
 }
 
-func TestCombineRejectsWrongBinding(t *testing.T) {
+func TestViaFlatArgsRejectsWrongBinding(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := Combine(ctx, slog.Default(),
+	_, err := ViaFlatArgs(ctx, slog.Default(),
 		"summary", 3, 2.5, true,
 		[]string{"metrics", "hourly"},
 		Config{},
@@ -59,26 +59,93 @@ func TestCombineRejectsWrongBinding(t *testing.T) {
 	assert.ErrorContains(t, err, "object XCom bound incorrectly")
 }
 
-func TestCombineViaTaskInput(t *testing.T) {
+func TestViaStructNoTags(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := CombineViaTaskInput(ctx, slog.Default(), CombineInput{
+	got, err := ViaStructNoTags(ctx, slog.Default(), ViaStructNoTagsInput{
+		RegionCode: "eu-west-1",
+		Threshold:  0.75,
+	})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaStructNoTags should return a map summary, got %T", got)
+	assert.Equal(t, "eu-west-1", summary["region_code"])
+}
+
+func TestViaStructNoTagsRejectsWrongBinding(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	_, err := ViaStructNoTags(ctx, slog.Default(), ViaStructNoTagsInput{
+		RegionCode: "wrong-region",
+		Threshold:  0.75,
+	})
+	assert.ErrorContains(t, err, "TaskInput fields bound incorrectly")
+}
+
+func TestViaStructArgTag(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	got, err := ViaStructArgTag(ctx, slog.Default(), ViaStructArgTagInput{
 		Region:    "eu-west-1",
+		Threshold: 0.75,
+	})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaStructArgTag should return a map summary, got %T", got)
+	assert.Equal(t, "eu-west-1", summary["region"])
+}
+
+func TestViaStructArgTagRejectsWrongBinding(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	_, err := ViaStructArgTag(ctx, slog.Default(), ViaStructArgTagInput{
+		Region:    "wrong-region",
+		Threshold: 0.75,
+	})
+	assert.ErrorContains(t, err, "TaskInput fields bound incorrectly")
+}
+
+func TestViaStructXComTag(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	got, err := ViaStructXComTag(ctx, slog.Default(), ViaStructXComTagInput{
 		Threshold: 0.75,
 		Config:    Config{Environment: "production", Region: "eu-west-1", Debug: true},
 	})
 	require.NoError(t, err)
 
 	summary, ok := got.(map[string]any)
-	require.True(t, ok, "CombineViaTaskInput should return a map summary, got %T", got)
+	require.True(t, ok, "ViaStructXComTag should return a map summary, got %T", got)
 	assert.Equal(t, "production", summary["environment"])
 }
 
-func TestCombineViaTaskInputRejectsWrongBinding(t *testing.T) {
+func TestViaStructXComTagRejectsWrongBinding(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := CombineViaTaskInput(ctx, slog.Default(), CombineInput{
-		Region:    "eu-west-1",
+	_, err := ViaStructXComTag(ctx, slog.Default(), ViaStructXComTagInput{
 		Threshold: 0.75,
 		Config:    Config{},
 	})
 	assert.ErrorContains(t, err, "ad hoc xcom field bound incorrectly")
+}
+
+func TestViaStructUnmatchedArg(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	// Missing is left at its Go zero value, exactly as binding.Resolve leaves an
+	// unmatched TaskInput field -- this task fn is unit-testable independent of
+	// the binding package precisely because it declares that expectation itself.
+	got, err := ViaStructUnmatchedArg(ctx, slog.Default(), ViaStructUnmatchedArgInput{
+		Region:  "eu-west-1",
+		Missing: "",
+	})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaStructUnmatchedArg should return a map summary, got %T", got)
+	assert.Equal(t, true, summary["missing_was_empty"])
+}
+
+func TestViaStructUnmatchedArgRejectsNonZeroMissingField(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	_, err := ViaStructUnmatchedArg(ctx, slog.Default(), ViaStructUnmatchedArgInput{
+		Region:  "eu-west-1",
+		Missing: "unexpected",
+	})
+	assert.ErrorContains(t, err, "expected the unmatched field to stay at its Go zero value")
 }

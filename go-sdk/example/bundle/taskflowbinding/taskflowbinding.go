@@ -15,14 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package taskflowbinding holds the taskflow_binding_dag tasks. Where
-// simple_dag's transform shows the minimal TaskFlow binding (one literal, one
-// XCom), this Dag stresses the full argument surface: literals of every scalar
+// Package taskflowbinding holds the taskflow_binding_dag tasks. ViaFlatArgs is
+// positional-argument binding pushed to its limit: literals of every scalar
 // type, an array literal, keyword arguments, a defaulted null, and XCom fan-in
-// from two upstream Go tasks decoded into a strict struct and a typed slice.
-// CombineViaTaskInput additionally shows the sdk.TaskInput struct-field
-// injection mode: the same binding surface collapsed into one struct
-// parameter instead of a long flat list.
+// from two upstream Go tasks decoded into a strict struct and a typed slice --
+// where simple_dag's transform shows the minimal case (one literal, one
+// XCom), this shows the full argument surface. The ViaStruct* functions
+// instead show the sdk.TaskInput struct-field injection mode -- conceptually
+// keyword-argument binding, where fields match by name and an unmatched name
+// is left at its zero value rather than failing the task -- one field-binding
+// tag at a time: ViaStructNoTags (plain snake_case name fallback),
+// ViaStructArgTag (an explicit `arg:` rename), ViaStructXComTag (an ad hoc
+// `xcom:` pull), and ViaStructUnmatchedArg (a field whose name has no
+// corresponding TaskFlow call argument at all).
 package taskflowbinding
 
 import (
@@ -33,8 +38,8 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// Config is the object make_config returns as its XCom; combine declares the
-// same struct as a parameter, so the round trip exercises strict struct
+// Config is the object make_config returns as its XCom; via_flat_args declares
+// the same struct as a parameter, so the round trip exercises strict struct
 // decoding (an unknown or renamed key fails the task rather than silently
 // zeroing a field).
 type Config struct {
@@ -43,7 +48,7 @@ type Config struct {
 	Debug       bool   `json:"debug"`
 }
 
-// MakeConfig pushes an object XCom that combine binds onto its Config parameter.
+// MakeConfig pushes an object XCom that via_flat_args binds onto its Config parameter.
 func MakeConfig(log *slog.Logger) (any, error) {
 	cfg := Config{Environment: "production", Region: "eu-west-1", Debug: true}
 	log.Info(
@@ -58,23 +63,23 @@ func MakeConfig(log *slog.Logger) (any, error) {
 	return cfg, nil
 }
 
-// MakeNumbers pushes an array XCom that combine binds onto its []int parameter.
+// MakeNumbers pushes an array XCom that via_flat_args binds onto its []int parameter.
 func MakeNumbers(log *slog.Logger) (any, error) {
 	numbers := []int{1, 1, 2, 3, 5, 8}
 	log.Info("Pushing numbers", "numbers", fmt.Sprint(numbers))
 	return numbers, nil
 }
 
-// Combine receives every argument shape the stub Dag can express. The Python
-// side calls it as
+// ViaFlatArgs receives every argument shape the stub Dag can express as plain,
+// positional data parameters. The Python side calls it as
 //
-//	combine("summary", 3, 2.5, True, ["metrics", "hourly"],
-//	        config=make_config(), numbers=make_numbers())
+//	via_flat_args("summary", 3, 2.5, True, ["metrics", "hourly"],
+//	              config=make_config(), numbers=make_numbers())
 //
 // so the bound values are fixed; any mismatch below is a binding regression
 // and fails the task loudly. note is never passed and falls back to the stub's
 // None default, arriving as a nil *string.
-func Combine(
+func ViaFlatArgs(
 	ctx sdk.TIRunContext,
 	log *slog.Logger,
 	name string,
@@ -131,26 +136,60 @@ func Combine(
 	}, nil
 }
 
-// CombineInput demonstrates the sdk.TaskInput struct-field injection mode: an
-// ergonomic alternative to Combine's long flat parameter list. Region binds
-// by an explicit arg: tag; Threshold has no tag, so it falls back to its Go
-// field name snake_cased ("threshold"); Config is an ad hoc XCom pull of
-// make_config's return value, independent of the Python call's TaskFlow
-// arguments entirely.
-type CombineInput struct {
+// ViaStructNoTagsInput demonstrates the sdk.TaskInput struct-field injection
+// mode with no field tags at all: both fields fall back to their Go field
+// name snake_cased ("region_code", "threshold").
+type ViaStructNoTagsInput struct {
+	sdk.TaskInput
+	RegionCode string
+	Threshold  float64
+}
+
+// ViaStructNoTags is called as
+//
+//	via_struct_no_tags(region_code="eu-west-1", threshold=0.75)
+func ViaStructNoTags(
+	ctx sdk.TIRunContext,
+	log *slog.Logger,
+	input ViaStructNoTagsInput,
+) (any, error) {
+	if input.RegionCode != "eu-west-1" || input.Threshold != 0.75 {
+		return nil, fmt.Errorf(
+			"TaskInput fields bound incorrectly: region_code=%q threshold=%v",
+			input.RegionCode,
+			input.Threshold,
+		)
+	}
+
+	log.InfoContext(ctx, "Bound TaskInput struct (no tags)",
+		"region_code", input.RegionCode,
+		"threshold", input.Threshold,
+	)
+	return map[string]any{
+		"region_code": input.RegionCode,
+		"threshold":   input.Threshold,
+	}, nil
+}
+
+// ViaStructArgTagInput demonstrates the sdk.TaskInput struct-field injection
+// mode with an explicit arg: tag: Region binds to the "region_code" TaskFlow
+// argument under a renamed Go field, proving the tag remaps the name rather
+// than coincidentally matching it; Threshold has no tag and falls back to its
+// snake_cased field name.
+type ViaStructArgTagInput struct {
 	sdk.TaskInput
 	Region    string `arg:"region_code"`
 	Threshold float64
-	Config    Config `                  xcom:"make_config"`
 }
 
-// CombineViaTaskInput is the TaskInput-struct sibling of Combine: the same
-// kind of binding surface -- a named literal, a snake_case-fallback literal,
-// and an ad hoc XCom pull -- collapsed into one struct parameter instead of
-// many flat ones. The Python side calls it as
+// ViaStructArgTag is called as
 //
-//	combine_via_task_input(region_code="eu-west-1", threshold=0.75)
-func CombineViaTaskInput(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
+//	via_struct_arg_tag(region_code="eu-west-1", threshold=0.75)
+func ViaStructArgTag(
+	ctx sdk.TIRunContext,
+	log *slog.Logger,
+	input ViaStructArgTagInput,
+) (any, error) {
 	if input.Region != "eu-west-1" || input.Threshold != 0.75 {
 		return nil, fmt.Errorf(
 			"TaskInput fields bound incorrectly: region=%q threshold=%v",
@@ -158,20 +197,93 @@ func CombineViaTaskInput(ctx sdk.TIRunContext, log *slog.Logger, input CombineIn
 			input.Threshold,
 		)
 	}
+
+	log.InfoContext(ctx, "Bound TaskInput struct (arg: tag)",
+		"region", input.Region,
+		"threshold", input.Threshold,
+	)
+	return map[string]any{
+		"region":    input.Region,
+		"threshold": input.Threshold,
+	}, nil
+}
+
+// ViaStructXComTagInput demonstrates the sdk.TaskInput struct-field injection
+// mode with an xcom: tag: Config is an ad hoc pull of make_config's return
+// value, independent of the Python call's TaskFlow arguments entirely;
+// Threshold has no tag and falls back to its snake_cased field name.
+type ViaStructXComTagInput struct {
+	sdk.TaskInput
+	Threshold float64
+	Config    Config `xcom:"make_config"`
+}
+
+// ViaStructXComTag is called as
+//
+//	via_struct_xcom_tag(threshold=0.75)
+//
+// with the Python Dag ordering it after make_config explicitly (the xcom:
+// pull is not a TaskFlow argument, so there is no implicit dependency).
+func ViaStructXComTag(
+	ctx sdk.TIRunContext,
+	log *slog.Logger,
+	input ViaStructXComTagInput,
+) (any, error) {
+	if input.Threshold != 0.75 {
+		return nil, fmt.Errorf("TaskInput field bound incorrectly: threshold=%v", input.Threshold)
+	}
 	if want := (Config{Environment: "production", Region: "eu-west-1", Debug: true}); input.Config != want {
 		return nil, fmt.Errorf(
 			"ad hoc xcom field bound incorrectly: config=%+v, want %+v", input.Config, want,
 		)
 	}
 
-	log.InfoContext(ctx, "Bound TaskInput struct",
-		"region", input.Region,
+	log.InfoContext(ctx, "Bound TaskInput struct (xcom: tag)",
 		"threshold", input.Threshold,
 		"environment", input.Config.Environment,
 	)
 	return map[string]any{
-		"region":      input.Region,
 		"threshold":   input.Threshold,
 		"environment": input.Config.Environment,
+	}, nil
+}
+
+// ViaStructUnmatchedArgInput demonstrates that a field whose name has no
+// corresponding TaskFlow call argument at all is left at its Go zero value
+// rather than failing the task: Region binds normally, but Missing's arg
+// name is never among this call's arguments -- conceptually, an unpassed
+// keyword argument falling back to its default in a kwargs-style call.
+type ViaStructUnmatchedArgInput struct {
+	sdk.TaskInput
+	Region  string `arg:"region_code"`
+	Missing string `arg:"does_not_exist"`
+}
+
+// ViaStructUnmatchedArg is called as
+//
+//	via_struct_unmatched_arg(region_code="eu-west-1")
+//
+// -- the stub only declares region_code, so Missing's arg name never appears
+// among the call's arguments and stays at its Go zero value ("").
+func ViaStructUnmatchedArg(
+	ctx sdk.TIRunContext, log *slog.Logger, input ViaStructUnmatchedArgInput,
+) (any, error) {
+	if input.Region != "eu-west-1" {
+		return nil, fmt.Errorf("TaskInput field bound incorrectly: region=%q", input.Region)
+	}
+	if input.Missing != "" {
+		return nil, fmt.Errorf(
+			"expected the unmatched field to stay at its Go zero value, got missing=%q",
+			input.Missing,
+		)
+	}
+
+	log.InfoContext(ctx, "Bound TaskInput struct (unmatched arg)",
+		"region", input.Region,
+		"missing_was_empty", input.Missing == "",
+	)
+	return map[string]any{
+		"region":            input.Region,
+		"missing_was_empty": input.Missing == "",
 	}, nil
 }
