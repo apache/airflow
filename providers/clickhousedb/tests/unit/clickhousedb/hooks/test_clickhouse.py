@@ -1147,10 +1147,13 @@ class TestClickHouseHookTestConnection:
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
         hook.test_connection()
 
-        # Assert only on the SQL: the extra arguments clickhouse_connect's Cursor
-        # passes through vary between releases.
+        # Assert on the statement and the bound parameters only. Anything the
+        # driver appends beyond those (e.g. a settings kwarg) is its own concern
+        # and varies between releases.
         mock_client.query.assert_called_once()
-        assert mock_client.query.call_args.args[0] == "SELECT 1"
+        sql, parameters = mock_client.query.call_args.args[:2]
+        assert sql == "SELECT 1"
+        assert not parameters
 
 
 # ---------------------------------------------------------------------------
