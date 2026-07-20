@@ -23,6 +23,14 @@ import random
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.amazon.aws.exceptions import (
+    DataSyncLocationNotFoundError,
+    DataSyncMultipleLocationsError,
+    DataSyncMultipleTasksError,
+    DataSyncTaskCreationError,
+    DataSyncTaskExecutionFailedError,
+    DataSyncTaskNotFoundError,
+)
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.links.datasync import DataSyncTaskExecutionLink, DataSyncTaskLink
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -102,13 +110,16 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-    :raises AirflowException: If ``task_arn`` was not specified, or if
+    :raises ValueError: If ``task_arn`` was not specified, or if
         either ``source_location_uri`` or ``destination_location_uri`` were
         not specified.
-    :raises AirflowException: If source or destination Location were not found
+    :raises DataSyncLocationNotFoundError: If source or destination Location were not found
         and could not be created.
-    :raises AirflowException: If ``choose_task`` or ``choose_location`` fails.
-    :raises AirflowException: If Task creation, update, execution or delete fails.
+    :raises DataSyncMultipleTasksError: If ``choose_task`` fails.
+    :raises DataSyncMultipleLocationsError: If ``choose_location`` fails.
+    :raises DataSyncTaskNotFoundError: If a task could not be identified or created.
+    :raises DataSyncTaskCreationError: If Task creation fails.
+    :raises DataSyncTaskExecutionFailedError: If Task execution fails.
     """
 
     aws_hook_class = DataSyncHook
@@ -181,7 +192,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
         if self.source_location_uri and self.destination_location_uri:
             valid = True
         if not valid:
-            raise AirflowException(
+            raise ValueError(
                 f"Either specify task_arn or both source_location_uri and destination_location_uri. "
                 f"task_arn={task_arn!r}, source_location_uri={source_location_uri!r}, "
                 f"destination_location_uri={destination_location_uri!r}"
@@ -216,7 +227,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
             self._create_datasync_task()
 
         if not self.task_arn:
-            raise AirflowException("DataSync TaskArn could not be identified or created.")
+            raise DataSyncTaskNotFoundError("DataSync TaskArn could not be identified or created.")
 
         task_id = self.task_arn.split("/")[-1]
 
@@ -245,7 +256,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
         self._execute_datasync_task(context=context)
 
         if not self.task_execution_arn:
-            raise AirflowException("Nothing was executed")
+            raise DataSyncTaskExecutionFailedError("Nothing was executed")
 
         # Delete the DataSyncTask
         if self.delete_task_after_execution:
@@ -286,7 +297,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(task_arn_list)
-        raise AirflowException(f"Unable to choose a Task from {task_arn_list}")
+        raise DataSyncMultipleTasksError(f"Unable to choose a Task from {task_arn_list}")
 
     def choose_location(self, location_arn_list: list[str] | None) -> str | None:
         """Select 1 DataSync LocationArn from a list."""
@@ -300,7 +311,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
             # from AWS and might lead to confusion. Rather explicitly
             # choose a random one
             return random.choice(location_arn_list)
-        raise AirflowException(f"Unable to choose a Location from {location_arn_list}")
+        raise DataSyncMultipleLocationsError(f"Unable to choose a Location from {location_arn_list}")
 
     def _create_datasync_task(self) -> None:
         """Create a AWS DataSyncTask."""
@@ -311,7 +322,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
                 self.source_location_uri, **self.create_source_location_kwargs
             )
         if not self.source_location_arn:
-            raise AirflowException(
+            raise DataSyncLocationNotFoundError(
                 "Unable to determine source LocationArn. Does a suitable DataSync Location exist?"
             )
 
@@ -326,7 +337,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
                 self.destination_location_uri, **self.create_destination_location_kwargs
             )
         if not self.destination_location_arn:
-            raise AirflowException(
+            raise DataSyncLocationNotFoundError(
                 "Unable to determine destination LocationArn. Does a suitable DataSync Location exist?"
             )
 
@@ -335,7 +346,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
             self.source_location_arn, self.destination_location_arn, **self.create_task_kwargs
         )
         if not self.task_arn:
-            raise AirflowException("Task could not be created")
+            raise DataSyncTaskCreationError("Task could not be created")
         self.log.info("Created a Task with TaskArn %s", self.task_arn)
 
     def _update_datasync_task(self) -> None:
@@ -350,7 +361,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
     def _execute_datasync_task(self, context: Context) -> None:
         """Create and monitor an AWS DataSync TaskExecution for a Task."""
         if not self.task_arn:
-            raise AirflowException("Missing TaskArn")
+            raise ValueError("Missing TaskArn")
 
         # Create a task execution:
         self.log.info("Starting execution for TaskArn %s", self.task_arn)
@@ -404,7 +415,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
                     self.log.log(level, "%s=%s", k, v)
 
         if not result:
-            raise AirflowException(f"Failed TaskExecutionArn {self.task_execution_arn}")
+            raise DataSyncTaskExecutionFailedError(f"Failed TaskExecutionArn {self.task_execution_arn}")
 
     def _cancel_datasync_task_execution(self):
         """Cancel the submitted DataSync task."""
