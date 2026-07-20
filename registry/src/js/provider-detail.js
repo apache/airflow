@@ -25,7 +25,9 @@
   var extraDepsList = document.getElementById('extra-deps-list');
   var extrasDataEl = document.getElementById('extras-data');
   var moduleSearch = document.getElementById('module-search');
-  var moduleTabs = document.querySelectorAll('.module-tab');
+  // [data-type] excludes the "More" toggle button, which is a .module-tab
+  // for styling purposes only and has no data-type of its own.
+  var moduleTabs = document.querySelectorAll('.module-tab[data-type]');
   var categoryBtns = document.querySelectorAll('.category-btn');
   var moduleItems = document.querySelectorAll('.modules .module');
   var copyImportBtns = document.querySelectorAll('.copy-import');
@@ -154,6 +156,44 @@
       filterModules();
     });
   });
+
+  // "More" overflow menu for module tabs that don't fit in the visible row.
+  var moduleTabMoreBtn = document.getElementById('module-tab-more-btn');
+  var moduleTabMoreMenu = document.getElementById('module-tab-more-menu');
+
+  if (moduleTabMoreBtn && moduleTabMoreMenu) {
+    function closeMoreMenu() {
+      moduleTabMoreBtn.setAttribute('aria-expanded', 'false');
+      moduleTabMoreMenu.hidden = true;
+    }
+
+    moduleTabMoreBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = moduleTabMoreBtn.getAttribute('aria-expanded') === 'true';
+      if (isOpen) {
+        closeMoreMenu();
+      } else {
+        moduleTabMoreBtn.setAttribute('aria-expanded', 'true');
+        moduleTabMoreMenu.hidden = false;
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!moduleTabMoreMenu.contains(e.target) && e.target !== moduleTabMoreBtn) {
+        closeMoreMenu();
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeMoreMenu();
+    });
+
+    // Selecting a tab inside the menu also closes it (filtering itself is
+    // handled by the shared moduleTabs click listener above).
+    moduleTabMoreMenu.querySelectorAll('.module-tab').forEach(function(tab) {
+      tab.addEventListener('click', closeMoreMenu);
+    });
+  }
 
   categoryBtns.forEach(function(btn) {
     btn.addEventListener('click', function() {

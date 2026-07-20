@@ -276,16 +276,35 @@ eleventyComputed:
   </section>
 
   {% if totalModules > 0 %}
-  {# Module Type Tabs #}
+  {# Module Type Tabs: sorted by module count (busiest first), overflow into a "More" menu #}
+  {% set moduleTabsVisibleCount = 8 %}
+  {% set sortedTypes = types | sortTypesByCount(moduleCounts) %}
+  {% set visibleTypes = sortedTypes | slice(0, moduleTabsVisibleCount) %}
+  {% set overflowTypes = sortedTypes | slice(moduleTabsVisibleCount, sortedTypes.length) %}
   <nav class="module-tabs">
     <button class="module-tab active" data-type="all">All ({{ totalModules }})</button>
-    {% for t in types %}
-    {% if moduleCounts[t.id] > 0 %}
+    {% for t in visibleTypes %}
     <button class="module-tab" data-type="{{ t.id }}">
-      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ moduleCounts[t.id] }})
+      <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ t.count }})
     </button>
-    {% endif %}
     {% endfor %}
+    {% if overflowTypes.length > 0 %}
+    <div class="module-tab-more">
+      <button class="module-tab module-tab-more-btn" type="button" id="module-tab-more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="module-tab-more-menu">
+        More
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div class="module-tab-more-menu" id="module-tab-more-menu" role="menu" hidden>
+        {% for t in overflowTypes %}
+        <button class="module-tab" data-type="{{ t.id }}" role="menuitem">
+          <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ t.count }})
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </nav>
 
   {# Main content with sidebar #}

@@ -58,5 +58,35 @@
     "id": "toolset",
     "label": "Toolsets",
     "icon": "U"
+  },
+  {
+    "id": "extra_link",
+    "label": "Extra Links",
+    "icon": "I"
+  },
+  {
+    "id": "queue",
+    "label": "Queues",
+    "icon": "Q"
+  },
+  {
+    "id": "plugin",
+    "label": "Plugins",
+    "icon": "P"
+  },
+  {
+    "id": "auth_manager",
+    "label": "Auth Managers",
+    "icon": "A"
+  },
+  {
+    "id": "db_manager",
+    "label": "DB Managers",
+    "icon": "D"
+  },
+  {
+    "id": "dialect",
+    "label": "Dialects",
+    "icon": "C"
   }
 ]

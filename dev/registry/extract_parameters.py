@@ -584,8 +584,6 @@ def discover_classes_from_provider(
             category_map = {
                 "notifications": "notifications",
                 "secrets-backends": "secrets",
-                "logging": "logging",
-                "executors": "executors",
             }
 
             discovered.append(
@@ -598,6 +596,68 @@ def discover_classes_from_provider(
                     category=category_map.get(section_name, section_name),
                 )
             )
+
+    # --- Plugins (dict entries with "name" + "plugin-class") ---
+    for plugin in provider_yaml.get("plugins", []):
+        class_path = plugin.get("plugin-class", "")
+        if not class_path:
+            continue
+        parts = class_path.rsplit(".", 1)
+        if len(parts) != 2:
+            continue
+        module_path, class_name = parts
+        try:
+            mod = importlib.import_module(module_path)
+            candidate = getattr(mod, class_name, None)
+        except Exception:
+            log.warning("Could not import %s", class_path)
+            continue
+        if candidate is None or not inspect.isclass(candidate):
+            log.warning("%s is not a class", class_path)
+            continue
+
+        discovered.append(
+            make_entry(
+                candidate,
+                class_name,
+                "plugin",
+                class_path,
+                module_path,
+                integration=plugin.get("name", ""),
+                category="plugins",
+            )
+        )
+
+    # --- Dialects (dict entries with "dialect-type" + "dialect-class-name") ---
+    for dialect in provider_yaml.get("dialects", []):
+        class_path = dialect.get("dialect-class-name", "")
+        if not class_path:
+            continue
+        parts = class_path.rsplit(".", 1)
+        if len(parts) != 2:
+            continue
+        module_path, class_name = parts
+        try:
+            mod = importlib.import_module(module_path)
+            candidate = getattr(mod, class_name, None)
+        except Exception:
+            log.warning("Could not import %s", class_path)
+            continue
+        if candidate is None or not inspect.isclass(candidate):
+            log.warning("%s is not a class", class_path)
+            continue
+
+        discovered.append(
+            make_entry(
+                candidate,
+                class_name,
+                "dialect",
+                class_path,
+                module_path,
+                integration=dialect.get("dialect-type", ""),
+                category="dialects",
+            )
+        )
 
     # --- Task decorators (class-name key in each entry) ---
     for decorator in provider_yaml.get("task-decorators", []):
