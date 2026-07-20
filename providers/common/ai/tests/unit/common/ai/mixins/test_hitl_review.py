@@ -23,8 +23,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
+import json
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
+
+from pydantic import BaseModel
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
@@ -105,6 +108,29 @@ def mock_ti(mock_supervisor_comms):
 @pytest.fixture
 def context(mock_ti):
     return {"task_instance": mock_ti}
+
+
+class TestToString:
+    def test_str_output_passes_through_unchanged(self):
+        assert HITLReviewMixin._to_string("plain text") == "plain text"
+
+    def test_base_model_output_uses_model_dump_json(self):
+        class Summary(BaseModel):
+            text: str
+
+        assert HITLReviewMixin._to_string(Summary(text="hi")) == '{"text":"hi"}'
+
+    def test_list_output_is_valid_json_not_python_repr(self):
+        result = HITLReviewMixin._to_string(["tag-a", "tag-b"])
+
+        assert result == '["tag-a","tag-b"]'
+        assert json.loads(result) == ["tag-a", "tag-b"]
+
+    def test_bool_output_is_valid_json_not_python_repr(self):
+        result = HITLReviewMixin._to_string(True)
+
+        assert result == "true"
+        assert json.loads(result) is True
 
 
 class TestHITLReviewMixin:
