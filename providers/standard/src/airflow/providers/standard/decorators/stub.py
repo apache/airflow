@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+import enum
 import inspect
 import json
 import types
@@ -41,45 +42,61 @@ try:
 except ImportError:  # Airflow 2, and 3.0 where the SDK does not export it yet
     from airflow.utils.context import KNOWN_CONTEXT_KEYS  # type: ignore[attr-defined,no-redef]
 
+try:
+    from airflow.sdk.api.datamodels._generated import ArgBindingDataType
+except ImportError:  # Airflow 2 -- no task-sdk execution-API generated models
+
+    class ArgBindingDataType(str, enum.Enum):  # type: ignore[no-redef]
+        """Language-neutral value type a stub-task argument binds to in the foreign runtime."""
+
+        STRING = "string"
+        INTEGER = "integer"
+        NUMBER = "number"
+        BOOLEAN = "boolean"
+        OBJECT = "object"
+        ARRAY = "array"
+        ANY = "any"
+
+
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-def _data_type_from_annotation(annotation: Any) -> str:
+def _data_type_from_annotation(annotation: Any) -> ArgBindingDataType:
     """
     Map a stub function parameter annotation to the language-neutral arg-type vocabulary.
 
     The foreign runtime type-checks the bound value against the returned name; anything we
-    cannot classify confidently maps to ``"any"`` so binding falls back to a decode-only check.
+    cannot classify confidently maps to ``ANY`` so binding falls back to a decode-only check.
     """
     if annotation is inspect.Parameter.empty or annotation is None or annotation is Any:
-        return "any"
+        return ArgBindingDataType.ANY
     origin = typing.get_origin(annotation)
     if origin is not None:
         if origin is Union or origin is getattr(types, "UnionType", None):
             members = [a for a in typing.get_args(annotation) if a is not type(None)]
             if len(members) == 1:
                 return _data_type_from_annotation(members[0])
-            return "any"
+            return ArgBindingDataType.ANY
         annotation = origin
     if not isinstance(annotation, type):
-        return "any"
+        return ArgBindingDataType.ANY
     # bool subclasses int, and str/bytes are Sequences -- order matters.
     if issubclass(annotation, bool):
-        return "boolean"
+        return ArgBindingDataType.BOOLEAN
     if issubclass(annotation, int):
-        return "integer"
+        return ArgBindingDataType.INTEGER
     if issubclass(annotation, float):
-        return "number"
+        return ArgBindingDataType.NUMBER
     if issubclass(annotation, str):
-        return "string"
+        return ArgBindingDataType.STRING
     if issubclass(annotation, bytes):
-        return "any"
+        return ArgBindingDataType.ANY
     if issubclass(annotation, (dict, Mapping)):
-        return "object"
+        return ArgBindingDataType.OBJECT
     if issubclass(annotation, (list, tuple, set, frozenset, Sequence)):
-        return "array"
-    return "any"
+        return ArgBindingDataType.ARRAY
+    return ArgBindingDataType.ANY
 
 
 def _build_arg_bindings(

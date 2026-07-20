@@ -285,7 +285,7 @@ func (m *SucceedTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 // DecodeMsgpack applies TaskArgBinding's schema defaults that msgpack would otherwise skip.
 func (m *TaskArgBinding) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias TaskArgBinding
-	v := alias{DataType: TaskArgBindingDataType("any"), Key: "return_value"}
+	v := alias{DataType: ArgBindingDataType("any"), Key: "return_value"}
 	if err := dec.Decode(&v); err != nil {
 		return err
 	}

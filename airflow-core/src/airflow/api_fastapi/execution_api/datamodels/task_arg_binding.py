@@ -24,14 +24,24 @@ so it can bind the values onto the native task function's parameters.
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Literal
 
 from pydantic import JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
-ArgBindingDataType = Literal["string", "integer", "number", "boolean", "object", "array", "any"]
-"""Language-neutral value type a stub-task argument binds to in the foreign runtime."""
+
+class ArgBindingDataType(str, Enum):
+    """Language-neutral value type a stub-task argument binds to in the foreign runtime."""
+
+    STRING = "string"
+    INTEGER = "integer"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    OBJECT = "object"
+    ARRAY = "array"
+    ANY = "any"
 
 
 class TaskArgBinding(BaseModel):
@@ -48,7 +58,7 @@ class TaskArgBinding(BaseModel):
     kind: Literal["xcom", "literal"]
     """Whether the value comes from an upstream task's XCom or is a literal from the Dag file."""
 
-    data_type: ArgBindingDataType = "any"
+    data_type: ArgBindingDataType = ArgBindingDataType.ANY
     """Declared type from the stub function's annotation; runtimes type-check against it."""
 
     task_id: str | None = None

@@ -30,6 +30,20 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, Roo
 API_VERSION: Final[str] = "2026-06-30"
 
 
+class ArgBindingDataType(str, Enum):
+    """
+    Language-neutral value type a stub-task argument binds to in the foreign runtime.
+    """
+
+    STRING = "string"
+    INTEGER = "integer"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    OBJECT = "object"
+    ARRAY = "array"
+    ANY = "any"
+
+
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
     """
     Schema for AssetAliasModel used in AssetEventDagRunReference.
@@ -376,16 +390,6 @@ class Kind(str, Enum):
     LITERAL = "literal"
 
 
-class DataType(str, Enum):
-    STRING = "string"
-    INTEGER = "integer"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    OBJECT = "object"
-    ARRAY = "array"
-    ANY = "any"
-
-
 class TaskArgBinding(BaseModel):
     """
     One positional argument of a stub (foreign-runtime) task, in declaration order.
@@ -396,7 +400,7 @@ class TaskArgBinding(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     kind: Annotated[Kind, Field(title="Kind")]
-    data_type: Annotated[DataType | None, Field(title="Data Type")] = DataType.ANY
+    data_type: ArgBindingDataType | None = ArgBindingDataType.ANY
     task_id: Annotated[str | None, Field(title="Task Id")] = None
     key: Annotated[str | None, Field(title="Key")] = "return_value"
     value: JsonValue | None = None

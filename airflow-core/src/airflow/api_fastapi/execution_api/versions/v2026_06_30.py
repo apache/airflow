@@ -145,7 +145,14 @@ class AddPartitionDateField(VersionChange):
 
 
 class AddArgBindingsToTIRunContext(VersionChange):
-    """Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks."""
+    """
+    Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks.
+
+    ``TaskArgBinding.data_type`` is declared as the ``ArgBindingDataType`` enum rather than an
+    inline ``Literal``; the wire representation (a JSON string) is unchanged, so no migration
+    instruction is needed -- this version has not been released with the ``arg_bindings`` field
+    in any other shape.
+    """
 
     description = __doc__
 

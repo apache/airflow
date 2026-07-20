@@ -3,6 +3,20 @@
   "api_version": "2026-07-30",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
+    "ArgBindingDataType": {
+      "description": "Language-neutral value type a stub-task argument binds to in the foreign runtime.",
+      "enum": [
+        "string",
+        "integer",
+        "number",
+        "boolean",
+        "object",
+        "array",
+        "any"
+      ],
+      "title": "ArgBindingDataType",
+      "type": "string"
+    },
     "AssetAliasReferenceAssetEventDagRun": {
       "additionalProperties": false,
       "description": "Schema for AssetAliasModel used in AssetEventDagRunReference.",
@@ -1393,19 +1407,6 @@
         "asset_materialization"
       ],
       "title": "DagRunType",
-      "type": "string"
-    },
-    "DataType": {
-      "enum": [
-        "string",
-        "integer",
-        "number",
-        "boolean",
-        "object",
-        "array",
-        "any"
-      ],
-      "title": "DataType",
       "type": "string"
     },
     "DeferTask": {
@@ -4600,18 +4601,8 @@
           "type": "string"
         },
         "data_type": {
-          "default": "any",
-          "enum": [
-            "string",
-            "integer",
-            "number",
-            "boolean",
-            "object",
-            "array",
-            "any"
-          ],
-          "title": "Data Type",
-          "type": "string"
+          "$ref": "#/$defs/ArgBindingDataType",
+          "default": "any"
         },
         "task_id": {
           "anyOf": [

@@ -20,6 +20,16 @@ package genmodels
 
 import "time"
 
+type ArgBindingDataType string
+
+const ArgBindingDataTypeAny ArgBindingDataType = "any"
+const ArgBindingDataTypeArray ArgBindingDataType = "array"
+const ArgBindingDataTypeBoolean ArgBindingDataType = "boolean"
+const ArgBindingDataTypeInteger ArgBindingDataType = "integer"
+const ArgBindingDataTypeNumber ArgBindingDataType = "number"
+const ArgBindingDataTypeObject ArgBindingDataType = "object"
+const ArgBindingDataTypeString ArgBindingDataType = "string"
+
 type ArgBindings []TaskArgBinding
 
 // Schema for AssetAliasModel used in AssetEventDagRunReference.
@@ -633,16 +643,6 @@ const DagRunTypeOperatorTriggered DagRunType = "operator_triggered"
 const DagRunTypeScheduled DagRunType = "scheduled"
 
 type Data map[string]interface{}
-
-type DataType string
-
-const DataTypeAny DataType = "any"
-const DataTypeArray DataType = "array"
-const DataTypeBoolean DataType = "boolean"
-const DataTypeInteger DataType = "integer"
-const DataTypeNumber DataType = "number"
-const DataTypeObject DataType = "object"
-const DataTypeString DataType = "string"
 
 type Defaults []string
 
@@ -1636,7 +1636,7 @@ type TIRunContext struct {
 // schema.
 type TaskArgBinding struct {
 	// DataType corresponds to the JSON schema field "data_type".
-	DataType TaskArgBindingDataType `msgpack:"data_type,omitempty"`
+	DataType ArgBindingDataType `msgpack:"data_type,omitempty"`
 
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key,omitempty"`
@@ -1653,16 +1653,6 @@ type TaskArgBinding struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value,omitempty"`
 }
-
-type TaskArgBindingDataType string
-
-const TaskArgBindingDataTypeAny TaskArgBindingDataType = "any"
-const TaskArgBindingDataTypeArray TaskArgBindingDataType = "array"
-const TaskArgBindingDataTypeBoolean TaskArgBindingDataType = "boolean"
-const TaskArgBindingDataTypeInteger TaskArgBindingDataType = "integer"
-const TaskArgBindingDataTypeNumber TaskArgBindingDataType = "number"
-const TaskArgBindingDataTypeObject TaskArgBindingDataType = "object"
-const TaskArgBindingDataTypeString TaskArgBindingDataType = "string"
 
 type TaskArgBindingKind string
 
@@ -1868,19 +1858,6 @@ type UpdateHITLDetail struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
-
-type Warnings []interface{}
-
-type VersionData map[string]interface{}
-
 type ValidateInletsAndOutlets struct {
 	// TIID corresponds to the JSON schema field "ti_id".
 	TIID string `msgpack:"ti_id"`
@@ -1900,6 +1877,15 @@ type VariableKeysResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
 type VariableResult struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
@@ -1910,6 +1896,10 @@ type VariableResult struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value,omitempty"`
 }
+
+type VersionData map[string]interface{}
+
+type Warnings []interface{}
 
 type XComCountResponse struct {
 	// Len corresponds to the JSON schema field "len".
