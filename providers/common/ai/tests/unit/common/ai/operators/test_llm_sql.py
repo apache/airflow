@@ -77,6 +77,16 @@ class TestStripLLMOutput:
                 "SELECT 1",
                 id="missing_closing_fence",
             ),
+            pytest.param(
+                "```SELECT 1```",
+                "SELECT 1",
+                id="single_line_fence_no_language_tag",
+            ),
+            pytest.param(
+                "```SELECT * FROM users LIMIT 10```",
+                "SELECT * FROM users LIMIT 10",
+                id="single_line_fence_with_query",
+            ),
         ),
     )
     def test_strip_llm_output(self, raw, expected):

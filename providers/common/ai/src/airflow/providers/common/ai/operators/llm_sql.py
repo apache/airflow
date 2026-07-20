@@ -177,10 +177,13 @@ class LLMSQLQueryOperator(LLMOperator):
         text = raw.strip()
         if text.startswith("```"):
             lines = text.split("\n")
-            # Remove opening fence (```sql, ```, etc.) and closing fence
             if len(lines) >= 2:
+                # Remove opening fence (```sql, ```, etc.) and closing fence
                 end = -1 if lines[-1].strip().startswith("```") else len(lines)
                 text = "\n".join(lines[1:end]).strip()
+            elif text.endswith("```") and len(text) > 6:
+                # Whole fenced block on one line, e.g. "```SELECT 1```" -> "SELECT 1"
+                text = text[3:-3].strip()
         return text
 
     def _get_schema_context(self) -> str:
