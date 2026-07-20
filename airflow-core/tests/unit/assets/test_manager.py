@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
-from airflow.assets.manager import AssetManager
+from airflow.assets.manager import AssetManager, _sorted_by_dag_id
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -251,6 +251,43 @@ class TestAssetManager:
         compiled = str(stmt.compile(dialect=mysql.dialect())).upper()
         assert "ON DUPLICATE KEY UPDATE" in compiled
         assert values == [{"target_dag_id": "dag1"}]
+
+    def test_sorted_by_dag_id_orders_deterministically(self):
+        dags = [DagModel(dag_id="dag_c"), DagModel(dag_id="dag_a"), DagModel(dag_id="dag_b")]
+        assert [d.dag_id for d in _sorted_by_dag_id(dags)] == ["dag_a", "dag_b", "dag_c"]
+
+    @pytest.mark.parametrize(
+        "helper", ["_queue_dagruns_nonpartitioned_postgres", "_queue_dagruns_nonpartitioned_mysql"]
+    )
+    def test_queue_dagruns_single_statement_inserts_in_helper_order(self, helper):
+        """Both single-statement paths must build the insert from _sorted_by_dag_id, not set order."""
+        dags = {DagModel(dag_id="dag_a"), DagModel(dag_id="dag_b"), DagModel(dag_id="dag_c")}
+        ordered = [DagModel(dag_id="dag_c"), DagModel(dag_id="dag_b"), DagModel(dag_id="dag_a")]
+        session = mock.MagicMock(spec=Session)
+
+        with mock.patch("airflow.assets.manager._sorted_by_dag_id", return_value=ordered) as sorter:
+            getattr(AssetManager, helper)(asset_id=1, dags_to_queue=dags, session=session)
+
+        sorter.assert_called_once_with(dags)
+        # The insert order must follow the helper's return, not the set's iteration order.
+        _, values = session.execute.call_args.args
+        assert values == [{"target_dag_id": d.dag_id} for d in ordered]
+
+    def test_queue_dagruns_slow_path_merges_in_helper_order(self):
+        """The per-row SAVEPOINT path must merge from _sorted_by_dag_id, not set order."""
+        dags = {DagModel(dag_id="dag_a"), DagModel(dag_id="dag_b"), DagModel(dag_id="dag_c")}
+        ordered = [DagModel(dag_id="dag_c"), DagModel(dag_id="dag_b"), DagModel(dag_id="dag_a")]
+        session = mock.MagicMock(spec=Session)
+
+        with mock.patch("airflow.assets.manager._sorted_by_dag_id", return_value=ordered) as sorter:
+            AssetManager._queue_dagruns_nonpartitioned_slow_path(
+                asset_id=1, dags_to_queue=dags, session=session
+            )
+
+        sorter.assert_called_once_with(dags)
+        # The merge order must follow the helper's return, not the set's iteration order.
+        merged = [call.args[0].target_dag_id for call in session.merge.call_args_list]
+        assert merged == [d.dag_id for d in ordered]
 
     def test_register_asset_change_notifies_asset_listener(
         self, session, mock_task_instance, testing_dag_bundle, listener_manager
