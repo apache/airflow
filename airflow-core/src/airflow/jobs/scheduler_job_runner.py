@@ -2615,6 +2615,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             catchup=dag.catchup,
             triggered_date=triggered_date,
             previous_run_type=DagRunType.SCHEDULED,
+            exclude_events_consumed_by_dag=True,
             session=session,
         )
         return records, asset_events
@@ -2640,6 +2641,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         catchup: bool,
         triggered_date: DateTime,
         previous_run_type: DagRunType,
+        exclude_events_consumed_by_dag: bool,
         session: Session,
     ) -> list[AssetEvent]:
         """Select the asset events a new run consumes: events since the previous run of the given type."""
@@ -2664,6 +2666,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .scalar_subquery()
             )
         event_window_floor.append(date.min)
+        event_filters: list[Any] = [
+            AssetEvent.timestamp <= triggered_date,
+            AssetEvent.timestamp > func.coalesce(*event_window_floor),
+        ]
+        if exclude_events_consumed_by_dag:
+            # Gated runs can consume events newer than their schedule-slot run_after,
+            # so their timestamp window alone does not prevent re-attribution.
+            event_filters.append(~AssetEvent.created_dagruns.any(DagRun.dag_id == dag_id))
         return list(
             session.scalars(
                 select(AssetEvent)
@@ -2680,12 +2690,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             )
                         ),
                     ),
-                    AssetEvent.timestamp <= triggered_date,
-                    AssetEvent.timestamp > func.coalesce(*event_window_floor),
-                    # A gated run consumes events newer than its run_after (the slot
-                    # time), so the previous-run floor alone would re-attribute them to
-                    # the next run; skip events already consumed by this Dag's runs.
-                    ~AssetEvent.created_dagruns.any(DagRun.dag_id == dag_id),
+                    *event_filters,
                 )
                 .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             )
@@ -2754,6 +2759,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 catchup=dag.catchup,
                 triggered_date=triggered_date,
                 previous_run_type=DagRunType.ASSET_TRIGGERED,
+                exclude_events_consumed_by_dag=False,
                 session=session,
             )
 
