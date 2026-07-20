@@ -1,5 +1,1 @@
-Fix tasks failing with a 404 when fetching a connection whose ID contains a slash
-
-The execution API route for connections now matches connection IDs that contain ``/``
-(for example ``dev-env/project-name``), so tasks resolve them instead of failing with a
-"connection not found" error.
+Fix tasks failing with a 404 when fetching a connection whose ID contains a slash (for example ``dev-env/project-name``).
