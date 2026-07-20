@@ -2925,6 +2925,28 @@ class TestDatabricksRunNowOperator:
         actual = db_mock.run_now.call_args.args[0]
         assert actual["job_parameters"] == {"explicit": "value"}
 
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_run_now_does_not_inject_airflow_params_when_forward_dag_params_is_false(self, db_mock_class):
+        """
+        When ``forward_dag_params`` is False, the operator's ``params`` should
+        not be forwarded as ``job_parameters``.
+        """
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            forward_dag_params=False,
+            params={"env": "prod", "batch_size": 100},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.run_now.call_args.args[0]
+        assert "job_parameters" not in actual
+
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
