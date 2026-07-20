@@ -11025,7 +11025,16 @@ def test_dags_needing_dagruns_routes_custom_timetable_by_behavior(
     dag_model.timetable_asset_gated = asset_gated
 
     asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-    session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id))
+    asset_event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+    session.add(asset_event)
+    session.flush()
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_id,
+            target_dag_id=dag_model.dag_id,
+            asset_event_id=asset_event.id,
+        )
+    )
     session.flush()
 
     timetable = MagicMock(spec=Timetable)
@@ -11072,10 +11081,14 @@ def test_create_dagruns_asset_and_time_late_arrival_uses_oldest_pending_logical_
     dag_model.next_dagrun_create_after = logical_date
 
     asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    asset_event = AssetEvent(asset_id=asset_id, timestamp=asset_created_at)
+    session.add(asset_event)
+    session.flush()
     session.add(
         AssetDagRunQueue(
             asset_id=asset_id,
             target_dag_id=dag_model.dag_id,
+            asset_event_id=asset_event.id,
             created_at=asset_created_at,
         )
     )
@@ -11120,20 +11133,21 @@ def test_create_dagruns_asset_and_time_late_arrival_consumes_only_one_slot(sessi
     dag_model.next_dagrun_create_after = first_logical_date
 
     asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-    session.add(
-        AssetEvent(
-            asset_id=asset_id,
-            source_task_id="produce",
-            source_dag_id="producer",
-            source_run_id="producer_run",
-            source_map_index=-1,
-            timestamp=asset_created_at,
-        )
+    asset_event = AssetEvent(
+        asset_id=asset_id,
+        source_task_id="produce",
+        source_dag_id="producer",
+        source_run_id="producer_run",
+        source_map_index=-1,
+        timestamp=asset_created_at,
     )
+    session.add(asset_event)
+    session.flush()
     session.add(
         AssetDagRunQueue(
             asset_id=asset_id,
             target_dag_id=dag_model.dag_id,
+            asset_event_id=asset_event.id,
             created_at=asset_created_at,
         )
     )
@@ -11184,8 +11198,16 @@ def test_create_dagruns_asset_and_time_respects_max_active_runs(session: Session
     dag_model.next_dagrun_create_after = first_logical_date
 
     asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    first_event = AssetEvent(asset_id=asset_id, timestamp=first_event_at)
+    session.add(first_event)
+    session.flush()
     session.add(
-        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=first_event_at)
+        AssetDagRunQueue(
+            asset_id=asset_id,
+            target_dag_id=dag_model.dag_id,
+            asset_event_id=first_event.id,
+            created_at=first_event_at,
+        )
     )
     session.flush()
 
@@ -11201,8 +11223,16 @@ def test_create_dagruns_asset_and_time_respects_max_active_runs(session: Session
     assert dag_model.exceeds_max_non_backfill is True
 
     # Simulate next producer event: new ADRQ written while the first run is still queued.
+    second_event = AssetEvent(asset_id=asset_id, timestamp=second_event_at)
+    session.add(second_event)
+    session.flush()
     session.add(
-        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=second_event_at)
+        AssetDagRunQueue(
+            asset_id=asset_id,
+            target_dag_id=dag_model.dag_id,
+            asset_event_id=second_event.id,
+            created_at=second_event_at,
+        )
     )
     session.flush()
 
@@ -11265,7 +11295,15 @@ def test_create_dagruns_asset_and_time_populates_consumed_asset_events(session: 
         timestamp=event_at,
     )
     session.add_all([backlog_asset_event, asset_event])
-    session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=event_at))
+    session.flush()
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_id,
+            target_dag_id=dag_model.dag_id,
+            asset_event_id=asset_event.id,
+            created_at=event_at,
+        )
+    )
     session.flush()
 
     SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._create_dagruns_for_dags(
@@ -11384,16 +11422,22 @@ def test_create_dagruns_asset_and_time_rechecks_locked_adrq_rows(session: Sessio
     dag_model.next_dagrun_create_after = logical_date
     asset_1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_1.uri))
     asset_2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_2.uri))
+    event_1 = AssetEvent(asset_id=asset_1_id, timestamp=timezone.utcnow())
+    event_2 = AssetEvent(asset_id=asset_2_id, timestamp=timezone.utcnow())
+    session.add_all([event_1, event_2])
+    session.flush()
     session.add_all(
         [
             AssetDagRunQueue(
                 asset_id=asset_1_id,
                 target_dag_id=dag_model.dag_id,
+                asset_event_id=event_1.id,
                 created_at=timezone.utcnow(),
             ),
             AssetDagRunQueue(
                 asset_id=asset_2_id,
                 target_dag_id=dag_model.dag_id,
+                asset_event_id=event_2.id,
                 created_at=timezone.utcnow(),
             ),
         ]
