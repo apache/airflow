@@ -14936,6 +14936,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           title: Destination
           default: nav
@@ -15897,6 +15898,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           - dashboard
           title: Destination
