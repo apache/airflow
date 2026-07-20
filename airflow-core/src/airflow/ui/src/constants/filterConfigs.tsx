@@ -40,6 +40,7 @@ import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import {
   dagRunStateOptions,
   dagRunTypeOptions,
@@ -80,6 +81,13 @@ export const useFilterConfigs = () => {
       icon: <MdCode />,
       label: translate("components:versionDetails.bundleVersion"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.COMPLETED_AT_RANGE]: {
+      endKey: SearchParamsKeys.COMPLETED_AT_LTE,
+      icon: <MdDateRange />,
+      label: translate("hitl:filters.completedAt"),
+      startKey: SearchParamsKeys.COMPLETED_AT_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.CONF_CONTAINS]: {
       hotkeyDisabled: true,
@@ -216,6 +224,18 @@ export const useFilterConfigs = () => {
       min: -1,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.MAX_ACTIVE_RUNS_GTE]: {
+      icon: <MdHourglassEmpty />,
+      label: translate("common:filters.maxActiveRunsFrom"),
+      min: 1,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.MAX_ACTIVE_RUNS_LTE]: {
+      icon: <MdHourglassEmpty />,
+      label: translate("common:filters.maxActiveRunsTo"),
+      min: 1,
+      type: FilterTypes.NUMBER,
+    },
     [SearchParamsKeys.MISSED]: {
       icon: <MdCheckCircle />,
       label: translate("browse:deadlines.filters.status"),
@@ -267,6 +287,15 @@ export const useFilterConfigs = () => {
       label: translate("common:taskInstance.renderedMapIndex"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.REPROCESS_BEHAVIOR]: {
+      icon: <MdPlayArrow />,
+      label: translate("components:backfill.reprocessBehavior"),
+      options: reprocessBehaviors.map((option) => ({
+        label: translate(option.label),
+        value: option.value,
+      })),
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.RESPONDED_BY_USER_NAME]: {
       hotkeyDisabled: true,
