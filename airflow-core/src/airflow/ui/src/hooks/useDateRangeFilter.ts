@@ -328,6 +328,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
   };
 
   return {
+    applyDateRange,
     editingState,
     endDateValue,
     formatDisplayValue,
@@ -337,6 +338,5 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
     hasValidationErrors,
     setEditingState,
     startDateValue,
-    applyDateRange,
   };
 };
