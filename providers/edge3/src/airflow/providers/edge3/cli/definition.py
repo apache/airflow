@@ -53,7 +53,7 @@ ARG_EDGE_HOSTNAME = Arg(
     help="Set the hostname of worker if you have multiple workers on a single machine",
 )
 ARG_WORKER_NAME_PATTERN = Arg(
-    ("--name-pattern",),
+    ("--worker-name-pattern",),
     metavar="PATTERN",
     help="Optional glob pattern to filter workers by name, e.g. 'prod-*'. Lists all workers if omitted.",
 )

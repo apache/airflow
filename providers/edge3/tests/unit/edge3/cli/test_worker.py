@@ -1117,7 +1117,7 @@ class TestEdgeWorker:
     @pytest.mark.db_test
     def test_list_edge_workers_passes_name_pattern(self, mock_edgeworker: EdgeWorkerModel):
         args = self.parser.parse_args(
-            ["edge", "list-workers", "--output", "json", "--name-pattern", "prod-*"]
+            ["edge", "list-workers", "--output", "json", "--worker-name-pattern", "prod-*"]
         )
         with contextlib.redirect_stdout(StringIO()):
             with (

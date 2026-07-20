@@ -249,7 +249,7 @@ These set of commands need database access, and can only be called on the centra
 instance. The commands are:
 
 - ``airflow edge list-workers``: List all workers in the cluster. Accepts an optional
-  ``--name-pattern`` glob (e.g. ``'prod-*'``) to filter workers by name,
+  ``--worker-name-pattern`` glob (e.g. ``'prod-*'``) to filter workers by name,
   and ``-s``/``--state`` to filter by worker state.
 - ``airflow edge remote-edge-worker-request-maintenance``: Request a remote edge worker to enter maintenance mode
 - ``airflow edge remote-edge-worker-update-maintenance-comment``: Updates the maintenance comment for a remote edge worker

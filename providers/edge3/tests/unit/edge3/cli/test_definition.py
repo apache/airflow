@@ -152,13 +152,13 @@ class TestEdgeCliDefinition:
             "--state",
             "running",
             "maintenance",
-            "--name-pattern",
+            "--worker-name-pattern",
             "prod-*",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.output == "json"
         assert args.state == ["running", "maintenance"]
-        assert args.name_pattern == "prod-*"
+        assert args.worker_name_pattern == "prod-*"
 
     def test_remote_edge_worker_request_maintenance_args(self):
         """Test remote-edge-worker-request-maintenance command with required arguments."""
