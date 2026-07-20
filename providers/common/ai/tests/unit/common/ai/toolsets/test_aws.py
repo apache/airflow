@@ -25,7 +25,12 @@ import pytest
 from botocore.exceptions import ClientError
 from pydantic_ai.exceptions import ModelRetry
 
-from airflow.providers.common.ai.toolsets.aws import AWSToolset
+from airflow.providers.common.ai.toolsets.aws import (
+    AWSToolset,
+    _get_available_services,
+    _load_service_model,
+    _resolve_operation_name,
+)
 from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 
 
@@ -79,6 +84,13 @@ class TestAWSToolsetInit:
         with pytest.raises(ValueError, match="does not match any"):
             AWSToolset("aws_test", allowed_actions=["kms:Decrypt*"])
 
+    @patch("airflow.providers.common.ai.toolsets.aws._get_available_services", autospec=True)
+    def test_rejects_service_missing_from_available_services(self, mock_get_available_services):
+        mock_get_available_services.return_value = frozenset({"ec2"})
+
+        with pytest.raises(ValueError, match="Unknown AWS service 's3'"):
+            AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
 
 class TestAWSToolsetGetTools:
     def test_returns_three_tools(self):
@@ -120,6 +132,68 @@ class TestAWSToolsetActionMatching:
     def test_allow_list_matching(self, actions, service, operation, allowed):
         ts = AWSToolset("aws_test", allowed_actions=actions)
         assert ts._is_action_allowed(service=service, operation=operation) is allowed
+
+
+class TestAWSToolsetPrivateHelpers:
+    def test_is_action_allowed_requires_keyword_arguments(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(TypeError, match="positional"):
+            ts._is_action_allowed("s3", "ListBuckets")  # type: ignore[misc]
+
+    def test_pattern_match_allows_normal_operations_but_not_sensitive_operations(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:List*", "kms:List*"])
+
+        assert ts._is_pattern_match_allowed("s3:list*", "s3", "ListBuckets") is True
+        assert ts._is_pattern_match_allowed("kms:decrypt*", "kms", "Decrypt") is False
+
+    def test_resolve_allowed_service_returns_configured_service(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        assert ts._resolve_allowed_service("s3") == "s3"
+
+    def test_resolve_allowed_service_rejects_service_outside_allow_list(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(ValueError, match="Service 'ec2' is not in this toolset's allowed actions"):
+            ts._resolve_allowed_service("ec2")
+
+    def test_resolve_allowed_operation_returns_canonical_name_and_model(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        operation, model = ts._resolve_allowed_operation("s3", "list_buckets")
+
+        assert operation == "ListBuckets"
+        assert "ListBuckets" in model.operation_names
+
+    def test_resolve_allowed_operation_rejects_unknown_operation(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(ValueError, match="Unknown operation 'NoSuchOperation' for service 's3'"):
+            ts._resolve_allowed_operation("s3", "NoSuchOperation")
+
+    def test_resolve_allowed_operation_rejects_disallowed_operation(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(
+            ValueError, match="Operation s3:GetObject is not in this toolset's allowed actions"
+        ):
+            ts._resolve_allowed_operation("s3", "GetObject")
+
+    def test_resolve_allowed_operation_rejects_service_outside_allow_list(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(ValueError, match="Service 'ec2' is not in this toolset's allowed actions"):
+            ts._resolve_allowed_operation("ec2", "DescribeInstances")
+
+    def test_get_available_services_reads_botocore_catalog(self):
+        assert "s3" in _get_available_services()
+
+    def test_load_service_model_and_resolve_operation_name(self):
+        model = _load_service_model("s3")
+
+        assert _resolve_operation_name(model, "list_buckets") == "ListBuckets"
+        assert _resolve_operation_name(model, "NoSuchOperation") is None
 
 
 class TestAWSToolsetListOperations:
@@ -167,6 +241,18 @@ class TestAWSToolsetDescribeOperation:
         ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
         with pytest.raises(ModelRetry, match="not in this toolset's allowed actions"):
             _call(ts, "describe_aws_operation", {"service": "s3", "operation": "GetObject"})
+
+    def test_model_supplied_service_outside_allow_list_raises_model_retry(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(ModelRetry, match="Service 'ec2' is not in this toolset's allowed actions"):
+            _call(ts, "describe_aws_operation", {"service": "ec2", "operation": "DescribeInstances"})
+
+    def test_model_supplied_unknown_operation_raises_model_retry(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(ModelRetry, match="Unknown operation 'NoSuchOperation' for service 's3'"):
+            _call(ts, "describe_aws_operation", {"service": "s3", "operation": "NoSuchOperation"})
 
 
 class TestAWSToolsetCallAws:
@@ -222,6 +308,20 @@ class TestAWSToolsetCallAws:
         ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
         with pytest.raises(ModelRetry, match="not in this toolset's allowed actions"):
             _call(ts, "call_aws", {"service": "s3", "operation": "DeleteBucket"})
+        assert ts._clients == {}
+
+    def test_model_supplied_service_outside_allow_list_raises_model_retry_without_client(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(ModelRetry, match="Service 'ec2' is not in this toolset's allowed actions"):
+            _call(ts, "call_aws", {"service": "ec2", "operation": "DescribeInstances"})
+        assert ts._clients == {}
+
+    def test_model_supplied_unknown_operation_raises_model_retry_without_client(self):
+        ts = AWSToolset("aws_test", allowed_actions=["s3:ListBuckets"])
+
+        with pytest.raises(ModelRetry, match="Unknown operation 'NoSuchOperation' for service 's3'"):
+            _call(ts, "call_aws", {"service": "s3", "operation": "NoSuchOperation"})
         assert ts._clients == {}
 
     def test_client_error_raises_model_retry(self):
