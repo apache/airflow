@@ -1216,7 +1216,7 @@ export type DagVersionResponse = {
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
-export type DagWarningType = 'asset conflict' | 'non-existent pool' | 'runtime varying value';
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1482,6 +1482,7 @@ export type MaterializeAssetBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    bundle_version?: string | null;
 };
 
 /**
@@ -1533,6 +1534,7 @@ export type PluginImportErrorResponse = {
  */
 export type PluginResponse = {
     name: string;
+    team_name?: string | null;
     macros: Array<(string)>;
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
@@ -1989,6 +1991,7 @@ export type TriggerDAGRunPostBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    bundle_version?: string | null;
 };
 
 /**
@@ -2529,6 +2532,7 @@ export type GridRunsResponse = {
     run_type: DagRunType;
     dag_versions?: Array<DagVersionResponse>;
     has_missed_deadline: boolean;
+    has_note: boolean;
     readonly duration: number;
 };
 
@@ -2619,6 +2623,8 @@ export type NodeResponse = {
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    ui_color?: string | null;
+    ui_fgcolor?: string | null;
 };
 
 export type OklchColor = string;
@@ -2808,6 +2814,10 @@ export type GetAssetsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
+     */
+    uri?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
@@ -3490,6 +3500,10 @@ export type GetDagsUiData = {
     dagIdPrefixPattern?: string | null;
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
+    /**
+     * Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
+     */
+    dagRunState?: DagRunState | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
@@ -5160,6 +5174,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -5311,6 +5329,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -8352,7 +8374,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+    '/ui/pending_partitioned_dag_run/{dag_id}': {
         get: {
             req: GetPendingPartitionedDagRunData;
             res: {

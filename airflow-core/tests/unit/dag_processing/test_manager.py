@@ -295,6 +295,20 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
+    def test_sync_bundles_deactivates_missing_when_owning_all_bundles(self):
+        """A processor with no bundle filter owns the full config and may deactivate missing bundles."""
+        manager = DagFileProcessorManager(max_runs=1)
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
+        """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
+        manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
         bundle_path = tmp_path / "bundleone"
@@ -496,6 +510,23 @@ class TestDagFileProcessorManager:
             tags={"file_path": "callbacks_with_spaces.py", "action": "stop"},
         )
         processor.kill.assert_called_once_with(signal.SIGKILL)
+
+    def test_terminate_orphan_processes_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        processor, _ = self.mock_processor()
+        processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+
+        manager._processors[versioned_file] = processor
+
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+        ):
+            manager.terminate_orphan_processes(present=set())
+
+        assert manager._processors == {}
 
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -1184,6 +1215,26 @@ class TestDagFileProcessorManager:
         assert len(manager._processors) == 0
         processor.logger_filehandle.close.assert_called()
 
+    def test_kill_timed_out_processors_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
+        processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+        manager._processors = {
+            DagFileInfo(
+                bundle_name="testing", rel_path=Path("abc.py"), bundle_path=TEST_DAGS_FOLDER
+            ): processor
+        }
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+            mock.patch("airflow.dag_processing.manager.stats.incr"),
+        ):
+            manager._kill_timed_out_processors()
+
+        assert len(manager._processors) == 0
+
     def test_kill_timed_out_processors_no_kill(self):
         manager = DagFileProcessorManager(
             max_runs=1,
@@ -1336,6 +1387,24 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file_a].last_finish_time is not None
         assert manager._file_stats[file_b] is not stat_b_before
         assert manager._file_stats[file_b].run_count == 2
+        assert len(manager._processors) == 0
+
+    def test_collect_results_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_stats[file] = DagFileStat()
+        manager._bundle_versions["testing"] = "v1"
+
+        proc, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        proc.had_callbacks = False
+        proc.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+        proc.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+        manager._processors = {file: proc}
+
+        with mock.patch.object(manager, "persist_parsing_result"):
+            manager._collect_results()
+
         assert len(manager._processors) == 0
 
     @pytest.mark.usefixtures("testing_dag_bundle")

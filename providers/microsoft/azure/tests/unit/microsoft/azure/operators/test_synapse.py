@@ -135,6 +135,30 @@ class TestAzureSynapseRunSparkBatchOperator:
         op.on_kill()
         mock_cancel_job_run.assert_called_once_with(job_id=JOB_RUN_RESPONSE["id"])
 
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
+    def test_job_id_extracted_from_hybrid_model_response(self, mock_run_spark_job, mock_get_job_run_status):
+        """Regression test: azure SDK v10 hybrid models don't expose attributes via vars()."""
+
+        class HybridModelResponse(dict):
+            """Simulates an azure SDK v10 hybrid model response."""
+
+            def __init__(self):
+                super().__init__({"id": 456})
+
+            @property
+            def id(self):
+                return self["id"]
+
+        mock_get_job_run_status.return_value = "success"
+        mock_run_spark_job.return_value = HybridModelResponse()
+
+        op = AzureSynapseRunSparkBatchOperator(
+            task_id="test", azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID, spark_pool="test_pool", payload={}
+        )
+        op.execute(context=self.mock_context)
+        assert op.job_id == 456
+
 
 class TestAzureSynapseRunPipelineOperator:
     @pytest.fixture(autouse=True)
@@ -287,6 +311,28 @@ class TestAzureSynapseRunPipelineOperator:
 
             # Checking the pipeline run status should _not_ be called when ``wait_for_termination`` is False.
             mock_get_pipeline_run.assert_not_called()
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook.run_pipeline")
+    def test_run_id_extracted_from_hybrid_model_response(self, mock_run_pipeline):
+        """Regression test: azure SDK v10 hybrid models don't expose attributes via vars()."""
+
+        class HybridModelResponse(dict):
+            """Simulates an azure SDK v10 hybrid model response."""
+
+            def __init__(self):
+                super().__init__({"runId": "hybrid-run-id-456"})
+
+            @property
+            def run_id(self):
+                return self["runId"]
+
+        mock_run_pipeline.return_value = HybridModelResponse()
+
+        operator = AzureSynapseRunPipelineOperator(wait_for_termination=False, **self.config)
+        operator.execute(context=self.mock_context)
+
+        assert operator.run_id == "hybrid-run-id-456"
+        self.mock_ti.xcom_push.assert_called_once_with(key="run_id", value="hybrid-run-id-456")
 
     @pytest.mark.db_test
     def test_run_pipeline_operator_link(

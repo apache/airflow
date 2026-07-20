@@ -1,0 +1,177 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Runs the Java SDK reviewer checklist ("Verifying a release" in
+# java-sdk/README.md) automatically, minus the GPG signature (only the release
+# manager's key can satisfy that).
+#
+#   * on a pull request touching java-sdk/ -> verify HEAD can produce a source
+#     release that is self-contained and builds from scratch.
+#   * on a `java-sdk/**` tag push -> the same check against the tagged commit
+#     (release readiness gate).
+#   * on manual dispatch -> verify the ACTUAL staged artifacts: the source
+#     package in dist/dev and the closed Nexus staging repo. Run this after
+#     staging, before sending the [VOTE] email.
+#
+# The environment setup intentionally mirror what a human verifying the release
+# would do. An (unpinned) latest Gradle is downloaded to create the Gradle
+# wrapper from, and a more modern JDK is used to run things.
+
+---
+name: Java SDK release verification
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    paths:
+      - "java-sdk/**"
+      - ".github/workflows/java-sdk-release-verify.yml"
+  push:
+    tags:
+      - "java-sdk/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Java SDK release tag (starts with 'java-sdk/') to verify"
+        required: true
+        type: string
+      nexus_repo_id:
+        description: "Nexus staging repo id (the NNNN in orgapacheairflow-NNNN)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: java-sdk-release-verify-${{ github.event_name }}-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  JAVA_VERSION: "21"
+
+jobs:
+  source-release:
+    name: Source release builds cleanly
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Use an isolated Gradle home
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/gradle-home" >> "$GITHUB_ENV"
+      - name: Resolve the ref to build the source release from
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "RELEASE_REF=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          else  # A PR HEAD.
+            echo "RELEASE_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          fi
+      - name: Build the source tarball from the ref (project's wrapper)
+        working-directory: java-sdk
+        run: ./gradlew --no-daemon sourceTarball checksumSourceTarball -PgitRef="${RELEASE_REF}"
+      - name: Install the latest Gradle to bootstrap a new wrapper for the source extracted from the tarball
+        run: |
+          set -euo pipefail
+          meta=$(curl -fsSL https://services.gradle.org/versions/current)
+          ver=$(echo "$meta" | jq -r .version)
+          url=$(echo "$meta" | jq -r .downloadUrl)
+          sum=$(curl -fsSL "$(echo "$meta" | jq -r .checksumUrl)")
+          curl -fsSL -o /tmp/gradle.zip "$url"
+          echo "${sum}  /tmp/gradle.zip" | sha256sum -c -
+          unzip -q -d "$HOME/gradle" /tmp/gradle.zip
+          echo "$HOME/gradle/gradle-${ver}/bin" >> "$GITHUB_PATH"
+      - name: Verify the source tarball
+        run: |
+          set -euo pipefail
+          tarball=$(ls java-sdk/build/distributions/apache-airflow-java-sdk-*-src.tar.gz)
+          java-sdk/scripts/ci/verify-source-release.sh \
+            --tarball "${tarball}" \
+            --sha512 "${tarball}.sha512" \
+            --tag "${RELEASE_REF}"
+
+  artifact:
+    name: Staged artifacts pass the reviewer checklist
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Use an isolated Gradle home
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/gradle-home" >> "$GITHUB_ENV"
+      - name: Download the staged source package from dist/dev
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          rcdir="${TAG#java-sdk/}"          # <version>-rc<N>
+          version="${rcdir%-rc*}"           # <version>
+          base="https://dist.apache.org/repos/dist/dev/airflow/java-sdk/${rcdir}"
+          file="apache-airflow-java-sdk-${version}-src.tar.gz"
+          mkdir -p staged
+          curl -fsSL -o "staged/${file}" "${base}/${file}"
+          curl -fsSL -o "staged/${file}.sha512" "${base}/${file}.sha512"
+      - name: Install the latest Gradle to bootstrap a new wrapper for the source extracted from the tarball
+        run: |
+          set -euo pipefail
+          meta=$(curl -fsSL https://services.gradle.org/versions/current)
+          ver=$(echo "$meta" | jq -r .version)
+          url=$(echo "$meta" | jq -r .downloadUrl)
+          sum=$(curl -fsSL "$(echo "$meta" | jq -r .checksumUrl)")
+          curl -fsSL -o /tmp/gradle.zip "$url"
+          echo "${sum}  /tmp/gradle.zip" | sha256sum -c -
+          unzip -q -d "$HOME/gradle" /tmp/gradle.zip
+          echo "$HOME/gradle/gradle-${ver}/bin" >> "$GITHUB_PATH"
+      - name: Verify the staged source package
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          rcdir="${TAG#java-sdk/}"; version="${rcdir%-rc*}"
+          file="apache-airflow-java-sdk-${version}-src.tar.gz"
+          java-sdk/scripts/ci/verify-source-release.sh \
+            --tarball "staged/${file}" \
+            --sha512 "staged/${file}.sha512" \
+            --tag "${TAG}"
+      - name: Smoke-test the staged convenience binaries
+        env:
+          TAG: ${{ inputs.tag }}
+          NEXUS_REPO_ID: ${{ inputs.nexus_repo_id }}
+        run: |
+          set -euo pipefail
+          rcdir="${TAG#java-sdk/}"; version="${rcdir%-rc*}"
+          java-sdk/scripts/ci/smoke-test-staged-binaries.sh \
+            --nexus-repo-id "${NEXUS_REPO_ID}" \
+            --version "${version}"
