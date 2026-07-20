@@ -159,30 +159,20 @@ type CombineInput struct {
     sdk.TaskInput            // one-line opt-in, zero runtime cost
     Region    string  `arg:"region_code"` // named lookup against the TaskFlow call argument "region_code"
     Threshold float64                     // no tag -> falls back to the snake_cased field name "threshold"
-    Config    Config  `xcom:"make_config"` // ad hoc pull of make_config's return-value XCom, independent
-                                            // of the TaskFlow call -- there is no "config" argument at all
 }
 
 func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
-    // input.Region, input.Threshold, input.Config are all populated.
+    // input.Region and input.Threshold are both populated.
     return nil, nil
 }
 ```
 
-Each exported field supports three all-optional tags:
-
-- `arg:"<name>"` — bind from the TaskFlow call argument with this name (matched against the stub
-  function's Python parameter name, independent of declaration order on either side). With no tag,
-  the field's own Go name, snake_cased (`RatioValue` → `ratio_value`, `TaskID` → `task_id`), is used.
-  If no TaskFlow call argument carries that name, the field is simply left at its Go zero value —
-  it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg` below).
-- `xcom:"<task-id>"` — an explicit, ad hoc XCom pull from the named upstream task, fully independent
-  of the TaskFlow call: the field need not correspond to any argument the Dag file passes at all. This
-  pull is unchecked — the runtime does not verify `<task-id>` is an actual upstream dependency, the
-  same trust model as calling `sdk.Client.GetXCom` by hand.
-- `xcom-key:"<key>"` — the XCom key for an `xcom:`-tagged field; defaults to the return-value key.
-  Setting it without `xcom:` is a registration-time error (a key with no task id is meaningless), as is
-  setting both `arg:` and `xcom:` on the same field.
+Each exported field binds from the TaskFlow call argument named by its optional `arg:"<name>"` tag
+(matched against the stub function's Python parameter name, independent of declaration order on
+either side). With no tag, the field's own Go name, snake_cased (`RatioValue` → `ratio_value`,
+`TaskID` → `task_id`), is used. If no TaskFlow call argument carries that name, the field is simply
+left at its Go zero value — it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg`
+below).
 
 When a `TaskInput` struct and plain flat parameters coexist in the same function, the struct's fields
 claim entries out of the TaskFlow call's argument spec by name first; the *remaining, unclaimed*
@@ -193,8 +183,8 @@ this — it keeps working as a single flat data parameter, JSON-decoded whole fr
 argument (see `Config` in
 [`example/bundle/taskflowbinding/taskflowbinding.go`](./example/bundle/taskflowbinding/taskflowbinding.go)),
 which is a different mechanism from per-field `TaskInput` binding. See
-[`ViaStructNoTags`, `ViaStructArgTag`, `ViaStructXComTag`, and `ViaStructUnmatchedArg`](./example/bundle/taskflowbinding/taskflowbinding.go)
-for a full worked example of each tag mode — and the unmatched-field case — in isolation.
+[`ViaStructNoTags`, `ViaStructArgTag`, and `ViaStructUnmatchedArg`](./example/bundle/taskflowbinding/taskflowbinding.go)
+for a full worked example of each field-binding mode — and the unmatched-field case — in isolation.
 
 ### Reading the task runtime context
 

@@ -113,16 +113,13 @@ type DagRun struct {
 // that struct into per-field, name-based TaskFlow argument binding -- an
 // ergonomic alternative to a long flat parameter list. Each exported field of
 // such a struct may carry an `arg:"<name>"` tag naming the stub's TaskFlow
-// argument to bind (falling back to the field's own name, snake_cased, when
-// omitted), or an `xcom:"<task-id>"` tag (with an optional companion
-// `xcom-key:"<key>"`, defaulting to the return-value key) for an explicit,
-// ad hoc XCom pull independent of the TaskFlow call:
+// argument to bind, falling back to the field's own name, snake_cased, when
+// omitted:
 //
 //	type CombineInput struct {
 //		sdk.TaskInput
 //		Name  string
-//		Count int     `arg:"count"`
-//		Extra string  `xcom:"make_config" xcom-key:"environment"`
+//		Count int `arg:"count"`
 //	}
 //
 //	func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error)

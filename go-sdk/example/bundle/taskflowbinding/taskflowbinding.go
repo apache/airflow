@@ -24,10 +24,9 @@
 // instead show the sdk.TaskInput struct-field injection mode -- conceptually
 // keyword-argument binding, where fields match by name and an unmatched name
 // is left at its zero value rather than failing the task -- one field-binding
-// tag at a time: ViaStructNoTags (plain snake_case name fallback),
-// ViaStructArgTag (an explicit `arg:` rename), ViaStructXComTag (an ad hoc
-// `xcom:` pull), and ViaStructUnmatchedArg (a field whose name has no
-// corresponding TaskFlow call argument at all).
+// mode at a time: ViaStructNoTags (plain snake_case name fallback),
+// ViaStructArgTag (an explicit `arg:` rename), and ViaStructUnmatchedArg (a
+// field whose name has no corresponding TaskFlow call argument at all).
 package taskflowbinding
 
 import (
@@ -205,46 +204,6 @@ func ViaStructArgTag(
 	return map[string]any{
 		"region":    input.Region,
 		"threshold": input.Threshold,
-	}, nil
-}
-
-// ViaStructXComTagInput demonstrates the sdk.TaskInput struct-field injection
-// mode with an xcom: tag: Config is an ad hoc pull of make_config's return
-// value, independent of the Python call's TaskFlow arguments entirely;
-// Threshold has no tag and falls back to its snake_cased field name.
-type ViaStructXComTagInput struct {
-	sdk.TaskInput
-	Threshold float64
-	Config    Config `xcom:"make_config"`
-}
-
-// ViaStructXComTag is called as
-//
-//	via_struct_xcom_tag(threshold=0.75)
-//
-// with the Python Dag ordering it after make_config explicitly (the xcom:
-// pull is not a TaskFlow argument, so there is no implicit dependency).
-func ViaStructXComTag(
-	ctx sdk.TIRunContext,
-	log *slog.Logger,
-	input ViaStructXComTagInput,
-) (any, error) {
-	if input.Threshold != 0.75 {
-		return nil, fmt.Errorf("TaskInput field bound incorrectly: threshold=%v", input.Threshold)
-	}
-	if want := (Config{Environment: "production", Region: "eu-west-1", Debug: true}); input.Config != want {
-		return nil, fmt.Errorf(
-			"ad hoc xcom field bound incorrectly: config=%+v, want %+v", input.Config, want,
-		)
-	}
-
-	log.InfoContext(ctx, "Bound TaskInput struct (xcom: tag)",
-		"threshold", input.Threshold,
-		"environment", input.Config.Environment,
-	)
-	return map[string]any{
-		"threshold":   input.Threshold,
-		"environment": input.Config.Environment,
 	}, nil
 }
 

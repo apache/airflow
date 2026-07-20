@@ -32,11 +32,10 @@
 //   - TaskInput structs: a struct that anonymously embeds sdk.TaskInput opts
 //     into per-field, name-based binding instead of consuming one positional
 //     slot as a whole-value decode target. Each exported field binds by name
-//     (an `arg:"<name>"` tag, or its Go field name snake_cased) against the
-//     Dag's TaskFlow call arguments, or by an explicit, ad hoc XCom pull (an
-//     `xcom:"<task-id>"` tag, with an optional `xcom-key:"<key>"`) that never
-//     consults the positional argument spec at all. At most one such
-//     parameter is allowed per function.
+//     against the Dag's TaskFlow call arguments: an `arg:"<name>"` tag names
+//     the argument to claim, and a field with no tag falls back to its own Go
+//     field name, snake_cased. At most one such parameter is allowed per
+//     function.
 //
 // A TaskInput struct's fields are resolved first, by name, claiming entries
 // out of the argument spec; the remaining unclaimed entries are then
@@ -157,17 +156,6 @@ const (
 	paramTaskInput
 )
 
-// taskInputFieldSource discriminates how a TaskInput struct field is filled.
-type taskInputFieldSource int
-
-const (
-	// taskInputFieldFromArg claims a named entry from the argument spec.
-	taskInputFieldFromArg taskInputFieldSource = iota
-	// taskInputFieldFromXCom pulls directly via an `xcom:` tag, independent
-	// of the argument spec.
-	taskInputFieldFromXCom
-)
-
 // taskInputField describes how Resolve fills one exported field of a
 // TaskInput-embedding struct. Precomputed once by Analyze.
 type taskInputField struct {
@@ -177,14 +165,9 @@ type taskInputField struct {
 	// goName is the Go field name, for error messages.
 	goName    string
 	fieldType reflect.Type
-	source    taskInputFieldSource
-	// argName is the name to claim from the argument spec. Set only for
-	// taskInputFieldFromArg.
+	// argName is the name to claim from the argument spec: the field's `arg:`
+	// tag, or its snake_cased Go name when the tag is omitted.
 	argName string
-	// xcomTaskID/xcomKey identify the ad hoc pull. Set only for
-	// taskInputFieldFromXCom.
-	xcomTaskID string
-	xcomKey    string
 }
 
 // paramPlan describes how Resolve fills a single task-function parameter.
@@ -246,11 +229,10 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 
 // Resolve builds the ordered argument values for one call. Injectable
 // parameters receive values derived from ctx, logger, or client. A TaskInput
-// struct's fields are resolved first, by name (or an explicit ad hoc xcom
-// pull), claiming entries out of args; the remaining unclaimed entries are
-// then distributed, in their original relative order, onto the plain flat
-// data parameters in declaration order. An error fails the task before its
-// body runs.
+// struct's fields are resolved first, by name, claiming entries out of args;
+// the remaining unclaimed entries are then distributed, in their original
+// relative order, onto the plain flat data parameters in declaration order.
+// An error fails the task before its body runs.
 func (p *Plan) Resolve(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -356,7 +338,6 @@ func (p *Plan) resolveData(
 }
 
 // resolveTaskInput builds the struct value for one TaskInput parameter. A
-// field tagged `xcom:` pulls directly and never touches byName/claimed; a
 // field claiming an argument spec entry by name marks it claimed so the
 // later flat-parameter cursor skips it. A field whose name claims nothing
 // (kwarg-style: it was never "passed") is left unset at its Go zero value
@@ -377,33 +358,21 @@ func (p *Plan) resolveTaskInput(
 	structVal := reflect.New(structType).Elem()
 
 	for _, tif := range plan.fields {
-		typeCheckCtx := fmt.Sprintf("TaskInput field %s (parameter %d)", tif.goName, plan.index)
-		generalCtx := fmt.Sprintf("TaskInput field %s", tif.goName)
-
-		var arg Arg
-		switch tif.source {
-		case taskInputFieldFromXCom:
-			// DataTypeAny: an ad hoc pull has no Dag-declared type to check
-			// against, so decoding is driven entirely by the Go field's type.
-			arg = XComArg{
-				TaskID:   tif.xcomTaskID,
-				Key:      tif.xcomKey,
-				DataType: DataTypeAny,
-			}
-		case taskInputFieldFromArg:
-			idx, ok := byName[tif.argName]
-			if !ok {
-				// No TaskFlow call argument carries this name -- kwarg-style, an
-				// unpassed name leaves the field at its Go zero value rather than
-				// failing the task (unlike a flat data parameter, where arity is
-				// checked strictly; see the package doc comment).
-				continue
-			}
-			claimed[idx] = true
-			arg = args[idx]
+		idx, ok := byName[tif.argName]
+		if !ok {
+			// No TaskFlow call argument carries this name -- kwarg-style, an
+			// unpassed name leaves the field at its Go zero value rather than
+			// failing the task (unlike a flat data parameter, where arity is
+			// checked strictly; see the package doc comment).
+			continue
 		}
+		claimed[idx] = true
 
-		v, err := p.resolveOne(ctx, client, tif.fieldType, arg, typeCheckCtx, generalCtx)
+		v, err := p.resolveOne(
+			ctx, client, tif.fieldType, args[idx],
+			fmt.Sprintf("TaskInput field %s (parameter %d)", tif.goName, plan.index),
+			fmt.Sprintf("TaskInput field %s", tif.goName),
+		)
 		if err != nil {
 			return reflect.Value{}, err
 		}
@@ -574,27 +543,6 @@ func buildTaskInputFields(
 			continue
 		}
 
-		argTag, hasArg := f.Tag.Lookup("arg")
-		xcomTag, hasXCom := f.Tag.Lookup("xcom")
-		xcomKeyTag, hasXComKey := f.Tag.Lookup("xcom-key")
-
-		if hasArg && hasXCom {
-			return nil, fmt.Errorf(
-				"task function %s: parameter %d: TaskInput field %s: cannot set both `arg` and `xcom` tags",
-				fnName,
-				paramIndex,
-				f.Name,
-			)
-		}
-		if hasXComKey && !hasXCom {
-			return nil, fmt.Errorf(
-				"task function %s: parameter %d: TaskInput field %s: `xcom-key` requires `xcom` to also "+
-					"be set (a key with no task id is meaningless)",
-				fnName,
-				paramIndex,
-				f.Name,
-			)
-		}
 		if !isDecodableType(f.Type) {
 			return nil, fmt.Errorf(
 				"task function %s: parameter %d: TaskInput field %s: type %s cannot receive a task "+
@@ -607,27 +555,17 @@ func buildTaskInputFields(
 		}
 
 		tif := taskInputField{structIndex: i, goName: f.Name, fieldType: f.Type}
-		if hasXCom {
-			tif.source = taskInputFieldFromXCom
-			tif.xcomTaskID = xcomTag
-			tif.xcomKey = xcomKeyTag
-			if tif.xcomKey == "" {
-				tif.xcomKey = api.XComReturnValueKey
-			}
-		} else {
-			tif.source = taskInputFieldFromArg
-			tif.argName = argTag
-			if tif.argName == "" {
-				tif.argName = snakeCase(f.Name)
-			}
-			if existing, ok := seenArgNames[tif.argName]; ok {
-				return nil, fmt.Errorf(
-					"task function %s: parameter %d: TaskInput fields %s and %s both bind arg name %q",
-					fnName, paramIndex, existing, f.Name, tif.argName,
-				)
-			}
-			seenArgNames[tif.argName] = f.Name
+		tif.argName = f.Tag.Get("arg")
+		if tif.argName == "" {
+			tif.argName = snakeCase(f.Name)
 		}
+		if existing, ok := seenArgNames[tif.argName]; ok {
+			return nil, fmt.Errorf(
+				"task function %s: parameter %d: TaskInput fields %s and %s both bind arg name %q",
+				fnName, paramIndex, existing, f.Name, tif.argName,
+			)
+		}
+		seenArgNames[tif.argName] = f.Name
 		fields = append(fields, tif)
 	}
 	return fields, nil

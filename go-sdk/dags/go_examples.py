@@ -21,10 +21,10 @@ Three Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
 load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
 timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag``
 (stressing the TaskFlow argument-binding surface -- the flat, positional
-parameter list ``via_flat_args`` binds onto, plus four ``sdk.TaskInput``
+parameter list ``via_flat_args`` binds onto, plus three ``sdk.TaskInput``
 (keyword-style) struct examples, ``via_struct_no_tags``/``via_struct_arg_tag``/
-``via_struct_xcom_tag``/``via_struct_unmatched_arg``, each isolating one
-field-binding mode; see its Dag function below).
+``via_struct_unmatched_arg``, each isolating one field-binding mode; see its
+Dag function below).
 
 ``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
 run exercises XCom across the language boundary, the same way
@@ -151,10 +151,6 @@ def via_struct_arg_tag(region_code: str, threshold: float): ...
 
 
 @task.stub(queue="golang")
-def via_struct_xcom_tag(threshold: float): ...
-
-
-@task.stub(queue="golang")
 def via_struct_unmatched_arg(region_code: str): ...
 
 
@@ -179,34 +175,28 @@ def taskflow_binding_dag():
     ``*string``. The Go ``via_flat_args`` (``go-sdk/example/bundle/taskflowbinding``)
     verifies every bound value and fails the task on any mismatch.
 
-    Four further tasks demonstrate the Go SDK's ``sdk.TaskInput`` struct injection
+    Three further tasks demonstrate the Go SDK's ``sdk.TaskInput`` struct injection
     mode, one field-binding mode at a time:
 
     * ``via_struct_no_tags``: both struct fields fall back to their Go field name
-      snake_cased -- no ``arg:``/``xcom:`` tags at all.
+      snake_cased -- no ``arg:`` tags at all.
     * ``via_struct_arg_tag``: one field is renamed via an explicit ``arg:`` tag,
       proving the tag remaps the name rather than coincidentally matching it.
-    * ``via_struct_xcom_tag``: one field is an ad hoc XCom pull of ``make_config``'s
-      return value declared purely in Go (an ``xcom:`` struct tag) -- it is never
-      passed as a TaskFlow argument here, so the explicit ``>>`` below is what
-      orders it after ``make_config``.
     * ``via_struct_unmatched_arg``: the Go struct declares a field with no
       corresponding argument in this TaskFlow call at all -- it stays at its Go
       zero value rather than failing the task.
     """
-    config = make_config()
     via_flat_args(
         "summary",
         3,
         2.5,
         True,
         ["metrics", "hourly"],
-        config=config,
+        config=make_config(),
         numbers=make_numbers(),
     )
     via_struct_no_tags(region_code="eu-west-1", threshold=0.75)
     via_struct_arg_tag(region_code="eu-west-1", threshold=0.75)
-    config >> via_struct_xcom_tag(threshold=0.75)
     via_struct_unmatched_arg(region_code="eu-west-1")
 
 

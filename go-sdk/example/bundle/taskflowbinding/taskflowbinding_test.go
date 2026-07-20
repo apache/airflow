@@ -103,28 +103,6 @@ func TestViaStructArgTagRejectsWrongBinding(t *testing.T) {
 	assert.ErrorContains(t, err, "TaskInput fields bound incorrectly")
 }
 
-func TestViaStructXComTag(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	got, err := ViaStructXComTag(ctx, slog.Default(), ViaStructXComTagInput{
-		Threshold: 0.75,
-		Config:    Config{Environment: "production", Region: "eu-west-1", Debug: true},
-	})
-	require.NoError(t, err)
-
-	summary, ok := got.(map[string]any)
-	require.True(t, ok, "ViaStructXComTag should return a map summary, got %T", got)
-	assert.Equal(t, "production", summary["environment"])
-}
-
-func TestViaStructXComTagRejectsWrongBinding(t *testing.T) {
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	_, err := ViaStructXComTag(ctx, slog.Default(), ViaStructXComTagInput{
-		Threshold: 0.75,
-		Config:    Config{},
-	})
-	assert.ErrorContains(t, err, "ad hoc xcom field bound incorrectly")
-}
-
 func TestViaStructUnmatchedArg(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
 	// Missing is left at its Go zero value, exactly as binding.Resolve leaves an

@@ -309,15 +309,13 @@ type nonEmbeddingStruct struct {
 	Name string
 }
 
-// combineInput exercises every TaskInput field-tag combination: Name falls
-// back to its field name, Count is explicitly named, Note is an ad hoc XCom
-// pull at the default key, and Debug is an ad hoc XCom pull at a custom key.
+// combineInput exercises both TaskInput field-binding modes side by side:
+// Name falls back to its snake_cased field name, Count is explicitly named
+// via its `arg:` tag.
 type combineInput struct {
 	sdk.TaskInput
 	Name  string
-	Count int     `arg:"count"`
-	Note  *string `            xcom:"make_note"`
-	Debug bool    `            xcom:"make_config" xcom-key:"debug_flag"`
+	Count int `arg:"count"`
 }
 
 // reportInput deliberately declares Ratio before Region, the reverse of the
@@ -327,12 +325,6 @@ type reportInput struct {
 	sdk.TaskInput
 	Ratio  float64
 	Region string `arg:"region"`
-}
-
-// xcomOnlyInput's sole field never touches the argument spec at all.
-type xcomOnlyInput struct {
-	sdk.TaskInput
-	Extra string `xcom:"make_config"`
 }
 
 func (s *BindingSuite) TestResolveXComArgs() {
@@ -471,43 +463,27 @@ func (s *BindingSuite) TestAnalyzeTaskInputClassification() {
 	)
 }
 
-func (s *BindingSuite) TestAnalyzeTaskInputTagValidation() {
-	type conflictingTags struct {
-		sdk.TaskInput
-		Field string `arg:"a" xcom:"b"`
-	}
-	type orphanXComKey struct {
-		sdk.TaskInput
-		Field string `xcom-key:"k"`
-	}
+func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
 	type duplicateArgNames struct {
 		sdk.TaskInput
 		A string
 		B string `arg:"a"`
 	}
-	type nonDecodableXComField struct {
+	type nonDecodableField struct {
 		sdk.TaskInput
-		Bad chan int `xcom:"t"`
+		Bad chan int
 	}
 
 	cases := map[string]struct {
 		fn          any
 		errContains string
 	}{
-		"conflicting-arg-and-xcom-tags": {
-			func(input conflictingTags) error { return nil },
-			"cannot set both `arg` and `xcom` tags",
-		},
-		"orphan-xcom-key": {
-			func(input orphanXComKey) error { return nil },
-			"`xcom-key` requires `xcom` to also be set",
-		},
 		"duplicate-arg-names": {
 			func(input duplicateArgNames) error { return nil },
 			`fields A and B both bind arg name "a"`,
 		},
-		"non-decodable-xcom-field": {
-			func(input nonDecodableXComField) error { return nil },
+		"non-decodable-field": {
+			func(input nonDecodableField) error { return nil },
 			"cannot receive a task argument",
 		},
 		"two-taskinput-params": {
@@ -526,33 +502,16 @@ func (s *BindingSuite) TestAnalyzeTaskInputTagValidation() {
 }
 
 func (s *BindingSuite) TestResolveTaskInputAllStruct() {
-	client := &fakeXComClient{values: map[string]any{
-		"make_note/return_value": "hello",
-		"make_config/debug_flag": true,
-	}}
 	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
 		LiteralArg{Name: "count", Value: 7, DataType: DataTypeInteger},
-	}, client)
+	}, &fakeXComClient{})
 	s.Require().NoError(err)
 
 	input := got[0].Interface().(combineInput)
-	s.Equal("widget", input.Name)
-	s.Equal(7, input.Count)
-	s.Require().NotNil(input.Note)
-	s.Equal("hello", *input.Note)
-	s.True(input.Debug)
-
-	s.Require().Len(client.calls, 2, "the ad hoc xcom: fields, in struct declaration order")
-	s.Equal("make_note", client.calls[0].taskID)
-	s.Equal(
-		api.XComReturnValueKey,
-		client.calls[0].key,
-		"no xcom-key tag defaults to the return-value key",
-	)
-	s.Equal("make_config", client.calls[1].taskID)
-	s.Equal("debug_flag", client.calls[1].key)
+	s.Equal("widget", input.Name, "the untagged field claims its snake_cased field name")
+	s.Equal(7, input.Count, "the `arg:` tag claims its named entry")
 }
 
 func (s *BindingSuite) TestResolveTaskInputMixedWithFlat() {
@@ -578,19 +537,6 @@ func (s *BindingSuite) TestResolveTaskInputMixedWithFlat() {
 		got[2].Interface(),
 		"the trailing flat parameter claims the last unclaimed wire entry",
 	)
-}
-
-func (s *BindingSuite) TestResolveTaskInputXComTagIndependentOfArgs() {
-	client := &fakeXComClient{values: map[string]any{"make_config/return_value": "cfg-value"}}
-	fn := func(input xcomOnlyInput) error { return nil }
-	got, err := s.resolve(fn, nil, client)
-	s.Require().NoError(err)
-
-	input := got[0].Interface().(xcomOnlyInput)
-	s.Equal("cfg-value", input.Extra)
-	s.Require().Len(client.calls, 1)
-	s.Equal("make_config", client.calls[0].taskID)
-	s.Equal(api.XComReturnValueKey, client.calls[0].key)
 }
 
 func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
