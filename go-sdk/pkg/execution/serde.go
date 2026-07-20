@@ -202,7 +202,15 @@ func serializeTask(info bundlev1.TaskInfo) map[string]any {
 		// so it is unconditional here too. Go tasks have no template fields.
 		"template_fields": []any{},
 	}
-	applyTaskSpec(data, info.Spec)
+	// TaskSpec.SchemaFields (generated from schema.json) returns only the
+	// fields that are set and differ from their schema default, so this
+	// mirrors Python BaseSerialization's "omit hard-coded default" behavior.
+	// serializeValue converts time.Duration / time.Time to their wire floats;
+	// unwrapTypeEncoding strips the __type wrapper because operator fields are
+	// stored unwrapped.
+	for key, value := range info.Spec.SchemaFields() {
+		data[key] = unwrapTypeEncoding(serializeValue(value))
+	}
 	if len(info.Downstream) > 0 {
 		sorted := make([]string, len(info.Downstream))
 		copy(sorted, info.Downstream)
@@ -212,88 +220,6 @@ func serializeTask(info bundlev1.TaskInfo) map[string]any {
 	return map[string]any{
 		"__type": "operator",
 		"__var":  data,
-	}
-}
-
-// applyTaskSpec mirrors Python BaseSerialization's "omit hard-coded default"
-// behavior: each TaskSpec field is written into data only when it differs
-// from the schema default declared in
-// airflow-core/src/airflow/serialization/schema.json. A zero-valued field is
-// always considered "unset" and is skipped.
-func applyTaskSpec(data map[string]any, s bundlev1.TaskSpec) {
-	if s.Queue != "" && s.Queue != "default" {
-		data["queue"] = s.Queue
-	}
-	if s.Pool != "" && s.Pool != "default_pool" {
-		data["pool"] = s.Pool
-	}
-	if s.PoolSlots != 0 && s.PoolSlots != 1 {
-		data["pool_slots"] = s.PoolSlots
-	}
-	if s.Retries != 0 {
-		data["retries"] = s.Retries
-	}
-	if s.RetryDelay != 0 && s.RetryDelay != 300*time.Second {
-		data["retry_delay"] = unwrapTypeEncoding(serializeValue(s.RetryDelay))
-	}
-	if s.MaxRetryDelay != 0 {
-		data["max_retry_delay"] = unwrapTypeEncoding(serializeValue(s.MaxRetryDelay))
-	}
-	if s.RetryExponentialBackoff != 0 {
-		data["retry_exponential_backoff"] = s.RetryExponentialBackoff
-	}
-	if s.PriorityWeight != 0 && s.PriorityWeight != 1 {
-		data["priority_weight"] = s.PriorityWeight
-	}
-	if s.WeightRule != "" && s.WeightRule != "downstream" {
-		data["weight_rule"] = s.WeightRule
-	}
-	if s.TriggerRule != "" && s.TriggerRule != "all_success" {
-		data["trigger_rule"] = s.TriggerRule
-	}
-	if s.Owner != "" && s.Owner != "airflow" {
-		data["owner"] = s.Owner
-	}
-	if s.ExecutionTimeout != 0 {
-		data["execution_timeout"] = unwrapTypeEncoding(serializeValue(s.ExecutionTimeout))
-	}
-	if s.Executor != "" {
-		data["executor"] = s.Executor
-	}
-	if !s.StartDate.IsZero() {
-		data["start_date"] = unwrapTypeEncoding(serializeValue(s.StartDate))
-	}
-	if !s.EndDate.IsZero() {
-		data["end_date"] = unwrapTypeEncoding(serializeValue(s.EndDate))
-	}
-	if s.DependsOnPast {
-		data["depends_on_past"] = true
-	}
-	if s.WaitForDownstream {
-		data["wait_for_downstream"] = true
-	}
-	// do_xcom_push / email_on_failure / email_on_retry default to true; only
-	// emit when an explicit false overrides the default.
-	if s.DoXComPush != nil && !*s.DoXComPush {
-		data["do_xcom_push"] = false
-	}
-	if s.EmailOnFailure != nil && !*s.EmailOnFailure {
-		data["email_on_failure"] = false
-	}
-	if s.EmailOnRetry != nil && !*s.EmailOnRetry {
-		data["email_on_retry"] = false
-	}
-	if s.DocMD != "" {
-		data["doc_md"] = s.DocMD
-	}
-	if s.MapIndexTemplate != "" {
-		data["map_index_template"] = s.MapIndexTemplate
-	}
-	if s.MaxActiveTisPerDag != 0 {
-		data["max_active_tis_per_dag"] = s.MaxActiveTisPerDag
-	}
-	if s.MaxActiveTisPerDagrun != 0 {
-		data["max_active_tis_per_dagrun"] = s.MaxActiveTisPerDagrun
 	}
 }
 

@@ -172,33 +172,41 @@ func TestSerializeTaskDefaultQueueOmitted(t *testing.T) {
 	assert.False(t, hasQueue, "queue=\"default\" matches the schema default and should be omitted")
 }
 
-func TestApplyTaskSpec_EmitsAndOmits(t *testing.T) {
+func applySpecFields(data map[string]any, s bundlev1.TaskSpec) {
+	for k, v := range s.SchemaFields() {
+		data[k] = unwrapTypeEncoding(serializeValue(v))
+	}
+}
+
+func TestTaskSpecSchemaFields_EmitsAndOmits(t *testing.T) {
 	spec := bundlev1.TaskSpec{
-		Queue:                   "gpu",
-		Pool:                    "gpu_pool",
-		PoolSlots:               4,
-		Retries:                 3,
-		RetryDelay:              60 * time.Second,
-		MaxRetryDelay:           10 * time.Minute,
-		RetryExponentialBackoff: 2.0,
-		PriorityWeight:          5,
-		WeightRule:              "upstream",
-		TriggerRule:             "all_done",
-		Owner:                   "data-eng",
-		ExecutionTimeout:        45 * time.Second,
-		Executor:                "KubernetesExecutor",
-		DependsOnPast:           true,
-		WaitForDownstream:       true,
-		DoXComPush:              bundlev1.Bool(false),
-		EmailOnFailure:          bundlev1.Bool(false),
-		EmailOnRetry:            bundlev1.Bool(false),
-		DocMD:                   "## task",
-		MapIndexTemplate:        "{{ task.task_id }}",
-		MaxActiveTisPerDag:      2,
-		MaxActiveTisPerDagrun:   1,
+		Queue:                            "gpu",
+		Pool:                             "gpu_pool",
+		PoolSlots:                        4,
+		Retries:                          3,
+		RetryDelay:                       60 * time.Second,
+		MaxRetryDelay:                    10 * time.Minute,
+		RetryExponentialBackoff:          2.0,
+		PriorityWeight:                   5,
+		WeightRule:                       "upstream",
+		TriggerRule:                      "all_done",
+		Owner:                            "data-eng",
+		ExecutionTimeout:                 45 * time.Second,
+		Executor:                         "KubernetesExecutor",
+		DependsOnPast:                    true,
+		IgnoreFirstDependsOnPast:         true,
+		WaitForPastDependsBeforeSkipping: true,
+		WaitForDownstream:                true,
+		DoXComPush:                       bundlev1.Bool(false),
+		EmailOnFailure:                   bundlev1.Bool(false),
+		EmailOnRetry:                     bundlev1.Bool(false),
+		DocMD:                            "## task",
+		MapIndexTemplate:                 "{{ task.task_id }}",
+		MaxActiveTisPerDag:               2,
+		MaxActiveTisPerDagrun:            1,
 	}
 	data := map[string]any{}
-	applyTaskSpec(data, spec)
+	applySpecFields(data, spec)
 
 	assert.Equal(t, "gpu", data["queue"])
 	assert.Equal(t, "gpu_pool", data["pool"])
@@ -214,6 +222,8 @@ func TestApplyTaskSpec_EmitsAndOmits(t *testing.T) {
 	assert.Equal(t, 45.0, data["execution_timeout"])
 	assert.Equal(t, "KubernetesExecutor", data["executor"])
 	assert.Equal(t, true, data["depends_on_past"])
+	assert.Equal(t, true, data["ignore_first_depends_on_past"])
+	assert.Equal(t, true, data["wait_for_past_depends_before_skipping"])
 	assert.Equal(t, true, data["wait_for_downstream"])
 	assert.Equal(t, false, data["do_xcom_push"])
 	assert.Equal(t, false, data["email_on_failure"])
@@ -224,7 +234,7 @@ func TestApplyTaskSpec_EmitsAndOmits(t *testing.T) {
 	assert.Equal(t, 1, data["max_active_tis_per_dagrun"])
 }
 
-func TestApplyTaskSpec_OmitsSchemaDefaults(t *testing.T) {
+func TestTaskSpecSchemaFields_OmitsSchemaDefaults(t *testing.T) {
 	// Values equal to schema defaults must be dropped.
 	spec := bundlev1.TaskSpec{
 		Queue:          "default",
@@ -241,13 +251,13 @@ func TestApplyTaskSpec_OmitsSchemaDefaults(t *testing.T) {
 		EmailOnRetry:   bundlev1.Bool(true),
 	}
 	data := map[string]any{}
-	applyTaskSpec(data, spec)
+	applySpecFields(data, spec)
 	assert.Empty(t, data, "all fields equal schema defaults; nothing should be emitted")
 }
 
-func TestApplyTaskSpec_EmptySpecNoOp(t *testing.T) {
+func TestTaskSpecSchemaFields_EmptySpecNoOp(t *testing.T) {
 	data := map[string]any{}
-	applyTaskSpec(data, bundlev1.TaskSpec{})
+	applySpecFields(data, bundlev1.TaskSpec{})
 	assert.Empty(t, data)
 }
 
