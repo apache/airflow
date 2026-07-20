@@ -801,7 +801,7 @@ class TestWatchedSubprocess:
         assert exit_code == 0, captured_logs
 
         # Validate calls to the client
-        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY, None)
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,

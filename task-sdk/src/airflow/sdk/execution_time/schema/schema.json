@@ -4998,6 +4998,18 @@
           "default": "default",
           "title": "Queue",
           "type": "string"
+        },
+        "external_executor_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Executor Id"
         }
       },
       "required": [

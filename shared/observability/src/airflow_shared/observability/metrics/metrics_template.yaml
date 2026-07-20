@@ -646,6 +646,12 @@ metrics:
     legacy_name: "-"
     name_variables: ["status"]
 
+  - name: "kubernetes_executor.stale_workload_dropped"
+    description: "Number of stale queued KubernetesExecutor workloads dropped before worker pod creation."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Timers
   # ==========

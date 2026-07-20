@@ -366,11 +366,14 @@ class KubernetesExecutor(BaseExecutor):
         event_info = self.scheduler_job_id
         try:
             from airflow.executors.workloads import ExecuteTask
-
-            if len(command) == 1 and isinstance(command[0], ExecuteTask):
-                event_info = command[0].ti.external_executor_id or self.scheduler_job_id
-        except (ImportError, TypeError):
+        except ImportError:
             pass
+        else:
+            try:
+                if len(command) == 1 and isinstance(command[0], ExecuteTask):
+                    event_info = command[0].ti.external_executor_id or self.scheduler_job_id
+            except TypeError:
+                pass
 
         self.event_buffer[key] = (TaskInstanceState.QUEUED, event_info)
         self.task_queue.put(job)
@@ -404,7 +407,11 @@ class KubernetesExecutor(BaseExecutor):
     @provide_session
     def _should_create_pod_for_job(self, task: KubernetesJob, *, session: Session = NEW_SESSION) -> bool:
         """Check whether a queued Kubernetes job still owns the current task launch token."""
-        from airflow.executors.workloads import ExecuteTask
+        try:
+            from airflow.executors.workloads import ExecuteTask
+        except ImportError:
+            return True
+
         from airflow.models.taskinstance import TaskInstance
 
         if not task.command or not isinstance(task.command[0], ExecuteTask):
