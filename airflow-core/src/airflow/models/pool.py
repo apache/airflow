@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, and_, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql.elements import ColumnElement
 
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -302,16 +303,18 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         occupied_states = self.get_occupied_states()
-        occupancy_filter = TaskInstance.state.in_(occupied_states)
+        occupancy_filter: ColumnElement[bool]
         if self.include_deferred:
             # Post-deferral scheduled TIs keep holding the slot until they are queued/running.
             occupancy_filter = or_(
-                occupancy_filter,
+                TaskInstance.state.in_(occupied_states),
                 and_(
                     TaskInstance.state == TaskInstanceState.SCHEDULED,
                     TaskInstance.next_method.is_not(None),
                 ),
             )
+        else:
+            occupancy_filter = TaskInstance.state.in_(occupied_states)
 
         return int(
             session.scalar(
