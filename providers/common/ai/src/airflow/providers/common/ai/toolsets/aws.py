@@ -55,10 +55,12 @@ def _normalize_action(action: str) -> str:
     return action.replace("_", "").casefold()
 
 
-# Operations that put credentials or decrypted secrets into the agent's context.
+# High-confidence operations that can put credentials, tokens, passwords,
+# decrypted secret material, or plaintext key material into the agent's context.
 # A wildcard in ``allowed_actions`` never matches these -- each must be listed
-# verbatim to be callable. Defense in depth, not exhaustive: least-privilege IAM
-# on the connection's role remains the real boundary.
+# verbatim to be callable. This is a defense-in-depth guard, not an exhaustive
+# AWS security boundary; least-privilege IAM on the connection's role remains
+# the real boundary.
 _CREDENTIAL_RETURNING_ACTIONS = frozenset(
     _normalize_action(action)
     for action in (
