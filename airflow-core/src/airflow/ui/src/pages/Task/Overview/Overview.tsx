@@ -103,8 +103,8 @@ export const Overview = () => {
           startDate={startDate}
         />
       </HStack>
-      <SimpleGrid columns={3} gap={5} my={5}>
-        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2} width="350px">
+      <SimpleGrid columns={1} gap={5} my={5}>
+        <Box borderRadius={4} borderStyle="solid" borderWidth={1} maxWidth="900px" p={2}>
           {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (

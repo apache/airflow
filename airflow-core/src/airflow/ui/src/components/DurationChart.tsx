@@ -25,9 +25,9 @@ import {
   LineElement,
   BarElement,
   Filler,
+  Legend,
   Tooltip,
 } from "chart.js";
-import type { PartialEventContext } from "chartjs-plugin-annotation";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
@@ -37,8 +37,15 @@ import { useNavigate } from "react-router-dom";
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
 import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
-import { DEFAULT_DATETIME_FORMAT, formatDate, renderDuration } from "src/utils/datetimeUtils";
+import {
+  DEFAULT_DATETIME_FORMAT,
+  formatDate,
+  getDurationTickStep,
+  renderCompactDuration,
+  renderDuration,
+} from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
+import { median } from "src/utils/median";
 
 ChartJS.register(
   CategoryScale,
@@ -47,15 +54,10 @@ ChartJS.register(
   BarElement,
   LineElement,
   Filler,
+  Legend,
   Tooltip,
   annotationPlugin,
 );
-
-const average = (ctx: PartialEventContext, index: number) => {
-  const values: Array<number> | undefined = ctx.chart.data.datasets[index]?.data as Array<number> | undefined;
-
-  return values === undefined ? 0 : values.reduce((initial, next) => initial + next, 0) / values.length;
-};
 
 type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
@@ -68,6 +70,24 @@ const getDuration = (start: string, end: string | null) => {
   }
 
   return dayjs.duration(endDate.diff(startDate)).asSeconds();
+};
+
+const getQueuedDuration = (entry: RunResponse, kind: "Dag Run" | "Task Instance") => {
+  if (kind === "Dag Run") {
+    const run = entry as GridRunsResponse;
+
+    return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
+      ? getDuration(run.queued_at, run.start_date)
+      : 0;
+  }
+
+  const taskInstance = entry as TaskInstanceResponse;
+
+  return taskInstance.queued_when !== null &&
+    taskInstance.start_date !== null &&
+    taskInstance.queued_when < taskInstance.start_date
+    ? getDuration(taskInstance.queued_when, taskInstance.start_date)
+    : 0;
 };
 
 const getTickLabelFormat = (entries: Array<RunResponse>): string => {
@@ -121,28 +141,28 @@ export const DurationChart = ({
     }
   });
 
-  const runAnnotation = {
-    borderColor: "grey",
-    borderWidth: 1,
-    label: {
-      content: (ctx: PartialEventContext) => renderDuration(average(ctx, 1), false) ?? "0",
-      display: true,
-      position: "end",
-    },
-    scaleID: "y",
-    value: (ctx: PartialEventContext) => average(ctx, 1),
-  };
+  const queuedDurations = entries.map((entry) => getQueuedDuration(entry, kind));
+  const runDurations = entries.map((entry) =>
+    entry.start_date === null ? 0 : getDuration(entry.start_date, entry.end_date),
+  );
+  // Bars stack queued under run, so the reference line tracks the same total the
+  // reader sees at the top of each bar.
+  const totalDurations = runDurations.map((duration, index) => duration + (queuedDurations[index] ?? 0));
+  const medianTotal = median(totalDurations);
 
-  const queuedAnnotation = {
+  const medianAnnotation = {
     borderColor: "grey",
+    borderDash: [6, 4],
     borderWidth: 1,
     label: {
-      content: (ctx: PartialEventContext) => renderDuration(average(ctx, 0), false) ?? "0",
+      content: translate("durationChart.medianTotalDuration", {
+        duration: renderCompactDuration(medianTotal),
+      }),
       display: true,
-      position: "end",
+      position: "start",
     },
     scaleID: "y",
-    value: (ctx: PartialEventContext) => average(ctx, 0),
+    value: medianTotal,
   };
 
   return (
@@ -157,28 +177,7 @@ export const DurationChart = ({
           datasets: [
             {
               backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
-              data: entries.map((entry: RunResponse) => {
-                switch (kind) {
-                  case "Dag Run": {
-                    const run = entry as GridRunsResponse;
-
-                    return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
-                      ? Number(getDuration(run.queued_at, run.start_date))
-                      : 0;
-                  }
-                  case "Task Instance": {
-                    const taskInstance = entry as TaskInstanceResponse;
-
-                    return taskInstance.queued_when !== null &&
-                      taskInstance.start_date !== null &&
-                      taskInstance.queued_when < taskInstance.start_date
-                      ? Number(getDuration(taskInstance.queued_when, taskInstance.start_date))
-                      : 0;
-                  }
-                  default:
-                    return 0;
-                }
-              }),
+              data: queuedDurations,
               label: translate("durationChart.queuedDuration"),
             },
             {
@@ -186,9 +185,7 @@ export const DurationChart = ({
                 (entry: RunResponse) =>
                   (entry.state ? stateColorMap[entry.state] : undefined) ?? "oklch(0.5 0 0)",
               ),
-              data: entries.map((entry: RunResponse) =>
-                entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),
-              ),
+              data: runDurations,
               label: translate("durationChart.runDuration"),
             },
           ],
@@ -240,9 +237,12 @@ export const DurationChart = ({
           plugins: {
             annotation: {
               annotations: {
-                queuedAnnotation,
-                runAnnotation,
+                medianAnnotation,
               },
+            },
+            legend: {
+              display: true,
+              position: "bottom",
             },
             tooltip: {
               callbacks: {
@@ -268,12 +268,11 @@ export const DurationChart = ({
               title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
             },
             y: {
+              beginAtZero: true,
+              stacked: true,
               ticks: {
-                callback: (value) => {
-                  const num = typeof value === "number" ? value : Number(value);
-
-                  return renderDuration(num, false) ?? "0";
-                },
+                callback: (value) => renderCompactDuration(typeof value === "number" ? value : Number(value)),
+                stepSize: getDurationTickStep(Math.max(...totalDurations, 0)),
               },
               title: { align: "end", display: true, text: translate("common:duration") },
             },
