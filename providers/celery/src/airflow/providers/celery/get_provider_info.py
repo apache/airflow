@@ -133,6 +133,13 @@ def get_provider_info():
                         "example": "db+postgresql+psycopg2://postgres:airflow@postgres/airflow",
                         "default": None,
                     },
+                    "result_backend_schema": {
+                        "description": "The database schema the Celery result backend tables (``celery_taskmeta``,\n``celery_tasksetmeta``) live in, when provisioned into a schema other than the\none used by ``sql_alchemy_conn``. When set, ``airflow db clean`` and the\narchived-table export/drop commands will look for these tables in this schema\ninstead of silently skipping them.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "celery",
+                        "default": None,
+                    },
                     "result_backend_sqlalchemy_engine_options": {
                         "description": "Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.\n",
                         "version_added": None,

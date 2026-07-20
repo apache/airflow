@@ -1427,3 +1427,137 @@ def _dag_version_config_without_row_exclusion():
         if key in config:
             config[key] = None
     return config
+
+
+class TestSchemaQualifiedTableConfig:
+    """
+    ``_TableConfig`` / ``reflect_tables`` support for schema-qualified table names.
+
+    A Celery result backend is commonly provisioned into its own schema, separate from
+    Airflow's own metadata tables; before this, ``airflow db clean`` had no way to reach
+    ``celery_taskmeta`` / ``celery_tasksetmeta`` in that case and silently skipped them.
+    """
+
+    def test_table_config_parses_schema_qualified_table_name(self):
+        config = _TableConfig(table_name="celery.celery_taskmeta", recency_column_name="date_done")
+        assert config.schema == "celery"
+        assert config.name == "celery_taskmeta"
+        assert config.qualified_name == "celery.celery_taskmeta"
+        assert config.orm_model.schema == "celery"
+        assert config.orm_model.name == "celery_taskmeta"
+
+    def test_table_config_without_schema_prefix(self):
+        config = _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done")
+        assert config.schema is None
+        assert config.name == "celery_taskmeta"
+        assert config.qualified_name == "celery_taskmeta"
+        assert config.orm_model.schema is None
+
+    def test_celery_result_backend_schema_config_qualifies_builtin_celery_tables(self):
+        """Setting ``[celery] result_backend_schema`` qualifies the built-in celery_taskmeta /
+        celery_tasksetmeta configs, so ``db clean`` can find them instead of skipping them."""
+        import importlib
+
+        from tests_common.test_utils.config import conf_vars
+
+        db_cleanup = importlib.import_module("airflow.utils.db_cleanup")
+        try:
+            with conf_vars({("celery", "result_backend_schema"): "celery"}):
+                importlib.reload(db_cleanup)
+                assert db_cleanup.config_dict["celery.celery_taskmeta"].schema == "celery"
+                assert db_cleanup.config_dict["celery.celery_tasksetmeta"].schema == "celery"
+                assert "celery_taskmeta" not in db_cleanup.config_dict
+        finally:
+            # Restore the default (unqualified) config for every other test in this module.
+            importlib.reload(db_cleanup)
+        assert db_cleanup.config_dict["celery_taskmeta"].schema is None
+
+
+@pytest.mark.backend("postgres")
+class TestSchemaQualifiedTableCleanupIntegration:
+    """
+    End-to-end db clean + archive + export/drop against the built-in celery_taskmeta
+    config once ``[celery] result_backend_schema`` points it at a non-default schema --
+    the actual scenario a schema-split Celery result backend hits (ZD 93752).
+    """
+
+    SCHEMA = "test_schema_qualified_cleanup"
+
+    def setup_method(self):
+        with create_session() as session:
+            session.execute(text(f"DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE"))
+            session.execute(text(f"CREATE SCHEMA {self.SCHEMA}"))
+            session.execute(
+                text(
+                    f"CREATE TABLE {self.SCHEMA}.celery_taskmeta "
+                    "(id serial primary key, task_id varchar(155), date_done timestamp)"
+                )
+            )
+            session.commit()
+
+    def teardown_method(self):
+        with create_session() as session:
+            session.execute(text(f"DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE"))
+            session.commit()
+
+    def test_clean_archive_export_and_drop_schema_qualified_table(self, tmp_path):
+        import importlib
+
+        from tests_common.test_utils.config import conf_vars
+
+        old_date = pendulum.now("UTC").subtract(days=400)
+        new_date = pendulum.now("UTC")
+        with create_session() as session:
+            session.execute(
+                text(
+                    f"INSERT INTO {self.SCHEMA}.celery_taskmeta (task_id, date_done) "
+                    "VALUES ('old-task', :old_date), ('new-task', :new_date)"
+                ),
+                {"old_date": old_date, "new_date": new_date},
+            )
+            session.commit()
+
+        db_cleanup = importlib.import_module("airflow.utils.db_cleanup")
+        qualified_name = f"{self.SCHEMA}.celery_taskmeta"
+        try:
+            with conf_vars({("celery", "result_backend_schema"): self.SCHEMA}):
+                importlib.reload(db_cleanup)
+                assert qualified_name in db_cleanup.config_dict
+
+                with create_session() as session:
+                    db_cleanup.run_cleanup(
+                        clean_before_timestamp=pendulum.now("UTC").subtract(days=300),
+                        table_names=[qualified_name],
+                        dry_run=False,
+                        confirm=False,
+                        session=session,
+                    )
+
+                    remaining = session.execute(text(f"SELECT task_id FROM {qualified_name}")).scalars().all()
+                    assert remaining == ["new-task"]
+
+                    archived = db_cleanup._get_archived_table_names([qualified_name], session)
+                    assert len(archived) == 1
+                    assert archived[0].startswith(f"{self.SCHEMA}.")
+
+                    archived_rows = (
+                        session.execute(text(f"SELECT task_id FROM {archived[0]}")).scalars().all()
+                    )
+                    assert archived_rows == ["old-task"]
+
+                    db_cleanup.export_archived_records(
+                        export_format="csv",
+                        output_path=str(tmp_path),
+                        table_names=[qualified_name],
+                        drop_archives=True,
+                        needs_confirm=False,
+                        session=session,
+                    )
+                    # export_archived_records takes a caller-owned session and does not commit
+                    # it; commit here so the reflection-based existence check below, which may use
+                    # a separate connection, observes the DROP TABLE.
+                    session.commit()
+
+                    assert db_cleanup._get_archived_table_names([qualified_name], session) == []
+        finally:
+            importlib.reload(db_cleanup)
