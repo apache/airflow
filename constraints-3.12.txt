@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-19T21:59:31.477317
+# This constraints file was automatically generated on 2026-07-20T13:24:38.264604
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -41,7 +41,7 @@ Flask-SQLAlchemy==3.1.1
 Flask-Session==0.8.0
 Flask-WTF==1.3.0
 Flask==3.1.3
-GitPython==3.1.51
+GitPython==3.1.52
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.3.12
@@ -82,7 +82,7 @@ akeyless==5.0.28
 alembic==1.18.5
 alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.1
-alibabacloud-credentials==1.0.9
+alibabacloud-credentials==1.0.10
 alibabacloud-gateway-spi==0.0.4
 alibabacloud-oss-v2==1.3.2
 alibabacloud-tea-openapi==0.4.5
@@ -210,7 +210,7 @@ attrs==26.1.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.41.0
-azure-cosmos==4.16.1
+azure-cosmos==4.16.2
 azure-datalake-store==0.0.53
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.0
@@ -298,13 +298,13 @@ et_xmlfile==2.0.0
 eventlet==0.41.0
 executing==2.2.1
 facebook_business==25.0.2
-fastapi-cli==0.0.30
+fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.1.0
+fastcore==2.1.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.29.7
+filelock==3.30.0
 flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
@@ -566,9 +566,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.10.0
+pydantic-ai-slim==2.11.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.10.0
+pydantic-graph==2.11.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -632,7 +632,7 @@ scramp==1.4.12
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
-sentry-sdk==2.65.0
+sentry-sdk==2.66.0
 setproctitle==1.3.7
 setuptools==83.0.0
 shellingham==1.5.4
@@ -644,7 +644,7 @@ smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.7.1
-snowflake-snowpark-python==1.53.0
+snowflake-snowpark-python==1.53.1
 snowflake-sqlalchemy==1.11.0
 sortedcontainers==2.4.0
 soupsieve==2.8.4
@@ -657,7 +657,7 @@ sqlparse==0.5.5
 stack-data==0.6.3
 starlette==1.3.1
 statsd==4.0.1
-std-uritemplate==2.0.11
+std-uritemplate==2.0.12
 structlog==26.1.0
 svcs==26.1.0
 tableauserverclient==0.41
