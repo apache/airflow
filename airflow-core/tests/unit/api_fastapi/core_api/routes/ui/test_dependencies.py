@@ -783,3 +783,38 @@ class TestGetDependencies:
         # BFS continues through the sibling asset in the gate to find its producer.
         producer_task_node_id = "task:data_dep_gate_upstream__SEPARATOR__produce_b"
         assert (producer_task_node_id, f"asset:{asset_b_id}") in edge_tuples
+
+    def test_data_dependencies_batches_entry_point_resolution_across_scheduled_dags(
+        self, dag_maker, test_client, session
+    ):
+        """Resolving each scheduled Dag's entry task must not cost one query (and one full Dag
+        deserialization) per Dag: the query count must stay flat as the number of Dags an asset
+        schedules grows, not scale linearly with it.
+        """
+        asset_a = Asset(uri="s3://data-dep-bucket/batch-a", name="data_dep_batch_asset_a")
+        dag_ids = [f"data_dep_batch_downstream_{i}" for i in range(3)]
+
+        for dag_id in dag_ids:
+            with dag_maker(
+                dag_id=dag_id,
+                schedule=[asset_a],
+                serialized=True,
+                session=session,
+            ):
+                EmptyOperator(task_id="entry_task")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "data_dep_batch_asset_a"))
+
+        with assert_queries_count(11):
+            response = test_client.get(
+                "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
+            )
+        assert response.status_code == 200
+
+        result = response.json()
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        for dag_id in dag_ids:
+            entry_task_node_id = f"task:{dag_id}__SEPARATOR__entry_task"
+            assert nodes_by_id[entry_task_node_id]["type"] == "task"

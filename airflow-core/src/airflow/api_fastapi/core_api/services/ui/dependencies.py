@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 import structlog
@@ -333,36 +333,56 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None, session: Sess
     }
 
 
-def _get_dag_entry_point(dag_id: str, session: Session) -> tuple[str, dict | None] | None:
-    """Get the id of a Dag's topologically-first task/group and its asset_expression, if any."""
-    from sqlalchemy import select
+def _get_dag_entry_points(dag_ids: set[str], session: Session) -> dict[str, tuple[str, dict | None]]:
+    """
+    Batch-resolve each Dag's topologically-first task/group id and its asset_expression.
+
+    Fetches the latest SerializedDagModel row for every dag_id in one query (mirroring the
+    latest-per-group window-function pattern in
+    ``SerializedDagModel._prefetch_dag_write_metadata``) instead of one query per Dag --
+    deserializing a Dag is expensive, and this can otherwise run once per scheduled Dag
+    discovered while tracing an asset's dependencies.
+    """
+    from sqlalchemy import func, select
     from sqlalchemy.orm import joinedload
 
     from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
     from airflow.models.dag_version import DagVersion
     from airflow.models.serialized_dag import SerializedDagModel
 
-    dag_version = DagVersion.get_latest_version(dag_id, session=session)
-    if dag_version is None:
-        return None
+    if not dag_ids:
+        return {}
 
-    serialized_dag = session.scalar(
-        select(SerializedDagModel)
-        .join(DagVersion)
-        .where(
-            SerializedDagModel.dag_id == dag_id,
-            DagVersion.version_number == dag_version.version_number,
+    latest_per_dag = (
+        select(
+            SerializedDagModel.id,
+            func.row_number()
+            .over(partition_by=SerializedDagModel.dag_id, order_by=DagVersion.version_number.desc())
+            .label("rn"),
         )
-        .options(joinedload(SerializedDagModel.dag_model))
+        .join(DagVersion, SerializedDagModel.dag_version_id == DagVersion.id)
+        .where(SerializedDagModel.dag_id.in_(dag_ids))
+        .subquery()
     )
-    if serialized_dag is None:
-        return None
 
-    entry_points = serialized_dag.dag.task_group.topological_sort()
-    if not entry_points:
-        return None
+    serialized_dags = session.scalars(
+        select(SerializedDagModel)
+        .join(latest_per_dag, SerializedDagModel.id == latest_per_dag.c.id)
+        .where(latest_per_dag.c.rn == 1)
+        .options(joinedload(SerializedDagModel.dag_model))
+    ).all()
 
-    return task_group_to_dict(entry_points[0])["id"], serialized_dag.dag_model.asset_expression
+    entry_points: dict[str, tuple[str, dict | None]] = {}
+    for serialized_dag in serialized_dags:
+        entry_nodes = serialized_dag.dag.task_group.topological_sort()
+        if not entry_nodes:
+            continue
+        entry_points[serialized_dag.dag_id] = (
+            task_group_to_dict(entry_nodes[0])["id"],
+            serialized_dag.dag_model.asset_expression,
+        )
+
+    return entry_points
 
 
 def get_data_dependencies(
@@ -399,124 +419,136 @@ def get_data_dependencies(
     nodes_dict: dict[str, dict] = {}
     edge_set: set[tuple[str, str]] = set()
 
-    # BFS to trace full dependencies
-    assets_to_process: deque[int] = deque([asset_id])
     processed_assets: set[int] = set()
     processed_tasks: set[tuple[str, str]] = set()  # (dag_id, task_id)
     processed_scheduled_dags: set[str] = set()
 
-    while assets_to_process:
-        current_asset_id = assets_to_process.popleft()
-        if current_asset_id in processed_assets:
-            continue
-        processed_assets.add(current_asset_id)
+    # BFS by rounds (a whole frontier of assets at once) rather than one asset at a time, so
+    # every Dag scheduled by assets in the same round has its entry point resolved through one
+    # batched query (see _get_dag_entry_points) instead of one query -- and one full Dag
+    # deserialization -- per Dag.
+    frontier: set[int] = {asset_id}
+
+    while frontier:
+        round_asset_ids = frontier - processed_assets
+        processed_assets |= round_asset_ids
+        if not round_asset_ids:
+            break
 
         # Eagerload producing_tasks, consuming_tasks, and scheduled_dags to avoid lazy queries
-        asset = session.scalar(
+        assets = session.scalars(
             select(AssetModel)
-            .where(AssetModel.id == current_asset_id)
+            .where(AssetModel.id.in_(round_asset_ids))
             .options(
                 selectinload(AssetModel.producing_tasks),
                 selectinload(AssetModel.consuming_tasks),
                 selectinload(AssetModel.scheduled_dags),
             )
-        )
-        if not asset:
-            continue
+        ).all()
 
-        asset_node_id = f"asset:{current_asset_id}"
+        next_frontier: set[int] = set()
+        pending_dag_ids: set[str] = set()
+        triggering_asset_node_id_by_dag: dict[str, str] = {}
 
-        # Add asset node
-        if asset_node_id not in nodes_dict:
-            nodes_dict[asset_node_id] = {"id": asset_node_id, "label": asset.name, "type": "asset"}
+        for asset in assets:
+            asset_node_id = f"asset:{asset.id}"
 
-        # Process producing tasks (tasks that output this asset)
-        for ref in asset.producing_tasks:
-            # Filter out tasks from Dags the user doesn't have access to
-            if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
-                continue
-            task_key = (ref.dag_id, ref.task_id)
-            task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
+            # Add asset node
+            if asset_node_id not in nodes_dict:
+                nodes_dict[asset_node_id] = {"id": asset_node_id, "label": asset.name, "type": "asset"}
 
-            # Add task node with dag_id.task_id label for disambiguation
-            if task_node_id not in nodes_dict:
-                nodes_dict[task_node_id] = {
-                    "id": task_node_id,
-                    "label": f"{ref.dag_id}.{ref.task_id}",
-                    "type": "task",
-                }
+            # Process producing tasks (tasks that output this asset)
+            for ref in asset.producing_tasks:
+                # Filter out tasks from Dags the user doesn't have access to
+                if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
+                    continue
+                task_key = (ref.dag_id, ref.task_id)
+                task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
-            # Add edge: task → asset
-            edge_set.add((task_node_id, asset_node_id))
+                # Add task node with dag_id.task_id label for disambiguation
+                if task_node_id not in nodes_dict:
+                    nodes_dict[task_node_id] = {
+                        "id": task_node_id,
+                        "label": f"{ref.dag_id}.{ref.task_id}",
+                        "type": "task",
+                    }
 
-            # Find other assets this task consumes (inlets) to trace upstream
-            if task_key not in processed_tasks:
-                processed_tasks.add(task_key)
-                inlet_refs = session.scalars(
-                    select(TaskInletAssetReference).where(
-                        TaskInletAssetReference.dag_id == ref.dag_id,
-                        TaskInletAssetReference.task_id == ref.task_id,
-                    )
-                ).all()
-                for inlet_ref in inlet_refs:
-                    if inlet_ref.asset_id not in processed_assets:
-                        assets_to_process.append(inlet_ref.asset_id)
+                # Add edge: task → asset
+                edge_set.add((task_node_id, asset_node_id))
 
-        # Process consuming tasks (tasks that input this asset)
-        for ref in asset.consuming_tasks:
-            # Filter out tasks from Dags the user doesn't have access to
-            if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
-                continue
-            task_key = (ref.dag_id, ref.task_id)
-            task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
+                # Find other assets this task consumes (inlets) to trace upstream
+                if task_key not in processed_tasks:
+                    processed_tasks.add(task_key)
+                    inlet_refs = session.scalars(
+                        select(TaskInletAssetReference).where(
+                            TaskInletAssetReference.dag_id == ref.dag_id,
+                            TaskInletAssetReference.task_id == ref.task_id,
+                        )
+                    ).all()
+                    for inlet_ref in inlet_refs:
+                        if inlet_ref.asset_id not in processed_assets:
+                            next_frontier.add(inlet_ref.asset_id)
 
-            # Add task node with dag_id.task_id label for disambiguation
-            if task_node_id not in nodes_dict:
-                nodes_dict[task_node_id] = {
-                    "id": task_node_id,
-                    "label": f"{ref.dag_id}.{ref.task_id}",
-                    "type": "task",
-                }
+            # Process consuming tasks (tasks that input this asset)
+            for ref in asset.consuming_tasks:
+                # Filter out tasks from Dags the user doesn't have access to
+                if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
+                    continue
+                task_key = (ref.dag_id, ref.task_id)
+                task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
-            # Add edge: asset → task
-            edge_set.add((asset_node_id, task_node_id))
+                # Add task node with dag_id.task_id label for disambiguation
+                if task_node_id not in nodes_dict:
+                    nodes_dict[task_node_id] = {
+                        "id": task_node_id,
+                        "label": f"{ref.dag_id}.{ref.task_id}",
+                        "type": "task",
+                    }
 
-            # Find other assets this task produces (outlets) to trace downstream
-            if task_key not in processed_tasks:
-                processed_tasks.add(task_key)
-                outlet_refs = session.scalars(
-                    select(TaskOutletAssetReference).where(
-                        TaskOutletAssetReference.dag_id == ref.dag_id,
-                        TaskOutletAssetReference.task_id == ref.task_id,
-                    )
-                ).all()
-                for outlet_ref in outlet_refs:
-                    if outlet_ref.asset_id not in processed_assets:
-                        assets_to_process.append(outlet_ref.asset_id)
+                # Add edge: asset → task
+                edge_set.add((asset_node_id, task_node_id))
 
-        # Process Dags scheduled by this asset at the Dag level (`schedule=...`). These have no
-        # task-level inlet reference and would otherwise be a dead end in this graph: route
-        # through the Dag's asset_expression (skipping straight to a flat edge for a
-        # single-asset schedule) into the Dag's topologically-first task, same as the
-        # scheduling graph does for its `dag:` nodes.
-        for ref in asset.scheduled_dags:
-            if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
-                continue
-            if ref.dag_id in processed_scheduled_dags:
-                continue
-            processed_scheduled_dags.add(ref.dag_id)
+                # Find other assets this task produces (outlets) to trace downstream
+                if task_key not in processed_tasks:
+                    processed_tasks.add(task_key)
+                    outlet_refs = session.scalars(
+                        select(TaskOutletAssetReference).where(
+                            TaskOutletAssetReference.dag_id == ref.dag_id,
+                            TaskOutletAssetReference.task_id == ref.task_id,
+                        )
+                    ).all()
+                    for outlet_ref in outlet_refs:
+                        if outlet_ref.asset_id not in processed_assets:
+                            next_frontier.add(outlet_ref.asset_id)
 
-            entry_point = _get_dag_entry_point(ref.dag_id, session)
+            # Process Dags scheduled by this asset at the Dag level (`schedule=...`). These have
+            # no task-level inlet reference and would otherwise be a dead end in this graph --
+            # collect them here and resolve every entry point for the round together, below.
+            for ref in asset.scheduled_dags:
+                if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
+                    continue
+                if ref.dag_id in processed_scheduled_dags:
+                    continue
+                processed_scheduled_dags.add(ref.dag_id)
+                pending_dag_ids.add(ref.dag_id)
+                triggering_asset_node_id_by_dag[ref.dag_id] = asset_node_id
+
+        # Route through each Dag's asset_expression (skipping straight to a flat edge for a
+        # single-asset schedule) into the Dag's topologically-first task, same as the scheduling
+        # graph does for its `dag:` nodes.
+        entry_points = _get_dag_entry_points(pending_dag_ids, session)
+        for dag_id in pending_dag_ids:
+            entry_point = entry_points.get(dag_id)
             if entry_point is None:
                 continue
             entry_task_id, asset_expression = entry_point
-            task_key = (ref.dag_id, entry_task_id)
-            task_node_id = f"task:{ref.dag_id}{SEPARATOR}{entry_task_id}"
+            task_key = (dag_id, entry_task_id)
+            task_node_id = f"task:{dag_id}{SEPARATOR}{entry_task_id}"
 
             if task_node_id not in nodes_dict:
                 nodes_dict[task_node_id] = {
                     "id": task_node_id,
-                    "label": f"{ref.dag_id}.{entry_task_id}",
+                    "label": f"{dag_id}.{entry_task_id}",
                     "type": "task",
                 }
 
@@ -528,7 +560,7 @@ def get_data_dependencies(
                 except TypeError:
                     log.warning(
                         "Could not expand asset_expression into gate nodes",
-                        dag_id=ref.dag_id,
+                        dag_id=dag_id,
                         exc_info=True,
                     )
 
@@ -540,25 +572,27 @@ def get_data_dependencies(
                     if node["id"].startswith("asset:"):
                         sibling_asset_id = int(node["id"].removeprefix("asset:"))
                         if sibling_asset_id not in processed_assets:
-                            assets_to_process.append(sibling_asset_id)
+                            next_frontier.add(sibling_asset_id)
                 for edge in upstream_edges:
                     edge_set.add((edge["source_id"], edge["target_id"]))
             else:
                 # No gate (bare single-asset schedule) -- link directly.
-                edge_set.add((asset_node_id, task_node_id))
+                edge_set.add((triggering_asset_node_id_by_dag[dag_id], task_node_id))
 
             # Find other assets this entry task produces (outlets) to trace downstream.
             if task_key not in processed_tasks:
                 processed_tasks.add(task_key)
                 outlet_refs = session.scalars(
                     select(TaskOutletAssetReference).where(
-                        TaskOutletAssetReference.dag_id == ref.dag_id,
+                        TaskOutletAssetReference.dag_id == dag_id,
                         TaskOutletAssetReference.task_id == entry_task_id,
                     )
                 ).all()
                 for outlet_ref in outlet_refs:
                     if outlet_ref.asset_id not in processed_assets:
-                        assets_to_process.append(outlet_ref.asset_id)
+                        next_frontier.add(outlet_ref.asset_id)
+
+        frontier = next_frontier
 
     all_dag_ids = list({dag_id for dag_id, _ in processed_tasks})
     if all_dag_ids:
