@@ -372,14 +372,15 @@ class TestTIRunState:
 
     def test_ti_run_returns_arg_bindings_for_stub_task(self, client, dag_maker):
         """A stub task's TaskFlow arg spec is extracted from the serialized dag and returned."""
-        from airflow.providers.standard.decorators.stub import stub
-
-        def extract(): ...
-
-        def transform(country: str, extracted: dict): ...
-
         with dag_maker("test_arg_bindings_dag", serialized=True):
-            stub(transform)("uk", stub(extract)())
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str, extracted: dict): ...
+
+            transform("uk", extract())
 
         dr = dag_maker.create_dagrun()
         tis = {ti.task_id: ti for ti in dr.get_task_instances()}

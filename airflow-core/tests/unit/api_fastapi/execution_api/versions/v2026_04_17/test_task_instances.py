@@ -20,6 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow._shared.timezones import timezone
+from airflow.sdk import task
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.config import conf_vars
@@ -99,14 +100,15 @@ class TestArgBindingsFieldBackwardCompat:
 
     @pytest.fixture
     def stub_ti(self, dag_maker):
-        from airflow.providers.standard.decorators.stub import stub
-
-        def extract(): ...
-
-        def transform(country: str, extracted: dict): ...
-
         with dag_maker("test_arg_bindings_compat_dag", serialized=True):
-            stub(transform)("uk", stub(extract)())
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str, extracted: dict): ...
+
+            transform("uk", extract())
 
         dr = dag_maker.create_dagrun()
         tis = {ti.task_id: ti for ti in dr.get_task_instances()}

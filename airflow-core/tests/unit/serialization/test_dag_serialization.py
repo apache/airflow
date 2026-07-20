@@ -3407,14 +3407,17 @@ def test_python_callable_name_uses_qualname_exclude_module():
 
 def test_stub_task_args_round_trip():
     """The stub task's TaskFlow arg spec (``_arg_bindings``) survives Dag serialization."""
-    from airflow.providers.standard.decorators.stub import stub
-
-    def extract(): ...
-
-    def transform(country: str, extracted: dict): ...
+    from airflow.sdk import task
 
     with DAG(dag_id="arg_bindings_dag", schedule=None) as dag:
-        stub(transform)("uk", stub(extract)())
+
+        @task.stub
+        def extract(): ...
+
+        @task.stub
+        def transform(country: str, extracted: dict): ...
+
+        transform("uk", extract())
 
     ser_dag = DagSerialization.to_dict(dag)
     encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
