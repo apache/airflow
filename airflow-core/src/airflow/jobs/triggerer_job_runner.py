@@ -941,12 +941,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         from airflow.sdk.log import configure_logging
 
-        # Must match the json_logs setting: calling configure_logging() here reconfigures
-        # structlog globally. Defaulting json_output to False would install the text
-        # WriteLogger factory, while the stdout/stderr forwarders (forward_to_log) emit
-        # bytes from the JSON renderer -- crashing the triggerer with
-        # "TypeError: can't concat str to bytes" the first time a trigger subprocess
-        # writes to stdout/stderr.
         configure_logging(json_output=conf.getboolean("logging", "json_logs", fallback=False))
 
         fallback_log = structlog.get_logger(logger_name=__name__)
