@@ -99,6 +99,18 @@ module.exports = function(eleventyConfig) {
     return JSON.stringify(obj);
   });
 
+  // Attaches each type's module count and drops zero-count types, sorted by
+  // count descending -- used to render the provider-page module tabs with the
+  // busiest categories first.
+  eleventyConfig.addFilter("sortTypesByCount", (types, moduleCounts) => {
+    if (!Array.isArray(types)) return [];
+    const counts = moduleCounts || {};
+    return types
+      .filter((t) => (counts[t.id] || 0) > 0)
+      .map((t) => Object.assign({}, t, { count: counts[t.id] || 0 }))
+      .sort((a, b) => b.count - a.count);
+  });
+
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);
 
   return {
