@@ -120,6 +120,21 @@ are treated as neither trivial nor extreme). A plain-prose
 `AGENTS.md` with no `triage_review_imbalance` block is treated as
 "no metadata here" and the walk continues upward.
 
+> **The fallback is a silent blind spot — treat coverage as a
+> maintenance task.** An uncovered area does not announce itself: its
+> PRs simply score `moderate`, pass for most authors, and are never
+> tested against any `## Review criteria` or ADR. The effect is large
+> and measurable. Simulated over a 284-PR `ready for maintainer review`
+> queue, going from 7 seeded areas to 29 moved **84** PRs' `ReviewCost`
+> (the `extreme` band roughly doubled) and took ~26% of the queue out of
+> "ready" — almost none of which was visible beforehand, because the
+> gap presents as "everything passes" rather than as an error.
+> Periodically list the paths the queue actually touches, compare
+> against the areas that carry a `triage_review_imbalance` block, and
+> close the biggest gaps first. Ranking by *PRs touched* rather than by
+> intuition matters: in this repo the single largest gap was
+> `providers/` at ~21% of the queue.
+
 **Aggregation across a multi-area PR.** Take the **max**
 `criticality` and **max** `review_difficulty` over all touched
 areas (ordering: `low < medium < high < critical`,
@@ -213,10 +228,34 @@ when it passes every checklist item.
   (issue / dev-list / an ADR update in the PR with `Status: proposed`), not done
   implicitly in passing. A PR that silently contradicts an `accepted` ADR is
   treated as not having made that argument.
+- **A change that *removes* an existing violation conforms.** Deleting an
+  improper `session.commit()`, replacing an unbounded query with a bounded one,
+  dropping a blanket `type: ignore` suppression, repairing a cleanup config that
+  named a column which does not exist — these move *with* the decision and must
+  not be flagged. Judge the direction of travel, not the presence of the keywords
+  the ADR happens to mention: a keyword match is where the check starts, not
+  where it ends.
+- **Verify the precondition a decision depends on before flagging it.** Many
+  decisions are conditional on release state ("a migration that already shipped",
+  "a field on a released response"). Check it — `git tag`, the version in the
+  distribution's `pyproject.toml` — instead of pattern-matching the shape. Two
+  diffs can be textually identical while only one violates: rewriting the
+  `down_revision` chain is a retcon when those revisions shipped, and routine
+  housekeeping while they are still unreleased.
 
-The ADR check never *lowers* a verdict (a conforming change gets no bonus); it
-only surfaces contradictions. Unknown/`proposed`/`superseded` decisions are not
-blocking. Areas without an `ADR.md` skip this step entirely.
+The ADR check never *lowers* a verdict: a conforming change earns no bonus, and
+the check can only ever raise one. That is **not** a licence for an existing
+`pass`/`discuss` to survive a contradiction — per §6.3 a blocking ADR finding is
+a `criteria_gap`, and `draft-back` supersedes both. Unknown/`proposed`/
+`superseded` decisions are not blocking. Areas whose `AGENTS.md` carries no
+`adr_ref` (no `adr/` directory) skip this step entirely.
+
+**Where the check changes an outcome.** It can only move a `pass` or `discuss`
+verdict, so spend the effort there first; on a PR already at `draft-back`/`CLOSE`
+it adds a citation to the message but no new disposition. The highest-yield
+targets are the ones the matrix structurally cannot see: **small-diff-exempted
+changes in a `critical`/`high` area** (§3). A handful of lines is exactly the
+size at which a decision gets breached without anyone reading the diff twice.
 
 ## 3. ReviewCost
 
@@ -287,6 +326,19 @@ ceiling is 10/1); a 40-line docs change **is** small (low ceiling
 is 300/15). This is the "small diff should depend on criticality"
 rule.
 
+> **The exemption sets cost, not correctness.** Pinning `ReviewCost` to
+> `low` makes the imbalance matrix pass the PR — it does **not** exempt
+> it from the criteria gate or §2c (see §6.1: small-diff exempts the
+> *close path only*). A small-diff-exempted PR in a `critical`/`high`
+> area is the one place where nothing else in this step will ever read
+> the diff, so **always run §2b/§2c on it**. This is not hypothetical: a
+> 5-line, 1-file chart template change scored `low` and passed the
+> matrix, while adding an unconditional `subdomain` to the worker pod
+> template — rolling every worker pod on `helm upgrade` with an
+> unchanged values file, with no newsfragment and no stated upgrade
+> behaviour. Small diffs in high-criticality areas are the highest-yield
+> targets in the whole step, not the safest.
+
 ---
 
 ## 4. AuthorStanding
@@ -298,7 +350,7 @@ touched area as the reference area for the queries).
 | Signal | How to read it | Query |
 |---|---|---|
 | **Committer / PMC / tenure** | `authorAssociation ∈ {MEMBER, OWNER}` ⇒ committer/PMC. `COLLABORATOR` ⇒ established. | PR record (free) |
-| **Merged PRs in area** | Count of the author's *merged* PRs that touched files under the reference area root. | `gh pr list --author <login> --state merged --search "<area path terms>"` then confirm file overlap on the top hits |
+| **Merged PRs in area** | Count of the author's *merged* PRs that touched files under the reference area root. | `gh api "repos/<owner>/<repo>/commits?author=<login>&path=<area root>&per_page=1"` — resolves the GitHub login, filters by path, and scans the full default-branch history, so an empty result is real evidence of "no in-area history" rather than a sampling artefact. Bills to the **core** budget, not the 30/min search budget. Do **not** use `gh pr list --search "<area path terms>"`: PR search does not index file paths, so it matches title/body text and silently misses (and invents) in-area work |
 | **Accepted in-area review comments** | Author left review comments on *others'* PRs in the area that were acted on / resolved (a proxy for "their comments have been accepted"). Extra weight if an area **`expert`** (frontmatter) engaged with or approved alongside them. | `gh search` / `gh api` over review comments authored by `<login>` on PRs touching the area; count threads that were resolved or followed by a matching change |
 | **Prior design discussion** | Author opened or substantively participated in an issue / AIP / devlist thread about the area before this PR. An **accepted-issue / AIP link on this PR** counts here as a booster — **but only when the PR actually solves that issue** (see the qualification below), not merely links it. | Linked-issue timeline + `gh search issues --author <login>` in the area |
 
@@ -350,6 +402,25 @@ than closing it (bias against a wrong close).
 > standing), never downward — the cost of wrongly closing a
 > legitimate contribution is far higher than the cost of letting a
 > borderline PR through to normal review.
+
+> **Calibration note — strict in-area is sharp on prolific
+> contributors.** Because standing is measured *in the reference area*,
+> "history only in unrelated areas" lands an author at `weak` no matter
+> how large their overall record. Measured over one ready queue, moving
+> from an overall-merge-count proxy to real in-area counts reclassified
+> 21 PRs and pushed `draft-back` from 9 to 29 — including authors with
+> 55 and 59 merged PRs who had **zero** commits in the area their PR
+> touched (`migrations`, `secrets`). That is the rule working as
+> written, and it is defensible: a `migrations` change is not made safe
+> by a long record in `providers`. But it is the sharpest edge in the
+> ruleset and the most likely to read as unwelcoming to a known
+> contributor, so it deserves a deliberate decision rather than being
+> inherited by accident. If an adopter wants it softer, the narrow
+> lever is to let a substantial overall record (say ≥ 20 merged **with**
+> maintainer-review interaction) reach `established` even with no
+> in-area history — which converts those PRs from `draft-back` to
+> `discuss` without touching the `none`/`weak` tiers that the CLOSE
+> path depends on.
 
 ---
 
