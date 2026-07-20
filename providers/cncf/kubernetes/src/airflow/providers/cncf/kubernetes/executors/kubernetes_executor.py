@@ -371,7 +371,7 @@ class KubernetesExecutor(BaseExecutor):
         else:
             try:
                 if len(command) == 1 and isinstance(command[0], ExecuteTask):
-                    event_info = command[0].ti.external_executor_id or self.scheduler_job_id
+                    event_info = getattr(command[0].ti, "external_executor_id", None) or self.scheduler_job_id
             except TypeError:
                 pass
 
@@ -419,7 +419,7 @@ class KubernetesExecutor(BaseExecutor):
 
         workload = task.command[0]
         workload_ti = workload.ti
-        launch_token = workload_ti.external_executor_id
+        launch_token = getattr(workload_ti, "external_executor_id", None)
 
         try:
             scheduler_job_id = int(self.scheduler_job_id) if self.scheduler_job_id is not None else None
@@ -452,7 +452,7 @@ class KubernetesExecutor(BaseExecutor):
             state == TaskInstanceState.QUEUED
             and try_number == workload_ti.try_number
             and queued_by_job_id == scheduler_job_id
-            and external_executor_id == launch_token
+            and (launch_token is None or external_executor_id == launch_token)
         ):
             return True
 

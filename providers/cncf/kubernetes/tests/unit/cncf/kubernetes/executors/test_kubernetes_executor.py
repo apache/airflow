@@ -970,7 +970,9 @@ class TestKubernetesExecutor:
                 kubernetes_executor.end()
 
     @pytest.mark.db_test
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="workloads are used on Airflow 3+")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="workloads include external_executor_id on Airflow 3.2+"
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_sync_drops_workload_with_stale_external_executor_id(
@@ -1013,7 +1015,9 @@ class TestKubernetesExecutor:
             executor.end()
 
     @pytest.mark.db_test
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="workloads are used on Airflow 3+")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="workloads include external_executor_id on Airflow 3.2+"
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_sync_creates_pod_when_external_executor_id_matches(
