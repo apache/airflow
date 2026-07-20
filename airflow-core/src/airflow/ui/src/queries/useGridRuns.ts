@@ -28,6 +28,7 @@ export const useGridRuns = ({
   offset,
   runAfterGte,
   runAfterLte,
+  runIdPattern,
   runType,
   triggeringUser,
 }: {
@@ -36,6 +37,7 @@ export const useGridRuns = ({
   offset?: number;
   runAfterGte?: string;
   runAfterLte?: string;
+  runIdPattern?: string | undefined;
   runType?: DagRunType | undefined;
   triggeringUser?: string | undefined;
 }) => {
@@ -51,6 +53,7 @@ export const useGridRuns = ({
       orderBy: ["-run_after"],
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
+      runIdPattern: runIdPattern ?? undefined,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
       triggeringUser: triggeringUser ?? undefined,

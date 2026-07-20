@@ -30,6 +30,7 @@ export const useGridStructure = ({
   includeUpstream,
   limit,
   root,
+  runIdPattern,
   runType,
   triggeringUser,
 }: {
@@ -40,6 +41,7 @@ export const useGridStructure = ({
   includeUpstream?: boolean;
   limit?: number;
   root?: string;
+  runIdPattern?: string | undefined;
   runType?: DagRunType | undefined;
   triggeringUser?: string | undefined;
 }) => {
@@ -56,6 +58,7 @@ export const useGridStructure = ({
       limit,
       orderBy: ["-run_after"],
       root,
+      runIdPattern: runIdPattern ?? undefined,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
       triggeringUser: triggeringUser ?? undefined,
