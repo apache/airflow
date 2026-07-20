@@ -837,9 +837,9 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param deferrable: Run operator in the deferrable mode.
-    :param max_attempts: The maximum number of attempts to be made. In deferrable mode this bounds the
-        async wait for a busy cluster to settle before the delete is re-issued; combined with
-        ``poll_interval`` the default gives a ~15 minute window, long enough to outlast a pause/resize.
+    :param max_attempts: The maximum number of attempts to be made, both when retrying the delete while
+        the cluster is busy and when waiting for deletion to complete; combined with ``poll_interval``
+        the default gives a ~15 minute window, long enough to outlast a pause/resize.
     """
 
     template_fields: Sequence[str] = aws_template_fields(
@@ -867,10 +867,6 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         self.final_cluster_snapshot_identifier = final_cluster_snapshot_identifier
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
-        # Retry the delete while the cluster is mid-transition (InvalidClusterStateFault) until it
-        # settles into a deletable state.
-        self._attempts = 60
-        self._attempt_interval = 15
         self.deferrable = deferrable
         self.max_attempts = max_attempts
 
@@ -879,7 +875,10 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
             self._delete_or_defer_until_settled()
             return
 
-        while self._attempts:
+        # Retry the delete while the cluster is mid-transition (InvalidClusterStateFault) until it
+        # settles into a deletable state.
+        attempts = self.max_attempts
+        while attempts:
             try:
                 self.hook.delete_cluster(
                     cluster_identifier=self.cluster_identifier,
@@ -888,18 +887,18 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
                 )
                 break
             except self.hook.conn.exceptions.InvalidClusterStateFault:
-                self._attempts -= 1
+                attempts -= 1
 
-                if self._attempts:
+                if attempts:
                     current_state = self.hook.conn.describe_clusters(
                         ClusterIdentifier=self.cluster_identifier
                     )["Clusters"][0]["ClusterStatus"]
                     self.log.error(
                         "Cluster in %s state, unable to delete. %d attempts remaining.",
                         current_state,
-                        self._attempts,
+                        attempts,
                     )
-                    time.sleep(self._attempt_interval)
+                    time.sleep(self.poll_interval)
                 else:
                     raise
 
