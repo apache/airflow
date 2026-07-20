@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import Depends, status
@@ -28,8 +29,11 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     QueryLimit,
     QueryOffset,
+    RangeFilter,
     SortParam,
+    datetime_range_filter_factory,
     filter_param_factory,
+    float_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse, BackfillResponse
@@ -38,6 +42,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import (
 )
 from airflow.api_fastapi.core_api.security import ReadableBackfillsFilterDep, requires_access_backfill
 from airflow.models.backfill import Backfill
+
+log = logging.getLogger(__name__)
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
@@ -52,6 +58,14 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 def list_backfills_ui(
     limit: QueryLimit,
     offset: QueryOffset,
+    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("from_date", Backfill))],
+    end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("to_date", Backfill))],
+    created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", Backfill))],
+    completed_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("completed_at", Backfill))],
+    max_active_runs: Annotated[RangeFilter, Depends(float_range_filter_factory("max_active_runs", Backfill))],
+    reprocess_behavior: Annotated[
+        FilterParam, Depends(filter_param_factory(Backfill.reprocess_behavior, str | None))
+    ],
     order_by: Annotated[
         SortParam,
         Depends(SortParam(["id"], Backfill).dynamic_depends()),
@@ -66,7 +80,17 @@ def list_backfills_ui(
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
         statement=select(Backfill).options(joinedload(Backfill.dag_model)),
-        filters=[dag_id, active, readable_backfills_filter],
+        filters=[
+            dag_id,
+            active,
+            readable_backfills_filter,
+            start_date_range,
+            end_date_range,
+            created_at,
+            completed_at,
+            max_active_runs,
+            reprocess_behavior,
+        ],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -76,6 +100,7 @@ def list_backfills_ui(
         BackfillResponse(**row._mapping) if not isinstance(row, Backfill) else row
         for row in session.scalars(select_stmt)
     ]
+    log.warning("inside backfill*******************************************")
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
