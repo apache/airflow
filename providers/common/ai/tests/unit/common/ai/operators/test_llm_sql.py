@@ -87,10 +87,38 @@ class TestStripLLMOutput:
                 "SELECT * FROM users LIMIT 10",
                 id="single_line_fence_with_query",
             ),
+            pytest.param(
+                "```sql SELECT 1```",
+                "SELECT 1",
+                id="single_line_fence_with_language_tag",
+            ),
+            pytest.param(
+                "```SQL SELECT 1```",
+                "SELECT 1",
+                id="single_line_fence_with_uppercase_language_tag",
+            ),
         ),
     )
     def test_strip_llm_output(self, raw, expected):
         assert LLMSQLQueryOperator._strip_llm_output(raw) == expected
+
+    @pytest.mark.parametrize(
+        ("raw", "dialect", "expected"),
+        (
+            pytest.param("```postgres SELECT 1```", "postgres", "SELECT 1", id="dialect_tag_matches"),
+            pytest.param(
+                "```POSTGRES SELECT 1```", "postgres", "SELECT 1", id="dialect_tag_case_insensitive"
+            ),
+            pytest.param(
+                "```mysql SELECT 1```",
+                "postgres",
+                "mysql SELECT 1",
+                id="dialect_tag_mismatch_left_alone",
+            ),
+        ),
+    )
+    def test_strip_llm_output_with_dialect(self, raw, dialect, expected):
+        assert LLMSQLQueryOperator._strip_llm_output(raw, dialect=dialect) == expected
 
 
 class TestLLMSQLQueryOperator:
