@@ -192,10 +192,10 @@ Parameters
   ``check_query`` as well as discovery -- every table a query references must be
   on it. See :ref:`allowed-tables-enforcement` for what this does and does not
   guarantee.
-- ``allowed_functions``: Names of functions that sqlglot does not recognise as
+- ``allowed_functions``: Names of functions that sqlglot does not recognize as
   builtins but are safe to run while ``allowed_tables`` is active (e.g.
   ``["json_build_object"]`` or a project UDF). ``None`` (default) rejects every
-  unrecognised function. Matching is case-insensitive. Only consulted when
+  unrecognized function. Matching is case-insensitive. Only consulted when
   ``allowed_tables`` is set.
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
@@ -654,14 +654,14 @@ When ``allowed_tables`` is set it governs every tool, not just discovery:
   (file/program I/O), and **inline comments** -- because parser-vs-engine differences
   hide in comments (MySQL executes ``/*! ... */`` while sqlglot and other engines
   ignore it).
-- **Any function sqlglot does not recognise is rejected (fail-closed).** A function
+- **Any function sqlglot does not recognize is rejected (fail-closed).** A function
   whose string argument reaches data outside the table graph --
   ``pg_read_file('/etc/passwd')`` (a file), ``query_to_xml('SELECT * FROM other_table', ...)``
   (SQL over another table), a scalar ``dblink`` (a remote database) -- carries no table
   reference for the parser to catch. Rather than maintain a denylist of such functions
   (unbounded, engine-specific, and it would fail *open* on anything missed), the toolset
   rejects every function sqlglot cannot type. Ordinary builtins (``count``, ``lower``,
-  ``sum``) are recognised and pass. A legitimate function sqlglot does not type
+  ``sum``) are recognized and pass. A legitimate function sqlglot does not type
   (``json_build_object``, ``jsonb_agg``) or a project UDF is rejected until you list it
   in ``allowed_functions``:
 

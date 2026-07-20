@@ -118,11 +118,11 @@ class SQLToolset(AbstractToolset[Any]):
         ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL, ``COPY`` (file/program I/O),
         **inline comments** (where parser-vs-engine differences such as MySQL
         ``/*! ... */`` executable comments hide), and **any function the parser cannot
-        recognise** -- the channel through which ``pg_read_file`` (a file),
+        recognize** -- the channel through which ``pg_read_file`` (a file),
         ``query_to_xml`` (SQL over another table), or a scalar ``dblink`` (a remote
         database) reach data with no table node for the walk to catch. Ordinary builtins
-        (``count``, ``lower``) are recognised and pass; a legitimate function sqlglot does
-        not recognise (``json_build_object``, a bespoke UDF) is rejected unless named in
+        (``count``, ``lower``) are recognized and pass; a legitimate function sqlglot does
+        not recognize (``json_build_object``, a bespoke UDF) is rejected unless named in
         ``allowed_functions``.
 
         .. note::
@@ -133,11 +133,11 @@ class SQLToolset(AbstractToolset[Any]):
             ``SELECT`` grants are limited to the same tables -- the database role is the
             boundary that holds even when the parser cannot see through a function.
 
-    :param allowed_functions: Names of functions that sqlglot does not recognise as
+    :param allowed_functions: Names of functions that sqlglot does not recognize as
         builtins but that are safe to run while ``allowed_tables`` is active -- e.g.
         ``["json_build_object"]`` or a project UDF. Matching is case-insensitive. Only
         consulted when ``allowed_tables`` is set; ``None`` (default) rejects every
-        unrecognised function.
+        unrecognized function.
 
     :param schema: Default schema/namespace for table listing and introspection,
         used for unqualified ``allowed_tables`` entries and unqualified

@@ -280,12 +280,12 @@ def collect_table_references(
       comments are where parser-vs-engine differentials hide (MySQL executable
       ``/*! ... */``, ``--`` not followed by whitespace, ``#``) -- and **COPY**
       (file/program I/O whose data channel is not a table).
-    - **Any function sqlglot does not recognise is rejected (fail-closed).** A function
+    - **Any function sqlglot does not recognize is rejected (fail-closed).** A function
       whose argument is a file path or a SQL string -- ``pg_read_file`` (a file),
       ``query_to_xml`` (SQL over another table), a scalar ``dblink`` (a remote database) --
       reaches data with no ``exp.Table`` node for the walk to catch. Rather than enumerate
       every such function (a denylist is unbounded, engine-specific, and fails *open* on
-      anything missed), this rejects every unrecognised function: sqlglot models these as
+      anything missed), this rejects every unrecognized function: sqlglot models these as
       ``exp.Anonymous``, while ordinary builtins (``count``, ``lower``) parse to typed
       ``exp.Func`` subclasses. Legitimate builtins sqlglot does not type
       (``json_build_object``, ``jsonb_agg``, ``age``) and bespoke UDFs are also
@@ -294,7 +294,7 @@ def collect_table_references(
       a query (recoverable), it never leaks.
 
     :param statements: Parsed sqlglot statements (from :func:`parse_sql`).
-    :param allowed_functions: Case-folded names of otherwise-unrecognised functions to
+    :param allowed_functions: Case-folded names of otherwise-unrecognized functions to
         allow (e.g. ``{"json_build_object"}``). Empty by default, so every function
         sqlglot cannot type is rejected while an allow-list is active.
     :return: A :class:`TableScan` of real table references and unverifiable constructs.
@@ -321,6 +321,14 @@ def collect_table_references(
         if isinstance(stmt, exp.Copy):
             unverifiable.append("a COPY statement")
             continue
+        # A bare aliased expression is never a valid top-level statement -- sqlglot only
+        # produces one by mis-parsing input it does not model. Snowflake ``LIST @stage`` /
+        # ``LS @stage`` (list a stage's files) parse this way, as ``Column AS Parameter``.
+        # Read-only mode already rejects it via the statement-type allow-list; this also
+        # refuses it on the ``allow_writes`` path, where only this scan runs.
+        if isinstance(stmt, exp.Alias):
+            unverifiable.append("a statement sqlglot could not parse as a query (e.g. Snowflake LIST @stage)")
+            continue
         # A function whose string argument reaches a file, another table, or a program
         # (``pg_read_file``, ``query_to_xml``, scalar ``dblink``, ...) carries no
         # ``exp.Table`` node, so the table scan below cannot see it. sqlglot parses any
@@ -340,7 +348,7 @@ def collect_table_references(
         if unknown:
             unverifiable.append(
                 f"function(s) the parser cannot verify against allowed_tables "
-                f"({', '.join(unknown)}); if safe, permit them via allowed_functions"
+                f"({', '.join(unknown)}); if these functions are trusted, permit them via allowed_functions"
             )
             continue
 

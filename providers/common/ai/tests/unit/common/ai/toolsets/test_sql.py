@@ -618,7 +618,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         assert "cannot be checked against allowed_tables" in result["error"]
 
     def test_query_allows_typed_builtins_over_allowed_table(self):
-        """sqlglot-recognised builtins over an allowed table pass without allowed_functions."""
+        """sqlglot-recognized builtins over an allowed table pass without allowed_functions."""
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
         ts._hook = _make_mock_db_hook(records=[(2,)], last_description=[("n",)])
         ts._hook.dialect_name = "postgresql"
@@ -629,7 +629,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         ts._hook.get_records.assert_called_once_with("SELECT count(*), lower(name) FROM orders")
 
     def test_query_blocks_unrecognized_function_by_default(self):
-        """Fail-closed: a legit-but-unrecognised builtin (json_build_object) is refused
+        """Fail-closed: a legit-but-unrecognized builtin (json_build_object) is refused
         until the operator permits it, so an unknown function can never slip through."""
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
         ts._hook = _make_mock_db_hook()
@@ -642,7 +642,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         ts._hook.get_records.assert_not_called()
 
     def test_query_allows_function_named_in_allowed_functions(self):
-        """allowed_functions is the opt-in escape hatch for a safe unrecognised function."""
+        """allowed_functions is the opt-in escape hatch for a safe unrecognized function."""
         ts = SQLToolset("pg_default", allowed_tables=["orders"], allowed_functions=["json_build_object"])
         ts._hook = _make_mock_db_hook(records=[(1,)], last_description=[("obj",)])
         ts._hook.dialect_name = "postgresql"

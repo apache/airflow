@@ -597,6 +597,13 @@ class TestCollectTableReferences:
         scan = collect_table_references(parse_sql(sql, dialect="postgres"))
         assert scan.unverifiable_sources
 
+    @pytest.mark.parametrize("sql", ["LIST @mystage", "LS @mystage"], ids=["list", "ls"])
+    def test_flags_snowflake_stage_listing_as_unverifiable(self, sql):
+        """Snowflake LIST/LS @stage mis-parse to a bare aliased expression (Column AS
+        Parameter); reject it so it cannot list stage files past the allow-list."""
+        scan = collect_table_references(parse_sql(sql, dialect="snowflake"))
+        assert scan.unverifiable_sources
+
     @pytest.mark.parametrize(
         ("sql", "dialect"),
         [("EXEC sp_who", "tsql"), ("EXECUTE my_proc", "tsql")],

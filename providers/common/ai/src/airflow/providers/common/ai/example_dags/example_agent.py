@@ -75,6 +75,9 @@ if SQLToolset is not None:
                 SQLToolset(
                     db_conn_id="postgres_default",
                     allowed_tables=["customers", "orders"],
+                    # Functions sqlglot cannot type are rejected while allowed_tables is
+                    # set; list any the agent legitimately needs (e.g. to shape output).
+                    allowed_functions=["json_build_object"],
                     max_rows=20,
                 )
             ],
