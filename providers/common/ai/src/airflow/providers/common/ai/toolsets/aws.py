@@ -24,6 +24,13 @@ from fnmatch import fnmatchcase
 from functools import cache
 from typing import TYPE_CHECKING, Any
 
+from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_core import SchemaValidator, core_schema
+
+from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
+
 try:
     import botocore.session
     from botocore import xform_name
@@ -33,14 +40,7 @@ try:
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-    raise AirflowOptionalProviderFeatureException(e)
-
-from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from pydantic_core import SchemaValidator, core_schema
-
-from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
+    raise AirflowOptionalProviderFeatureException() from e
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -217,7 +217,7 @@ class AWSToolset(AbstractToolset[Any]):
                 )
             if any(ch in service for ch in "*?["):
                 raise ValueError(f"Invalid action {action!r}: wildcards are not allowed in the service part.")
-            if service not in _available_services():
+            if service not in _get_available_services():
                 raise ValueError(
                     f"Unknown AWS service {service!r} in action {action!r}. "
                     "Use the boto3 service name, e.g. 's3' or 'secretsmanager'."
@@ -334,7 +334,7 @@ class AWSToolset(AbstractToolset[Any]):
     # Authorization
     # ------------------------------------------------------------------
 
-    def _is_action_allowed(self, service: str, operation: str) -> bool:
+    def _is_action_allowed(self, *, service: str, operation: str) -> bool:
         key = _normalize_action(f"{service}:{operation}")
         if key in _CREDENTIAL_RETURNING_ACTIONS:
             return key in self._literal_actions
@@ -344,7 +344,7 @@ class AWSToolset(AbstractToolset[Any]):
         key = _normalize_action(f"{service}:{operation}")
         return key not in _CREDENTIAL_RETURNING_ACTIONS and fnmatchcase(key, pattern)
 
-    def _get_allowed_service(self, service: str) -> str:
+    def _resolve_allowed_service(self, service: str) -> str:
         """Validate a tool-supplied service name against the allow-list."""
         if service not in self._patterns:
             raise ValueError(
@@ -354,11 +354,11 @@ class AWSToolset(AbstractToolset[Any]):
         return service
 
     def _resolve_allowed_operation(self, service: str, operation: str) -> tuple[str, ServiceModel]:
-        model = _load_service_model(self._get_allowed_service(service))
+        model = _load_service_model(self._resolve_allowed_service(service))
         canonical = _resolve_operation_name(model, operation)
         if canonical is None:
             raise ValueError(f"Unknown operation {operation!r} for service {service!r}.")
-        if not self._is_action_allowed(service, canonical):
+        if not self._is_action_allowed(service=service, operation=canonical):
             raise ValueError(f"Operation {service}:{canonical} is not in this toolset's allowed actions.")
         return canonical, model
 
@@ -367,12 +367,12 @@ class AWSToolset(AbstractToolset[Any]):
     # ------------------------------------------------------------------
 
     def _list_operations(self, service: str | None) -> str:
-        services = [self._get_allowed_service(service)] if service else sorted(self._patterns)
+        services = [self._resolve_allowed_service(service)] if service else sorted(self._patterns)
         listing = {
             svc: sorted(
                 name
                 for name in _load_service_model(svc).operation_names
-                if self._is_action_allowed(svc, name)
+                if self._is_action_allowed(service=svc, operation=name)
             )
             for svc in services
         }
@@ -437,7 +437,7 @@ class AWSToolset(AbstractToolset[Any]):
 
 
 @cache
-def _available_services() -> frozenset[str]:
+def _get_available_services() -> frozenset[str]:
     return frozenset(botocore.session.get_session().get_available_services())
 
 

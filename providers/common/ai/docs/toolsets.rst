@@ -26,16 +26,16 @@ LLM agents can call them during multi-turn reasoning.
 
 Four toolsets are included:
 
-- :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
-  adapter for any Airflow Hook.
-- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
-  4-tool database toolset.
-- :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
-  `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
-  connections.
 - :class:`~airflow.providers.common.ai.toolsets.aws.AWSToolset` — configured
   AWS services toolset for agent access to AWS APIs through Airflow-managed
   AWS connections.
+- :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
+  adapter for any Airflow Hook.
+- :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
+  `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
+  connections.
+- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
+  4-tool database toolset.
 
 All four implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be

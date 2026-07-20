@@ -119,7 +119,7 @@ class TestAWSToolsetActionMatching:
     )
     def test_allow_list_matching(self, actions, service, operation, allowed):
         ts = AWSToolset("aws_test", allowed_actions=actions)
-        assert ts._is_action_allowed(service, operation) is allowed
+        assert ts._is_action_allowed(service=service, operation=operation) is allowed
 
 
 class TestAWSToolsetListOperations:

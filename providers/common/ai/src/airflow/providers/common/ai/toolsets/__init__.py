@@ -52,6 +52,6 @@ def __getattr__(name: str):
         except ImportError as e:
             from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-            raise AirflowOptionalProviderFeatureException(e)
+            raise AirflowOptionalProviderFeatureException() from e
         return AWSToolset
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

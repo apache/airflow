@@ -19,41 +19,36 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
+from airflow.providers.common.ai.toolsets.aws import AWSToolset
 from airflow.providers.common.compat.sdk import dag
-
-try:
-    from airflow.providers.common.ai.toolsets.aws import AWSToolset
-except Exception:
-    AWSToolset = None  # type: ignore[assignment,misc]
 
 
 # [START howto_operator_agent_aws]
-if AWSToolset is not None:
+@dag(tags=["example"])
+def example_agent_aws_toolset():
+    AgentOperator(
+        task_id="s3_auditor",
+        prompt="Which buckets exist, and roughly how much data is in 'data-lake-raw'?",
+        llm_conn_id="pydanticai_default",
+        system_prompt=(
+            "You are an AWS operations assistant. Discover what you are allowed "
+            "to call, check parameter shapes before calling, and answer with "
+            "concrete numbers."
+        ),
+        toolsets=[
+            AWSToolset(
+                aws_conn_id="aws_default",
+                allowed_actions=[
+                    "s3:ListBuckets",
+                    "s3:ListObjectsV2",
+                    "s3:GetBucketLocation",
+                ],
+                region_name="us-east-1",
+            )
+        ],
+    )
 
-    @dag(tags=["example"])
-    def example_agent_aws_toolset():
-        AgentOperator(
-            task_id="s3_auditor",
-            prompt="Which buckets exist, and roughly how much data is in 'data-lake-raw'?",
-            llm_conn_id="pydanticai_default",
-            system_prompt=(
-                "You are an AWS operations assistant. Discover what you are allowed "
-                "to call, check parameter shapes before calling, and answer with "
-                "concrete numbers."
-            ),
-            toolsets=[
-                AWSToolset(
-                    aws_conn_id="aws_default",
-                    allowed_actions=[
-                        "s3:ListBuckets",
-                        "s3:ListObjectsV2",
-                        "s3:GetBucketLocation",
-                    ],
-                    region_name="us-east-1",
-                )
-            ],
-        )
 
-    # [END howto_operator_agent_aws]
+# [END howto_operator_agent_aws]
 
-    example_agent_aws_toolset()
+example_agent_aws_toolset()
