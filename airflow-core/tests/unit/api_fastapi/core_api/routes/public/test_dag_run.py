@@ -3293,12 +3293,22 @@ class TestTriggerDagRun:
             == "Dag with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
 
-    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, testing_dag_bundle):
+    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, dag_maker):
         now = timezone.utcnow().isoformat()
-        self._dags_for_trigger_tests(session)
-        response = test_client.post("/dags/allowed_scheduled/dagRuns", json={"logical_date": now})
+        dag_id = "allowed_scheduled"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+        session.commit()
+
+        response = test_client.post(f"/dags/{dag_id}/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
-        assert response.json()["detail"] == "Dag with dag_id: 'allowed_scheduled' does not allow manual runs"
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag_id}' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -3504,6 +3514,205 @@ class TestTriggerDagRun:
 
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_with_bundle_version(self, test_client, session, dag_maker):
+        """Test triggering a DAG run with a specific bundle version."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_version_dag"
+        bundle_name = "testing_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_2")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"}
+        )
+        assert response.status_code == 200
+        assert response.json()["dag_versions"][0]["bundle_version"] == "v1"
+        run_id_v1 = response.json()["dag_run_id"]
+        dr_v1 = session.scalars(select(DagRun).where(DagRun.run_id == run_id_v1)).one()
+        assert {ti.task_id for ti in dr_v1.task_instances} == {"task_1"}
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={
+                "logical_date": "2024-01-02T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dag_versions"][0]["bundle_version"] == "v2"
+        run_id_v2 = response.json()["dag_run_id"]
+        dr_v2 = session.scalars(select(DagRun).where(DagRun.run_id == run_id_v2)).one()
+        assert {ti.task_id for ti in dr_v2.task_instances} == {"task_1", "task_2"}
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-03T00:00:00Z", "bundle_version": "invalid_version"},
+        )
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        dag2.disable_bundle_versioning = True
+        sync_dag_to_db(dag2, bundle_name=bundle_name)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-04T00:00:00Z", "bundle_version": "v1"}
+        )
+        assert response.status_code == 400
+        assert f"DAG with dag_id: '{dag_id}' does not support bundle versioning" in response.json()["detail"]
+
+    def test_trigger_dag_run_bundle_version_validates_against_old_param_schema(
+        self, test_client, session, dag_maker
+    ):
+        """Conf is validated against the requested bundle version's param schema, not the live dag's."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_param_schema_dag"
+        bundle_name = "param_schema_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            session=session,
+            params={"env": Param("staging", type="string", enum=["staging", "prod"])},
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            session=session,
+            params={"env": Param("dev", type="string", enum=["dev", "staging", "prod"])},
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        # "dev" is valid for v2 but not for v1's enum — triggering v1 should reject it.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-01T00:00:00Z", "bundle_version": "v1", "conf": {"env": "dev"}},
+        )
+        assert response.status_code == 400
+
+        # "staging" is valid for both v1 and v2 — triggering v1 should accept it.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={
+                "logical_date": "2024-02-02T00:00:00Z",
+                "bundle_version": "v1",
+                "conf": {"env": "staging"},
+            },
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_bundle_version_uses_v1_timetable(self, test_client, session, dag_maker):
+        """Triggering with bundle_version='v1' must derive data_interval from v1's timetable, not v2's."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_timetable_dag"
+        bundle_name = "timetable_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=CronDataIntervalTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["dag_versions"][0]["bundle_version"] == "v1"
+        # data_interval must come from v1's daily cron timetable, not v2's null timetable.
+        # For a "0 0 * * *" cron, logical_date is the interval END, so interval is [prev_day, logical_date].
+        assert data["data_interval_start"] == "2023-12-31T00:00:00Z"
+        assert data["data_interval_end"] == "2024-01-01T00:00:00Z"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
+        """allowed_run_types is enforced from the requested bundle version, not the latest."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_allowed_run_types_dag"
+        bundle_name = "allowed_run_types_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.MANUAL, DagRunType.SCHEDULED],
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        # Latest (v2) disallows manual runs; v1 allows them. Triggering v1 must succeed.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-01T00:00:00Z", "bundle_version": "v1"},
+        )
+        assert response.status_code == 200
+
+        # Without bundle_version the latest (v2) governs and rejects the manual run.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-02T00:00:00Z"},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag_id}' does not allow manual runs"
 
     def test_should_respond_400_when_partition_key_given_for_non_partitioned_dag(self, test_client):
         """Passing partition_key to a non-partitioned Dag via REST trigger must return 400, not 500.

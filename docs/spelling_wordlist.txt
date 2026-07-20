@@ -24,7 +24,9 @@ AdsInsights
 adsinsights
 afterall
 agentcore
+AgentDetails
 agentic
+AgentVersionDetails
 ai
 aio
 aiobotocore
@@ -400,6 +402,7 @@ dataprep
 Dataproc
 dataproc
 DataprocDiagnoseClusterOperator
+dataquality
 DataScan
 dataScans
 Dataset
@@ -450,6 +453,8 @@ deidentify
 DeidentifyTemplate
 del
 deletable
+DeleteAgentResponse
+DeleteAgentVersionResponse
 delim
 deliverability
 deltalake
@@ -1171,6 +1176,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OPA
 OpenAI
 openai
 openapi
@@ -1222,6 +1228,7 @@ paramiko
 Params
 params
 parsers
+passthrough
 passwd
 pathlib
 pathType
@@ -1314,6 +1321,8 @@ proto
 Protobuf
 protobuf
 provisioner
+proxied
+proxies
 psql
 psrp
 psycopg
@@ -1416,7 +1425,9 @@ req
 reqs
 requeue
 requeued
+requeues
 reserialize
+Reserializing
 resetdb
 resizable
 ResourceRequirements

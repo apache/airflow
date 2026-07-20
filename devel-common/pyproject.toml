@@ -34,7 +34,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.20",
+    "ruff==0.15.21",
     "semver>=3.0.2",
     "typer>=0.22.0",
     "time-machine[dateutil]>=3.0.0",
@@ -109,7 +109,7 @@ dependencies = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     "apache-airflow-mypy",
-    "mypy==2.1.0",
+    "mypy==2.3.0",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -118,8 +118,7 @@ dependencies = [
     "types-certifi>=2021.10.8.3",
     "types-croniter>=2.0.0.20240423",
     "types-docutils>=0.21.0.20240704",
-    # TODO: Bump to >= 4.0.0 once https://github.com/apache/airflow/issues/54079
-    "types-paramiko>=3.4.0.20240423,<4.0.0",
+    "types-paramiko>=4.0.0.20260402,<5.0.0",
     "types-protobuf>=5.26.0.20240422",
     "types-python-dateutil>=2.9.0.20240316",
     "types-python-slugify>=8.0.2.20240310",

@@ -20,6 +20,23 @@
 Changelog
 ---------
 
+.. Behavior note
+
+The ``[datalib]`` extra of the ``openai`` SDK is no longer part of this
+provider's base install. That extra existed to support the SDK's legacy
+``openai tools fine_tunes.prepare_data`` CLI (removed in openai 1.x) and
+transitively pulled in ``numpy``, ``pandas``, and ``pandas-stubs`` for every
+provider user. None of these packages are imported by the provider's
+source, tests, or example DAGs, so the extra was pure transitive bloat.
+
+Users whose DAG code relied on ``numpy`` or ``pandas`` being installed as a
+side-effect of installing this provider should declare those packages
+explicitly, or install the SDK extra directly:
+
+.. code-block:: bash
+
+    pip install 'openai[datalib]'
+
 1.8.0
 .....
 
