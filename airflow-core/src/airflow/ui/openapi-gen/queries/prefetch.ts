@@ -199,6 +199,23 @@ export const prefetchUseBackfillServiceGetBackfill = (queryClient: QueryClient, 
   backfillId: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }), queryFn: () => BackfillService.getBackfill({ backfillId }) });
 /**
+* List Backfill Dag Runs
+* List Dag runs associated with a backfill, including skipped slots.
+* @param data The data for the request.
+* @param data.backfillId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+* @returns BackfillDagRunCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseBackfillServiceListBackfillDagRuns = (queryClient: QueryClient, { backfillId, limit, offset, orderBy }: {
+  backfillId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceListBackfillDagRunsKeyFn({ backfillId, limit, offset, orderBy }), queryFn: () => BackfillService.listBackfillDagRuns({ backfillId, limit, offset, orderBy }) });
+/**
 * List Backfills Ui
 * @param data The data for the request.
 * @param data.limit
