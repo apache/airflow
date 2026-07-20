@@ -113,6 +113,12 @@ dependencies = [
 "aws" = [
     "apache-airflow-providers-amazon>=9.0.0",
 ]
+# GoogleCloudToolset: allow-listed Google API access for agents. The google
+# provider supplies credential resolution (GoogleBaseHook) and brings
+# google-api-python-client with the bundled discovery documents.
+"gcp" = [
+    "apache-airflow-providers-google>=22.0.0",
+]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.33.0"
 ]

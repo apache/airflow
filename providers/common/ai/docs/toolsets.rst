@@ -24,20 +24,23 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Four toolsets are included:
+Five core toolsets are included:
 
 - :class:`~airflow.providers.common.ai.toolsets.aws.AWSToolset` — configured
   AWS services toolset for agent access to AWS APIs through Airflow-managed
   AWS connections.
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
+- :class:`~airflow.providers.common.ai.toolsets.google.GoogleCloudToolset` —
+  allow-listed access to Google APIs published through Google's Discovery
+  service.
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
 - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
   4-tool database toolset.
 
-All four implement pydantic-ai's
+All five implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -206,6 +209,70 @@ Parameters
   Default ``False`` -- only SELECT-family and read-only metadata
   (``DESCRIBE``/``SHOW``) statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+
+``GoogleCloudToolset``
+----------------------
+
+Curated toolset that gives an agent allow-listed access to Google APIs
+published through Google's Discovery REST surface. Requires the ``gcp`` extra:
+``pip install "apache-airflow-providers-common-ai[gcp]"``.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_gcp_toolset.py
+    :language: python
+    :start-after: [START howto_operator_agent_gcp]
+    :end-before: [END howto_operator_agent_gcp]
+
+``GoogleCloudToolset`` exposes ``list_gcp_methods``,
+``describe_gcp_method``, and ``call_gcp``. The allow-list is required and
+deny-by-default. Entries use ``"<api>/<version>:<resource.method>"`` form:
+
+.. code-block:: python
+
+    GoogleCloudToolset(
+        gcp_conn_id="google_cloud_default",
+        allowed_methods=[
+            "storage/v1:buckets.list",
+            "storage/v1:objects.list",
+            "pubsub/v1:projects.topics.list",
+            "bigquery/v2:jobs.query",
+        ],
+    )
+
+The API and version must be explicit, for example ``pubsub/v1`` rather than
+``pubsub``. The method part accepts ``*``/``?`` wildcards, but methods that
+return credentials or decrypted secrets are never matched by a wildcard; each
+must be listed verbatim.
+
+The toolset covers APIs present in the bundled Discovery documents shipped
+with ``google-api-python-client``. This includes many Google Cloud control and
+metadata APIs such as Cloud Storage, Pub/Sub, BigQuery REST methods, Compute
+Engine, Cloud SQL Admin, and Workspace APIs that publish Discovery documents.
+It does not cover APIs outside that Discovery REST surface, and credentials
+still need IAM permissions for the requested call.
+
+Credentials, impersonation, and the project come from ``gcp_conn_id`` via the
+Google provider. With ``enforce_project=True`` (the default), missing
+``project``/``projectId`` parameters are filled from the connection, and
+model-supplied values for another project are rejected.
+
+Parameters
+^^^^^^^^^^
+
+- ``gcp_conn_id``: Airflow Google connection ID. Default
+  ``"google_cloud_default"``.
+- ``allowed_methods``: Required list of allowed methods in
+  ``"<api>/<version>:<resource.method>"`` form. The method part accepts
+  wildcards; the API and version do not.
+- ``impersonation_chain``: Optional service account or chain passed through to
+  ``GoogleBaseHook``.
+- ``enforce_project``: Fill or reject project parameters based on the
+  connection's project. Default ``True``.
+- ``allow_remote_discovery``: Allow APIs missing from the bundled Discovery
+  documents and fetch their documents lazily. Default ``False``.
+- ``max_pages``: Maximum number of pages followed for paginated methods.
+  Default ``5``.
+- ``max_output_bytes``: Maximum serialized response size returned to the
+  agent. Larger responses are truncated and marked as such. Default ``65536``.
 
 ``DataFusionToolset``
 ---------------------

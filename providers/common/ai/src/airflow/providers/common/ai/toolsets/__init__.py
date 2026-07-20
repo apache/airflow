@@ -20,7 +20,14 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 
-__all__ = ["AWSToolset", "HookToolset", "MCPToolset", "SQLToolset", "airflow_toolset_to_langchain_tools"]
+__all__ = [
+    "AWSToolset",
+    "GoogleCloudToolset",
+    "HookToolset",
+    "MCPToolset",
+    "SQLToolset",
+    "airflow_toolset_to_langchain_tools",
+]
 
 
 def __getattr__(name: str):
@@ -54,4 +61,12 @@ def __getattr__(name: str):
 
             raise AirflowOptionalProviderFeatureException() from e
         return AWSToolset
+    if name == "GoogleCloudToolset":
+        try:
+            from airflow.providers.common.ai.toolsets.google import GoogleCloudToolset
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+        return GoogleCloudToolset
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
