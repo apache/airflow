@@ -20,7 +20,7 @@
 Add ti_state_active_composite index to task_instance.
 
 Revision ID: c7e1f40d6e24
-Revises: d2f4e1b3c5a7
+Revises: c4e7a1f9b2d0
 Create Date: 2026-07-17 18:00:00.000000
 """
 
@@ -33,7 +33,7 @@ revision = "c7e1f40d6e24"
 down_revision = "c4e7a1f9b2d0"
 branch_labels = None
 depends_on = None
-airflow_version = "3.3.0"
+airflow_version = "3.4.0"
 
 
 def upgrade():
