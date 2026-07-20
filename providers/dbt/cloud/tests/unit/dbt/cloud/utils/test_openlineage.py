@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,11 +26,12 @@ from openlineage.client.constants import __version__
 from packaging.version import parse
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
+from airflow.providers.dbt.cloud.hooks.dbt import DBT_CAUSE_MAX_LENGTH, DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from airflow.providers.dbt.cloud.utils.openlineage import (
     _get_parent_run_metadata,
     generate_openlineage_events_from_dbt_cloud_run,
+    inject_parent_job_information_into_dbt_cloud_cause,
 )
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
@@ -223,3 +225,68 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)
         assert operator.run_id is None
         assert operator.get_openlineage_facets_on_complete(MagicMock()) == OperatorLineage()
+
+
+PARENT_RUN_ID = "01941f29-7c00-7087-8906-40e512c257bd"
+ROOT_RUN_ID = "01941f29-7c00-743e-b109-28b18d0a19c5"
+
+
+def _fake_metadata(namespace="default", job_name="dag.task", root_job_name="dag"):
+    return SimpleNamespace(
+        run_id=PARENT_RUN_ID,
+        job_namespace=namespace,
+        job_name=job_name,
+        root_parent_run_id=ROOT_RUN_ID,
+        root_parent_job_namespace=namespace,
+        root_parent_job_name=root_job_name,
+    )
+
+
+class TestInjectParentJobInformationIntoDbtCloudCause:
+    @patch("airflow.providers.dbt.cloud.utils.openlineage._get_parent_run_metadata")
+    def test_parent_and_root_when_it_fits(self, mock_metadata):
+        mock_metadata.return_value = _fake_metadata()
+
+        result = inject_parent_job_information_into_dbt_cloud_cause("my reason", MagicMock())
+
+        payload = json.loads(result)
+        assert payload == {
+            "parent": {
+                "run": {"runId": PARENT_RUN_ID},
+                "job": {"namespace": "default", "name": "dag.task"},
+            },
+            "root": {
+                "run": {"runId": ROOT_RUN_ID},
+                "job": {"namespace": "default", "name": "dag"},
+            },
+        }
+        # The human-readable cause is never embedded, only the lineage identifiers.
+        assert "reason" not in payload
+        assert "my reason" not in result
+
+    @patch("airflow.providers.dbt.cloud.utils.openlineage._get_parent_run_metadata")
+    def test_root_dropped_when_parent_and_root_too_long(self, mock_metadata):
+        mock_metadata.return_value = _fake_metadata(namespace="N" * 90)
+
+        result = inject_parent_job_information_into_dbt_cloud_cause("original cause", MagicMock())
+
+        payload = json.loads(result)
+        assert len(result) <= DBT_CAUSE_MAX_LENGTH
+        assert "root" not in payload
+        assert payload["parent"]["run"]["runId"] == PARENT_RUN_ID
+
+    @patch("airflow.providers.dbt.cloud.utils.openlineage._get_parent_run_metadata")
+    def test_injection_skipped_when_parent_alone_too_long(self, mock_metadata):
+        mock_metadata.return_value = _fake_metadata(namespace="N" * 250)
+
+        result = inject_parent_job_information_into_dbt_cloud_cause("original cause", MagicMock())
+
+        assert result == "original cause"
+
+    @patch("airflow.providers.dbt.cloud.utils.openlineage._get_parent_run_metadata")
+    def test_injection_skipped_when_openlineage_unavailable(self, mock_metadata):
+        mock_metadata.side_effect = ImportError("no openlineage")
+
+        result = inject_parent_job_information_into_dbt_cloud_cause("original cause", MagicMock())
+
+        assert result == "original cause"
