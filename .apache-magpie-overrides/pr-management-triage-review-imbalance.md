@@ -326,6 +326,27 @@ ceiling is 10/1); a 40-line docs change **is** small (low ceiling
 is 300/15). This is the "small diff should depend on criticality"
 rule.
 
+**Contained-diff band (one step above small).** A diff that clears the
+small ceiling but is still modest gets a **one-tier reduction** instead
+of the full pin to `low`. Ceilings are 3× the small row:
+
+| criticality | max_lines | max_files |
+|---|---|---|
+| low | 900 | 40 |
+| medium | 300 | 18 |
+| high | 100 | 8 |
+| critical | 40 | 4 |
+
+A `contained` diff reduces `ReviewCost` by one tier (never below `low`)
+and — unlike `small` — does **not** exempt the close path. The band
+exists because review effort should not step straight from "trivial" to
+"full cost": a 60-line change in a `high` area is genuinely cheaper to
+review than a 600-line one, but it is not free.
+
+Apply **at most one** size adjustment, and `small` wins over
+`contained`. Size interacts with standing for first contributions — see
+the first-contribution size guard in §6.
+
 > **The exemption sets cost, not correctness.** Pinning `ReviewCost` to
 > `low` makes the imbalance matrix pass the PR — it does **not** exempt
 > it from the criteria gate or §2c (see §6.1: small-diff exempts the
@@ -346,6 +367,15 @@ rule.
 `AuthorStanding ∈ {none, weak, established, trusted}`, measured
 **in the area(s) the PR touches** (use the highest-criticality
 touched area as the reference area for the queries).
+
+**Automation accounts are not scored.** Bots (`*[bot]`, `dependabot`,
+release/sync bots, and project automation such as `jni-bot`) have no
+merged-PR history and would otherwise fall to `none` — the harshest
+row — purely for being bots. Skip `AuthorStanding` for them entirely:
+judge the PR on `ReviewCost` and ADR conformance alone, and never
+apply the first-contribution size guard (§6) to one. A bot PR that
+looks wrong is a problem with the automation, not with a contributor
+who needs mentoring.
 
 | Signal | How to read it | Query |
 |---|---|---|
@@ -479,6 +509,45 @@ low              pass        pass         pass          pass
 The matrix can therefore emit `draft-back` directly (extreme×weak);
 the criteria assessment below can *also* raise `draft-back` on an
 otherwise-`discuss`/`pass` verdict.
+
+**First-contribution size guard.** A first PR that is also a big PR is
+the hardest thing in the queue to review well and the least likely to
+land as written: the author has no calibration yet for how this project
+reviews, and an oversized first diff is usually doing several things at
+once. So when `AuthorStanding` is `none` **and** the diff clears both
+the `small` and `contained` ceilings for its effective criticality
+(§3), raise the matrix verdict one step:
+
+`pass → discuss`, `discuss → draft-back`, `draft-back → draft-back`.
+
+The escalation is **capped at `draft-back` and never creates a new
+CLOSE.** Size is a reason to ask someone to split the change and
+resubmit; on its own it is never a reason to close a first
+contribution. A `CLOSE` the matrix already emitted is unaffected and
+still passes through the pre-CLOSE gates below.
+
+> Why capped: the point of pushing back on an oversized first PR is to
+> get it into a reviewable shape, and `draft-back` says exactly that
+> while keeping the work and the contributor. Escalating first
+> contributions into `CLOSE` on size alone would close the door on
+> precisely the people the project most wants to keep.
+
+**Expected reach — this guard is a safety net, not a lever.** Measured
+against the whole `ready for maintainer review` queue (284 PRs), only
+**3** sit in the band where it can act: oversized *and* landing at
+`moderate`/`low` cost. That is by construction — once an area is
+covered at `high`/`critical` criticality, an oversized diff already
+scores `high`/`extreme`, where the matrix emits `CLOSE` for `none`
+standing and the cap leaves it alone. The guard exists for oversized
+first PRs in **low- and medium-criticality** areas, which the matrix
+would otherwise wave through at `pass`/`discuss`.
+
+Do **not** "fix" the small reach by tightening size ceilings for
+first-time contributors (e.g. judging `none` authors against the
+next-stricter criticality row). That variant was simulated: it changed
+exactly one verdict in the queue, and it changed it to a **new
+`CLOSE`** on a 49-line bot PR. It buys no useful discrimination and
+spends it in the one direction this skill is most careful about.
 
 **(b) Criteria assessment** — evaluate the PR against the area's
 `## Review criteria` (§2b). Classify each unmet criterion as
