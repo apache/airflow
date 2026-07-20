@@ -247,7 +247,7 @@ describe("DateRangeFilter", () => {
   describe("Regression: Date Range Auto-Submit", () => {
     it("does not call onChange on valid keystroke", async () => {
       renderFilter();
-      const onChange = defaultProps.onChange;
+      const { onChange } = defaultProps;
       const { startDateInput } = getInputs();
 
       changeDateInput(startDateInput, "2024/01/15");
