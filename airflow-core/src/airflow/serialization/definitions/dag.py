@@ -748,6 +748,7 @@ class SerializedDAG:
                         DeadlineAlertFields.REFERENCE: deadline_alert.reference,
                         DeadlineAlertFields.INTERVAL: deadline_alert.interval,
                         DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+                        DeadlineAlertFields.FIRE_ON_FAILURE: deadline_alert.fire_on_failure,
                     },
                 }
             )

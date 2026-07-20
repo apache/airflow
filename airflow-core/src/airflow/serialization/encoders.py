@@ -251,6 +251,7 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
         "reference": encode_deadline_reference(d.reference),
         "interval": serialize(d.interval),
         "callback": serialize(d.callback),
+        "fire_on_failure": d.fire_on_failure,
     }
 
 

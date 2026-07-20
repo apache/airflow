@@ -981,6 +981,52 @@ class TestSerializedDagModel:
         assert new_serdag.dag_hash != orig_serdag.dag_hash
         assert new_alert.interval["__data__"] == 600.0
 
+    def test_deadline_fire_on_failure_change_triggers_new_serdag(self, testing_dag_bundle, session):
+        dag_id = "test_fire_on_failure_change"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        orig_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        assert orig_alert.fire_on_failure is False
+
+        dag.deadline = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=5),
+            callback=AsyncCallback(empty_callback_for_deadline),
+            fire_on_failure=True,
+        )
+
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        new_serdag_count = session.scalar(select(func.count()).select_from(SDM).where(SDM.dag_id == dag_id))
+        new_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        new_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == new_serdag.id))
+
+        assert new_serdag_count == 2
+        assert new_serdag.dag_hash != orig_serdag.dag_hash
+        assert new_alert.fire_on_failure is True
+
     def test_deadline_name_change_updates_db_and_returns_true(self, testing_dag_bundle, session):
         """Name-only deadline change: UUID reused, DB row updated, write_dag returns True."""
         dag_id = "test_deadline_name_change"

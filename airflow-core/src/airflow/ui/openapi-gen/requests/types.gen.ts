@@ -2409,6 +2409,7 @@ export type DeadlineAlertResponse = {
      * Interval in seconds between deadline evaluations.
      */
     interval: number;
+    fire_on_failure: boolean;
     created_at: string;
 };
 
