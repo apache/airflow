@@ -223,7 +223,10 @@ class GitDagBundle(BaseDagBundle):
                     except Exception:
                         repo.close()
                         raise
-                except (InvalidGitRepositoryError, NoSuchPathError, GitCommandError) as e:
+                except Exception as e:
+                    # Reuse is best-effort: fall back to the full initialization path if the
+                    # on-disk repo is unusable for any reason - not only git-level errors but
+                    # also e.g. an OSError/PermissionError on the shared bundle storage.
                     self._log.info(
                         "Failed to reuse existing tracking repo, falling back to full initialization",
                         repo_path=self.repo_path,
