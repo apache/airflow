@@ -236,6 +236,12 @@ alongside the Pod. The Pod must write the XCom value into this location at the `
 .. note::
   An invalid json content will fail, example ``echo 'hello' > /airflow/xcom/return.json`` fail and  ``echo '\"hello\"' > /airflow/xcom/return.json`` work
 
+.. note::
+  In clusters that enforce Pod Security Standards or admission policies (e.g. OPA/Gatekeeper), the injected
+  XCom sidecar container may be rejected unless it declares a security context. Set a cluster-wide default via
+  the ``xcom_sidecar_container_security_context`` field on the Kubernetes connection, or override it per task
+  with the ``xcom_sidecar_container_security_context`` argument of ``KubernetesPodOperator``.
+
 
 See the following example on how this occurs:
 

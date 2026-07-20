@@ -264,8 +264,9 @@ first, event for the data interval. Otherwise, manual runs begin with a ``data_i
 
 .. _asset-timetable-section:
 
-Asset event based scheduling with time based scheduling
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssetOrTimeSchedule
+^^^^^^^^^^^^^^^^^^^
+
 Combining conditional asset expressions with time-based schedules enhances scheduling flexibility.
 
 The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of Dags based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
@@ -283,13 +284,11 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
     @dag(
         schedule=AssetOrTimeSchedule(
             timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_asset & dag2_asset)
-        )
-        # Additional arguments here, replace this comment with actual arguments
+        ),
+        ...,
     )
     def example_dag():
-        # Dag tasks go here
         pass
-
 
 
 Timetables comparisons

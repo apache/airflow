@@ -118,6 +118,7 @@ class TestKubernetesDecoratorsBase:
             }
         )
         self.mock_hook = mock.patch(HOOK_CLASS).start()
+        self.mock_hook.return_value.get_xcom_sidecar_container_security_context.return_value = None
 
         try:
             from airflow.sdk.execution_time.context import TaskStateStoreAccessor
