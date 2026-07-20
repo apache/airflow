@@ -59,6 +59,8 @@ ChartJS.register(
   annotationPlugin,
 );
 
+const CHART_HEIGHT = "280px";
+
 type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
 const getDuration = (start: string, end: string | null) => {
@@ -172,113 +174,122 @@ export const DurationChart = ({
           ? translate("durationChart.lastDagRun", { count: entries.length })
           : translate("durationChart.lastTaskInstance", { count: entries.length })}
       </Heading>
-      <Bar
-        data={{
-          datasets: [
-            {
-              backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
-              data: queuedDurations,
-              label: translate("durationChart.queuedDuration"),
-            },
-            {
-              backgroundColor: entries.map(
-                (entry: RunResponse) =>
-                  (entry.state ? stateColorMap[entry.state] : undefined) ?? "oklch(0.5 0 0)",
-              ),
-              data: runDurations,
-              label: translate("durationChart.runDuration"),
-            },
-          ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT)),
-        }}
-        datasetIdKey="id"
-        options={{
-          animation: isAutoRefreshing ? false : undefined,
-          onClick: (_event, elements) => {
-            const [element] = elements;
+      {/* Height is fixed because the chart now flexes horizontally: with Chart.js'
+          default 2:1 aspect ratio a wide monitor would otherwise scale it past
+          1000px tall. */}
+      <Box height={CHART_HEIGHT}>
+        <Bar
+          data={{
+            datasets: [
+              {
+                backgroundColor: getComputedCSSVariableValue(queuedColorToken ?? "oklch(0.5 0 0)"),
+                data: queuedDurations,
+                label: translate("durationChart.queuedDuration"),
+              },
+              {
+                backgroundColor: entries.map(
+                  (entry: RunResponse) =>
+                    (entry.state ? stateColorMap[entry.state] : undefined) ?? "oklch(0.5 0 0)",
+                ),
+                data: runDurations,
+                label: translate("durationChart.runDuration"),
+              },
+            ],
+            labels: entries.map((entry: RunResponse) =>
+              dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT),
+            ),
+          }}
+          datasetIdKey="id"
+          options={{
+            animation: isAutoRefreshing ? false : undefined,
+            maintainAspectRatio: false,
+            onClick: (_event, elements) => {
+              const [element] = elements;
 
-            if (!element) {
-              return;
-            }
-
-            switch (kind) {
-              case "Dag Run": {
-                const entry = entries[element.index] as GridRunsResponse | undefined;
-                const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.run_id}`;
-
-                void Promise.resolve(navigate(baseUrl));
-                break;
+              if (!element) {
+                return;
               }
-              case "Task Instance": {
-                const entry = entries[element.index] as TaskInstanceResponse | undefined;
 
-                if (entry === undefined) {
+              switch (kind) {
+                case "Dag Run": {
+                  const entry = entries[element.index] as GridRunsResponse | undefined;
+                  const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.run_id}`;
+
+                  void Promise.resolve(navigate(baseUrl));
                   break;
                 }
+                case "Task Instance": {
+                  const entry = entries[element.index] as TaskInstanceResponse | undefined;
 
-                const baseUrl = buildTaskInstanceUrl({
-                  currentPathname: location.pathname,
-                  dagId: entry.dag_id,
-                  isMapped: entry.map_index >= 0,
-                  mapIndex: entry.map_index.toString(),
-                  runId: entry.dag_run_id,
-                  taskId: entry.task_id,
-                });
+                  if (entry === undefined) {
+                    break;
+                  }
 
-                void Promise.resolve(navigate(baseUrl));
-                break;
+                  const baseUrl = buildTaskInstanceUrl({
+                    currentPathname: location.pathname,
+                    dagId: entry.dag_id,
+                    isMapped: entry.map_index >= 0,
+                    mapIndex: entry.map_index.toString(),
+                    runId: entry.dag_run_id,
+                    taskId: entry.task_id,
+                  });
+
+                  void Promise.resolve(navigate(baseUrl));
+                  break;
+                }
+                default:
               }
-              default:
-            }
-          },
-          onHover: (_event, elements, chart) => {
-            chart.canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
-          },
-          plugins: {
-            annotation: {
-              annotations: {
-                medianAnnotation,
+            },
+            onHover: (_event, elements, chart) => {
+              chart.canvas.style.cursor = elements.length > 0 ? "pointer" : "default";
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  medianAnnotation,
+                },
               },
-            },
-            legend: {
-              display: true,
-              position: "bottom",
-            },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const datasetLabel = context.dataset.label ?? "";
+              legend: {
+                display: true,
+                position: "bottom",
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const datasetLabel = context.dataset.label ?? "";
 
-                  const formatted = renderDuration(context.parsed.y, false) ?? "0";
+                    const formatted = renderDuration(context.parsed.y, false) ?? "0";
 
-                  return datasetLabel ? `${datasetLabel}: ${formatted}` : formatted;
+                    return datasetLabel ? `${datasetLabel}: ${formatted}` : formatted;
+                  },
                 },
               },
             },
-          },
-          responsive: true,
-          scales: {
-            x: {
-              stacked: true,
-              ticks: {
-                callback: (_value, index) =>
-                  formatDate(entries[index]?.run_after, selectedTimezone, getTickLabelFormat(entries)),
-                maxTicksLimit: 3,
+            responsive: true,
+            scales: {
+              x: {
+                stacked: true,
+                ticks: {
+                  callback: (_value, index) =>
+                    formatDate(entries[index]?.run_after, selectedTimezone, getTickLabelFormat(entries)),
+                  maxTicksLimit: 3,
+                },
+                title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
               },
-              title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
-            },
-            y: {
-              beginAtZero: true,
-              stacked: true,
-              ticks: {
-                callback: (value) => renderCompactDuration(typeof value === "number" ? value : Number(value)),
-                stepSize: getDurationTickStep(Math.max(...totalDurations, 0)),
+              y: {
+                beginAtZero: true,
+                stacked: true,
+                ticks: {
+                  callback: (value) =>
+                    renderCompactDuration(typeof value === "number" ? value : Number(value)),
+                  stepSize: getDurationTickStep(Math.max(...totalDurations, 0)),
+                },
+                title: { align: "end", display: true, text: translate("common:duration") },
               },
-              title: { align: "end", display: true, text: translate("common:duration") },
             },
-          },
-        }}
-      />
+          }}
+        />
+      </Box>
     </Box>
   );
 };

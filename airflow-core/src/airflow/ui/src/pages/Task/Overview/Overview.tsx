@@ -106,7 +106,7 @@ export const Overview = () => {
       <SimpleGrid columns={1} gap={5} my={5}>
         <Box borderRadius={4} borderStyle="solid" borderWidth={1} maxWidth="900px" p={2}>
           {isLoadingTaskInstances ? (
-            <Skeleton height="200px" w="full" />
+            <Skeleton height="310px" w="full" />
           ) : (
             <DurationChart entries={tiData?.task_instances.slice().reverse()} kind="Task Instance" />
           )}
