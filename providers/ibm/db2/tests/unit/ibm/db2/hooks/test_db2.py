@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -59,22 +60,20 @@ class TestDb2Hook:
         return conn
 
     @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
-    @patch("ibm_db_dbi.connect")
-    def test_get_conn(self, mock_connect, mock_get_connection, mock_connection):
+    def test_get_conn(self, mock_get_connection, mock_connection):
         """Test get_conn method."""
         mock_get_connection.return_value = mock_connection
+        mock_ibm_db_dbi = MagicMock()
         mock_db_conn = MagicMock()
-        mock_connect.return_value = mock_db_conn
+        mock_ibm_db_dbi.connect.return_value = mock_db_conn
 
-        hook = Db2Hook(db2_conn_id="db2_default")
-        conn = hook.get_conn()
+        with patch.dict(sys.modules, {"ibm_db_dbi": mock_ibm_db_dbi}):
+            hook = Db2Hook(db2_conn_id="db2_default")
+            conn = hook.get_conn()
 
-        # Verify connection was created
         assert conn == mock_db_conn
-        mock_connect.assert_called_once()
-
-        # Verify connection string contains expected parameters
-        call_args = mock_connect.call_args[0][0]
+        mock_ibm_db_dbi.connect.assert_called_once()
+        call_args = mock_ibm_db_dbi.connect.call_args[0][0]
         assert "DATABASE=testdb" in call_args
         assert "HOSTNAME=localhost" in call_args
         assert "PORT=50000" in call_args
@@ -83,22 +82,20 @@ class TestDb2Hook:
         assert "PWD=db2pass" in call_args
 
     @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
-    @patch("ibm_db_dbi.connect")
-    def test_get_conn_with_ssl(self, mock_connect, mock_get_connection, mock_connection_with_extras):
+    def test_get_conn_with_ssl(self, mock_get_connection, mock_connection_with_extras):
         """Test get_conn method with SSL configuration."""
         mock_get_connection.return_value = mock_connection_with_extras
+        mock_ibm_db_dbi = MagicMock()
         mock_db_conn = MagicMock()
-        mock_connect.return_value = mock_db_conn
+        mock_ibm_db_dbi.connect.return_value = mock_db_conn
 
-        hook = Db2Hook(db2_conn_id="db2_default")
-        conn = hook.get_conn()
+        with patch.dict(sys.modules, {"ibm_db_dbi": mock_ibm_db_dbi}):
+            hook = Db2Hook(db2_conn_id="db2_default")
+            conn = hook.get_conn()
 
-        # Verify connection was created
         assert conn == mock_db_conn
-        mock_connect.assert_called_once()
-
-        # Verify connection string contains SSL parameters
-        call_args = mock_connect.call_args[0][0]
+        mock_ibm_db_dbi.connect.assert_called_once()
+        call_args = mock_ibm_db_dbi.connect.call_args[0][0]
         assert "SSL=true" in call_args
         assert "SSLCERT=/path/to/cert.pem" in call_args
 
