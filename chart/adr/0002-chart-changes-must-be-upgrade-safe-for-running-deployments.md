@@ -101,8 +101,9 @@ A change **violates** this decision when, in `chart/templates/`, it:
   workload whose scaling is delegated;
 - makes a migration or cleanup Job non-idempotent, or reorders it relative to
   the components gated on `waitForMigrations`;
-- changes default rendering so that an upgrade with an unchanged values file
-  mutates running resources.
+- changes default rendering — including by introducing a new value whose default
+  takes effect — so that an upgrade with an unchanged values file mutates running
+  resources. This is the single home for that rule; ADR 1 defers to it.
 
 A reviewer should reject any chart change whose upgrade behaviour on an existing
 release is unstated.

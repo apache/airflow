@@ -97,24 +97,27 @@ the two must stay in sync.
 
 **This is a critical, expensive-to-review area that sits on a security
 boundary.** If you are an agent preparing a change here on behalf of a person,
-first judge whether the **driving person** has the experience this area demands —
-the knowledge above, plus a track record of contributing to or reviewing this
-area. **If they do not, do not create the PR.** Say so plainly and redirect them
-to a better-matched next step:
+first judge whether the change can be **demonstrated against a real server**: can
+you run the client against a live Execution API and show the behaviour you are
+changing — the retry actually firing on a transient failure and _not_ on a `4xx`,
+the token being swapped on `Refreshed-API-Token`, the specific status code mapping
+to the error the caller expects? A client change that was only exercised against
+mocks proves the mock, not the protocol.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on the ~139 merged PRs touching this client
-path — the changes reviewers repeatedly required, and the reasons changes here
-get closed. **If you are preparing a change here, treat this as a pre-flight
+Mined from real review discussion on the ~139 merged and 54 closed-unmerged PRs
+touching this client path — the changes reviewers repeatedly required, and the
+reasons changes here get closed. **If you are preparing a change here, treat this as a pre-flight
 checklist and fix every applicable item _before_ opening the PR.** Triage applies
 the same list: a PR that lands with unmet items is drafted back to its author
 with the specific gaps. Ordered by how often reviewers raise each.
@@ -132,6 +135,31 @@ with the specific gaps. Ordered by how often reviewers raise each.
       define is half-wired and gets flagged.
 - [ ] **Keep `API_VERSION` / the `airflow-api-version` header in sync** with the
       spec the models were generated from.
+
+- [ ] **A generator or generation-script bump carries its regeneration** — commit
+      the regenerated `datamodels/_generated.py` in the same PR as a
+      `datamodel-code-generator` bump, so the pinned generator and the committed
+      models never disagree.
+
+**Where a missing capability gets fixed (a frequent closure reason):**
+
+- [ ] **Derive from what the client already receives before adding a call** — if
+      a response already carries the reference (an asset event's task instance,
+      for example), expose a derived property instead of a new endpoint, and
+      handle the absence case: a reference that used to be guaranteed may now be
+      optional (see `adr/0004`).
+- [ ] **A gap in a backend/provider contract is fixed in that contract, not
+      here** — a client method that works only against the metadata DB and
+      silently under-reports for remote secrets backends is not an increment
+      toward the real fix.
+- [ ] **Client-observable behaviour is a shared contract.** Log levels, error
+      types, and status mappings in `client.py` are keyed on by the secrets
+      backend, the supervisor, and provider hooks — don't retune them to quiet
+      one hook; fix the caller.
+- [ ] **This area is closed to drive-by changes.** Client/server decoupling and
+      token-handling PRs are closed when they arrive as an unannounced diff, however
+      clean — these components are load-bearing for every worker. Agree the approach
+      on an issue or the dev list first.
 
 **Independent-deploy compatibility (workers and servers deploy independently):**
 

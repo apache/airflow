@@ -72,23 +72,27 @@ release tasks across **every** deployment, or slow the whole scheduling loop.
 
 **This is a high-criticality, expensive-to-review area that sits directly on the
 scheduler hot path.** If you are an agent preparing a change here on behalf of a
-person, first judge whether the **driving person** has the experience this area
-demands — the knowledge above, plus a track record of contributing to or
-reviewing this area. **If they do not, do not create the PR.** Say so plainly
-and redirect them to a better-matched next step:
+person, first judge whether the change can be **demonstrated as a scheduling
+outcome**: can you build the Dag shape that exercises the dep, run it, and show
+which task instances become runnable before and after — including the cases the
+dep is supposed to _block_? A dep evaluates in every scheduler loop for every
+candidate task instance, so "it returns the right status for my example" also has
+to mean "it costs no extra query per row".
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on the ~46 merged PRs touching this area — the
-changes reviewers repeatedly required, and the reasons changes here get closed.
+Mined from real review discussion on the ~46 merged and ~53 closed-unmerged PRs
+touching this area — the changes reviewers repeatedly required, and the reasons
+changes here get closed.
 The sample is smaller than the scheduler/DFP areas, so treat the ordering as
 indicative rather than exhaustive. **If you are preparing a change here, treat
 this as a pre-flight checklist and fix every applicable item _before_ opening the
@@ -114,6 +118,73 @@ each.
       (`RUNNING_DEPS` / `SCHEDULER_QUEUED_DEPS` / `REQUEUEABLE_DEPS`) — a dep that
       exists but is in no set is never enforced; one in the wrong set gates the
       wrong transition.
+
+**Mapped tasks — the highest-failure seam here (from the closed-PR record):**
+
+- [ ] **Evaluate against the matching map index, not the aggregate.** Inside a
+      mapped task group, an instance's upstreams are the upstream instances at
+      _its own_ index. Folding all indexes into a counted state is the single
+      most common defect in this area, and the most common reason an attempted
+      fix is closed (see `adr/0004`).
+- [ ] **A fix in this seam ships with a test that reproduces the failure.**
+      Untested attempts at mapped trigger-rule, skip, and deadlock bugs are
+      closed rather than merged on inspection — review cannot distinguish a real
+      fix from a plausible one without the reproduction. At least one closed PR
+      here died precisely on an unanswered request for a test case.
+- [ ] **State the behaviour when upstream expansion count differs** from the
+      downstream one, and when an upstream mapped instance has been removed — a
+      rule that counts upstreams without accounting for removal produces a
+      permanently unsatisfiable condition.
+- [ ] **Skip propagation is per index too** — branch and short-circuit operators
+      upstream of a mapped group skip matching indexes, not the whole group.
+- [ ] **Check for an in-flight fix before starting.** This defect class attracts
+      several independent simultaneous attempts; prefer building on the existing
+      PR.
+
+**Fixing `TriggerRuleDep` — the single most common wrong-location mistake:**
+
+- [ ] **Find the dep that owns the broken assumption before adding a guard.**
+      `TriggerRuleDep` assumes the instance is already expanded and its upstreams
+      resolve at its own index. When that assumption fails, the fix is the dep
+      responsible for establishing it (`MappedTaskIsExpanded`) or its membership
+      in `dependencies_deps.py` — not a compensating branch in
+      `trigger_rule_dep.py`. #32701 had the diagnosis right and was closed on the
+      location. See `adr/0006`.
+- [ ] **Never trade the early decision for a wait.** Fast fail and fast skip are
+      contract, not optimisation: a downstream waits only until the rule's answer
+      is determined, not until every upstream reaches a terminal state. #34138 was
+      refused for exactly this substitution.
+- [ ] **Say what your counting change does to the deadlock cases.** The current
+      shape of the upstream counting encodes fixes for permanently-unsatisfiable
+      conditions. A change must state the behaviour for removed, unexpanded, and
+      absent upstreams, and reviewers have required reproducing the original
+      deadlock before extending it (#33915).
+- [ ] **State the effect on the paths you did not target.** This dep runs for
+      every task instance — a mapped-task-group fix says what it does to
+      non-mapped tasks, setup/teardown, and plain task groups.
+- [ ] **Expect a better-placed competing fix to win.** Several attempts here were
+      closed in favour of an alternative that fixed the same defect at the owning
+      dep (#33570 → #33903, #32701, #33820).
+
+**New behaviour goes through existing deps and existing state:**
+
+- [ ] **Derive from state the system already records** before adding a field.
+      A proposal to keep a Dag paused during backfill had its new flag removed in
+      review in favour of `DagRun.backfill_id` plus the existing unpause path
+      (see `adr/0005`).
+- [ ] **A new user-facing dependency parameter goes to the devlist first.** Two
+      independent attempts at a `depends_on_previous_task_ids`-style cross-run
+      parameter were closed; the discussion was about whether the gap over
+      `depends_on_past` justifies a second concept, not about the code.
+- [ ] **Reshaping what an existing construct means** — task groups, trigger
+      rules, run identity — is discussed before the code. A task-group-retries
+      proof of concept was closed as needing a dev-list thread first.
+- [ ] **The dep set is not a plugin point.** A proposal to let users register
+      custom `TIDep` classes was closed (#37778): it hands control to user code in
+      the scheduler's hottest path, and review's position was that it would need
+      documented use cases, performance guidance for dep authors, a way to detect
+      misbehaving deps, and an AIP or design document stating the end goal — the
+      cost is the mechanism, not the diff.
 
 **Scheduler-loop cost (paid per task instance, every cycle):**
 
@@ -171,10 +242,12 @@ each.
       closed. Track deferred work in a GitHub issue; take contentious semantics
       (a new trigger rule, a changed skip rule) to the devlist / a second reviewer.
 
-> Mined from PR review history; the sample here is small (~46 PRs) and skews to
-> the Airflow-3 era (the SDK/serialization split reshaped how deps read Dag
-> structure), so pre-3.0 conventions are under-represented and the frequency
-> ordering is approximate. Extend as new patterns emerge, and add an equivalent
+> Mined from PR review history. The merged sample skews to the Airflow-3 era (the
+> SDK/serialization split reshaped how deps read Dag structure); the
+> closed-unmerged sample reaches back to 2022, and the `TriggerRuleDep` guidance
+> above comes largely from it — those rejections predate the move to
+> `airflow-core/src/`, but the deps and the fast-decision behaviour they concern
+> are unchanged. The frequency ordering is approximate. Extend as new patterns emerge, and add an equivalent
 > `## Review criteria` section to the `AGENTS.md` of every other area over time.
 
 ## Expectation for large changes

@@ -111,8 +111,9 @@ supports. Concretely:
 
 A change **violates** this decision when it:
 
-- modifies `poke()`, `execute()`, `execute_complete()`, or a trigger without
-  checking the other paths of the same operator;
+- modifies `poke()`, `execute()`, `execute_complete()`, or a trigger of an
+  operator while leaving its other paths unchanged, without stating in the PR
+  body why the other paths are unaffected;
 - adds or changes a user-facing parameter that only takes effect in one mode,
   without either implementing it in the others or rejecting the combination with
   a clear error;

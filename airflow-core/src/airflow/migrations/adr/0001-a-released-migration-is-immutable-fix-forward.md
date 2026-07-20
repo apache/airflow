@@ -51,6 +51,22 @@ Only *unreleased* revisions — those that exist on `main`/a test branch but hav
 not gone out in any release — are still malleable. Those may be edited, squashed,
 retargeted, or dropped, because no user has a database pinned to them.
 
+There is one further case where fixing forward is not merely expensive but
+*impossible*: a released revision that **cannot complete**. If an `upgrade()`
+raises, the operator never reaches the head where a corrective revision would
+live — the corrective revision is unreachable by construction. If a `downgrade()`
+errors, the broken code is precisely the code that runs; no revision layered on
+top of the head can change what happens on the way down. In both cases the
+divergence argument does not apply either, because the population that "already
+ran it" is empty for exactly the databases the fix targets. This is why the
+project has repeatedly and correctly edited released revisions in place: #66016
+repaired `0080`'s `upgrade()` and `downgrade()`, both of which raised
+`IntegrityError` on any non-empty `deadline` table; #65288 added a missing
+`disable_sqlite_fkeys` to `0108`'s downgrade; #65688 fixed a downgrade that
+crashed with a unique-constraint violation. Such an edit must be **idempotent**
+for databases that did run the revision successfully — it may add the missing
+work, never redo work that already succeeded.
+
 ## Decision
 
 A migration that has shipped in a released version is **immutable**. Corrections
@@ -61,6 +77,16 @@ are made **forward**, never by rewriting released history.
   edit the released revision's `upgrade()`/`downgrade()`.
 - An **unreleased** revision (not yet in any release) *may* be edited, retargeted,
   or dropped — that is the only window in which the history is still soft.
+- **Exception — a released revision that cannot complete may be edited in place.**
+  When the revision's `upgrade()` raises, or its `downgrade()` errors, no forward
+  revision can reach the failure: the operator never gets to the corrective head,
+  or the broken code is what runs on the way down. Repair it in the revision
+  itself. The repair must be **idempotent** for databases that already applied the
+  revision successfully — it fills in what was missed and is a no-op otherwise —
+  and the PR must state which failure it fixes and why a forward revision cannot.
+  This exception covers *failures*, not defects: a revision that completes but
+  writes wrong data, or produces a schema the project later regrets, is fixed
+  forward like anything else.
 - When correcting forward, keep the chain linear (see ADR 2): the corrective
   revision's `down_revision` is the current head, and it becomes the new head.
 
@@ -73,12 +99,17 @@ are made **forward**, never by rewriting released history.
   is the price of a consistent, replayable history and is intentional.
 - Reviewers must know the release boundary — whether the touched revision has
   shipped — because it is not visible in the diff. When in doubt, treat it as
-  released and fix forward.
+  released, then ask the second question: *does the revision run at all?* If it
+  does, fix forward; if it does not, the in-place repair is the only option.
 
 A change **violates** this decision when it:
 
 - edits the `upgrade()` or `downgrade()` of a revision that has already shipped in
-  a released version, instead of adding a new corrective revision;
+  a released version, instead of adding a new corrective revision — **unless** that
+  revision cannot complete (its `upgrade()` raises or its `downgrade()` errors), in
+  which case the in-place repair is correct and the PR states the failure and,
+  where any database may already have run the revision successfully, the
+  idempotency argument;
 - reuses or repurposes a released revision's identifier for different DDL;
 - "retcons" a change onto a version that is *already released* (retargeting is
   only legitimate while the change is still unreleased).
@@ -96,3 +127,12 @@ than layering a new revision on top of the current head.
   and keeping the chain consistent.
 - #63825 — "Do not backfill old DagRun.created_at": chose to *not* reach back and
   rewrite historical rows, forward-only behaviour over retroactive mutation.
+- #66016 — "migrate existing deadline rows in migration 0080 upgrade and
+  downgrade": the sanctioned shape of the exception. `0080` shipped in 3.1.0 and
+  both of its directions raised `IntegrityError` on a non-empty `deadline` table,
+  so neither could be reached or repaired by a forward revision; the fix backfills
+  the rows in place and is a no-op on databases that migrated cleanly. Also cited
+  as a positive example in ADR 0003.
+- #65288 — "add missing `disable_sqlite_fkeys` to 0108 migration": the same shape
+  in the downgrade direction only — the broken code is what runs on the way down,
+  so a forward revision could not have fixed it.

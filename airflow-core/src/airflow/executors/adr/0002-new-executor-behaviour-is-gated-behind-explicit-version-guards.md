@@ -84,6 +84,14 @@ rejected because they make the shim unfindable or misleading at removal time.
 
 ## Evidence
 
-- #56187 — Move the traces and metrics code under a common observability package (cross-version import seam handled with an explicit guard).
-- #65277 — Clean up redundant api server uri generation (removal of a shimmed cross-version path at a known version).
-- #67449 — Kubernetes executor callback support (new provider-executor behaviour gated for version-mix compatibility).
+- #56187 — Move the traces and metrics code under a common observability package
+  (merged; cross-version import seam handled with an explicit guard).
+- #65277 — Clean up redundant api server uri generation (merged; removal of a
+  shimmed cross-version path at a known version).
+- #67449 — "Kubernetes executor callback support": **closed unmerged**, as an
+  inactive draft rather than on the merits. Cited for what review asked of it: the
+  one `CHANGES_REQUESTED` verdict said the approach and tests were fine and that
+  *"the main issues are backward compatibility issues"*, pointing the author at the
+  ECS (#63657) and Celery (#63888) implementations to follow. That is the
+  version-guarded back-compat pattern this ADR describes, requested in review and
+  not yet delivered when the draft went stale.

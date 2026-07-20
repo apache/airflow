@@ -112,7 +112,8 @@ and redirect them:
 
 - a **reproducible bug with a concrete cluster scenario** (chart values, pod
   spec, the observed pod state) rather than a speculative refactor, or
-- a **smaller provider they actually use**, to build standing first, or
+- a **smaller provider they actually use**, where they can exercise the change
+  against the real service, or
 - **an issue or dev-list thread** before any code, when the change touches
   adoption, the watcher, deletion policy or the client pins.
 
@@ -124,7 +125,8 @@ evidence that each one was actually broken.
 ## Review criteria
 
 Mined from real review discussion on the ~355 commits touching
-`providers/cncf/kubernetes/` — the changes reviewers repeatedly required, and the
+`providers/cncf/kubernetes/` and on the 73 closed-unmerged PRs that touched it —
+the changes reviewers repeatedly required, and the
 reasons changes here get closed. **If you are preparing a change here, treat this
 as a pre-flight checklist and fix every applicable item _before_ opening the
 PR.** Triage applies the same list: a PR that lands with unmet items is drafted
@@ -211,6 +213,34 @@ raise each.
       this provider's own surface.
 - [ ] **`kubernetes_asyncio` must move with `kubernetes`** — the async and sync
       paths talk to the same API server and drift silently otherwise.
+- [ ] **A cap motivated by one managed control plane is not a cap.** "GKE/EKS
+      returns 401 on the newer client" is a reason to fix that cloud's provider,
+      not to move the shared pin — and the cap usually re-breaks whatever the
+      bump fixed (#69025).
+- [ ] **No cloud SDK, CLI, or vendor branch in the auth path.** Exec-auth
+      problems are fixed on the _mechanism_ (is this context using an exec
+      credential plugin?), never on the vendor. See this area's ADR 4 — this
+      closed #61936, #61935 and #61025, while the vendor-neutral form of the same
+      fix merged as #63610 / #65212.
+
+**Specialised operators and the shared core:**
+
+- [ ] **A defect found through `SparkKubernetesOperator`, `KubernetesJobOperator`
+      or a CRD integration is fixed in that operator** unless the behaviour is
+      true of every pod (this area's ADR 5). "It also fixes my Spark case" is not
+      a justification for changing `pod.py` or `pod_generator.py` (#55645,
+      #52051, #56399, #55355).
+- [ ] **A core change states what it does to a plain KPO task and to an executor
+      worker pod** — not only to the workload that motivated it.
+- [ ] **A new workload integration is agreed before it is written** — ownership,
+      scope, and who will maintain it (#63938).
+- [ ] **Cluster-policy behaviour does not move into the operator.** Quota
+      awareness, admission rules and phase-based deletion overrides belong to the
+      cluster and its policy, not to every pod Airflow launches (#63946, #61637).
+- [ ] **Transient cluster-side conditions become task failures, not in-operator
+      wait loops.** Image-pull backoff, registry rate limits and API 5xx are what
+      Airflow's task retries exist for; adding a bespoke retry/backoff policy
+      inside the operator hides them from the scheduler (#61778, #63042).
 
 **Tests and evidence:**
 
@@ -224,6 +254,19 @@ raise each.
 - [ ] **Say what you ran it against** — cluster flavour and Kubernetes version.
       A pod-lifecycle change with no cluster evidence is not reviewable, and the
       system tests do not run on every PR.
+
+**Process — the two ways changes here die without ever being wrong:**
+
+- [ ] **Search for an in-flight fix first, and fix at the right layer.** This
+      area duplicates heavily: #68819 was closed for #68831, which fixed the same
+      crash one layer up in core's deserialization; #68360 was overtaken by
+      #68674; #63176 and #63282 were two attempts at the same undecodable-log
+      crash; #68995 and #68998 were opened twice for the same 5xx re-queue.
+- [ ] **Expect to be asked for a cluster; do not go quiet.** Reviews here need a
+      Kubernetes reviewer and often a real cluster run, so they are slow —
+      and drafts that stall are closed on inactivity regardless of quality
+      (#67449, #63454, #64166, #49441, #52051). Rebase, keep CI green, and reply,
+      or reopen later; the work is not lost.
 
 > Mined from PR review history across `providers/cncf/kubernetes/`; the sample
 > skews to the Airflow-3 era and to the executor and KubernetesPodOperator, which

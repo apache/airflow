@@ -67,7 +67,11 @@ linear chain**:
   applies; quote reserved words; respect backend limits.
 - **Provides a real, tested `downgrade()`** that restores the prior schema *and*
   data shape (including sequences/autoincrement and nullability), verified by a
-  round-trip test, not a stub.
+  round-trip test, not a stub. Some upgrades are irreversible by construction —
+  filling a `NULL` with a safe default destroys the information that the value was
+  ever `NULL`, and no downgrade can recover it. That is acceptable, but it must be
+  *declared*: the revision's docstring states which data the downgrade does not
+  restore and why it cannot.
 - **Keeps one linear head.** The new revision's `down_revision` is the current
   head; `alembic heads` returns exactly one. Rebase onto the latest head instead
   of creating a second head that requires a merge.
@@ -88,8 +92,10 @@ A change **violates** this decision when it:
   keyword; a Postgres-only construct with no fallback);
 - runs DML before/around SQLite FK handling incorrectly, or omits
   `disable_sqlite_fkeys` where batch recreation needs it;
-- ships an `upgrade()` with a missing, stubbed, or lossy `downgrade()`, or one
-  that fails to restore sequences/nullability;
+- ships an `upgrade()` with a missing or stubbed `downgrade()`, one that fails to
+  restore sequences/nullability, or one that silently loses data — an intentionally
+  one-way data change is acceptable when the revision's docstring states why the
+  original values cannot be recovered;
 - introduces a second Alembic head instead of chaining onto the current head.
 
 A reviewer should reject any revision that has not been shown to round-trip on all
@@ -108,3 +114,8 @@ three backends or that forks the head.
   downgrade path that needed to actually restore the prior column shape.
 - #63494 — "Quote reserved MySQL keyword 'interval' in deadline_alert queries": a
   MySQL-specific breakage from an unquoted reserved word.
+- `0108_3_2_0_fix_migration_file_ORM_inconsistencies.py` — the declared-one-way
+  case: its `downgrade()` docstring records that the `NULL`-to-default backfill in
+  `upgrade()` is deliberately not reversed, because a filled default "cannot be
+  distinguished from legitimately-populated values after the fact". It shipped in
+  3.2.0 on that basis.

@@ -58,6 +58,41 @@ Cadwyn migration wired end-to-end, never as a standalone response-format rewrite
   across the boundary. The Go SDK cannot import Python; the spec is the single
   source of truth for shared shapes.
 
+### Scope: the absolute reading governs, not the "bulk" one
+
+An earlier phrasing of this ADR paired an absolute Decision ("*any* change to a
+response or error shape") with a narrow violating-change exemplar ("a **bulk**
+normalization … across the routes"). Those are not the same rule, and the gap
+between them let single-endpoint error-shape fixes land inconsistently depending
+on which sentence the reviewer read. **The absolute reading governs.** A
+generated client is generated per-endpoint; one endpoint's error shape changing
+breaks exactly the callers of that endpoint, and the blast radius of a
+single-route change is not smaller in kind, only in count. Number of routes
+touched is not a factor.
+
+The one decidable exception is where the shape does not actually change on the
+wire *as declared*:
+
+- If the OpenAPI spec **already declares** the shape the change produces — the
+  route was returning something other than its own declared response/error model,
+  and the fix brings the implementation into line — the contract generated clients
+  were built against is unchanged, and no `VersionChange` is owed. The PR must
+  show this: point at the declared model and at the diff between it and what the
+  route returned.
+- Otherwise a `VersionChange` is owed, however narrow the diff, and however much
+  the new shape is an improvement (RFC 9457 conformance included).
+
+### Cross-cutting error handling still owes a `VersionChange`
+
+`core_api/adr/0004` requires cross-cutting API behaviour — exception handlers,
+middleware, shared dependencies — to be fixed once in the shared layer rather
+than patched per route. That decision governs *where* the fix lives; it does not
+waive this one. A shared-layer change that alters a wire-visible response or
+error shape on Execution-API routes owes a `VersionChange` here exactly as a
+per-route change would. The two compose: put the fix in the shared layer, *and*
+carry the shape change through the migration chain. Neither ADR is satisfied by
+citing the other.
+
 ## Consequences
 
 - Both the Python and Go SDKs stay generatable and correct across independent
@@ -67,12 +102,14 @@ Cadwyn migration wired end-to-end, never as a standalone response-format rewrite
 - The end-to-end wiring is more work than a local edit, which is the accepted
   cost of keeping two independently-generated SDK clients in sync.
 
-**A violating change looks like:** a bulk normalization of error or response
-formats across the routes with no `VersionChange` and no update to the SDK
-comms/client/generated models; or introducing a shared enum as an imported
-Python type instead of defining it in the OpenAPI spec — either of which breaks
-a regenerated client (and silently breaks the Go SDK) despite the API being
-"internal."
+**A violating change looks like:** a change to an error or response format —
+whether on one route or across all of them — with no `VersionChange` and no
+update to the SDK comms/client/generated models, where the OpenAPI spec did not
+already declare the new shape; a shared-layer exception handler or middleware
+change that reshapes an Execution-API response without a `VersionChange`; or
+introducing a shared enum as an imported Python type instead of defining it in
+the OpenAPI spec — any of which breaks a regenerated client (and silently breaks
+the Go SDK) despite the API being "internal."
 
 ## Evidence
 

@@ -112,7 +112,8 @@ small and are not. Do not open them without a consumer-side reason.
 
 ## Review criteria
 
-Mined from real review discussion on the ~136 commits touching this provider —
+Mined from real review discussion on the ~136 commits touching this provider and
+on the 22 closed-unmerged PRs that touched it —
 the changes reviewers repeatedly required, and the reasons changes here get
 closed. **If you are preparing a change here, treat this as a pre-flight
 checklist and fix every applicable item _before_ opening the PR.** Triage applies
@@ -150,7 +151,11 @@ with the specific gaps. Ordered by how often reviewers raise each.
       a bridge between core versions belongs in the provider that needs it.
 - [ ] **A new shim needs a named consumer in the same PR or an immediate
       follow-up.** Shims with no importer are dead weight the whole ecosystem
-      pays to carry.
+      pays to carry. This is the one thing PRs here are actually closed for:
+      #60001 ("Add `BaseXCom` to common.compat library") was asked to convert at
+      least one existing consumer in the same PR and to mark that consumer's
+      `# use next version` floor, because extraction without adoption reads as
+      not really needed. "It would be useful to somebody" is not a consumer.
 - [ ] **Carry a removal condition.** A branch that exists only for an old core
       gets a comment saying which floor makes it removable (the
       `# TODO: Remove it when Airflow 3.2.0 is the minimum version` form), so the

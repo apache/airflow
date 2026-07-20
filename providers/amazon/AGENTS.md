@@ -110,8 +110,9 @@ not create the PR.** Say so plainly and redirect them to:
 ## Review criteria
 
 Mined from real review discussion on the ~676 commits touching
-`providers/amazon/` — the changes reviewers repeatedly required, and the reasons
-changes here get closed. **If you are preparing a change here, treat this as a
+`providers/amazon/` and on the 100 closed-unmerged PRs touching the same paths —
+the changes reviewers repeatedly required, and the reasons changes here get
+closed. **If you are preparing a change here, treat this as a
 pre-flight checklist and fix every applicable item _before_ opening the PR.**
 Triage applies the same list: a PR that lands with unmet items is drafted back
 to its author with the specific gaps. Ordered by how often reviewers raise each.
@@ -122,6 +123,10 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
       sensor, trigger, or transfer.** Obtain the client from an
       `AwsBaseHook`-derived hook so credential resolution, assume-role,
       `region_name`, `verify`, `endpoint_url` and the botocore config all apply.
+      Two existing sites are outside the hook layer by construction and are not
+      defects: `aws/utils/eks_get_token.py` (a CLI entrypoint with no Airflow
+      connection) and `aws/executors/aws_lambda/docker/app.py` (runs inside the
+      Lambda image).
 - [ ] **A new operator/sensor/trigger accepts and forwards the full AWS
       parameter set** — `aws_conn_id`, `region_name`, `verify`,
       `botocore_config`. Dropping one silently ignores the user's connection;
@@ -156,6 +161,46 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
       loop**, and do not block the triggerer event loop (an `ASYNC` ruff
       violation in a trigger is a real bug — the triggerer serves every deferred
       task in the deployment).
+
+**Where the fix belongs — see `adr/0004`:**
+
+- [ ] **Check the client stack before guarding it.** Before working around a
+      `boto3` / `botocore` / `aiobotocore` defect, check whether the vendor has
+      released a fix and whether this provider's declared floor already includes
+      it. If it does, the change is a floor bump — or nothing. Two successive
+      PRs adding a botocore credential-cache workaround were closed on exactly
+      this.
+- [ ] **Behaviour specific to a managed Airflow offering is out of scope** — it
+      is reported to that offering, not fixed by adding a parameter every
+      self-hosted user carries.
+- [ ] **Don't infer an AWS rule from one error message.** Back a claimed AWS
+      constraint with AWS documentation or a reproduction that distinguishes a
+      permanent rule from a transient state; transient states belong to the
+      waiter and retry machinery, not to new operator sequencing.
+- [ ] **A workaround that must stay carries a tracking issue** and a comment at
+      the workaround site with the full issue URL and the removal condition.
+- [ ] **Dependency pins a vendor asked to keep are left alone** until that vendor
+      signals otherwise, with the reason recorded in the PR.
+
+**The triggerer's event loop is shared — see `adr/0005`:**
+
+- [ ] **No cross-trigger pool, cache, or registry of `aiobotocore` clients.** A
+      client is bound to the event loop that created it, and sharing one across
+      triggers is not thread-safe. Three separate pooling attempts have been
+      closed for this reason.
+- [ ] **Credential identity is part of client identity.** Any reuse is scoped by
+      the full connection identity — `aws_conn_id`, `region_name`, `verify`,
+      `endpoint_url`, botocore config, assumed role — never by service or region
+      alone. A mis-keyed cache silently calls AWS with the wrong credentials.
+- [ ] **Reuse within one trigger is the supported optimisation, spelled
+      `async with await hook.get_async_conn()`** covering that trigger's own
+      polling, with the client closed on the failure and cancellation paths. Not
+      a `cached_property`: `AwsBaseHook.async_conn` is deprecated because
+      touching it from async code blocks the event loop.
+- [ ] **A triggerer performance change carries a measurement** — what was
+      measured, at what concurrency, and what changed. A plausible efficiency
+      argument is not enough for code on the loop that serves every deferred task
+      in the deployment.
 
 **Waiters and polling budgets:**
 
@@ -199,19 +244,31 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
 
 **Tests, docs, process:**
 
-- [ ] **Mock with `spec`/`autospec`**, and test the deferrable path separately
-      from the sync path — a test that only covers `execute()` does not cover
-      the change.
-- [ ] **A new AWS service means `provider.yaml` entries** (`integrations`,
-      `operators`, `hooks`, `sensors`, `transfers`, `connection-types`) plus
-      docs and an example/system test — several prek hooks fail when code and
-      `provider.yaml` disagree.
+- [ ] **Test the deferrable path separately from the sync path** — a test that
+      only covers `execute()` does not cover the change.
+- [ ] **A new AWS service means `provider.yaml` entries** (`integrations`, plus
+      the `operators` / `hooks` / `sensors` / `transfers` **modules** and
+      `connection-types`) plus docs and an example/system test — several prek
+      hooks fail when code and `provider.yaml` disagree. A new class in an
+      already-declared module needs no yaml edit.
 - [ ] **System tests must not leave AWS infrastructure behind** — teardown runs
       on failure, and nothing publicly reachable is provisioned.
-- [ ] **Never add a newsfragment**; for a user-visible note edit
-      `providers/amazon/docs/changelog.rst` directly.
+- [ ] For a user-visible note edit `providers/amazon/docs/changelog.rst`
+      directly — never a newsfragment (parent `providers/AGENTS.md`).
+- [ ] **Check for an in-flight PR before starting.** Duplicate fixes for the same
+      AWS issue are the most common closure reason here — several PRs a month are
+      closed as "fixed in #NNNNN" or superseded by a parallel attempt. Claim the
+      issue in-thread first.
+- [ ] **Changing an existing default is a user-visible change** and states its
+      reason in `docs/changelog.rst` — a fallback instance type, a waiter budget,
+      or an executor config key changes production behaviour on upgrade for
+      everyone.
+- [ ] **Show a real AWS run for a behaviour fix.** Mocked unit tests cannot
+      confirm how the service behaves; reproduce the failure first, then show the
+      fixed run.
 
-> Mined from PR review history on `providers/amazon/`; the sample skews to the
+> Mined from PR review history on `providers/amazon/`, merged and
+> closed-unmerged alike; the sample skews to the
 > Airflow-3 era and to the most-used services (S3, EMR, Glue, SageMaker, ECS,
 > Batch, Redshift, DMS, Bedrock), so conventions around rarely-touched services
 > are under-represented. Extend as new patterns emerge.

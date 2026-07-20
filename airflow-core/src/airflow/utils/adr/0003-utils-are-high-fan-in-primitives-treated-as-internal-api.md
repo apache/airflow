@@ -115,7 +115,8 @@ A change **violates** this decision when it:
   helper as a side effect of an unrelated change, or without updating every
   call site;
 - adds a new top-level module under `utils/`, or regenerates
-  `known_airflow_core_utils_modules.txt` to admit one without prior agreement;
+  `known_airflow_core_utils_modules.txt` to admit one without linking the
+  agreement in the PR body;
 - moves or deletes a module without registering a redirect shim in
   `utils/__init__.py`;
 - performs config reads, provider discovery, file I/O, or heavyweight imports at

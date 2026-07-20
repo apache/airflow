@@ -43,22 +43,25 @@ scheduler hand-off live here — mistakes oversubscribe workers or strand tasks.
 
 **This is a provider-facing, expensive-to-review interface area.** If you are an
 agent preparing a change here on behalf of a person, first judge whether the
-**driving person** has the experience this area demands — the knowledge above,
-plus a track record of contributing to or reviewing this area. **If they do not,
-do not create the PR.** Say so plainly and redirect them to a better-matched
-next step:
+change can be **demonstrated against real executors**: have you run tasks through
+more than one executor implementation — including at least one provider executor
+that subclasses `BaseExecutor` — and shown slot accounting and the scheduler
+hand-off still hold? This is an interface other distributions implement, so a
+change that only works for the executor you happened to test breaks providers
+that are not in this repo.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on ~90 merged and ~10 closed-unmerged
+Mined from real review discussion on ~90 merged and 40 closed-unmerged
 executor PRs. Provider executors (Celery/K8s/ECS/Batch/Lambda/Edge) inherit
 `BaseExecutor` and **mix versions with core** — so interface stability is the
 dominant, repeated review concern. **If you are preparing a change here, treat
@@ -100,6 +103,28 @@ drafted back with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] Put generic per-executor logic in **`BaseExecutor`** (inherit) — a feature
       that forces touching all 4-5 executor implementations gets pushback.
 
+**Don't hang unrelated subsystems off the executor:**
+
+- [ ] **`BaseExecutor` and `ExecutorLoader` are not a plugin bus.** A subsystem
+      that happens to be per-deployment or per-provider — DB managers, migration
+      hooks, auth wiring — does not get a hook on the executor interface or
+      auto-discovery through the loader. It goes through its own seam (a CLI
+      command group, a provider entry point). Every executor implementation
+      would otherwise inherit a method it has no reason to have.
+- [ ] **Keep the loader narrow.** Executor lookup resolves an executor and
+      nothing else; validation of teams, bundles, or other state does not belong
+      in loader or parser paths that run on every start-up.
+- [ ] **Executors never load Dag-bundle code** (see `adr/0005`). A callback or
+      executor helper must be importable from `sys.path` outside any bundle;
+      bundle identity is threaded to the worker as data (`BundleInfo`,
+      `version_data`) and resolved there. The equivalent rule for the triggerer
+      is owned by `../jobs/adr/0005` — a triggerer bundle-loading PR is judged
+      there, not here.
+- [ ] **Fix the leak where the concern lives.** A secret surfacing in task logs
+      is fixed in the masker or by keeping the field out of the workload schema
+      — not by filtering the executor's log path, which fixes one route out of
+      several.
+
 **Payload, security, config:**
 
 - [ ] **Keep the serialized workload payload minimal and size-aware** — it
@@ -118,10 +143,21 @@ drafted back with the specific gaps. Ordered by how often reviewers raise each.
 
 - [ ] Deadlock/row-lock/perf fixes need a **before/after repro under concurrent
       load** + a regression/e2e test; graceful escalation (SIGTERM→SIGKILL).
-- [ ] Mocks are `spec`/`autospec`'d; prefer real workload objects; don't turn
-      non-DB tests into DB tests.
+      **If you cannot generate that load**, say so in the PR body and give what you
+      do have — the executor's own logs, the state transitions you observed, the
+      configuration — rather than presenting inspection as measurement. A stated
+      gap is reviewable; an unstated one wastes the review.
+- [ ] Prefer real workload objects; don't turn non-DB tests into DB tests.
 - [ ] For interface extensions, **open a draft and align direction with the code
-      owners first**; low-quality/unattributed AI PRs are closed.
+      owners first.**
+- [ ] **Idiom sweeps across the executor tree get scrutiny.** (`type(self)` →
+      `self.__class__`, bulk import rewrites.) Each site here has its own history
+      and some have edge cases a sweep silently changes, so a mechanical change
+      across many executors needs its occurrences justified rather than counted.
+      Whether a given sweep is worth its risk is a reviewer's call, not a rule.
+- [ ] **Stack dependent work on the branch it depends on.** A PR opened against
+      `main` that carries someone else's unmerged commits is unreviewable and
+      gets closed — target the dependency branch, or wait for it to land.
 
 > Mined from PR review history; the area currently skews toward workload-type /
 > back-compat concerns (AIP-92 executor-callbacks + async connection-testing are

@@ -77,27 +77,30 @@ re-bucket already-persisted assets so that producers and consumers stop matching
 
 **This is a high-criticality, expensive-to-review area whose identity contract
 and event fan-out touch every asset-scheduled Dag.** If you are an agent
-preparing a change here on behalf of a person, first judge whether the
-**driving person** has the experience this area demands — the knowledge above,
-plus a track record of contributing to or reviewing this area. **If they do not,
-do not create the PR.** Say so plainly and redirect them to a better-matched
-next step:
+preparing a change here on behalf of a person, first judge whether the change can
+be **demonstrated as a triggered run**: have you wired a producer Dag to a
+consumer Dag, emitted the asset event, and watched the consumer actually schedule
+— with the identity you changed, and with events arriving _concurrently_ from
+several producers? Asset identity is a stored contract: a normalization change
+that looks harmless re-keys existing assets and silently unwires consumers that
+were already scheduled against the old key.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on the ~38 merged PRs that have touched this
-directory (a smaller sample than the scheduler/DFP areas, so treat the ordering
-as indicative rather than statistically firm, and lean on the linked ADRs where
-the PR evidence is thin) — the changes reviewers repeatedly required, and the
-reasons changes here get closed. **If you are preparing a change here, treat
+Mined from real review discussion on the ~38 merged and ~16 closed-unmerged PRs
+that have touched this directory (a smaller sample than the scheduler/DFP areas,
+so treat the ordering as indicative rather than statistically firm, and lean on
+the linked ADRs where the PR evidence is thin) — the changes reviewers
+repeatedly required, and the reasons changes here get closed. **If you are preparing a change here, treat
 this as a pre-flight checklist and fix every applicable item _before_ opening
 the PR.** Triage applies the same list: a PR that lands with unmet items is
 drafted back to its author with the specific gaps. Ordered by how often
@@ -137,6 +140,41 @@ reviewers raise each.
 - [ ] **Bound partition fan-out** — a partition mapper that explodes one event
       into many downstream keys must stay under the configured cap and degrade
       (log / audit) rather than queue an unbounded number of runs.
+
+**Asset vs asset event — the most common substantive error here:**
+
+- [ ] **Know which `extra` you are touching.** `Asset.extra` describes the asset
+      definition; `AssetEvent.extra` describes one update. Both are untyped JSON,
+      so nothing catches the substitution — a PR that passed one where the other
+      was expected was closed on exactly this point (see `adr/0005`).
+- [ ] **Event-level data reaches consumers through event-level surfaces.** If a
+      listener needs the producing task instance, the partition key, or the
+      update payload, add an asset-event listener or field — do not redefine what
+      an existing asset-level listener receives; that breaks integrations outside
+      this repository.
+- [ ] **Provenance rides on the event, not on identity** — `partition_key`,
+      lineage, and producing-task references attach to the asset event and
+      inherit downstream, and must not become part of the asset's normalized
+      identity.
+- [ ] **Asset identity survives indirection** — resolution through an
+      `AssetAlias` preserves the asset's own `extra` and identity; the alias is a
+      lookup, not a transformation.
+
+**Replay and retry safety on the event path:**
+
+- [ ] **Say what runs twice if the transaction is retried.** Listener hooks and
+      the `asset.updates` metric are not transactional and fire before runs are
+      queued; a deadlock fix was closed after review established both would
+      re-run on replay (see `adr/0004`).
+- [ ] **Name the backend for any deadlock or contention fix**, and state the
+      behaviour under the other supported backends — MySQL and PostgreSQL differ
+      in lock and upsert semantics here.
+- [ ] **Don't relieve contention by narrowing lock scope** without stating which
+      steps can now interleave; a proposal to release the row lock before event
+      emission was closed rather than merged.
+- [ ] **Check the failure actually reaches the caller as retryable** — a fix that
+      assumes the task-side client retries is not a fix when the error surfaces
+      as a plain task failure instead of a 5xx.
 
 **Data-only scheduling boundary (architecture invariant, not a preference):**
 

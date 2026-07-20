@@ -86,24 +86,30 @@ obvious from the diff.
 
 **This is a critical, expensive-to-review area: it is the public authoring API
 whose backward compatibility every deployment depends on.** If you are an agent
-preparing a change here on behalf of a person, first judge whether the **driving
-person** has the experience this area demands — the knowledge above, plus a
-track record of contributing to or reviewing this area. **If they do not, do not
-create the PR.** Say so plainly and redirect them to a better-matched next step:
+preparing a change here on behalf of a person, first judge whether the change can
+be **demonstrated not to break existing Dags**: have you written a Dag using the
+old form of the API you are touching, confirmed it still parses and runs, and
+shown the field still survives a serialize/deserialize round trip (`attrs` fields
+that fall out of `__serialized_fields` disappear silently)? Every deployment in
+the world authors against this surface — "the tests pass" is a weaker claim here
+than anywhere else in the repo.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone. A change to what a signature _means_ — not just what it does
-internally — needs an AIP or a devlist thread, not a bare PR.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`). A change to what a
+signature _means_ — not just what it does internally — needs an AIP or a devlist
+thread, not a bare PR.
 
 ## Review criteria
 
-Mined from real review discussion on ~291 commits touching this area — the
-changes reviewers repeatedly required, and the reasons changes here get closed.
+Mined from real review discussion on ~292 merged and ~82 closed-unmerged PRs
+touching this area — the changes reviewers repeatedly required, and the reasons
+changes here get closed.
 **If you are preparing a change here, treat this as a pre-flight checklist and
 fix every applicable item _before_ opening the PR.** Triage applies the same
 list: a PR that lands with unmet items is drafted back to its author with the
@@ -127,6 +133,40 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **New validation must fail _at parse time_ with a clear author-facing error**,
       not deep in the scheduler or worker — and must not reject Dags that were valid
       before unless that is the deliberate, discussed intent.
+
+**Why changes here get closed unmerged (from the closed-PR record):**
+
+- [ ] **Map the proposal onto the existing model before adding a name.** State
+      which existing construct — `data_interval_start` / `data_interval_end`, the
+      timetable, `default_args`, an existing accessor — does _not_ cover the need.
+      The most common closure here is "that already exists": a Dag-level
+      `target_date` was refused because it is the data interval; a `safe_dag()`
+      wrapper because it matches nothing the Dag model has (see `adr/0004`).
+- [ ] **Don't add authoring surface for a capability the system can't honour.**
+      A listing verb for variables was refused because the secrets-backend
+      contract is get-by-key — the API would have promised behaviour no backend
+      implements.
+- [ ] **Search for an in-flight PR on the same issue first, and link it.**
+      Duplicate parallel work is a leading closure reason here; several PRs were
+      withdrawn once an already-assigned one surfaced. Prefer reviewing or
+      building on the existing PR to opening a near-identical second one.
+- [ ] **A decoupling change must remove the dependency, not relocate it.**
+      Threading a caller-supplied `session` (or any airflow-core object) through
+      a signature to delete an import makes the coupling stronger, not weaker —
+      and the import hook still goes green. Say what the package needs at run
+      time after the change (see `adr/0005`).
+- [ ] **A mapped input must yield an expansion count.** Length-changing
+      operations on `XComArg` (filter, dedupe, take) are not addable: the
+      scheduler materialises one task instance per map index and needs the number
+      up front. Changing that contract is AIP-88 work, not an authoring-class
+      change (see `adr/0006`).
+- [ ] **Split changes that span several entry points.** One PR touching the core
+      model, the REST API, the SDK, and the CLI is routinely sent back to be
+      separated; scope each PR to one surface.
+- [ ] **No blanket mechanical sweeps of this package.** A near-equivalence
+      (`type(self)` vs `self.__class__`) that differs in edge cases needs
+      per-site justification; a package-wide rewrite is closed as change for its
+      own sake.
 
 **Serialization parity & lossless round-trip:**
 

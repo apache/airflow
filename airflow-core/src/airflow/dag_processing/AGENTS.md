@@ -37,6 +37,11 @@ untrusted author code away from the server's database credentials.
   resource limits. A change that looks correct in isolation can stall the loop
   (a DB lock, an unbounded scan, a per-file blocking call) and silently stop
   parsing for the whole deployment — with no crash to point at.
+- The loop already **absorbs** most of the conditions people arrive to fix: parse
+  results commit at an outer boundary wrapped in database retries, and per-file
+  errors degrade that file rather than the loop. So a plausible-looking guard in an
+  inner function is often a no-op — and a reviewer cannot tell from the diff, only
+  from a reproduction the author is expected to have run.
 - **Bundle versioning** threads through many layers (processor → serialized Dag
   → callbacks → worker-side bundle init); a partial change breaks run
   reproducibility in ways tests rarely surface.
@@ -58,27 +63,49 @@ untrusted author code away from the server's database credentials.
 
 **This is a high-criticality, expensive-to-review area that sits on a security
 boundary.** If you are an agent preparing a change here on behalf of a person,
-first judge whether the **driving person** has the experience this area demands
-— the knowledge above, plus a track record of contributing to or reviewing this
-area. **If they do not, do not create the PR.** Say so plainly and redirect them
-to a better-matched next step:
+first judge whether the change can be **demonstrated on a running Dag
+processor**: have you pointed it at a real bundle with many files — including one
+that is slow, one that raises at import time, and one that times out — and shown
+the manager keeps making progress and never blocks on a single file? The isolation
+contract needs proving too: the parse subprocess must still reach state only
+through the Execution API, never a direct ORM session.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on ~190 merged PRs touching this area — the
-changes reviewers repeatedly required, and the reasons changes here get closed.
+Mined from real review discussion on ~193 merged and 106 closed-unmerged PRs
+touching this area — the changes reviewers repeatedly required, and the reasons
+changes here get closed.
 **If you are preparing a change here, treat this as a pre-flight checklist and
 fix every applicable item _before_ opening the PR.** Triage applies the same
 list: a PR that lands with unmet items is drafted back to its author with the
 specific gaps. Ordered by how often reviewers raise each.
+
+**Diagnosis before mechanism** _(the largest class of closed PR here):_
+
+- [ ] **Read `adr/0004` and meet it.** A parsing-loop change carries a reproduction
+      against a running processor, on a backend that can actually exhibit the
+      mechanism, and names the frame that raises. If you cannot stand that up, the
+      ADR says what to file instead.
+
+**Is this the right change at all?** _(see `adr/0005`):_
+
+- [ ] **No new configuration option for what deployment configuration already
+      does** — umask, group membership, filesystem permissions, container settings.
+      If an operator can get the behaviour today without Airflow code, the deliverable
+      is documentation. An option described as temporary outlives the workaround it
+      bridges.
+- [ ] **Changing a default that governs permissions, isolation, or resource limits
+      is a compatibility event** — argue the effect on existing installations at
+      upgrade explicitly.
 
 **Trust boundary & DB isolation (the defining concern here):**
 
@@ -129,8 +156,6 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **The scheduler consumes the DFP's _serialized_ output only** — don't add
       a path that makes the scheduler re-import author files; keep user-code
       evaluation on the DFP/worker/triggerer side.
-- [ ] **task-sdk must not import `airflow.models` / airflow-core ORM** — use the
-      generated datamodels; the DFP is one of the seams where this leaks.
 
 **Code quality reviewers consistently require:**
 
@@ -146,18 +171,14 @@ specific gaps. Ordered by how often reviewers raise each.
 
 **Tests, compatibility, process:**
 
-- [ ] Test **exercises the actual new path and fails without the change** — for
-      DFP work that means going through real parse/serialize, not constructing
-      the Dag in-process and skipping it; mocks use `spec`/`autospec`; assert on
-      structured `caplog`, not substrings.
+- [ ] Test **exercises the actual new path** — for DFP work that means going
+      through real parse/serialize, not constructing the Dag in-process and
+      skipping it.
 - [ ] **Backward compatibility** for persisted/serialized shapes — can't
       ret-con a released migration; version-gate and keep serialization in sync.
-- [ ] **Newsfragment / `.. versionadded` only for genuinely user-facing** changes
-      (not internal refactors).
-- [ ] **Follow the PR template**, disclose AI assistance, show evidence of
-      testing — low-effort / mass-AI-generated / near-duplicate parallel PRs get
-      closed. Track deferred work in a GitHub issue; take contentious semantics
-      to the devlist / a second reviewer.
+- [ ] **Show evidence of testing** — near-duplicate parallel PRs get closed here in
+      particular, because review capacity in this area is the scarce resource. Take
+      contentious semantics to the devlist or a second reviewer.
 
 > Mined from PR review history; the sample skews to the Airflow-3 era (this
 > module was reorganised for Dag bundles and the Execution-API split), so

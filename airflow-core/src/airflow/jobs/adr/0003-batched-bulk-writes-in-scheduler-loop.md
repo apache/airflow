@@ -81,15 +81,17 @@ Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 
 A change **violates** this decision when it:
 
-- issues an unbounded `DELETE`/`UPDATE` (no `LIMIT`) against a user-driven table
-  in the scheduler loop or an interval callback;
+- issues an unbounded `DELETE`/`UPDATE` — one whose row set is bounded neither by
+  a `LIMIT` nor by an explicit, already-enumerated set of primary keys — against a
+  user-driven table in the scheduler loop or an interval callback;
 - batches but does not commit between batches (locks accumulate for the whole
   run), or selects the batch on an unindexed column (each batch full-scans);
 - calls `session.commit()` inside a helper that takes a `session` parameter;
 - runs a large synchronous bulk write inline on the scheduler critical path.
 
-A reviewer should reject any loop-path bulk mutation that lacks a `LIMIT`, lacks
-an inter-batch commit, or filters on an unindexed column.
+A reviewer should reject any loop-path bulk mutation whose row set is unbounded
+(no `LIMIT` and no enumerated key set), that lacks an inter-batch commit, or that
+filters on an unindexed column.
 
 ## Evidence
 

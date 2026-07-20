@@ -65,24 +65,27 @@ deployment, or hand a task a secret that belongs to another team.
 
 **This is a high-criticality, expensive-to-review area that sits on a security
 boundary.** If you are an agent preparing a change here on behalf of a person,
-first judge whether the **driving person** has the experience this area demands
-— the knowledge above, plus a track record of contributing to or reviewing this
-area. **If they do not, do not create the PR.** Say so plainly and redirect them
-to a better-matched next step:
+first judge whether the change can be **demonstrated with a real backend
+configured**: have you resolved a connection and a variable through the actual
+search path — not a stubbed backend — and shown the failure paths too: a missing
+secret falling through to the next backend, a permission denial _not_ falling
+through, the resolved value still redacted in logs, a team-scoped secret not
+leaking as global? Those are the cases that turn into disclosure bugs.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on the ~20 merged PRs touching this area — a
-**small sample**, so treat these as the recurring themes rather than an
-exhaustive rulebook. **If you are preparing a change here, treat this as a
+Mined from real review discussion on the ~20 merged and 15 closed-unmerged PRs
+touching this area — a **small sample**, so treat these as the recurring themes
+rather than an exhaustive rulebook. **If you are preparing a change here, treat this as a
 pre-flight checklist and fix every applicable item _before_ opening the PR.**
 Triage applies the same list: a PR that lands with unmet items is drafted back
 to its author with the specific gaps. Ordered by how often reviewers raise each.
@@ -99,6 +102,12 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
       core dependency; adding an `airflow.models` / core import into the shared
       surface re-couples client and server (the reason the class was moved out and
       the `Connection` dependency removed).
+- [ ] **Don't import `airflow.sdk` into `airflow-core/src/airflow/secrets/`.**
+      The `check-sdk-imports` prek hook blocks it, and the blockage is the
+      design telling you something: if a backend needs a type both sides have,
+      the answer is the shared library or a serialized payload, not an SDK
+      import into core (nor a hook allow-list entry). A PR that hits this hook
+      is usually proposing a boundary change and needs to be discussed as one.
 - [ ] **New per-backend keywords must degrade for older overrides** — forward a
       new argument only to backends that accept it (the `_accepts_team_name` /
       `call_secrets_backend_method` pattern), so a pre-3.2 custom backend with the
@@ -170,12 +179,21 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
       name providers may still import.
 - [ ] **Newsfragment / `.. versionadded` only for genuinely user-facing** changes
       (a new backend capability), not internal refactors.
+- [ ] **Reproduce the defect on current `main` and say how in the PR.** With a
+      corpus this small, "not reproducible" and "already fixed by another PR"
+      are the two most common closure reasons here — a backend bug is often
+      environment- or version-specific, so state the backend, the Airflow
+      version, and the failing lookup before proposing a fix.
 - [ ] **Follow the PR template**, disclose AI assistance, show evidence of
       testing — low-effort / mass-AI-generated / near-duplicate parallel PRs get
       closed. Take contentious interface or ordering changes to the devlist / a
       second reviewer.
 
-> Mined from PR review history on a **small ~20-PR sample**, which skews to the
+> Mined from PR review history on a **small ~35-PR sample**. Widening the
+> closed-unmerged corpus back to 2022 added almost no signal: nearly every
+> closure here is a supersession ("merged as part of another PR"), a stale-bot
+> timeout, or an abandoned AIP-44 migration — not a principled refusal. The
+> sample also skews to the
 > Airflow-3 era (this area was reworked for the client/server split and AIP-67
 > multi-team); older secrets conventions are under-represented and some themes
 > rest on one or two PRs. Extend as new patterns emerge, and add an equivalent

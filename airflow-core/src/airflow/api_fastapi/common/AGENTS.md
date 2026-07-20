@@ -46,6 +46,11 @@ filter endpoint in the API at once.
   wrong.** The predicate must not drop or duplicate rows when the sort column is
   nullable, must keep the `ORDER BY` a bare column so indexes still apply, and must
   match each backend's native NULL placement (Postgres vs MySQL/SQLite differ).
+- **The symptom is in a route; the cause is here.** A bug reported against
+  `/dags/{dag_id}/tasks` or the Dag list is usually a shared param or cursor
+  defect, so PRs arrive fixing it in the wrong place — and several arrive at once,
+  because the endpoint-level symptom is visible to everyone. Both the misplacement
+  and the duplication are on the reviewer to catch.
 - These are **user-driven queries against shared tables**. A helper that composes
   an unbounded, non-index-friendly, or SQL-metacharacter-unsafe predicate passes a
   small-fixture test and then degrades — or mis-answers — every endpoint at a real
@@ -80,24 +85,29 @@ filter endpoint in the API at once.
 
 **This is a high-criticality, expensive-to-review area whose helpers every API
 route depends on.** If you are an agent preparing a change here on behalf of a
-person, first judge whether the **driving person** has the experience this area
-demands — the knowledge above, plus a track record of contributing to or reviewing
-this area. **If they do not, do not create the PR.** Say so plainly and redirect
-them to a better-matched next step:
+person, first judge whether the change can be **demonstrated through the routes
+that depend on it**: have you enumerated the callers of the helper you are
+touching and run their tests, and — for anything near pagination — shown the
+sequence actually holds (no skipped or repeated row across pages, ties broken
+deterministically) against a real dataset? A helper change is one line in the
+diff and a behaviour change in dozens of endpoints.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the blast radius is easier to bound, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
 Mined from real review discussion across the ~130 PRs that have touched this
-area — the changes reviewers repeatedly required, and the reasons changes here
-get closed. **If you are preparing a change here, treat this as a pre-flight
+area — the changes reviewers repeatedly required — and from the 77 closed-unmerged
+PRs touching it, 29 of which carry substantive discussion rather than a bot
+closure: the reasons changes here actually get refused. **If you are preparing a
+change here, treat this as a pre-flight
 checklist and fix every applicable item _before_ opening the PR.** Triage applies
 the same list: a PR that lands with unmet items is drafted back to its author with
 the specific gaps. Ordered by how often reviewers raise each.
@@ -168,6 +178,36 @@ the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Guard the dialect-specific branches** — a change that touches SQL generation
       must hold for SQLite, MySQL, **and** PostgreSQL (collation, NULL placement, JSON
       containment differ), not just the backend you ran locally.
+
+**Why PRs here get closed (from the closed-unmerged record):**
+
+- [ ] **Check for an in-flight PR before writing code.** A defect in this layer
+      surfaces as an endpoint bug, so several contributors start on it at once —
+      one `order_by`-with-`NULL`s defect drew four concurrent PRs, and three were
+      closed. Search open PRs and the issue's cross-references first, and prefer
+      building on the existing one (see `adr/0004`).
+- [ ] **Fix the shared class, not the route that reported it.** If the same symptom
+      would occur on a sibling endpoint mounting the same param, the change belongs
+      in `parameters.py` / `cursors.py` / `db/common.py`. Say explicitly which
+      matching semantics change (exact / prefix / substring / case / wildcard) —
+      that is a contract change for every endpoint mounting the param.
+- [ ] **Cover the `NULL` and empty-result cases in the test**, not just the happy
+      path: a `NULL` in a sort or filter column must have a defined position and
+      must not raise.
+- [ ] **A performance claim carries its measurement.** Sargable rewrites and
+      eager-loading changes to shared query paths are re-benchmarked by reviewers
+      and closed when the win does not appear; state the workload, row counts, and
+      backend, and run it yourself. A PR whose author cannot run Breeze is not
+      ready.
+- [ ] **A metadata-database index is not a side effect of tuning one query.**
+      An index proposed because one endpoint scans goes through
+      [`models/adr/0004`](../../models/adr/0004-deployment-specific-indexes-are-documented-not-shipped.md);
+      Airflow ships no configurable-index mechanism, so a deployment-specific
+      index is the operator's, applied per the performance-tuning documentation.
+- [ ] **Don't bundle unrelated changes into a shared-layer PR.** Changes here are
+      reviewed for blast radius; an otherwise-reasonable normalisation gets closed
+      when it arrives mixed with unrelated edits, and a response-format change on a
+      shared surface needs a version migration rather than a direct edit.
 
 **Tests, compatibility, process:**
 

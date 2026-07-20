@@ -108,14 +108,30 @@ A change *violates* this decision when it:
   disables `i18next/no-literal-string` to allow one;
 - adds a new user-facing string without adding its key to the English
   catalogue, or puts it in a namespace it does not belong to;
-- copies English text into a non-English catalogue as a placeholder, or submits
-  bulk machine translation for a language the author does not speak;
+- copies English text into a non-English catalogue as a placeholder — **except**
+  where `public/i18n/README.md` permits it: an LLM-assisted update to non-English
+  locales carried in the *same* PR as the English change is explicitly allowed.
+  Note what this bullet no longer says: whether the author speaks the language is
+  not visible in a diff, and a PR that discloses machine assistance is following
+  the project's AI-disclosure rule, not confessing to a violation. Machine-assisted
+  locale content is judged by its locale owner under the next bullet, on the text
+  itself;
 - edits a locale's files against the wishes of, or without the review of, that
-  locale's owners in `.github/CODEOWNERS`;
+  locale's owners in `.github/CODEOWNERS` — **subject to the same carve-out**, for
+  which the README states that separate per-locale owner approval "is not
+  required". Owner review governs standalone locale PRs, not same-PR updates
+  following an English change;
 - restructures or renames keys in one catalogue without carrying the same shape
-  through the others, breaking key parity;
+  through the others, breaking key parity. Note that no lint enforces this:
+  `check-translations-completeness` is registered at severity `warn` and
+  `eslint --quiet` discards warnings, so the rule never fails a build, and it only
+  reports keys missing relative to English. Parity is checked by
+  `breeze ui check-translation-completeness` and by review;
 - adds or removes a supported locale without the ownership and dev-list process
-  described in `public/i18n/README.md`.
+  described in `public/i18n/README.md` — a draft or RFC that names a proposed
+  translation owner and asks for the code owner / dev-list step *is that process
+  starting*, not a violation of it, and the right response is to run the process,
+  not to close the PR.
 
 A reviewer should reject any diff that introduces user-visible text which cannot
 be translated, and should route locale content to that locale's owners.

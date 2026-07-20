@@ -20,7 +20,7 @@ triage_review_imbalance:
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+**Table of Contents**  _generated with [DocToc](https://github.com/thlorenz/doctoc)_
 
 - [dev/ directory guidelines](#dev-directory-guidelines)
   - [Scripts](#scripts)
@@ -114,14 +114,18 @@ on the critical path for **every contributor and every release**:
 
 **This area is low-criticality at runtime but high-difficulty to review, and its
 failure mode is silent.** If you are an agent preparing a change here on behalf
-of a person, first judge whether the **driving person** has the experience this
-area demands — the knowledge above, plus a track record of running breeze and
-reading CI output on real PRs. **If they do not, do not create the PR.** Say so
-plainly and redirect them to a better-matched next step:
+of a person, first judge whether the change can be **demonstrated by running
+it**: have you run breeze from these sources, run `breeze ci selective-check`
+against real commit refs and compared the classification before and after, and
+updated the doc and the tests that pin that behaviour? "The tests still pass" is
+the wrong evidence here — the failure mode of this area is tests silently _not
+being selected_, which every green CI run agrees with.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **narrow, verifiable change** (one selective-checks rule with its doc and
   test updated; one script fix) to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any
   code — mandatory for anything touching the release runbooks or the shape of
   the CI matrix.
@@ -129,37 +133,25 @@ plainly and redirect them to a better-matched next step:
 A speculative refactor of breeze or of selective checks is the worst kind of PR
 in this area: it cannot be validated from the diff, it costs a maintainer a full
 CI cycle to evaluate, and if it is wrong the cost is paid by every contributor
-until someone notices tests stopped running. Building standing first is faster
-for everyone.
+until someone notices tests stopped running.
 
 ## Review criteria
 
-Mined from the review history of the ~3274 commits touching `dev/` — the changes
-reviewers repeatedly required, and the reasons changes here get reverted.
+Mined from real review discussion on the ~3274 commits touching `dev/` and on
+270 closed-unmerged pull requests touching it (76 with substantive discussion) —
+the changes reviewers repeatedly required, and the reasons changes here get
+closed or reverted.
 **If you are preparing a change here, treat this as a pre-flight checklist and
-fix every applicable item *before* opening the PR.** Triage applies the same
+fix every applicable item _before_ opening the PR.** Triage applies the same
 list: a PR that lands with unmet items is drafted back to its author with the
 specific gaps. Ordered by how often reviewers raise each.
 
 **Selective checks — logic, docs and tests move together (the defining concern here):**
 
-- [ ] **Any change to `breeze/src/airflow_breeze/utils/selective_checks.py`
-      updates `breeze/doc/ci/04_selective_checks.md` in the same PR** — the
-      decision-rules list, the diagrams, the outputs table, and the worked
-      examples as applicable. The doc is the only human-readable description of
-      what CI does; letting it drift makes CI behaviour unreviewable.
-- [ ] **Add or adjust cases in `breeze/tests/test_selective_checks.py`** for
-      every new/renamed file group, every change to what forces
-      `full_tests_needed` / `all_versions`, every change to provider or
-      test-type selection, and every change to which prek hooks are skipped.
-- [ ] **State the skip's blast radius explicitly** — a rule that makes CI do
-      *less* must name what is no longer covered and why that is safe. Skips
-      are legitimate and common (`#68802`, `#69674`, `#70021`), but each one is
-      an argument, not a tidy-up.
-- [ ] **Escalation rules are conservative by default** — when a heuristic
-      cannot tell whether a change is risky, it runs more, not less. Heuristics
-      that guessed wrong have been removed outright (`#68109`) and a
-      release-branch matrix change has been reverted (`#68120`).
+- [ ] Follow [`adr/0001`](adr/0001-selective-checks-logic-docs-and-tests-change-together.md) —
+      logic, `breeze/doc/ci/04_selective_checks.md` and
+      `breeze/tests/test_selective_checks.py` move in the same PR, a skip names
+      what it stops covering, and escalation stays conservative.
 - [ ] **Don't change behaviour on release branches (`v3-X-test`) as a side
       effect** of a `main`-targeted rule — the branch defaults live in
       `breeze/src/airflow_breeze/branch_defaults.py` and are their own decision.
@@ -179,20 +171,53 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **New/changed breeze options are added to the right option group** and the
       command help stays coherent; parameter-group consistency is checked
       (`breeze setup check-all-params-in-groups`).
+- [ ] **A new breeze CLI option must justify itself against the mechanisms that
+      already exist.** Breeze has too many options already, and a one-off
+      setting is normally an env var in
+      `files/airflow-breeze-config/environment_variables.env`, not a flag
+      (`#53966`). Breeze defaults are also not re-pointed at what a production
+      deployment would use (`#53854`).
+
+**Change hygiene — the most common reason a PR here is closed unmerged:**
+
+- [ ] **Verify every claim the change rests on against the actual code or a real
+      run.** Closures in this area are dominated by confidently-wrong tooling
+      changes: a docs "fix" that deleted correct instructions because the author
+      assumed task-sdk was unpublishable (`#64711`), a script advertised as
+      calling an existing hook that did not do what was claimed (`#60674`), a
+      breeze crash diagnosed as an upstream crypto bug that was an out-of-date
+      Docker Desktop (`#68953`).
+- [ ] **A "how to reproduce" must actually reproduce.** Printing an approximate
+      selective-checks command for a CI decision that depends on the merge
+      commit is worse than printing nothing (`#60901`).
+- [ ] **Nothing unrelated in the diff, and the branch starts from current
+      `main`.** Stale bases and stray files left by an agent run are the single
+      most frequent closure reason here (`#61942`, `#60012`, `#64027`,
+      `#61202`, `#60013`); building on another PR's unmerged commits is not a
+      reviewable PR (`#66984`).
+- [ ] **Read the agent's diff before pushing.** An unreviewed agent diff — a
+      newsfragment on a dev-tooling PR, unrelated JSON edits — gets the PR
+      closed rather than reviewed (`#61341`, `#61942`).
+- [ ] **Agent skills, prompts and PR-automation tooling do not live here.** That
+      work belongs in the separate steward repository or in `.github/prompts`,
+      not as a new `dev/` script (`#66125`, `#55917`, `#63162`).
+
+**Dependency pins, tool versions and branches:**
+
+- [ ] Follow [`adr/0005`](adr/0005-dependency-and-tool-versions-are-bumped-by-automation-not-by-hand.md) —
+      pins under `dev/` move by automation, an upper bound is assumed deliberate,
+      a template's floors stay within what its host provides, and a security or
+      incident bump is made by hand with the CVE or failure named.
+- [ ] Follow [`adr/0004`](adr/0004-dev-tooling-changes-land-on-main-and-are-not-backported.md) —
+      `dev/` improvements land on `main`; a `dev/` change aimed at a release
+      branch names the failure _on that branch_ it fixes.
 
 **Generated artifacts:**
 
-- [ ] **Never hand-edit generated output.** `breeze/doc/images/output_*.svg`
-      and the matching `output_*.txt` hash files are regenerated by
-      `breeze setup regenerate-command-images`; the `update-breeze-cmd-output`
-      prek hook is the source of truth. Same for provider dependency
-      metadata and generated provider docs (`#68801`, `#68991`).
-- [ ] **Generated output must be deterministic** — if regeneration produces a
-      different result on two machines, fix the generator, don't commit the
-      diff (`#63641`).
-- [ ] **Regenerate from the PR's own sources**, not from a cached or
-      globally-installed breeze, or the committed images will not match what CI
-      regenerates.
+- [ ] Follow [`adr/0003`](adr/0003-generated-artifacts-are-regenerated-never-hand-edited.md) —
+      never hand-edit `breeze/doc/images/output_*.svg` or its hash files,
+      regenerate deterministically, and regenerate from the PR's own sources
+      rather than a cached or globally-installed breeze.
 
 **Release tooling and scripts:**
 
@@ -210,21 +235,11 @@ specific gaps. Ordered by how often reviewers raise each.
 
 **Scripts, docs, process:**
 
-- [ ] **New `dev/` scripts are standalone Python with inline script metadata**,
-      run via `uv run` — not bash, not requiring a prior install (see
-      `## Scripts` above).
 - [ ] **Long-running or parallel tooling must not deadlock** — pool/fork
       choices matter and have caused hangs in release commands (`#69763`).
-- [ ] **No newsfragment for `dev/` changes.** Build, CI, release and dev-only
-      tooling is not user-facing; `dev/mypy/` is the one exception with its own
-      `newsfragments/`.
-- [ ] **Internal doc links resolve** — the lychee prek hook checks them
-      (`#66356`); keep the doctoc TOC in this file consistent with its
-      headings.
-- [ ] **Follow the PR template**, disclose AI assistance, and show what you
-      actually ran (the breeze command, the CI run, the regenerated output).
-      Track deferred work in a GitHub issue and link the issue URL at the
-      workaround site.
+- [ ] **Show what you actually ran** — the breeze command, the CI run, the
+      regenerated output. In an area whose failure mode is absence of signal,
+      the transcript is the evidence.
 
 > Mined from commit and review history under `dev/`; the sample skews heavily to
 > the Airflow-3 era, when breeze moved to `uv`/`uvx` and selective checks grew
@@ -232,11 +247,21 @@ specific gaps. Ordered by how often reviewers raise each.
 > under-represented. Extend as new patterns emerge, and add an equivalent
 > `## Review criteria` section to the `AGENTS.md` of every other area over time.
 
+### What these documents are currently good for
+
+A validation pass ran this area's ADRs against the live open-PR queue and found
+**zero firings across 6 PRs**. That is recorded here deliberately, as a finding
+rather than a gap: the documents currently function as _review guidance and
+onboarding context_, not as a mechanical gate on the queue. Do not read the
+absence of firings as a reason to sharpen the rules until they catch something —
+inventing a trigger would produce false positives against merged work and destroy
+the signal this measurement carries.
+
 ## Expectation for large changes
 
 Discuss the approach first — in an issue or on the dev list — before a large PR.
 Restructuring selective checks, changing how breeze is installed or launched, or
 reshaping a release flow affects every contributor and every release manager,
-and is best aligned on *before* the code, not during review. Decisions of that
+and is best aligned on _before_ the code, not during review. Decisions of that
 kind belong in an ADR: `adr/` for cross-cutting dev-tooling decisions,
 `breeze/doc/adr/` for breeze's own installation, image and container decisions.

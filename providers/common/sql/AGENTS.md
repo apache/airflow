@@ -129,7 +129,8 @@ reported failure.
 ## Review criteria
 
 Mined from real review discussion on the ~172 commits touching
-`providers/common/sql/` — the changes reviewers repeatedly required, and the
+`providers/common/sql/` and on the ~64 closed-unmerged PRs that touched it — the
+changes reviewers repeatedly required, and the
 reasons changes here get closed. **If you are preparing a change here, treat this
 as a pre-flight checklist and fix every applicable item _before_ opening the PR.**
 Triage applies the same list: a PR that lands with unmet items is drafted back to
@@ -155,6 +156,19 @@ its author with the specific gaps. Ordered by how often reviewers raise each.
       `return_single_query_results` (`hooks/handlers.py`) are a documented
       backwards-compatibility compromise. Changing when results are wrapped
       changes what lands in XCom for every downstream operator.
+- [ ] **`BaseSQLOperator` and its helpers are user-facing, "base" name
+      notwithstanding.** A proposal to drop `get_db_hook` was refused because users
+      build custom operators on that class: anything in provider code not
+      explicitly declared private goes through the deprecation process, whatever
+      its name suggests (#27762).
+- [ ] **A missing handler returning `None` is the design, not a bug.** Reports
+      that `run()` without a handler returns nothing are closed — the handler is
+      how a caller asks for results, deliberately (#27548). A PR that "fixes" this
+      is changing the return contract of every DBAPI hook.
+- [ ] **Prefer the narrower internal type over widening a public one.** Where a
+      newer public method returns a union, keep internal callers on the private,
+      precisely-typed variant rather than propagating the wider type into users'
+      type checkers (#49340).
 - [ ] **New behaviour that downstream hooks must override gets a version floor.**
       When a change adds an override point, the consuming provider's dependency
       needs a bumped floor with a `# use next version` marker — the mechanism
@@ -166,6 +180,13 @@ its author with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Database-specific behaviour belongs in a `Dialect`, not in a hook or a
       caller.** Per the area ADR on dialects, quirks must be reachable through
       generic JDBC/ODBC connections, not only through a native hook.
+- [ ] **A database name must never appear in the shared operator or hook code.**
+      This is the reason the package exists. Two PRs adjusting SQL generation
+      because Oracle rejects the `AS` keyword for subquery aliases were refused on
+      exactly this ground, with the remedy spelled out: add the override point
+      here (a replaceable statement template), then apply the database-specific
+      value in that database's own provider (#44210, #44182). Expect that
+      two-package shape to be required, not negotiated.
 - [ ] **Do not push a driver quirk onto callers.** Paramstyle (`placeholder`),
       autocommit (`set_autocommit` / `get_autocommit`), identifier escaping
       (`escape_word_format`, `reserved_words`), and cursor-description handling are
@@ -178,6 +199,11 @@ its author with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Prefer a native implementation over a SQLAlchemy round-trip** where a
       dialect can answer directly — engine construction per call has been a real
       performance defect here.
+- [ ] **A new execution mode on a shared operator must hold for every dialect it
+      already supports.** `SQLExecuteQueryOperator` is used by roughly thirty
+      packages; a deferrable or streaming variant that works on two backends is a
+      per-provider feature, not a change here. #61742 was withdrawn and reworked
+      as #65618 for exactly this reason — expect the scope to grow, not shrink.
 
 **Lineage and optional integrations:**
 
@@ -221,13 +247,31 @@ its author with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **A breaking change is called out explicitly** in the PR description, with
       the downstream providers it affects named. Silent behaviour changes here
       surface as production breaks in packages the author never touched.
+- [ ] **The changelog note and the consumer's version floor are the release
+      mechanism** — there are no newsfragments to fall back on. When a change here
+      is one a downstream package must react to, the consuming provider's
+      `apache-airflow-providers-common-sql>=` floor is bumped with a
+      `# use next version` marker in the same PR, and anything users must act on
+      is written into `docs/changelog.rst` (#54194).
+- [ ] **Extract shared helpers here rather than copying them into a new module.**
+      When a new module needs logic another already has — the provider
+      version-compatibility check is the standing example — the expected move is a
+      shared util package in `common.sql`, not a second copy (#38281).
+- [ ] **One concern per PR, and no stacked branches.** PRs carrying unrelated
+      edits, or branched off two other unmerged PRs, are closed and asked for a
+      clean resubmission rather than reviewed (#64027, #62492, #61794).
+- [ ] **Style-only churn is closed** — `type(self)` → `self.__class__` and
+      similar sweeps need a per-usage justification (#53856).
 - [ ] **Follow the PR template**, disclose AI assistance, and show evidence against
       a real database. Mass-generated or fanned-out changes get closed.
 
-> Mined from PR review history across `providers/common/sql/`; the sample is
+> Mined from PR review history across `providers/common/sql/`; the merged sample is
 > dominated by the dialect work, the `get_pandas_df` → `get_df` migration, and the
-> Airflow-3 / SQLAlchemy-2 era, so conventions around the older DBAPI operators are
-> under-represented. Extend as new patterns emerge.
+> Airflow-3 / SQLAlchemy-2 era. The closed-unmerged sample reaches back to 2022 —
+> to before this package moved to `providers/common/sql/` — and is mostly
+> superseded or lapsed PRs; the handful of principled refusals in it reinforce the
+> interface-stability and dialect rules above rather than adding new ones. Extend
+> as new patterns emerge.
 
 ## Expectation for large changes
 

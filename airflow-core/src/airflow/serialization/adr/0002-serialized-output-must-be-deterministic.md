@@ -78,7 +78,9 @@ A **violating change** looks like any of:
   reach the serialized JSON — directly, or by adding a new value type that
   falls through to the generic `str()`/`repr()` path.
 - A fix that patches only the path from the reported bug while leaving another
-  path able to serialize the same unstable value.
+  path able to serialize the same unstable value. Adding the deterministic
+  encoding itself is what this ADR asks for; `0004` governs *where* it is added —
+  in the shared helper, not at one call site.
 - A test that still **passes while the bug is present** — e.g. one that checks a
   single serialization call, or mocks out the address, instead of asserting that
   two independent serialize cycles of the same Dag produce identical, stable

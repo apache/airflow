@@ -51,23 +51,27 @@ runs across every deployment and is hard to catch in review.
 ## Before opening a PR here — authoring-agent guard
 
 **This is a high-criticality, expensive-to-review area.** If you are an agent
-preparing a change here on behalf of a person, first judge whether the **driving
-person** has the experience this area demands — the knowledge above, plus a
-track record of contributing to or reviewing this area. **If they do not, do not
-create the PR.** Say so plainly and redirect them to a better-matched next step:
+preparing a change here on behalf of a person, first judge whether the change can
+be **demonstrated on a live metadata DB**: have you run real Dag runs through the
+state transitions you touched and shown the invariants still hold, and — if you
+changed a field — that it still reaches serialization and that any schema change
+has its migration? Reading the model class does not tell you what the state
+machine does when a run is already half-way through it.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on ~228 merged and ~24 closed-unmerged PRs
-touching `models/`. **If you are preparing a change here, treat this as a
+Mined from real review discussion on ~228 merged and ~233 closed-unmerged PRs
+touching `models/` — the changes reviewers repeatedly required, and the reasons
+changes here get closed. **If you are preparing a change here, treat this as a
 pre-flight checklist and fix every applicable item _before_ opening the PR.**
 Triage applies the same list: a PR that lands with unmet items is drafted back
 with the specific gaps. Ordered by how often reviewers raise each.
@@ -81,17 +85,27 @@ with the specific gaps. Ordered by how often reviewers raise each.
       `session`); never open a fresh session mid-operation; prefer
       `session.scalar(select(...))`. No `session.commit()` in a function taking a
       `session`.
-- [ ] **Migration hygiene** — migrations go only into **unreleased** version
-      files (never rewrite a released migration — add a new CalVer file + update
-      `versions/__init__.py`); backfill existing rows; use `disable_sqlite_fkeys`
-      + `batch_alter_table` for SQLite-safe column ops.
+- [ ] **A schema change carries its migration** — the migration rules themselves
+      (immutability of released revisions, three-backend reversibility, batching)
+      live in `../migrations/AGENTS.md` and its ADRs; don't restate them, meet them.
 - [ ] **Deadlock fixes establish deterministic lock ordering** (lock `DagRun`
       before `task_instance`, `SKIP_LOCKED`) and scope bulk writes to the owning
       scheduler (`TI.queued_by_job_id == self.job.id`) — retry/skip is not a fix.
+- [ ] **Don't ship an index for a deployment-specific query** — see `adr/0004` for
+      the boundary (an index serving a query Airflow itself issues is in scope; one
+      serving a deployment's own query shape is documented, not merged) and for what
+      an index PR has to bring.
+- [ ] **A model the triggerer or Dag processor must read needs an Execution API
+      surface, not a session** — `@provide_session` reached from a running
+      trigger raises _"Direct database access via the ORM is not allowed"_ at
+      runtime. Settle the endpoint before building the model.
+- [ ] **Get a migration PR reviewed promptly** — a branch carrying an Alembic
+      revision re-conflicts every time another migration merges, so an aging
+      migration PR dies of rebasing rather than of review.
 
 **Serialization & compatibility:**
 
-- [ ] **Serialization round-trips and stays deterministic** — test the *full*
+- [ ] **Serialization round-trips and stays deterministic** — test the _full_
       serialize→deserialize→hash path (not just a helper), and the test must fail
       without the change.
 - [ ] **Preserve rolling-upgrade & public-SDK backward compat** — keep compat
@@ -132,6 +146,20 @@ with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Check for an existing/better fix first** — the most common rejection is
       being superseded by a PR that targets the real root cause; verify CI is
       green (mypy + the Serialization suite) before marking ready.
+- [ ] **A new field, state, exception, or listener hook needs an agreed design and
+      must not duplicate existing semantics — see `adr/0005`**, which says what to
+      name in the PR body and what goes to the dev list or an AIP first.
+- [ ] **The metadata DB is not a general-purpose store** — credentials and
+      unbounded or opaque blobs don't get a column here; fix the layer that
+      produced them.
+- [ ] **Reproduce the defect on current `main` before fixing it** — a report filed
+      against a released version is a starting point, not evidence, and several PRs
+      here were closed after a reviewer showed `main` already handles the case. **If
+      you cannot reproduce on `main`**, that is itself the finding: say so in the PR
+      body (what you ran, on which revision, and what happened instead) rather than
+      shipping the fix on the assumption it still applies. A PR that says "could not
+      reproduce on `main`, opening for the reporter's original case" is reviewable;
+      one that silently assumes is not.
 
 > Mined from PR review history; the sample is weighted toward recent
 > serialization/migration/asset-partition work, so XCom/connection-model

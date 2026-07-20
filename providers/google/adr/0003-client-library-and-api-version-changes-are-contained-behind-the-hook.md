@@ -89,9 +89,12 @@ recognise.
   provider's deprecation process — deprecated with a removal date, kept working
   for at least one release, and called out in the changelog — never as a
   side-effect of a dependency bump.
-- **Optional and heavy libraries are imported lazily or under `TYPE_CHECKING`**
-  (`apache-beam`, `ray`, `cncf.kubernetes`, `looker-sdk`). A top-level import of an
-  optional dependency turns a missing extra into a Dag parse failure for everyone.
+- **Dependencies declared under `[project.optional-dependencies]` are imported
+  lazily or under `TYPE_CHECKING`** (`apache-beam`, `ray`, `cncf.kubernetes`,
+  `looker-sdk`). A top-level import of one turns a missing extra into a Dag parse
+  failure for everyone. Required dependencies — `google-cloud-*` and friends —
+  are imported normally at module top; the test is the `pyproject.toml`
+  declaration, not a judgement about how heavy the library feels.
 
 ## Consequences
 
@@ -116,7 +119,8 @@ A change **violates** this decision when it:
   user-visible break;
 - removes or repurposes a public operator symbol in the same change that
   introduces its replacement, skipping the deprecation period;
-- adds a top-level import of an optional or heavy dependency into a module that is
+- imports a dependency declared under `[project.optional-dependencies]` in
+  `providers/google/pyproject.toml` at module top level, in a module that is
   imported during Dag parsing.
 
 ## Evidence

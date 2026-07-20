@@ -65,10 +65,13 @@ this decision exists to prevent.
 Declare provider metadata once, in the file that owns it, and let generation
 produce everything else.
 
-- **`provider.yaml` owns provider metadata and capability registration.** A new
-  hook, operator, connection type, config option, executor, or auth manager is
-  registered there in the same PR that adds the Python code. Code and
-  `provider.yaml` disagreeing is a defect, not a follow-up.
+- **`provider.yaml` owns provider metadata and capability registration.** Note
+  what it actually registers: `operators`, `sensors`, `hooks` and `transfers`
+  list *python modules*, not classes, so a new class added to an
+  already-declared module needs no yaml edit — but a new **module**, connection
+  type, config option, executor, auth manager, secrets backend or filesystem
+  does, in the same PR that adds the Python code. Code and `provider.yaml`
+  disagreeing on that set is a defect, not a follow-up.
 - **`pyproject.toml` is generated except for its dependency lists.** Dependencies
   and optional-dependency extras are edited in place there; every other part of
   the file is changed by editing the Jinja template, never the rendered output.
@@ -97,9 +100,11 @@ A change **violates** this decision when it:
 - hand-edits a generated region of `pyproject.toml` (anything outside the
   dependency lists), the README requirements table, the generated provider docs,
   or `get_provider_info.py`, instead of editing the source and regenerating;
-- adds or changes a hook, operator, sensor, transfer, connection type, config
-  option, executor, or auth manager in Python without the matching
-  `provider.yaml` declaration;
+- adds a new operator, sensor, hook, transfer or trigger **module**, or a new
+  connection type, config option, executor, auth manager, secrets backend or
+  filesystem, without the matching `provider.yaml` entry. Adding a class to a
+  module already listed there, or fixing behaviour inside one, is not a
+  `provider.yaml` change;
 - changes dependencies without running `prek update-providers-dependencies
   --all-files`, leaving the README, docs, and cross-provider graph stale;
 - adds an upper bound to a dependency with no justification, no tracking issue,

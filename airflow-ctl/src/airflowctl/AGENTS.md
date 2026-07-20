@@ -83,23 +83,26 @@ around it.
 
 **This is a high-criticality, expensive-to-review area that spans a trust
 boundary and a generated public contract.** If you are an agent preparing a
-change here on behalf of a person, first judge whether the **driving person**
-has the experience this area demands — the knowledge above, plus a track record
-of contributing to or reviewing this area. **If they do not, do not create the
-PR.** Say so plainly and redirect them to a better-matched next step:
+change here on behalf of a person, first judge whether the change can be
+**demonstrated end to end**: have you run the built CLI against a live API server,
+authenticated through the real keyring/token path rather than a mock, and shown
+the command's output and exit code before and after? Anything touching the
+generated client also needs the regeneration re-run, not hand-edited.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on ~248 merged PRs touching this area — the
-changes reviewers repeatedly required, and the reasons changes here get closed.
+Mined from real review discussion on ~248 merged and 88 closed-unmerged PRs
+touching this area — the changes reviewers repeatedly required, and the reasons
+changes here get closed.
 **If you are preparing a change here, treat this as a pre-flight checklist and
 fix every applicable item _before_ opening the PR.** Triage applies the same
 list: a PR that lands with unmet items is drafted back to its author with the
@@ -119,6 +122,24 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Send `limit` / pagination and query params the API defines** — don't
       fetch unbounded or hand-roll a query shape the endpoint doesn't accept
       (cursor pagination and query-param handling are recurring review catches).
+- [ ] **Tolerate an older server.** The client is installed separately from the
+      deployment it manages, so it routinely talks to an Airflow older than the
+      spec it was generated from. A request body carrying a field the older
+      server rejects (`extra_forbidden`) breaks the command against every
+      pre-release deployment — omit unset fields rather than sending nulls.
+
+**Don't open a duplicate — this area is raced:**
+
+- [ ] **Search for an open PR before writing one.** The AIP-94 command-porting
+      backlog is issue-driven and each issue attracts two to four parallel
+      attempts — two contributors shipped `tasks clear` at once, and two shipped
+      the per-Dag-run task-state command at once. Comment on the issue to claim
+      it, and if a PR already exists, review or build on it instead of opening a
+      second. Parallel work is allowed and the better PR wins, so an existing
+      open PR is a reason to coordinate, not a ground for closing either one.
+- [ ] **Check whether the bug is already fixed on `main`.** Several closures here
+      were "fixed by another PR" against a branch hundreds of commits stale —
+      rebase onto `main` and re-confirm the failure before opening.
 
 **Generated API layer & spec parity:**
 
@@ -148,6 +169,14 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Flag names stay consistent across related commands**, and required vs.
       optional parameters follow the established convention (required →
       positional, optional → `--flag`).
+- [ ] Follow [`adr/0004`](adr/0004-cli-conventions-are-settled-once-for-the-whole-command-surface.md) —
+      a convention spanning more than one command (argument style, error wording,
+      exit codes, prompt behaviour) is agreed for the whole surface and applied
+      across it, not changed for one command.
+- [ ] Follow [`adr/0005`](adr/0005-cross-cutting-behaviour-is-derived-from-the-api-models.md) —
+      required-field validation, input parsing and error mapping are derived from
+      the generated API models for every command at once, not hand-rolled in a
+      handler the next regeneration would overwrite.
 - [ ] **Every operation has integration-test coverage** — the
       `check-airflowctl-command-coverage` prek hook pairs each `operations.py`
       method with a test in `test_airflowctl_commands.py`; a new command without
@@ -159,6 +188,12 @@ specific gaps. Ordered by how often reviewers raise each.
       under the per-environment key, don't print secrets, and let commands that
       don't need auth (e.g. a remote version check) run without prompting for
       credentials.
+- [ ] **A token is printed only by a command whose whole purpose is printing it**
+      — reviewers rejected a `--print-token` flag on `auth login` and asked for a
+      separate `auth token` command instead, on the `gh auth login` / `gh auth
+      token` model. A secret must never be a side effect of a command the user
+      ran for another reason, and a command that exists to emit one needs no
+      confirmation prompt.
 - [ ] **Validate untrusted local input** — environment names and file paths from
       env vars / flags are sanitised against path traversal before use; don't
       interpolate them into filesystem paths unchecked.
@@ -177,8 +212,6 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Don't swallow exceptions with a broad `except`** — narrow to the real
       classes (`ServerResponseError`, the `AirflowCtl*` exceptions) so API and
       auth failures surface with a clear message and exit code.
-- [ ] **Write `Dag` (title case) in prose and help text**; keep literal code
-      tokens (`dag_id`, `airflow dags …`) unchanged.
 
 **Tests, compatibility, process:**
 
@@ -186,14 +219,15 @@ specific gaps. Ordered by how often reviewers raise each.
       client work that means asserting the request sent to (and response parsed
       from) the API, with `httpx` transport mocked via `spec`/`autospec`, not a
       bare `MagicMock`. Assert on structured `caplog`, not substrings.
-- [ ] **Backward compatibility** for the CLI surface and output shapes — a
-      released command/flag/output can't be reshaped opportunistically; note
-      user-facing changes in `airflow-ctl/RELEASE_NOTES.rst`, **not** a
-      newsfragment.
-- [ ] **Follow the PR template**, disclose AI assistance, show evidence of
-      testing — low-effort / mass-AI-generated / near-duplicate parallel PRs get
-      closed. Track deferred work in a GitHub issue; take contentious CLI
-      semantics to the devlist / a second reviewer.
+- [ ] **Rebase and go green before asking for review.** The single most common
+      state of a closed PR here is a branch several hundred commits behind
+      `main` with failing static checks and failing CTL integration tests. Run
+      `prek run --from-ref main --stage pre-commit` locally; a reviewer will not
+      unblock CI for you, and an untouched red PR is drafted back and then
+      closed.
+- [ ] **Show evidence of testing** — the command actually run against a server,
+      and its output. Take contentious CLI semantics to the devlist before
+      writing the command.
 
 > Mined from PR review history; the sample skews to the airflow-ctl era (this
 > distribution is new in the Airflow-3 line and still maturing its command

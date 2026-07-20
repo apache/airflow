@@ -107,7 +107,7 @@ A change **violates** this decision when it:
 - #56127 — "Add back Deprecation warning for `sla_miss_callback`": a deprecation
   warning that had been dropped was *restored*, showing the project treats the
   warning cycle itself as part of the compatibility contract.
-- #53496 — "Remove warning for `BaseOperator.executor` because it's false":
+- #53496 — "Remove warning for `BaseOperator.executor` because it works":
   correcting a warning on a still-supported attribute — the deprecation surface is
   maintained deliberately, not casually.
 - #68506 — "Added asynchronous `aget_hook` method to `BaseHook`": new capability

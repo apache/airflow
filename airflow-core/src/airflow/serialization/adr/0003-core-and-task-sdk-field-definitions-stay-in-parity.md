@@ -85,9 +85,23 @@ A **violating change** looks like any of:
 
 ## Evidence
 
-- #69311 — fixes an asset-event ingestion crash for Dags using
-  `FixedKeyMapper`, a case where the serialized/reconstructed object must carry
-  the same fields the constructor expects.
-- #66990 — includes `dataset_id`, `table_id`, and `poll_interval` in
-  `BigQueryIntervalCheckTrigger` serialization so `serialize()` emits every
-  field the constructor consumes and the trigger reconstructs faithfully.
+The primary evidence is the enforcement itself, which is committed and runs on
+every relevant edit — three prek hooks in `.pre-commit-config.yaml` exist for no
+other purpose than this decision, each pinned to the exact pair of core and SDK
+files it compares:
+
+- `check-partition-mapper-defaults-in-sync` —
+  `airflow-core/src/airflow/partition_mappers/{temporal,window,fixed_key}.py`
+  against `task-sdk/src/airflow/sdk/definitions/partition_mappers/`.
+- `check-window-in-sync` — the `Window` definitions on both sides.
+- `check-template-context-variable-in-sync` — `models/taskinstance.py` against
+  `sdk/definitions/context.py` and the templates reference.
+
+Each hook reads class bodies, which is why the decision requires fields to be
+declared there: hollowing the class body does not fail the hook, it makes the hook
+blind.
+
+- #69311 — fixes an asset-event ingestion crash for Dags using `FixedKeyMapper`, a
+  case where the serialized/reconstructed object must carry the same fields the
+  constructor expects. This is the only PR citation behind the ADR; the mechanism
+  above, not the review history, is what the decision rests on.

@@ -94,9 +94,17 @@ API whose installed base is the entire Airflow ecosystem. Concretely:
 - **Version-specific behaviour is gated through the provider's own
   `version_compat.py`**, and both sides of the gate are exercised, because the
   same wheel runs on the declared floor and on current main.
-- **Renames and in-place semantic changes are for private / still-unreleased
-  surface only** — a `_defer` attribute may be renamed; a documented `deferrable`
-  kwarg may not.
+- **An underscore prefix is not, by itself, permission to rename.** The line is
+  *method on a released class* versus *attribute or local*. A released operator
+  or sensor is subclassable, so an underscore-prefixed **method** — the
+  `_handle_execution_date_fn` shape — is de-facto public: users override it and
+  call it to work around gaps, and changing its name or signature is a breaking
+  change treated like a public one. A private **attribute** with no override
+  semantics — the `_defer` shape — may be renamed freely. Where this ADR and the
+  criteria in `providers/standard/AGENTS.md` once disagreed, the criteria were
+  right and this bullet was corrected to match: #52237 tried the free-rename
+  reading on `_handle_execution_date_fn`, two reviewers rejected it as breaking,
+  and the author closed it.
 
 ## Consequences
 
@@ -116,15 +124,20 @@ A change **violates** this decision when it:
 - alters a released default, return value, or skip/branch behaviour of an
   operator, sensor, or decorator in place, instead of adding an opt-in parameter
   or going through a deprecation cycle;
-- removes or renames a released public parameter, class, or decorator without
-  keeping the old spelling working behind a warning;
+- removes or renames a released public parameter, class, or decorator — or an
+  underscore-prefixed **method** on a released operator or sensor, which is
+  overridable and therefore reachable — without keeping the old spelling working
+  behind a warning;
 - justifies an in-place behaviour change as "a fix" for semantics that have been
   released and depended on, without a deprecation path or a devlist discussion;
 - introduces behaviour that only works on one supported Airflow version without a
   `version_compat.py` gate covering the other, or gates it without exercising
   both sides;
-- narrows what an operator accepts — new validation that rejects a
-  previously-valid Dag — as a drive-by change.
+- narrows what an operator accepts — new validation that rejects an input a
+  released version accepted — without a `providers/standard/docs/changelog.rst`
+  entry naming the newly-rejected input. (Validation that catches an authoring
+  mistake is welcome per this area's ADR 6; what this bullet requires is that
+  users are told which Dags will now fail.)
 
 ## Evidence
 
@@ -151,9 +164,14 @@ A change **violates** this decision when it:
 - #46306 — "Removing feature: send context in venv operators (using
   `use_airflow_context`)": a removal done deliberately as a release-boundary
   decision, not folded into an unrelated change.
-- #58925 — "nit: rename `TriggerDagRunOperator._defer` to `deferrable`": the
-  boundary in practice — a *private* attribute is renamed freely, which is
-  exactly the surface where in-place renames remain allowed.
+- #58925 — "nit: rename `TriggerDagRunOperator._defer` to `deferrable`":
+  **merged**. A private *attribute* with no override semantics is the narrow
+  case where an in-place rename remains allowed.
+- #52237 (with #52431) — the opposite outcome on an underscore-prefixed
+  *method*: renaming `_handle_execution_date_fn` on `ExternalTaskSensor` was
+  rejected by two reviewers ("It is breaking for `_handle_execution_date_fn`,
+  and it could potentially be used by users") and closed by its author. This
+  pair is why the boundary is method-vs-attribute rather than underscore-vs-not.
 - #46633 — "`TriggerDagRunOperator` by defaults set logical date as null": a
   genuine default change, made as its own explicit, discussed change at an
   Airflow-3 boundary rather than as a drive-by fix.

@@ -77,67 +77,98 @@ backend or a data shape the author never tested.
 
 **This is a critical, expensive-to-review area where mistakes are permanent once
 released.** If you are an agent preparing a change here on behalf of a person,
-first judge whether the **driving person** has the experience this area demands —
-the knowledge above, plus a track record of contributing to or reviewing schema
-migrations. **If they do not, do not create the PR.** Say so plainly and redirect
-them to a better-matched next step:
+first judge whether the migration can be **demonstrated to run**, not just read:
+have you applied it _upgrade and downgrade_ against all three supported dialects
+(PostgreSQL, MySQL/MariaDB, SQLite), on a database that already contains rows, and
+confirmed `alembic heads` still returns a single head? A data migration also needs
+a timing on a non-trivial table — an unbounded `UPDATE` looks identical in a diff
+whether it takes a second or locks a production table for an hour.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large or careless change here wastes scarce maintainer review time and, if it
+A large or unverified change here wastes scarce maintainer review time and, if it
 slips through into a release, cannot be taken back — it can only be patched
-forward. Building standing first is faster for everyone.
+forward.
 
 ## Review criteria
 
-Mined from real review discussion and the post-merge fix history on this area —
-the changes reviewers repeatedly required, and the reasons changes here get
-reworked or reverted. **If you are preparing a change here, treat this as a
+Mined from real review discussion on ~155 merged and 79 closed-unmerged PRs
+touching this area, plus the post-merge fix history — the changes reviewers
+repeatedly required, and the reasons changes here get closed, reworked, or
+reverted. **If you are preparing a change here, treat this as a
 pre-flight checklist and fix every applicable item _before_ opening the PR.**
 Triage applies the same list: a PR that lands with unmet items is drafted back to
 its author with the specific gaps. Ordered by how often reviewers raise each.
 
+**Before you write the revision — is a migration the right answer at all?**
+_(the most common reason a PR here is closed; see ADR 0004 and ADR 0005)_
+
+- [ ] **A new index must serve a query Airflow itself issues.** Follow
+      [`models/adr/0004`](../models/adr/0004-deployment-specific-indexes-are-documented-not-shipped.md),
+      which is authoritative (this area's
+      [`adr/0004`](adr/0004-metadata-database-indexes-are-a-deployment-choice-not-a-schema-change.md)
+      points at it and adds the upgrade-window cost). Name the Airflow call site,
+      or carry before/after `EXPLAIN ANALYZE` at a stated row count. Airflow ships
+      no tooling to add or configure metadata indexes — a deployment's own index
+      is applied by the operator, per the performance-tuning documentation.
+- [ ] **Fix the query before adding an index** — a non-sargable predicate or an
+      N+1 pattern is fixed where it is written; an index beside it hides the defect
+      and keeps the cost permanently.
+- [ ] **Don't widen a column to make an observed value fit.** Establish first why
+      the value is stored there at all — sensitive, short-lived, or
+      externally-controlled values get removed from the write path instead. A new
+      length limit that is as arbitrary as the old one will be questioned.
+- [ ] **Enumerate every consumer before dropping a table, column, or model** —
+      including indirect ones outside the metadata DB (log-file path templates,
+      remote log readers). "Only this one component uses it" is the assumption that
+      gets these closed.
+- [ ] **One field report is not a systemic defect.** Schema hardening against a
+      failure seen once in years of a feature's life is declined; revisit if reports
+      accumulate.
+- [ ] **Check whether the direction is already agreed or already landed on
+      `main`** — several migration PRs here were closed as superseded by work
+      already merged, or by a decision already taken on the dev list. A competing
+      _open_ PR is not a reason to close either one; Airflow allows parallel work
+      and the better PR wins.
+
 **Immutability & the release boundary (the defining constraint here):**
 
-- [ ] **Never edit a migration that has shipped in a released version** — released
-      revisions are frozen history; a user who already ran revision _X_ will never
-      re-run it. Correct a released migration with a _new_ forward revision, not by
-      rewriting it. Only an **unreleased** revision may be edited or dropped.
-- [ ] **Keep a single linear head.** The new revision's `down_revision` points at
-      the current head and becomes the new head; `alembic heads` must return
-      exactly one. Rebase your revision onto the latest head rather than forking a
-      second head that then needs an `alembic merge`.
-- [ ] **Don't retro-fit a fix by mutating chain metadata carelessly** — moving a
-      change to a different target version ("retcon") is occasionally legitimate
-      _only_ while unreleased and must keep the chain linear and consistent.
+- [ ] Follow [`adr/0001`](adr/0001-a-released-migration-is-immutable-fix-forward.md) —
+      a released revision is frozen and is corrected by a **new forward revision**;
+      only an unreleased revision may be edited, dropped or retargeted; the chain
+      keeps a single linear head.
+- [ ] **The one exception: a released revision that _cannot complete_.** If its
+      `upgrade()` raises or its `downgrade()` errors, no forward revision can
+      reach the failure — repair it in place, make the repair idempotent for
+      databases that already ran it cleanly, and say in the PR which failure it
+      fixes (`#66016`, `#65288`, `#65688`). A revision that runs but writes wrong
+      data is _not_ this case; that is fixed forward.
+- [ ] **Spell out who _skips_ your fix if you edit an old revision.** The failure is
+      silent and asymmetric: a deployment that already migrated past revision _X_
+      never replays it, so it keeps the old (wrong) column shape forever, while a
+      deployment migrating from further back picks the fix up.
 
 **Cross-backend correctness & reversibility:**
 
-- [ ] **Provide and test a real `downgrade()`** that restores the prior schema and
-      data shape — not a stub. Operators downgrade; a missing or lossy downgrade is
-      a defect, not an optimization.
-- [ ] **Works on PostgreSQL, MySQL _and_ SQLite.** No engine-specific DDL that
-      breaks another backend. Use `op.batch_alter_table(...)` for alter/drop/
-      constraint changes (SQLite cannot `ALTER` in place); route type choices
-      through `db_types.py`; quote MySQL-reserved keywords.
-- [ ] **Handle SQLite foreign keys correctly** — run DML _inside_
-      `disable_sqlite_fkeys(op)` where needed and mind that SQLite enforces FKs
-      during batch table recreation; missing or mis-ordered FK handling is a
-      recurring downgrade break.
-- [ ] **Mind backend-specific limits and objects** — MySQL row/sort-buffer limits
-      and reserved words, Postgres sequences/autoincrement restored on downgrade,
-      JSONB conversions guarded against invalid input.
+- [ ] Follow [`adr/0002`](adr/0002-migrations-run-on-three-backends-and-must-be-reversible.md) —
+      the revision runs on PostgreSQL, MySQL and SQLite (`batch_alter_table`,
+      `db_types.py`, quoted reserved words, `disable_sqlite_fkeys` around DML),
+      ships a real round-tripped `downgrade()`, and chains onto the single head.
+- [ ] **A deliberately one-way data change is allowed if the docstring says so** —
+      filling `NULL`s with defaults cannot be reversed; state that in the
+      `downgrade()` docstring rather than pretending to restore it (see
+      `0108_3_2_0_fix_migration_file_ORM_inconsistencies.py`).
 
 **Data migrations at scale:**
 
-- [ ] **Batch bulk data changes** — no unbounded one-shot `UPDATE` on a large user
-      table, no per-row Python loop where set-based SQL will do. Bound the work,
-      commit between batches, and prefer SQL over deserialize-in-Python passes.
-- [ ] **Backfill required columns and keep transactions bounded** — a new
-      non-nullable column needs a default/backfill so existing rows stay valid;
-      don't hold one giant transaction across the whole table.
+- [ ] Follow [`adr/0003`](adr/0003-large-data-migrations-must-be-batched-and-stay-in-sync-with-models.md) —
+      batch bulk changes with bounded transactions, prefer set-based SQL to
+      per-row Python, and backfill a new non-nullable column so existing rows stay
+      valid.
 
 **ORM & serialization parity:**
 
@@ -158,14 +189,24 @@ its author with the specific gaps. Ordered by how often reviewers raise each.
       `# noqa`-suppressed.
 - [ ] **Regenerate the migration reference** (`run_migration_reference.py`) so the
       docs/dependency graph stay in sync with the new head.
-- [ ] **Newsfragment only for genuinely user-facing** schema changes, not internal
-      corrective revisions.
-- [ ] **Follow the PR template**, disclose AI assistance, and show the backend(s)
-      you tested on — a migration "tested on SQLite only" is not tested. Track
-      deferred work in a GitHub issue; take contentious schema changes to the
-      devlist / a second reviewer.
+- [ ] **Keep the revision small and land it quickly — migration PRs rot faster than
+      any other kind.** Every revision merged by someone else moves the head and puts
+      your branch in conflict, so a PR that sits in review accumulates rebases until
+      it is abandoned. Several PRs here died of exactly that, not of a review
+      objection. Split the schema change away from unrelated refactoring, and rebase
+      the moment a conflict appears rather than waiting for a reviewer.
+- [ ] **Say what happens to existing serialized Dag data** when the revision touches
+      the serialized-Dag / `DagVersion` contract, in **both** directions. Deleting
+      serialized rows to make a migration simple loses real run history and has been
+      rejected before; downgrades below the version that changed the contract need an
+      explicit answer, not silence.
+- [ ] **Show the backend(s) you tested on** — a migration "tested on SQLite only"
+      is not tested.
 
-> Mined from PR review and post-merge fix history; the sample skews to the
+> The closed-unmerged sample is dominated by three classes: proposed indexes
+> without measurements, schema widenings that stood in for a root-cause fix, and
+> revisions that simply rotted against a moving Alembic head. Mined from PR review
+> and post-merge fix history; the sample skews to the
 > Airflow-3 era (the deadline-alert, AIP-103 task/asset-store, and multi-team
 > schema work drove most recent migrations), so older pre-3.0 conventions are
 > under-represented. Extend as new patterns emerge, and add an equivalent

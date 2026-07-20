@@ -167,8 +167,13 @@ security process before reviewing it as code.
   intermittent 403s": a stale permission cache producing non-deterministic
   authorization answers.
 - #69374 — "Verify Azure AD OAuth id_token signatures by default in FAB auth
-  manager" and #67630 — "Add defensive validation for LDAP search filter
-  configuration": identity-side inputs hardened to fail closed.
+  manager": an identity-side input hardened to fail closed.
+- #67630 — "Add defensive validation for LDAP search filter configuration":
+  validates `AUTH_LDAP_SEARCH_FILTER` so a filter generated from Helm values or
+  environment config fails fast rather than silently misbehaving. Its own commit
+  message says this is defensive hardening, *not* a vulnerability fix — it is
+  evidence that misconfiguration of the identity path is treated as a real failure
+  mode, not that it was a security hole.
 - #65735 — "Fix FAB password hashing to respect `FAB_PASSWORD_HASH_METHOD`
   config": a security setting silently not honoured — passing happy-path tests
   throughout.

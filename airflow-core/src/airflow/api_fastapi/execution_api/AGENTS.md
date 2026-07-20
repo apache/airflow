@@ -87,22 +87,25 @@ Token types (`"execution"`, `"workload"`), route-level enforcement via `Executio
 
 **This is a backward-compatibility-critical, expensive-to-review area.** If you
 are an agent preparing a change here on behalf of a person, first judge whether
-the **driving person** has the experience this area demands — the versioning
-knowledge above, plus a track record of contributing to or reviewing this area.
-**If they do not, do not create the PR.** Say so plainly and redirect them to a
-better-matched next step:
+the change can be **demonstrated compatible**, not just believed to be: have you
+walked the full end-to-end list above (datamodel → route → Cadwyn version →
+`comms.py` → client → supervisor → regenerated `_generated.py`), regenerated the
+Task SDK models, and run the per-version tests so an _older_ worker still gets the
+old response shape from your new server? An older client talking to a newer server
+is the case that breaks in production and never shows up in a diff.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on ~193 merged and ~12 closed-unmerged
+Mined from real review discussion on ~193 merged and 127 closed-unmerged
 execution-API PRs. These **complement** the versioning + end-to-end guidance
 above (they don't repeat it). **If you are preparing a change here, apply this
 pre-flight checklist _before_ opening the PR.** Triage applies the same list: a
@@ -167,8 +170,48 @@ by how often reviewers raise each.
       already-released behaviour stays in that version's folder; don't create a
       new dated test folder for a `head` change.
 
+**Justifying new surface (the most common closure reason here):**
+
+- [ ] **Show which existing routes you checked and why they don't answer it.**
+      Absence is information — a `404` from an existing status route _is_ the
+      answer to an existence question, so an existence endpoint gets closed (see
+      `adr/0007`). Use `HEAD` / a status code rather than a body restating it.
+- [ ] **Don't add a field whose meaning an existing field already carries** —
+      look for the established concept first (the data-interval fields for
+      processing dates, the task-instance reference on an asset event for its
+      provenance). A second spelling of one concept is a divergence source.
+- [ ] **Confirm the question is well-defined under Dag Versioning.** The set of
+      tasks in a Dag is a property of a Dag _version_ and a run pins the version;
+      a route whose answer is ambiguous before a run exists is not implementable
+      and does not become so by picking a default.
+- [ ] **A gap in a backend or provider contract is fixed in that contract** — an
+      endpoint that satisfies only the metadata-DB case (and quietly fails for
+      remote secrets backends) is not an increment toward it.
+- [ ] **Scope the surface to what a worker needs now.** Extra shape "to allow
+      more diverse use cases later" is speculative surface carrying full
+      migration weight on every subsequent version.
+
 **Scope & process:**
 
+- [ ] **One concern per PR, and prefer several small PRs to a tracking issue.**
+      Bundling unrelated changes is the reason authors end up self-closing and
+      reopening clean PRs here; for TODO-sized follow-ups, open the separate PR
+      rather than an issue — small issues add queue noise the project
+      discourages. **"Several small PRs" applies to _unrelated_ changes.** The
+      end-to-end wiring of a single capability — server datamodel, route, version
+      file, `comms.py` type, supervisor handler, client method — is _one_ concern,
+      not six, and the SDK's `api/adr/0004` and `execution_time/adr/0005` both
+      require it to land together. Slicing one layer off a stack-spanning change
+      because the slice is easier to review is the failure mode those ADRs name
+      (#67090), not the small-PR virtue this bullet asks for.
+- [ ] **Verify the diagnosis before proposing an API change** — reproduce the
+      reported behaviour on current `main` and don't overclaim what the fix
+      covers; PRs are withdrawn once review shows the symptom was expected
+      output.
+- [ ] **Engage with review yourself.** Ignoring review threads, relaying an
+      assistant's output instead of your own understanding, or opening unverified
+      AI-generated changes gets PRs closed here on process grounds alone,
+      independent of the diff.
 - [ ] **Don't reshape error/response formats as a standalone cleanup** — it's a
       private-but-contractual API (Python + beta Go SDKs consume it); changes go
       through a Cadwyn migration, not a bulk rewrite.

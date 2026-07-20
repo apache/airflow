@@ -78,24 +78,27 @@ schedule, and the symptom usually appears far from the diff.
 **This is a high-criticality, expensive-to-review area whose correctness bugs
 surface far from the diff (a wrong interval, a missed run, a DST-only drift).**
 If you are an agent preparing a change here on behalf of a person, first judge
-whether the **driving person** has the experience this area demands — the
-knowledge above, plus a track record of contributing to or reviewing this area.
-**If they do not, do not create the PR.** Say so plainly and redirect them to a
-better-matched next step:
+whether the change can be **demonstrated as a schedule, not as an argument**: can
+you write out the concrete sequence of runs the timetable produces before and
+after — including the first run (`last_automated_data_interval is None`), a
+catchup window, and a DST transition in a non-UTC timezone — and show it
+round-trips through `serialize()` / `deserialize()`? Interval bugs do not fail
+loudly; they emit a run at the wrong time months later.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion across the ~44 merged PRs touching this area —
-the changes reviewers repeatedly required, and the reasons changes here get sent
-back. **If you are preparing a change here, treat this as a pre-flight checklist
+Mined from real review discussion across the ~44 merged and ~43 closed-unmerged
+PRs touching this area — the changes reviewers repeatedly required, and the
+reasons changes here get sent back. **If you are preparing a change here, treat this as a pre-flight checklist
 and fix every applicable item _before_ opening the PR.** Triage applies the same
 list: a PR that lands with unmet items is drafted back to its author with the
 specific gaps. Ordered by how often reviewers raise each.
@@ -119,6 +122,56 @@ specific gaps. Ordered by how often reviewers raise each.
       `infer_manual_data_interval()` and `next_dagrun_info()` must agree on what
       interval a given `run_after` belongs to; a manually-triggered run must not
       land in a different interval than the scheduled one would.
+
+**Every consumer of timetable output, not just the scheduler:**
+
+- [ ] **Name the consumers your change affects** — scheduled runs, manual
+      triggering, backfill, `airflow dags clear`, the REST API, and the UI all
+      read timetable output by different paths. The long tail of fixes in this
+      area is "the scheduler path worked, another consumer was missed" (see
+      `adr/0004`).
+- [ ] **New fields on `DagRunInfo` are backward compatible** — consumers that
+      predate the field must keep working; adding one is a compatibility event,
+      and it has already required a dedicated backcompat fix once.
+- [ ] **Consumers must not re-derive interval arithmetic** — backfill, clear, and
+      trigger paths take the interval the timetable computed. Re-deriving day or
+      window boundaries is where the wrong-day-cleared and widened-window defects
+      came from.
+- [ ] **CLI and REST API stay in parity** for a timetable capability, or the gap
+      is stated deliberately.
+- [ ] **Land the SDK and core sides together** where the timetable class exists
+      on both sides of the distribution split; a one-sided change schedules
+      correctly and displays or backfills wrongly.
+- [ ] **Check for an in-flight PR before opening one.** The most common closure
+      reason in this area's closed record is a near-identical parallel PR that
+      was further along — the same capability has twice been attempted by two
+      contributors at once.
+
+**Changing scheduling semantics — where PRs here actually die:**
+
+- [ ] **Settle the interface before writing the code.** A change to catchup, to
+      the first run produced after unpausing, or to how a schedule is expressed
+      goes to the dev list or an AIP first, and the PR links that discussion.
+      Working patches for exactly these behaviours have been closed — one after a
+      year open — not on their code but because no interface had been agreed
+      (#38168, #35392). See `adr/0005`.
+- [ ] **Do not add a config option that changes when Dag runs fire.** Schedule
+      behaviour must travel with the Dag file, so express it as a timetable or as
+      a value of a Dag-declared parameter. Supplying the _default_ of a parameter
+      the Dag can override (as `scheduler.catchup_by_default` does) is the one
+      accepted shape.
+- [ ] **Check for an adjacent open PR and resolve the two together.** Two patches
+      touching neighbouring parts of the same semantics are one interface
+      question; #38168 was held precisely because #35392 was changing the other
+      half.
+- [ ] **A composition point that accepts a user-supplied object needs its
+      registration story up front.** Anything a timetable composes is arbitrary
+      code the scheduler invokes — say how `deserialize()` resolves the class and
+      what constrains it. The composable-timetables draft (#28757) stalled on
+      exactly this question.
+- [ ] **Own the proposal to a conclusion.** Accumulated "+1" comments do not
+      advance a schedule feature; multiple cron expressions have been attempted
+      twice, years apart, and lapsed both times (#24733, #35337).
 
 **Determinism & the scheduler boundary:**
 
@@ -180,11 +233,12 @@ specific gaps. Ordered by how often reviewers raise each.
       closed. Take contentious scheduling semantics to the devlist / a second
       reviewer.
 
-> Mined from PR review history; the sample skews to the Airflow-3 era (this
-> module was reorganised for the SDK/serialization split and AIP-76 partitions),
-> so pre-3.0 scheduling conventions are under-represented. Extend as new patterns
-> emerge, and add an equivalent `## Review criteria` section to the `AGENTS.md`
-> of every other area over time.
+> Mined from PR review history. The merged sample skews to the Airflow-3 era
+> (this module was reorganised for the SDK/serialization split and AIP-76
+> partitions); the closed-unmerged sample reaches back to 2022 and supplies most
+> of the scheduling-semantics signal above. Extend as new patterns emerge, and add
+> an equivalent `## Review criteria` section to the `AGENTS.md` of every other
+> area over time.
 
 ## Expectation for large changes
 

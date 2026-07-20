@@ -71,6 +71,13 @@ additions, treating the parameter surface as a public contract:
 - **A reusable filter/param lives here exactly once.** A new filter that more than
   one route needs is added as a shared class or `*_factory`, not copied inline into
   a route — three near-duplicate copies drift.
+- **The converse is equally true: a filter only one route needs stays in that
+  route.** This layer is expensive precisely because it is high-fan-in; every class
+  added to it is mounted, generated into the SDKs, and maintained for everyone.
+  A genuinely single-route filter promoted here buys nothing and costs contract
+  surface. The trigger for promotion is a *second* route needing it, or an
+  identical inline copy already existing elsewhere — not the possibility that one
+  might.
 - **Dialect coverage is part of the contract.** A change to SQL generation holds for
   SQLite, MySQL, and PostgreSQL, because the same helper serves all deployments.
 
@@ -92,8 +99,10 @@ A change **violates** this decision when it:
 - alters an existing shared `to_orm` / `paginated_select` / factory in a way that
   silently re-behaves current callers instead of adding an opt-in, safely-defaulted
   extension;
-- copies a filter/param inline into a route instead of adding it once as a shared
-  class/factory, creating a near-duplicate that will drift;
+- writes a filter/param inline in a route when an equivalent one already exists
+  here, or when another route in the same PR needs the same thing — creating a
+  near-duplicate that will drift (a filter used by exactly one route is correctly
+  left in that route);
 - changes SQL generation in a way that only holds for one backend, breaking the
   other supported dialects the shared helper serves.
 

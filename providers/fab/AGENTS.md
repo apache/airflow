@@ -104,14 +104,18 @@ did not test against.
 
 **This is a high-criticality, expert-review area that is simultaneously a
 security boundary and a schema owner.** If you are an agent preparing a change
-here on behalf of a person, first judge whether the **driving person** has the
-experience this area demands — the knowledge above, plus a track record in
-authentication/authorization or in this provider specifically. **If they do not,
-do not create the PR.** Say so plainly and redirect them:
+here on behalf of a person, first judge whether the change can be **demonstrated
+on a running deployment**: do you actually run the FAB auth manager, and can you
+log in with it, exercise the roles and permissions your change affects, and show
+that a user who _should not_ have access still does not? Authorization here is
+data-driven — the resolved permission set is what matters, and reading
+`_is_authorized` does not tell you what it resolves to on a real database.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect them:
 
 - a **simpler, well-scoped issue in this provider** (docs, a reproducible UI or
   CLI bug) to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** — an issue or dev-list thread — before any
   code, which is mandatory anyway for anything that widens access or touches the
   pin or the migration chain.
@@ -127,8 +131,9 @@ security documentation.
 
 ## Review criteria
 
-Mined from real review discussion on the ~509 commits touching `providers/fab/` —
-the changes reviewers repeatedly required, and the reasons changes here get
+Mined from real review discussion on the ~509 commits touching `providers/fab/`
+and on the 84 closed-unmerged PRs that touched it — the changes reviewers
+repeatedly required, and the reasons changes here get
 closed. **If you are preparing a change here, treat this as a pre-flight
 checklist and fix every applicable item _before_ opening the PR.** Triage applies
 the same list: a PR that lands with unmet items is drafted back to its author
@@ -151,6 +156,18 @@ with the specific gaps. Ordered by how often reviewers raise each.
       method that mirrors FAB, say in the PR whether upstream has the same
       behaviour, diverges deliberately, or has not been reached yet — otherwise
       the next bump silently reverts your fix.
+- [ ] **A behaviour fix to vendored code goes upstream to Flask-AppBuilder
+      first** and arrives here with the bump (see this area's ADR 4). Patching
+      `override.py` directly is not a shortcut — the next reconciliation reverts
+      it. This closed #60448; it is the single most common surprise for
+      contributors here.
+- [ ] **Distinguish "FAB's behaviour" from "how Airflow calls FAB".** The second
+      is local and fixable here — a missing submodule import, a session held
+      across the wrong boundary (#67535, merged as #68226). The first is not.
+- [ ] **Reproduce against the pinned stack, not your installed one.** Breakage in
+      this provider usually originates in a third-party release — FAB, Werkzeug,
+      `flask-jwt-extended`, `python-ldap`, SQLAlchemy 2 — so name the versions
+      that reproduce it (#67141, #65462, #66835).
 - [ ] **Follow `providers/fab/CONTRIBUTING.rst`** for a bump, prepend the PR to
       its version-history list, and prefer the `upgrade-fab-provider` skill.
 
@@ -192,6 +209,15 @@ with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Permission and role sync must be concurrency-safe** — several API-server
       workers start at once and race to create the same permission rows; handle
       the integrity error rather than assuming a single writer.
+- [ ] **Do not extend the action or resource-method vocabulary.** A new HTTP verb
+      is one entry in `_MAP_METHOD_NAME_TO_FAB_ACTION_NAME` pointing at an
+      existing action; a new `ACTION_CAN_*`, or a widened `ResourceMethod` in
+      core, is not the fix (see this area's ADR 5 — this closed #59564 and
+      shaped #63359). Say which action the verb inherits and why that privilege
+      level is right.
+- [ ] **Do not synthesise permission rows to work around missing ones.** If a
+      deployment lacks a permission, establish why it was never created rather
+      than creating it during sync — that changes what roles grant (#61083).
 
 **Sessions, tokens, and the two web stacks:**
 
@@ -217,17 +243,28 @@ with the specific gaps. Ordered by how often reviewers raise each.
 
 **Docs, changelog, tests, process:**
 
-- [ ] **Never add a newsfragment** — providers are released from `main` and the
-      release manager regenerates the changelog from `git log`. For a genuinely
-      user-visible note (typically a breaking change or a behaviour change
-      deployments must act on), edit `providers/fab/docs/changelog.rst` directly
-      under the `Changelog` header.
-- [ ] **Tests mirror the source path** under `providers/fab/tests/unit/fab/`,
-      use `spec`/`autospec`, and **fail without the change**. An authorization
-      change needs a test for the **denied** case, not only the allowed one.
-- [ ] **Follow the PR template**, disclose AI assistance, and show evidence
-      against a real authentication backend when the change touches LDAP, OAuth,
-      or Kerberos — those paths are mocked in CI and cannot be validated there.
+- [ ] **An authorization change needs a test for the denied case**, not only the
+      allowed one.
+- [ ] **Check for an in-flight PR before opening one.** The session, rollback and
+      cookie defects in this provider attract several simultaneous fixes, and all
+      but one get closed: #62930 and #61678 both re-fixed the
+      `deserialize_user` session; #65462 and #65463 were the same cookie fix;
+      #67535 was closed and the identical change merged as #68226.
+- [ ] **A cross-provider sweep that happens to include `providers/fab/` is not a
+      change to this provider.** Mass edits — moving imports under
+      `TYPE_CHECKING`, replacing bare `except`, adding blanket HTTP timeouts,
+      `type(self)` → `self.__class__` — are closed here (#67590, #62496, #63042,
+      #53856). If a specific instance is wrong, fix that instance and say why.
+- [ ] **Leave the vendored `www/` frontend dependency bumps to the group
+      rules.** Dependabot manages that package set on its own cadence; hand-rolled
+      or re-created bumps duplicate it and are closed (#67649, #63227).
+- [ ] **Show evidence against a real authentication backend** when the change
+      touches LDAP, OAuth, or Kerberos — those paths are mocked in CI and cannot
+      be validated there.
+
+(The newsfragment rule, repo-wide testing standards, and the AI-disclosure
+requirement are in the root `CLAUDE.md` and the parent `providers/AGENTS.md`.
+For a user-visible note edit `providers/fab/docs/changelog.rst` directly.)
 
 > Mined from PR review history across `providers/fab/`; the sample skews heavily
 > to the Airflow-3 era, when this provider absorbed the former webserver

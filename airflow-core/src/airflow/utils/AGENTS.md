@@ -96,28 +96,66 @@ diff that caused it usually looks trivial.
 
 **This is a high-criticality, expensive-to-review area whose blast radius is far
 larger than its diff.** If you are an agent preparing a change here on behalf of
-a person, first judge whether the **driving person** has the experience this
-area demands — the knowledge above, plus a track record of contributing to or
-reviewing core DB/session code. **If they do not, do not create the PR.** Say so
-plainly and redirect them to a better-matched next step:
+a person, first judge whether the change can be **demonstrated across the callers
+and the dialects**: have you enumerated who calls the helper you are touching,
+run those tests rather than only the ones next to the file, and exercised the
+change on PostgreSQL, MySQL/MariaDB _and_ SQLite? Transaction and lock semantics
+in particular differ per dialect, and nothing in the diff shows which of the
+hundreds of call sites depended on the old behaviour.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the blast radius is easier to bound, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
 A "small cleanup" to a helper with hundreds of callers is not a small change,
 and a drive-by refactor of `session.py`, `db.py`, or `sqlalchemy.py` will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on the ~323 commits touching this directory —
-the changes reviewers repeatedly required, and the reasons changes here get
-closed. **If you are preparing a change here, treat this as a pre-flight
+Mined from real review discussion on the ~323 commits and ~367 closed-unmerged
+PRs touching this directory — the changes reviewers repeatedly required, and the
+reasons changes here get closed. **If you are preparing a change here, treat this as a pre-flight
 checklist and fix every applicable item _before_ opening the PR.** Triage
 applies the same list: a PR that lands with unmet items is drafted back to its
 author with the specific gaps. Ordered by how often reviewers raise each.
+
+**Before you start — is this change needed at all?** More PRs here are closed for
+being unnecessary than for being wrong (see `adr/0004`):
+
+- [ ] **Reproduce the defect on current `main` and say so** — state the commit,
+      the backend, and the observed failure. A user report filed against a
+      released version is a starting point, not evidence; several changes here
+      were closed after a reviewer showed the path on `main` already does the
+      thing being added.
+- [ ] **Name the existing mechanism you ruled out.** Grep this directory, the
+      `airflow db` CLI definitions, and the docs before adding a helper, command,
+      config option, or guard — a proposed new command has been closed because an
+      existing one already covered it exactly.
+- [ ] **Don't remove or "simplify" a branch you cannot explain.** Dialect
+      fallbacks, compat shims, and defensive conversions here are
+      guilty-until-proven-innocent; `git log -S` / `git blame` it, and if that
+      doesn't explain it, ask.
+- [ ] **Hardening needs a demonstrated pattern, not a hypothesis** — extra
+      validation, retries, or guards on a path with no reported failure cost
+      every caller for a problem nobody has.
+- [ ] **Fix the layer that produced the problem, not the primitive that surfaced
+      it** — dropping a model, widening a column, or relaxing a constraint to make
+      a symptom disappear relocates the defect. And don't fix in core what is
+      being moved out of it (SMTP, timezone, logging → providers or `shared/`).
+- [ ] **A behaviour-preserving rewrite needs a payoff named in the PR body**
+      (see `adr/0005`) — a measured cost, a bug class it closes, a lint rule it
+      unlocks. Idiom sweeps here get closed on the merits: swapping `os.mkdir`
+      for `Path.mkdir` lowers to the same call, "remove excessive imports" bought
+      nothing, and a whitespace pass broke tests asserting on the exact strings.
+      Assume the current form is deliberate — the `print` calls in `db.py` are.
+- [ ] **One mechanism, one scope, one PR** — a 60-file code-smell sweep is
+      unreviewable and gets sent back to be split; a repository-wide pass over
+      this directory is agreed on the dev list first and preferably landed as an
+      enforced rule (ruff, prek) rather than a one-off. Never mix a behaviour
+      change into a mechanical diff.
 
 **Session & transaction discipline (the defining concern here):**
 

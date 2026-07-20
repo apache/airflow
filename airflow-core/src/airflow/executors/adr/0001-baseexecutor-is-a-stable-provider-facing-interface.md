@@ -67,7 +67,7 @@ Treat the public surface of `BaseExecutor` as a stable, provider-facing API:
   same change that introduces the replacement.
 
 Generic executor behaviour belongs on `BaseExecutor` so providers inherit it
-rather than re-declaring their own copies of the same surface.
+rather than redeclaring their own copies of the same surface.
 
 ## Consequences
 
@@ -87,5 +87,15 @@ rejected.
 
 ## Evidence
 
-- #62645 — Move ExecutorCallback execution into a supervised process (touches the executor callback surface that providers inherit).
-- #63482 — Unify executor workload queues with tier-based scheduling (a "unify" change that had to stay additive on the BaseExecutor surface).
+- #62645 — Move ExecutorCallback execution into a supervised process (touches the
+  executor callback surface that providers inherit).
+- #63482 — "Unify executor workload queues with tier-based scheduling": the
+  reject-shaped example, and the clearest one in this area. It renamed fields on
+  `BaseExecutor`, which every provider executor inherits. A reviewer's entire
+  response was *"Sorry, this is not possible. This breaks compatibility between
+  providers and core"*, with the version-mix case spelled out — upgrade core, leave
+  the providers, and the renamed fields break. **The PR was closed unmerged.** A
+  second reviewer supported the direction and asked what it would take to make it
+  back-compatible; the successor, #63491, keeps the old names working via
+  `@property` — the shim this ADR prescribes — and is still open at the time of
+  writing.

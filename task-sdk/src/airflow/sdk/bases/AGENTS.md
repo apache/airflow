@@ -90,25 +90,30 @@ diff in front of the reviewer.
 
 **This is a critical, expensive-to-review area: it is the inheritance surface that
 every user operator and all ~100 provider packages subclass.** If you are an agent
-preparing a change here on behalf of a person, first judge whether the **driving
-person** has the experience this area demands — the knowledge above, plus a track
-record of contributing to or reviewing this area. **If they do not, do not create
-the PR.** Say so plainly and redirect them to a better-matched next step:
+preparing a change here on behalf of a person, first judge whether the change can
+be **demonstrated not to break subclasses**: have you run existing operators —
+your own _and_ provider operators that subclass this — against the change, and
+shown that `default_args` precedence, templating and the deprecation path still
+behave as they did? Everything downstream inherits from here, so the interesting
+breakage is in code that is not in this diff and often not in this repository.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the blast radius is easier to bound, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone. A change to what a base-class contract _means_ to subclasses
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`). A change to what a
+base-class contract _means_ to subclasses
 — not just what it does internally — needs an AIP or a devlist thread, not a bare
 PR.
 
 ## Review criteria
 
-Mined from real review discussion on ~112 commits touching this area — the
-changes reviewers repeatedly required, and the reasons changes here get closed.
+Mined from real review discussion on ~112 merged commits and 23 closed-unmerged
+PRs touching this area — the changes reviewers repeatedly required, and the
+reasons changes here get closed.
 **If you are preparing a change here, treat this as a pre-flight checklist and fix
 every applicable item _before_ opening the PR.** Triage applies the same list: a
 PR that lands with unmet items is drafted back to its author with the specific
@@ -132,6 +137,21 @@ gaps. Ordered by how often reviewers raise each.
       lifecycle contract is an architecture decision. New authoring surface here
       landed through AIPs (AIP-76 partitions, AIP-105 retry policies, AIP-103
       accessors), not a drive-by diff.
+
+- [ ] **New validation must not reject Dags that parse today.** A check added in
+      `__init__`, `BaseOperatorMeta`, or `decorator.py` that turns a currently
+      legal Dag into a parse error is a non-starter — even when the input it
+      rejects is a mistake and the new message is clearer. Warn, don't raise (see
+      `adr/0004`).
+- [ ] **Validation of a field consumed by pluggable machinery must hold for every
+      implementation** — `executor_config` and similar are interpreted by all
+      executors, not the one that motivated the check; if it can't cover them,
+      the check belongs in that implementation.
+- [ ] **Verify the reproducer before changing semantics.** Run the linked issue's
+      repro against current `main` and confirm it fails. Changing skip, branch,
+      poke, reschedule, or mixin behaviour on a repro that doesn't reproduce
+      alters outcomes for everyone and fixes nobody — and don't claim `closes:`
+      on an issue the diff doesn't actually address.
 
 **Declarative-at-parse-time & serialization parity:**
 

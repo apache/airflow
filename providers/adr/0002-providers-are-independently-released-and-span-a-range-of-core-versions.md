@@ -71,7 +71,8 @@ constraints on every provider change.
   constants from another provider or from test helpers.
 - **Share compat shims only through `common.compat`**, which exists for exactly
   that purpose — not by importing a helper out of an unrelated provider.
-- **Never add a newsfragment for a provider.** A user-facing note goes into
+- **Never add a newsfragment under `providers/`, and never add one for a
+  provider-only change.** A user-facing note goes into
   `providers/<provider>/docs/changelog.rst`, directly under the `Changelog`
   header, as the in-file `NOTE TO CONTRIBUTORS` block describes. Routine entries
   are collected by the release manager from commit messages, so most PRs touch no
@@ -102,8 +103,11 @@ A change **violates** this decision when it:
   from test helpers instead of the provider's own copied `version_compat.py`;
 - reaches into an unrelated provider for a compat shim rather than using
   `common.compat`;
-- adds a newsfragment for a provider change, or puts a user-facing note anywhere
-  other than `providers/<provider>/docs/changelog.rst`;
+- adds a newsfragment for a provider-only change, or adds one **under
+  `providers/`** at all — the prohibition is about the directory, not the word.
+  A PR whose substance is in `airflow-core/`, `chart/` or `dev/mypy/` and which
+  happens to touch a provider file still puts its newsfragment in that
+  distribution's own `newsfragments/`, which is correct and is not this bullet;
 - changes user-visible behaviour or removes a public argument, operator, or hook
   without flagging it as breaking and giving migration guidance.
 

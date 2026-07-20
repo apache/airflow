@@ -65,7 +65,9 @@ Every AWS API call in this provider is made through a client obtained from an
 
 - **No ad-hoc `boto3.client(...)`, `boto3.resource(...)` or
   `boto3.session.Session(...)` in operators, sensors, transfers, triggers,
-  notifiers, or utility modules.** Clients come from `hook.conn`,
+  notifiers, or utility modules** — with the two by-construction exceptions
+  named in the violations list, both of which run where no Airflow connection
+  exists. Clients come from `hook.conn`,
   `hook.get_conn()`, `hook.get_client_type()`, or the service hook's own typed
   accessor.
 - **The hook owns the whole resolution chain** — credentials, region,
@@ -101,8 +103,14 @@ Every AWS API call in this provider is made through a client obtained from an
 
 A change **violates** this decision when it:
 
-- constructs a `boto3` client, resource, or session directly outside
-  `base_aws.py` instead of going through a hook;
+- constructs a `boto3` client, resource, or session directly in an operator,
+  sensor, transfer, trigger, notifier, or hook helper, instead of going through
+  a hook. Two places are outside the hook layer by construction and are not
+  violations: `aws/utils/eks_get_token.py`, a standalone CLI entrypoint that
+  runs with the caller's ambient AWS environment variables and no Airflow
+  connection, and `aws/executors/aws_lambda/docker/app.py`, which runs inside
+  the Lambda image where no Airflow connection exists. Adding a *third* such
+  site needs the same argument made explicitly;
 - adds an operator, sensor, or trigger that omits `aws_conn_id`, `region_name`,
   `verify`, or `botocore_config`, or accepts them and does not forward them to
   the hook;

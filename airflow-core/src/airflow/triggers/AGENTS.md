@@ -83,26 +83,28 @@ tasks that have nothing to do with it.
 
 **This is a high-criticality, expensive-to-review area that runs user code on
 a shared event loop across a trust boundary.** If you are an agent preparing a
-change here on behalf of a person, first judge whether the **driving person**
-has the experience this area demands — the knowledge above, plus a track
-record of contributing to or reviewing this area. **If they do not, do not
-create the PR.** Say so plainly and redirect them to a better-matched next
-step:
+change here on behalf of a person, first judge whether the change can be
+**demonstrated on a running triggerer**: have you deferred a real task, watched
+your trigger run alongside others on the shared event loop, and shown what happens
+when it is cancelled, when the triggerer restarts mid-wait, and when the coroutine
+blocks? One synchronous call in this area stalls every deferred task in the
+deployment, and nothing in the diff shows which call blocks.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on the ~26 commits that have touched this
-area — the changes reviewers repeatedly required, and the reasons changes here
-get reworked or reverted. The sample is **small**, so treat this list as
-indicative rather than exhaustive. **If you are preparing a change here, treat
+Mined from real review discussion on the ~26 merged and ~30 closed-unmerged PRs
+that have touched this area — the changes reviewers repeatedly required, and the
+reasons changes here get reworked or reverted. The sample is **small**, so treat
+this list as indicative rather than exhaustive. **If you are preparing a change here, treat
 it as a pre-flight checklist and fix every applicable item _before_ opening
 the PR.** Triage applies the same list: a PR that lands with unmet items is
 drafted back to its author with the specific gaps. Ordered by how often
@@ -147,6 +149,46 @@ reviewers raise each.
       field or touching kwargs — template-field filtering and `trigger_kwargs`
       must survive the round-trip, and a field added to the trigger must
       actually reach the reconstructed instance.
+
+**Changing what a trigger or callback receives (the most revert-prone seam):**
+
+- [ ] **Name the route the new data arrives by** — serialized kwargs, an
+      Execution API fetch at execution time, or persisted state — and why the
+      other two do not fit. This path has been merged-then-reverted twice; a diff
+      confined to the trigger class looks complete and is not (see `adr/0004`).
+- [ ] **Prefer fetching at execution time over persisting context.** Storing
+      execution context in the metadata database so a callback can read it later
+      is the shape this area has repeatedly moved away from; three successive
+      attempts to build rendering on stored context were withdrawn.
+- [ ] **Say which field set is rendered, and when.** An operator's
+      `template_fields` and its trigger's attributes are distinct sets — rendering
+      one against the other has already produced a defect.
+- [ ] **Review the Execution API route and token scope with the change**, not
+      after, when the triggerer must call something new.
+- [ ] **Show end-to-end evidence** across defer, serialize, reconstruct, fetch,
+      and resume. A unit test on the trigger class is not sufficient here, and a
+      working local demonstration has not been either.
+- [ ] **Confirm the current state of this path before building on it** — the most
+      recent merged design in this seam has been reverted, so it is not
+      necessarily the one in effect.
+
+**Sync and deferrable paths stay separate:**
+
+- [ ] **Do not consolidate a sensor's deferrable and non-deferrable logic into one
+      implementation.** A PR merging `ExternalTaskSensor`'s two paths was turned
+      away on the principle that mixing sync and async logic does more harm than
+      good — the shared result is neither properly async nor simply synchronous
+      (#34464). Where a deferrable path needs synchronous work, wrap it with
+      `sync_to_async` and accept that the wrapped method is then unusable from the
+      sync implementation.
+- [ ] **New machinery on `BaseTrigger` must be adoptable by everything that
+      already subclasses it.** An attempt to add a default deferrable-continuation
+      entry point was withdrawn by its author because back-compat made it unusable
+      in practice, and shipping it flag-guarded — core code carrying switches that
+      say "do not use this yet" — was judged worse than not shipping it (#31691).
+      State how existing core and provider triggers adopt the change, including
+      what it does to subclasses that override the method with a different
+      signature.
 
 **Isolation & Execution-API boundary; at-least-once delivery:**
 
@@ -193,10 +235,11 @@ reviewers raise each.
       get closed. Track deferred work in a GitHub issue; take contentious
       semantics to the devlist / a second reviewer.
 
-> Mined from PR review history; the sample here is **small** (~26 commits) and
+> Mined from PR review history; the sample here is **small** and the merged half
 > skews to the Airflow-3 era — the AIP-86 async deadline-callback work and the
-> shared-stream / ack-mode redesign dominate it, so older deferral conventions
-> are under-represented. Extend as new patterns emerge, and add an equivalent
+> shared-stream / ack-mode redesign dominate it. The closed-unmerged half reaches
+> back to 2022 but is overwhelmingly inactivity closures and PRs superseded by a
+> replacement, so it yields little on top of the merged record. Extend as new patterns emerge, and add an equivalent
 > `## Review criteria` section to the `AGENTS.md` of every other area over time.
 
 ## Expectation for large changes

@@ -67,23 +67,26 @@ here has the widest blast radius in the repository — a bad change to
 
 **This is a high-criticality, widest-blast-radius area — one library feeds every
 distribution.** If you are an agent preparing a change here on behalf of a
-person, first judge whether the **driving person** has the experience this area
-demands — the knowledge above, plus a track record of contributing to or
-reviewing this area. **If they do not, do not create the PR.** Say so plainly and
-redirect them to a better-matched next step:
+person, first judge whether the change can be **demonstrated across every
+consumer**: have you enumerated which distributions link this library, run the
+shared library's own tests _and_ the tests of each consumer that symlinks it, and
+confirmed the import boundary still holds? A change here is not scoped to the
+directory it lives in — the file you edited is the same file every consumer sees.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the blast radius is easier to bound, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on ~185 merged PRs touching this area — the
-changes reviewers repeatedly required, and the reasons changes here get closed.
+Mined from real review discussion on ~185 merged and 58 closed-unmerged PRs
+touching this area — the changes reviewers repeatedly required, and the reasons
+changes here get closed.
 **If you are preparing a change here, treat this as a pre-flight checklist and
 fix every applicable item _before_ opening the PR.** Triage applies the same
 list: a PR that lands with unmet items is drafted back to its author with the
@@ -102,6 +105,31 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Don't quietly widen a library's public surface or dependencies** — a new
       third-party dependency in a shared library is paid by _every_ consumer that
       links it; justify it.
+- [ ] **Agree the scope before creating a new shared library or moving code into
+      one.** What belongs in `shared/` — and how it interacts with provider-side
+      code — is settled on the dev list or an issue first. A large extraction
+      proposed directly as a PR gets closed and redone against an agreed scope,
+      because the boundary, not the code motion, is the reviewable decision.
+- [ ] **A new shared surface must be justified against what already exists.** A
+      new hook, class, or metric that an existing one can express is closed —
+      reviewers ask what the existing surface cannot do before they consider the
+      addition, and "zero new surface" beats a small new one.
+
+**Vendor SDK initialisation belongs here, not in consumers:**
+
+- [ ] **Consumers must not _initialise_ a telemetry/vendor SDK.** Airflow is many
+      independent processes — scheduler, worker, Dag processor, triggerer — with
+      no shared in-memory constructor, so each must initialise the SDK itself, and
+      that initialisation lives once in the shared library
+      ([`adr/0004`](adr/0004-vendor-sdk-initialisation-is-centralised-in-the-shared-library.md)).
+      What is centralised is provider/exporter/sampler/resource setup, not the
+      vendor API: `trace.get_tracer(...)`, propagators and `StatusCode` are
+      ordinary application code and appear at a couple of dozen sites across
+      `airflow-core` and `task-sdk` today.
+- [ ] **Don't remove an abstraction here because it looks like indirection** —
+      the wrappers over vendor SDKs exist to carry cross-process setup and
+      multi-consumer versioning. Removing one is a design change: establish what
+      replaces the initialisation path before deleting it.
 
 **Import boundary (architecture invariant, not a preference):**
 
@@ -142,16 +170,39 @@ specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Backward / cross-version compatibility** — consumers may ship different
       versions of the library, so a released shape/behaviour can't be ret-conned;
       version-gate and keep a compat path.
+- [ ] **No repo-wide mechanical style sweeps.** A formatting or idiom change
+      applied across shared code is closed unless the underlying rule is already
+      agreed — reviewers have disagreed with the rule itself and dropped it by
+      lazy consensus rather than accept the sweep, and mechanical rewrites
+      (`type(self)` → `self.__class__` and similar) are rejected as change for
+      its own sake with real edge cases behind them.
+- [ ] **Check for an existing PR and confirm the bug still reproduces.** Closures
+      here are dominated by "already fixed" and by two contributors fixing the
+      same defect at once; a competing PR is not justified by the other one
+      having a failing test.
 - [ ] **Follow the PR template**, disclose AI assistance, show evidence of testing
       across affected consumers — low-effort / mass-AI-generated / near-duplicate
-      parallel PRs get closed. Take contentious boundary or security semantics to
-      the devlist / a second reviewer.
+      parallel PRs get closed, and an unreadable or clearly generated description
+      gets the PR closed on its own. Take contentious boundary or security
+      semantics to the devlist / a second reviewer.
 
 > Mined from PR review history; the sample skews to the Airflow-3 era (the
 > shared-library distributions were extracted during the airflow-core / task-sdk
 > split), so pre-split conventions are absent by construction. Extend as new
 > patterns emerge, and add an equivalent `## Review criteria` section to the
 > `AGENTS.md` of every other area over time.
+
+### What these documents are currently good for
+
+A validation pass ran this area's ADRs against the live open-PR queue and found
+**zero firings across 8 PRs**. That is recorded here deliberately, as a finding
+rather than a gap: the shared tree's open work — mostly metric and hook
+additions — sits comfortably inside the boundaries these ADRs draw, so the
+documents currently function as _review guidance and onboarding context_, not as
+a mechanical gate. Do not read the absence of firings as a reason to sharpen the
+rules until they catch something. Inventing a trigger to make the ADRs "earn
+their keep" would produce false positives against merged work and destroy the
+signal this measurement carries.
 
 ## Expectation for large changes
 

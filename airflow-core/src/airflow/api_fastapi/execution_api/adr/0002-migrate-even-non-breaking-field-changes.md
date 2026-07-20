@@ -70,6 +70,12 @@ This intentionally overrides Cadwyn's more permissive default for this API.
 - Reviewers apply the stricter bar; a PR that argues "this field change is
   non-breaking so no migration is needed" is held to this ADR, not to Cadwyn's
   default.
+- [ADR-7](0007-new-surface-must-prove-no-existing-route-answers-it.md) treats
+  accumulated migration weight as a reason to refuse *new* surface, which reads as
+  the opposite cost model to this one. It is not: ADR-7 gates whether a route or
+  field comes into existence; once it exists, this ADR governs how it changes, and
+  there migration cost is never a reason to skip one. "The chain is already long"
+  is not an argument admissible against a migration on shipped surface.
 
 **A violating change looks like:** removing or renaming a field in a
 `datamodels/` schema (or a nested object) with no `VersionChange`, justified by

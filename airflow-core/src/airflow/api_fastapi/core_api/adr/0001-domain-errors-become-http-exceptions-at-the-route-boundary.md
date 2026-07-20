@@ -56,19 +56,22 @@ most frequent class of fix in this area's history.
 ## Decision
 
 Route handlers translate domain-layer errors into an explicit `HTTPException`
-with the correct status at the FastAPI route boundary. Concretely:
+with the correct status at the FastAPI route boundary.
 
-- A **missing resource** becomes `404`; **invalid or malformed input** becomes
-  `400`; other conditions get the status that honestly describes them (e.g. a
-  transient DB lock as `503`). A domain error must never escape a handler as an
-  unhandled `500`.
-- Handlers **catch the specific domain exception** the service layer raises
-  (e.g. `ValueError` for a missing row / invalid input) and re-raise as
-  `HTTPException` — they do not broaden to a bare `except` that hides the real
-  failure, and they do not swallow the error into a misleading success.
+**The translation rule itself is the repo-wide one** — see the "Translate
+domain-layer exceptions to `HTTPException` at FastAPI route boundaries" entry in
+the root `AGENTS.md`: missing resource → `404`, invalid input → `400`, catch the
+specific domain exception rather than broadening, never let a domain error escape
+as an unhandled `500`. This ADR does not restate it; it records *why* this area
+holds that line (above) and adds the one requirement that is local to `core_api`:
+
 - The status codes a handler can return are **declared in the OpenAPI docs**
   via `create_openapi_http_exception_doc`, so the generated contract matches the
-  handler's real behaviour rather than a hand-written guess.
+  handler's real behaviour rather than a hand-written guess. This matters here and
+  not elsewhere because
+  [ADR-2](0002-public-rest-api-v2-is-a-generated-stable-contract.md) makes the
+  generated spec a stable published artefact: an undeclared status is a contract
+  defect, not just a documentation gap.
 
 This keeps the domain layer HTTP-agnostic and concentrates the
 status-code decision at the one boundary that owns the client contract.

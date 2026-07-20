@@ -128,7 +128,8 @@ still be right — but it goes through a deprecation path, not a straight fix.
 
 ## Review criteria
 
-Mined from real review discussion on the ~353 commits touching this provider —
+Mined from real review discussion on the ~353 commits touching this provider and
+on the 62 closed-unmerged PRs that touched it —
 the changes reviewers repeatedly required, and the reasons changes here get
 closed. **If you are preparing a change here, treat this as a pre-flight
 checklist and fix every applicable item _before_ opening the PR.** Triage
@@ -137,14 +138,10 @@ author with the specific gaps. Ordered by how often reviewers raise each.
 
 **Compatibility of released operator behaviour (the defining concern here):**
 
-- [ ] **A released parameter, default, or return/skip behaviour is not changed
-      in place.** Retire it through a deprecation cycle that keeps the old
-      spelling working — the pattern used when `TimeSensorAsync` and
-      `TimeDeltaSensorAsync` were folded into their `deferrable=True` parents
-      (#50864, #51133): the old class still constructs, warns, and delegates.
-- [ ] **New capability is an additive parameter, not a changed default** —
-      `fail_when_dag_is_paused` (#48214), `run_after` (#62259), note support
-      (#60810) were all opt-in additions.
+- [ ] **Released behaviour is retired through a deprecation cycle, and new
+      capability arrives as an additive parameter** — the full reasoning, the
+      boundary cases, and the evidence are in this area's ADR 1. Do not restate
+      it; read it.
 - [ ] **A behaviour that only exists on one core version is gated**, and the
       gate is checked on _both_ sides. `version_compat.py` flags
       (`AIRFLOW_V_3_0_PLUS`, `AIRFLOW_V_3_3_PLUS`, …) exist because the same
@@ -152,41 +149,57 @@ author with the specific gaps. Ordered by how often reviewers raise each.
       (#56965, #67726).
 - [ ] **The change works on the declared floor** (`apache-airflow>=2.11.0`) or
       the floor is raised deliberately in the same PR.
+- [ ] **An underscore-prefixed _method_ on a released operator is still de-facto
+      public.** Released operators are subclassable, so `_handle_execution_date_fn`
+      and friends are reachable and overridden; changing the name or signature is
+      a breaking change and needs the same treatment as a public one (#52237 and
+      #52431 were closed for exactly this). A private _attribute_ with no
+      override semantics is the narrow exception (`_defer` → `deferrable`,
+      #58925, merged).
 
-**Execution-mode parity (sensors, deferrable operators):**
+**The layer this provider sits at:**
 
-- [ ] **Touching a sensor means touching every path it has.** `poke()`,
-      `execute()` (including the `deferrable` branch), `execute_complete()`, and
-      the matching trigger in `triggers/` must agree. Parameters have been
-      silently dropped on exactly one path before: `check_existence` (#64394),
-      `timeout` (#62556), `execute_complete` on `TimeSensor` (#53669),
-      `TriggerDagRunOperator` deferral (#58497).
-- [ ] **`mode="reschedule"` is a first-class path**, not an afterthought — state
-      that must survive across pokes cannot live on `self`, and context a
-      rescheduled run depends on (e.g. `task_reschedule_count`) must be in the
-      serializable-context allowlist.
-- [ ] **Skip / branch semantics are identical across modes** — a sensor that
-      soft-fails or a branch operator that skips must produce the same downstream
-      state whether it ran inline or resumed from a trigger (#53455).
-- [ ] **`start_from_trigger` / template rendering interactions are proven, not
-      assumed** — a fix in this seam was reverted once already (#55037).
+- [ ] **Do not introduce a new core semantic through an operator parameter.**
+      A new run-level date, a Dag-level retry policy, a change to what
+      `logical_date` may be — those are core and AIP decisions, and they are
+      closed here (this area's ADR 4: #67329, #61336, #65856).
+- [ ] **Do not add or change an Execution API or core API route in a
+      standard-provider PR.** Ask first whether an existing response already
+      encodes the answer, then split the PR by layer (#67832, #61063, #62861).
+- [ ] **No "secure" variants of existing operators and no laundering of
+      author-supplied content** — this area's ADR 6, including its carve-out for
+      an injection the security model does classify as a vulnerability. Never
+      attach a CVE identifier to a change that is not that CVE's coordinated fix.
 
-**User code isolation (the Python operators):**
+**Execution-mode parity (sensors, deferrable operators) — see `adr/0002`:**
+
+- [ ] **Every path of the operator agrees, or the PR body says why the others
+      are unaffected.** `poke()`, `execute()` (including the `deferrable`
+      branch), `execute_complete()`, and the matching trigger in `triggers/`.
+      Parameters have been silently dropped on exactly one path before:
+      `check_existence` (#64394), `timeout` (#62556), `execute_complete` on
+      `TimeSensor` (#53669), `TriggerDagRunOperator` deferral (#58497); skip and
+      branch semantics diverged in #53455; the `start_from_trigger` / template
+      seam produced a revert in #55037.
+- [ ] **`mode="reschedule"` is a first-class path** — state that must survive
+      across pokes cannot live on `self`, and context a rescheduled run depends
+      on (e.g. `task_reschedule_count`) must be in the serializable-context
+      allowlist.
+
+**User code isolation (the Python operators) — see `adr/0003`:**
 
 - [ ] **Nothing heavy happens in `__init__`.** Operators are constructed at Dag
       parse time in the Dag processor; building a venv, resolving an
       interpreter, importing a user callable's dependencies, or touching the
       filesystem belongs in `execute()`, on the worker.
-- [ ] **What crosses into the child interpreter stays an explicit allowlist.**
-      Adding a context key means adding it to the right
-      `*_SERIALIZABLE_CONTEXT_KEYS` set with a version gate, and covering it in
-      the serialization tests (#50446, #50566) — not passing `context` through.
-- [ ] **Failures in the isolated path produce an author-facing message**, not an
-      opaque traceback from the serializer or the venv builder (#63270, #59046,
-      #67157).
-- [ ] **Subprocess/venv changes account for `expect_airflow`, `index_urls`,
-      package-index connections, bundle paths and pycache cleanup** — each has
-      been a separate regression (#54809, #52287, #52288, #57631, #53390).
+- [ ] **What crosses into the child interpreter stays an explicit allowlist** —
+      the right `*_SERIALIZABLE_CONTEXT_KEYS` set with a version gate, covered in
+      the serialization tests (#50446, #50566), not `context` passed through.
+      Failures in this path produce an author-facing message rather than an
+      opaque serializer or venv-builder traceback (#63270, #59046, #67157), and
+      subprocess/venv changes account for `expect_airflow`, `index_urls`,
+      package-index connections, bundle paths and pycache cleanup — each a
+      separate past regression (#54809, #52287, #52288, #57631, #53390).
 
 **Templating and operator contract:**
 
@@ -222,22 +235,35 @@ author with the specific gaps. Ordered by how often reviewers raise each.
       `version_compat`.
 - [ ] **Action-verb, intent-revealing names**; reuse the existing helper in
       `utils/` rather than adding a second copy that will drift.
+- [ ] **Style-only churn is closed.** `type(self)` → `self.__class__`, reformatting
+      to satisfy a rule the project has not adopted, or silencing a linter without
+      making the code functionally better — each usage needs its own justification
+      (#53856, #56395, #62357).
 
 **Docs, changelog, tests, process:**
 
-- [ ] **Never add a newsfragment** — see the parent `providers/AGENTS.md`. For a
-      user-visible note edit `providers/standard/docs/changelog.rst` directly.
-- [ ] **Tests mirror the source path** under `providers/standard/tests/`, use
-      `spec`/`autospec`, use `time_machine` for anything time-dependent, and
-      **fail without the change**. Do not assert on raw log text.
 - [ ] **A sensor or deferrable change is tested in every mode it supports** —
       one test for the blocking path is not coverage of a `deferrable=True`
-      change.
-- [ ] **Example Dags in `example_dags/` are user documentation** and are loaded
-      by tooling — keep them runnable and tagged.
-- [ ] **Follow the PR template**, disclose AI assistance, and show evidence
-      against a real Dag. Low-effort or speculative "corrections" of
+      change — and must not restate a test that already exists: regression tests
+      for a bug whose real cause is covered elsewhere are closed as redundant
+      (#53483).
+- [ ] **Example Dags in `example_dags/` are tested documentation** — this area's
+      ADR 5. They are the most frequently rejected target in this provider.
+      Note that `docs/operators/*.rst` extracts `[START …]` / `[END …]` regions
+      from these files, so a line change inside a region changes a published
+      page.
+- [ ] **Check for an existing PR or an assigned contributor before starting.**
+      The visible operators here attract several simultaneous attempts at the
+      same feature, and all but one get closed — Dag-run note support on
+      `TriggerDagRunOperator` drew #56924, #60407, #60442 and #61801; a docs
+      index fix drew #60665 alongside another contributor's assigned work.
+- [ ] **Show evidence against a real Dag.** Speculative "corrections" of
       long-standing behaviour get closed.
+
+(The newsfragment rule, repo-wide testing standards, and the AI-disclosure
+requirement live in the root `CLAUDE.md` and the parent `providers/AGENTS.md`;
+they are not restated here. For a user-visible note edit
+`providers/standard/docs/changelog.rst` directly.)
 
 > Mined from PR review history across `providers/standard/`; the sample is
 > dominated by the Airflow-3 era, when these modules were moved out of

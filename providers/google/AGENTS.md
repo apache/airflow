@@ -123,8 +123,9 @@ bump with no explanation of what it fixes.
 ## Review criteria
 
 Mined from real review discussion on the ~607 commits touching
-`providers/google/` — the changes reviewers repeatedly required, and the reasons
-changes here get closed. **If you are preparing a change here, treat this as a
+`providers/google/` and on the 119 closed-unmerged PRs touching the same paths —
+the changes reviewers repeatedly required, and the reasons changes here get
+closed. **If you are preparing a change here, treat this as a
 pre-flight checklist and fix every applicable item _before_ opening the PR.**
 Triage applies the same list: a PR that lands with unmet items is drafted back to
 its author with the specific gaps. Ordered by how often reviewers raise each.
@@ -177,6 +178,43 @@ The parent `providers/AGENTS.md` checklist applies in full on top of this one.
 - [ ] **No blocking call in an async path** — wrap sync hook calls in
       `sync_to_async` rather than calling them from the event loop.
 
+**Failure behaviour is public API — see `adr/0004`:**
+
+- [ ] **Don't convert an existing `AirflowException` raise to another type as a
+      cleanup.** The project's reduction effort is forward-only _here_: new code
+      uses a built-in or a dedicated class, released raise sites stay put. This
+      is a deliberate, scoped exception to the root `CLAUDE.md` "prefer narrowing
+      it" guidance, which does not apply to a raise site already released from a
+      provider. A deliberate conversion needs a dev-list decision and a
+      "Breaking Change" entry in
+      `docs/changelog.rst` — users branch on the exception type in
+      `on_failure_callback` and in operator subclasses.
+- [ ] **A `try`/`except` that turns a failure into a silent success is a
+      regression**, not a fix. Show that the guard catches the condition that
+      actually occurs, on the code path that actually runs — a guard effective
+      only for a non-default transport suppresses nothing and hides the problem.
+- [ ] **Don't remove an existing guard as "redundant"** without establishing that
+      no caller, sensor, or callback distinguishes the path it protected.
+- [ ] **Describe failure-behaviour changes in user terms in the PR body** — what
+      used to raise, what raises now, what a user has to change.
+
+**Heavy dependencies — see `adr/0005`:**
+
+- [ ] **Narrow the declared range; never vendor a wheel, index, or
+      pre-release.** When Ray, Beam, or a `google-cloud-*` package has no build
+      for a Python version or architecture, exclude that combination with a
+      marker in `pyproject.toml` rather than making the build resolve by other
+      means. The installed distribution must match what a user gets from PyPI.
+- [ ] **Every marker-sharded or exclusion pin carries a comment with the full
+      upstream issue URL** and the condition under which it is removed — the
+      convention this `pyproject.toml` already follows.
+- [ ] **Wait for the upstream release.** If the library's own fix is merged and
+      pending release, the change is a floor bump when it ships, not a workaround
+      now.
+- [ ] **State the workspace blast radius.** The lock is shared, so a dependency
+      change here can block unrelated providers and the repository's
+      Python-version rollout; say what else it moves.
+
 **Client libraries and API versions:**
 
 - [ ] **A `google-cloud-*` floor bump says what it fixes**, in the PR body and (if
@@ -187,9 +225,12 @@ The parent `providers/AGENTS.md` checklist applies in full on top of this one.
       for Dag authors who never chose the upgrade.
 - [ ] **Don't upper-bound.** Caps follow the parent rule: tracking issue plus the
       full issue URL as a comment at the cap site.
-- [ ] **Guard heavy or optional imports** — `apache-beam`, `ray`,
-      `cncf.kubernetes`, `looker-sdk` are optional or heavy; a top-level import
-      that fails without the extra breaks Dag parsing for everyone.
+- [ ] **Guard imports of dependencies declared under
+      `[project.optional-dependencies]`** — `apache-beam`, `ray`,
+      `cncf.kubernetes`, `looker-sdk`; a top-level import that fails without the
+      extra breaks Dag parsing for everyone. Required dependencies
+      (`google-cloud-*`) are imported normally at module top — the test is the
+      `pyproject.toml` declaration, not how heavy the library feels.
 
 **Errors, retries and resource handling:**
 
@@ -221,22 +262,30 @@ The parent `providers/AGENTS.md` checklist applies in full on top of this one.
 
 **Tests, docs, process:**
 
-- [ ] **Tests mirror the source path** under `providers/google/tests/`, mock the
-      client with `spec`/`autospec`, and **fail without the change**. Do not
-      assert on raw log text.
 - [ ] **A trigger change needs a trigger test** — including the cancellation and
       the serialize/round-trip paths, which is where the real defects live.
 - [ ] **System tests need real Google Cloud credentials, must clean up every
       resource they create, and must not leave anything publicly reachable.**
-- [ ] **Never add a newsfragment.** For a user-visible note, edit
-      `providers/google/docs/changelog.rst` directly, under the `Changelog`
-      header.
-- [ ] **New capabilities are registered in `provider.yaml`** — operators, hooks,
-      sensors, transfers, connection fields, bundles — not only in Python.
-- [ ] **Follow the PR template**, disclose AI assistance, and show evidence the
-      change works against the actual Google service.
+- [ ] **New capabilities are registered in `provider.yaml`** — a new operator,
+      hook, sensor or transfer **module**, a connection field, a bundle. Adding a
+      class to a module already declared there needs no yaml edit.
+- [ ] **Show evidence the change works against the actual Google service** —
+      green CI mocks the client and proves nothing here (parent `adr/0006`).
+- [ ] **Check for an in-flight PR and for an assignee before starting.** This
+      package is actively worked by Google-side maintainers as well as the wider
+      community; a large share of closures here are "already fixed in #NNNNN" or
+      "the original assignee is still on it". Claim the issue in-thread first.
+- [ ] **Don't open a cleanup PR against this package without a user-visible
+      defect behind it.** Micro-optimisations, `type(self)` → `self.__class__`
+      style rewrites and docstring-only churn are closed as change for its own
+      sake — including by their own authors once asked what it buys.
+- [ ] **Verify a claim about the Google client library before acting on it.**
+      Behaviour attributed to a `google-cloud-*` release must be checkable; a
+      wrong "this has been supported since version X" turns a safe-looking change
+      into a silent break for everyone on the older client.
 
-> Mined from PR review history across `providers/google/`; the sample is
+> Mined from PR review history across `providers/google/`, merged and
+> closed-unmerged alike; the sample is
 > dominated by BigQuery, Dataproc, GCS, Cloud Run and Vertex AI, and by the
 > Airflow-3 / deferrable era, so conventions specific to `ads`,
 > `marketing_platform`, `suite`, `firebase` and `leveldb` are under-represented.

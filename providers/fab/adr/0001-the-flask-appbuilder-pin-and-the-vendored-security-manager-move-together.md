@@ -135,10 +135,12 @@ alignment test is green", and should ask what changed inside the vendored method
 - #57170 — "Upgrade `flask-appbuilder` to 5.0.1" and #50513 — "Upgrade
   `flask-appbuilder` to 4.6.3 in FAB provider": earlier bumps in the same
   pin-plus-vendored-review shape.
-- #66417 — "escape LDAP filter chars in FAB `_search_ldap` and
-  `_ldap_get_nested_groups`": a security fix applied *inside* vendored code — the
-  class of change a shape-only drift check cannot see and a careless bump would
-  revert.
+- #66417 — a fix to the LDAP authentication handler in `override.py`: hardening
+  applied *inside* vendored code — the class of change a shape-only drift check
+  cannot see and a careless bump would revert. (#67103, closed unmerged, proposed
+  the same escaping for `_search_ldap` / `_ldap_get_nested_groups`.) Note that both
+  PRs are authored by an automated security-scanning account and do not resolve via
+  the GitHub API; #66417's merge on `main` is commit `3f7756bea7`.
 - #68226 — "Import `ldap.filter` in security_manager override": the follow-up
   import fix in the same vendored path, showing how tightly the copy tracks
   upstream module structure.

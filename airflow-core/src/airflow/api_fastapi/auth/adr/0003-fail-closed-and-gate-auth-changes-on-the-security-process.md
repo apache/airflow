@@ -91,7 +91,11 @@ A change **violates** this decision when it:
 
 - lets an error path (bad/expired/revoked/wrong-`kid` token, failed
   deserialization, unsupported capability) fall through to access instead of
-  rejecting;
+  rejecting — where *access* means the request reaches a protected resource
+  without a successful authorization check, not merely that the request continues
+  to a dependency that re-checks. Middleware that swallows an error, leaves
+  `request.state.user` unset, and lets the route's own auth dependency revalidate
+  is failing closed, not open;
 - compares a secret non-constant-time, uses a non-cryptographic RNG for a secret,
   or ships a login/refresh cookie without the correct `Secure` / `SameSite` / path
   scoping;

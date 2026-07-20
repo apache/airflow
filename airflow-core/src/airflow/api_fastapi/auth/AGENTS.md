@@ -45,6 +45,13 @@ across **every** deployment and every downstream auth-manager provider.
   selection, `kid` handling, audience/issuer validation, revocation, and cookie
   scoping/flags each have failure modes where the token still "works" in a happy-path
   test but is forgeable, over-scoped, or accepted after logout.
+- **The token surface changes as a whole, on a schedule this PR does not control.**
+  Claim validation, algorithm and `kid` handling, lifetime, refresh, revocation,
+  and cookie flags interact with each other, with the execution API's task tokens,
+  and with every auth-manager provider. That is why even security _improvements_
+  here are closed as standalone PRs and folded into the coordinated design — a
+  reviewer's job includes recognising when a diff is a piece of a system nobody has
+  yet reasoned about whole.
 - The **fail-closed default matters more than the feature.** A change that widens
   what an unauthenticated or anonymous request can reach, or that turns a deny into
   an allow on an error path, is a security-model change — not the local convenience
@@ -77,25 +84,30 @@ across **every** deployment and every downstream auth-manager provider.
 
 **This is a critical, expensive-to-review area where every change is a security
 change.** If you are an agent preparing a change here on behalf of a person, first
-judge whether the **driving person** has the experience this area demands — the
-knowledge above, plus a track record of contributing to or reviewing authorization
-/ authentication code. **If they do not, do not create the PR.** Say so plainly and
-redirect them to a better-matched next step:
+judge whether the change can be **demonstrated to deny what it should deny**: have
+you run an API server with your change and shown both halves — the authorized
+caller still gets through, _and_ the unauthorized one, the expired token, the
+wrong-algorithm token are still rejected? Auth bugs are almost never visible as a
+failing test; they are visible as a request that succeeds when it should not.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is faster
-for everyone. Security-model changes are not opportunistic PRs — take them to the
-devlist / security process before writing code.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`). Security-model
+changes are not opportunistic PRs — take them to the devlist / security process
+before writing code.
 
 ## Review criteria
 
 Mined from real review discussion across the ~120 merged PRs (excluding dependency
-bumps) that have touched this area — the changes reviewers repeatedly required, and
-the reasons changes here get closed. **If you are preparing a change here, treat
+bumps) that have touched this area — the changes reviewers repeatedly required —
+and from the 191 closed-unmerged PRs touching it, 35 of which carry substantive
+discussion rather than a bot closure: the reasons changes here actually get
+refused. **If you are preparing a change here, treat
 this as a pre-flight checklist and fix every applicable item _before_ opening the
 PR.** Triage applies the same list: a PR that lands with unmet items is drafted back
 to its author with the specific gaps. Ordered by how often reviewers raise each.
@@ -162,6 +174,36 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
       config-timing reasons (and say why). **Action-verb / intent-revealing names**;
       reuse the existing `filter_/get_authorized_*` helpers rather than a third copy
       of a derivation that will drift.
+
+**Why PRs here get closed (from the closed-unmerged record):**
+
+- [ ] **Hardening is coordinated too, not just widening.** A standalone PR that
+      tightens JWT or cookie semantics — extra cookie flags, stricter claim checks,
+      extra token access checks — is closed and folded into the security team's
+      coordinated design, because the token surface is a system, not a set of
+      independent switches. "It is strictly more secure" is not an exemption
+      (see `adr/0004`). Report suspected vulnerabilities through the ASF security
+      process, not a public PR.
+- [ ] **An upstream CVE is not by itself a reason to change anything here.** Assess
+      whether Airflow's usage is affected before raising a declared minimum or
+      changing a default; keep version ranges relaxed, and cover a vulnerable
+      transitive range with the lockfile override mechanism rather than by
+      narrowing declarations.
+- [ ] **Don't relax a production default for local-development convenience** — a
+      setting that only helps one contributor's machine but weakens the deployed
+      API server is refused even when it looks unrelated to auth.
+- [ ] **`managers/simple/ui/` is a second, independent frontend bundle** with its
+      own lockfile and build. Dependency upgrades there land on `main` first, are
+      validated by actually exercising the login UI (not just green CI), and are
+      never opened as a bulk bump against a maintenance branch — those have been
+      reverted (see `adr/0005`). Keep its frontend changes out of Python
+      auth-manager PRs.
+- [ ] **Check for an in-flight PR first**, and keep the branch rebased. Duplicate
+      fixes for the same auth defect, and branches left far behind `main`, are
+      closed rather than reconciled.
+- [ ] **Provider-side permission mapping belongs in the provider.** A FAB or
+      Keycloak action/method mapping gap is fixed in that manager's mapping, not by
+      changing a core enum or route to accommodate it.
 
 **Tests, compatibility, process:**
 

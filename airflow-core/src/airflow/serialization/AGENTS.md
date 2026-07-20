@@ -46,26 +46,52 @@ deployments during an upgrade, with no error at write time.
 
 **This is a backward-compatibility-critical, expensive-to-review area.** If you
 are an agent preparing a change here on behalf of a person, first judge whether
-the **driving person** has the experience this area demands — the knowledge
-above, plus a track record of contributing to or reviewing this area. **If they
-do not, do not create the PR.** Say so plainly and redirect them to a
-better-matched next step:
+the change can be **demonstrated across versions, not just round-trip**: have you
+shown that a blob serialized by the _old_ code still deserializes under the new
+code, and that a Dag with the field you touched survives the full
+serialize/deserialize cycle with nothing silently dropped? A field missing from
+`get_serialized_fields()` round-trips perfectly in a unit test and vanishes in
+production.
+**If you cannot demonstrate that, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
 - a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion on ~130 merged and ~15 closed-unmerged
+Mined from real review discussion on ~227 merged and 75 closed-unmerged
 serialization PRs. **If you are preparing a change here, treat this as a
 pre-flight checklist and fix every applicable item _before_ opening the PR.**
 Triage applies the same list: a PR that lands with unmet items is drafted back
 with the specific gaps. Ordered by how often reviewers raise each.
+
+**Is this the right change at all?** _(the largest class of closed PR here)_
+
+- [ ] **A new serialized attribute must not restate an existing concept.** Name the
+      alternatives you considered — `data_interval_start` / `data_interval_end`,
+      `logical_date`, `run_type`, the timetable, `bundle_version` / `DagVersion`,
+      `params` — and why each is insufficient. A "processing date" field was declined
+      outright because the data interval already is that concept, produced by the
+      timetable, which is the supported extension point (ADR 0005).
+- [ ] **No multi-level configuration hierarchy over serialized state.** Precedence
+      rules across three places to set which Dag version a run executes against did
+      not survive review; one place to set a value.
+- [ ] **Fix the generic helper, not the type that revealed the defect.** Two separate
+      PRs special-casing one parameter type's unstable repr were closed and the work
+      consolidated into `serialize_template_field` — the memory address was never a
+      property of that type, it was a property of the fallback path (ADR 0004).
+- [ ] **Translate errors once, at the framework boundary.** Per-route validation plus
+      a config knob plus a new exception class was rejected in favour of a single
+      registered handler for the underlying database error on both the REST and
+      execution APIs, which then covers every existing and future write endpoint.
+- [ ] **Search for in-flight work before proposing a serialized attribute** — these
+      are frequently being designed in parallel as part of a larger effort, and
+      duplicates get closed.
 
 **Compatibility & determinism (the core of this area):**
 
@@ -84,7 +110,7 @@ with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **`serialize()` emits every field the constructor consumes** — otherwise
       the object silently reverts to defaults after a triggerer/worker restart.
 - [ ] **When a run is pinned to an older Dag version, derive ALL metadata**
-      (params, timetable, deadlines, allowed run types) from the *resolved*
+      (params, timetable, deadlines, allowed run types) from the _resolved_
       version — never the live/latest Dag. Each divergence needs a cross-version
       test.
 - [ ] **Compat fallback code is read-only and time-boxed** — use `.get()` not
@@ -111,6 +137,13 @@ with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Don't add deserialization "trust/validation" guards where the security
       model already treats the code as trusted** (the triggerer runs user code by
       design — restricting class loading is not a real boundary).
+- [ ] **Removing a legacy serialization capability requires proving nothing still
+      uses it — and if it goes, it must fail loudly.** An attempt to drop support for
+      re-serializing an already-serialized operator stalled because core was still
+      relying on it unintentionally (the test suite said so), and reviewers required
+      that a removed path _raise_ rather than silently coerce the value to a string:
+      a silent degradation here surfaces as a confusing error much later, in a
+      different component.
 - [ ] Reliance on **private third-party deserialization internals** is documented
       inline with an upstream link.
 

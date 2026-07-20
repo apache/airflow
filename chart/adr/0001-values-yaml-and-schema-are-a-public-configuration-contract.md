@@ -98,14 +98,17 @@ A change **violates** this decision when, in `chart/`, it:
 - renames, removes, re-nests, or retypes an existing value outside a major chart
   version, or without a preceding deprecation period and a `significant`
   newsfragment describing the migration;
-- introduces a new value whose default changes what the chart renders for an
-  existing release;
 - places a per-component knob outside the component's existing section, or names
   it inconsistently with its siblings, creating a second way to express the same
   thing.
 
 A reviewer should reject any change that alters the meaning of an existing key,
 or that lands a value in only one of the two files.
+
+A new value whose default changes what an existing release renders is covered by
+[ADR 2](0002-chart-changes-must-be-upgrade-safe-for-running-deployments.md) and is
+not repeated here — it is one rule, and reporting it twice against the same diff
+helps nobody.
 
 ## Evidence
 

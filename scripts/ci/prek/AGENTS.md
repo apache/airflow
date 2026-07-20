@@ -74,9 +74,10 @@ contradicts what the docs say (see `## Review criteria`).
 
 ## Review criteria
 
-Mined from real review discussion across ~319 commits touching this directory —
-the changes reviewers repeatedly required, and the reasons hook PRs get turned
-away. **If you are preparing a change here, treat this as a pre-flight checklist
+Mined from real review discussion across ~319 commits touching this directory
+and ~114 closed-unmerged pull requests touching it (30 with substantive
+discussion) — the changes reviewers repeatedly required, and the reasons hook
+PRs get turned away. **If you are preparing a change here, treat this as a pre-flight checklist
 and fix every applicable item _before_ opening the PR.** Triage applies the same
 list: a PR that lands with unmet items is drafted back to its author with the
 specific gaps. Ordered roughly by how often reviewers raise each one.
@@ -132,9 +133,50 @@ specific gaps. Ordered roughly by how often reviewers raise each one.
       introducing a hook against existing violations, the baseline file is
       explicitly acknowledged in the PR description as debt to pay down, and uses
       the shared `AllowlistManager` rather than a bespoke format.
+- [ ] **A hook is the last mechanism to reach for, not the first.** If
+      `.gitignore`, a config setting, or a one-line `entry` that simply fails on a
+      matching path does the job, that is the change — a Python script for it gets
+      pushed back (#46459). Where a rule bans something, the failure message must
+      also say _why_ it is banned, not only that it is.
+- [ ] **A hook that forbids something lands with the tree already clean and
+      scoped to where the rule holds.** A hook banning `session.query` stalled on
+      both counts: it had to exclude `providers/`, where the rule does not apply,
+      and every existing violation had to be removed in the same change for the
+      hook to pass at all (#45714). Budget for the cleanup before proposing the
+      hook.
+- [ ] **Detect drift against a committed artifact, not against another commit.**
+      CI checks out a single commit, so a hook cannot compare the working tree to
+      the previous revision. Where a check needs a baseline, generate it into a
+      file that is committed and diffed — the shape that replaced a proposed
+      compat-API check built on checking out the prior version (#44913), and the
+      shape the `common.sql` API guard took when its first version was closed in
+      favour of generated stubs shipped with the package (#27946 → #27962).
 - [ ] **Shared logic goes into `common_prek_utils.py`** rather than a third copy
       that will drift — but a change to that file is reviewed as a change to every
       hook that imports it.
+- [ ] **The hook fails when it stops covering its target.** A hook whose `files:`
+      pattern or hardcoded path no longer matches anything must exit non-zero,
+      not report success on an empty file list — a provider-metadata hook stayed
+      green for months after the providers moved directory (`#57276`,
+      `#57283`). See `adr/0004-...`.
+
+**Version bumps, backports and scope:**
+
+- [ ] **Hook tool versions are bumped by the automated `upgrade important CI
+      environment` flow**, not by hand; hand-written bumps race the automated
+      one and get closed as superseded (`#58305`, `#57361`).
+- [ ] **A tool bump ships the output it changes.** Upgrading a formatter or doc
+      generator means running it across the repository and committing the result
+      in the same PR (`#65221`) — otherwise the next contributor's commit fails
+      on a diff they did not cause.
+- [ ] **Hook changes land on `main` and are not backported** to release branches
+      (`#64325`); see `dev/adr/0004-...`.
+- [ ] **Run the hook you changed before pushing.** PRs here are closed on
+      failing static checks more often than on design objections (`#69535`,
+      `#61853`).
+- [ ] **Agent skills, prompts and IDE-context tooling are not hooks.** Proposals
+      to make prek enforce agent workflow state have been declined; that work
+      belongs in the separate skills tooling (`#63661`, `#63162`).
 
 **Code quality reviewers consistently require:**
 
@@ -146,10 +188,25 @@ specific gaps. Ordered roughly by how often reviewers raise each one.
       versus distribution-level — and its `id` matches how contributors will invoke
       it (`prek run <id>`).
 
-> Mined from the commit and review history of this directory; the sample skews
-> recent, so conventions from the pre-`prek` (`pre-commit`) era are
-> under-represented. Extend as new patterns emerge, and add an equivalent
+> Mined from the commit and review history of this directory. The closed-unmerged
+> sample now reaches back to 2022, when this directory was `scripts/ci/pre_commit/`
+> and hooks ran under `pre-commit`; its dominant pattern — a change being closed
+> and reopened from a branch in the apache repository so the then-separate
+> image-build workflow would execute the modified script — no longer applies, since
+> that workflow and its `pull_request_target` trigger have been removed. Treat
+> pre-2025 evidence about how a hook change is _validated_ with that in mind; the
+> rules about how a hook is _written_ carry over. Extend as new patterns emerge, and add an equivalent
 > `## Review criteria` section to the `AGENTS.md` of every other area over time.
+
+### What these documents are currently good for
+
+A validation pass ran this area's ADRs against the live open-PR queue and found
+**zero firings across 3 PRs**. The sample is small, and that is part of the
+point: hook changes arrive rarely and are usually written by people who already
+know the conventions. These documents currently function as _review guidance and
+onboarding context_, not as a mechanical gate. Do not sharpen the rules until
+they catch something — inventing a trigger would produce false positives against
+merged work and destroy the signal this measurement carries.
 
 ## Expectation for large changes
 

@@ -48,22 +48,42 @@ failure modes are concurrency-dependent and hard to reproduce in review.
 ## Before opening a PR here — authoring-agent guard
 
 **This is a high-criticality, expensive-to-review area.** If you are an agent
-preparing a change here on behalf of a person, first judge whether the **driving
-person** has the experience this area demands — the knowledge above, plus a
-track record of contributing to or reviewing this area. **If they do not, do not
-create the PR.** Say so plainly and redirect them to a better-matched next step:
+preparing a change here on behalf of a person, first judge whether the change can
+be **demonstrated** rather than argued: can you run a scheduler against a real
+metadata DB, reproduce the scheduling behaviour you claim is wrong, and show the
+loop still behaves under _concurrent_ schedulers — the case where locking and
+batching bugs actually appear? Reasoning about the diff is not enough here; the
+questions reviewers ask ("what happens when two schedulers hit this row at once?",
+"how long does this transaction hold the lock?") are answered by running it.
+**If you cannot demonstrate it, do not open the PR yet.** Say so plainly and
+redirect to a better-matched next step:
 
-- a **simpler, well-scoped issue in this area** to build context first, or
-- a **different area** that fits their current competences, or
+- a **simpler, well-scoped issue in this area** with a concrete reproduction, or
+- a **different area** where the change can actually be exercised, or
 - **discussing the approach first** (an issue or dev-list thread) before any code.
 
-A large, unproven change here wastes scarce maintainer review time and will be
-closed or drafted back (see `## Review criteria`). Building standing first is
-faster for everyone.
+A large change here that nobody can verify wastes scarce maintainer review time
+and will be closed or drafted back (see `## Review criteria`).
+
+## How the ADRs in this area are meant to be used
+
+The five ADRs under `adr/` are **review guidance, not a mechanical gate.** A
+validation pass over the open queue found they fire on almost nothing — and the
+one firing they did produce was a false positive. That is the expected result,
+and it has deliberately not been "fixed" by adding rules that would fire more
+often.
+
+The reason is that the real cost of a change here is concurrency reasoning that a
+diff does not show: whether a lock is still held where it must be, whether a
+commit boundary moved, whether an interleaving that only appears under production
+load is still safe. None of that is visible as a pattern a rule can match, so a
+rule tuned to fire more would mostly fire wrongly. Read these ADRs as the
+questions to carry into the review, and expect the judgement to come from the
+reviewer rather than from a bullet matching.
 
 ## Review criteria
 
-Mined from real review discussion on ~160 merged and ~72 closed-unmerged PRs
+Mined from real review discussion on ~160 merged and ~138 closed-unmerged PRs
 touching this area — the changes reviewers repeatedly required, and the reasons
 changes here get closed. **If you are preparing a change here, treat this as a
 pre-flight checklist and fix every applicable item _before_ opening the PR.**
@@ -79,7 +99,13 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Prove the diagnosis on a live setup first** — the scheduler is a vital
       hot path; substantial changes need a real repro and logs/screenshots/
       benchmarks. Many rejected PRs "fixed" a misdiagnosed config issue or benign
-      log output.
+      log output. **If you cannot stand up that setup**, do not open the PR
+      anyway: report the observation instead (what you saw, on which version,
+      with which configuration, and what you already ruled out) and say
+      explicitly that you could not reproduce it. An observation someone else can
+      reproduce is worth more than a mechanism nobody can check — see
+      `../dag_processing/adr/0004` for why this is the one case where an issue,
+      not a PR, is the right artefact.
 - [ ] **Don't add scheduler knobs, complexity, or deployment-specific
       mitigations** when existing controls (`max_active_runs`, ordering) already
       apply — tuning the scheduler is already hard; every deployment pays for
@@ -109,13 +135,29 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
 - [ ] **Respect executor slot capacity, pools, and concurrency limits** — never
       oversubscribe executors; route executor lookup through the single canonical
       path (`_try_to_load_executor()`), don't duplicate it.
+- [ ] **A rewrite of the task-selection query must be proven on MySQL and against
+      starvation.** A strategy that reads well on PostgreSQL can be an order of
+      magnitude slower on MySQL, and any approach whose fairness depends on the
+      query planner will starve some pool/priority combination — enumerate the
+      orthogonal limits (pool slots, per-Dag concurrency, priority) and show the
+      starvation cases you tested.
+- [ ] **Don't add an index to a core table for one deployment's query shape** —
+      deployment-specific indexes are documented for operators to apply, not
+      shipped (see `../models/adr/0004`); bring before/after timings at a stated
+      row count if you believe an Airflow query needs one.
 
 **Boundaries (these are architecture invariants, not preferences):**
 
-- [ ] **task-sdk must not import `airflow.models` / airflow-core ORM** — use
-      `airflow.sdk.api.datamodels._generated`.
-- [ ] **Triggerer and DFP run user code** — they must not gain server DB/secret
-      access; set/guard `_AIRFLOW_PROCESS_CONTEXT=client` on those paths.
+- [ ] **The user-code side of the triggerer and the DFP must not gain server
+      DB/secret access** — the DFP parse subprocess and the triggerer's async
+      **runner subprocess** run `_AIRFLOW_PROCESS_CONTEXT=client` and reach state
+      through the Execution API. The `TriggererJobRunner` **supervisor** is
+      server-side and holds ORM sessions on purpose; don't "fix" that.
+- [ ] **The async trigger runner holds no ORM session and loads no Dag-bundle
+      code** (see `adr/0005`) — no `@provide_session` or model query reachable
+      from a running trigger (the runtime raises), and no bundle initialization,
+      bundle-root `sys.path` injection, or archive loading for trigger imports.
+      Triggers come from `sys.path`; state comes from the Execution API.
 
 **Code quality reviewers consistently require:**
 
@@ -138,22 +180,19 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
 
 **Tests, compatibility, process:**
 
-- [ ] Test **exercises the actual new path and fails without the change** (not one
-      that passes by constructing the task in-process and skipping
-      serialize/deserialize); mocks use `spec`/`autospec`; assert on structured
-      `caplog`, not substrings.
+- [ ] Test **exercises the actual new path** — for scheduler work that means going
+      through real serialize/deserialize, not constructing the task in-process and
+      skipping it.
 - [ ] **Backward compatibility** for public/semi-public interfaces — check whether
       it shipped in a release (can't ret-con a released migration — add a new one),
       version-gate, add a compat shim, and keep `get_serialized_fields()` in sync
       so new fields survive serialization.
 - [ ] **Config hygiene** — scheduler-only knobs go in `[scheduler]`, consistent
       units, correct `version_added`.
-- [ ] **Newsfragment / `.. versionadded` only for genuinely user-facing** changes
-      (not internal refactors).
-- [ ] **Follow the PR template**, disclose AI assistance, and show evidence of
-      testing — low-effort / mass-AI-generated / near-duplicate parallel PRs get
-      closed. Track deferred work in a GitHub issue or explicit TODO; take
-      contentious semantics to the devlist / a second reviewer.
+- [ ] **Show evidence of testing** — low-effort / near-duplicate parallel PRs get
+      closed here in particular, because the review cost is paid by the few people
+      who can review this area. Take contentious semantics to the devlist or a
+      second reviewer.
 
 > Mined from PR review history; the sample skews to roughly the last year, so
 > older scheduler-internals conventions are under-represented. Extend as new
@@ -163,5 +202,5 @@ to its author with the specific gaps. Ordered by how often reviewers raise each.
 ## Expectation for large changes
 
 Discuss the approach first — in an issue or on the dev list — before a large
-PR. The concurrency and state-machine invariants are best aligned on *before*
+PR. The concurrency and state-machine invariants are best aligned on _before_
 the code, not during review.

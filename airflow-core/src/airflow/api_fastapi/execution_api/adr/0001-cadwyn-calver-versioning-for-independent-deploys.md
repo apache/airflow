@@ -54,9 +54,24 @@ Every wire-visible change to the Execution API goes through a Cadwyn
 `VersionChange` placed in the latest **unreleased** version file
 (`versions/vYYYY_MM_DD.py`).
 
-- If the newest version file carries a future/unreleased date, add the
-  `VersionChange` there. Otherwise create a new `vYYYY_MM_DD.py` for the next
-  unreleased date and register it in `versions/__init__.py`.
+- **The unreleased head is identified by an explicit marker, not by its date.**
+  A version file's `vYYYY_MM_DD` name says when the version was opened, not
+  whether it has shipped: `v2026_06_30.py` was the open head well past
+  2026-06-30, because unreleased changes were collapsed onto it rather than
+  opening a new date. Any rule that infers "released" from "date is in the past"
+  will wrongly reject a PR that correctly edits the head — and wrongly accept one
+  that edits a released file whose date happens to be recent.
+
+  This makes the rule mechanically undecidable as written today, and that is a
+  gap to close in code: `versions/__init__.py` should declare the head
+  explicitly — e.g. a `HEAD_VERSION` / `RELEASED_VERSIONS` constant next to
+  `bundle` — so both reviewers and automated checks read the marker instead of
+  parsing dates. Until that constant exists, treat the head as undecidable from
+  the diff alone and confirm it against the version-collapse history on `main`
+  rather than firing on a date comparison.
+- If the head version file is still unreleased, add the `VersionChange` there.
+  Otherwise create a new `vYYYY_MM_DD.py` for the next unreleased date and
+  register it in `versions/__init__.py`.
 - New endpoints declare `endpoint("/path", ["METHOD"]).didnt_exist`; new or
   renamed fields declare `schema(Model).field("name").didnt_exist` — so an
   older server correctly reports "this did not exist yet" and a newer client

@@ -65,8 +65,14 @@ the API-based alternative), not a checklist nit.
 
 ## Evidence
 
-- #67637 — a DAG-level asset-outlets PR whose success callback opened a session
-  and wrote `AssetEvent` rows directly; flagged as an architecture-boundary
-  concern during the ADR-conformance sweep.
+- #53719 — "Allow Remote logging providers to load connections from the API
+  Server"; merged, and the boundary being applied in the accepted direction: a
+  worker-side path that needed a Connection was moved onto the API server rather
+  than given a metadata-DB session.
+- #65313 — "Extract `persist_parsing_result` from `DagFileProcessorManager` for DB
+  call isolation"; merged, isolating the DB call out of the component that must
+  not hold one.
+- #47599 / #47894 — removal of the `create_session` import from `db.py` and the
+  matching migration rule; the mechanical form of the same boundary.
 - `airflow-core/docs/security/security_model.rst` and the architecture-boundaries
   section of the repo `CLAUDE.md` — workers never access the metadata DB directly.

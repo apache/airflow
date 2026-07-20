@@ -108,8 +108,10 @@ pairs — not adding a bespoke delete path.
 
 A change **violates** this decision when it:
 
-- issues an unbounded `DELETE`/`UPDATE` (no `LIMIT`) against a user-driven
-  table, in cleanup, in the scheduler loop, or in an interval callback;
+- issues an unbounded `DELETE`/`UPDATE` — one whose row set is bounded neither by
+  a `LIMIT` nor by an explicit, already-enumerated set of primary keys — against a
+  user-driven table, in cleanup, in the scheduler loop, or in an interval
+  callback;
 - batches but does not commit between batches, so locks accumulate across the
   whole run;
 - selects the batch on an unindexed column, turning every batch into a full
@@ -127,8 +129,9 @@ A change **violates** this decision when it:
 - calls `session.commit()` from a helper that is *not* the batching driver (see
   ADR 1).
 
-A reviewer should reject any bulk mutation that lacks a `LIMIT`, lacks an
-inter-batch commit, or filters on an unindexed column.
+A reviewer should reject any bulk mutation whose row set is unbounded (no `LIMIT`
+and no enumerated key set), that lacks an inter-batch commit, or that filters on
+an unindexed column.
 
 ## Evidence
 

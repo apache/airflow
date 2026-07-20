@@ -50,10 +50,18 @@ acquire candidate rows with `FOR UPDATE SKIP LOCKED` in a deterministic
 primary-key order (so two transactions never wait on each other for claimable
 work — see ADR 2); and scope bulk writes to the rows a given scheduler owns
 (for example filtering by `queued_by_job_id`) so different schedulers cannot
-lock-overlap on each other's work. Because these bugs are load-dependent and
-non-deterministic, the fix must be demonstrated with a **live reproduction**:
-show the deadlock occurring before the change and gone after, not merely argue
-the ordering by inspection.
+lock-overlap on each other's work.
+
+This is not a prohibition on database retry as such. `@retry_db_transaction`
+(`airflow/utils/retries.py`) wraps roughly a dozen call sites deliberately —
+`scheduler_job_runner.py`, `dag_processing/manager.py`, `models/dagrun.py` — and
+`../../dag_processing/adr/0004` rests on it as the layer that correctly absorbs a
+losing race at an outer commit boundary. The distinction is *where* the retry
+sits. A retry wrapped around a whole unit of work that owns its commit is a
+transaction-level control: it re-runs the entire operation from a clean state and
+the ordering underneath it is already correct. A retry added at the statement that
+raised, inside an operation whose lock order is wrong, is a symptom filter — it
+re-enters the same cycle and wins only by luck.
 
 ## Decision
 
@@ -65,11 +73,14 @@ Deadlocks and lock races in the scheduler/triggerer are fixed at the root:
    `FOR UPDATE SKIP LOCKED` with a deterministic primary-key `order_by`.
 3. **Scope bulk writes to the owning scheduler** (e.g. `queued_by_job_id`) so
    schedulers do not lock-overlap on rows they do not own.
-4. **Prove it with a live repro** — a reproduction that fails before the change
-   and passes after.
 
 Retry-on-deadlock and skip-the-check are **not** accepted as the fix for a
-scheduler/triggerer deadlock.
+scheduler/triggerer deadlock. `@retry_db_transaction` at a commit boundary that
+owns the whole unit of work is accepted, and is the established pattern here.
+
+Because these failures are load-dependent and non-deterministic, the reproduction
+requirement argued in `../../dag_processing/adr/0004` applies to deadlock fixes
+here too; it is not restated in this ADR.
 
 ## Consequences
 
@@ -79,21 +90,27 @@ scheduler/triggerer deadlock.
   and building a repro — but they are durable.
 - Bounded, well-understood retries remain acceptable for genuinely *transient*
   infrastructure faults (connection drops, serialization failures on an
-  otherwise correct ordering); they are not a substitute for fixing a real
+  otherwise correct ordering), and `@retry_db_transaction` remains the correct
+  wrapper at a commit boundary. Neither is a substitute for fixing a real
   ordering bug.
 
 A change **violates** this decision when it:
 
-- wraps a scheduler/triggerer statement in a catch-and-retry loop for
-  `DeadlockDetected`/`OperationalError` **without** changing the lock ordering
-  that caused it;
+- adds a bare `try`/`except DeadlockDetected` / `except OperationalError` and a
+  retry **around the individual statement that raised**, rather than applying
+  `@retry_db_transaction` at the boundary that owns the whole transaction;
 - skips or short-circuits a check (timeout sweep, state transition) specifically
   to avoid contention;
 - widens a bulk write's row range instead of scoping it to the owning job;
-- claims to fix a deadlock but ships no reproduction demonstrating it is gone.
+- describes itself as a deadlock fix while its PR body states no reproduction of
+  the deadlock.
 
-A reviewer should reject a "deadlock fix" whose diff only adds retry/skip
-handling and leaves the lock-acquisition order unchanged.
+Reviewer prompts — judgement calls this ADR informs but a diff cannot settle:
+
+- Does the diff change the lock-acquisition order that caused the deadlock, or
+  only how the failure is handled? A "deadlock fix" that leaves the ordering
+  untouched and only adds retry/skip handling is the shape to reject.
+- Is the retry at a boundary that can safely re-run everything inside it?
 
 ## Evidence
 
@@ -103,6 +120,9 @@ handling and leaves the lock-acquisition order unchanged.
 - #27344 — "Add retry to submit_event in trigger to avoid deadlock": adds
   retry-on-deadlock in the triggerer without addressing the underlying lock
   order — the reactive pattern this ADR rules out as the fix.
-- #66820 — "clear identity map between `_do_scheduling` phases": a root-cause
-  scheduler correctness fix (stale identity-map state across phases) of the kind
-  this decision favors over papering the symptom with retries.
+
+Both citations are from 2022–2023 and both are reject-shaped; this ADR has no
+recent merged exemplar of a root-cause ordering fix behind it. The decision
+matches the ordering discipline visible in `scheduler_job_runner.py` today and in
+ADR 2, but the evidence base is thin — treat a well-argued counter-example as
+grounds to revisit rather than as a violation.

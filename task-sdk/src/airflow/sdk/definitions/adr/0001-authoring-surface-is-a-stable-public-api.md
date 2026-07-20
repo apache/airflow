@@ -87,10 +87,14 @@ A change **violates** this decision when it:
   warning;
 - changes the meaning or default behaviour of an authoring construct — or adds
   validation that rejects previously-valid Dags — without an AIP / devlist
-  discussion;
+  discussion. Restoring the documented behaviour of an existing, already-declared
+  config key that no code currently reads is a defect fix, not a meaning change —
+  it needs a newsfragment, not an AIP;
 - introduces a new public authoring API as a bare PR when it warrants an AIP;
 - makes a previously-accepted Dag fail, or fail deep in the scheduler/worker
-  rather than at parse time with an author-facing error.
+  rather than at parse time with an author-facing error — unless the
+  previously-accepted behaviour was a swallowed error or silent no-op that the
+  change surfaces.
 
 ## Evidence
 
@@ -100,7 +104,7 @@ A change **violates** this decision when it:
 - #56127 — "Add back Deprecation warning for `sla_miss_callback`": a deprecation
   warning that had been dropped was *restored*, showing the project treats the
   warning cycle itself as part of the compatibility contract.
-- #53496 — "Remove warning for `BaseOperator.executor` because it's false":
+- #53496 — "Remove warning for `BaseOperator.executor` because it works":
   correcting a warning on a still-supported attribute — the deprecation surface is
   maintained deliberately, not casually.
 - #65447 (AIP-76 partition authoring API), #65474 (AIP-105 pluggable retry
