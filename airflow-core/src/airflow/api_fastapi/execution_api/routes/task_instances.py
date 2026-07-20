@@ -97,6 +97,9 @@ from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
+# https://datatracker.ietf.org/doc/html/rfc9457
+# FastAPI wraps error responses in {"detail": ...} instead of a native RFC 9457 response.
+# Tracked in: https://github.com/fastapi/fastapi/issues/10370
 router = VersionedAPIRouter()
 
 ti_id_router = VersionedAPIRouter(
