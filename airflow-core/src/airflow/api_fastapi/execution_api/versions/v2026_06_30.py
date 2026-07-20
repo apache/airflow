@@ -25,7 +25,10 @@ from cadwyn import (
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
+    LiteralArgBinding,
+    XComArgBinding,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TaskInstance,
@@ -148,7 +151,8 @@ class AddArgBindingsToTIRunContext(VersionChange):
     """
     Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks.
 
-    ``TaskArgBinding.data_type`` is declared as the ``ArgBindingDataType`` enum rather than an
+    Each entry is a discriminated union of ``XComArgBinding`` and ``LiteralArgBinding`` keyed
+    on ``kind``. ``data_type`` is declared as the ``ArgBindingDataType`` enum rather than an
     inline ``Literal``; the wire representation (a JSON string) is unchanged, so no migration
     instruction is needed -- this version has not been released with the ``arg_bindings`` field
     in any other shape.
@@ -158,7 +162,8 @@ class AddArgBindingsToTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("arg_bindings").didnt_exist,
-        schema(TaskArgBinding).field("name").didnt_exist,
+        schema(XComArgBinding).field("name").didnt_exist,
+        schema(LiteralArgBinding).field("name").didnt_exist,
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]

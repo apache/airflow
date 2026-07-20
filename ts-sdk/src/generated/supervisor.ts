@@ -22,6 +22,20 @@
 //
 // Re-run with: pnpm run generate:supervisor
 
+/**
+ * Language-neutral value type a stub-task argument binds to in the foreign runtime.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "ArgBindingDataType".
+ */
+export type ArgBindingDataType =
+  | "string"
+  | "integer"
+  | "number"
+  | "boolean"
+  | "object"
+  | "array"
+  | "any";
 export type Name = string;
 export type Id = number;
 export type Timestamp = string;
@@ -246,10 +260,39 @@ export type XcomKeysToClear = string[];
 export type ShouldRetry = boolean;
 export type StartDate2 = string | null;
 export type ArgBindings = TaskArgBinding[] | null;
-export type Kind = "xcom" | "literal";
-export type DataType = "string" | "integer" | "number" | "boolean" | "object" | "array" | "any";
-export type TaskId1 = string | null;
+/**
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskArgBinding".
+ */
+export type TaskArgBinding = XComArgBinding | LiteralArgBinding;
+export type Kind = "xcom";
+export type Name8 = string;
+/**
+ * Language-neutral value type a stub-task argument binds to in the foreign runtime.
+ */
+export type ArgBindingDataType1 =
+  | "string"
+  | "integer"
+  | "number"
+  | "boolean"
+  | "object"
+  | "array"
+  | "any";
+export type TaskId1 = string;
 export type Key1 = string;
+export type Kind1 = "literal";
+export type Name9 = string;
+/**
+ * Language-neutral value type a stub-task argument binds to in the foreign runtime.
+ */
+export type ArgBindingDataType2 =
+  | "string"
+  | "integer"
+  | "number"
+  | "boolean"
+  | "object"
+  | "array"
+  | "any";
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
 export type BundleName3 = string;
@@ -299,11 +342,6 @@ export type Note1 = string | null;
 export type TeamName1 = string | null;
 export type Type18 = "DagRunResult";
 export type Type19 = "DagRunStateResult";
-/**
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "DataType".
- */
-export type DataType1 = "string" | "integer" | "number" | "boolean" | "object" | "array" | "any";
 export type State2 = "deferred" | null;
 export type Classpath = string;
 export type TriggerKwargs =
@@ -320,7 +358,7 @@ export type NextKwargs2 = {
 } | null;
 export type RenderedMapIndex1 = string | null;
 export type Type20 = "DeferTask";
-export type Name8 = string;
+export type Name10 = string;
 export type Key2 = string;
 export type Type21 = "DeleteAssetStateStoreByName";
 export type Uri5 = string;
@@ -372,11 +410,11 @@ export type ErrorType1 =
   | "PERMISSION_DENIED"
   | "GENERIC_ERROR"
   | "API_SERVER_ERROR";
-export type Name9 = string;
+export type Name11 = string;
 export type Type27 = "GetAssetByName";
 export type Uri6 = string;
 export type Type28 = "GetAssetByUri";
-export type Name10 = string | null;
+export type Name12 = string | null;
 export type Uri7 = string | null;
 export type After = string | null;
 export type Before = string | null;
@@ -399,7 +437,7 @@ export type Extra8 = {
   [k: string]: string;
 } | null;
 export type Type30 = "GetAssetEventByAssetAlias";
-export type Name11 = string;
+export type Name13 = string;
 export type Key7 = string;
 export type Type31 = "GetAssetStateStoreByName";
 export type Uri8 = string;
@@ -508,12 +546,7 @@ export type AssignedUsers1 = HITLUser[] | null;
 export type Type54 = "HITLDetailRequestResult";
 export type InactiveAssets = AssetProfile[] | null;
 export type Type55 = "InactiveAssetsResult";
-/**
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "Kind".
- */
-export type Kind1 = "xcom" | "literal";
-export type Name12 = string | null;
+export type Name14 = string | null;
 export type Type56 = "MaskSecret";
 export type Ok = boolean;
 export type Type57 = "OKResponse";
@@ -551,7 +584,7 @@ export type RetryReason = string | null;
 export type Type64 = "RetryTask";
 export type Type65 = "SentFDs";
 export type Fds = number[];
-export type Name13 = string;
+export type Name15 = string;
 export type Key16 = string;
 export type Type66 = "SetAssetStateStoreByName";
 export type Uri9 = string;
@@ -1047,19 +1080,28 @@ export interface ConnectionResponse {
   extra: Extra6;
 }
 /**
- * One positional argument of a stub (foreign-runtime) task, in declaration order.
- *
- * A deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema
- * generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
+ * One positional stub-task argument pulled from an upstream task's XCom.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "TaskArgBinding".
+ * via the `definition` "XComArgBinding".
  */
-export interface TaskArgBinding {
+export interface XComArgBinding {
   kind: Kind;
-  data_type?: DataType;
-  task_id?: TaskId1;
+  name: Name8;
+  data_type?: ArgBindingDataType1;
+  task_id: TaskId1;
   key?: Key1;
+}
+/**
+ * One positional stub-task argument carrying an inline literal from the Dag file.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "LiteralArgBinding".
+ */
+export interface LiteralArgBinding {
+  kind: Kind1;
+  name: Name9;
+  data_type?: ArgBindingDataType2;
   value?: unknown;
 }
 /**
@@ -1181,7 +1223,7 @@ export interface DeferTask {
  * via the `definition` "DeleteAssetStateStoreByName".
  */
 export interface DeleteAssetStateStoreByName {
-  name: Name8;
+  name: Name10;
   key: Key2;
   type?: Type21;
 }
@@ -1237,7 +1279,7 @@ export interface ErrorResponse {
  * via the `definition` "GetAssetByName".
  */
 export interface GetAssetByName {
-  name: Name9;
+  name: Name11;
   type?: Type27;
 }
 /**
@@ -1253,7 +1295,7 @@ export interface GetAssetByUri {
  * via the `definition` "GetAssetEventByAsset".
  */
 export interface GetAssetEventByAsset {
-  name: Name10;
+  name: Name12;
   uri: Uri7;
   after?: After;
   before?: Before;
@@ -1284,7 +1326,7 @@ export interface GetAssetEventByAssetAlias {
  * via the `definition` "GetAssetStateStoreByName".
  */
 export interface GetAssetStateStoreByName {
-  name: Name11;
+  name: Name13;
   key: Key7;
   type?: Type31;
 }
@@ -1552,7 +1594,7 @@ export interface InactiveAssetsResult {
  */
 export interface MaskSecret {
   value: JsonValue;
-  name?: Name12;
+  name?: Name14;
   type?: Type56;
 }
 /**
@@ -1668,7 +1710,7 @@ export interface SentFDs {
  * via the `definition` "SetAssetStateStoreByName".
  */
 export interface SetAssetStateStoreByName {
-  name: Name13;
+  name: Name15;
   key: Key16;
   value: JsonValue;
   type?: Type66;

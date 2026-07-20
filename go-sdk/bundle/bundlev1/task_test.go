@@ -206,9 +206,8 @@ func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
 	s.Require().True(ok, "taskFunction must implement TaskWithArgs")
 
 	err = tw.ExecuteArgs(context.Background(), slog.New(logging.NewTeeLogger()), []binding.Arg{
-		{Kind: binding.ArgKindLiteral, Value: "uk", DataType: binding.DataTypeString},
-		{
-			Kind:     binding.ArgKindLiteral,
+		binding.LiteralArg{Value: "uk", DataType: binding.DataTypeString},
+		binding.LiteralArg{
 			Value:    map[string]any{"k": "v"},
 			DataType: binding.DataTypeObject,
 		},
@@ -242,8 +241,8 @@ func (s *TaskSuite) TestExecuteArgsArityMismatch() {
 		context.Background(),
 		slog.New(logging.NewTeeLogger()),
 		[]binding.Arg{
-			{Kind: binding.ArgKindLiteral, Value: "uk"},
-			{Kind: binding.ArgKindLiteral, Value: "de"},
+			binding.LiteralArg{Value: "uk"},
+			binding.LiteralArg{Value: "de"},
 		},
 	)
 	if s.Assert().Error(err) {

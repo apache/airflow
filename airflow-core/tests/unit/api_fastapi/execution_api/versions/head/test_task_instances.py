@@ -31,6 +31,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -413,6 +414,13 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=payload)
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
+
+    def test_arg_bindings_adapter_rejects_unknown_kind(self):
+        """The discriminated union refuses serialized specs with an unrecognised kind."""
+        from airflow.api_fastapi.execution_api.routes.task_instances import _arg_bindings_adapter
+
+        with pytest.raises(ValidationError, match="does not match any of the expected tags"):
+            _arg_bindings_adapter.validate_python([{"name": "country", "kind": "template", "value": "x"}])
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""

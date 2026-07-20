@@ -174,7 +174,7 @@ func (s *BindingSuite) TestResolveArityMismatch() {
 
 	_, err = s.resolve(
 		func() error { return nil },
-		[]Arg{{Kind: ArgKindLiteral, Value: "uk"}},
+		[]Arg{LiteralArg{Value: "uk"}},
 		&fakeXComClient{},
 	)
 	if s.Assert().Error(err) {
@@ -187,12 +187,12 @@ func (s *BindingSuite) TestResolveLiterals() {
 		return nil
 	}
 	got, err := s.resolve(fn, []Arg{
-		{Kind: ArgKindLiteral, Value: "uk", DataType: DataTypeString},
-		{Kind: ArgKindLiteral, Value: 3, DataType: DataTypeInteger},
-		{Kind: ArgKindLiteral, Value: 1.5, DataType: DataTypeNumber},
-		{Kind: ArgKindLiteral, Value: true, DataType: DataTypeBoolean},
-		{Kind: ArgKindLiteral, Value: []any{"a", "b"}, DataType: DataTypeArray},
-		{Kind: ArgKindLiteral, Value: map[string]any{"k": "v"}, DataType: DataTypeObject},
+		LiteralArg{Value: "uk", DataType: DataTypeString},
+		LiteralArg{Value: 3, DataType: DataTypeInteger},
+		LiteralArg{Value: 1.5, DataType: DataTypeNumber},
+		LiteralArg{Value: true, DataType: DataTypeBoolean},
+		LiteralArg{Value: []any{"a", "b"}, DataType: DataTypeArray},
+		LiteralArg{Value: map[string]any{"k": "v"}, DataType: DataTypeObject},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal("uk", got[0].Interface())
@@ -208,8 +208,8 @@ func (s *BindingSuite) TestResolveInterleavedInjectables() {
 		return nil
 	}
 	got, err := s.resolve(fn, []Arg{
-		{Kind: ArgKindLiteral, Value: "uk", DataType: DataTypeString},
-		{Kind: ArgKindLiteral, Value: map[string]any{"k": "v"}, DataType: DataTypeObject},
+		LiteralArg{Value: "uk", DataType: DataTypeString},
+		LiteralArg{Value: map[string]any{"k": "v"}, DataType: DataTypeObject},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.NotNil(got[0].Interface().(*slog.Logger))
@@ -261,7 +261,7 @@ func (s *BindingSuite) TestResolveTypeMismatchFailsLoudly() {
 	fn := func(count int) error { return nil }
 	_, err := s.resolve(
 		fn,
-		[]Arg{{Kind: ArgKindLiteral, Value: "uk", DataType: DataTypeString}},
+		[]Arg{LiteralArg{Value: "uk", DataType: DataTypeString}},
 		&fakeXComClient{},
 	)
 	if s.Assert().Error(err) {
@@ -276,7 +276,7 @@ func (s *BindingSuite) TestResolveLiteralDecodeFailure() {
 	// The Dag declared "any", so the type check passes but the JSON decode of a
 	// string into an int must still fail loudly.
 	fn := func(count int) error { return nil }
-	_, err := s.resolve(fn, []Arg{{Kind: ArgKindLiteral, Value: "uk"}}, &fakeXComClient{})
+	_, err := s.resolve(fn, []Arg{LiteralArg{Value: "uk"}}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "decoding literal value into int")
 	}
@@ -343,8 +343,8 @@ func (s *BindingSuite) TestResolveXComArgs() {
 
 	fn := func(res extractResult, part string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		{Kind: ArgKindXCom, TaskID: "extract", DataType: DataTypeObject},
-		{Kind: ArgKindXCom, TaskID: "extract", Key: "part", DataType: DataTypeString},
+		XComArg{TaskID: "extract", DataType: DataTypeObject},
+		XComArg{TaskID: "extract", Key: "part", DataType: DataTypeString},
 	}, client)
 	s.Require().NoError(err)
 	s.Equal(extractResult{GoVersion: "go1.24", Timestamp: 42}, got[0].Interface())
@@ -368,7 +368,7 @@ func (s *BindingSuite) TestResolveXComStrictStructDecode() {
 		"extract/return_value": map[string]any{"go_version": "go1.24", "renamed_field": 1},
 	}}
 	fn := func(res extractResult) error { return nil }
-	_, err := s.resolve(fn, []Arg{{Kind: ArgKindXCom, TaskID: "extract"}}, client)
+	_, err := s.resolve(fn, []Arg{XComArg{TaskID: "extract"}}, client)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), `decoding xcom from task "extract"`)
 		s.Contains(err.Error(), "unknown field")
@@ -378,7 +378,7 @@ func (s *BindingSuite) TestResolveXComStrictStructDecode() {
 func (s *BindingSuite) TestResolveXComPullFailure() {
 	client := &fakeXComClient{err: sdk.XComNotFound}
 	fn := func(res map[string]any) error { return nil }
-	_, err := s.resolve(fn, []Arg{{Kind: ArgKindXCom, TaskID: "extract"}}, client)
+	_, err := s.resolve(fn, []Arg{XComArg{TaskID: "extract"}}, client)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), `pulling xcom from task "extract"`)
 	}
@@ -388,7 +388,7 @@ func (s *BindingSuite) TestResolveXComWithoutWorkload() {
 	plan := analyze(s, func(res map[string]any) error { return nil })
 	_, err := plan.Resolve(
 		context.Background(), slog.Default(), &fakeXComClient{},
-		[]Arg{{Kind: ArgKindXCom, TaskID: "extract"}},
+		[]Arg{XComArg{TaskID: "extract"}},
 	)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "no workload in context")
@@ -399,24 +399,41 @@ func (s *BindingSuite) TestResolveNullHandling() {
 	fn := func(meta map[string]any) error { return nil }
 	got, err := s.resolve(
 		fn,
-		[]Arg{{Kind: ArgKindLiteral, Value: nil, DataType: DataTypeObject}},
+		[]Arg{LiteralArg{Value: nil, DataType: DataTypeObject}},
 		&fakeXComClient{},
 	)
 	s.Require().NoError(err)
 	s.Nil(got[0].Interface())
 
 	fnStr := func(country string) error { return nil }
-	_, err = s.resolve(fnStr, []Arg{{Kind: ArgKindLiteral, Value: nil}}, &fakeXComClient{})
+	_, err = s.resolve(fnStr, []Arg{LiteralArg{Value: nil}}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "not nilable")
 	}
 }
 
-func (s *BindingSuite) TestResolveUnknownKind() {
+// fakeArg is an out-of-catalogue Arg variant: the compiler seals the sum type
+// to this package, so the defensive default branch can only be reached from
+// inside it.
+type fakeArg struct{}
+
+func (fakeArg) ArgName() string        { return "fake" }
+func (fakeArg) DeclaredType() DataType { return DataTypeAny }
+func (fakeArg) sealedArg()             {}
+
+func (s *BindingSuite) TestResolveUnsupportedVariant() {
 	fn := func(country string) error { return nil }
-	_, err := s.resolve(fn, []Arg{{Kind: ArgKind("template"), Value: "x"}}, &fakeXComClient{})
+	_, err := s.resolve(fn, []Arg{fakeArg{}}, &fakeXComClient{})
 	if s.Assert().Error(err) {
-		s.Contains(err.Error(), `unknown argument kind "template"`)
+		s.Contains(err.Error(), "unsupported argument binding binding.fakeArg")
+	}
+}
+
+func (s *BindingSuite) TestResolveNilArg() {
+	fn := func(country string) error { return nil }
+	_, err := s.resolve(fn, []Arg{nil}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "nil argument binding")
 	}
 }
 
@@ -431,7 +448,7 @@ func (s *BindingSuite) TestResolveTIRunContextRebuild() {
 
 	plan := analyze(s, func(rc sdk.TIRunContext, country string) error { return nil })
 	got, err := plan.Resolve(ctx, slog.Default(), &fakeXComClient{}, []Arg{
-		{Kind: ArgKindLiteral, Value: "uk", DataType: DataTypeString},
+		LiteralArg{Value: "uk", DataType: DataTypeString},
 	})
 	s.Require().NoError(err)
 	rc := got[0].Interface().(sdk.TIRunContext)
@@ -515,8 +532,8 @@ func (s *BindingSuite) TestResolveTaskInputAllStruct() {
 	}}
 	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
-		{Name: "count", Kind: ArgKindLiteral, Value: 7, DataType: DataTypeInteger},
+		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "count", Value: 7, DataType: DataTypeInteger},
 	}, client)
 	s.Require().NoError(err)
 
@@ -541,10 +558,10 @@ func (s *BindingSuite) TestResolveTaskInputAllStruct() {
 func (s *BindingSuite) TestResolveTaskInputMixedWithFlat() {
 	fn := func(prefix string, input reportInput, suffix string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		{Name: "prefix", Kind: ArgKindLiteral, Value: "head", DataType: DataTypeString},
-		{Name: "region", Kind: ArgKindXCom, TaskID: "make_region", DataType: DataTypeString},
-		{Name: "ratio", Kind: ArgKindLiteral, Value: 0.5, DataType: DataTypeNumber},
-		{Name: "suffix", Kind: ArgKindLiteral, Value: "footer", DataType: DataTypeString},
+		LiteralArg{Name: "prefix", Value: "head", DataType: DataTypeString},
+		XComArg{Name: "region", TaskID: "make_region", DataType: DataTypeString},
+		LiteralArg{Name: "ratio", Value: 0.5, DataType: DataTypeNumber},
+		LiteralArg{Name: "suffix", Value: "footer", DataType: DataTypeString},
 	}, &fakeXComClient{values: map[string]any{"make_region/return_value": "east"}})
 	s.Require().NoError(err)
 
@@ -579,7 +596,7 @@ func (s *BindingSuite) TestResolveTaskInputXComTagIndependentOfArgs() {
 func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
 	fn := func(input simpleTaskInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal("widget", got[0].Interface().(simpleTaskInput).Name)
@@ -588,7 +605,7 @@ func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
 func (s *BindingSuite) TestResolveTaskInputPointerStruct() {
 	fn := func(input *simpleTaskInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	input := got[0].Interface().(*simpleTaskInput)
@@ -599,7 +616,7 @@ func (s *BindingSuite) TestResolveTaskInputPointerStruct() {
 func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameLeavesFieldZeroValued() {
 	fn := func(input simpleTaskInput) error { return nil }
 	_, err := s.resolve(fn, []Arg{
-		{Name: "different_name", Kind: ArgKindLiteral, Value: "x", DataType: DataTypeString},
+		LiteralArg{Name: "different_name", Value: "x", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	// simpleTaskInput has no other flat parameter to absorb "different_name",
 	// so the arity check (0 unclaimed args expected) still fails the task --
@@ -612,7 +629,7 @@ func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameLeavesFieldZeroValued
 func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMatch() {
 	fn := func(input twoFieldTaskInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	input := got[0].Interface().(twoFieldTaskInput)
@@ -623,7 +640,7 @@ func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMa
 func (s *BindingSuite) TestResolveTaskInputArityMismatchForLeftoverArgs() {
 	fn := func(input simpleTaskInput, extra string) error { return nil }
 	_, err := s.resolve(fn, []Arg{
-		{Name: "name", Kind: ArgKindLiteral, Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "argument count mismatch")

@@ -442,7 +442,14 @@ class TestRealBundleArgBindingsDowngrade:
         assert "arg_bindings" not in out["ti_context"]
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
+        from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
+
         out = real_migrator.downgrade(startup_details, "2026-07-30")
         assert out.ti_context.arg_bindings is not None
-        assert [a.kind for a in out.ti_context.arg_bindings] == ["literal", "xcom"]
-        assert [a.name for a in out.ti_context.arg_bindings] == ["country", "extracted"]
+        literal, xcom = (a.root for a in out.ti_context.arg_bindings)
+        assert isinstance(literal, LiteralArgBinding)
+        assert literal.value == "uk"
+        assert literal.name == "country"
+        assert isinstance(xcom, XComArgBinding)
+        assert xcom.task_id == "extract"
+        assert xcom.name == "extracted"

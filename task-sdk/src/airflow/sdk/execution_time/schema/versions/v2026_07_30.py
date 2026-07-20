@@ -19,15 +19,21 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, schema
 
-from airflow.sdk.api.datamodels._generated import TaskArgBinding, TIRunContext
+from airflow.sdk.api.datamodels._generated import LiteralArgBinding, TIRunContext, XComArgBinding
 
 
 class AddArgBindingsToTIRunContext(VersionChange):
-    """Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks."""
+    """
+    Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks.
+
+    Each entry is a discriminated union of ``XComArgBinding`` and ``LiteralArgBinding``
+    keyed on ``kind``.
+    """
 
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("arg_bindings").didnt_exist,
-        schema(TaskArgBinding).field("name").didnt_exist,
+        schema(XComArgBinding).field("name").didnt_exist,
+        schema(LiteralArgBinding).field("name").didnt_exist,
     )

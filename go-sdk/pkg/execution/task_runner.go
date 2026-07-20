@@ -125,34 +125,58 @@ func RunTask(
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 
-	args := convertArgBindings(details.TIContext.ArgBindings)
+	args, err := convertArgBindings(details.TIContext.ArgBindings)
+	if err != nil {
+		logger.Error("Invalid arg_bindings spec from supervisor",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"error", err,
+		)
+		return genmodels.TaskState{
+			State:   genmodels.TaskStateStateFailed,
+			EndDate: time.Now().UTC(),
+		}
+	}
 
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
 }
 
 // convertArgBindings maps the wire-model positional-argument spec (captured from
-// the Python stub Dag's TaskFlow call) onto the runtime-neutral binding form.
-func convertArgBindings(specsPtr *genmodels.ArgBindings) []binding.Arg {
+// the Python stub Dag's TaskFlow call) onto the runtime binding sum type. The
+// wire union generates untyped items (msgpack delivers each XComArgBinding /
+// LiteralArgBinding as a plain map), so the kind dispatch and the schema
+// defaults (data_type "any", xcom key "return_value") are applied here.
+func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {
 	if specsPtr == nil || len(*specsPtr) == 0 {
-		return nil
+		return nil, nil
 	}
 	specs := *specsPtr
 	args := make([]binding.Arg, len(specs))
-	for i, spec := range specs {
-		taskID := ""
-		if s, ok := spec.TaskID.(string); ok {
-			taskID = s
+	for i, raw := range specs {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("arg_bindings[%d]: unexpected wire shape %T", i, raw)
 		}
-		args[i] = binding.Arg{
-			Name:     spec.Name,
-			Kind:     binding.ArgKind(spec.Kind),
-			TaskID:   taskID,
-			Key:      spec.Key,
-			Value:    spec.Value,
-			DataType: binding.DataType(spec.DataType),
+		name, _ := m["name"].(string)
+		dataType := binding.DataTypeAny
+		if s, ok := m["data_type"].(string); ok && s != "" {
+			dataType = binding.DataType(s)
+		}
+		switch kind, _ := m["kind"].(string); kind {
+		case "xcom":
+			taskID, _ := m["task_id"].(string)
+			key := "return_value"
+			if s, ok := m["key"].(string); ok && s != "" {
+				key = s
+			}
+			args[i] = binding.XComArg{Name: name, TaskID: taskID, Key: key, DataType: dataType}
+		case "literal":
+			args[i] = binding.LiteralArg{Name: name, Value: m["value"], DataType: dataType}
+		default:
+			return nil, fmt.Errorf("arg_bindings[%d]: unknown kind %q", i, kind)
 		}
 	}
-	return args
+	return args, nil
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form

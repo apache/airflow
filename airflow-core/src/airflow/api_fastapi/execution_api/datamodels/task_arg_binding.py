@@ -20,14 +20,21 @@ Positional-argument binding spec for stub (foreign-runtime) tasks.
 Captured at parse time from a stub task's TaskFlow call (``@task.stub``), stored in the
 serialized Dag, and delivered to the lang-SDK runtime through ``TIRunContext.arg_bindings``
 so it can bind the values onto the native task function's parameters.
+
+Each binding is one variant of a union discriminated on ``kind``: an ``XComArgBinding``
+pulls the value from an upstream task's XCom, a ``LiteralArgBinding`` carries an inline
+value from the Dag file. Both variants still emit plain named structs
+(``$defs/XComArgBinding``, ``$defs/LiteralArgBinding``) for the foreign-language SDKs
+consuming the supervisor schema.
 """
 
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import JsonValue
+from pydantic import Field, JsonValue
+from typing_extensions import TypeAliasType
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -44,28 +51,49 @@ class ArgBindingDataType(str, Enum):
     ANY = "any"
 
 
-class TaskArgBinding(BaseModel):
-    """
-    One positional argument of a stub (foreign-runtime) task, in declaration order.
+class XComArgBinding(BaseModel):
+    """One positional stub-task argument pulled from an upstream task's XCom."""
 
-    A deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema
-    generates a plain struct in the foreign-language SDKs consuming the supervisor schema.
-    """
+    # No default on purpose: a required ``kind`` stays non-nullable through the OpenAPI
+    # round trip, which discriminated-union codegen needs (a defaulted field turns
+    # ``Literal`` into ``Literal | None`` in the generated task-sdk models).
+    kind: Literal["xcom"]
 
     name: str
     """The stub function's parameter name this binding fills, in declaration order."""
 
-    kind: Literal["xcom", "literal"]
-    """Whether the value comes from an upstream task's XCom or is a literal from the Dag file."""
+    data_type: ArgBindingDataType = ArgBindingDataType.ANY
+    """Declared type from the stub function's annotation; runtimes type-check against it."""
+
+    task_id: str
+    """Upstream task id to pull the XCom from."""
+
+    key: str = "return_value"
+    """XCom key to pull."""
+
+
+class LiteralArgBinding(BaseModel):
+    """One positional stub-task argument carrying an inline literal from the Dag file."""
+
+    kind: Literal["literal"]
+    """Required like ``XComArgBinding.kind``; see the note there."""
+
+    name: str
+    """The stub function's parameter name this binding fills, in declaration order."""
 
     data_type: ArgBindingDataType = ArgBindingDataType.ANY
     """Declared type from the stub function's annotation; runtimes type-check against it."""
 
-    task_id: str | None = None
-    """Upstream task id to pull the XCom from. Only set when ``kind`` is ``xcom``."""
-
-    key: str = "return_value"
-    """XCom key to pull. Only meaningful when ``kind`` is ``xcom``."""
-
     value: JsonValue | None = None
-    """The literal value from the Dag file. Only set when ``kind`` is ``literal``."""
+    """The literal value from the Dag file."""
+
+
+# A named alias (TypeAliasType, not a bare Annotated) so the union lands in every
+# schema as its own named definition instead of an anonymous field-title-derived one.
+# The explicit title lets the supervisor-schema dump merge this def with the
+# task-sdk-generated twin (its core/SDK dedup keys on titles).
+TaskArgBinding = TypeAliasType(
+    "TaskArgBinding",
+    Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")],
+)
+"""One positional argument of a stub (foreign-runtime) task, in declaration order."""

@@ -3060,14 +3060,6 @@
       "type": "object"
     },
     "JsonValue": {},
-    "Kind": {
-      "enum": [
-        "xcom",
-        "literal"
-      ],
-      "title": "Kind",
-      "type": "string"
-    },
     "LazyDeserializedDAG": {
       "description": "Lazily build information from the serialized DAG structure.\n\nAn object that will present \"enough\" of the DAG like interface to update DAG db models etc, without having\nto deserialize the full DAG and Task hierarchy.",
       "properties": {
@@ -4585,41 +4577,21 @@
       "title": "ConnectionResponse",
       "type": "object"
     },
-    "TaskArgBinding": {
-      "description": "One positional argument of a stub (foreign-runtime) task, in declaration order.\n\nA deliberately flat shape (``kind`` discriminates instead of a union) so the JSON schema\ngenerates a plain struct in the foreign-language SDKs consuming the supervisor schema.",
+    "LiteralArgBinding": {
+      "description": "One positional stub-task argument carrying an inline literal from the Dag file.",
       "properties": {
-        "name": {
-          "title": "Name",
+        "kind": {
+          "const": "literal",
+          "title": "Kind",
           "type": "string"
         },
-        "kind": {
-          "enum": [
-            "xcom",
-            "literal"
-          ],
-          "title": "Kind",
+        "name": {
+          "title": "Name",
           "type": "string"
         },
         "data_type": {
           "$ref": "#/$defs/ArgBindingDataType",
           "default": "any"
-        },
-        "task_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Task Id"
-        },
-        "key": {
-          "default": "return_value",
-          "title": "Key",
-          "type": "string"
         },
         "value": {
           "anyOf": [
@@ -4634,10 +4606,62 @@
         }
       },
       "required": [
-        "name",
-        "kind"
+        "kind",
+        "name"
       ],
-      "title": "TaskArgBinding",
+      "title": "LiteralArgBinding",
+      "type": "object"
+    },
+    "TaskArgBinding": {
+      "discriminator": {
+        "mapping": {
+          "literal": "#/$defs/LiteralArgBinding",
+          "xcom": "#/$defs/XComArgBinding"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/XComArgBinding"
+        },
+        {
+          "$ref": "#/$defs/LiteralArgBinding"
+        }
+      ],
+      "title": "TaskArgBinding"
+    },
+    "XComArgBinding": {
+      "description": "One positional stub-task argument pulled from an upstream task's XCom.",
+      "properties": {
+        "kind": {
+          "const": "xcom",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "data_type": {
+          "$ref": "#/$defs/ArgBindingDataType",
+          "default": "any"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "key": {
+          "default": "return_value",
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "task_id"
+      ],
+      "title": "XComArgBinding",
       "type": "object"
     },
     "AssetEventDagRunReference": {

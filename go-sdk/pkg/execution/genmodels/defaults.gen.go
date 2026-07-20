@@ -186,6 +186,17 @@ func (m *HITLDetailRequestResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 	return nil
 }
 
+// DecodeMsgpack applies LiteralArgBinding's schema defaults that msgpack would otherwise skip.
+func (m *LiteralArgBinding) DecodeMsgpack(dec *msgpack.Decoder) error {
+	type alias LiteralArgBinding
+	v := alias{DataType: ArgBindingDataType("any")}
+	if err := dec.Decode(&v); err != nil {
+		return err
+	}
+	*m = LiteralArgBinding(v)
+	return nil
+}
+
 // DecodeMsgpack applies PreviousTIResponse's schema defaults that msgpack would otherwise skip.
 func (m *PreviousTIResponse) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias PreviousTIResponse
@@ -282,17 +293,6 @@ func (m *SucceedTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	return nil
 }
 
-// DecodeMsgpack applies TaskArgBinding's schema defaults that msgpack would otherwise skip.
-func (m *TaskArgBinding) DecodeMsgpack(dec *msgpack.Decoder) error {
-	type alias TaskArgBinding
-	v := alias{DataType: ArgBindingDataType("any"), Key: "return_value"}
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*m = TaskArgBinding(v)
-	return nil
-}
-
 // DecodeMsgpack applies TaskInstance's schema defaults that msgpack would otherwise skip.
 func (m *TaskInstance) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias TaskInstance
@@ -325,5 +325,16 @@ func (m *TriggerDagRun) DecodeMsgpack(dec *msgpack.Decoder) error {
 		v.ResetDagRun = false
 	}
 	*m = TriggerDagRun(v)
+	return nil
+}
+
+// DecodeMsgpack applies XComArgBinding's schema defaults that msgpack would otherwise skip.
+func (m *XComArgBinding) DecodeMsgpack(dec *msgpack.Decoder) error {
+	type alias XComArgBinding
+	v := alias{DataType: ArgBindingDataType("any"), Key: "return_value"}
+	if err := dec.Decode(&v); err != nil {
+		return err
+	}
+	*m = XComArgBinding(v)
 	return nil
 }

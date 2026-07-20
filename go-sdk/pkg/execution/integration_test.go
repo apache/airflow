@@ -256,8 +256,18 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
-				{Kind: "literal", DataType: "string", Value: "uk"},
-				{Kind: "literal", DataType: "object", Value: map[string]any{"k": "v"}},
+				map[string]any{
+					"name":      "country",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "uk",
+				},
+				map[string]any{
+					"name":      "meta",
+					"kind":      "literal",
+					"data_type": "object",
+					"value":     map[string]any{"k": "v"},
+				},
 			},
 		},
 	}
@@ -295,7 +305,12 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
-				{Kind: "literal", DataType: "string", Value: "uk"},
+				map[string]any{
+					"name":      "country",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "uk",
+				},
 			},
 		},
 	}
@@ -340,7 +355,12 @@ func TestTaskRunnerBindsTaskInputStructArgs(t *testing.T) {
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
-				{Name: "region", Kind: "literal", DataType: "string", Value: "eu-west-1"},
+				map[string]any{
+					"name":      "region",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "eu-west-1",
+				},
 			},
 		},
 	}
@@ -372,7 +392,12 @@ func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
-				{Kind: "literal", DataType: "string", Value: "uk"},
+				map[string]any{
+					"name":      "count",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "uk",
+				},
 			},
 		},
 	}
@@ -382,6 +407,76 @@ func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+}
+
+// TestTaskRunnerArgBindingsUnknownKind: a wire spec whose kind is neither xcom
+// nor literal fails the task before the body runs.
+func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(country string) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{"name": "country", "kind": "template", "value": "x"},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on an unknown binding kind")
+}
+
+// TestTaskRunnerArgBindingsMalformedElement: a wire spec element that is not a
+// map at all fails the task before the body runs.
+func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(country string) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{"bogus"},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on a malformed binding element")
 }
 
 func TestRunTaskHonorsContextCancellation(t *testing.T) {

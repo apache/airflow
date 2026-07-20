@@ -80,14 +80,6 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// ArgKind discriminates how one positional argument is sourced.
-type ArgKind string
-
-const (
-	ArgKindXCom    ArgKind = "xcom"
-	ArgKindLiteral ArgKind = "literal"
-)
-
 // DataType is the language-neutral value type the Dag declared for an
 // argument (from the stub function's annotation on the Python side).
 type DataType string
@@ -103,25 +95,52 @@ const (
 )
 
 // Arg is one positional argument for a task function's data parameters, in
-// declaration order. It is a runtime-neutral mirror of the wire model so this
-// package stays decoupled from the generated coordinator schema types.
-type Arg struct {
-	// Name is the stub function's parameter name this binding fills. Always
-	// populated; used to match a TaskInput struct field's `arg:` tag (or its
-	// snake_cased field-name fallback).
+// declaration order: an XComArg or a LiteralArg. A sealed sum type mirroring
+// the wire model's XComArgBinding/LiteralArgBinding split, kept runtime-neutral
+// so this package stays decoupled from the generated coordinator schema types.
+type Arg interface {
+	// ArgName is the stub function's parameter name this binding fills; used
+	// to match a TaskInput struct field's `arg:` tag (or its snake_cased
+	// field-name fallback).
+	ArgName() string
+	// DeclaredType is the Dag-declared language-neutral type for the argument;
+	// empty is treated as DataTypeAny.
+	DeclaredType() DataType
+	// sealedArg restricts implementations to this package, keeping
+	// resolveOne's type switch the single exhaustive consumer.
+	sealedArg()
+}
+
+// XComArg sources the argument from an upstream task's XCom.
+type XComArg struct {
+	// Name is the stub function's parameter name this binding fills.
 	Name string
-	Kind ArgKind
-	// TaskID is the upstream task to pull from. Set only for ArgKindXCom.
+	// TaskID is the upstream task to pull from.
 	TaskID string
-	// Key is the XCom key to pull; empty means the return-value key. Set only
-	// for ArgKindXCom.
+	// Key is the XCom key to pull; empty means the return-value key.
 	Key string
-	// Value is the literal value from the Dag file. Set only for ArgKindLiteral.
-	Value any
-	// DataType is the declared type to check the Go parameter against; empty
-	// is treated as DataTypeAny.
+	// DataType is the declared type to check the Go parameter against.
 	DataType DataType
 }
+
+// LiteralArg carries an inline value from the Dag file.
+type LiteralArg struct {
+	// Name is the stub function's parameter name this binding fills.
+	Name string
+	// Value is the literal value from the Dag file.
+	Value any
+	// DataType is the declared type to check the Go parameter against.
+	DataType DataType
+}
+
+func (a XComArg) ArgName() string    { return a.Name }
+func (a LiteralArg) ArgName() string { return a.Name }
+
+func (a XComArg) DeclaredType() DataType    { return a.DataType }
+func (a LiteralArg) DeclaredType() DataType { return a.DataType }
+
+func (XComArg) sealedArg()    {}
+func (LiteralArg) sealedArg() {}
 
 // paramKind classifies how a task-function parameter is filled at execution.
 type paramKind int
@@ -240,7 +259,11 @@ func (p *Plan) Resolve(
 ) ([]reflect.Value, error) {
 	byName := make(map[string]int, len(args))
 	for i, a := range args {
-		byName[a.Name] = i
+		// A nil entry can claim no name; it stays unclaimed and fails loudly in
+		// resolveOne when the flat-parameter cursor reaches it.
+		if a != nil {
+			byName[a.ArgName()] = i
+		}
 	}
 	claimed := make([]bool, len(args))
 
@@ -362,8 +385,7 @@ func (p *Plan) resolveTaskInput(
 		case taskInputFieldFromXCom:
 			// DataTypeAny: an ad hoc pull has no Dag-declared type to check
 			// against, so decoding is driven entirely by the Go field's type.
-			arg = Arg{
-				Kind:     ArgKindXCom,
+			arg = XComArg{
 				TaskID:   tif.xcomTaskID,
 				Key:      tif.xcomKey,
 				DataType: DataTypeAny,
@@ -410,12 +432,17 @@ func (p *Plan) resolveOne(
 	typeCheckCtx string,
 	generalCtx string,
 ) (reflect.Value, error) {
-	if err := checkDataType(arg.DataType, targetType); err != nil {
+	if arg == nil {
+		return reflect.Value{}, fmt.Errorf(
+			"task function %s: %s: nil argument binding", p.fnName, generalCtx,
+		)
+	}
+	if err := checkDataType(arg.DeclaredType(), targetType); err != nil {
 		return reflect.Value{}, fmt.Errorf("task function %s: %s: %w", p.fnName, typeCheckCtx, err)
 	}
-	switch arg.Kind {
-	case ArgKindLiteral:
-		v, err := decodeValue(arg.Value, targetType)
+	switch a := arg.(type) {
+	case LiteralArg:
+		v, err := decodeValue(a.Value, targetType)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf(
 				"task function %s: %s: decoding literal value into %s: %w",
@@ -423,7 +450,7 @@ func (p *Plan) resolveOne(
 			)
 		}
 		return v, nil
-	case ArgKindXCom:
+	case XComArg:
 		workload, ok := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
 		if !ok {
 			return reflect.Value{}, fmt.Errorf(
@@ -431,30 +458,30 @@ func (p *Plan) resolveOne(
 				p.fnName, generalCtx,
 			)
 		}
-		key := arg.Key
+		key := a.Key
 		if key == "" {
 			key = api.XComReturnValueKey
 		}
 		// Pull from the upstream's unmapped instance (map_index nil); mapped
 		// upstream fan-in is out of scope for now.
-		raw, err := c.GetXCom(ctx, workload.TI.DagId, workload.TI.RunId, arg.TaskID, nil, key, nil)
+		raw, err := c.GetXCom(ctx, workload.TI.DagId, workload.TI.RunId, a.TaskID, nil, key, nil)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf(
 				"task function %s: %s: pulling xcom from task %q (key %q): %w",
-				p.fnName, generalCtx, arg.TaskID, key, err,
+				p.fnName, generalCtx, a.TaskID, key, err,
 			)
 		}
 		v, err := decodeValue(raw, targetType)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf(
 				"task function %s: %s: decoding xcom from task %q into %s: %w",
-				p.fnName, generalCtx, arg.TaskID, targetType, err,
+				p.fnName, generalCtx, a.TaskID, targetType, err,
 			)
 		}
 		return v, nil
 	default:
 		return reflect.Value{}, fmt.Errorf(
-			"task function %s: %s: unknown argument kind %q", p.fnName, generalCtx, arg.Kind,
+			"task function %s: %s: unsupported argument binding %T", p.fnName, generalCtx, arg,
 		)
 	}
 }
