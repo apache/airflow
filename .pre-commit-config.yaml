@@ -1019,7 +1019,10 @@ repos:
         entry: ./dev/skill-evals/eval.py
         language: node
         language_version: '22.22.0'
-        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        additional_dependencies:
+          - 'promptfoo@0.121.17'
+          - '@anthropic-ai/claude-agent-sdk@0.3.185'
+          - '@openai/codex-sdk@0.144.6'
         stages: ['manual']
         files: >
           (?x)

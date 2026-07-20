@@ -27,11 +27,12 @@ real repo — the agent sees actual source files.
 Usage:
     prek run run-skill-eval --hook-stage manual --all-files
 
-Env knobs: MODEL, SKILL_NAME, EVAL_REPEAT, EVAL_FULL (baseline arm).
+Env knobs: AGENT_RUNTIME, MODEL, SKILL_NAME, EVAL_REPEAT, EVAL_FULL (baseline arm).
 Promptfoo flags like --filter* are argv-only — wire them as fixed entry
 args on a hook variant when needed.
 
-Authentication: Claude Code session (claude /login) or ANTHROPIC_API_KEY.
+Authentication: Claude Code session (claude /login), ANTHROPIC_API_KEY,
+or a Codex CLI session (codex login), depending on the selected runtime.
 """
 
 from __future__ import annotations
@@ -45,6 +46,11 @@ import tempfile
 from pathlib import Path
 
 PROMPTFOO_VERSION = "0.121.17"
+SDK_PACKAGES = {
+    "claude": ("@anthropic-ai/claude-agent-sdk", "0.3.185"),
+    "codex": ("@openai/codex-sdk", "0.144.6"),
+}
+SUPPORTED_RUNTIMES = tuple(SDK_PACKAGES)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -65,7 +71,7 @@ OUTPUT_FORMAT = {
     "type": "json_schema",
     "schema": {
         "type": "object",
-        "required": ["should_create", "rationale"],
+        "required": ["should_create", "type", "rationale"],
         "additionalProperties": False,
         "properties": {
             "should_create": {"type": "boolean"},
@@ -83,12 +89,13 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, check=False, **kwargs)
 
 
-def find_sdk_modules() -> Path:
-    """Locate the node_modules dir (in the prek env) that contains the Claude Agent SDK.
+def find_sdk_modules(runtime: str) -> Path:
+    """Locate the prek node_modules dir containing the selected agent SDK.
 
-    promptfoo resolves the SDK from the eval config's directory, not from its
-    own install tree — the caller symlinks this dir next to the config.
+    promptfoo resolves providers from the eval config's directory. The caller
+    symlinks this directory next to the generated config.
     """
+    sdk_package, expected_version = SDK_PACKAGES[runtime]
     promptfoo_bin = shutil.which("promptfoo")
     if promptfoo_bin:
         # PROMPTFOO_DISABLE_UPDATE avoids an outdated version banner on stdout when a newer
@@ -102,11 +109,17 @@ def find_sdk_modules() -> Path:
                 if pf_pkg.parent == pf_pkg:
                     break
                 pf_pkg = pf_pkg.parent
+            package_parts = sdk_package.split("/")
             for candidate in (pf_pkg / "node_modules", pf_pkg.parent):
-                if (candidate / "@anthropic-ai" / "claude-agent-sdk").is_dir():
+                package_json = candidate.joinpath(*package_parts, "package.json")
+                try:
+                    installed_version = json.loads(package_json.read_text())["version"]
+                except (OSError, KeyError, ValueError):
+                    continue
+                if installed_version == expected_version:
                     return candidate
     print(
-        "Error: promptfoo with the Claude Agent SDK not found. Run the eval via:\n"
+        f"Error: promptfoo with {sdk_package} not found. Run the eval via:\n"
         "  prek run run-skill-eval --hook-stage manual --all-files",
         file=sys.stderr,
     )
@@ -207,18 +220,53 @@ def remove_worktree(wt_dir: Path) -> None:
     run(["git", "-C", str(REPO_ROOT), "worktree", "remove", "--force", str(wt_dir)])
 
 
-def build_provider(label: str, working_dir: Path, model: str, skill_name: str | None = None) -> dict:
+def build_provider(label: str, working_dir: Path, model: str | None, skill_name: str | None = None) -> dict:
     config: dict = {
-        "model": model,
         "apiKeyRequired": False,
         "setting_sources": ["project"],
         "append_allowed_tools": ["Read", "Grep", "Glob"],
         "working_dir": str(working_dir),
         "output_format": OUTPUT_FORMAT,
     }
+    if model:
+        config["model"] = model
     if skill_name:
         config["skills"] = [skill_name]
     return {"id": "anthropic:claude-agent-sdk", "label": label, "config": config}
+
+
+def build_codex_provider(
+    label: str, working_dir: Path, model: str | None, detect_skill_usage: bool = False
+) -> dict:
+    """Build promptfoo's provider for the official Codex SDK."""
+    config = {
+        "approval_policy": "never",
+        "cli_config": {"history": {"persistence": "none"}},
+        "network_access_enabled": False,
+        "output_schema": OUTPUT_FORMAT["schema"],
+        "sandbox_mode": "read-only",
+        "web_search_mode": "disabled",
+        "working_dir": str(working_dir),
+    }
+    if model:
+        config["model"] = model
+    if detect_skill_usage:
+        config["enable_streaming"] = True
+    return {
+        "id": "openai:codex-sdk",
+        "label": label,
+        "config": config,
+        "transform": "JSON.parse(output)",
+    }
+
+
+def get_runtime() -> str:
+    """Return and validate the agent runtime selected for this eval."""
+    runtime = os.environ.get("AGENT_RUNTIME", "claude").lower()
+    if runtime not in SUPPORTED_RUNTIMES:
+        choices = ", ".join(SUPPORTED_RUNTIMES)
+        raise ValueError(f"AGENT_RUNTIME must be one of: {choices}; got {runtime!r}")
+    return runtime
 
 
 def count_provider_errors(results_file: Path) -> int:
@@ -231,9 +279,16 @@ def count_provider_errors(results_file: Path) -> int:
 
 
 def main() -> int:
-    sdk_modules = find_sdk_modules()
+    try:
+        runtime = get_runtime()
+    except ValueError as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+    sdk_modules = find_sdk_modules(runtime)
 
-    model = os.environ.get("MODEL", "claude-sonnet-4-6")
+    model = os.environ.get("MODEL")
+    if not model and runtime == "claude":
+        model = "claude-sonnet-4-6"
     skill_name = os.environ.get("SKILL_NAME")
     skill_src = None
     if skill_name:
@@ -257,13 +312,14 @@ def main() -> int:
     if full_mode and skill_name:
         print(
             "Error: EVAL_FULL/--full cannot be combined with SKILL_NAME — the baseline"
-            " arm has no skill, so the 'skill-used' assertion would always fail on it.",
+            " arm intentionally has no skill and cannot be compared in skill-evaluation mode.",
             file=sys.stderr,
         )
         return 1
 
     base_branch = resolve_base_branch()
-    check_claude_md_symlink(base_branch)
+    if runtime == "claude":
+        check_claude_md_symlink(base_branch)
 
     # Hash before building arms so edits made mid-run aren't recorded as tested.
     guidance_hash = compute_guidance_hash(AGENTS_SRC, CASES_DIR)
@@ -273,7 +329,7 @@ def main() -> int:
     worktrees: list[Path] = []
 
     try:
-        # promptfoo resolves the Claude Agent SDK from the config directory
+        # promptfoo resolves the selected agent SDK from the config directory
         (work_dir / "node_modules").symlink_to(sdk_modules)
 
         # Extract main-branch AGENTS.md
@@ -319,11 +375,16 @@ def main() -> int:
             arm_baseline = create_worktree(work_dir, "baseline", base_branch, None, worktrees)
 
         # Generate config (JSON — valid promptfoo config, keeps the script stdlib-only)
-        providers = [build_provider("main", arm_main, model, skill_name)]
+        def provider(label: str, arm: Path, selected_skill: str | None = None) -> dict:
+            if runtime == "codex":
+                return build_codex_provider(label, arm, model, detect_skill_usage=bool(selected_skill))
+            return build_provider(label, arm, model, selected_skill)
+
+        providers = [provider("main", arm_main, skill_name)]
         if arm_working:
-            providers.append(build_provider("working", arm_working, model, skill_name))
+            providers.append(provider("working", arm_working, skill_name))
         if full_mode and arm_baseline:
-            providers.append(build_provider("baseline", arm_baseline, model))
+            providers.append(provider("baseline", arm_baseline))
 
         default_test: dict = {"options": {"disableVarExpansion": True}}
         if skill_name:
@@ -339,10 +400,13 @@ def main() -> int:
         config_path.write_text(json.dumps(config, indent=2))
 
         # Report
+        model_label = model or "runtime default"
         if skill_name:
-            print(f"Mode: {len(providers)} arms, skill '{skill_name}', model: {model}")
+            print(
+                f"Mode: {len(providers)} arms, skill '{skill_name}', runtime: {runtime}, model: {model_label}"
+            )
         else:
-            print(f"Mode: {len(providers)} arms, AGENTS.md only, model: {model}")
+            print(f"Mode: {len(providers)} arms, AGENTS.md only, runtime: {runtime}, model: {model_label}")
 
         print()
         print(f"Changes detected (vs {base_branch}):")
