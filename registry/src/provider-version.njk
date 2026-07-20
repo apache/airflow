@@ -284,9 +284,6 @@ eleventyComputed:
     <button class="module-tab" data-type="{{ t.id }}">
       <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ moduleCounts[t.id] }})
     </button>
-    {% if t.guide %}
-    <a class="module-tab-guide" href="{{ t.guide }}" target="_blank" rel="noopener" title="{{ t.label }} guide">Guide</a>
-    {% endif %}
     {% endif %}
     {% endfor %}
   </nav>

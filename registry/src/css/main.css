@@ -3043,25 +3043,6 @@ main {
   border-color: rgb(from var(--accent-primary) r g b / 0.3);
 }
 
-.module-tab-guide {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-primary);
-  text-decoration: none;
-  transition: all var(--transition-base);
-}
-
-.module-tab-guide:hover {
-  color: var(--text-primary);
-  border-color: var(--border-secondary);
-}
-
 .tab-icon {
   display: inline-flex;
   align-items: center;

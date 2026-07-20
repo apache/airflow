@@ -57,7 +57,6 @@
   {
     "id": "toolset",
     "label": "Toolsets",
-    "icon": "U",
-    "guide": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/stable/toolsets.html"
+    "icon": "U"
   }
 ]

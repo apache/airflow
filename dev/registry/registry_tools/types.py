@@ -108,11 +108,6 @@ MODULE_TYPES: dict[str, dict] = {
         "suffixes": ["Toolset"],
         "label": "Toolsets",
         "icon": "U",
-        # Toolsets have no dedicated guide page of their own on the registry site,
-        # so each tab deep-links to the published how-to guide instead. Other
-        # module types don't have an equivalent standalone guide, so this key is
-        # only present here -- consumers should treat it as optional.
-        "guide": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/stable/toolsets.html",
     },
 }
 
