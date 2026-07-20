@@ -1635,6 +1635,29 @@ api:
       type: boolean
       example: ~
       default: "True"
+    regexp_query_timeout:
+      description: |
+        Timeout, in seconds, for regular-expression based query filters in the API. Fractional
+        values are allowed (e.g. ``0.5``). This single value both enables the feature and bounds its
+        runtime: a value of ``0`` (the default) disables regexp filtering entirely, and any positive
+        value enables it while capping how long such a query may run.
+
+        When enabled, it allows additional filtering features that require database-side regexp
+        matching, such as the ``partition_key_regexp_pattern`` filter on ``GET /assets/events``
+        and on the Execution API asset-event endpoints. It is disabled by default for security
+        reasons: a user-supplied regular expression is passed to the database's own regex engine,
+        which is a Regular expression Denial of Service (ReDoS) vector: a crafted pattern can
+        force the engine into pathological backtracking and consume database backend CPU.
+
+        The timeout is the primary runtime mitigation for that risk: it is enforced as a
+        transaction-local ``statement_timeout`` on PostgreSQL and as the session ``max_execution_time``
+        on MySQL, so a pathological pattern is aborted instead of pinning a database backend. Keep it
+        as low as your legitimate queries allow. Coupling the on/off switch with the timeout
+        intentionally makes it impossible to enable regexp filtering without a runtime bound in place.
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: "0"
     secret_key:
       description: |
         Secret key used to run your api server. It should be as random as possible. However, when running
