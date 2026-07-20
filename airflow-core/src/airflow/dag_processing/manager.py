@@ -333,7 +333,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        # When this processor only parses a subset of bundles, it does not see the full
+        # bundle configuration and must not deactivate bundles owned by other processors.
+        DagBundlesManager().sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
@@ -705,7 +707,11 @@ class DagFileProcessorManager(LoggingMixin):
         Override to source the bundle from an API.
         """
         try:
-            bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
+            bundle = DagBundlesManager().get_bundle(
+                name=request.bundle_name,
+                version=request.bundle_version,
+                version_data=request.version_data,
+            )
         except ValueError:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
@@ -1181,7 +1187,7 @@ class DagFileProcessorManager(LoggingMixin):
                     ),
                 )
                 processor.kill(signal.SIGKILL)
-                processor.logger_filehandle.close()
+                processor.close()
                 self._file_stats.pop(file, None)
 
     @provide_session
@@ -1312,7 +1318,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file in finished:
             processor = self._processors.pop(file)
-            processor.logger_filehandle.close()
+            processor.close()
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -1618,7 +1624,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
-            processor.logger_filehandle.close()
+            processor.close()
 
     def _add_files_to_queue(
         self,

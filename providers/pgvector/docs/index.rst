@@ -127,6 +127,23 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
 ============================================================================================================  ==============
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-pgvector[common.sql]
+
+
+==============  =======================================
+Extra           Dependencies
+==============  =======================================
+``common.sql``  ``apache-airflow-providers-common-sql``
+==============  =======================================
+
 Downloading official packages
 -----------------------------
 

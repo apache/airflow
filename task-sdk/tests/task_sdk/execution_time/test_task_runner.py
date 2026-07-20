@@ -465,6 +465,82 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     ]
 
 
+@pytest.mark.parametrize(
+    ("state", "error", "expect_error_status"),
+    [
+        (TaskInstanceState.FAILED, RuntimeError("boom"), True),
+        (TaskInstanceState.SUCCESS, None, False),
+    ],
+)
+@mock.patch("airflow.sdk.execution_time.task_runner.finalize")
+@mock.patch("airflow.sdk.execution_time.task_runner.run")
+@mock.patch("airflow.sdk.execution_time.task_runner.BundleVersionLock")
+@mock.patch("airflow.sdk.execution_time.task_runner.startup")
+@mock.patch("airflow.sdk.execution_time.task_runner.get_startup_details")
+@mock.patch("airflow.sdk.execution_time.task_runner.CommsDecoder")
+def test_main_marks_worker_span_error_on_failure(
+    mock_comms_decoder_cls,
+    mock_get_startup_details,
+    mock_startup,
+    mock_bundle_lock,
+    mock_run,
+    mock_finalize,
+    make_ti_context,
+    state,
+    error,
+    expect_error_status,
+):
+    """main() marks the worker span ERROR when run() reports a failure, and leaves it unset otherwise.
+
+    run() funnels every failure into its returned ``error`` rather than re-raising, so the worker
+    span never sees the exception via propagation; main() must set the status from that return value.
+    """
+    mock_comms_instance = mock.Mock()
+    mock_comms_instance.socket = None
+    mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+            context_carrier={},
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mock_get_startup_details.return_value = what
+
+    ti = mock.Mock()
+    ti.bundle_instance.name = "my-bundle"
+    ti.bundle_instance.version = None
+    ti._terminal_state_send_failed = False
+    mock_startup.return_value = (ti, {}, mock.Mock())
+    mock_run.return_value = (state, mock.Mock(), error)
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    t = provider.get_tracer("test")
+
+    with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+        task_runner.main()
+
+    worker = {s.name: s for s in exporter.get_finished_spans()}["worker.my_task"]
+    if expect_error_status:
+        assert worker.status.status_code == trace.StatusCode.ERROR
+        assert any(e.name == "exception" for e in worker.events)
+    else:
+        assert worker.status.status_code != trace.StatusCode.ERROR
+
+
 def test_run_swallows_supervisor_terminal_send_failure(create_runtime_ti, mock_supervisor_comms):
     """
     When the supervisor rejects the terminal-state send (e.g. the server
@@ -3766,6 +3842,30 @@ class TestXComAfterTaskExecution:
         )
 
 
+def _recording_email_backend(
+    to: list[str] | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    dryrun: bool = False,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    conn_id: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
+    **kwargs,
+) -> None:
+    """
+    Legacy ``[email] email_backend`` stub, patched with an autospecced mock in tests.
+
+    Mirrors the ``airflow.utils.email.send_email`` signature so the autospec enforces the
+    calling convention ``_LegacyEmailBackendNotifier`` has to honour. Duplicated here rather
+    than imported because the Task SDK must not depend on ``airflow-core``.
+    """
+    raise AssertionError("should be patched in the test")
+
+
 class TestEmailNotifications:
     FROM = "from@airflow"
 
@@ -3931,6 +4031,77 @@ class TestEmailNotifications:
                     == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
                 )
                 assert kwargs["from_email"] == self.FROM
+
+    def test_custom_email_backend_is_used(self, create_runtime_ti, mock_supervisor_comms):
+        """A custom ``[email] email_backend`` is wrapped and invoked with rendered fields."""
+        backend = mock.create_autospec(_recording_email_backend)
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="legacy_backend_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars(
+            {
+                ("email", "email_backend"): f"{__name__}._recording_email_backend",
+                ("email", "email_conn_id"): "my_smtp",
+                ("email", "from_email"): self.FROM,
+            }
+        ):
+            with mock.patch(f"{__name__}._recording_email_backend", backend):
+                with mock.patch(
+                    "airflow.providers.smtp.notifications.smtp.SmtpNotifier", autospec=True
+                ) as mock_smtp_notifier:
+                    state, _, error = run(runtime_ti, context, log)
+                    finalize(runtime_ti, state, context, log, error)
+
+        # The default SMTP notifier must not be used when a custom backend is configured.
+        mock_smtp_notifier.assert_not_called()
+        backend.assert_called_once()
+        args, kwargs = backend.call_args
+        # send_email(to, subject, html_content, conn_id=..., from_email=...)
+        assert args[0] == ["test@example.com"]
+        assert kwargs["conn_id"] == "my_smtp"
+        assert kwargs["from_email"] == self.FROM
+
+    def test_unresolvable_email_backend_is_logged(self, create_runtime_ti, mock_supervisor_comms):
+        """An unimportable custom backend is logged, and does not silently fall back to SMTP."""
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="bad_backend_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "email_backend"): "airflow.does.not.Exist"}):
+            # SmtpNotifier is patched to succeed, so a logged exception can only come from
+            # resolving the custom backend -- without that, this would pass pre-fix too.
+            with mock.patch(
+                "airflow.providers.smtp.notifications.smtp.SmtpNotifier", autospec=True
+            ) as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                # Must not raise even though the backend cannot be loaded.
+                finalize(runtime_ti, state, context, log, error)
+
+        mock_smtp_notifier.assert_not_called()
+        log.exception.assert_called()
 
     @pytest.mark.enable_redact
     def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
@@ -5652,7 +5823,7 @@ class TestRunExecuteCallable:
         task = self._make_task(execution_timeout=timedelta(milliseconds=10))
 
         def execute(context):
-            time.sleep(2)
+            time.sleep(0.2)
 
         with pytest.raises(AirflowTaskTimeout):
             _run_execute_callable(context={}, execute=execute, task=task)

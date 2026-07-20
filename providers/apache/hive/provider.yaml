@@ -195,6 +195,20 @@ connection-types:
             - boolean
             - 'null'
           default: false
+      ssl:
+        label: Ssl
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: true
+      zoo_keeper_namespace:
+        label: Zoo Keeper Namespace
+        schema:
+          type:
+            - string
+            - 'null'
+          default: 'hiveserver2'
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
     hook-name: "Hive Server 2 Thrift"
     connection-type: hiveserver2

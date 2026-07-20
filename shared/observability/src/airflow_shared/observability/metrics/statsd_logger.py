@@ -170,7 +170,12 @@ def get_statsd_logger(
     statsd_influxdb_enabled: bool = False,
 ) -> SafeStatsdLogger:
     """Return logger for StatsD."""
-    statsd = stats_class(host, port, prefix, ipv6)
+    statsd = stats_class(
+        host=host,
+        port=port,
+        prefix=prefix,
+        ipv6=ipv6,
+    )
 
     metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
     validator = get_validator(metrics_allow_list, metrics_block_list)
