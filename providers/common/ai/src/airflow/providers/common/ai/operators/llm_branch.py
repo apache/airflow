@@ -60,6 +60,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
+        if kwargs.get("require_approval"):
+            raise ValueError("require_approval=True is not supported by LLMBranchOperator.")
         super().__init__(**kwargs)
         self.allow_multiple_branches = allow_multiple_branches
 

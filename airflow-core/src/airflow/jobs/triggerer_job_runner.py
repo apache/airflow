@@ -979,7 +979,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         if new_trigger_ids:
             workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
 
-            queued_at = time.time()
+            queued_at = time.monotonic()
 
             for workload in workloads_to_create:
                 workload.queued_at = queued_at
@@ -1401,9 +1401,11 @@ class TriggerRunner:
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
                 )
             if workload.queued_at is not None:
+                # `queued_at` is captured by the supervisor process and consumed by the runner process.
+                # Both run on the same host, so their monotonic timestamps are comparable.
                 stats.timing(
                     "triggerer.trigger_queue_delay",
-                    int((time.time() - workload.queued_at) * 1000),
+                    int((time.monotonic() - workload.queued_at) * 1000),
                     tags=prune_dict({"team_name": self.team_name}),
                 )
 
